@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Poppins, Roboto_Mono, Inter, Spectral } from "next/font/google";
 import "./globals.css";
+import { ThemeProvider } from "@/components/ui/theme-provider";
 
 const spectral = Spectral({
   variable: "--font-spectral",
@@ -29,7 +30,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "Waves and Waders",
-  description: "Check the ocean conditions of your local beaches",
+  description: "Check the surf conditions of your local beaches",
 };
 
 export default function RootLayout({
@@ -38,11 +39,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${roboto_mono.variable} ${inter.variable} ${poppins.variable} ${spectral.variable} font-poppins antialiased`}
       >
-        {children}
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );
