@@ -1,0 +1,11 @@
+# requirements.txt
+# Python dependencies for surf database update script
+
+supabase>=2.0.0
+openmeteo-requests>=1.1.0
+pandas>=2.0.0
+requests-cache>=1.0.0
+retry-requests>=1.0.0
+pytz>=2023.3
+numpy>=1.24.0
+urllib3>=2.0.0

@@ -1,0 +1,170 @@
+2025-08-18 23:31:34,133 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/forecast_data?id=neq.0 "HTTP/2 400 Bad Request"
+2025-08-18 23:34:12,525 - INFO - 🏄‍♂️ Starting surf database update...
+2025-08-18 23:34:12,525 - INFO - 🔄 STEP 1: Cleaning up old data
+2025-08-18 23:34:12,526 - INFO - 🗑️ Deleting old forecast data...
+2025-08-18 23:34:13,342 - INFO -    Found 1000 forecast records to delete
+2025-08-18 23:34:13,485 - WARNING -    Could not delete forecast data: {'message': 'JSON could not be generated', 'code': 414, 'hint': 'Refer to full message for details', 'details': "b'<html>\\r\\n<head><title>414 Request-URI Too Large</title></head>\\r\\n<body>\\r\\n<center><h1>414 Request-URI Too Large</h1></center>\\r\\n<hr><center>cloudflare</center>\\r\\n</body>\\r\\n</html>\\r\\n'"}
+2025-08-18 23:34:13,499 - INFO - 🗑️ Deleting old daily conditions...
+2025-08-18 23:34:13,643 - INFO -    Found 119 daily records to delete
+2025-08-18 23:34:13,856 - INFO -    Daily conditions deleted successfully
+2025-08-18 23:34:13,856 - INFO - ✅ Old data cleanup completed
+2025-08-18 23:34:13,857 - INFO - 🔄 STEP 2: Fetching beach data
+2025-08-18 23:34:14,145 - INFO -    Fetched 1000 beaches (batch 1)
+2025-08-18 23:34:14,268 - INFO -    Fetched 647 beaches (batch 2)
+2025-08-18 23:34:14,269 - INFO - ✅ Found 1647 beaches with valid coordinates (total: 1647)
+2025-08-18 23:34:14,269 - INFO - 🔄 STEP 3: Calculating county centroids
+2025-08-18 23:34:14,531 - INFO - ✅ Calculated centroids for 17 counties
+2025-08-18 23:34:14,531 - INFO - 🔄 STEP 4: Updating forecast data
+2025-08-18 23:34:16,137 - INFO -    Fetching forecasts from 2025-08-18 to 2025-08-25
+2025-08-18 23:34:19,013 - ERROR - ❌ Error inserting forecast chunk: {'message': 'duplicate key value violates unique constraint "forecast_data_beach_time_key"', 'code': '23505', 'hint': None, 'details': 'Key (beach_id, "timestamp")=(f0451053-87bc-4128-96cd-f58d6c2a4f20, 2025-08-18 07:00:00+00) already exists.'}
+2025-08-18 23:34:19,424 - ERROR - ❌ Error inserting forecast chunk: {'message': 'duplicate key value violates unique constraint "forecast_data_beach_time_key"', 'code': '23505', 'hint': None, 'details': 'Key (beach_id, "timestamp")=(d2195ac5-16fd-411e-b25c-3ed5e6b0e6c0, 2025-08-23 07:00:00+00) already exists.'}
+2025-08-18 23:34:19,424 - INFO -    Processed batch: 20 beaches, 3840 records in 3.3s
+2025-08-18 23:34:20,410 - ERROR - ❌ Error inserting forecast chunk: {'message': 'duplicate key value violates unique constraint "forecast_data_beach_time_key"', 'code': '23505', 'hint': None, 'details': 'Key (beach_id, "timestamp")=(38d18f9f-6107-49e5-a3d7-dd4db2f57fa8, 2025-08-18 07:00:00+00) already exists.'}
+2025-08-18 23:34:20,622 - ERROR - ❌ Error inserting forecast chunk: {'message': 'duplicate key value violates unique constraint "forecast_data_beach_time_key"', 'code': '23505', 'hint': None, 'details': 'Key (beach_id, "timestamp")=(2821a0cc-2718-4443-8883-eb606dbedb35, 2025-08-23 07:00:00+00) already exists.'}
+2025-08-18 23:34:20,622 - INFO -    Processed batch: 20 beaches, 3840 records in 1.2s
+2025-08-18 23:34:21,731 - ERROR - ❌ Error inserting forecast chunk: {'message': 'duplicate key value violates unique constraint "forecast_data_beach_time_key"', 'code': '23505', 'hint': None, 'details': 'Key (beach_id, "timestamp")=(180bfd8d-8140-4638-a297-4a8ad7f049a1, 2025-08-18 07:00:00+00) already exists.'}
+2025-08-18 23:34:21,980 - ERROR - ❌ Error inserting forecast chunk: {'message': 'duplicate key value violates unique constraint "forecast_data_beach_time_key"', 'code': '23505', 'hint': None, 'details': 'Key (beach_id, "timestamp")=(100cc15e-0b56-4b37-ae89-71c94939c9e3, 2025-08-23 07:00:00+00) already exists.'}
+2025-08-18 23:34:21,980 - INFO -    Processed batch: 20 beaches, 3840 records in 1.4s
+2025-08-18 23:34:23,036 - ERROR - ❌ Error inserting forecast chunk: {'message': 'duplicate key value violates unique constraint "forecast_data_beach_time_key"', 'code': '23505', 'hint': None, 'details': 'Key (beach_id, "timestamp")=(241cfd23-ed9d-44d5-b4e5-6de6275a2951, 2025-08-18 07:00:00+00) already exists.'}
+2025-08-18 23:34:23,201 - ERROR - ❌ Error inserting forecast chunk: {'message': 'duplicate key value violates unique constraint "forecast_data_beach_time_key"', 'code': '23505', 'hint': None, 'details': 'Key (beach_id, "timestamp")=(7401e142-ad40-4b9a-b314-33f7c83654d2, 2025-08-23 07:00:00+00) already exists.'}
+2025-08-18 23:34:23,201 - INFO -    Processed batch: 20 beaches, 3840 records in 1.2s
+2025-08-18 23:34:24,136 - ERROR - ❌ Error inserting forecast chunk: {'message': 'duplicate key value violates unique constraint "forecast_data_beach_time_key"', 'code': '23505', 'hint': None, 'details': 'Key (beach_id, "timestamp")=(52278e23-ffe2-42f0-a156-35f1f06fbf0c, 2025-08-18 07:00:00+00) already exists.'}
+2025-08-18 23:34:24,260 - ERROR - ❌ Error inserting forecast chunk: {'message': 'duplicate key value violates unique constraint "forecast_data_beach_time_key"', 'code': '23505', 'hint': None, 'details': 'Key (beach_id, "timestamp")=(ac85fcf0-5945-4a4e-93db-55334fd7eda8, 2025-08-23 07:00:00+00) already exists.'}
+2025-08-18 23:34:24,260 - INFO -    Processed batch: 20 beaches, 3840 records in 1.1s
+2025-08-18 23:34:25,425 - ERROR - ❌ Error inserting forecast chunk: {'message': 'duplicate key value violates unique constraint "forecast_data_beach_time_key"', 'code': '23505', 'hint': None, 'details': 'Key (beach_id, "timestamp")=(fef8df4a-4e58-4319-82cd-95efdf56fc6e, 2025-08-18 07:00:00+00) already exists.'}
+2025-08-18 23:34:25,619 - ERROR - ❌ Error inserting forecast chunk: {'message': 'duplicate key value violates unique constraint "forecast_data_beach_time_key"', 'code': '23505', 'hint': None, 'details': 'Key (beach_id, "timestamp")=(e561e7a1-3e37-4e59-9231-c3d5591ebda5, 2025-08-23 07:00:00+00) already exists.'}
+2025-08-18 23:34:25,620 - INFO -    Processed batch: 20 beaches, 3840 records in 1.4s
+2025-08-18 23:34:26,497 - ERROR - ❌ Error inserting forecast chunk: {'message': 'duplicate key value violates unique constraint "forecast_data_beach_time_key"', 'code': '23505', 'hint': None, 'details': 'Key (beach_id, "timestamp")=(399184cf-034e-4d9b-9300-26dfc70217b5, 2025-08-18 07:00:00+00) already exists.'}
+2025-08-18 23:34:26,605 - ERROR - ❌ Error inserting forecast chunk: {'message': 'duplicate key value violates unique constraint "forecast_data_beach_time_key"', 'code': '23505', 'hint': None, 'details': 'Key (beach_id, "timestamp")=(3888586e-72e1-4bb5-8de7-19f89f7f3834, 2025-08-23 07:00:00+00) already exists.'}
+2025-08-18 23:34:26,606 - INFO -    Processed batch: 20 beaches, 3840 records in 1.0s
+2025-08-18 23:34:27,707 - ERROR - ❌ Error inserting forecast chunk: {'message': 'duplicate key value violates unique constraint "forecast_data_beach_time_key"', 'code': '23505', 'hint': None, 'details': 'Key (beach_id, "timestamp")=(1dc0e4cf-aacb-4712-b06c-566df1b418db, 2025-08-18 07:00:00+00) already exists.'}
+2025-08-18 23:34:27,965 - ERROR - ❌ Error inserting forecast chunk: {'message': 'duplicate key value violates unique constraint "forecast_data_beach_time_key"', 'code': '23505', 'hint': None, 'details': 'Key (beach_id, "timestamp")=(a5f98f77-0695-42d4-8e0d-17212b0c0b9d, 2025-08-23 07:00:00+00) already exists.'}
+2025-08-18 23:34:27,966 - INFO -    Processed batch: 20 beaches, 3840 records in 1.4s
+2025-08-18 23:36:08,319 - INFO - 🏄‍♂️ Starting surf database update...
+2025-08-18 23:36:08,320 - INFO - 🔄 STEP 1: Cleaning up old data
+2025-08-18 23:36:08,320 - INFO - 🗑️ Deleting old forecast data...
+2025-08-18 23:36:11,927 - WARNING -    Timestamp-based deletion failed: {'message': 'canceling statement due to statement timeout', 'code': '57014', 'hint': None, 'details': None}
+2025-08-18 23:36:12,050 - INFO -    Found 1000 forecast records to delete
+2025-08-18 23:36:13,032 - INFO -    Forecast data deleted by ID
+2025-08-18 23:36:13,032 - INFO - 🗑️ Deleting old daily conditions...
+2025-08-18 23:36:13,222 - INFO -    Daily conditions deleted successfully
+2025-08-18 23:36:13,222 - INFO - ✅ Old data cleanup completed (or will use UPSERT for conflicts)
+2025-08-18 23:36:13,223 - INFO - 🔄 STEP 2: Fetching beach data
+2025-08-18 23:36:13,337 - INFO -    Fetched 1000 beaches (batch 1)
+2025-08-18 23:36:13,412 - INFO -    Fetched 647 beaches (batch 2)
+2025-08-18 23:36:13,413 - INFO - ✅ Found 1647 beaches with valid coordinates (total: 1647)
+2025-08-18 23:36:13,413 - INFO - 🔄 STEP 3: Calculating county centroids
+2025-08-18 23:36:13,562 - INFO - ✅ Calculated centroids for 17 counties
+2025-08-18 23:36:13,563 - INFO - 🔄 STEP 4: Updating forecast data
+2025-08-18 23:36:13,601 - INFO -    Fetching forecasts from 2025-08-18 to 2025-08-25
+2025-08-18 23:36:16,386 - INFO -    Processed batch: 20 beaches, 3840 records in 2.8s
+2025-08-18 23:36:17,627 - INFO -    Processed batch: 20 beaches, 3840 records in 1.2s
+2025-08-18 23:36:18,649 - INFO -    Processed batch: 20 beaches, 3840 records in 1.0s
+2025-08-18 23:36:19,644 - INFO -    Processed batch: 20 beaches, 3840 records in 1.0s
+2025-08-18 23:36:20,592 - INFO -    Processed batch: 20 beaches, 3840 records in 0.9s
+2025-08-18 23:36:21,502 - INFO -    Processed batch: 20 beaches, 3840 records in 0.9s
+2025-08-18 23:36:22,368 - INFO -    Processed batch: 20 beaches, 3840 records in 0.9s
+2025-08-18 23:36:23,273 - INFO -    Processed batch: 20 beaches, 3840 records in 0.9s
+2025-08-18 23:36:25,007 - INFO -    Processed batch: 20 beaches, 3840 records in 1.7s
+2025-08-18 23:36:26,828 - INFO -    Processed batch: 20 beaches, 3840 records in 1.8s
+2025-08-18 23:36:28,164 - INFO -    Processed batch: 20 beaches, 3840 records in 1.3s
+2025-08-18 23:36:29,491 - INFO -    Processed batch: 20 beaches, 3840 records in 1.3s
+2025-08-18 23:36:30,818 - INFO -    Processed batch: 20 beaches, 3840 records in 1.3s
+2025-08-18 23:36:32,255 - INFO -    Processed batch: 20 beaches, 3840 records in 1.4s
+2025-08-18 23:36:33,692 - INFO -    Processed batch: 20 beaches, 3840 records in 1.4s
+2025-08-18 23:36:35,258 - INFO -    Processed batch: 20 beaches, 3840 records in 1.6s
+2025-08-18 23:36:36,713 - INFO -    Processed batch: 20 beaches, 3840 records in 1.5s
+2025-08-18 23:36:38,238 - INFO -    Processed batch: 20 beaches, 3840 records in 1.5s
+2025-08-18 23:36:39,591 - INFO -    Processed batch: 20 beaches, 3840 records in 1.4s
+2025-08-18 23:36:41,135 - INFO -    Processed batch: 20 beaches, 3840 records in 1.5s
+2025-08-18 23:36:42,470 - INFO -    Processed batch: 20 beaches, 3840 records in 1.3s
+2025-08-18 23:36:43,859 - INFO -    Processed batch: 20 beaches, 3840 records in 1.4s
+2025-08-18 23:36:45,271 - INFO -    Processed batch: 20 beaches, 3840 records in 1.4s
+2025-08-18 23:36:46,637 - INFO -    Processed batch: 20 beaches, 3840 records in 1.4s
+2025-08-18 23:36:47,938 - INFO -    Processed batch: 20 beaches, 3840 records in 1.3s
+2025-08-18 23:36:49,267 - INFO -    Processed batch: 20 beaches, 3840 records in 1.3s
+2025-08-18 23:36:50,589 - INFO -    Processed batch: 20 beaches, 3840 records in 1.3s
+2025-08-18 23:36:51,906 - INFO -    Processed batch: 20 beaches, 3840 records in 1.3s
+2025-08-18 23:36:53,119 - INFO -    Processed batch: 20 beaches, 3840 records in 1.2s
+2025-08-18 23:36:54,297 - INFO -    Processed batch: 20 beaches, 3840 records in 1.2s
+2025-08-18 23:36:55,444 - INFO -    Processed batch: 20 beaches, 3840 records in 1.1s
+2025-08-18 23:36:56,752 - INFO -    Processed batch: 20 beaches, 3840 records in 1.3s
+2025-08-18 23:36:58,217 - INFO -    Processed batch: 20 beaches, 3840 records in 1.5s
+2025-08-18 23:36:59,392 - INFO -    Processed batch: 20 beaches, 3840 records in 1.2s
+2025-08-18 23:37:00,772 - INFO -    Processed batch: 20 beaches, 3840 records in 1.4s
+2025-08-18 23:37:02,739 - INFO -    Processed batch: 20 beaches, 3840 records in 2.0s
+2025-08-18 23:37:04,301 - INFO -    Processed batch: 20 beaches, 3840 records in 1.6s
+2025-08-18 23:37:05,921 - INFO -    Processed batch: 20 beaches, 3840 records in 1.6s
+2025-08-18 23:37:07,556 - INFO -    Processed batch: 20 beaches, 3840 records in 1.6s
+2025-08-18 23:37:09,024 - INFO -    Processed batch: 20 beaches, 3840 records in 1.5s
+2025-08-18 23:37:10,433 - INFO -    Processed batch: 20 beaches, 3840 records in 1.4s
+2025-08-18 23:37:11,620 - INFO -    Processed batch: 20 beaches, 3840 records in 1.2s
+2025-08-18 23:37:12,802 - INFO -    Processed batch: 20 beaches, 3840 records in 1.2s
+2025-08-18 23:37:14,216 - INFO -    Processed batch: 20 beaches, 3840 records in 1.4s
+2025-08-18 23:37:15,622 - INFO -    Processed batch: 20 beaches, 3840 records in 1.4s
+2025-08-18 23:37:17,206 - INFO -    Processed batch: 20 beaches, 3840 records in 1.6s
+2025-08-18 23:37:18,795 - INFO -    Processed batch: 20 beaches, 3840 records in 1.6s
+2025-08-18 23:37:20,042 - INFO -    Processed batch: 20 beaches, 3840 records in 1.2s
+2025-08-18 23:37:21,415 - INFO -    Processed batch: 20 beaches, 3840 records in 1.4s
+2025-08-18 23:37:22,954 - INFO -    Processed batch: 20 beaches, 3840 records in 1.5s
+2025-08-18 23:37:24,367 - INFO -    Processed batch: 20 beaches, 3840 records in 1.4s
+2025-08-18 23:37:25,523 - INFO -    Processed batch: 20 beaches, 3840 records in 1.2s
+2025-08-18 23:37:26,977 - INFO -    Processed batch: 20 beaches, 3840 records in 1.5s
+2025-08-18 23:37:28,279 - INFO -    Processed batch: 20 beaches, 3840 records in 1.3s
+2025-08-18 23:37:29,666 - INFO -    Processed batch: 20 beaches, 3840 records in 1.4s
+2025-08-18 23:37:30,964 - INFO -    Processed batch: 20 beaches, 3840 records in 1.3s
+2025-08-18 23:37:32,520 - INFO -    Processed batch: 20 beaches, 3840 records in 1.6s
+2025-08-18 23:37:33,719 - INFO -    Processed batch: 20 beaches, 3840 records in 1.2s
+2025-08-18 23:37:35,109 - INFO -    Processed batch: 20 beaches, 3840 records in 1.4s
+2025-08-18 23:37:36,400 - INFO -    Processed batch: 20 beaches, 3840 records in 1.3s
+2025-08-18 23:37:37,780 - INFO -    Processed batch: 20 beaches, 3840 records in 1.4s
+2025-08-18 23:37:38,897 - INFO -    Processed batch: 20 beaches, 3840 records in 1.1s
+2025-08-18 23:37:40,129 - INFO -    Processed batch: 20 beaches, 3840 records in 1.2s
+2025-08-18 23:37:41,293 - INFO -    Processed batch: 20 beaches, 3840 records in 1.2s
+2025-08-18 23:37:42,949 - INFO -    Processed batch: 20 beaches, 3840 records in 1.7s
+2025-08-18 23:37:44,188 - INFO -    Processed batch: 20 beaches, 3840 records in 1.2s
+2025-08-18 23:37:44,353 - ERROR - ❌ Error processing batch: failed to request 'https://api.open-meteo.com/v1/forecast': {'reason': 'Minutely API request limit exceeded. Please try again in one minute.', 'error': True}
+2025-08-18 23:37:44,518 - ERROR - ❌ Error processing batch: failed to request 'https://api.open-meteo.com/v1/forecast': {'reason': 'Minutely API request limit exceeded. Please try again in one minute.', 'error': True}
+2025-08-18 23:37:44,682 - ERROR - ❌ Error processing batch: failed to request 'https://api.open-meteo.com/v1/forecast': {'reason': 'Minutely API request limit exceeded. Please try again in one minute.', 'error': True}
+2025-08-18 23:37:44,846 - ERROR - ❌ Error processing batch: failed to request 'https://api.open-meteo.com/v1/forecast': {'reason': 'Minutely API request limit exceeded. Please try again in one minute.', 'error': True}
+2025-08-18 23:37:45,010 - ERROR - ❌ Error processing batch: failed to request 'https://api.open-meteo.com/v1/forecast': {'reason': 'Minutely API request limit exceeded. Please try again in one minute.', 'error': True}
+2025-08-18 23:37:45,174 - ERROR - ❌ Error processing batch: failed to request 'https://api.open-meteo.com/v1/forecast': {'error': True, 'reason': 'Minutely API request limit exceeded. Please try again in one minute.'}
+2025-08-18 23:37:45,338 - ERROR - ❌ Error processing batch: failed to request 'https://api.open-meteo.com/v1/forecast': {'reason': 'Minutely API request limit exceeded. Please try again in one minute.', 'error': True}
+2025-08-18 23:37:45,502 - ERROR - ❌ Error processing batch: failed to request 'https://api.open-meteo.com/v1/forecast': {'error': True, 'reason': 'Minutely API request limit exceeded. Please try again in one minute.'}
+2025-08-18 23:37:45,666 - ERROR - ❌ Error processing batch: failed to request 'https://api.open-meteo.com/v1/forecast': {'error': True, 'reason': 'Minutely API request limit exceeded. Please try again in one minute.'}
+2025-08-18 23:37:45,830 - ERROR - ❌ Error processing batch: failed to request 'https://api.open-meteo.com/v1/forecast': {'reason': 'Minutely API request limit exceeded. Please try again in one minute.', 'error': True}
+2025-08-18 23:37:45,994 - ERROR - ❌ Error processing batch: failed to request 'https://api.open-meteo.com/v1/forecast': {'reason': 'Minutely API request limit exceeded. Please try again in one minute.', 'error': True}
+2025-08-18 23:37:46,157 - ERROR - ❌ Error processing batch: failed to request 'https://api.open-meteo.com/v1/forecast': {'reason': 'Minutely API request limit exceeded. Please try again in one minute.', 'error': True}
+2025-08-18 23:37:46,321 - ERROR - ❌ Error processing batch: failed to request 'https://api.open-meteo.com/v1/forecast': {'reason': 'Minutely API request limit exceeded. Please try again in one minute.', 'error': True}
+2025-08-18 23:37:46,486 - ERROR - ❌ Error processing batch: failed to request 'https://api.open-meteo.com/v1/forecast': {'reason': 'Minutely API request limit exceeded. Please try again in one minute.', 'error': True}
+2025-08-18 23:37:46,649 - ERROR - ❌ Error processing batch: failed to request 'https://api.open-meteo.com/v1/forecast': {'error': True, 'reason': 'Minutely API request limit exceeded. Please try again in one minute.'}
+2025-08-18 23:37:46,814 - ERROR - ❌ Error processing batch: failed to request 'https://api.open-meteo.com/v1/forecast': {'error': True, 'reason': 'Minutely API request limit exceeded. Please try again in one minute.'}
+2025-08-18 23:37:46,977 - ERROR - ❌ Error processing batch: failed to request 'https://api.open-meteo.com/v1/forecast': {'error': True, 'reason': 'Minutely API request limit exceeded. Please try again in one minute.'}
+2025-08-18 23:37:46,978 - INFO - ✅ Forecast update completed: 1320 beaches, 253440 records
+2025-08-18 23:37:46,980 - INFO - 🔄 STEP 5: Updating daily conditions
+2025-08-18 23:37:47,502 - INFO -    OK Ventura: 7 days
+2025-08-18 23:37:47,514 - INFO -    OK Del Norte: 7 days
+2025-08-18 23:37:47,544 - INFO -    OK Sonoma: 7 days
+2025-08-18 23:37:47,555 - INFO -    OK Humboldt: 7 days
+2025-08-18 23:37:47,556 - INFO -    OK Mendocino: 7 days
+2025-08-18 23:37:47,890 - INFO -    OK Marin: 7 days
+2025-08-18 23:37:47,912 - INFO -    OK Los Angeles: 7 days
+2025-08-18 23:37:47,935 - INFO -    OK San Francisco: 7 days
+2025-08-18 23:37:47,951 - INFO -    OK Santa Cruz: 7 days
+2025-08-18 23:37:47,960 - INFO -    OK San Mateo: 7 days
+2025-08-18 23:37:48,312 - INFO -    OK San Luis Obispo: 7 days
+2025-08-18 23:37:48,323 - INFO -    OK 3_Central Coast: 7 days
+2025-08-18 23:37:48,355 - INFO -    OK Orange: 7 days
+2025-08-18 23:37:48,535 - INFO -    OK Monterey: 7 days
+2025-08-18 23:37:48,591 - INFO -    OK Santa Barbara: 7 days
+2025-08-18 23:37:48,694 - INFO -    OK Orange (and LA): 7 days
+2025-08-18 23:37:48,719 - INFO -    OK San Diego: 7 days
+2025-08-18 23:37:48,837 - INFO - ✅ Daily conditions updated: 17 counties, 119 records
+2025-08-18 23:37:48,838 - INFO - ✅ DATABASE UPDATE COMPLETED! 🎉
+2025-08-18 23:37:48,838 - INFO - 📊 Summary:
+2025-08-18 23:37:48,838 - INFO -    • Beaches processed: 1647
+2025-08-18 23:37:48,838 - INFO -    • Counties processed: 17
+2025-08-18 23:37:48,838 - INFO -    • Forecast records: 253440
+2025-08-18 23:37:48,838 - INFO -    • Daily condition records: 119
+2025-08-18 23:37:48,838 - INFO -    • Total time: 100.5 seconds
+2025-08-18 23:37:48,839 - INFO - 🏁 Script finished with exit code: 0
