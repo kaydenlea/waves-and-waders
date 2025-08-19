@@ -4,7 +4,7 @@ import DatePicker from "@/components/general/DatePicker";
 import HourSlider from "@/components/general/HourSlider";
 import SurfChart from "@/components/graphs/SurfChart";
 import SwellChart from "@/components/graphs/SwellChart";
-import TideChart from "@/components/graphs/TideChart";
+import { TideChart } from "@/components/graphs/TideChart";
 import WindChart from "@/components/graphs/WindChart";
 import Highlights from "@/components/visuals/Highlights";
 import StatTable from "@/components/visuals/StatTable";
@@ -21,10 +21,12 @@ const Page = ({ params }: { params: { beach: string } }) => {
   return (
     <div className="@container">
       <header>
-        <h1>Huntington Beach</h1>
-        <p>Thursday, Aug 14</p>
+        <h1 className="font-semibold text-3xl tracking-tight">
+          Huntington Beach
+        </h1>
       </header>
       <section>
+        <h2 className="mb-2">Thursday, Aug 14</h2>
         <Summary />
       </section>
       <section>

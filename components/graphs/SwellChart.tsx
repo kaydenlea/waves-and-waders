@@ -1,7 +1,7 @@
 const SwellChart = () => {
   return (
     <>
-      <h2>swell chart</h2>
+      <h3>swell chart</h3>
       <canvas>graph</canvas>
     </>
   );

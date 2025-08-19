@@ -1,7 +1,7 @@
 const Highlights = () => {
   return (
     <>
-      <h2>highlights</h2>
+      <h3>highlights</h3>
       <ul>
         <li>1</li>
       </ul>
