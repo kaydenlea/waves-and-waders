@@ -1,7 +1,7 @@
 const WindChart = () => {
   return (
     <>
-      <h2>wind chart</h2>
+      <h3>wind chart</h3>
       <canvas>graph</canvas>
     </>
   );
