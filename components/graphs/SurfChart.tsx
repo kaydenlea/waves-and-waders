@@ -1,7 +1,7 @@
 const SurfChart = () => {
   return (
     <>
-      <h2>surf chart</h2>
+      <h3>surf chart</h3>
       <canvas>graph</canvas>
     </>
   );
