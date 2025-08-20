@@ -47,10 +47,10 @@ const Page = ({ params }: { params: { beach: string } }) => {
           </figure>
         </div>
         <div className="flex flex-col @min-3xl:flex-row gap-2">
-          <figure>
+          <figure className="flex-1">
             <SwellChart />
           </figure>
-          <figure>
+          <figure className="flex-1">
             <SurfChart />
           </figure>
         </div>
