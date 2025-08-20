@@ -1,4 +1,9 @@
-
+#!/usr/bin/env python3
+"""
+Surf Database Update Script - IMPERIAL UNITS VERSION
+Deletes old forecast data and refreshes with new 7-day forecasts.
+Uses imperial units: mph, feet, Fahrenheit
+"""
 
 import urllib.request
 import urllib.error
@@ -19,20 +24,12 @@ import pytz
 import numpy as np
 from supabase import create_client, Client
 
-
-def to_local_timestamps(start_unix, end_unix, interval_sec, tz_str="America/Los_Angeles"):
-    """Build timezone-aware hourly index matching Open-Meteo arrays."""
-    start = pd.to_datetime(start_unix, unit="s", utc=True).tz_convert(tz_str)
-    end_ = pd.to_datetime(end_unix, unit="s", utc=True).tz_convert(tz_str)
-    return pd.date_range(start=start, end=end_, freq=pd.Timedelta(seconds=interval_sec), inclusive="left")#!/usr/bin/env python3
-
-
 # === CONFIGURATION ===
 SUPABASE_URL = "https://wborkytqlmkcgwzhsoiz.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indib3JreXRxbG1rY2d3emhzb2l6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQxMTMxNDcsImV4cCI6MjA2OTY4OTE0N30.9kRB3eSEL_N37dy6FjGfNJEDBiCXam9nepDLowCCxk0"
 VC_API_KEY = "NFYFM562X2PY2M4W4GE8WZZGC"
 
-# Script settings
+# Script settings with rate limiting
 DAYS_FORECAST = 7
 BATCH_SIZE = 10           # Reduced from 20 to be gentler on API
 UPSERT_CHUNK = 3000
@@ -65,6 +62,31 @@ cache_session = requests_cache.CachedSession(".cache", expire_after=3600)
 retry_session = retry(cache_session, retries=3, backoff_factor=0.2)
 openmeteo = openmeteo_requests.Client(session=retry_session)
 
+# === UNIT CONVERSION FUNCTIONS ===
+def celsius_to_fahrenheit(celsius):
+    """Convert Celsius to Fahrenheit."""
+    if celsius is None:
+        return None
+    return (celsius * 9/5) + 32
+
+def kph_to_mph(kph):
+    """Convert km/h to mph."""
+    if kph is None:
+        return None
+    return kph * 0.621371
+
+def meters_to_feet(meters):
+    """Convert meters to feet."""
+    if meters is None:
+        return None
+    return meters * 3.28084
+
+def hpa_to_inhg(hpa):
+    """Convert hectopascals (hPa) to inches of mercury (inHg)."""
+    if hpa is None:
+        return None
+    return hpa * 0.02953
+
 # === UTILITY FUNCTIONS ===
 def log_step(message: str, step_num: int = None):
     """Log a major step with formatting."""
@@ -72,37 +94,6 @@ def log_step(message: str, step_num: int = None):
         logger.info(f"STEP {step_num}: {message}")
     else:
         logger.info(f"OK: {message}")
-
-def valid_coord(x):
-    """Check if coordinate is valid (not None, not NaN)."""
-    try:
-        return x is not None and not (isinstance(x, float) and math.isnan(x))
-    except Exception:
-        return False
-
-def safe_float(x):
-    """Convert to float; return None for NaN/Inf or unparseable values."""
-    try:
-        if x is None:
-            return None
-        v = float(x)
-        return v if np.isfinite(v) else None
-    except Exception:
-        return None
-
-def chunk_iter(seq, n):
-    """Split sequence into chunks of size n."""
-    for i in range(0, len(seq), n):
-        yield seq[i:i+n]
-
-def nonempty_record(record, exclude_keys=("beach_id", "timestamp")):
-    """Return True if at least one non-excluded field is not None."""
-    for k, v in record.items():
-        if k in exclude_keys:
-            continue
-        if v is not None:
-            return True
-    return False
 
 def api_request_with_retry(api_func, *args, max_retries=MAX_RETRIES, **kwargs):
     """Make API request with retry logic for rate limiting."""
@@ -132,6 +123,54 @@ def api_request_with_retry(api_func, *args, max_retries=MAX_RETRIES, **kwargs):
 def safe_api_delay():
     """Add a small delay between API calls to be respectful."""
     time.sleep(API_DELAY)
+
+def valid_coord(x):
+    """Check if coordinate is valid (not None, not NaN)."""
+    try:
+        return x is not None and not (isinstance(x, float) and math.isnan(x))
+    except Exception:
+        return False
+
+def safe_float(x):
+    """Convert to float; return None for NaN/Inf or unparseable values."""
+    try:
+        if x is None:
+            return None
+        v = float(x)
+        return v if np.isfinite(v) else None
+    except Exception:
+        return None
+
+def safe_int(x):
+    """Convert to int; return None for NaN/Inf or unparseable values."""
+    try:
+        if x is None:
+            return None
+        if np.isfinite(x):
+            return int(x)
+        return None
+    except Exception:
+        return None
+
+def chunk_iter(seq, n):
+    """Split sequence into chunks of size n."""
+    for i in range(0, len(seq), n):
+        yield seq[i:i+n]
+
+def nonempty_record(record, exclude_keys=("beach_id", "timestamp")):
+    """Return True if at least one non-excluded field is not None."""
+    for k, v in record.items():
+        if k in exclude_keys:
+            continue
+        if v is not None:
+            return True
+    return False
+
+def to_local_timestamps(start_unix, end_unix, interval_sec, tz_str="America/Los_Angeles"):
+    """Build timezone-aware hourly index matching Open-Meteo arrays."""
+    start = pd.to_datetime(start_unix, unit="s", utc=True).tz_convert(tz_str)
+    end_ = pd.to_datetime(end_unix, unit="s", utc=True).tz_convert(tz_str)
+    return pd.date_range(start=start, end=end_, freq=pd.Timedelta(seconds=interval_sec), inclusive="left")
 
 # === DATABASE OPERATIONS ===
 def cleanup_old_data():
@@ -229,7 +268,7 @@ def fetch_all_beaches(page_size: int = 1000):
             start += page_size
             
         except Exception as e:
-            logger.error(f"❌ Error fetching beaches: {e}")
+            logger.error(f"ERROR: Error fetching beaches: {e}")
             break
     
     # Filter for valid coordinates
@@ -264,7 +303,7 @@ def fetch_all_counties(page_size: int = 1000):
                 break
             start += page_size
         except Exception as e:
-            logger.error(f"❌ Error fetching county data: {e}")
+            logger.error(f"ERROR: Error fetching county data: {e}")
             break
     
     # Group by county and calculate centroid coordinates
@@ -296,7 +335,7 @@ def fetch_all_counties(page_size: int = 1000):
     return counties
 
 def update_forecast_data(beaches):
-    """Update forecast data for all beaches."""
+    """Update forecast data for all beaches with imperial units."""
     log_step("Updating forecast data", 4)
     
     # Date range
@@ -327,14 +366,14 @@ def update_forecast_data(beaches):
                 logger.info(f"   Waiting {API_DELAY}s to respect API limits...")
                 safe_api_delay()
 
-            # Weather API call with retry
+            # Weather API call with retry - NOW INCLUDING WEATHER_CODE
             weather_url = "https://api.open-meteo.com/v1/forecast"
             weather_params = {
                 "latitude": lats,
                 "longitude": lons,
                 "hourly": [
                     "windspeed_10m", "windgusts_10m", "winddirection_10m",
-                    "temperature_2m", "pressure_msl"
+                    "temperature_2m", "pressure_msl", "weather_code"  # ADDED WEATHER_CODE
                 ],
                 "timezone": "America/Los_Angeles",
                 "start_date": today,
@@ -375,7 +414,7 @@ def update_forecast_data(beaches):
 
             # Process responses
             if len(weather_responses) != len(marine_responses) or len(weather_responses) != len(batch):
-                logger.warning(f"⚠️ Response count mismatch for batch {batch_count}, skipping")
+                logger.warning(f"WARNING: Response count mismatch for batch {batch_count}, skipping")
                 continue
 
             logger.info(f"   Processing {len(batch)} beaches data...")
@@ -394,50 +433,66 @@ def update_forecast_data(beaches):
                         tz_str="America/Los_Angeles"
                     )
 
-                    # Extract data arrays
+                    # Extract data arrays - WEATHER NOW HAS 6 VARIABLES
                     wind_speed_kph = wr.Variables(0).ValuesAsNumpy()
                     wind_gust_kph = wr.Variables(1).ValuesAsNumpy()
                     wind_dir_deg = wr.Variables(2).ValuesAsNumpy()
-                    temp_2m = wr.Variables(3).ValuesAsNumpy()
+                    temp_2m_c = wr.Variables(3).ValuesAsNumpy()
                     pressure_hpa = wr.Variables(4).ValuesAsNumpy()
+                    weather_code = wr.Variables(5).ValuesAsNumpy()  # NEW: Weather code
 
-                    pri_swell_h = mr.Variables(0).ValuesAsNumpy()
+                    pri_swell_h_m = mr.Variables(0).ValuesAsNumpy()
                     pri_swell_p = mr.Variables(1).ValuesAsNumpy()
                     pri_swell_dir = mr.Variables(2).ValuesAsNumpy()
-                    sec_swell_h = mr.Variables(3).ValuesAsNumpy()
+                    sec_swell_h_m = mr.Variables(3).ValuesAsNumpy()
                     sec_swell_p = mr.Variables(4).ValuesAsNumpy()
                     sec_swell_dir = mr.Variables(5).ValuesAsNumpy()
                     surf_height_max_m = mr.Variables(6).ValuesAsNumpy()
                     water_temp_c = mr.Variables(7).ValuesAsNumpy()
                     tide_level_m = mr.Variables(8).ValuesAsNumpy()
 
-                    # Build records
+                    # Build records with IMPERIAL UNIT CONVERSIONS
                     n = min(len(timestamps), len(wind_speed_kph), len(surf_height_max_m))
                     for j in range(n):
-                        raw_surf_max = surf_height_max_m[j]
-                        surf_max = safe_float(raw_surf_max)
-                        surf_min = surf_max * 0.7 if surf_max is not None else None
-                        wave_energy = surf_max ** 2 if surf_max is not None else None
+                        # Convert wave heights to feet
+                        raw_surf_max_m = surf_height_max_m[j]
+                        surf_max_ft = safe_float(meters_to_feet(raw_surf_max_m))
+                        surf_min_ft = surf_max_ft * 0.7 if surf_max_ft is not None else None
+                        
+                        # Wave energy in foot-pounds (using feet instead of meters)
+                        wave_energy_ft_lbs = surf_max_ft ** 2 if surf_max_ft is not None else None
 
                         record = {
                             "beach_id": beach_id,
                             "timestamp": pd.Timestamp(timestamps[j]).isoformat(),
-                            "primary_swell_height_m": safe_float(pri_swell_h[j]),
+                            
+                            # Swell data - convert heights to feet, keep periods in seconds, directions in degrees
+                            "primary_swell_height_ft": safe_float(meters_to_feet(pri_swell_h_m[j])),
                             "primary_swell_period_s": safe_float(pri_swell_p[j]),
                             "primary_swell_direction": safe_float(pri_swell_dir[j]),
-                            "secondary_swell_height_m": safe_float(sec_swell_h[j]),
+                            
+                            "secondary_swell_height_ft": safe_float(meters_to_feet(sec_swell_h_m[j])),
                             "secondary_swell_period_s": safe_float(sec_swell_p[j]),
                             "secondary_swell_direction": safe_float(sec_swell_dir[j]),
-                            "surf_height_min_m": safe_float(surf_min),
-                            "surf_height_max_m": safe_float(surf_max),
-                            "wave_energy_joules": safe_float(wave_energy),
-                            "water_temp_c": safe_float(water_temp_c[j]),
-                            "tide_level_m": safe_float(tide_level_m[j]),
-                            "wind_speed_kph": safe_float(wind_speed_kph[j]),
-                            "wind_gust_kph": safe_float(wind_gust_kph[j]),
+                            
+                            # Surf data - all in feet
+                            "surf_height_min_ft": safe_float(surf_min_ft),
+                            "surf_height_max_ft": safe_float(surf_max_ft),
+                            "wave_energy_ft_lbs": safe_float(wave_energy_ft_lbs),
+                            
+                            # Water conditions - temperature in F, tide in feet
+                            "water_temp_f": safe_float(celsius_to_fahrenheit(water_temp_c[j])),
+                            "tide_level_ft": safe_float(meters_to_feet(tide_level_m[j])),
+                            
+                            # Wind data - convert to mph
+                            "wind_speed_mph": safe_float(kph_to_mph(wind_speed_kph[j])),
+                            "wind_gust_mph": safe_float(kph_to_mph(wind_gust_kph[j])),
                             "wind_direction_deg": safe_float(wind_dir_deg[j]),
-                            "weather": safe_float(temp_2m[j]),
-                            "pressure_hpa": safe_float(pressure_hpa[j]),
+                            
+                            # Weather data - temperature in F, pressure in inHg
+                            "temperature": safe_float(celsius_to_fahrenheit(temp_2m_c[j])),
+                            "weather": safe_int(weather_code[j]),  # Weather code as integer
+                            "pressure_inhg": safe_float(hpa_to_inhg(pressure_hpa[j])),
                         }
 
                         if nonempty_record(record):
@@ -585,7 +640,7 @@ def update_daily_conditions(counties):
 def main():
     """Main execution function."""
     start_time = time.time()
-    logger.info("SURF: Starting surf database update...")
+    logger.info("SURF: Starting surf database update with IMPERIAL UNITS...")
     
     try:
         # Step 1: Cleanup old data
@@ -618,6 +673,7 @@ def main():
         logger.info(f"   • Forecast records: {forecast_count}")
         logger.info(f"   • Daily condition records: {daily_count}")
         logger.info(f"   • Total time: {total_time:.1f} seconds")
+        logger.info(f"   • Units: Imperial (mph, feet, Fahrenheit, inHg)")
         
         return True
         

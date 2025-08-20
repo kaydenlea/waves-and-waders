@@ -1,31 +1,240 @@
 "use client";
-
-import { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Slider } from "@/components/ui/slider";
+import { cn } from "@/lib/utils";
+import { ForecastData } from "@/lib/supabase";
 
-const HourSlider = () => {
-  const [value, setValue] = useState([10]);
-  const displayValue = value[0] % 12 === 0 ? 12 : value[0] % 12;
-  const min = 0;
-  const max = 23;
-  const step = 1;
-  // const ticks = Array.from(
-  //   { length: (max - min) / step + 1 },
-  //   (_, i) => min + i * step
-  // );
+interface HourSliderProps {
+  selectedHour?: number;
+  onHourChange?: (hour: number) => void;
+  forecastData?: ForecastData[];
+  selectedDate?: Date;
+  className?: string;
+  showDataIndicators?: boolean;
+}
+
+interface HourData {
+  hour: number;
+  hasData: boolean;
+  surfHeight: number | null;
+  quality: "flat" | "poor" | "fair" | "good" | "epic" | "huge";
+}
+
+const HourSlider = ({
+  selectedHour = new Date().getHours(),
+  onHourChange,
+  forecastData = [],
+  selectedDate = new Date(),
+  className,
+  showDataIndicators = true,
+}: HourSliderProps) => {
+  const [internalValue, setInternalValue] = useState([selectedHour]);
+
+  useEffect(() => {
+    setInternalValue([selectedHour]);
+  }, [selectedHour]);
+
+  const dayForecastData = useMemo(() => {
+    if (!forecastData.length) return [];
+    const targetDateStr = selectedDate.toDateString();
+    return forecastData.filter((forecast) => {
+      const forecastDate = new Date(forecast.timestamp);
+      return forecastDate.toDateString() === targetDateStr;
+    });
+  }, [forecastData, selectedDate]);
+
+  const hourData = useMemo((): HourData[] => {
+    const hours = Array.from({ length: 24 }, (_, i) => i);
+    return hours.map((hour) => {
+      const hourForecast = dayForecastData.find((forecast) => {
+        const forecastHour = new Date(forecast.timestamp).getHours();
+        return forecastHour === hour;
+      });
+
+      let quality: HourData["quality"] = "flat";
+      let surfHeight: number | null = null;
+
+      if (hourForecast) {
+        surfHeight = hourForecast.surf.heightMax;
+        if (surfHeight !== null) {
+          if (surfHeight < 1) quality = "flat";
+          else if (surfHeight < 2) quality = "poor";
+          else if (surfHeight < 4) quality = "fair";
+          else if (surfHeight < 8) quality = "good";
+          else if (surfHeight < 12) quality = "epic";
+          else quality = "huge";
+        }
+      }
+
+      return {
+        hour,
+        hasData: !!hourForecast,
+        surfHeight,
+        quality,
+      };
+    });
+  }, [dayForecastData]);
+
+  const availableHours = hourData.filter((h) => h.hasData).map((h) => h.hour);
+
+  const formatHour = (hour: number): string => {
+    const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+    const ampm = hour >= 12 ? "PM" : "AM";
+    return `${displayHour} ${ampm}`;
+  };
+
+  const getQualityColor = (quality: HourData["quality"]): string => {
+    const colorMap = {
+      flat: "bg-red-400",
+      poor: "bg-orange-400",
+      fair: "bg-yellow-400",
+      good: "bg-green-400",
+      epic: "bg-blue-400",
+      huge: "bg-purple-400",
+    };
+    return colorMap[quality] || "bg-gray-300";
+  };
+
+  const handleSliderChange = (newValue: number[]) => {
+    const hour = newValue[0];
+    setInternalValue(newValue);
+    onHourChange?.(hour);
+  };
+
+  const currentHourData = hourData.find((h) => h.hour === internalValue[0]);
+  const currentTime = new Date();
+  const isToday = selectedDate.toDateString() === currentTime.toDateString();
+  const isPastHour = isToday && internalValue[0] < currentTime.getHours();
+
+  // Quick hour selection buttons (6 fixed anchors)
+  const quickHours = [6, 9, 12, 15, 18, 21];
+
   return (
-    <div className="flex flex-col gap-2 relative p-2.5 bg-background border-x border-b border-border shadow-md rounded-b-sm">
-      <h3 className="text-md font-medium">{`${displayValue} ${
-        value[0] >= 12 && value[0] < 24 ? "PM" : "AM"
-      }`}</h3>
-      <Slider
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onValueChange={setValue}
-        className="z-1"
-      />
+    <div
+      className={cn(
+        "flex flex-col gap-3 relative p-3 bg-background border-x border-b border-border shadow-md rounded-b-sm",
+        className
+      )}
+    >
+      {/* Header with current time and data status */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className={cn("text-lg font-medium", isPastHour && "text-gray-500")}>
+            {formatHour(internalValue[0])}
+            {isToday && internalValue[0] === currentTime.getHours() && (
+              <span className="ml-2 text-sm text-green-600 font-normal">Now</span>
+            )}
+          </h3>
+
+          {currentHourData?.hasData && currentHourData.surfHeight !== null ? (
+            <p className="text-sm text-gray-600">
+              {currentHourData.surfHeight.toFixed(1)}ft • {currentHourData.quality}
+              {isPastHour && " (past)"}
+            </p>
+          ) : (
+            <p className="text-sm text-gray-400">No data available</p>
+          )}
+        </div>
+
+        <div className="text-right">
+          <p className="text-xs text-gray-500">{availableHours.length}/24 hours</p>
+          <p className="text-xs text-gray-500">
+            {selectedDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+          </p>
+        </div>
+      </div>
+
+      {/* Slider */}
+      <div className="relative">
+        <Slider
+          min={0}
+          max={23}
+          step={1}
+          value={internalValue}
+          onValueChange={handleSliderChange}
+          className="z-10"
+        />
+
+        {/* Hour data indicators aligned to the slider track */}
+        {showDataIndicators && (
+          <div className="absolute top-6 left-0 right-0 flex justify-between px-3">
+            {hourData.map((hour) => (
+              <div
+                key={hour.hour}
+                className={cn(
+                  "w-1 h-2 rounded-full transition-all",
+                  hour.hasData ? getQualityColor(hour.quality) : "bg-gray-200",
+                  hour.hour === internalValue[0] && "ring-2 ring-blue-500 ring-offset-1"
+                )}
+                title={
+                  hour.hasData
+                    ? `${formatHour(hour.hour)}: ${hour.surfHeight?.toFixed(1)}ft (${hour.quality})`
+                    : `${formatHour(hour.hour)}: No data`
+                }
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Quick select — now evenly spaced and aligned */}
+      <div className="mt-1">
+        <div className="text-xs text-gray-500 mb-1">Quick select</div>
+
+        {/* Even grid: six equal columns so buttons line up */}
+        <div className="grid grid-cols-6 gap-2">
+          {quickHours.map((hour) => {
+            const hourInfo = hourData.find((h) => h.hour === hour);
+            const isAvailable = !!hourInfo?.hasData;
+            const isSelected = hour === internalValue[0];
+
+            return (
+              <button
+                key={hour}
+                onClick={() => handleSliderChange([hour])}
+                disabled={!isAvailable}
+                className={cn(
+                  "w-full h-8 rounded text-xs font-medium transition-colors",
+                  "flex items-center justify-center",
+                  isSelected && "bg-blue-500 text-white",
+                  !isSelected && isAvailable && "bg-gray-100 hover:bg-gray-200",
+                  !isAvailable && "bg-gray-50 text-gray-400 cursor-not-allowed"
+                )}
+                title={
+                  isAvailable
+                    ? `${formatHour(hour)}: ${hourInfo?.surfHeight?.toFixed(1)}ft`
+                    : `${formatHour(hour)}: No data`
+                }
+              >
+                {/* Compact label: 6 AM → 6a, 12 PM → 12p */}
+                <span className="tabular-nums">
+                  {(() => {
+                    const [num, mer] = formatHour(hour).split(" ");
+                    return `${num}${mer[0].toLowerCase()}`;
+                  })()}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Hour scale labels */}
+      <div className="flex justify-between text-xs text-gray-400 px-1">
+        <span>12 AM</span>
+        <span>6 AM</span>
+        <span>12 PM</span>
+        <span>6 PM</span>
+        <span>11 PM</span>
+      </div>
+
+      {dayForecastData.length === 0 && (
+        <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm">
+          <p className="text-yellow-800">
+            ⚠️ No forecast data available for {selectedDate.toLocaleDateString()}
+          </p>
+        </div>
+      )}
     </div>
   );
 };

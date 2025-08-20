@@ -1,6 +1,5 @@
 import { cn } from "@/lib/utils";
 import { TidePreview } from "../graphs/TideChart";
-
 import { IoIosWater as WaterIcon } from "react-icons/io";
 import {
   FaSun as SunIcon,
@@ -24,6 +23,118 @@ import {
   GiBeachBucket as SandIcon,
 } from "react-icons/gi";
 import SwellStat from "../general/SwellStat";
+import { ForecastData } from "@/lib/supabase";
+
+interface Beach {
+  id: number;
+  Name: string;
+  COUNTY: string;
+  LATITUDE: number;
+  LONGITUDE: number;
+  // Optional feature flags (wired from DB if provided)
+  FISHING?: boolean | null;
+  RESTROOMS?: boolean | null;
+  PARKING?: boolean | null;
+  DOG_FRIEND?: boolean | null;
+  SNDY_BEACH?: boolean | null;
+  LIFEGUARD?: boolean | null;
+}
+
+interface SummaryProps {
+  currentForecast?: ForecastData | null;
+  beach?: Beach;
+  todayForecast?: ForecastData[];
+  selectedHour?: number;
+  className?: string;
+}
+
+/* =========================
+   Helpers
+   ========================= */
+
+const getWindDirection = (degrees: number | null): string => {
+  if (degrees === null || degrees === undefined) return "N";
+  const norm = ((degrees % 360) + 360) % 360;
+  const directions = [
+    "N","NNE","NE","ENE","E","ESE","SE","SSE",
+    "S","SSW","SW","WSW","W","WNW","NW","NNW",
+  ];
+  const index = Math.round(norm / 22.5) % 16;
+  return directions[index];
+};
+
+const getWindDirectionIcon = (direction: string) => {
+  const iconMap: { [key: string]: React.ComponentType<any> } = {
+    N: NArrowIcon,
+    NNE: NEArrowIcon,
+    NE: NEArrowIcon,
+    ENE: NEArrowIcon,
+    E: EArrowIcon,
+    ESE: SEArrowIcon,
+    SE: SEArrowIcon,
+    SSE: SEArrowIcon,
+    S: SArrowIcon,
+    SSW: SWArrowIcon,
+    SW: SWArrowIcon,
+    WSW: SWArrowIcon,
+    W: WArrowIcon,
+    WNW: NWArrowIcon,
+    NW: NWArrowIcon,
+    NNW: NWArrowIcon,
+  };
+  return iconMap[direction] || NArrowIcon;
+};
+
+// Round to nearest tenth
+const round1 = (v: number | null | undefined): number => {
+  if (v == null || Number.isNaN(v)) return 0;
+  return Math.round(v * 10) / 10;
+};
+
+// Surf height display
+const formatSurfHeight = (min: number | null, max: number | null): string => {
+  if (min == null || max == null) return "0-1";
+  if (min === max) return min.toFixed(0);
+  return `${min.toFixed(0)}-${max.toFixed(0)}`;
+};
+
+// --- Onshore/Offshore classification from compass strings ---
+const norm360 = (d: number) => ((d % 360) + 360) % 360;
+const bearingDiff = (a: number, b: number) =>
+  Math.abs(((norm360(a) - norm360(b) + 540) % 360) - 180);
+
+const DIR_TO_DEG: Record<string, number> = {
+  N: 0, NNE: 22.5, NE: 45, ENE: 67.5,
+  E: 90, ESE: 112.5, SE: 135, SSE: 157.5,
+  S: 180, SSW: 202.5, SW: 225, WSW: 247.5,
+  W: 270, WNW: 292.5, NW: 315, NNW: 337.5,
+};
+const degFromDir = (dir: string) => DIR_TO_DEG[dir.toUpperCase()] ?? 0;
+
+// County → typical beach facing (shore normal)
+const shoreNormalByCounty: Record<string, string> = {
+  Orange: "WSW",
+  "Los Angeles": "WSW",
+  "San Diego": "W",
+  "Santa Barbara": "WSW",
+  Monterey: "W",
+};
+const shoreNormalFor = (county?: string) =>
+  (county && shoreNormalByCounty[county]) || "WSW";
+
+const getWindLocationFromCompass = (
+  windDirStr: string | null | undefined,
+  shoreNormalStr: string = "WSW"
+): "onshore" | "offshore" => {
+  if (!windDirStr) return "onshore";
+  const windDeg = degFromDir(windDirStr);
+  const shoreDeg = degFromDir(shoreNormalStr);
+  return bearingDiff(windDeg, shoreDeg) <= 90 ? "onshore" : "offshore";
+};
+
+/* =========================
+   UI bits
+   ========================= */
 
 const GradientCircle = ({
   data,
@@ -55,8 +166,8 @@ const GradientCircle = ({
         style={{
           background: `conic-gradient(
             from -90deg,
-            ${colors[0]} 0deg,          
-            ${colors[1]} ${angle * 0.33}deg, 
+            ${colors[0]} 0deg,
+            ${colors[1]} ${angle * 0.33}deg,
             ${colors[2]} ${angle * 0.66}deg,
             ${colors[3]} ${angle}deg,
             transparent ${angle}deg 360deg
@@ -89,12 +200,13 @@ const GradientCircle = ({
 const WindStat = ({
   data,
 }: {
-  data: { direction: string; speed: number; loc: string };
+  data: { direction: string; speed: number; loc: "onshore" | "offshore" };
 }) => {
+  const WindIcon = getWindDirectionIcon(data.direction);
   return (
     <div className="flex items-center gap-1">
       <div className="shadow-sm border border-border p-1 rounded-xl text-center">
-        <NEArrowIcon size={30} color="#ff6a34ff" />
+        <WindIcon size={30} color="#ff6a34ff" />
         <span className="text-[.7rem]">{data.direction}</span>
       </div>
       <div className="flex flex-col">
@@ -102,7 +214,10 @@ const WindStat = ({
           {data.speed}
           <span className="text-xs font-normal">mph</span>
         </span>
-        <span className="text-xs p-1 border border-border rounded-xl bg-highlight-1">
+        <span className={cn(
+          "text-xs p-1 border border-border rounded-xl",
+          data.loc === "offshore" ? "bg-green-100" : "bg-red-100"
+        )}>
           {data.loc}
         </span>
       </div>
@@ -115,10 +230,11 @@ const SurfStat = ({
 }: {
   data: { direction: string; height: string; period: number };
 }) => {
+  const SurfIcon = getWindDirectionIcon(data.direction);
   return (
     <div className="flex items-center gap-1">
       <div className="shadow-sm border border-border p-1 rounded-xl text-center">
-        <NWArrowIcon size={30} color="#51e72bff" />
+        <SurfIcon size={30} color="#51e72bff" />
         <span className="text-[.7rem]">{data.direction}</span>
       </div>
       <div className="flex flex-col">
@@ -153,78 +269,221 @@ const Tag = ({
   );
 };
 
-const Summary = () => {
+/* =========================
+   Summary Component
+   ========================= */
+
+const Summary = ({
+  currentForecast,
+  beach,
+  todayForecast = [],
+  selectedHour,
+  className,
+}: SummaryProps) => {
+  // Choose the datapoint to show
+  const getCurrentData = (): ForecastData | null => {
+    if (currentForecast) return currentForecast;
+    if (todayForecast.length === 0) return null;
+    if (selectedHour !== undefined) {
+      const hourData = todayForecast.find((forecast) => {
+        const forecastHour = new Date(forecast.timestamp).getHours();
+        return forecastHour === selectedHour;
+      });
+      if (hourData) return hourData;
+    }
+    return todayForecast[0] || null;
+  };
+
+  const currentData = getCurrentData();
+
+  // Defaults when no data
+  const defaultStats = {
+    water: { temp: "N/A" as number | string },
+    weather: { temp: "N/A" as number | string },
+    wind: { direction: "N", speed: 0, loc: "onshore" as "onshore" | "offshore" },
+    surf: { direction: "N", height: "0-1", period: 0 },
+    swell: {
+      primary: { height: 0, period: 0, wind: { dir: "N", deg: 0 } },
+      secondary: [
+        { height: 0, period: 0, wind: { dir: "N", deg: 0 } },
+        { height: 0, period: 0, wind: { dir: "N", deg: 0 } },
+      ],
+    },
+    tide: { height: 0 },
+  };
+
+  // Build processed stats (with rounding to nearest 0.1 for swell)
+  const windDirStr = getWindDirection(currentData?.conditions.windDirection ?? null);
+
+  const processedStats = currentData
+    ? {
+        water: {
+          temp: currentData.conditions.waterTemp
+            ? Math.round(currentData.conditions.waterTemp)
+            : "N/A",
+        },
+        weather: {
+          temp: currentData.conditions.airTemp
+            ? Math.round(currentData.conditions.airTemp)
+            : "N/A",
+        },
+        wind: {
+          direction: windDirStr,
+          speed: currentData.conditions.windSpeed
+            ? Math.round(currentData.conditions.windSpeed)
+            : 0,
+          loc: getWindLocationFromCompass(
+            windDirStr,
+            shoreNormalFor(beach?.COUNTY)
+          ),
+        },
+        surf: {
+          direction: getWindDirection(currentData.swell.primary.direction),
+          height: formatSurfHeight(
+            currentData.surf.heightMin,
+            currentData.surf.heightMax
+          ),
+          period: currentData.swell.primary.period
+            ? Math.round(currentData.swell.primary.period)
+            : 0,
+        },
+        swell: {
+          primary: {
+            height: round1(currentData.swell.primary.height || 0),
+            period: round1(currentData.swell.primary.period || 0),
+            wind: {
+              dir: getWindDirection(currentData.swell.primary.direction),
+              deg: currentData.swell.primary.direction || 0,
+            },
+          },
+          secondary: [
+            {
+              height: round1(currentData.swell.secondary.height || 0),
+              period: round1(currentData.swell.secondary.period || 0),
+              wind: {
+                dir: getWindDirection(currentData.swell.secondary.direction),
+                deg: currentData.swell.secondary.direction || 0,
+              },
+            },
+            {
+              height: round1((currentData.swell.secondary.height || 0) * 0.7),
+              period: round1(currentData.swell.secondary.period || 0),
+              wind: {
+                dir: getWindDirection(currentData.swell.secondary.direction),
+                deg: currentData.swell.secondary.direction || 0,
+              },
+            },
+          ],
+        },
+        tide: {
+          height: currentData.conditions.tideLevel || 0,
+        },
+      }
+    : defaultStats;
+
+  // Features from DB flags (if provided on beach)
+  const getBeachFeatures = (b?: Beach) => {
+    if (!b) return [];
+    const tags = [];
+    if (b.FISHING) tags.push({ label: "Fishing", icon: <FishingPoleIcon />, color: "bg-blue-100" });
+    if (b.RESTROOMS) tags.push({ label: "Bathrooms", icon: <BathroomIcon />, color: "bg-yellow-100" });
+    if (b.PARKING) tags.push({ label: "Parking", icon: <ParkingIcon />, color: "bg-green-100" });
+    if (b.DOG_FRIEND) tags.push({ label: "Dogs", icon: <DogIcon />, color: "bg-red-100" });
+    if (b.SNDY_BEACH) tags.push({ label: "Sandy", icon: <SandIcon />, color: "bg-orange-100" });
+    if (b.LIFEGUARD) tags.push({ label: "Lifeguard", icon: <LifeRingIcon />, color: "bg-purple-100" });
+    return tags;
+  };
+
   const stats = [
-    { type: "water", temp: 64 },
-    { type: "weather", temp: 60 },
+    { type: "water", temp: processedStats.water.temp },
+    { type: "weather", temp: processedStats.weather.temp },
     {
       type: "swell",
-      primary: { height: 2.1, period: 7, wind: { dir: "W", deg: 272 } },
-      secondary: [
-        { height: 2.1, period: 7, wind: { dir: "W", deg: 272 } },
-        { height: 2.1, period: 7, wind: { dir: "W", deg: 272 } },
-      ],
+      primary: processedStats.swell.primary,
+      secondary: processedStats.swell.secondary,
     },
-    { type: "tide", height: 2.4 },
-    { type: "wind", wind: { direction: "NNE", speed: 12, loc: "offshore" } },
-    { type: "surf", surf: { direction: "NNW", height: "2-3", period: 11 } },
-    {
-      type: "features",
-      tags: [
-        { label: "Fishing", icon: <FishingPoleIcon />, color: "bg-blue" },
-        { label: "Bathrooms", icon: <BathroomIcon />, color: "bg-yellow" },
-        { label: "Parking", icon: <ParkingIcon />, color: "bg-green" },
-        { label: "Dogs", icon: <DogIcon />, color: "bg-red" },
-        { label: "Sandy", icon: <SandIcon />, color: "bg-orange" },
-        { label: "Lifeguard", icon: <LifeRingIcon />, color: "bg-purple" },
-      ],
-    },
-  ];
-  return (
-    <ul className="grid grid-cols-2 @min-xl:grid-cols-3 @min-4xl:grid-cols-6 gap-2">
-      {stats.map((stat) => {
-        let content;
-        switch (stat.type) {
-          case "water":
-            content = <GradientCircle condition="water" data={stat.temp} />;
-            break;
-          case "weather":
-            content = <GradientCircle condition="sun" data={stat.temp} />;
-            break;
-          case "swell":
-            content = stat.primary && stat.secondary && (
-              <div className="flex flex-col items-center">
-                <SwellStat primary data={stat.primary} />
-                <SwellStat data={stat.secondary[0]} />
-                <SwellStat data={stat.secondary[1]} />
-              </div>
-            );
-            break;
-          case "tide":
-            content = (
-              <div className="flex flex-col w-full">
-                <span className="text-2xl font-medium">
-                  {stat.height}
-                  <span className="text-xs">ft</span>
-                </span>
-                <TidePreview />
-              </div>
-            );
-            break;
-          case "wind":
-            content = stat.wind && <WindStat data={stat.wind} />;
-            break;
-          case "surf":
-            content = stat.surf && <SurfStat data={stat.surf} />;
-            break;
-          case "features":
-            content =
-              stat.tags &&
-              stat.tags.map((tag) => <Tag key={tag.label} data={tag} />);
-            break;
-        }
+    { type: "tide", height: processedStats.tide.height },
+    { type: "wind", wind: processedStats.wind },
+    { type: "surf", surf: processedStats.surf },
+    { type: "features", tags: getBeachFeatures(beach) },
+  ] as const;
 
-        if (content) {
+  return (
+    <div className={cn("w-full", className)}>
+      {currentData && (
+        <div className="mb-2 text-xs text-gray-500">
+          Showing data for{" "}
+          {new Date(currentData.timestamp).toLocaleTimeString("en-US", {
+            hour: "numeric",
+            minute: "2-digit",
+            hour12: true,
+          })}
+          {beach && ` • ${beach.Name}, ${beach.COUNTY} County`}
+        </div>
+      )}
+
+      {!currentData && (
+        <div className="mb-2 text-xs text-yellow-600">
+          ⚠️ No forecast data available - showing sample data
+        </div>
+      )}
+
+      <ul className="grid grid-cols-2 @min-xl:grid-cols-3 @min-4xl:grid-cols-6 gap-2">
+        {stats.map((stat) => {
+          let content: React.ReactNode = null;
+
+          switch (stat.type) {
+            case "water":
+              content = <GradientCircle condition="water" data={stat.temp} />;
+              break;
+
+            case "weather":
+              content = <GradientCircle condition="sun" data={stat.temp} />;
+              break;
+
+            case "swell":
+              content =
+                stat.primary &&
+                stat.secondary && (
+                  <div className="flex flex-col items-center">
+                    <SwellStat primary data={stat.primary} />
+                    <SwellStat data={stat.secondary[0]} />
+                    <SwellStat data={stat.secondary[1]} />
+                  </div>
+                );
+              break;
+
+            case "tide":
+              content = (
+                <div className="flex flex-col w-full">
+                  <span className="text-2xl font-medium">
+                    {typeof stat.height === "number"
+                      ? stat.height.toFixed(1)
+                      : stat.height}
+                    <span className="text-xs">ft</span>
+                  </span>
+                  <TidePreview data={todayForecast} selectedHour={selectedHour} />
+                </div>
+              );
+              break;
+
+            case "wind":
+              content = stat.wind && <WindStat data={stat.wind} />;
+              break;
+
+            case "surf":
+              content = stat.surf && <SurfStat data={stat.surf} />;
+              break;
+
+            case "features":
+              content =
+                stat.tags &&
+                stat.tags.map((tag) => <Tag key={tag.label} data={tag} />);
+              break;
+          }
+
+          if (!content) return null;
+
           return (
             <li
               key={stat.type}
@@ -245,9 +504,9 @@ const Summary = () => {
               </div>
             </li>
           );
-        }
-      })}
-    </ul>
+        })}
+      </ul>
+    </div>
   );
 };
 
