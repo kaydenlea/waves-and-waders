@@ -1,8 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { CgDarkMode } from "react-icons/cg";
 import { useTheme } from "next-themes";
+import { SunMoon } from "lucide-react";
 
 const ThemeToggle = () => {
   const { theme, setTheme } = useTheme();
@@ -12,7 +12,7 @@ const ThemeToggle = () => {
       className="icon-button px-3.5 hide-button"
       onClick={() => setTheme(theme === "light" ? "dark" : "light")}
     >
-      <CgDarkMode className="icon-md" />
+      <SunMoon className="icon-md" />
     </button>
   );
 };

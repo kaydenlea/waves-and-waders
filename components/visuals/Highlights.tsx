@@ -1,9 +1,7 @@
 import { cn } from "@/lib/utils";
-import SwellStat from "../general/SwellStat";
+import SwellStat from "../general/Stats/SwellStat";
 
-import { FaSun, FaWind } from "react-icons/fa";
-import { IoIosWater } from "react-icons/io";
-import { WiMoonAltWaningCrescent2 } from "react-icons/wi";
+import { Sun, Droplets, MoonStar } from "lucide-react";
 
 const WeatherStat = ({
   temp,
@@ -15,9 +13,9 @@ const WeatherStat = ({
   return (
     <div className="flex items-center justify-center gap-0.5">
       {condition && condition === "sun" ? (
-        <FaSun size={22} color="#fa9847ff" />
+        <Sun size={22} color="#fa9847ff" />
       ) : (
-        <IoIosWater size={22} color="#80b7ffff" />
+        <Droplets size={22} color="#80b7ffff" />
       )}
       <span className="text-2xl font-medium">
         {temp}
@@ -48,8 +46,8 @@ const BasicStat = ({
 const MoonStat = ({ data }: { data: string }) => {
   const phase = data.split(" ");
   return (
-    <div className="flex items-center justify-center">
-      <WiMoonAltWaningCrescent2 size={28} />
+    <div className="flex items-center justify-center gap-1">
+      <MoonStar size={25} />
       <div className="flex flex-col">
         <span className="text-sm">{phase[0]}</span>
         <span className="text-sm">{phase[1]}</span>

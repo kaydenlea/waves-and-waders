@@ -1,14 +1,5 @@
 import { cn } from "@/lib/utils";
-import {
-  BsArrowDownCircleFill as SArrowIcon,
-  BsArrowDownLeftCircleFill as SWArrowIcon,
-  BsArrowLeftCircleFill as WArrowIcon,
-  BsArrowUpLeftCircleFill as NWArrowIcon,
-  BsArrowUpCircleFill as NArrowIcon,
-  BsArrowUpRightCircleFill as NEArrowIcon,
-  BsArrowRightCircleFill as EArrowIcon,
-  BsArrowDownRightCircleFill as SEArrowIcon,
-} from "react-icons/bs";
+import { MousePointer2 as ArrowIcon } from "lucide-react";
 
 const SwellStat = ({
   primary = false,
@@ -46,7 +37,14 @@ const SwellStat = ({
     >
       {stats.map((stat) => {
         if (stat.label === "swell wind arrow") {
-          return <SWArrowIcon size={12} color="#51e72bff" key={stat.label} />;
+          return (
+            <ArrowIcon
+              size={12}
+              fill="#51e72bff"
+              color="#51e72bff"
+              key={stat.label}
+            />
+          );
         }
         return (
           <span

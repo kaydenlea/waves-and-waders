@@ -45,86 +45,76 @@ const mockSwellData = [
 
 const SwellChart = () => {
   return (
-    <div className="h-full bg-background border border-border p-2 rounded-md shadow-sm">
-      <header className="mx-2 mb-4 mt-2">
-        <h3 className="leading-none font-semibold">
-          Swell <span className="text-base font-medium">(ft)</span>
-        </h3>
-        <span className="text-muted-foreground text-sm">
-          Showing the swell for the day
-        </span>
-      </header>
-      <ChartContainer
-        config={chartConfig}
-        className="@min-lg:aspect-auto @min-lg:h-[250px] w-full"
+    <ChartContainer
+      config={chartConfig}
+      className="@min-lg:aspect-auto @min-lg:h-[250px] w-full"
+    >
+      <AreaChart
+        accessibilityLayer
+        data={mockSwellData}
+        margin={{
+          left: -30,
+          right: 15,
+        }}
+        syncId="anyId"
       >
-        <AreaChart
-          accessibilityLayer
-          data={mockSwellData}
-          margin={{
-            left: -30,
-            right: 15,
-          }}
-          syncId="anyId"
-        >
-          <ReferenceArea x2={6} fill="#ccc1ffff" fillOpacity={0.2} />
-          <ReferenceArea x1={6} x2={18} fill="#FFE58F" fillOpacity={0.2} />
-          <ReferenceArea x1={18} x2={21} fill="#ccc1ffff" fillOpacity={0.2} />
-          <CartesianGrid
-            strokeDasharray="3 3"
-            stroke="#eee"
-            strokeWidth={0.5}
-            vertical={false}
-          />
-          <XAxis
-            dataKey="time"
-            tickLine={false}
-            axisLine={false}
-            tickMargin={8}
-            minTickGap={0}
-            fontSize={11}
-            tickFormatter={(value) =>
-              value % 3 === 0
-                ? (value % 12 === 0 ? 12 : value % 12).toString()
-                : ""
-            }
-          />
-          <YAxis
-            allowDecimals={false}
-            tickLine={false}
-            axisLine={false}
-            tickMargin={8}
-            fontSize={11}
-          />
-          <ChartLegend content={<ChartLegendContent />} />
-          <ChartTooltip content={<ChartTooltipContent />} />
-          <Area
-            type="monotone"
-            dataKey="primary"
-            stackId="1"
-            stroke="#023e8a"
-            fill="#0077b6"
-            fillOpacity={0.6}
-          />
-          <Area
-            type="monotone"
-            dataKey="secondary"
-            stackId="1"
-            stroke="#0096c7"
-            fill="#48cae4"
-            fillOpacity={0.6}
-          />
-          <Area
-            type="monotone"
-            dataKey="tertiary"
-            stackId="1"
-            stroke="#70ccebff"
-            fill="#adf1ffff"
-            fillOpacity={0.6}
-          />
-        </AreaChart>
-      </ChartContainer>
-    </div>
+        <ReferenceArea x2={6} fill="#ccc1ffff" fillOpacity={0.2} />
+        <ReferenceArea x1={6} x2={18} fill="#FFE58F" fillOpacity={0.2} />
+        <ReferenceArea x1={18} x2={21} fill="#ccc1ffff" fillOpacity={0.2} />
+        <CartesianGrid
+          strokeDasharray="3 3"
+          stroke="#eee"
+          strokeWidth={0.5}
+          vertical={false}
+        />
+        <XAxis
+          dataKey="time"
+          tickLine={false}
+          axisLine={false}
+          tickMargin={8}
+          minTickGap={0}
+          fontSize={11}
+          tickFormatter={(value) =>
+            value % 3 === 0
+              ? (value % 12 === 0 ? 12 : value % 12).toString()
+              : ""
+          }
+        />
+        <YAxis
+          allowDecimals={false}
+          tickLine={false}
+          axisLine={false}
+          tickMargin={8}
+          fontSize={11}
+        />
+        <ChartLegend content={<ChartLegendContent />} />
+        <ChartTooltip content={<ChartTooltipContent />} />
+        <Area
+          type="monotone"
+          dataKey="tertiary"
+          stackId="1"
+          stroke="#70ccebff"
+          fill="#adf1ffff"
+          fillOpacity={0.6}
+        />
+        <Area
+          type="monotone"
+          dataKey="secondary"
+          stackId="1"
+          stroke="#0096c7"
+          fill="#48cae4"
+          fillOpacity={0.6}
+        />
+        <Area
+          type="monotone"
+          dataKey="primary"
+          stackId="1"
+          stroke="#023e8a"
+          fill="#0077b6"
+          fillOpacity={0.6}
+        />
+      </AreaChart>
+    </ChartContainer>
   );
 };
 
