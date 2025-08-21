@@ -1,5 +1,4 @@
-import { FaSearch as SearchIcon } from "react-icons/fa";
-import { FiSliders as SliderIcon } from "react-icons/fi";
+import { Search, SlidersVertical } from "lucide-react";
 
 const SearchBar = () => {
   return (
@@ -9,7 +8,7 @@ const SearchBar = () => {
           aria-label="search"
           className="bg-blue-500 p-1.5 ml-2 text-white rounded-full"
         >
-          <SearchIcon className="icon-sm" />
+          <Search strokeWidth={3} className="icon-md" />
         </button>
         <input
           name="query"
@@ -20,7 +19,7 @@ const SearchBar = () => {
         />
       </div>
       <button aria-label="filters" className="icon-button p-4">
-        <SliderIcon />
+        <SlidersVertical className="icon-sm" />
       </button>
     </form>
   );

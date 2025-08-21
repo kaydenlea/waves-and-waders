@@ -1,157 +1,19 @@
 import { cn } from "@/lib/utils";
-import { TidePreview } from "../graphs/TideChart";
+import TidePreview from "../graphs/TidePreview";
+import SwellStat from "../general/Stats/SwellStat";
+import GradientCircle from "../general/Stats/GradientCircle";
+import Tag from "../general/Tag";
+import WindStat from "../general/Stats/WindStat";
+import SurfStat from "../general/Stats/SurfStat";
 
-import { IoIosWater as WaterIcon } from "react-icons/io";
 import {
-  FaSun as SunIcon,
-  FaDog as DogIcon,
-  FaParking as ParkingIcon,
-  FaRestroom as BathroomIcon,
-  FaLifeRing as LifeRingIcon,
-} from "react-icons/fa";
-import {
-  BsArrowDownCircleFill as SArrowIcon,
-  BsArrowDownLeftCircleFill as SWArrowIcon,
-  BsArrowLeftCircleFill as WArrowIcon,
-  BsArrowUpLeftCircleFill as NWArrowIcon,
-  BsArrowUpCircleFill as NArrowIcon,
-  BsArrowUpRightCircleFill as NEArrowIcon,
-  BsArrowRightCircleFill as EArrowIcon,
-  BsArrowDownRightCircleFill as SEArrowIcon,
-} from "react-icons/bs";
-import {
-  GiFishingPole as FishingPoleIcon,
-  GiBeachBucket as SandIcon,
-} from "react-icons/gi";
-import SwellStat from "../general/SwellStat";
-
-const GradientCircle = ({
-  data,
-  percentage = 75,
-  size = 75,
-  strokeWidth = 7,
-  condition = "sun",
-}: {
-  data?: React.ReactNode;
-  percentage?: number;
-  size?: number;
-  strokeWidth?: number;
-  condition?: string;
-}) => {
-  const angle = (percentage / 100) * 360;
-  const colors =
-    condition === "water"
-      ? ["#3b82f6", "#60a5fa", "#0ea5e9", "#22d3ee"]
-      : ["#facc15", "#f97316", "#f59e0b", "#fbbf24"];
-  return (
-    <div
-      className="relative flex items-center justify-center"
-      style={{ width: size, height: size }}
-    >
-      <div className="absolute inset-0 rounded-full bg-gray-200" />
-
-      <div
-        className="absolute inset-0 rounded-full"
-        style={{
-          background: `conic-gradient(
-            from -90deg,
-            ${colors[0]} 0deg,          
-            ${colors[1]} ${angle * 0.33}deg, 
-            ${colors[2]} ${angle * 0.66}deg,
-            ${colors[3]} ${angle}deg,
-            transparent ${angle}deg 360deg
-          )`,
-          filter: `drop-shadow(0 0 2px ${colors[0]}) drop-shadow(0 0 1px ${colors[1]})`,
-        }}
-      />
-
-      <div
-        className="absolute rounded-full bg-background"
-        style={{
-          width: size - strokeWidth * 2,
-          height: size - strokeWidth * 2,
-        }}
-      />
-      <div className="z-1 flex items-center">
-        {condition === "water" ? (
-          <WaterIcon size={18} className="text-[#1CACD4]" />
-        ) : (
-          <SunIcon size={18} className="text-[#FF8D0B]" />
-        )}
-        <span className="flex items-center font-medium whitespace-nowrap">
-          {data} <span className="text-xs font-normal">&deg;F</span>
-        </span>
-      </div>
-    </div>
-  );
-};
-
-const WindStat = ({
-  data,
-}: {
-  data: { direction: string; speed: number; loc: string };
-}) => {
-  return (
-    <div className="flex items-center gap-1">
-      <div className="shadow-sm border border-border p-1 rounded-xl text-center">
-        <NEArrowIcon size={30} color="#ff6a34ff" />
-        <span className="text-[.7rem]">{data.direction}</span>
-      </div>
-      <div className="flex flex-col">
-        <span className="text-2xl font-medium">
-          {data.speed}
-          <span className="text-xs font-normal">mph</span>
-        </span>
-        <span className="text-xs p-1 border border-border rounded-xl bg-highlight-1">
-          {data.loc}
-        </span>
-      </div>
-    </div>
-  );
-};
-
-const SurfStat = ({
-  data,
-}: {
-  data: { direction: string; height: string; period: number };
-}) => {
-  return (
-    <div className="flex items-center gap-1">
-      <div className="shadow-sm border border-border p-1 rounded-xl text-center">
-        <NWArrowIcon size={30} color="#51e72bff" />
-        <span className="text-[.7rem]">{data.direction}</span>
-      </div>
-      <div className="flex flex-col">
-        <span className="text-2xl font-medium">
-          {data.height}
-          <span className="text-xs font-normal">ft</span>
-        </span>
-        <span className="text-2xl font-medium">
-          {data.period}
-          <span className="text-xs font-normal">s</span>
-        </span>
-      </div>
-    </div>
-  );
-};
-
-const Tag = ({
-  data,
-}: {
-  data: { label: string; icon: React.ReactNode; color: string };
-}) => {
-  return (
-    <div
-      className={cn(
-        "flex items-center justify-center gap-1 py-1.5 px-4 rounded-md border border-border",
-        data.color
-      )}
-    >
-      {data.icon}
-      <span className="text-xs">{data.label}</span>
-    </div>
-  );
-};
+  Dog,
+  CircleParking,
+  Toilet,
+  LifeBuoy,
+  Fish,
+  Shell,
+} from "lucide-react";
 
 const Summary = () => {
   const stats = [
@@ -171,12 +33,20 @@ const Summary = () => {
     {
       type: "features",
       tags: [
-        { label: "Fishing", icon: <FishingPoleIcon />, color: "bg-blue" },
-        { label: "Bathrooms", icon: <BathroomIcon />, color: "bg-yellow" },
-        { label: "Parking", icon: <ParkingIcon />, color: "bg-green" },
-        { label: "Dogs", icon: <DogIcon />, color: "bg-red" },
-        { label: "Sandy", icon: <SandIcon />, color: "bg-orange" },
-        { label: "Lifeguard", icon: <LifeRingIcon />, color: "bg-purple" },
+        { label: "Fishing", icon: <Fish size={16} />, color: "bg-blue" },
+        { label: "Bathrooms", icon: <Toilet size={16} />, color: "bg-yellow" },
+        {
+          label: "Parking",
+          icon: <CircleParking size={16} />,
+          color: "bg-green",
+        },
+        { label: "Dogs", icon: <Dog size={16} />, color: "bg-red" },
+        { label: "Sandy", icon: <Shell size={16} />, color: "bg-orange" },
+        {
+          label: "Lifeguard",
+          icon: <LifeBuoy size={16} />,
+          color: "bg-purple",
+        },
       ],
     },
   ];
@@ -238,7 +108,8 @@ const Summary = () => {
               <div
                 className={cn(
                   "flex-1 flex items-center gap-1 mt-1",
-                  stat.type !== "features" && "justify-center"
+                  stat.type !== "features" && "justify-center",
+                  stat.type === "features" && "flex-wrap"
                 )}
               >
                 {content}
