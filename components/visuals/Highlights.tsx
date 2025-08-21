@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
-import SwellStat from "../general/SwellStat";
-import { IoIosWater } from "react-icons/io";
+import SwellStat from "../general/Stats/SwellStat";
+import { Sun, Droplets, MoonStar } from "lucide-react";
 import {
   WiDaySunny,
   WiCloudy,
@@ -10,7 +10,6 @@ import {
   WiSnow,
   WiThunderstorm,
   WiSleet,
-  WiHail,
 } from "react-icons/wi";
 import {
   fetchCurrentConditions,
@@ -42,10 +41,10 @@ const getWindDirection = (degrees: number | null): string => {
 };
 
 /* ---------------------------
-   Weather icon from WMO code
+   Weather icon from WMO code with fallback to Lucide
 ---------------------------- */
 const weatherIconByCode = (code: number | null | undefined) => {
-  if (code == null) return <WiDaySunny size={22} color="#f59e0b" />;
+  if (code == null) return <Sun size={22} color="#fa9847ff" />;
 
   // Reference:
   // 0 Clear
@@ -82,18 +81,25 @@ const weatherIconByCode = (code: number | null | undefined) => {
 
   if ([96, 99].includes(code)) return <WiThunderstorm size={22} color="#eab308" />;
 
-  // Fallback
-  return <WiDaySunny size={22} color="#f59e0b" />;
+  // Fallback to Lucide for unknown codes
+  return <Sun size={22} color="#fa9847ff" />;
 };
 
 /* ---------------------------
    Weather / Water UI
 ---------------------------- */
 
-const WeatherStat = ({ temp, code }: { temp: number; code?: number | null }) => {
+const WeatherStat = ({ temp, code, condition }: { temp: number; code?: number | null; condition?: string }) => {
   return (
-    <div className="flex items-center justify-center gap-1">
-      {weatherIconByCode(code ?? null)}
+    <div className="flex items-center justify-center gap-0.5">
+      {/* Use weather icon if code is provided, otherwise fallback to condition-based Lucide icons */}
+      {code !== undefined ? (
+        weatherIconByCode(code)
+      ) : condition && condition === "sun" ? (
+        <Sun size={22} color="#fa9847ff" />
+      ) : (
+        <Droplets size={22} color="#80b7ffff" />
+      )}
       <span className="text-2xl font-medium">
         {Math.round(temp)}
         <span className="text-sm font-normal">&deg;F</span>
@@ -105,7 +111,7 @@ const WeatherStat = ({ temp, code }: { temp: number; code?: number | null }) => 
 const WaterStat = ({ temp }: { temp: number }) => {
   return (
     <div className="flex items-center justify-center gap-1">
-      <IoIosWater size={22} color="#1CACD4" />
+      <Droplets size={22} color="#1CACD4" />
       <span className="text-2xl font-medium">
         {Math.round(temp)}
         <span className="text-sm font-normal">&deg;F</span>
@@ -140,7 +146,7 @@ const BasicStat = ({
    0.75..1      – waning crescent
 ---------------------------- */
 
-const MoonStat = ({ moonPhase }: { moonPhase: number | null }) => {
+const MoonStat = ({ moonPhase, phase }: { moonPhase?: number | null; phase?: [string, string] }) => {
   const getMoonPhaseInfo = (phase: number | null) => {
     if (phase == null) {
       return { description: "Unknown", percentage: 0, icon: "🌑" };
@@ -183,14 +189,27 @@ const MoonStat = ({ moonPhase }: { moonPhase: number | null }) => {
     return { description, percentage: pct, icon };
   };
 
-  const phaseInfo = getMoonPhaseInfo(moonPhase);
+  // Use moonPhase data if available, otherwise fall back to phase prop from origin/main
+  if (moonPhase !== undefined) {
+    const phaseInfo = getMoonPhaseInfo(moonPhase);
+    return (
+      <div className="flex items-center justify-center gap-2">
+        <div className="text-2xl">{phaseInfo.icon}</div>
+        <div className="flex flex-col text-center">
+          <span className="text-sm font-medium capitalize">{phaseInfo.description}</span>
+          <span className="text-xs text-gray-500">{phaseInfo.percentage}%</span>
+        </div>
+      </div>
+    );
+  }
 
+  // Fallback to origin/main style for backward compatibility
   return (
-    <div className="flex items-center justify-center gap-2">
-      <div className="text-2xl">{phaseInfo.icon}</div>
-      <div className="flex flex-col text-center">
-        <span className="text-sm font-medium capitalize">{phaseInfo.description}</span>
-        <span className="text-xs text-gray-500">{phaseInfo.percentage}%</span>
+    <div className="flex items-center justify-center gap-1">
+      <MoonStar size={25} />
+      <div className="flex flex-col">
+        <span className="text-sm">{phase?.[0] || "New"}</span>
+        <span className="text-sm">{phase?.[1] || "Moon"}</span>
       </div>
     </div>
   );

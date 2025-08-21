@@ -56,8 +56,9 @@ interface SwellChartProps {
 }
 
 interface SwellDataPoint {
-  hour: number; // Changed from 'time' to 'hour' to match tide chart
-  hourLabel: string; // Keep formatted time for display
+  hour: number;
+  time: number; // Keep for backward compatibility
+  hourLabel: string;
   primary: number;
   secondary: number;
   tertiary: number;
@@ -102,7 +103,7 @@ const formatTime = (hour: number): string => {
 
 const getSunTimes = (dailyConditions?: DailyConditions) => {
   const defaultSunrise = 6;
-  const defaultSunset = 19;
+  const defaultSunset = 18;
   
   if (!dailyConditions) {
     return { sunriseHour: defaultSunrise, sunsetHour: defaultSunset };
@@ -130,10 +131,11 @@ const round1 = (v: number | null | undefined): number => {
 
 const processSwellData = (hourlyData: ForecastData[]): SwellDataPoint[] => {
   if (!hourlyData || hourlyData.length === 0) {
-    // Return default/mock data if no real data available
+    // Return default/mock data that matches origin/main structure
     return [
       { 
         hour: 0, 
+        time: 0,
         hourLabel: "12:00 AM", 
         primary: 1.2, 
         secondary: 0.6, 
@@ -147,6 +149,7 @@ const processSwellData = (hourlyData: ForecastData[]): SwellDataPoint[] => {
       },
       { 
         hour: 3, 
+        time: 3,
         hourLabel: "3:00 AM", 
         primary: 1.5, 
         secondary: 0.7, 
@@ -160,6 +163,7 @@ const processSwellData = (hourlyData: ForecastData[]): SwellDataPoint[] => {
       },
       { 
         hour: 6, 
+        time: 6,
         hourLabel: "6:00 AM", 
         primary: 1.8, 
         secondary: 0.9, 
@@ -173,6 +177,7 @@ const processSwellData = (hourlyData: ForecastData[]): SwellDataPoint[] => {
       },
       { 
         hour: 9, 
+        time: 9,
         hourLabel: "9:00 AM", 
         primary: 1.4, 
         secondary: 0.8, 
@@ -186,6 +191,7 @@ const processSwellData = (hourlyData: ForecastData[]): SwellDataPoint[] => {
       },
       { 
         hour: 12, 
+        time: 12,
         hourLabel: "12:00 PM", 
         primary: 1.1, 
         secondary: 0.5, 
@@ -199,6 +205,7 @@ const processSwellData = (hourlyData: ForecastData[]): SwellDataPoint[] => {
       },
       { 
         hour: 15, 
+        time: 15,
         hourLabel: "3:00 PM", 
         primary: 1.6, 
         secondary: 0.7, 
@@ -212,6 +219,7 @@ const processSwellData = (hourlyData: ForecastData[]): SwellDataPoint[] => {
       },
       { 
         hour: 18, 
+        time: 18,
         hourLabel: "6:00 PM", 
         primary: 1.9, 
         secondary: 1.0, 
@@ -225,6 +233,7 @@ const processSwellData = (hourlyData: ForecastData[]): SwellDataPoint[] => {
       },
       { 
         hour: 21, 
+        time: 21,
         hourLabel: "9:00 PM", 
         primary: 1.3, 
         secondary: 0.6, 
@@ -239,16 +248,19 @@ const processSwellData = (hourlyData: ForecastData[]): SwellDataPoint[] => {
     ];
   }
 
-  return hourlyData.map((forecast) => {
+  // Filter to every 3rd hour for chart display (similar to other components)
+  const filteredData = hourlyData.filter((_, index) => index % 3 === 0);
+
+  return filteredData.map((forecast) => {
     const date = new Date(forecast.timestamp);
     const hour = date.getHours();
     
     // Get real swell heights from the API data (already in feet from your imperial script)
     const primaryHeight = forecast.swell.primary.height || 0;
     const secondaryHeight = forecast.swell.secondary.height || 0;
-    const tertiaryHeight = forecast.swell.tertiary.height || 0; // REAL TERTIARY DATA
+    const tertiaryHeight = forecast.swell.tertiary.height || 0;
     
-    // Round periods to nearest tenth using the same helper as other components
+    // Round periods to nearest tenth
     const primaryPeriod = forecast.swell.primary.period 
       ? round1(forecast.swell.primary.period)
       : undefined;
@@ -261,16 +273,17 @@ const processSwellData = (hourlyData: ForecastData[]): SwellDataPoint[] => {
     
     return {
       hour: hour,
+      time: hour, // Keep for backward compatibility
       hourLabel: formatTime(hour),
       primary: Number(primaryHeight.toFixed(1)),
       secondary: Number(secondaryHeight.toFixed(1)),
-      tertiary: Number(tertiaryHeight.toFixed(1)), // REAL TERTIARY HEIGHT
+      tertiary: Number(tertiaryHeight.toFixed(1)),
       primaryPeriod: primaryPeriod,
       secondaryPeriod: secondaryPeriod,
-      tertiaryPeriod: tertiaryPeriod, // REAL TERTIARY PERIOD
+      tertiaryPeriod: tertiaryPeriod,
       primaryDirection: forecast.swell.primary.direction,
       secondaryDirection: forecast.swell.secondary.direction,
-      tertiaryDirection: forecast.swell.tertiary.direction, // REAL TERTIARY DIRECTION
+      tertiaryDirection: forecast.swell.tertiary.direction,
     };
   });
 };
@@ -333,13 +346,13 @@ const SwellChart = ({ data, currentForecast, dailyConditions, beach }: SwellChar
             left: -30,
             right: 15,
           }}
-          syncId="surfCharts" // SYNC ID - use same ID as tide chart
+          syncId="surfCharts" // Updated from "anyId" to match other charts
           syncMethod="value"
         >
-          {/* Night and day reference areas */}
-          <ReferenceArea x1={0} x2={sunTimes.sunriseHour} fill={nightColor} fillOpacity={0.2} />
+          {/* Night and day reference areas - using dynamic sun times */}
+          <ReferenceArea x2={sunTimes.sunriseHour} fill={nightColor} fillOpacity={0.2} />
           <ReferenceArea x1={sunTimes.sunriseHour} x2={sunTimes.sunsetHour} fill={dayColor} fillOpacity={0.2} />
-          <ReferenceArea x1={sunTimes.sunsetHour} x2={24} fill={nightColor} fillOpacity={0.2} />
+          <ReferenceArea x1={sunTimes.sunsetHour} x2={21} fill={nightColor} fillOpacity={0.2} />
           
           {/* Current time indicator */}
           <ReferenceLine x={currentHour} stroke="#ff6b6b" strokeWidth={2} strokeDasharray="2 2" />
@@ -351,7 +364,7 @@ const SwellChart = ({ data, currentForecast, dailyConditions, beach }: SwellChar
             vertical={false}
           />
           <XAxis
-            dataKey="hour" // Changed from 'time' to 'hour' to match tide chart
+            dataKey="time" // Keep using "time" for compatibility with existing charts
             tickLine={false}
             axisLine={false}
             tickMargin={8}
@@ -364,7 +377,7 @@ const SwellChart = ({ data, currentForecast, dailyConditions, beach }: SwellChar
             }
           />
           <YAxis
-            allowDecimals={true}
+            allowDecimals={true} // Updated from false to handle decimal swell heights
             tickLine={false}
             axisLine={false}
             tickMargin={8}
@@ -428,14 +441,14 @@ const SwellChart = ({ data, currentForecast, dailyConditions, beach }: SwellChar
             }}
           />
           
-          {/* Stacked areas for different swell components */}
+          {/* Stacked areas for different swell components - maintaining order from origin/main */}
           <Area
             type="monotone"
-            dataKey="primary"
+            dataKey="tertiary"
             stackId="1"
-            stroke="#023e8a"
-            fill="#0077b6"
-            fillOpacity={0.8}
+            stroke="#70ccebff"
+            fill="#adf1ffff"
+            fillOpacity={0.6}
           />
           <Area
             type="monotone"
@@ -443,19 +456,16 @@ const SwellChart = ({ data, currentForecast, dailyConditions, beach }: SwellChar
             stackId="1"
             stroke="#0096c7"
             fill="#48cae4"
-            fillOpacity={0.7}
+            fillOpacity={0.6}
           />
-          {/* Only show tertiary area if there's meaningful data */}
-          {(hasRealTertiaryData || swellData.some(d => d.tertiary > 0)) && (
-            <Area
-              type="monotone"
-              dataKey="tertiary"
-              stackId="1"
-              stroke="#70ccebff"
-              fill="#adf1ffff"
-              fillOpacity={0.6}
-            />
-          )}
+          <Area
+            type="monotone"
+            dataKey="primary"
+            stackId="1"
+            stroke="#023e8a"
+            fill="#0077b6"
+            fillOpacity={0.6}
+          />
         </AreaChart>
       </ChartContainer>
       
@@ -496,6 +506,13 @@ const SwellChart = ({ data, currentForecast, dailyConditions, beach }: SwellChar
               {currentForecast.swell.tertiary.period && ` @ ${currentForecast.swell.tertiary.period}s`}
             </div>
           )}
+        </div>
+      )}
+      
+      {/* Data quality indicator */}
+      {!data && (
+        <div className="mt-2 text-xs text-muted-foreground text-center">
+          Showing sample data - connect to API for live conditions
         </div>
       )}
     </div>

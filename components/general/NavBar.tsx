@@ -1,5 +1,4 @@
 "use client";
-
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
@@ -20,10 +19,8 @@ const NavBar = ({ selectedBeach, onBeachSelect }: NavBarProps) => {
   // Handle beach selection from SearchBar
   const handleBeachSelect = (beach: Beach) => {
     setCurrentBeach(beach);
-
     // Call parent callback if provided
     onBeachSelect?.(beach);
-
     // Navigate to overview page with id query param
     const newPath = `/beach/overview?id=${encodeURIComponent(String(beach.id))}`;
     router.push(newPath);
@@ -40,7 +37,7 @@ const NavBar = ({ selectedBeach, onBeachSelect }: NavBarProps) => {
     <header className="fixed @min-3xl:relative px-1.5 pt-1.5 z-2 w-full @container backdrop-blur-md">
       <nav
         aria-label="primary navigation"
-        className="flex justify-center @min-lg:justify-between p-6 shadow-md bg-background rounded-md w-full items-center"
+        className="flex justify-center @min-lg:justify-between p-4 shadow-md bg-background rounded-md w-full items-center"
       >
         {/* Logo */}
         <Link

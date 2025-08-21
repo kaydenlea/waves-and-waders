@@ -1,13 +1,7 @@
 import { cn } from "@/lib/utils";
 import { TidePreview } from "../graphs/TideChart";
-import { IoIosWater as WaterIcon } from "react-icons/io";
-import {
-  FaSun as SunIcon,
-  FaDog as DogIcon,
-  FaParking as ParkingIcon,
-  FaRestroom as BathroomIcon,
-  FaLifeRing as LifeRingIcon,
-} from "react-icons/fa";
+import SwellStat from "../general/Stats/SwellStat";
+import { Sun, Droplets, Dog, CircleParking, Toilet, LifeBuoy, Fish, Shell } from "lucide-react";
 import {
   BsArrowDownCircleFill as SArrowIcon,
   BsArrowDownLeftCircleFill as SWArrowIcon,
@@ -18,11 +12,6 @@ import {
   BsArrowRightCircleFill as EArrowIcon,
   BsArrowDownRightCircleFill as SEArrowIcon,
 } from "react-icons/bs";
-import {
-  GiFishingPole as FishingPoleIcon,
-  GiBeachBucket as SandIcon,
-} from "react-icons/gi";
-import SwellStat from "../general/SwellStat";
 import { ForecastData } from "@/lib/supabase";
 
 interface Beach {
@@ -133,7 +122,7 @@ const getWindLocationFromCompass = (
 };
 
 /* =========================
-   UI bits
+   UI Components (Consolidated)
    ========================= */
 
 const GradientCircle = ({
@@ -185,9 +174,9 @@ const GradientCircle = ({
       />
       <div className="z-1 flex items-center">
         {condition === "water" ? (
-          <WaterIcon size={18} className="text-[#1CACD4]" />
+          <Droplets size={18} className="text-[#1CACD4]" />
         ) : (
-          <SunIcon size={18} className="text-[#FF8D0B]" />
+          <Sun size={18} className="text-[#FF8D0B]" />
         )}
         <span className="flex items-center font-medium whitespace-nowrap">
           {data} <span className="text-xs font-normal">&deg;F</span>
@@ -296,20 +285,20 @@ const Summary = ({
 
   const currentData = getCurrentData();
 
-  // Defaults when no data
+  // Defaults when no data (enhanced from origin/main)
   const defaultStats = {
-    water: { temp: "N/A" as number | string },
-    weather: { temp: "N/A" as number | string },
-    wind: { direction: "N", speed: 0, loc: "onshore" as "onshore" | "offshore" },
-    surf: { direction: "N", height: "0-1", period: 0 },
+    water: { temp: 60 as number | string },
+    weather: { temp: 64 as number | string },
+    wind: { direction: "NNE", speed: 12, loc: "offshore" as "onshore" | "offshore" },
+    surf: { direction: "NNW", height: "2-3", period: 11 },
     swell: {
-      primary: { height: 0, period: 0, wind: { dir: "N", deg: 0 } },
+      primary: { height: 2.1, period: 7.0, wind: { dir: "W", deg: 272 } },
       secondary: [
-        { height: 0, period: 0, wind: { dir: "N", deg: 0 } },
-        { height: 0, period: 0, wind: { dir: "N", deg: 0 } },
+        { height: 1.8, period: 12.0, wind: { dir: "SW", deg: 225 } },
+        { height: 1.2, period: 9.0, wind: { dir: "S", deg: 180 } },
       ],
     },
-    tide: { height: 0 },
+    tide: { height: 2.4 },
   };
 
   // Build processed stats - NOW USING REAL TERTIARY DATA
@@ -383,16 +372,27 @@ const Summary = ({
       }
     : defaultStats;
 
-  // Features from DB flags (if provided on beach)
+  // Features from DB flags (if provided on beach) - updated with Lucide icons
   const getBeachFeatures = (b?: Beach) => {
-    if (!b) return [];
+    if (!b) {
+      // Fallback features from origin/main
+      return [
+        { label: "Fishing", icon: <Fish size={16} />, color: "bg-blue-100" },
+        { label: "Bathrooms", icon: <Toilet size={16} />, color: "bg-yellow-100" },
+        { label: "Parking", icon: <CircleParking size={16} />, color: "bg-green-100" },
+        { label: "Dogs", icon: <Dog size={16} />, color: "bg-red-100" },
+        { label: "Sandy", icon: <Shell size={16} />, color: "bg-orange-100" },
+        { label: "Lifeguard", icon: <LifeBuoy size={16} />, color: "bg-purple-100" },
+      ];
+    }
+    
     const tags = [];
-    if (b.FISHING) tags.push({ label: "Fishing", icon: <FishingPoleIcon />, color: "bg-blue-100" });
-    if (b.RESTROOMS) tags.push({ label: "Bathrooms", icon: <BathroomIcon />, color: "bg-yellow-100" });
-    if (b.PARKING) tags.push({ label: "Parking", icon: <ParkingIcon />, color: "bg-green-100" });
-    if (b.DOG_FRIEND) tags.push({ label: "Dogs", icon: <DogIcon />, color: "bg-red-100" });
-    if (b.SNDY_BEACH) tags.push({ label: "Sandy", icon: <SandIcon />, color: "bg-orange-100" });
-    if (b.LIFEGUARD) tags.push({ label: "Lifeguard", icon: <LifeRingIcon />, color: "bg-purple-100" });
+    if (b.FISHING) tags.push({ label: "Fishing", icon: <Fish size={16} />, color: "bg-blue-100" });
+    if (b.RESTROOMS) tags.push({ label: "Bathrooms", icon: <Toilet size={16} />, color: "bg-yellow-100" });
+    if (b.PARKING) tags.push({ label: "Parking", icon: <CircleParking size={16} />, color: "bg-green-100" });
+    if (b.DOG_FRIEND) tags.push({ label: "Dogs", icon: <Dog size={16} />, color: "bg-red-100" });
+    if (b.SNDY_BEACH) tags.push({ label: "Sandy", icon: <Shell size={16} />, color: "bg-orange-100" });
+    if (b.LIFEGUARD) tags.push({ label: "Lifeguard", icon: <LifeBuoy size={16} />, color: "bg-purple-100" });
     return tags;
   };
 
@@ -505,7 +505,8 @@ const Summary = ({
               <div
                 className={cn(
                   "flex-1 flex items-center gap-1 mt-1",
-                  stat.type !== "features" && "justify-center"
+                  stat.type !== "features" && "justify-center",
+                  stat.type === "features" && "flex-wrap"
                 )}
               >
                 {content}

@@ -112,14 +112,15 @@ const HourSlider = ({
   return (
     <div
       className={cn(
-        "flex flex-col gap-3 relative p-3 bg-background border-x border-b border-border shadow-md rounded-b-sm",
+        // Updated spacing and padding from origin/main
+        "space-y-1 flex flex-col gap-2 relative p-2.5 bg-background border-x border-b border-border shadow-md rounded-b-sm",
         className
       )}
     >
-      {/* Header with current time and data status */}
+      {/* Header with current time and data status - simplified layout */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className={cn("text-lg font-medium", isPastHour && "text-gray-500")}>
+          <h3 className={cn("text-md font-medium", isPastHour && "text-gray-500")}>
             {formatHour(internalValue[0])}
             {isToday && internalValue[0] === currentTime.getHours() && (
               <span className="ml-2 text-sm text-green-600 font-normal">Now</span>
@@ -152,36 +153,35 @@ const HourSlider = ({
           step={1}
           value={internalValue}
           onValueChange={handleSliderChange}
-          className="z-10"
+          className="z-1" // Updated from z-10 to match origin/main
         />
 
-        {/* Hour data indicators aligned to the slider track */}
+        {/* Hour data indicators - improved positioning */}
         {showDataIndicators && (
-          <div className="absolute top-6 left-0 right-0 flex justify-between px-3">
-            {hourData.map((hour) => (
-              <div
-                key={hour.hour}
-                className={cn(
-                  "w-1 h-2 rounded-full transition-all",
-                  hour.hasData ? getQualityColor(hour.quality) : "bg-gray-200",
-                  hour.hour === internalValue[0] && "ring-2 ring-blue-500 ring-offset-1"
-                )}
-                title={
-                  hour.hasData
-                    ? `${formatHour(hour.hour)}: ${hour.surfHeight?.toFixed(1)}ft (${hour.quality})`
-                    : `${formatHour(hour.hour)}: No data`
-                }
-              />
+          <div className="w-full flex justify-between pl-1.5 pr-2.5">
+            {hourData.map((hour, index) => (
+              <div key={hour.hour} className="relative">
+                <div
+                  className={cn(
+                    "absolute bottom-6 h-3 w-1 rounded-full transition-all",
+                    hour.hasData ? getQualityColor(hour.quality) : "bg-gray-300",
+                    hour.hour === internalValue[0] && "ring-2 ring-blue-500 ring-offset-1"
+                  )}
+                  title={
+                    hour.hasData
+                      ? `${formatHour(hour.hour)}: ${hour.surfHeight?.toFixed(1)}ft (${hour.quality})`
+                      : `${formatHour(hour.hour)}: No data`
+                  }
+                />
+              </div>
             ))}
           </div>
         )}
       </div>
 
-      {/* Quick select — now evenly spaced and aligned */}
+      {/* Quick select buttons - keeping your comprehensive logic */}
       <div className="mt-1">
         <div className="text-xs text-gray-500 mb-1">Quick select</div>
-
-        {/* Even grid: six equal columns so buttons line up */}
         <div className="grid grid-cols-6 gap-2">
           {quickHours.map((hour) => {
             const hourInfo = hourData.find((h) => h.hour === hour);
@@ -206,7 +206,6 @@ const HourSlider = ({
                     : `${formatHour(hour)}: No data`
                 }
               >
-                {/* Compact label: 6 AM → 6a, 12 PM → 12p */}
                 <span className="tabular-nums">
                   {(() => {
                     const [num, mer] = formatHour(hour).split(" ");
@@ -228,6 +227,7 @@ const HourSlider = ({
         <span>11 PM</span>
       </div>
 
+      {/* Warning for missing data */}
       {dayForecastData.length === 0 && (
         <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm">
           <p className="text-yellow-800">

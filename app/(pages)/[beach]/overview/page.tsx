@@ -10,6 +10,7 @@ import WindChart from "@/components/graphs/WindChart";
 import Highlights from "@/components/visuals/Highlights";
 import StatTable from "@/components/visuals/StatTable";
 import Summary from "@/components/visuals/Summary";
+
 import {
   fetchBeachForecast,
   fetchAllBeaches,
@@ -273,7 +274,7 @@ const Page = ({ searchParams }: PageProps) => {
   }
 
   return (
-    <div className="@container">
+    <div id="content-container" className="@container">
       <header className="mb-6">
         <h1 className="font-semibold text-3xl tracking-tight">{selectedBeach.Name}</h1>
         <p className="text-gray-600 mt-1">
@@ -369,7 +370,7 @@ const Page = ({ searchParams }: PageProps) => {
           </div>
         )}
 
-       
+        {/* Highlights + Tide row */}
         <div className="grid grid-cols-1 @min-3xl:grid-cols-[1.25fr_1fr] gap-2 items-start">
           <section className="min-w-0">
             <Highlights
@@ -403,10 +404,12 @@ const Page = ({ searchParams }: PageProps) => {
           </figure>
         </div>
 
+        {/* Optional wind chart (hidden by default) */}
         <figure className="hidden">
           <WindChart data={dayForecastData} selectedHour={selectedHour} />
         </figure>
 
+        {/* Stats table */}
         <figure>
           <StatTable data={dayForecastData} visibleCols={3} className="@min-3xl:hidden" />
           <StatTable data={dayForecastData} className="hidden @min-3xl:block" />
@@ -426,7 +429,7 @@ const Page = ({ searchParams }: PageProps) => {
                 selectedCounty: selectedBeach?.COUNTY,
                 weeklyForecastDataCount: weeklyForecastData.length,
                 forecastDataCount: forecastData.length,
-                dayForecastDataCount: dayForecastData.length,
+                dayForecastDataCount: getDayForecastData().length,
                 currentHourData: !!currentHourData,
                 selectedDate: selectedDate.toISOString().split("T")[0],
                 selectedHour,

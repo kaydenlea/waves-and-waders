@@ -11,16 +11,7 @@ import {
   ReferenceArea,
   ReferenceLine,
 } from "recharts";
-import {
-  BsArrowDownCircleFill as SArrowIcon,
-  BsArrowDownLeftCircleFill as SWArrowIcon,
-  BsArrowLeftCircleFill as WArrowIcon,
-  BsArrowUpLeftCircleFill as NWArrowIcon,
-  BsArrowUpCircleFill as NArrowIcon,
-  BsArrowUpRightCircleFill as NEArrowIcon,
-  BsArrowRightCircleFill as EArrowIcon,
-  BsArrowDownRightCircleFill as SEArrowIcon,
-} from "react-icons/bs";
+import { MousePointer2 as ArrowIcon } from "lucide-react";
 import {
   ChartConfig,
   ChartContainer,
@@ -97,26 +88,16 @@ const getWindDirection = (degrees: number | null): string => {
   return directions[index];
 };
 
-const getDirectionIcon = (direction: string) => {
-  const iconMap: { [key: string]: React.ComponentType<any> } = {
-    'N': NArrowIcon,
-    'NNE': NEArrowIcon,
-    'NE': NEArrowIcon,
-    'ENE': NEArrowIcon,
-    'E': EArrowIcon,
-    'ESE': SEArrowIcon,
-    'SE': SEArrowIcon,
-    'SSE': SEArrowIcon,
-    'S': SArrowIcon,
-    'SSW': SWArrowIcon,
-    'SW': SWArrowIcon,
-    'WSW': SWArrowIcon,
-    'W': WArrowIcon,
-    'WNW': NWArrowIcon,
-    'NW': NWArrowIcon,
-    'NNW': NWArrowIcon,
-  };
-  return iconMap[direction] || SEArrowIcon;
+// Simple arrow component for direction indicators
+const DirectionArrow = ({ direction, size = 16, ...props }: { direction: number | null; size?: number; [key: string]: any }) => {
+  const rotation = direction ? direction - 180 : 135; // Adjust for wave direction vs wind direction
+  return (
+    <ArrowIcon 
+      size={size} 
+      style={{ transform: `rotate(${rotation}deg)` }}
+      {...props}
+    />
+  );
 };
 
 const getSunTimes = (dailyConditions?: DailyConditions) => {
@@ -144,15 +125,16 @@ const getSunTimes = (dailyConditions?: DailyConditions) => {
 
 const processSurfData = (hourlyData: ForecastData[]): SurfDataPoint[] => {
   if (!hourlyData || hourlyData.length === 0) {
-    // Return default/mock data if no real data available (keeping your original format)
+    // Return default/mock data if no real data available
     return [
       { hour: 0, surf: 2, min: 1, max: 3, primaryDirection: 135 },
-      { hour: 1, surf: 3, min: 2, max: 4, primaryDirection: 140 },
-      { hour: 2, surf: 1, min: 1, max: 2, primaryDirection: 130 },
-      { hour: 3, surf: 1, min: 1, max: 2, primaryDirection: 125 },
-      { hour: 4, surf: 4, min: 3, max: 5, primaryDirection: 145 },
-      { hour: 5, surf: 2, min: 1, max: 3, primaryDirection: 135 },
-      { hour: 6, surf: 2, min: 2, max: 3, primaryDirection: 140 },
+      { hour: 3, surf: 3, min: 2, max: 4, primaryDirection: 140 },
+      { hour: 6, surf: 1, min: 1, max: 2, primaryDirection: 130 },
+      { hour: 9, surf: 1, min: 1, max: 2, primaryDirection: 125 },
+      { hour: 12, surf: 4, min: 3, max: 5, primaryDirection: 145 },
+      { hour: 15, surf: 2, min: 1, max: 3, primaryDirection: 135 },
+      { hour: 18, surf: 2, min: 2, max: 3, primaryDirection: 140 },
+      { hour: 21, surf: 3, min: 2, max: 4, primaryDirection: 135 },
     ];
   }
 
@@ -230,7 +212,7 @@ const SurfChart = ({ data, currentForecast, dailyConditions, beach }: SurfChartP
           }}
           accessibilityLayer
           data={surfData}
-          syncId="surfCharts" // Same sync ID as swell chart
+          syncId="surfCharts" // Updated from "anyId" to be more descriptive
         >
           {/* Night and day reference areas */}
           <ReferenceArea x1={0} x2={sunTimes.sunriseHour} fill={nightColor} fillOpacity={0.2} />
@@ -324,12 +306,11 @@ const SurfChart = ({ data, currentForecast, dailyConditions, beach }: SurfChartP
                 // Get the direction for this bar
                 const hourIndex = typeof props.index === "number" ? props.index : 0;
                 const dataPoint = surfData[hourIndex];
-                const direction = dataPoint?.primaryDirection ? getWindDirection(dataPoint.primaryDirection) : 'SE';
-                const DirectionIcon = getDirectionIcon(direction);
                 
                 return (
                   <g>
-                    <DirectionIcon
+                    <DirectionArrow
+                      direction={dataPoint?.primaryDirection}
                       size={iconSize}
                       x={safeX + (safeWidth - iconSize) / 2}
                       y={safeY - iconSize - iconSize}

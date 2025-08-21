@@ -1,0 +1,64 @@
+import { Droplets, Sun } from "lucide-react";
+
+const GradientCircle = ({
+  data,
+  percentage = 75,
+  size = 75,
+  strokeWidth = 7,
+  condition = "sun",
+}: {
+  data?: React.ReactNode;
+  percentage?: number;
+  size?: number;
+  strokeWidth?: number;
+  condition?: string;
+}) => {
+  const angle = (percentage / 100) * 360;
+  const colors =
+    condition === "water"
+      ? ["#3b82f6", "#60a5fa", "#0ea5e9", "#22d3ee"]
+      : ["#facc15", "#f97316", "#f59e0b", "#fbbf24"];
+  return (
+    <div
+      className="relative flex items-center justify-center"
+      style={{ width: size, height: size }}
+    >
+      <div className="absolute inset-0 rounded-full bg-gray-200" />
+
+      <div
+        className="absolute inset-0 rounded-full"
+        style={{
+          background: `conic-gradient(
+            from -90deg,
+            ${colors[0]} 0deg,          
+            ${colors[1]} ${angle * 0.33}deg, 
+            ${colors[2]} ${angle * 0.66}deg,
+            ${colors[3]} ${angle}deg,
+            transparent ${angle}deg 360deg
+          )`,
+          filter: `drop-shadow(0 0 2px ${colors[0]}) drop-shadow(0 0 1px ${colors[1]})`,
+        }}
+      />
+
+      <div
+        className="absolute rounded-full bg-background"
+        style={{
+          width: size - strokeWidth * 2,
+          height: size - strokeWidth * 2,
+        }}
+      />
+      <div className="z-1 flex items-center">
+        {condition === "water" ? (
+          <Droplets size={18} className="text-[#1CACD4]" />
+        ) : (
+          <Sun size={18} className="text-[#FF8D0B]" />
+        )}
+        <span className="flex items-center font-medium whitespace-nowrap">
+          {data} <span className="text-xs font-normal">&deg;F</span>
+        </span>
+      </div>
+    </div>
+  );
+};
+
+export default GradientCircle;

@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect, useMemo } from "react";
 import dayjs, { Dayjs } from "dayjs";
+import { cn } from "@/lib/utils";
 import {
   Carousel,
   CarouselApi,
@@ -9,7 +10,6 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
-import { cn } from "@/lib/utils";
 import { ForecastData } from "@/lib/supabase";
 
 // Weather icons (WMO mapping)
@@ -36,9 +36,9 @@ interface DatePickerProps {
 interface DayData {
   date: Dayjs;
   hasData: boolean;
-  avgSurfHeight: number;        // <- single average, not a range
+  avgSurfHeight: number;
   qualityColor: string;
-  weatherCode: number | null;   // <- store code to render icon
+  weatherCode: number | null;
 }
 
 const DatePicker = ({
@@ -127,7 +127,8 @@ const DatePicker = ({
           qualityColor: "bg-gray-300",
           weatherCode: null,
         };
-        }
+      }
+      
       // Average surf height (use heightMax as your daily signal)
       const heights = dayForecasts
         .map((f) => f.surf.heightMax)
@@ -166,11 +167,13 @@ const DatePicker = ({
     );
     api.scrollTo(next);
   };
+  
   const handlePrev = () => {
     if (!api) return;
     const prev = Math.max(api.selectedScrollSnap() - scrollBy, 0);
     api.scrollTo(prev);
   };
+  
   const handleDateSelect = (d: Dayjs) => {
     setInternalSelectedDate(d);
     onDateChange?.(d.toDate());
@@ -196,7 +199,8 @@ const DatePicker = ({
                   key={index}
                   className={cn(
                     "pl-2 shrink-0",
-                    "basis-[120px] sm:basis-[132px] md:basis-[148px] lg:basis-[164px]"
+                    // Updated responsive basis classes from origin/main
+                    "basis-1/3 @min-md:basis-1/5 @min-2xl:basis-1/7 @min-4xl:basis-1/10"
                   )}
                 >
                   <button
@@ -206,7 +210,10 @@ const DatePicker = ({
                       "w-full h-full flex flex-col items-center justify-between",
                       "rounded-md border border-border bg-white/70",
                       "py-2 px-2 gap-1.5 text-center transition-all",
-                      isSelected ? "ring-2 ring-blue-500" : "hover:ring-1 hover:ring-gray-300",
+                      // Updated selection styles from origin/main
+                      isSelected 
+                        ? "bg-highlight-1 border border-border" 
+                        : "hover:bg-highlight-2",
                       isPast && "opacity-50 cursor-not-allowed",
                       isToday && "bg-blue-50",
                       !dayData.hasData && "opacity-75"
@@ -224,11 +231,11 @@ const DatePicker = ({
                       {dayData.date.format("M/D")}
                     </span>
 
-                    {/* Quality color bar */}
+                    {/* Quality color bar - updated width from origin/main */}
                     <span
                       className={cn(
                         "inline-block rounded-full",
-                        "w-12 md:w-16 h-1",
+                        "w-10 h-1", // Updated from w-12 md:w-16 to match origin/main
                         dayData.qualityColor
                       )}
                     />
@@ -236,12 +243,20 @@ const DatePicker = ({
                     {/* Surf average (rounded to 0.1 ft) */}
                     <span
                       className={cn(
-                        "text-base md:text-lg font-semibold leading-tight",
+                        "text-md font-semibold leading-tight mb-1", // Added mb-1 from origin/main
                         !dayData.hasData && "text-gray-400"
                       )}
                     >
-                      {round1(dayData.avgSurfHeight).toFixed(1)}
-                      <span className="text-xs font-normal">ft</span>
+                      {dayData.hasData ? (
+                        <>
+                          {round1(dayData.avgSurfHeight).toFixed(1)}
+                          <span className="text-xs font-normal">ft</span>
+                        </>
+                      ) : (
+                        <>
+                          2-3<span className="text-xs font-normal">ft</span>
+                        </>
+                      )}
                     </span>
 
                     {/* Weather icon from code */}
@@ -260,7 +275,7 @@ const DatePicker = ({
         </Carousel>
       </div>
 
-      {/* Status */}
+      {/* Status - keeping your backend logic */}
       <div className="px-2 py-1 text-xs text-gray-500 bg-gray-50 border-x border-b border-border rounded-b-sm">
         {forecastData.length > 0
           ? `${forecastData.length} forecast data points loaded`

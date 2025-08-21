@@ -1,8 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { FaSearch as SearchIcon } from "react-icons/fa";
-import { FiSliders as SliderIcon, FiX as CloseIcon } from "react-icons/fi";
+import { Search, SlidersVertical, X } from "lucide-react";
 import { searchBeaches, Beach } from "@/lib/supabase";
 
 interface SearchBarProps {
@@ -131,7 +130,7 @@ const SearchBar = ({
             {loading ? (
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
             ) : (
-              <SearchIcon className="w-4 h-4" />
+              <Search strokeWidth={3} className="w-4 h-4" />
             )}
           </button>
           
@@ -156,7 +155,7 @@ const SearchBar = ({
                 className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                 aria-label="clear search"
               >
-                <CloseIcon className="w-4 h-4" />
+                <X className="w-4 h-4" />
               </button>
             )}
           </div>
@@ -218,7 +217,7 @@ const SearchBar = ({
             showFilters ? 'bg-blue-100 text-blue-600' : 'hover:bg-gray-100'
           }`}
         >
-          <SliderIcon className="w-5 h-5" />
+          <SlidersVertical className="w-5 h-5" />
         </button>
       </div>
 
