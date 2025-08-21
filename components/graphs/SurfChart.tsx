@@ -47,10 +47,11 @@ interface ForecastData {
       period: number | null;
       direction: number | null;
     };
-  };
-  conditions: {
-    windSpeed: number | null;
-    windDirection: number | null;
+    tertiary: {
+      height: number | null;
+      period: number | null;
+      direction: number | null;
+    };
   };
 }
 
@@ -72,14 +73,11 @@ interface SurfChartProps {
 
 interface SurfDataPoint {
   hour: number;
-  surf: number;
-  min: number;
-  max: number;
-  direction: number;
-  quality: string;
-  period: number;
-  energy: number;
-  time: string;
+  surf: number; // Average surf height for bar chart
+  min: number;   // Min height for display
+  max: number;   // Max height for display
+  primaryDirection: number | null;
+  waveEnergy?: number;
 }
 
 const chartConfig = {
@@ -93,7 +91,7 @@ const chartConfig = {
 const getCurrentHour = () => new Date().getHours();
 
 const getWindDirection = (degrees: number | null): string => {
-  if (degrees === null || degrees === undefined) return 'N';
+  if (degrees === null || degrees === undefined) return 'SE';
   const directions = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
   const index = Math.round(degrees / 22.5) % 16;
   return directions[index];
@@ -121,45 +119,6 @@ const getDirectionIcon = (direction: string) => {
   return iconMap[direction] || SEArrowIcon;
 };
 
-const getSurfQuality = (
-  height: number,
-  windSpeed: number | null,
-  period: number | null
-): { quality: string; color: string } => {
-  const isWindy = windSpeed && windSpeed > 15;
-  const hasGoodPeriod = period && period > 8;
-
-  if (height < 1) {
-    return { quality: 'flat', color: '#ef4444' }; // red
-  } else if (height < 2) {
-    if (isWindy) {
-      return { quality: 'poor', color: '#f97316' }; // orange
-    }
-    return { quality: 'fair', color: '#eab308' }; // yellow
-  } else if (height < 4) {
-    if (isWindy) {
-      return { quality: 'fair', color: '#eab308' }; // yellow
-    }
-    if (hasGoodPeriod) {
-      return { quality: 'good', color: '#22c55e' }; // green
-    }
-    return { quality: 'fair', color: '#eab308' }; // yellow
-  } else if (height < 8) {
-    if (isWindy) {
-      return { quality: 'fair', color: '#eab308' }; // yellow
-    }
-    return { quality: 'epic', color: '#8b5cf6' }; // purple
-  } else {
-    return { quality: 'huge', color: '#dc2626' }; // red (dangerous)
-  }
-};
-
-const formatTime = (hour: number): string => {
-  const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-  const ampm = hour >= 12 ? 'PM' : 'AM';
-  return `${displayHour}:00 ${ampm}`;
-};
-
 const getSunTimes = (dailyConditions?: DailyConditions) => {
   const defaultSunrise = 6;
   const defaultSunset = 19;
@@ -185,20 +144,22 @@ const getSunTimes = (dailyConditions?: DailyConditions) => {
 
 const processSurfData = (hourlyData: ForecastData[]): SurfDataPoint[] => {
   if (!hourlyData || hourlyData.length === 0) {
-    // Return default data if no real data available
+    // Return default/mock data if no real data available (keeping your original format)
     return [
-      { hour: 0, surf: 2, min: 2, max: 3, direction: 225, quality: 'fair', period: 7, energy: 4, time: "12:00 AM" },
-      { hour: 3, surf: 3, min: 2, max: 4, direction: 225, quality: 'good', period: 8, energy: 9, time: "3:00 AM" },
-      { hour: 6, surf: 1, min: 1, max: 2, direction: 270, quality: 'poor', period: 6, energy: 1, time: "6:00 AM" },
-      { hour: 9, surf: 1, min: 1, max: 2, direction: 270, quality: 'poor', period: 6, energy: 1, time: "9:00 AM" },
-      { hour: 12, surf: 4, min: 3, max: 5, direction: 225, quality: 'good', period: 9, energy: 16, time: "12:00 PM" },
-      { hour: 15, surf: 2, min: 2, max: 3, direction: 225, quality: 'fair', period: 7, energy: 4, time: "3:00 PM" },
-      { hour: 18, surf: 2, min: 2, max: 3, direction: 225, quality: 'fair', period: 7, energy: 4, time: "6:00 PM" },
-      { hour: 21, surf: 3, min: 2, max: 4, direction: 225, quality: 'good', period: 8, energy: 9, time: "9:00 PM" },
+      { hour: 0, surf: 2, min: 1, max: 3, primaryDirection: 135 },
+      { hour: 1, surf: 3, min: 2, max: 4, primaryDirection: 140 },
+      { hour: 2, surf: 1, min: 1, max: 2, primaryDirection: 130 },
+      { hour: 3, surf: 1, min: 1, max: 2, primaryDirection: 125 },
+      { hour: 4, surf: 4, min: 3, max: 5, primaryDirection: 145 },
+      { hour: 5, surf: 2, min: 1, max: 3, primaryDirection: 135 },
+      { hour: 6, surf: 2, min: 2, max: 3, primaryDirection: 140 },
     ];
   }
 
-  return hourlyData.map((forecast) => {
+  // Filter to every 3rd hour for chart display (similar to other components)
+  const filteredData = hourlyData.filter((_, index) => index % 3 === 0);
+
+  return filteredData.map((forecast) => {
     const date = new Date(forecast.timestamp);
     const hour = date.getHours();
     
@@ -207,24 +168,16 @@ const processSurfData = (hourlyData: ForecastData[]): SurfDataPoint[] => {
     const maxHeight = forecast.surf.heightMax || 0;
     const avgHeight = (minHeight + maxHeight) / 2;
     
-    // Use primary swell direction as surf direction
-    const direction = forecast.swell.primary.direction || 225; // Default SW
-    const period = forecast.swell.primary.period || 0;
-    const energy = forecast.surf.waveEnergy || 0;
-    
-    // Determine surf quality
-    const qualityInfo = getSurfQuality(avgHeight, forecast.conditions.windSpeed, period);
+    // Use primary swell direction for wave direction indicator
+    const primaryDirection = forecast.swell.primary.direction;
     
     return {
-      hour,
+      hour: hour,
       surf: Number(avgHeight.toFixed(1)),
       min: Number(minHeight.toFixed(1)),
       max: Number(maxHeight.toFixed(1)),
-      direction,
-      quality: qualityInfo.quality,
-      period,
-      energy: Number(energy.toFixed(1)),
-      time: formatTime(hour),
+      primaryDirection: primaryDirection,
+      waveEnergy: forecast.surf.waveEnergy || undefined,
     };
   });
 };
@@ -239,7 +192,10 @@ const SurfChart = ({ data, currentForecast, dailyConditions, beach }: SurfChartP
   const dayColor = "#FFE58F";
   
   // Find max surf height for Y-axis scaling
-  const maxHeight = Math.max(...surfData.map(d => d.max), 3);
+  const maxHeight = Math.max(
+    ...surfData.map(d => d.max),
+    3 // Minimum scale of 3ft
+  );
 
   return (
     <div className="h-full bg-background border border-border p-2 rounded-md shadow-sm">
@@ -256,12 +212,7 @@ const SurfChart = ({ data, currentForecast, dailyConditions, beach }: SurfChartP
         {currentForecast && (
           <div className="mt-2 text-xs text-muted-foreground">
             Current: {currentForecast.surf.heightMin?.toFixed(1) || 'N/A'}-{currentForecast.surf.heightMax?.toFixed(1) || 'N/A'}ft
-            {currentForecast.swell.primary.direction && (
-              <> from {getWindDirection(currentForecast.swell.primary.direction)}</>
-            )}
-            {currentForecast.surf.waveEnergy && (
-              <> • Energy: {currentForecast.surf.waveEnergy.toFixed(1)} ft-lbs</>
-            )}
+            {currentForecast.surf.waveEnergy && ` • Energy: ${Math.round(currentForecast.surf.waveEnergy)} ft-lbs`}
           </div>
         )}
       </header>
@@ -272,14 +223,14 @@ const SurfChart = ({ data, currentForecast, dailyConditions, beach }: SurfChartP
       >
         <BarChart
           margin={{
-            top: 35,
+            top: 5,
             right: 5,
             left: -28,
             bottom: 5,
           }}
           accessibilityLayer
           data={surfData}
-          syncId="anyId"
+          syncId="surfCharts" // Same sync ID as swell chart
         >
           {/* Night and day reference areas */}
           <ReferenceArea x1={0} x2={sunTimes.sunriseHour} fill={nightColor} fillOpacity={0.2} />
@@ -301,6 +252,7 @@ const SurfChart = ({ data, currentForecast, dailyConditions, beach }: SurfChartP
             tickLine={false}
             tickMargin={10}
             axisLine={false}
+            fontSize={11}
             tickFormatter={(value) =>
               value % 3 === 0
                 ? (value % 12 === 0 ? 12 : value % 12).toString()
@@ -308,34 +260,50 @@ const SurfChart = ({ data, currentForecast, dailyConditions, beach }: SurfChartP
             }
           />
           <YAxis
-            dataKey="max"
             allowDecimals={true}
             tickLine={false}
             axisLine={false}
             tickMargin={8}
+            fontSize={11}
             domain={[0, Math.ceil(maxHeight * 1.2)]}
+            tickFormatter={(value) => `${value}ft`}
           />
           <ChartTooltip 
-            content={<ChartTooltipContent 
-              formatter={(value, name) => {
-                const dataPoint = surfData.find(d => d.hour === currentHour) || surfData[0];
-                return [
-                  `${dataPoint.min}-${dataPoint.max}ft (${dataPoint.quality})`,
-                  "Surf Height"
-                ];
-              }}
-              labelFormatter={(hour) => {
-                const dataPoint = surfData.find(d => d.hour === hour);
-                if (dataPoint) {
-                  return `${dataPoint.time} - ${getWindDirection(dataPoint.direction)} swell @ ${dataPoint.period}s`;
-                }
-                const displayHour = hour % 12 === 0 ? 12 : hour % 12;
-                const ampm = hour >= 12 ? 'PM' : 'AM';
-                return `${displayHour}:00 ${ampm}`;
-              }}
-            />} 
+            content={({ active, payload, label }) => {
+              if (!active || !payload || !payload.length) return null;
+              
+              const hour = typeof label === "number" ? label : 0;
+              const point = surfData.find(d => d.hour === hour);
+              
+              return (
+                <div className="rounded-lg border bg-background p-2 shadow-sm">
+                  <div className="flex flex-col gap-1">
+                    <div className="font-medium text-sm">
+                      {hour === 0 ? 12 : hour > 12 ? hour - 12 : hour}:00 {hour >= 12 ? 'PM' : 'AM'}
+                    </div>
+                    
+                    {point && (
+                      <>
+                        <div className="text-xs">
+                          <span className="font-medium">Surf:</span> {point.min}-{point.max}ft
+                        </div>
+                        {point.waveEnergy && (
+                          <div className="text-xs">
+                            <span className="font-medium">Energy:</span> {Math.round(point.waveEnergy)} ft-lbs
+                          </div>
+                        )}
+                        {point.primaryDirection && (
+                          <div className="text-xs">
+                            <span className="font-medium">Direction:</span> {getWindDirection(point.primaryDirection)}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            }}
           />
-          
           <Bar
             dataKey="surf"
             fill="var(--color-surf)"
@@ -353,28 +321,26 @@ const SurfChart = ({ data, currentForecast, dailyConditions, beach }: SurfChartP
                 const safeWidth = typeof props.width === "number" ? props.width : 0;
                 const iconSize = Math.min(20, safeWidth * 0.6);
                 
-                if (typeof props.index === "number" && surfData[props.index]) {
-                  const dataPoint = surfData[props.index];
-                  const direction = getWindDirection(dataPoint.direction);
-                  const DirectionIcon = getDirectionIcon(direction);
-                  const qualityInfo = getSurfQuality(dataPoint.surf, null, dataPoint.period);
-                  
-                  return (
-                    <g key={`arrow-${props.index}`}>
-                      <DirectionIcon
-                        size={iconSize}
-                        x={safeX + (safeWidth - iconSize) / 2}
-                        y={safeY - iconSize - 5}
-                        fill={qualityInfo.color}
-                      />
-                    </g>
-                  );
-                }
-                return null;
+                // Get the direction for this bar
+                const hourIndex = typeof props.index === "number" ? props.index : 0;
+                const dataPoint = surfData[hourIndex];
+                const direction = dataPoint?.primaryDirection ? getWindDirection(dataPoint.primaryDirection) : 'SE';
+                const DirectionIcon = getDirectionIcon(direction);
+                
+                return (
+                  <g>
+                    <DirectionIcon
+                      size={iconSize}
+                      x={safeX + (safeWidth - iconSize) / 2}
+                      y={safeY - iconSize - iconSize}
+                      fill="#8bd668ff"
+                    />
+                  </g>
+                );
               }}
             />
             
-            {/* Height range labels in middle of bars */}
+            {/* Surf height range labels in middle of bars */}
             <LabelList
               dataKey="surf"
               position="middle"
@@ -385,14 +351,17 @@ const SurfChart = ({ data, currentForecast, dailyConditions, beach }: SurfChartP
                 const safeHeight = typeof props.height === "number" ? props.height : 0;
                 const fontSize = Math.max(10, safeWidth * 0.15);
                 
-                if (typeof props.index === "number" && surfData[props.index]) {
-                  const dataPoint = surfData[props.index];
+                // Get the min-max range for this bar
+                const hourIndex = typeof props.index === "number" ? props.index : 0;
+                const dataPoint = surfData[hourIndex];
+                
+                if (dataPoint) {
                   const displayText = dataPoint.min === dataPoint.max 
-                    ? `${dataPoint.min}ft` 
+                    ? `${dataPoint.min}ft`
                     : `${dataPoint.min}-${dataPoint.max}ft`;
-                  
+                    
                   return (
-                    <g key={`label-${props.index}`}>
+                    <g>
                       <text
                         x={safeX + safeWidth / 2}
                         y={safeY + safeHeight / 2 + fontSize / 3}
@@ -406,7 +375,6 @@ const SurfChart = ({ data, currentForecast, dailyConditions, beach }: SurfChartP
                     </g>
                   );
                 }
-                return null;
               }}
               fill="black"
             />
@@ -414,43 +382,37 @@ const SurfChart = ({ data, currentForecast, dailyConditions, beach }: SurfChartP
         </BarChart>
       </ChartContainer>
       
-      {/* Footer with surf quality legend */}
-      <div className="mt-3 mx-2 text-xs">
-        <div className="flex justify-between items-center mb-2">
-          <span className="font-medium">Surf Quality:</span>
-          <div className="flex gap-3">
-            <div className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded bg-red-500"></div>
-              <span>Flat/Poor</span>
+      {/* Footer with current surf summary */}
+      {currentForecast && (
+        <div className="mt-3 mx-2 p-2 bg-muted/50 rounded text-xs">
+          <div className="flex justify-between items-center">
+            <div>
+              <strong>Current Surf:</strong> {' '}
+              {currentForecast.surf.heightMin?.toFixed(1) || 'N/A'}-{currentForecast.surf.heightMax?.toFixed(1) || 'N/A'}ft
             </div>
-            <div className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded bg-yellow-500"></div>
-              <span>Fair</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded bg-green-500"></div>
-              <span>Good</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded bg-purple-500"></div>
-              <span>Epic</span>
+            <div className="text-right">
+              Updated: {new Date(currentForecast.timestamp).toLocaleTimeString('en-US', { 
+                hour: 'numeric', 
+                minute: '2-digit',
+                hour12: true 
+              })}
             </div>
           </div>
+          
+          {currentForecast.surf.waveEnergy && (
+            <div className="mt-1 text-xs">
+              <span className="font-medium">Wave Energy:</span> {Math.round(currentForecast.surf.waveEnergy)} ft-lbs
+            </div>
+          )}
         </div>
-        
-        {/* Current conditions summary */}
-        {currentForecast && (
-          <div className="p-2 bg-muted/50 rounded text-xs">
-            <strong>Best Surf Today:</strong> {' '}
-            {(() => {
-              const bestHour = surfData.reduce((best, current) => 
-                current.surf > best.surf ? current : best
-              );
-              return `${bestHour.time} - ${bestHour.min}-${bestHour.max}ft ${bestHour.quality}`;
-            })()}
-          </div>
-        )}
-      </div>
+      )}
+      
+      {/* Data quality indicator */}
+      {!data && (
+        <div className="mt-2 text-xs text-muted-foreground text-center">
+          Showing sample data - connect to API for live conditions
+        </div>
+      )}
     </div>
   );
 };

@@ -65,20 +65,23 @@ export interface SupabaseForecastData {
   id?: number
   beach_id: number
   timestamp: string
-  // Swell data (feet/seconds)
+  // Swell data (feet/seconds) - NOW INCLUDING TERTIARY
   primary_swell_height_ft: number | null
   primary_swell_period_s: number | null
   primary_swell_direction: number | null
   secondary_swell_height_ft: number | null
   secondary_swell_period_s: number | null
   secondary_swell_direction: number | null
-  // Surf data (feet/foot-pounds)
+  tertiary_swell_height_ft: number | null // NEW: Tertiary swell height
+  tertiary_swell_period_s: number | null  // NEW: Tertiary swell period
+  tertiary_swell_direction: number | null // NEW: Tertiary swell direction
+  // Surf data (feet/kilojoules) - UPDATED ENERGY UNITS
   surf_height_min_ft: number | null
   surf_height_max_ft: number | null
-  wave_energy_ft_lbs: number | null
+  wave_energy_kj: number | null // CHANGED: Now in kilojoules instead of foot-pounds
   // Water conditions (fahrenheit/feet)
   water_temp_f: number | null
-  tide_level_ft: number | null
+  tide_level_ft: number | null // NOTE: Now includes +2.4ft adjustment from Python script
   // Wind data (mph/degrees)
   wind_speed_mph: number | null
   wind_gust_mph: number | null
@@ -102,15 +105,20 @@ export interface ForecastData {
       period: number | null // seconds
       direction: number | null // degrees
     }
+    tertiary: { // NEW: Tertiary swell data
+      height: number | null // feet
+      period: number | null // seconds
+      direction: number | null // degrees
+    }
   }
   surf: {
     heightMin: number | null // feet
     heightMax: number | null // feet
-    waveEnergy: number | null // foot-pounds
+    waveEnergy: number | null // kilojoules (updated from foot-pounds)
   }
   conditions: {
     waterTemp: number | null // fahrenheit
-    tideLevel: number | null // feet
+    tideLevel: number | null // feet (includes +2.4ft adjustment)
     windSpeed: number | null // mph
     windGust: number | null // mph
     windDirection: number | null // degrees
@@ -146,15 +154,20 @@ export function transformToComponentFormat(data: SupabaseForecastData[]): Foreca
         period: row.secondary_swell_period_s,
         direction: row.secondary_swell_direction,
       },
+      tertiary: { // NEW: Tertiary swell transformation
+        height: row.tertiary_swell_height_ft,
+        period: row.tertiary_swell_period_s,
+        direction: row.tertiary_swell_direction,
+      },
     },
     surf: {
       heightMin: row.surf_height_min_ft,
       heightMax: row.surf_height_max_ft,
-      waveEnergy: row.wave_energy_ft_lbs,
+      waveEnergy: row.wave_energy_kj, // UPDATED: Now in kilojoules
     },
     conditions: {
       waterTemp: row.water_temp_f,
-      tideLevel: row.tide_level_ft,
+      tideLevel: row.tide_level_ft, // NOTE: Includes +2.4ft adjustment from Python script
       windSpeed: row.wind_speed_mph,
       windGust: row.wind_gust_mph,
       windDirection: row.wind_direction_deg,
@@ -228,7 +241,7 @@ export async function fetchBeachForecast(
 ): Promise<ForecastData[]> {
   let query = supabase
     .from('forecast_data')
-    .select('*')
+    .select('*') // This will now include the new tertiary swell columns
     .eq('beach_id', beachId)
     .order('timestamp', { ascending: true })
     .returns<SupabaseForecastData[]>() // <-- typed array
@@ -253,7 +266,7 @@ export async function fetchBeachForecast(
 export async function fetchCurrentConditions(beachId: number): Promise<ForecastData | null> {
   const { data, error } = await supabase
     .from('forecast_data')
-    .select('*')
+    .select('*') // This will now include the new tertiary swell columns
     .eq('beach_id', beachId)
     .order('timestamp', { ascending: false })
     .maybeSingle() // <-- one row
@@ -359,6 +372,11 @@ export const formatPressure = (pressure: number | null): string => {
   return `${pressure.toFixed(2)} inHg`
 }
 
+export const formatWaveEnergy = (energy: number | null): string => {
+  if (energy === null) return 'N/A'
+  return `${Math.round(energy)} kJ`
+}
+
 // ----------------------------
 export function getForecastSummary(data: ForecastData[]) {
   if (!data || data.length === 0) {
@@ -368,6 +386,8 @@ export function getForecastSummary(data: ForecastData[]) {
       avgWindSpeed: 0,
       maxWindSpeed: 0,
       avgWaterTemp: 0,
+      avgWaveEnergy: 0, // NEW: Average wave energy
+      maxWaveEnergy: 0, // NEW: Max wave energy
       conditions: 'No data',
     }
   }
@@ -384,6 +404,10 @@ export function getForecastSummary(data: ForecastData[]) {
     .map(d => d.conditions.waterTemp)
     .filter((t): t is number => t !== null)
 
+  const validWaveEnergies = data
+    .map(d => d.surf.waveEnergy)
+    .filter((e): e is number => e !== null)
+
   return {
     avgSurfHeight: validSurfHeights.length > 0 
       ? validSurfHeights.reduce((a, b) => a + b, 0) / validSurfHeights.length 
@@ -399,6 +423,12 @@ export function getForecastSummary(data: ForecastData[]) {
       : 0,
     avgWaterTemp: validWaterTemps.length > 0 
       ? validWaterTemps.reduce((a, b) => a + b, 0) / validWaterTemps.length 
+      : 0,
+    avgWaveEnergy: validWaveEnergies.length > 0 
+      ? validWaveEnergies.reduce((a, b) => a + b, 0) / validWaveEnergies.length 
+      : 0,
+    maxWaveEnergy: validWaveEnergies.length > 0 
+      ? Math.max(...validWaveEnergies) 
       : 0,
     conditions: validSurfHeights.length > 0 ? 'Good' : 'No data',
   }

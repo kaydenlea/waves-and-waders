@@ -312,7 +312,7 @@ const Summary = ({
     tide: { height: 0 },
   };
 
-  // Build processed stats (with rounding to nearest 0.1 for swell)
+  // Build processed stats - NOW USING REAL TERTIARY DATA
   const windDirStr = getWindDirection(currentData?.conditions.windDirection ?? null);
 
   const processedStats = currentData
@@ -357,6 +357,7 @@ const Summary = ({
             },
           },
           secondary: [
+            // ACTUAL SECONDARY SWELL DATA
             {
               height: round1(currentData.swell.secondary.height || 0),
               period: round1(currentData.swell.secondary.period || 0),
@@ -365,18 +366,19 @@ const Summary = ({
                 deg: currentData.swell.secondary.direction || 0,
               },
             },
+            // ACTUAL TERTIARY SWELL DATA (no longer calculated)
             {
-              height: round1((currentData.swell.secondary.height || 0) * 0.7),
-              period: round1(currentData.swell.secondary.period || 0),
+              height: round1(currentData.swell.tertiary.height || 0),
+              period: round1(currentData.swell.tertiary.period || 0),
               wind: {
-                dir: getWindDirection(currentData.swell.secondary.direction),
-                deg: currentData.swell.secondary.direction || 0,
+                dir: getWindDirection(currentData.swell.tertiary.direction),
+                deg: currentData.swell.tertiary.direction || 0,
               },
             },
           ],
         },
         tide: {
-          height: currentData.conditions.tideLevel || 0,
+          height: currentData.conditions.tideLevel || 0, // Already includes +2.4ft adjustment
         },
       }
     : defaultStats;
@@ -419,6 +421,9 @@ const Summary = ({
             hour12: true,
           })}
           {beach && ` • ${beach.Name}, ${beach.COUNTY} County`}
+          {currentData.swell.tertiary.height && currentData.swell.tertiary.height > 0 && (
+            <span className="text-green-600"> • Tertiary swell detected</span>
+          )}
         </div>
       )}
 
@@ -448,7 +453,10 @@ const Summary = ({
                   <div className="flex flex-col items-center">
                     <SwellStat primary data={stat.primary} />
                     <SwellStat data={stat.secondary[0]} />
-                    <SwellStat data={stat.secondary[1]} />
+                    {/* Only show tertiary if it has meaningful data */}
+                    {stat.secondary[1] && stat.secondary[1].height > 0 && (
+                      <SwellStat data={stat.secondary[1]} />
+                    )}
                   </div>
                 );
               break;

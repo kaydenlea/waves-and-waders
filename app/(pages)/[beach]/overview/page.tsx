@@ -290,7 +290,7 @@ const Page = ({ searchParams }: PageProps) => {
         <h2 className="mb-2">{formatSelectedDate(selectedDate)}</h2>
         <Summary
           currentForecast={currentHourData}
-          beach={beachDetail ?? selectedBeach}  
+          beach={beachDetail ?? selectedBeach}
           todayForecast={dayForecastData}
           selectedHour={selectedHour}
           dailyConditions={dailyConditions}
@@ -369,43 +369,36 @@ const Page = ({ searchParams }: PageProps) => {
           </div>
         )}
 
-        <div className="flex flex-col @min-3xl:flex-row gap-2">
-          <section className="@min-3xl:min-w-100">
+       
+        <div className="grid grid-cols-1 @min-3xl:grid-cols-[1.25fr_1fr] gap-2 items-start">
+          <section className="min-w-0">
             <Highlights
               beachId={selectedBeach.id}
               county={selectedBeach.COUNTY}
               currentData={currentHourData}
               dailyConditions={dailyConditions}
-              className=""
+              className="w-full"
             />
           </section>
 
-          {/* Debug daily conditions (dev only) */}
-          {/* {process.env.NODE_ENV === "development" && (
-            <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
-              <p className="text-sm">
-                <strong>TideChart Debug:</strong> Daily conditions = {dailyConditions ? "Found ✅" : "Missing ❌"} |
-                Sunrise = {dailyConditions?.sunrise || "N/A"} | Sunset = {dailyConditions?.sunset || "N/A"}
-              </p>
-            </div>
-          )} */}
-
-          <figure className="flex-1">
+          <figure className="min-w-0">
             <TideChart
               data={dayForecastData}
               selectedHour={selectedHour}
               selectedDate={selectedDate}
               dailyConditions={dailyConditions}
               beach={selectedBeach}
+              className="w-full"
             />
           </figure>
         </div>
 
+        {/* Swell + Surf row */}
         <div className="flex flex-col @min-3xl:flex-row gap-2">
-          <figure className="flex-1">
+          <figure className="flex-1 min-w-0">
             <SwellChart data={dayForecastData} selectedHour={selectedHour} />
           </figure>
-          <figure className="flex-1">
+          <figure className="flex-1 min-w-0">
             <SurfChart data={dayForecastData} selectedHour={selectedHour} />
           </figure>
         </div>

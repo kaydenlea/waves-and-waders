@@ -29,6 +29,11 @@ interface ForecastData {
       period: number | null;
       direction: number | null;
     };
+    tertiary: {
+      height: number | null;
+      period: number | null;
+      direction: number | null;
+    };
   };
   surf: {
     heightMin: number | null;
@@ -63,6 +68,7 @@ interface ProcessedHourData {
     secondary: Array<{ height: number; period: number; dir: string; deg: number }>;
   };
   pressure: { value: number };
+  hasTertiary: boolean; // Track if this hour has meaningful tertiary data
 }
 
 // Utility functions
@@ -129,6 +135,11 @@ const formatTime = (hour: number): string => {
   return `${displayHour} ${ampm}`;
 };
 
+const round1 = (v: number | null | undefined): number => {
+  if (v == null || Number.isNaN(v)) return 0;
+  return Math.round(v * 10) / 10;
+};
+
 const processHourlyData = (hourlyData: ForecastData[]): ProcessedHourData[] => {
   if (!hourlyData || hourlyData.length === 0) {
     // Return default/mock data if no real data available
@@ -145,6 +156,7 @@ const processHourlyData = (hourlyData: ForecastData[]): ProcessedHourData[] => {
         ],
       },
       pressure: { value: 29.94 },
+      hasTertiary: false,
     }));
   }
 
@@ -167,28 +179,32 @@ const processHourlyData = (hourlyData: ForecastData[]): ProcessedHourData[] => {
     const surfHeight = formatSurfHeight(surfMin, surfMax);
     const surfQuality = getSurfQuality(avgHeight, windSpeed);
     
-    // Process swell data
+    // Process swell data using the same pattern as other components
     const primarySwell = {
-      height: forecast.swell.primary.height || 0,
-      period: forecast.swell.primary.period || 0,
+      height: round1(forecast.swell.primary.height || 0),
+      period: round1(forecast.swell.primary.period || 0),
       dir: getWindDirection(forecast.swell.primary.direction),
       deg: forecast.swell.primary.direction || 0,
     };
     
+    // ACTUAL SECONDARY SWELL DATA (not calculated)
     const secondarySwell = {
-      height: forecast.swell.secondary.height || 0,
-      period: forecast.swell.secondary.period || 0,
+      height: round1(forecast.swell.secondary.height || 0),
+      period: round1(forecast.swell.secondary.period || 0),
       dir: getWindDirection(forecast.swell.secondary.direction),
       deg: forecast.swell.secondary.direction || 0,
     };
     
-    // Create a tertiary swell as a smaller component (common in real conditions)
+    // ACTUAL TERTIARY SWELL DATA (not calculated)
     const tertiarySwell = {
-      height: secondarySwell.height * 0.6,
-      period: secondarySwell.period,
-      dir: secondarySwell.dir,
-      deg: secondarySwell.deg,
+      height: round1(forecast.swell.tertiary.height || 0),
+      period: round1(forecast.swell.tertiary.period || 0),
+      dir: getWindDirection(forecast.swell.tertiary.direction),
+      deg: forecast.swell.tertiary.direction || 0,
     };
+    
+    // Check if this hour has meaningful tertiary data
+    const hasTertiary = (forecast.swell.tertiary.height || 0) > 0;
     
     // Process pressure (convert from inHg to standard display)
     const pressure = forecast.conditions.pressure || 29.92;
@@ -212,6 +228,7 @@ const processHourlyData = (hourlyData: ForecastData[]): ProcessedHourData[] => {
       pressure: {
         value: Number(pressure.toFixed(2)),
       },
+      hasTertiary: hasTertiary,
     };
   });
 };
@@ -305,6 +322,9 @@ const StatTable = ({
 }: StatTableProps) => {
   const processedData = processHourlyData(forecastData || []);
   
+  // Check if any hours have tertiary data to show in the header
+  const hasAnyTertiaryData = processedData.some(entry => entry.hasTertiary);
+  
   const COLUMNS = [
     { id: "wind", label: "Wind" },
     { id: "surf", label: "Surf" },
@@ -345,6 +365,9 @@ const StatTable = ({
         <span className="text-muted-foreground text-sm">
           Hourly stats for the day
           {forecastData && ` (${processedData.length} data points)`}
+          {hasAnyTertiaryData && (
+            <span className="text-green-600"> • Tertiary swell detected</span>
+          )}
         </span>
       </header>
       
@@ -417,7 +440,10 @@ const StatTable = ({
                       content = (
                         <div className="flex gap-1">
                           <SwellStat data={entry.swell.secondary[0]} />
-                          <SwellStat data={entry.swell.secondary[1]} />
+                          {/* Only show tertiary if it has meaningful data */}
+                          {entry.hasTertiary && entry.swell.secondary[1].height > 0 && (
+                            <SwellStat data={entry.swell.secondary[1]} />
+                          )}
                         </div>
                       );
                       break;

@@ -31,6 +31,11 @@ interface ForecastData {
       period: number | null;
       direction: number | null;
     };
+    tertiary: {
+      height: number | null;
+      period: number | null;
+      direction: number | null;
+    };
   };
 }
 
@@ -51,15 +56,17 @@ interface SwellChartProps {
 }
 
 interface SwellDataPoint {
-  time: number;
-  hour: string;
+  hour: number; // Changed from 'time' to 'hour' to match tide chart
+  hourLabel: string; // Keep formatted time for display
   primary: number;
   secondary: number;
   tertiary: number;
   primaryPeriod?: number;
   secondaryPeriod?: number;
+  tertiaryPeriod?: number;
   primaryDirection?: number;
   secondaryDirection?: number;
+  tertiaryDirection?: number;
 }
 
 const chartConfig = {
@@ -116,18 +123,119 @@ const getSunTimes = (dailyConditions?: DailyConditions) => {
   };
 };
 
+const round1 = (v: number | null | undefined): number => {
+  if (v == null || Number.isNaN(v)) return 0;
+  return Math.round(v * 10) / 10;
+};
+
 const processSwellData = (hourlyData: ForecastData[]): SwellDataPoint[] => {
   if (!hourlyData || hourlyData.length === 0) {
     // Return default/mock data if no real data available
     return [
-      { time: 0, hour: "12:00 AM", primary: 1.2, secondary: 0.6, tertiary: 0.3 },
-      { time: 3, hour: "3:00 AM", primary: 1.5, secondary: 0.7, tertiary: 0.4 },
-      { time: 6, hour: "6:00 AM", primary: 1.8, secondary: 0.9, tertiary: 0.7 },
-      { time: 9, hour: "9:00 AM", primary: 1.4, secondary: 0.8, tertiary: 0.6 },
-      { time: 12, hour: "12:00 PM", primary: 1.1, secondary: 0.5, tertiary: 0.4 },
-      { time: 15, hour: "3:00 PM", primary: 1.6, secondary: 0.7, tertiary: 0.6 },
-      { time: 18, hour: "6:00 PM", primary: 1.9, secondary: 1.0, tertiary: 0.8 },
-      { time: 21, hour: "9:00 PM", primary: 1.3, secondary: 0.6, tertiary: 0.5 },
+      { 
+        hour: 0, 
+        hourLabel: "12:00 AM", 
+        primary: 1.2, 
+        secondary: 0.6, 
+        tertiary: 0.3,
+        primaryPeriod: 8.5,
+        secondaryPeriod: 6.2,
+        tertiaryPeriod: 5.8,
+        primaryDirection: 245,
+        secondaryDirection: 290,
+        tertiaryDirection: 275
+      },
+      { 
+        hour: 3, 
+        hourLabel: "3:00 AM", 
+        primary: 1.5, 
+        secondary: 0.7, 
+        tertiary: 0.4,
+        primaryPeriod: 9.1,
+        secondaryPeriod: 6.8,
+        tertiaryPeriod: 6.2,
+        primaryDirection: 240,
+        secondaryDirection: 285,
+        tertiaryDirection: 270
+      },
+      { 
+        hour: 6, 
+        hourLabel: "6:00 AM", 
+        primary: 1.8, 
+        secondary: 0.9, 
+        tertiary: 0.7,
+        primaryPeriod: 9.7,
+        secondaryPeriod: 7.2,
+        tertiaryPeriod: 6.8,
+        primaryDirection: 235,
+        secondaryDirection: 280,
+        tertiaryDirection: 265
+      },
+      { 
+        hour: 9, 
+        hourLabel: "9:00 AM", 
+        primary: 1.4, 
+        secondary: 0.8, 
+        tertiary: 0.6,
+        primaryPeriod: 8.9,
+        secondaryPeriod: 6.5,
+        tertiaryPeriod: 6.1,
+        primaryDirection: 250,
+        secondaryDirection: 295,
+        tertiaryDirection: 280
+      },
+      { 
+        hour: 12, 
+        hourLabel: "12:00 PM", 
+        primary: 1.1, 
+        secondary: 0.5, 
+        tertiary: 0.4,
+        primaryPeriod: 8.2,
+        secondaryPeriod: 5.8,
+        tertiaryPeriod: 5.5,
+        primaryDirection: 255,
+        secondaryDirection: 300,
+        tertiaryDirection: 285
+      },
+      { 
+        hour: 15, 
+        hourLabel: "3:00 PM", 
+        primary: 1.6, 
+        secondary: 0.7, 
+        tertiary: 0.6,
+        primaryPeriod: 9.3,
+        secondaryPeriod: 6.4,
+        tertiaryPeriod: 6.0,
+        primaryDirection: 248,
+        secondaryDirection: 292,
+        tertiaryDirection: 277
+      },
+      { 
+        hour: 18, 
+        hourLabel: "6:00 PM", 
+        primary: 1.9, 
+        secondary: 1.0, 
+        tertiary: 0.8,
+        primaryPeriod: 10.1,
+        secondaryPeriod: 7.5,
+        tertiaryPeriod: 7.1,
+        primaryDirection: 242,
+        secondaryDirection: 287,
+        tertiaryDirection: 272
+      },
+      { 
+        hour: 21, 
+        hourLabel: "9:00 PM", 
+        primary: 1.3, 
+        secondary: 0.6, 
+        tertiary: 0.5,
+        primaryPeriod: 8.7,
+        secondaryPeriod: 6.1,
+        tertiaryPeriod: 5.8,
+        primaryDirection: 252,
+        secondaryDirection: 297,
+        tertiaryDirection: 282
+      },
     ];
   }
 
@@ -135,23 +243,34 @@ const processSwellData = (hourlyData: ForecastData[]): SwellDataPoint[] => {
     const date = new Date(forecast.timestamp);
     const hour = date.getHours();
     
-    // Get swell heights (already in feet from your imperial script)
+    // Get real swell heights from the API data (already in feet from your imperial script)
     const primaryHeight = forecast.swell.primary.height || 0;
     const secondaryHeight = forecast.swell.secondary.height || 0;
+    const tertiaryHeight = forecast.swell.tertiary.height || 0; // REAL TERTIARY DATA
     
-    // Create tertiary swell as a smaller component of secondary (common in real conditions)
-    const tertiaryHeight = secondaryHeight > 0 ? secondaryHeight * 0.5 : 0;
+    // Round periods to nearest tenth using the same helper as other components
+    const primaryPeriod = forecast.swell.primary.period 
+      ? round1(forecast.swell.primary.period)
+      : undefined;
+    const secondaryPeriod = forecast.swell.secondary.period 
+      ? round1(forecast.swell.secondary.period)
+      : undefined;
+    const tertiaryPeriod = forecast.swell.tertiary.period 
+      ? round1(forecast.swell.tertiary.period)
+      : undefined;
     
     return {
-      time: hour,
-      hour: formatTime(hour),
+      hour: hour,
+      hourLabel: formatTime(hour),
       primary: Number(primaryHeight.toFixed(1)),
       secondary: Number(secondaryHeight.toFixed(1)),
-      tertiary: Number(tertiaryHeight.toFixed(1)),
-      primaryPeriod: forecast.swell.primary.period,
-      secondaryPeriod: forecast.swell.secondary.period,
+      tertiary: Number(tertiaryHeight.toFixed(1)), // REAL TERTIARY HEIGHT
+      primaryPeriod: primaryPeriod,
+      secondaryPeriod: secondaryPeriod,
+      tertiaryPeriod: tertiaryPeriod, // REAL TERTIARY PERIOD
       primaryDirection: forecast.swell.primary.direction,
       secondaryDirection: forecast.swell.secondary.direction,
+      tertiaryDirection: forecast.swell.tertiary.direction, // REAL TERTIARY DIRECTION
     };
   });
 };
@@ -171,6 +290,9 @@ const SwellChart = ({ data, currentForecast, dailyConditions, beach }: SwellChar
     3 // Minimum scale of 3ft
   );
 
+  // Check if there's meaningful tertiary data to show in the legend
+  const hasRealTertiaryData = currentForecast?.swell.tertiary.height && currentForecast.swell.tertiary.height > 0;
+
   return (
     <div className="h-full bg-background border border-border p-2 rounded-md shadow-sm">
       <header className="mx-2 mb-4 mt-2">
@@ -180,6 +302,9 @@ const SwellChart = ({ data, currentForecast, dailyConditions, beach }: SwellChar
         <span className="text-muted-foreground text-sm">
           Showing the swell for the day
           {beach && ` at ${beach.name}`}
+          {hasRealTertiaryData && (
+            <span className="text-green-600"> • Tertiary swell detected</span>
+          )}
         </span>
         
         {/* Current swell info */}
@@ -189,6 +314,9 @@ const SwellChart = ({ data, currentForecast, dailyConditions, beach }: SwellChar
             {currentForecast.swell.primary.direction && ` ${getWindDirection(currentForecast.swell.primary.direction)}`}
             {currentForecast.swell.secondary.height && (
               <> • Secondary: {currentForecast.swell.secondary.height.toFixed(1)}ft @ {currentForecast.swell.secondary.period || 'N/A'}s</>
+            )}
+            {hasRealTertiaryData && (
+              <> • Tertiary: {currentForecast.swell.tertiary.height?.toFixed(1)}ft @ {currentForecast.swell.tertiary.period || 'N/A'}s</>
             )}
           </div>
         )}
@@ -205,7 +333,8 @@ const SwellChart = ({ data, currentForecast, dailyConditions, beach }: SwellChar
             left: -30,
             right: 15,
           }}
-          syncId="anyId"
+          syncId="surfCharts" // SYNC ID - use same ID as tide chart
+          syncMethod="value"
         >
           {/* Night and day reference areas */}
           <ReferenceArea x1={0} x2={sunTimes.sunriseHour} fill={nightColor} fillOpacity={0.2} />
@@ -222,7 +351,7 @@ const SwellChart = ({ data, currentForecast, dailyConditions, beach }: SwellChar
             vertical={false}
           />
           <XAxis
-            dataKey="time"
+            dataKey="hour" // Changed from 'time' to 'hour' to match tide chart
             tickLine={false}
             axisLine={false}
             tickMargin={8}
@@ -241,35 +370,62 @@ const SwellChart = ({ data, currentForecast, dailyConditions, beach }: SwellChar
             tickMargin={8}
             fontSize={11}
             domain={[0, Math.ceil(maxHeight * 1.2)]}
+            tickFormatter={(value) => `${value}ft`}
           />
           <ChartLegend content={<ChartLegendContent />} />
           <ChartTooltip 
-            content={<ChartTooltipContent 
-              formatter={(value, name) => {
-                const point = swellData.find(d => d.time === currentHour) || swellData[0];
-                let label = `${value} ft`;
-                
-                // Add period and direction info for primary/secondary
-                if (name === 'primary' && point.primaryPeriod) {
-                  label += ` @ ${point.primaryPeriod}s`;
-                  if (point.primaryDirection) {
-                    label += ` ${getWindDirection(point.primaryDirection)}`;
-                  }
-                } else if (name === 'secondary' && point.secondaryPeriod) {
-                  label += ` @ ${point.secondaryPeriod}s`;
-                  if (point.secondaryDirection) {
-                    label += ` ${getWindDirection(point.secondaryDirection)}`;
-                  }
-                }
-                
-                return [label, name.charAt(0).toUpperCase() + name.slice(1)];
-              }}
-              labelFormatter={(hour) => {
-                const displayHour = hour % 12 === 0 ? 12 : hour % 12;
-                const ampm = hour >= 12 ? 'PM' : 'AM';
-                return `${displayHour}:00 ${ampm}`;
-              }}
-            />} 
+            content={({ active, payload, label }) => {
+              if (!active || !payload || !payload.length) return null;
+              
+              const hour = typeof label === "number" ? label : 0;
+              const point = swellData.find(d => d.hour === hour);
+              
+              return (
+                <div className="rounded-lg border bg-background p-2 shadow-sm">
+                  <div className="flex flex-col gap-1">
+                    <div className="font-medium text-sm">
+                      {point?.hourLabel || formatTime(hour)}
+                    </div>
+                    
+                    {payload.map((entry, index) => {
+                      const value = entry.value as number;
+                      const name = entry.name as string;
+                      let label = `${value.toFixed(1)} ft`;
+                      
+                      // Add period and direction info for all swell components
+                      if (name === 'primary' && point?.primaryPeriod) {
+                        label += ` @ ${point.primaryPeriod}s`;
+                        if (point.primaryDirection) {
+                          label += ` ${getWindDirection(point.primaryDirection)}`;
+                        }
+                      } else if (name === 'secondary' && point?.secondaryPeriod) {
+                        label += ` @ ${point.secondaryPeriod}s`;
+                        if (point.secondaryDirection) {
+                          label += ` ${getWindDirection(point.secondaryDirection)}`;
+                        }
+                      } else if (name === 'tertiary' && point?.tertiaryPeriod) {
+                        label += ` @ ${point.tertiaryPeriod}s`;
+                        if (point.tertiaryDirection) {
+                          label += ` ${getWindDirection(point.tertiaryDirection)}`;
+                        }
+                      }
+                      
+                      return (
+                        <div key={index} className="flex items-center gap-2">
+                          <div 
+                            className="w-3 h-3 rounded-sm" 
+                            style={{ backgroundColor: entry.color }}
+                          />
+                          <span className="text-xs">
+                            <span className="font-medium capitalize">{name}:</span> {label}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            }}
           />
           
           {/* Stacked areas for different swell components */}
@@ -289,14 +445,17 @@ const SwellChart = ({ data, currentForecast, dailyConditions, beach }: SwellChar
             fill="#48cae4"
             fillOpacity={0.7}
           />
-          <Area
-            type="monotone"
-            dataKey="tertiary"
-            stackId="1"
-            stroke="#70ccebff"
-            fill="#adf1ffff"
-            fillOpacity={0.6}
-          />
+          {/* Only show tertiary area if there's meaningful data */}
+          {(hasRealTertiaryData || swellData.some(d => d.tertiary > 0)) && (
+            <Area
+              type="monotone"
+              dataKey="tertiary"
+              stackId="1"
+              stroke="#70ccebff"
+              fill="#adf1ffff"
+              fillOpacity={0.6}
+            />
+          )}
         </AreaChart>
       </ChartContainer>
       
@@ -328,6 +487,15 @@ const SwellChart = ({ data, currentForecast, dailyConditions, beach }: SwellChar
               {currentForecast.swell.secondary.period && ` @ ${currentForecast.swell.secondary.period}s`}
             </div>
           </div>
+          
+          {/* Show tertiary info if it exists */}
+          {hasRealTertiaryData && (
+            <div className="mt-1">
+              <span className="text-teal-600 font-medium">Tertiary:</span> {' '}
+              {currentForecast.swell.tertiary.height?.toFixed(1)}ft
+              {currentForecast.swell.tertiary.period && ` @ ${currentForecast.swell.tertiary.period}s`}
+            </div>
+          )}
         </div>
       )}
     </div>

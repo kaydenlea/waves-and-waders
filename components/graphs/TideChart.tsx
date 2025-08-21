@@ -20,25 +20,25 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { FaSun } from "react-icons/fa";
 import { FiSunrise, FiSunset } from "react-icons/fi";
 import { ForecastData } from "@/lib/supabase";
 
+/* ---------------- Types ---------------- */
+
 interface DailyConditions {
-  date: string;
+  date?: string;
   sunrise: string | null;
   sunset: string | null;
-  moon_phase: number | null;
+  moon_phase?: number | null;
 }
 
 interface TideDataPoint {
-  hour: number;
+  hour: number;    // numeric hour (0-23, can be fractional if you ever want)
   tide: number;
   isPeak?: number;
-  time: string;
   isHigh?: boolean;
   isLow?: boolean;
-  timestamp: string;
+  time: string;
 }
 
 interface TidePreviewProps {
@@ -52,211 +52,150 @@ interface TideChartProps {
   dailyConditions?: DailyConditions;
   selectedHour?: number;
   selectedDate?: Date;
-  beach?: {
-    id: number;
-    Name: string;
-    COUNTY: string;
-  };
+  beach?: { id: number; Name: string; COUNTY: string };
   className?: string;
 }
 
-// Utility functions
-const getCurrentHour = () => new Date().getHours();
+/* ---------------- Utilities ---------------- */
 
-const findTidePeaks = (data: TideDataPoint[]): TideDataPoint[] => {
-  if (data.length < 3) return [];
-  
-  const peaks: TideDataPoint[] = [];
-  
-  for (let i = 1; i < data.length - 1; i++) {
-    const prev = data[i - 1];
-    const current = data[i];
-    const next = data[i + 1];
-    
-    // Skip if we don't have valid tide data
-    if (prev.tide === null || current.tide === null || next.tide === null) continue;
-    
-    // High tide: higher than both neighbors (with some threshold to avoid noise)
-    if (current.tide > prev.tide + 0.2 && current.tide > next.tide + 0.2) {
-      peaks.push({
-        ...current,
-        isPeak: current.tide,
-        isHigh: true
-      });
-    }
-    // Low tide: lower than both neighbors (with some threshold to avoid noise)
-    else if (current.tide < prev.tide - 0.2 && current.tide < next.tide - 0.2) {
-      peaks.push({
-        ...current,
-        isPeak: current.tide,
-        isLow: true
-      });
-    }
-  }
-  
-  return peaks;
+const nowHour = () => new Date().getHours();
+
+const formatHourLabel = (h: number) => {
+  const hour = Math.floor(h + 1e-6);
+  const display = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+  const ampm = hour >= 12 ? "PM" : "AM";
+  return `${display}:00 ${ampm}`;
 };
 
-const formatTime = (hour: number): string => {
-  const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-  const ampm = hour >= 12 ? 'PM' : 'AM';
-  return `${displayHour}:00 ${ampm}`;
+const tickHour = (value: number) => {
+  if (value % 3 !== 0) return "";
+  const v = value % 12;
+  return v === 0 ? "12" : String(v);
 };
 
-const formatTimeFromTimestamp = (timestamp: string): string => {
-  try {
-    const date = new Date(timestamp);
-    const hour = date.getHours();
-    return formatTime(hour);
-  } catch {
-    return "Invalid Time";
-  }
-};
-
-const processHourlyTideData = (hourlyData: ForecastData[]): TideDataPoint[] => {
-  if (!hourlyData || hourlyData.length === 0) {
-    // Return realistic default tide data
-    return Array.from({ length: 24 }, (_, i) => {
-      // Create a realistic tide curve (2 high tides, 2 low tides per day)
-      const tideValue = 3 + 2 * Math.sin((i * Math.PI) / 6) + Math.sin((i * Math.PI) / 12);
-      
-      return {
-        hour: i,
-        tide: Math.max(0, tideValue), // Ensure no negative tides
-        time: formatTime(i),
-        timestamp: new Date(2024, 0, 1, i).toISOString(),
-      };
-    });
-  }
-
-  const tideData: TideDataPoint[] = hourlyData
-    .filter(forecast => forecast.conditions.tideLevel !== null) // Filter out null tide data
-    .map((forecast) => {
-      const date = new Date(forecast.timestamp);
-      const hour = date.getHours();
-      
-      return {
-        hour,
-        tide: forecast.conditions.tideLevel!,
-        time: formatTime(hour),
-        timestamp: forecast.timestamp,
-      };
-    });
-
-  // If we don't have enough data points, fill in gaps
-  if (tideData.length < 12) {
-    console.warn('Limited tide data available, supplementing with interpolated values');
-    // You could add interpolation logic here if needed
-  }
-
-  // Find and mark tide peaks
-  const peaks = findTidePeaks(tideData);
-  
-  // Merge peaks back into main data
-  return tideData.map(point => {
-    const peak = peaks.find(p => p.hour === point.hour);
-    if (peak) {
-      return { ...point, isPeak: peak.isPeak, isHigh: peak.isHigh, isLow: peak.isLow };
-    }
-    return point;
-  });
-};
-
-const getSunTimes = (dailyConditions?: DailyConditions, selectedDate?: Date) => {
-  // Defaults (if table missing)
+const getSunTimes = (daily?: DailyConditions, selectedDate?: Date) => {
   let sunrise = "6:30";
   let sunset = "19:30";
-
-  if (dailyConditions?.sunrise && dailyConditions?.sunset) {
-    sunrise = dailyConditions.sunrise; // e.g., "06:19:00"
-    sunset = dailyConditions.sunset;   // e.g., "19:22:00"
+  if (daily?.sunrise && daily?.sunset) {
+    sunrise = daily.sunrise;
+    sunset  = daily.sunset;
   } else if (selectedDate) {
-    const month = selectedDate.getMonth();
-    const isWinter = month < 3 || month > 8;
-    sunrise = isWinter ? "7:00" : "6:00";
-    sunset  = isWinter ? "17:30" : "19:00";
+    const m = selectedDate.getMonth();
+    const winter = m < 3 || m > 8;
+    sunrise = winter ? "7:00" : "6:00";
+    sunset  = winter ? "17:30" : "19:00";
   }
 
-  const parseTime = (timeStr: string) => {
-    const parts = timeStr.split(":");    // "HH:MM:SS" or "HH:MM"
-    const h = parseInt(parts[0], 10) || 0;
-    const m = parseInt(parts[1] ?? "0", 10) || 0;
-    const hourFloat = h + m / 60;        // 6:19 -> 6.3166...
-
-    const displayHour = h === 0 ? 12 : h > 12 ? h - 12 : h;
-    const ampm = h >= 12 ? "PM" : "AM";
-    const formatted = `${displayHour}:${m.toString().padStart(2, "0")} ${ampm}`;
-
-    return { hourFloat, formatted };
+  const parse = (t: string) => {
+    const [hh, mm = "0"] = t.split(":");
+    const h = parseInt(hh || "0", 10);
+    const m = parseInt(mm || "0", 10);
+    return {
+      hourFloat: h + m / 60,
+      label: `${(h % 12) === 0 ? 12 : (h % 12)}:${mm.padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`,
+    };
   };
 
-  const sunriseData = parseTime(sunrise);
-  const sunsetData  = parseTime(sunset);
-
+  const r1 = parse(sunrise);
+  const r2 = parse(sunset);
   return {
-    sunrise: sunriseData.formatted,
-    sunset: sunsetData.formatted,
-    sunriseHour: sunriseData.hourFloat,  // decimal hours
-    sunsetHour: sunsetData.hourFloat,
+    sunriseHour: r1.hourFloat,
+    sunsetHour: r2.hourFloat,
+    sunriseLabel: r1.label,
+    sunsetLabel: r2.label,
   };
 };
 
+const processHourlyTideData = (hourly?: ForecastData[]): TideDataPoint[] => {
+  if (!hourly || hourly.length === 0) {
+    // fallback shape (looks like a real day)
+    return Array.from({ length: 24 }, (_, h) => ({
+      hour: h,
+      tide:
+        3 +
+        1.4 * Math.sin(((h - 2) * Math.PI) / 6) + // semidiurnal-ish
+        0.6 * Math.sin(((h + 3) * Math.PI) / 12),
+      time: formatHourLabel(h),
+    }));
+  }
 
-// Default chart configuration
+  const out: TideDataPoint[] = hourly
+    .filter((f) => f.conditions.tideLevel !== null)
+    .map((f) => {
+      const d = new Date(f.timestamp);
+      const h = d.getHours();
+      return {
+        hour: h,
+        tide: f.conditions.tideLevel as number,
+        time: formatHourLabel(h),
+      };
+    })
+    .sort((a, b) => a.hour - b.hour);
+
+  // Mark local highs/lows with 3-hour separation
+  const peaks: TideDataPoint[] = [];
+  for (let i = 1; i < out.length - 1; i++) {
+    const prev = out[i - 1];
+    const cur  = out[i];
+    const next = out[i + 1];
+    const isHigh = cur.tide > prev.tide && cur.tide > next.tide;
+    const isLow  = cur.tide < prev.tide && cur.tide < next.tide;
+    if (isHigh || isLow) {
+      const closeIdx = peaks.findIndex((p) => Math.abs(p.hour - cur.hour) < 3);
+      const candidate = { ...cur, isPeak: cur.tide, isHigh, isLow };
+      if (closeIdx === -1) {
+        peaks.push(candidate);
+      } else {
+        const nearby = peaks[closeIdx];
+        const replace =
+          (isHigh && cur.tide > (nearby.tide ?? nearby.isPeak ?? -Infinity)) ||
+          (isLow  && cur.tide < (nearby.tide ?? nearby.isPeak ?? Infinity));
+        if (replace) peaks[closeIdx] = candidate;
+      }
+    }
+  }
+
+  const peaksByHour = new Map<number, { isPeak: number; isHigh?: boolean; isLow?: boolean }>();
+  peaks.forEach((p) => peaksByHour.set(p.hour, { isPeak: p.isPeak!, isHigh: p.isHigh, isLow: p.isLow }));
+
+  return out.map((d) => ({ ...d, ...(peaksByHour.get(d.hour) || {}) }));
+};
+
+// Build tidy ticks: 0.5 step for tight ranges, else 1.0
+const buildNiceTicks = (minVal: number, maxVal: number): number[] => {
+  const range = Math.max(0.5, maxVal - minVal);
+  const step = range <= 3 ? 0.5 : 1.0;
+  const start = Math.floor(minVal / step) * step;
+  const end   = Math.ceil(maxVal / step) * step;
+  const ticks: number[] = [];
+  for (let v = start; v <= end + 1e-6; v += step) {
+    // Avoid float drift like 2.999999
+    ticks.push(Math.round(v * 10) / 10);
+  }
+  return ticks;
+};
+
+/* ---------------- Preview (small sparkline) ---------------- */
+
 const previewChartConfig = {
-  tide: {
-    label: "Tide",
-    color: "#499effff",
-  },
-} satisfies ChartConfig;
-
-const chartConfig = {
-  tide: {
-    label: "Tide",
-    color: "#6e6e6eff",
-  },
+  tide: { label: "Tide", color: "#499effff" },
 } satisfies ChartConfig;
 
 export const TidePreview = ({ data, selectedHour, className }: TidePreviewProps) => {
-  const processedData = processHourlyTideData(data || []);
-  const currentHour = selectedHour !== undefined ? selectedHour : getCurrentHour();
-  
-  // Create simplified data for preview (every 4 hours for better visibility)
-  const previewData = processedData.filter((_, index) => index % 4 === 0).slice(0, 6);
-  
-  // Find current position for reference line
-  const currentDataPoint = processedData.find(d => d.hour === currentHour);
-  const currentTide = currentDataPoint?.tide || 0;
+  const processed = processHourlyTideData(data);
+  const currentH = selectedHour ?? nowHour();
+
+  // downsample for small sparkline
+  const mini = processed.filter((_, i) => i % 4 === 0).slice(0, 6);
+  const point = processed.find((d) => d.hour === currentH);
+  const tideY = point?.tide ?? (mini[0]?.tide ?? 0);
 
   return (
-    <ChartContainer
-      className={`aspect-auto h-[60px] w-full ${className}`}
-      config={previewChartConfig}
-    >
-      <AreaChart
-        accessibilityLayer
-        data={previewData}
-        margin={{
-          left: 0,
-          right: 0,
-          bottom: 0,
-          top: 5,
-        }}
-      >
-        {currentDataPoint && (
-          <>
-            <ReferenceLine x={currentHour} stroke="#ff6b6b" strokeWidth={1} />
-            <ReferenceDot x={currentHour} y={currentTide} r={2} fill="#ff6b6b" stroke="#ffffff" />
-          </>
-        )}
-        <XAxis
-          dataKey="hour"
-          tickLine={false}
-          axisLine={false}
-          tickMargin={0}
-          fontSize={8}
-          hide={true}
-        />
+    <ChartContainer className={`aspect-auto h-[60px] w-full ${className || ""}`} config={previewChartConfig}>
+      <AreaChart data={mini} margin={{ left: 0, right: 0, bottom: 0, top: 5 }}>
+        <ReferenceLine x={currentH} stroke="#ef4444" strokeWidth={1} />
+        <ReferenceDot x={currentH} y={tideY} r={2} fill="#ef4444" stroke="#fff" />
+        <XAxis dataKey="hour" hide />
         <defs>
           <linearGradient id="fillTidePreview" x1="0" y1="0" x2="0" y2="1">
             <stop offset="5%" stopColor="var(--color-tide)" stopOpacity={0.8} />
@@ -277,216 +216,126 @@ export const TidePreview = ({ data, selectedHour, className }: TidePreviewProps)
   );
 };
 
-export const TideChart = ({ 
-  data, 
-  dailyConditions, 
-  selectedHour, 
+/* ---------------- Main Chart ---------------- */
+
+const chartConfig = {
+  tide: { label: "Tide", color: "#6e6e6eff" },
+} satisfies ChartConfig;
+
+export const TideChart = ({
+  data,
+  dailyConditions,
+  selectedHour,
   selectedDate = new Date(),
   beach,
-  className 
+  className,
 }: TideChartProps) => {
-  const chartData = processHourlyTideData(data || []);
-  const sunTimes = getSunTimes(dailyConditions, selectedDate);
-  const currentHour = selectedHour !== undefined ? selectedHour : getCurrentHour();
-  
-  // Create reference areas for night/day
-  const nightColor = "#e0e7ff";
-  const dayColor = "#fef3c7";
-  
-  // Calculate tide range for better Y-axis scaling
-  const tideValues = chartData.map(d => d.tide).filter(t => t !== null);
-  const minTide = tideValues.length > 0 ? Math.min(...tideValues) : 0;
-  const maxTide = tideValues.length > 0 ? Math.max(...tideValues) : 6;
-  
+  const rows = processHourlyTideData(data);
+  const sun  = getSunTimes(dailyConditions, selectedDate);
+  const curH = selectedHour ?? nowHour();
+
+  const values = rows.map((d) => d.tide);
+  const dataMin = values.length ? Math.min(...values) : 0;
+  const dataMax = values.length ? Math.max(...values) : 6;
+
+  // comfortable domain & ticks
+  const yMin = Math.max(0, Math.floor((dataMin - 0.4) * 2) / 2); // down to 0.5 step
+  const yMax = Math.ceil((dataMax + 0.4) * 2) / 2;
+  const ticks = buildNiceTicks(yMin, yMax);
+
   return (
-    <div className={`h-full bg-background border border-border p-2 rounded-md shadow-sm ${className}`}>
+    <div className={`h-full bg-background border border-border p-2 rounded-md shadow-sm ${className || ""}`}>
       <header className="mx-2 mb-4 mt-2">
         <h3 className="leading-none font-semibold">
           Tide <span className="text-base font-medium">(ft)</span>
         </h3>
         <span className="text-muted-foreground text-sm">
-          Showing the tides for {selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-          {beach && ` at ${beach.Name}`}
-          {chartData.length > 0 && ` • ${chartData.length} data points`}
+          {selectedDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+          {beach && ` • ${beach.Name}`}
+          {rows.length > 0 && ` • ${rows.length} pts`}
         </span>
       </header>
-      
-      <ChartContainer
-        className="@min-lg:aspect-auto @min-lg:h-[250px] w-full"
-        config={chartConfig}
-      >
-        <LineChart
-          accessibilityLayer
-          data={chartData}
-          margin={{
-            left: -20,
-            right: 15,
-            top: 20,
-            bottom: 5,
-          }}
-        >
-          {/* Night and day reference areas */}
-          <ReferenceArea 
-            x1={0} 
-            x2={sunTimes.sunriseHour} 
-            fill={nightColor} 
-            fillOpacity={0.3}
-            label="Night"
-          />
-          <ReferenceArea 
-            x1={sunTimes.sunriseHour} 
-            x2={sunTimes.sunsetHour} 
-            fill={dayColor} 
-            fillOpacity={0.3}
-            label="Day"
-          />
-          <ReferenceArea 
-            x1={sunTimes.sunsetHour} 
-            x2={24} 
-            fill={nightColor} 
-            fillOpacity={0.3}
-            label="Night"
-          />
-          
-          {/* Current time indicator */}
-          <ReferenceLine 
-            x={currentHour} 
-            stroke="#ff6b6b" 
-            strokeWidth={2} 
-            strokeDasharray="3 3"
-            label={{ value: "Now", position: "top" }}
-          />
-          
-          <CartesianGrid
-            strokeDasharray="3 3"
-            stroke="#e5e7eb"
-            strokeWidth={0.5}
-            vertical={false}
-          />
-          
-          <XAxis
-            dataKey="hour"
-            type="number"                 // ⬅️ numeric axis
-            domain={[0, 24]}             // ⬅️ full-day range
-            allowDecimals={false}
-            tickLine={false}
-            axisLine={false}
-            tickMargin={8}
-            minTickGap={0}
-            fontSize={11}
-            tickFormatter={(value) => {
-              // Show every 3rd hour
-              if (typeof value === "number" && value % 3 === 0) {
-                const v = value % 12;
-                return v === 0 ? "12" : String(v);
-              }
-              return "";
-            }}
-          />
 
-          {/* Night/Day shading (works with numeric axis) */}
-          <ReferenceArea x1={0} x2={sunTimes.sunriseHour} fill="#e0e7ff" fillOpacity={0.3} />
-          <ReferenceArea x1={sunTimes.sunriseHour} x2={sunTimes.sunsetHour} fill="#fef3c7" fillOpacity={0.3} />
-          <ReferenceArea x1={sunTimes.sunsetHour} x2={24} fill="#e0e7ff" fillOpacity={0.3} />
+      <ChartContainer className="@min-lg:aspect-auto @min-lg:h-[250px] w-full" config={chartConfig}>
+        <LineChart
+          data={rows}
+          margin={{ left: -28, right: 16, top: 20, bottom: 6 }}
+          accessibilityLayer
+          syncId="anyId"            // <-- keep this same across Surf/Swell to sync hover line
+          syncMethod="value"
+        >
+          {/* Night / Day background (use solid hex + fillOpacity for consistency) */}
+          <ReferenceArea x1={0} x2={sun.sunriseHour} fill="#e0e7ff" fillOpacity={0.28} />
+          <ReferenceArea x1={sun.sunriseHour} x2={sun.sunsetHour} fill="#fef3c7" fillOpacity={0.28} />
+          <ReferenceArea x1={sun.sunsetHour} x2={24} fill="#e0e7ff" fillOpacity={0.28} />
+
+          {/* Current time line */}
+          <ReferenceLine x={curH} stroke="#ef4444" strokeWidth={2} strokeDasharray="3 3" />
 
           {/* Sunrise / Sunset vertical markers */}
           <ReferenceLine
-            x={sunTimes.sunriseHour}
+            x={sun.sunriseHour}
             stroke="#f59e0b"
             strokeWidth={2}
             label={{ value: "Sunrise", position: "top", fill: "#f59e0b" }}
           />
           <ReferenceLine
-            x={sunTimes.sunsetHour}
+            x={sun.sunsetHour}
             stroke="#ea580c"
             strokeWidth={2}
             label={{ value: "Sunset", position: "top", fill: "#ea580c" }}
           />
 
-          {/* Optional: dots at sunrise/sunset even if no data point exists */}
-          <ReferenceDot
-            x={sunTimes.sunriseHour}
-            y={Math.max(0, Math.floor(minTide - 0.5))} // near bottom of chart
-            r={4}
-            fill="#f59e0b"
-            stroke="var(--color-tide)"
-          />
-          <ReferenceDot
-            x={sunTimes.sunsetHour}
-            y={Math.max(0, Math.floor(minTide - 0.5))}
-            r={4}
-            fill="#ea580c"
-            stroke="var(--color-tide)"
-          />
+          {/* Optional dots near the bottom so they're visible even without a data point at that hour */}
+          <ReferenceDot x={sun.sunriseHour} y={yMin} r={4} fill="#f59e0b" stroke="var(--color-tide)" />
+          <ReferenceDot x={sun.sunsetHour}  y={yMin} r={4} fill="#ea580c" stroke="var(--color-tide)" />
 
-          
-          <YAxis
-            dataKey="tide"
+          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeWidth={0.5} vertical={false} />
+
+          <XAxis
+            dataKey="hour"
+            type="number"            // <-- numeric axis so ReferenceArea/Line align
+            domain={[0, 24]}
+            allowDecimals
             tickLine={false}
             axisLine={false}
             tickMargin={8}
             fontSize={11}
-            domain={[
-              Math.max(0, Math.floor(minTide - 0.5)),
-              Math.ceil(maxTide + 0.5)
-            ]}
-            tickFormatter={(value) => `${value}ft`}
+            tickFormatter={tickHour}
           />
-          
-          <ChartTooltip 
-            content={<ChartTooltipContent 
-              formatter={(value, name) => [
-                typeof value === 'number' ? `${value.toFixed(1)} ft` : 'N/A',
-                "Tide Height"
-              ]}
-              labelFormatter={(hour) => {
-                if (typeof hour === 'number') {
-                  return formatTime(hour);
-                }
-                return "Time";
-              }}
-            />} 
+
+          <YAxis
+            tickLine={false}
+            axisLine={false}
+            tickMargin={8}
+            fontSize={11}
+            domain={[yMin, yMax]}
+            ticks={ticks}
+            allowDecimals
+            tickFormatter={(v) => (Number.isInteger(v) ? `${v}ft` : `${v.toFixed(1)}ft`)}
           />
-          
+
+          <ChartTooltip
+            cursor={{ stroke: "#94a3b8", strokeWidth: 1 }}
+            content={
+              <ChartTooltipContent
+                formatter={(v) => [typeof v === "number" ? `${v.toFixed(1)} ft` : "N/A", "Tide Height"]}
+                labelFormatter={(x) => (typeof x === "number" ? formatHourLabel(x) : "Time")}
+              />
+            }
+          />
+
           <Line
             dataKey="tide"
             type="monotone"
             stroke="var(--color-tide)"
             strokeWidth={3}
             dot={({ payload, cx, cy, index }) => {
-              if (!payload || typeof cx !== 'number' || typeof cy !== 'number') return null;
-              
-              const isCurrentHour = payload.hour === currentHour;
-              const isSunTime = payload.hour === sunTimes.sunriseHour || payload.hour === sunTimes.sunsetHour;
-              
-              if (isCurrentHour) {
+              if (!payload || typeof cx !== "number" || typeof cy !== "number") return null;
+              if (payload.isPeak) {
                 return (
                   <circle
-                    key={`current-${index}`}
-                    cx={cx}
-                    cy={cy}
-                    r={5}
-                    fill="#ff6b6b"
-                    stroke="#ffffff"
-                    strokeWidth={2}
-                  />
-                );
-              } else if (isSunTime) {
-                return (
-                  <circle
-                    key={`sun-${index}`}
-                    cx={cx}
-                    cy={cy}
-                    r={4}
-                    fill="#f59e0b"
-                    stroke="var(--color-tide)"
-                    strokeWidth={1}
-                  />
-                );
-              } else if (payload.isPeak) {
-                return (
-                  <circle
-                    key={`peak-${index}`}
+                    key={`pk-${index}`}
                     cx={cx}
                     cy={cy}
                     r={4}
@@ -499,51 +348,47 @@ export const TideChart = ({
               return null;
             }}
           >
-            {/* Peak tide labels */}
+            {/* Peak labels */}
             <LabelList
               dataKey="isPeak"
               content={(props: LabelProps) => {
-                const safeX = typeof props.x === "number" ? props.x : 0;
-                const safeY = typeof props.y === "number" ? props.y : 0;
-                const safeIndex = typeof props.index === "number" ? props.index : 0;
-                
-                if (props.value && safeIndex < chartData.length) {
-                  const dataPoint = chartData[safeIndex];
-                  const displayTime = formatTime(dataPoint.hour);
+                const x = typeof props.x === "number" ? props.x : 0;
+                const y = typeof props.y === "number" ? props.y : 0;
+                const i = typeof props.index === "number" ? props.index : 0;
+
+                if (props.value && i < rows.length) {
+                  const pt = rows[i];
                   const tideHeight = Number(props.value).toFixed(1);
-                  const isHigh = dataPoint.isHigh;
-                  
                   return (
-                    <g key={`peak-label-${safeIndex}`}>
+                    <g key={`peak-label-${i}`}>
                       <text
-                        x={safeX}
-                        y={safeY - 35}
+                        x={x}
+                        y={y - 32}
                         fill="var(--foreground)"
                         textAnchor="middle"
                         dominantBaseline="middle"
                         fontSize={10}
-                        fontWeight="500"
                       >
-                        {displayTime}
+                        {formatHourLabel(pt.hour)}
                       </text>
                       <text
-                        x={safeX}
-                        y={safeY - 20}
-                        fill={isHigh ? "#10b981" : "#3b82f6"}
+                        x={x}
+                        y={y - 17}
+                        fill={pt.isHigh ? "#10b981" : "#3b82f6"}
                         textAnchor="middle"
                         fontWeight="bold"
-                        fontSize={11}
+                        fontSize={12}
                       >
                         {`${tideHeight} ft`}
                       </text>
                       <text
-                        x={safeX}
-                        y={safeY - 8}
+                        x={x}
+                        y={y - 6}
                         fill="var(--muted-foreground)"
                         textAnchor="middle"
-                        fontSize={8}
+                        fontSize={9}
                       >
-                        {isHigh ? "HIGH" : "LOW"}
+                        {pt.isHigh ? "HIGH" : "LOW"}
                       </text>
                     </g>
                   );
@@ -554,32 +399,24 @@ export const TideChart = ({
           </Line>
         </LineChart>
       </ChartContainer>
-      
-      {/* Sunrise/Sunset info */}
+
+      {/* Sunrise/Sunset footer badges */}
       <figcaption className="flex justify-between mt-4 mx-4">
         <div className="flex items-center gap-2 bg-amber-50 py-2 px-3 rounded-md border border-amber-200">
           <FiSunrise className="text-amber-600" size={18} />
           <div className="text-left">
             <div className="text-xs font-medium text-amber-800">Sunrise</div>
-            <div className="text-xs text-amber-600">{sunTimes.sunrise}</div>
+            <div className="text-xs text-amber-600">{sun.sunriseLabel}</div>
           </div>
         </div>
-        
         <div className="flex items-center gap-2 bg-orange-50 py-2 px-3 rounded-md border border-orange-200">
           <FiSunset className="text-orange-600" size={18} />
           <div className="text-left">
             <div className="text-xs font-medium text-orange-800">Sunset</div>
-            <div className="text-xs text-orange-600">{sunTimes.sunset}</div>
+            <div className="text-xs text-orange-600">{sun.sunsetLabel}</div>
           </div>
         </div>
       </figcaption>
-      
-      {/* No data warning */}
-      {chartData.length === 0 && (
-        <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
-          ⚠️ No tide data available for this date
-        </div>
-      )}
     </div>
   );
 };

@@ -39,6 +39,9 @@ API_DELAY = 2.0           # Seconds to wait between API calls
 RETRY_DELAY = 65          # Seconds to wait when rate limited
 MAX_RETRIES = 3           # Maximum retry attempts
 
+# Tide adjustment constant (in feet)
+TIDE_ADJUSTMENT_FT = 2.4
+
 # Fix for Windows console encoding
 if sys.platform == "win32":
     os.environ["PYTHONIOENCODING"] = "utf-8"
@@ -86,6 +89,33 @@ def hpa_to_inhg(hpa):
     if hpa is None:
         return None
     return hpa * 0.02953
+
+def calculate_wave_energy_kj(wave_height_ft, wave_period_s):
+    """
+    Calculate wave energy in kilojoules matching surf-forecast.com values.
+    
+    Based on wave energy flux formula, calibrated to match surf-forecast.com ranges:
+    - ~100 kJ: Just about surfable at many breaks
+    - 200-1000 kJ: Increasingly punchy waves  
+    - 1000-5000+ kJ: Heavy and potentially dangerous
+    
+    Formula: Energy = H² * T * 8.5 (where H is in meters, T in seconds)
+    """
+    if wave_height_ft is None or wave_period_s is None:
+        return None
+    
+    try:
+        # Convert wave height from feet to meters for calculation
+        wave_height_m = wave_height_ft / 3.28084
+        
+        # Calibrated formula to match surf-forecast.com energy values
+        # This gives realistic ranges: small waves ~50-200 kJ, big waves 1000+ kJ
+        energy_kj = (wave_height_m ** 2) * wave_period_s * 8.5
+        
+        return round(energy_kj)
+        
+    except Exception:
+        return None
 
 # === UTILITY FUNCTIONS ===
 def log_step(message: str, step_num: int = None):
@@ -390,7 +420,7 @@ def update_forecast_data(beaches):
             # Small delay between weather and marine API
             time.sleep(1)
 
-            # Marine API call with retry
+            # Marine API call with retry - NOW INCLUDING TERTIARY SWELL
             marine_url = "https://marine-api.open-meteo.com/v1/marine"
             marine_params = {
                 "latitude": lats,
@@ -398,6 +428,7 @@ def update_forecast_data(beaches):
                 "hourly": [
                     "swell_wave_height", "swell_wave_period", "swell_wave_direction",
                     "secondary_swell_wave_height", "secondary_swell_wave_period", "secondary_swell_wave_direction",
+                    "tertiary_swell_wave_height", "tertiary_swell_wave_period", "tertiary_swell_wave_direction",  # ADDED TERTIARY
                     "wave_height", "sea_surface_temperature", "sea_level_height_msl"
                 ],
                 "timezone": "America/Los_Angeles",
@@ -441,15 +472,19 @@ def update_forecast_data(beaches):
                     pressure_hpa = wr.Variables(4).ValuesAsNumpy()
                     weather_code = wr.Variables(5).ValuesAsNumpy()  # NEW: Weather code
 
+                    # Extract marine data arrays - NOW HAS 12 VARIABLES (added tertiary swell)
                     pri_swell_h_m = mr.Variables(0).ValuesAsNumpy()
                     pri_swell_p = mr.Variables(1).ValuesAsNumpy()
                     pri_swell_dir = mr.Variables(2).ValuesAsNumpy()
                     sec_swell_h_m = mr.Variables(3).ValuesAsNumpy()
                     sec_swell_p = mr.Variables(4).ValuesAsNumpy()
                     sec_swell_dir = mr.Variables(5).ValuesAsNumpy()
-                    surf_height_max_m = mr.Variables(6).ValuesAsNumpy()
-                    water_temp_c = mr.Variables(7).ValuesAsNumpy()
-                    tide_level_m = mr.Variables(8).ValuesAsNumpy()
+                    ter_swell_h_m = mr.Variables(6).ValuesAsNumpy()  # NEW: Tertiary swell height
+                    ter_swell_p = mr.Variables(7).ValuesAsNumpy()    # NEW: Tertiary swell period
+                    ter_swell_dir = mr.Variables(8).ValuesAsNumpy()  # NEW: Tertiary swell direction
+                    surf_height_max_m = mr.Variables(9).ValuesAsNumpy()  # Adjusted index
+                    water_temp_c = mr.Variables(10).ValuesAsNumpy()      # Adjusted index
+                    tide_level_m = mr.Variables(11).ValuesAsNumpy()      # Adjusted index
 
                     # Build records with IMPERIAL UNIT CONVERSIONS
                     n = min(len(timestamps), len(wind_speed_kph), len(surf_height_max_m))
@@ -459,30 +494,41 @@ def update_forecast_data(beaches):
                         surf_max_ft = safe_float(meters_to_feet(raw_surf_max_m))
                         surf_min_ft = surf_max_ft * 0.7 if surf_max_ft is not None else None
                         
-                        # Wave energy in foot-pounds (using feet instead of meters)
-                        wave_energy_ft_lbs = surf_max_ft ** 2 if surf_max_ft is not None else None
+                        # Calculate wave energy in kJ using primary swell data
+                        pri_swell_height_ft = safe_float(meters_to_feet(pri_swell_h_m[j]))
+                        pri_swell_period_s = safe_float(pri_swell_p[j])
+                        wave_energy_kj = calculate_wave_energy_kj(pri_swell_height_ft, pri_swell_period_s)
+
+                        # Apply tide adjustment (+2.4 feet)
+                        raw_tide_level_ft = safe_float(meters_to_feet(tide_level_m[j]))
+                        adjusted_tide_level_ft = (raw_tide_level_ft + TIDE_ADJUSTMENT_FT) if raw_tide_level_ft is not None else None
 
                         record = {
                             "beach_id": beach_id,
                             "timestamp": pd.Timestamp(timestamps[j]).isoformat(),
                             
                             # Swell data - convert heights to feet, keep periods in seconds, directions in degrees
-                            "primary_swell_height_ft": safe_float(meters_to_feet(pri_swell_h_m[j])),
-                            "primary_swell_period_s": safe_float(pri_swell_p[j]),
+                            "primary_swell_height_ft": pri_swell_height_ft,
+                            "primary_swell_period_s": pri_swell_period_s,
                             "primary_swell_direction": safe_float(pri_swell_dir[j]),
                             
                             "secondary_swell_height_ft": safe_float(meters_to_feet(sec_swell_h_m[j])),
                             "secondary_swell_period_s": safe_float(sec_swell_p[j]),
                             "secondary_swell_direction": safe_float(sec_swell_dir[j]),
                             
-                            # Surf data - all in feet
+                            # NEW: Tertiary swell data
+                            "tertiary_swell_height_ft": safe_float(meters_to_feet(ter_swell_h_m[j])),
+                            "tertiary_swell_period_s": safe_float(ter_swell_p[j]),
+                            "tertiary_swell_direction": safe_float(ter_swell_dir[j]),
+                            
+                            # Surf data - all in feet, energy in kJ
                             "surf_height_min_ft": safe_float(surf_min_ft),
                             "surf_height_max_ft": safe_float(surf_max_ft),
-                            "wave_energy_ft_lbs": safe_float(wave_energy_ft_lbs),
+                            "wave_energy_kj": wave_energy_kj,  # Now in kJ
                             
-                            # Water conditions - temperature in F, tide in feet
+                            # Water conditions - temperature in F, tide in feet (ADJUSTED +2.4)
                             "water_temp_f": safe_float(celsius_to_fahrenheit(water_temp_c[j])),
-                            "tide_level_ft": safe_float(meters_to_feet(tide_level_m[j])),
+                            "tide_level_ft": adjusted_tide_level_ft,  # Applied +2.4 ft adjustment
                             
                             # Wind data - convert to mph
                             "wind_speed_mph": safe_float(kph_to_mph(wind_speed_kph[j])),
@@ -641,6 +687,9 @@ def main():
     """Main execution function."""
     start_time = time.time()
     logger.info("SURF: Starting surf database update with IMPERIAL UNITS...")
+    logger.info(f"SURF: Tide adjustment: +{TIDE_ADJUSTMENT_FT} feet")
+    logger.info("SURF: Wave energy calculated in kJ (surf-forecast.com style)")
+    logger.info("SURF: Now extracting tertiary swell data")
     
     try:
         # Step 1: Cleanup old data
@@ -674,6 +723,9 @@ def main():
         logger.info(f"   • Daily condition records: {daily_count}")
         logger.info(f"   • Total time: {total_time:.1f} seconds")
         logger.info(f"   • Units: Imperial (mph, feet, Fahrenheit, inHg)")
+        logger.info(f"   • Tide adjustment: +{TIDE_ADJUSTMENT_FT} feet applied")
+        logger.info(f"   • Wave energy: kJ (surf-forecast.com compatible)")
+        logger.info(f"   • Tertiary swell: Now extracted from API")
         
         return True
         

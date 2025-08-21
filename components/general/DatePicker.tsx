@@ -9,9 +9,20 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
-import { FaCloud, FaCloudSunRain, FaSun } from "react-icons/fa";
 import { cn } from "@/lib/utils";
 import { ForecastData } from "@/lib/supabase";
+
+// Weather icons (WMO mapping)
+import {
+  WiDaySunny,
+  WiCloudy,
+  WiFog,
+  WiRain,
+  WiShowers,
+  WiSnow,
+  WiThunderstorm,
+  WiSleet,
+} from "react-icons/wi";
 
 interface DatePickerProps {
   selectedDate?: Date;
@@ -24,11 +35,10 @@ interface DatePickerProps {
 
 interface DayData {
   date: Dayjs;
-  surfHeight: string;
-  weatherCondition: "sun" | "cloud" | "rain";
-  qualityColor: string;
   hasData: boolean;
-  avgSurfHeight: number;
+  avgSurfHeight: number;        // <- single average, not a range
+  qualityColor: string;
+  weatherCode: number | null;   // <- store code to render icon
 }
 
 const DatePicker = ({
@@ -45,39 +55,33 @@ const DatePicker = ({
     dayjs(selectedDate)
   );
 
-  // Calculate max date (default to 7 days from now if not provided)
-  const calculatedMaxDate =
-    maxDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-  const daysBetween = dayjs(calculatedMaxDate).diff(dayjs(minDate), "day") + 1;
-  const totalDays = Math.min(daysBetween, 30); // Cap at 30 days for performance
+  // Helpers
+  const round1 = (v: number) => Math.round(v * 10) / 10;
 
-  // Generate days array
-  const days = Array.from({ length: totalDays }, (_, i) =>
-    dayjs(minDate).add(i, "day")
-  );
-
-  // Group forecast by day
-  const forecastByDate = useMemo(() => {
-    const dataMap = new Map<string, ForecastData[]>();
-    forecastData.forEach((forecast) => {
-      const dateKey = dayjs(forecast.timestamp).format("YYYY-MM-DD");
-      if (!dataMap.has(dateKey)) dataMap.set(dateKey, []);
-      dataMap.get(dateKey)!.push(forecast);
-    });
-    return dataMap;
-  }, [forecastData]);
-
-  // Weather mapping
-  const getWeatherCondition = (
-    weatherCode: number | null
-  ): "sun" | "cloud" | "rain" => {
-    if (!weatherCode) return "sun";
-    if (weatherCode >= 50) return "rain"; // drizzle/rain
-    if (weatherCode >= 20) return "cloud"; // cloudy/overcast
-    return "sun";
+  const weatherIconByCode = (code: number | null | undefined) => {
+    if (code == null) return <WiDaySunny size={16} color="#f59e0b" />;
+    if (code === 0) return <WiDaySunny size={16} color="#f59e0b" />;
+    if ([1, 2, 3].includes(code)) return <WiCloudy size={16} color="#6b7280" />;
+    if ([45, 48].includes(code)) return <WiFog size={16} color="#94a3b8" />;
+    if ([51, 53, 55].includes(code)) return <WiRain size={16} color="#60a5fa" />;
+    if ([56, 57, 66, 67].includes(code)) return <WiSleet size={16} color="#38bdf8" />;
+    if ([61, 63, 65].includes(code)) return <WiRain size={16} color="#3b82f6" />;
+    if ([71, 73, 75, 77, 85, 86].includes(code)) return <WiSnow size={16} color="#93c5fd" />;
+    if ([80, 81, 82].includes(code)) return <WiShowers size={16} color="#60a5fa" />;
+    if (code === 95) return <WiThunderstorm size={16} color="#f59e0b" />;
+    if ([96, 99].includes(code)) return <WiThunderstorm size={16} color="#eab308" />;
+    return <WiDaySunny size={16} color="#f59e0b" />;
   };
 
-  // Surf quality color
+  const dominantCode = (codes: number[]): number | null => {
+    if (codes.length === 0) return null;
+    const freq = new Map<number, number>();
+    for (const c of codes) freq.set(c, (freq.get(c) ?? 0) + 1);
+    let best = codes[0], bestN = 0;
+    for (const [c, n] of freq) if (n > bestN) { best = c; bestN = n; }
+    return best;
+  };
+
   const getSurfQualityColor = (avgHeight: number): string => {
     if (avgHeight < 1) return "bg-red-400";
     if (avgHeight < 2) return "bg-orange-400";
@@ -87,98 +91,89 @@ const DatePicker = ({
     return "bg-purple-400";
   };
 
-  // Surf height display
-  const formatSurfHeight = (heights: number[]): string => {
-    if (heights.length === 0) return "0-1";
-    const min = Math.min(...heights);
-    const max = Math.max(...heights);
-    if (min === max) return `${Math.round(min)}`;
-    return `${Math.round(min)}-${Math.round(max)}`;
-  };
+  // Calculate max date (default to 7 days out if not provided)
+  const calculatedMaxDate =
+    maxDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const daysBetween = dayjs(calculatedMaxDate).diff(dayjs(minDate), "day") + 1;
+  const totalDays = Math.min(daysBetween, 30);
 
-  // Build per-day summaries
+  // Days array
+  const days = Array.from({ length: totalDays }, (_, i) =>
+    dayjs(minDate).add(i, "day")
+  );
+
+  // Group forecasts by date
+  const forecastByDate = useMemo(() => {
+    const dataMap = new Map<string, ForecastData[]>();
+    forecastData.forEach((f) => {
+      const key = dayjs(f.timestamp).format("YYYY-MM-DD");
+      if (!dataMap.has(key)) dataMap.set(key, []);
+      dataMap.get(key)!.push(f);
+    });
+    return dataMap;
+  }, [forecastData]);
+
+  // Build per-day summaries (avg surf + dominant weather code)
   const processedDays: DayData[] = useMemo(() => {
     return days.map((day) => {
-      const dateKey = day.format("YYYY-MM-DD");
-      const dayForecasts = forecastByDate.get(dateKey) || [];
+      const key = day.format("YYYY-MM-DD");
+      const dayForecasts = forecastByDate.get(key) || [];
 
       if (dayForecasts.length === 0) {
         return {
           date: day,
-          surfHeight: "0-1",
-          weatherCondition: "sun",
-          qualityColor: "bg-gray-300",
           hasData: false,
           avgSurfHeight: 0,
+          qualityColor: "bg-gray-300",
+          weatherCode: null,
         };
-      }
-
-      const surfHeights = dayForecasts
+        }
+      // Average surf height (use heightMax as your daily signal)
+      const heights = dayForecasts
         .map((f) => f.surf.heightMax)
         .filter((h): h is number => h !== null);
+      const avg = heights.length
+        ? heights.reduce((a, b) => a + b, 0) / heights.length
+        : 0;
 
-      const weatherCodes = dayForecasts
+      // Dominant weather code for the day
+      const codes = dayForecasts
         .map((f) => f.conditions.weather)
         .filter((w): w is number => w !== null);
-
-      const avgSurfHeight =
-        surfHeights.length > 0
-          ? surfHeights.reduce((a, b) => a + b, 0) / surfHeights.length
-          : 0;
-
-      const weatherCondition =
-        weatherCodes.length > 0
-          ? getWeatherCondition(weatherCodes[0])
-          : "sun";
+      const code = dominantCode(codes);
 
       return {
         date: day,
-        surfHeight: formatSurfHeight(surfHeights),
-        weatherCondition,
-        qualityColor: getSurfQualityColor(avgSurfHeight),
         hasData: true,
-        avgSurfHeight,
+        avgSurfHeight: avg,
+        qualityColor: getSurfQualityColor(avg),
+        weatherCode: code,
       };
     });
   }, [days, forecastByDate]);
 
-  // Keep internal selection in sync with prop
+  // Keep internal selection in sync
   useEffect(() => {
     setInternalSelectedDate(dayjs(selectedDate));
   }, [selectedDate]);
 
-  const scrollBy = 4; // number of slides to advance
-
+  const scrollBy = 4;
   const handleNext = () => {
     if (!api) return;
-    const nextIndex = Math.min(
+    const next = Math.min(
       api.selectedScrollSnap() + scrollBy,
       api.scrollSnapList().length - 1
     );
-    api.scrollTo(nextIndex);
+    api.scrollTo(next);
   };
-
   const handlePrev = () => {
     if (!api) return;
-    const prevIndex = Math.max(api.selectedScrollSnap() - scrollBy, 0);
-    api.scrollTo(prevIndex);
+    const prev = Math.max(api.selectedScrollSnap() - scrollBy, 0);
+    api.scrollTo(prev);
   };
-
-  const handleDateSelect = (day: Dayjs) => {
-    setInternalSelectedDate(day);
-    onDateChange?.(day.toDate());
-  };
-
-  const getWeatherIcon = (condition: "sun" | "cloud" | "rain") => {
-    switch (condition) {
-      case "sun":
-        return <FaSun size={16} color="#f79e55ff" />;
-      case "rain":
-        return <FaCloudSunRain size={16} color="#6b7280ff" />;
-      case "cloud":
-      default:
-        return <FaCloud size={16} color="#bdbdbdff" />;
-    }
+  const handleDateSelect = (d: Dayjs) => {
+    setInternalSelectedDate(d);
+    onDateChange?.(d.toDate());
   };
 
   return (
@@ -189,9 +184,8 @@ const DatePicker = ({
           setApi={setApi}
           className="w-full"
         >
-          {/* Prev/Next overlay the track, they won't squish slides */}
           <CarouselPrevious onClick={handlePrev} />
-          <CarouselContent className="-ml-2"> {/* gutter start */}
+          <CarouselContent className="-ml-2">
             {processedDays.map((dayData, index) => {
               const isSelected = internalSelectedDate.isSame(dayData.date, "day");
               const isToday = dayData.date.isSame(today, "day");
@@ -201,8 +195,8 @@ const DatePicker = ({
                 <CarouselItem
                   key={index}
                   className={cn(
-                    "pl-2 shrink-0",                          // gutter + prevent shrink
-                    "basis-[120px] sm:basis-[132px] md:basis-[148px] lg:basis-[164px]" // consistent width
+                    "pl-2 shrink-0",
+                    "basis-[120px] sm:basis-[132px] md:basis-[148px] lg:basis-[164px]"
                   )}
                 >
                   <button
@@ -239,20 +233,20 @@ const DatePicker = ({
                       )}
                     />
 
-                    {/* Surf height */}
+                    {/* Surf average (rounded to 0.1 ft) */}
                     <span
                       className={cn(
                         "text-base md:text-lg font-semibold leading-tight",
                         !dayData.hasData && "text-gray-400"
                       )}
                     >
-                      {dayData.surfHeight}
+                      {round1(dayData.avgSurfHeight).toFixed(1)}
                       <span className="text-xs font-normal">ft</span>
                     </span>
 
-                    {/* Weather */}
+                    {/* Weather icon from code */}
                     <div className="flex items-center justify-center">
-                      {getWeatherIcon(dayData.weatherCondition)}
+                      {weatherIconByCode(dayData.weatherCode)}
                       {!dayData.hasData && (
                         <span className="text-xs text-gray-400 ml-1">No data</span>
                       )}
@@ -266,7 +260,7 @@ const DatePicker = ({
         </Carousel>
       </div>
 
-      {/* Data status indicator */}
+      {/* Status */}
       <div className="px-2 py-1 text-xs text-gray-500 bg-gray-50 border-x border-b border-border rounded-b-sm">
         {forecastData.length > 0
           ? `${forecastData.length} forecast data points loaded`
