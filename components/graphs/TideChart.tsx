@@ -269,9 +269,9 @@ export const TideChart = ({
       <ChartContainer className="@min-lg:aspect-auto @min-lg:h-[250px] w-full" config={chartConfig}>
         <LineChart
           data={rows}
-          margin={{ left: -28, right: 16, top: 20, bottom: 6 }}
+          margin={{ left: -28, right: 16, top: 40, bottom: 6 }} // Increased top margin from 20 to 40
           accessibilityLayer
-          syncId="surfCharts" // Updated from "anyId" to match other components
+          syncId="surfCharts"
           syncMethod="value"
         >
           {/* Night / Day background - using dynamic sun times */}
@@ -287,13 +287,13 @@ export const TideChart = ({
             x={sun.sunriseHour}
             stroke="#f59e0b"
             strokeWidth={2}
-            label={{ value: "Sunrise", position: "top", fill: "#f59e0b" }}
+            // label={{ value: "Sunrise", position: "top", fill: "#f59e0b" }}
           />
           <ReferenceLine
             x={sun.sunsetHour}
             stroke="#ea580c"
             strokeWidth={2}
-            label={{ value: "Sunset", position: "top", fill: "#ea580c" }}
+            // label={{ value: "Sunset", position: "top", fill: "#ea580c" }}
           />
 
           {/* Sun indicator dots */}
@@ -327,45 +327,51 @@ export const TideChart = ({
 
           <ChartTooltip
             cursor={{ stroke: "#94a3b8", strokeWidth: 1 }}
-            content={
-              <ChartTooltipContent
-                formatter={(v) => [typeof v === "number" ? `${v.toFixed(1)} ft` : "N/A", "Tide Height"]}
-                labelFormatter={(x) => (typeof x === "number" ? formatHourLabel(x) : "Time")}
-              />
-            }
+            content={({ active, payload, label }) => {
+              if (!active || !payload || !payload.length) return null;
+              
+              const hour = typeof label === "number" ? label : 0;
+              const point = rows.find(d => d.hour === hour);
+              const value = payload[0]?.value as number;
+              
+              return (
+                <div className="rounded-lg border bg-background p-2 shadow-sm">
+                  <div className="flex flex-col gap-1">
+                    <div className="font-medium text-sm">
+                      {point?.time || formatHourLabel(hour)}
+                    </div>
+                    <div className="text-xs">
+                      <span className="font-medium">Tide Height:</span> {value?.toFixed(1) || 'N/A'} ft
+                    </div>
+                    {point?.isPeak && (
+                      <div className="text-xs">
+                        <span className="font-medium text-blue-600">
+                          {point.isHigh ? "HIGH TIDE" : "LOW TIDE"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            }}
           />
 
           <Line
             dataKey="tide"
-            type="natural" // Updated from "monotone" to match origin/main
+            type="natural"
             stroke="var(--color-tide)"
-            strokeWidth={2} // Updated from 3 to 2 to match origin/main
+            strokeWidth={2}
             dot={({ payload, cx, cy, index }) => {
               if (!payload || typeof cx !== "number" || typeof cy !== "number") return null;
               
-              // Sun indicators for sunrise/sunset times (from origin/main)
-              if (payload.hour === 6 || payload.hour === 20) {
-                return (
-                  <circle
-                    key={`sun-${index}`}
-                    cx={cx}
-                    cy={cy}
-                    r={3}
-                    fill="orange"
-                    stroke="var(--color-tide)"
-                    strokeWidth={1}
-                  />
-                );
-              }
-              
-              // Peak indicators
+              // Only show peak indicators (removed sun indicators)
               if (payload.isPeak) {
                 return (
                   <circle
                     key={`pk-${index}`}
                     cx={cx}
                     cy={cy}
-                    r={3} // Updated from 4 to 3 to match origin/main
+                    r={3}
                     fill={payload.isHigh ? "#10b981" : "#3b82f6"}
                     stroke="var(--color-tide)"
                     strokeWidth={1}
@@ -375,25 +381,7 @@ export const TideChart = ({
               return <g key={payload.hour} />;
             }}
           >
-            {/* Sun icons from origin/main */}
-            <LabelList
-              dataKey="tide"
-              content={(props: LabelProps) => {
-                const safeX = typeof props.x === "number" ? props.x : 0;
-                return (
-                  <g>
-                    {(props.index === 6 || props.index === 20) && (
-                      <Sun
-                        x={safeX - 12}
-                        y={0}
-                        fill="#ff9946ff"
-                        color="#ff9946ff"
-                      />
-                    )}
-                  </g>
-                );
-              }}
-            />
+            {/* Removed Sun icons LabelList - no longer needed */}
 
             {/* Peak labels with enhanced formatting */}
             <LabelList
