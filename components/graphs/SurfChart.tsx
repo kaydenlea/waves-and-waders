@@ -56,8 +56,8 @@ const SurfChart = () => {
         <ReferenceArea x1={6} fill="#ccc1ffff" fillOpacity={0.2} />
         <CartesianGrid
           strokeDasharray="3 3"
-          stroke="#eee"
-          strokeWidth={0.5}
+          stroke="var(--foreground)"
+          strokeWidth={0.1}
           vertical={false}
         />
         <XAxis
@@ -102,7 +102,7 @@ const SurfChart = () => {
                     // y={safeY - iconSize - iconSize}
                     y={iconSize / 2}
                     fill="#8bd668ff"
-                    color="#03030338"
+                    color="#8bd668ff"
                   />
                 </g>
               );

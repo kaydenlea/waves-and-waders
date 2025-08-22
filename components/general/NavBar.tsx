@@ -7,7 +7,7 @@ const NavBar = () => {
     <header className="fixed @min-3xl:relative px-1.5 pt-1.5 z-2 w-full @container backdrop-blur-md">
       <nav
         aria-label="primary navigation"
-        className="flex justify-center @min-lg:justify-between p-4 shadow-md bg-background rounded-md w-full"
+        className="flex justify-center @min-lg:justify-between p-4 shadow-md bg-background rounded-md w-full border border-border"
       >
         <Link href="/" className="p-3 icon-button hide-button">
           Logo

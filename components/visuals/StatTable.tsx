@@ -8,6 +8,7 @@ import {
   ArrowRight,
   MousePointer2 as ArrowIcon,
 } from "lucide-react";
+import DaySlider from "../general/DaySlider";
 
 const SwellStat = ({
   primary = false,
@@ -127,6 +128,7 @@ const StatTable = ({
 
   const [visibleCols, setVisibleCols] = React.useState(0);
   const [currentPage, setCurrentPage] = React.useState(0);
+  const [startIndex, setStartIndex] = React.useState(0);
 
   React.useEffect(() => {
     const handleResize = () => {
@@ -155,6 +157,7 @@ const StatTable = ({
         ]
       : [COLUMNS];
 
+  // handle visible columns
   const handleNext = () => {
     setCurrentPage((prev) => Math.min(prev + 1, columnPages.length - 1));
   };
@@ -164,8 +167,37 @@ const StatTable = ({
 
   const visibleColumns = columnPages[currentPage];
 
+  // handle visible days
+
+  // show 3 days at a time
+  const windowSize = 3;
+
+  const handleNextDays = () => {
+    if (startIndex + windowSize < data.length) {
+      setStartIndex((prev) => prev + 1);
+    }
+  };
+
+  const handleBackDays = () => {
+    if (startIndex > 0) {
+      setStartIndex((prev) => prev - 1);
+    }
+  };
+
+  const visibleDays = data.slice(startIndex, startIndex + windowSize);
+
   return (
     <>
+      {windowSize < data.length && (
+        <DaySlider
+          handleBack={handleBackDays}
+          handleNext={handleNextDays}
+          windowSize={3}
+          length={data.length}
+          startIndex={startIndex}
+          days="Wed, 8/15 - Fri, 8/17"
+        />
+      )}
       <table className="w-full table-auto border-collapse text-sm">
         <thead>
           <tr>
@@ -185,7 +217,7 @@ const StatTable = ({
           </tr>
         </thead>
         <tbody>
-          {data.map((day, i) => {
+          {visibleDays.map((day, i) => {
             const content = day.vals.map((entry, rowIdx) => {
               return (
                 <tr
@@ -279,7 +311,7 @@ const StatTable = ({
                   <tr key={`${i}-date`}>
                     <td
                       colSpan={6}
-                      className="p-3 bg-highlight-1 font-semibold rounded-sm"
+                      className="p-3 bg-highlight-3 font-semibold rounded-sm"
                     >
                       {day.date}
                     </td>

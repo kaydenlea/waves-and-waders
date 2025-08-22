@@ -50,8 +50,8 @@ const TideChart = ({
         <ReferenceArea x1={20} x2={24} fill="#ccc1ffff" fillOpacity={0.2} />
         <CartesianGrid
           strokeDasharray="3 3"
-          stroke="#eee"
-          strokeWidth={0.5}
+          stroke="var(--foreground)"
+          strokeWidth={0.1}
           vertical={false}
         />
         <XAxis
@@ -73,10 +73,7 @@ const TideChart = ({
           axisLine={false}
           tickMargin={8}
           fontSize={11}
-          domain={[
-            0,
-            (dataMax: number) => Math.max(Math.ceil(dataMax) + 1, 10),
-          ]}
+          domain={[0, (dataMax: number) => Math.max(Math.ceil(dataMax) + 1, 8)]}
         />
         <ChartTooltip content={<ChartTooltipContent />} />
         <Line
@@ -122,6 +119,7 @@ const TideChart = ({
                 <g>
                   {(props.index === 6 || props.index === 20) && (
                     <Sun
+                      size={20}
                       x={safeX - 12}
                       y={0}
                       fill="#ff9946ff"

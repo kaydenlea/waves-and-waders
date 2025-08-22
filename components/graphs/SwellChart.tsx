@@ -63,8 +63,8 @@ const SwellChart = () => {
         <ReferenceArea x1={18} x2={21} fill="#ccc1ffff" fillOpacity={0.2} />
         <CartesianGrid
           strokeDasharray="3 3"
-          stroke="#eee"
-          strokeWidth={0.5}
+          stroke="var(--foreground)"
+          strokeWidth={0.1}
           vertical={false}
         />
         <XAxis

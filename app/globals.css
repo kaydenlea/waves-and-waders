@@ -81,6 +81,7 @@
   --color-background: var(--background);
   --color-highlight-1: var(--highlight-1);
   --color-highlight-2: var(--highlight-2);
+  --color-highlight-3: var(--highlight-3);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -90,8 +91,9 @@
 :root {
   --radius: 0.625rem;
   --background: oklch(1 0 0);
-  --highlight-1: oklch(95.514% 0.00011 271.152 / 0.849);
+  --highlight-1: oklch(95.514% 0.00011 271.152 / 0.788);
   --highlight-2: oklch(95.815% 0.00011 271.152 / 0.377);
+  --highlight-3: oklch(93.403% 0.00011 271.152);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
@@ -135,6 +137,7 @@
   --background: oklch(20.512% 0.0637 253.232);
   --highlight-1: oklch(32.897% 0.00004 271.152 / 0.623);
   --highlight-2: oklch(32.897% 0.00004 271.152 / 0.336);
+  --highlight-3: oklch(26.627% 0.04459 256.951);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
   --card-foreground: oklch(0.985 0 0);

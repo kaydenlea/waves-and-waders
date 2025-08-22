@@ -33,12 +33,12 @@ const BasicStat = ({
   return (
     <span
       className={cn(
-        "text-2xl font-medium px-3 py-2 border border-border rounded-md",
+        "text-xl font-medium px-3 py-2 border border-border rounded-md",
         typeof data.value === "number" ? "bg-green" : "bg-red"
       )}
     >
       {data.value}
-      <span className="text-sm font-normal">{data.unit}</span>
+      <span className="text-xs font-normal">{data.unit}</span>
     </span>
   );
 };
@@ -59,9 +59,9 @@ const MoonStat = ({ data }: { data: string }) => {
 const WindStat = ({ data }: { data: { speed: number; max: number } }) => {
   return (
     <span className="flex gap-1 bg-orange border border-border rounded-md py-2 px-3">
-      <span className="text-2xl font-medium">{data.speed}</span>
+      <span className="text-xl font-medium">{data.speed}</span>
       <span className="flex flex-col -space-y-1">
-        <span className="text-[0.7rem]">{data.max}</span>
+        <span className="text-[0.6rem]">{data.max}</span>
         <span className="text-xs">mph</span>
       </span>
     </span>
@@ -89,7 +89,7 @@ const Highlights = () => {
 
   return (
     <div className="p-2 border border-border rounded-md shadow-sm">
-      <header className="ml-1 mb-4 mt-2">
+      <header className="ml-2 mb-4 mt-1">
         <h3 className="text-xl font-semibold">Current Conditions</h3>
         <p className="text-sm -mt-0.5">Showing the stats for the day</p>
       </header>

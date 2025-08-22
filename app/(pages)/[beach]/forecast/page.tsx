@@ -44,13 +44,13 @@ const Page = ({ params }: { params: { beach: string } }) => {
           <LazyLoadForecastSurf />
         </figure>
         <figure className="h-full bg-background border border-border p-2 rounded-md shadow-sm">
-          <header className="mx-4 mt-4 mb-6">
+          <header className="mx-3 mt-3 mb-2">
             <h3 className="leading-none font-semibold">Weekly Statistics</h3>
             <span className="text-muted-foreground text-sm">
               Hourly stats for the week
             </span>
           </header>
-          <LazyLoadTable numHours={3} numDays={3} header />
+          <LazyLoadTable numHours={3} numDays={7} header />
         </figure>
       </section>
     </div>

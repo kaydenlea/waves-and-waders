@@ -17,13 +17,9 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { Button } from "../ui/button";
+import DaySlider from "../general/DaySlider";
 
-import {
-  ArrowLeft,
-  ArrowRight,
-  MousePointer2 as ArrowIcon,
-} from "lucide-react";
+import { MousePointer2 as ArrowIcon } from "lucide-react";
 
 const chartData = [
   { day: "Mon", tide1: 2, tide2: 4, tide3: 1 },
@@ -89,31 +85,14 @@ const ForecastSurfChart = () => {
   return (
     <>
       {windowSize !== 7 && (
-        <div className="flex gap-2 items-center justify-center mb-2">
-          <Button
-            aria-label="previous slide"
-            size="icon"
-            variant="outline"
-            className="border border-border bg-background rounded-full drop-shadow-sm"
-            onClick={handleBack}
-            disabled={startIndex === 0}
-          >
-            <ArrowLeft />
-          </Button>
-          <span className="font-semibold text-sm bg-background border border-border drop-shadow-sm px-4 py-2 rounded-2xl">
-            Wed, 8/15 - Fri, 8/17
-          </span>
-          <Button
-            aria-label="next slide"
-            size="icon"
-            variant="outline"
-            className="border border-border bg-background rounded-full drop-shadow-sm"
-            onClick={handleNext}
-            disabled={startIndex + windowSize >= chartData.length}
-          >
-            <ArrowRight />
-          </Button>
-        </div>
+        <DaySlider
+          handleBack={handleBack}
+          handleNext={handleNext}
+          startIndex={startIndex}
+          windowSize={windowSize}
+          length={chartData.length}
+          days="Wed, 8/15 - Fri, 8/17"
+        />
       )}
       <ChartContainer
         config={chartConfig}
@@ -128,12 +107,16 @@ const ForecastSurfChart = () => {
           }}
           accessibilityLayer
           data={visibleData}
-          syncId="anyId"
         >
           <ReferenceArea x1={0} x2={1} fill="#ccc1ffff" fillOpacity={0.2} />
           <ReferenceArea x1={2} x2={5} fill="#FFE58F" fillOpacity={0.2} />
           <ReferenceArea x1={6} x2={6} fill="#ccc1ffff" fillOpacity={0.2} />
-          <CartesianGrid vertical={false} />
+          <CartesianGrid
+            strokeDasharray="3 3"
+            stroke="var(--foreground)"
+            strokeWidth={0.1}
+            vertical={false}
+          />
           <XAxis
             dataKey="day"
             orientation="bottom"

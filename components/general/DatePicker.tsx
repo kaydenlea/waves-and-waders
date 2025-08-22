@@ -69,24 +69,23 @@ const DatePicker = ({ className }: { className?: string }) => {
               <CarouselItem
                 key={index}
                 className={cn(
-                  "basis-1/3 @min-md:basis-1/5 @min-2xl:basis-1/7 @min-4xl:basis-1/10 flex justify-center py-1 px-1 border-r border-border",
-                  index === 0 && "border-l"
+                  "basis-1/3 @min-md:basis-1/5 @min-2xl:basis-1/7 @min-4xl:basis-1/10 flex justify-center py-1 px-1"
                 )}
               >
                 <button
                   onClick={() => setSelectedDate(day)}
                   className={cn(
-                    "flex flex-col items-center w-full py-1.5 rounded-sm text-center text-sm font-medium transition-colors",
+                    "flex flex-col items-center w-full py-1.5 rounded-sm text-center text-sm font-medium transition-colors bg-highlight-2",
                     isSelected
                       ? "bg-highlight-1 border border-border"
-                      : "hover:bg-highlight-2"
+                      : "hover:bg-highlight-1"
                   )}
                 >
-                  <span className="font-semibold text-[0.6rem] whitespace-nowrap">
+                  <span className="font-semibold text-[0.65rem] whitespace-nowrap">
                     {day.format("ddd")}, {day.format("M/D")}
                   </span>
                   <span
-                    className={cn("inline-block w-10 h-1 rounded-full", color)}
+                    className={cn("inline-block w-12 h-1 rounded-full", color)}
                   />
                   <span className="text-md font-semibold mb-1">
                     2-3<span className="text-xs font-normal">ft</span>

@@ -115,7 +115,7 @@ const Page = ({ params }: { params: { beach: string } }) => {
           <WindChart />
         </figure> */}
         <figure className="h-full bg-background border border-border p-2 rounded-md shadow-sm">
-          <header className="mx-4 mt-4 mb-6">
+          <header className="mx-3 mt-3 mb-4">
             <h3 className="leading-none font-semibold">Hourly Statistics</h3>
             <span className="text-muted-foreground text-sm">
               Hourly stats for the week
