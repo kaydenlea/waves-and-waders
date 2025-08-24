@@ -14,7 +14,7 @@ export const supabase = createClient(supabaseUrl, supabaseKey)
 // Beach types
 // ----------------------------
 export interface Beach {
-  id: number
+  id: string
   Name: string
   COUNTY: string
   LATITUDE: number
@@ -23,6 +23,8 @@ export interface Beach {
 
 // Add a richer type just for detail views
 export interface BeachWithFeatures extends Beach {
+  id: string; // Change this too
+  Name: string;
   FISHING: boolean | null
   RESTROOMS: boolean | null
   PARKING: boolean | null
@@ -235,7 +237,7 @@ export async function fetchAllBeaches(): Promise<Beach[]> {
 }
 
 export async function fetchBeachForecast(
-  beachId: number, 
+  beachId: string, 
   startDate?: Date,
   endDate?: Date
 ): Promise<ForecastData[]> {
