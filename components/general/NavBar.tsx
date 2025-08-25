@@ -34,7 +34,7 @@ const NavBar = ({ selectedBeach, onBeachSelect }: NavBarProps) => {
   }, [selectedBeach]);
 
   return (
-    <header className="fixed @min-3xl:relative px-1.5 pt-1.5 z-2 w-full @container backdrop-blur-md">
+    <header className="fixed @min-3xl:relative px-1.5 pt-1.5 z-11 w-full @container backdrop-blur-md">
       <nav
         aria-label="primary navigation"
         className="flex justify-center @min-lg:justify-between p-4 shadow-md bg-background rounded-md w-full items-center"

@@ -19,32 +19,142 @@ export interface Beach {
   COUNTY: string
   LATITUDE: number
   LONGITUDE: number
+  
+  // RESTORED: Optional feature flags that can be populated by fetchBeachDetails
+  // Access & Fees
+  O_PUBLIC?: boolean | null
+  FEE?: boolean | null
+  PARKING?: boolean | null
+  RSTRCTNS?: boolean | null
+  DSABLDACSS?: boolean | null
+  
+  // Facilities
+  RESTROOMS?: boolean | null
+  VISTOR_CTR?: boolean | null
+  DOG_FRIEND?: boolean | null
+  EZ4STROLLE?: boolean | null
+  LIFEGUARD?: boolean | null
+  SHOWERS?: boolean | null
+  FOOD?: boolean | null
+  DRINKWTR?: boolean | null
+  PCNC_AREA?: boolean | null
+  FIREPITS?: boolean | null
+  CAMPGROUND?: boolean | null
+  RV_CMP?: boolean | null
+  BT_FACILIT?: boolean | null
+  BT_FACIL_T?: string | null
+  HAND_LAUNCH?: boolean | null
+  LIGHTHOUSE?: boolean | null
+  PIER?: boolean | null
+  
+  // Beach Types
+  SNDY_BEACH?: boolean | null
+  DUNES?: boolean | null
+  RKY_SHORE?: boolean | null
+  UPLAND_BCH?: boolean | null
+  STRM_CRDOR?: boolean | null
+  WETLAND?: boolean | null
+  BLUFF?: boolean | null
+  BAY_LGN_LK?: boolean | null
+  URBN_WFRNT?: boolean | null
+  INLND_AREA?: boolean | null
+  STRS_BEACH?: boolean | null
+  PTH_BEACH?: boolean | null
+  BOARDWLK?: boolean | null
+  
+  // Trails & Paths
+  BLFTP_TRLS?: boolean | null
+  BLFTP_PRK?: boolean | null
+  TRAIL_OR_P?: boolean | null
+  BIKE_PATH?: boolean | null
+  EQUEST_TRL?: boolean | null
+  WLDLFE_VWG?: boolean | null
+  
+  // Activities
+  SWIMMING?: boolean | null
+  DIVING?: boolean | null
+  SNORKLNG?: boolean | null
+  TIDEPOOL?: boolean | null
+  PLAYGROUND?: boolean | null
+  SPORT_FLDS?: boolean | null
+  VOLLEYBALL?: boolean | null
+  WNDSRF_KIT?: boolean | null
+  KAYAKING?: boolean | null
+  SURFING?: boolean | null
+  FISHING?: boolean | null
+  BOATING?: boolean | null
 }
 
-// Add a richer type just for detail views
+// Extended beach interface with all available features - now extends Beach
 export interface BeachWithFeatures extends Beach {
-  id: string; // Change this too
-  Name: string;
-  FISHING: boolean | null
-  RESTROOMS: boolean | null
-  PARKING: boolean | null
-  DOG_FRIEND: boolean | null
-  SNDY_BEACH: boolean | null
-  LIFEGUARD: boolean | null
-  // add more flags here later as booleans
+  // Basic info (now required since Beach interface has them as optional)
+  DISTRICT: string | null
+  CountyNum: number | null
+  FeatureTyp: string | null
+  AccessType: string | null
+  BT_FACIL_T: string | null // Boat facility type (text field)
 }
 
+// All feature columns for database queries
 const FEATURE_COLUMNS = [
-  "FISHING",
-  "RESTROOMS",
-  "PARKING",
-  "DOG_FRIEND",
-  "SNDY_BEACH",
-  "LIFEGUARD",
+  // Access & Fees
+  "O_PUBLIC", "FEE", "PARKING", "RSTRCTNS", "DSABLDACSS",
+  
+  // Facilities
+  "RESTROOMS", "VISTOR_CTR", "DOG_FRIEND", "EZ4STROLLE", "LIFEGUARD", 
+  "SHOWERS", "FOOD", "DRINKWTR", "PCNC_AREA", "FIREPITS", "CAMPGROUND", 
+  "RV_CMP", "BT_FACILIT", "LIGHTHOUSE", "PIER", "HAND_LAUNCH",
+  
+  // Beach Types
+  "SNDY_BEACH", "DUNES", "RKY_SHORE", "UPLAND_BCH", "STRM_CRDOR", 
+  "WETLAND", "BLUFF", "BAY_LGN_LK", "URBN_WFRNT", "INLND_AREA", 
+  "STRS_BEACH", "PTH_BEACH", "BOARDWLK",
+  
+  // Trails & Paths
+  "BLFTP_TRLS", "BLFTP_PRK", "TRAIL_OR_P", "BIKE_PATH", "EQUEST_TRL", "WLDLFE_VWG",
+  
+  // Activities
+  "SWIMMING", "DIVING", "SNORKLNG", "TIDEPOOL", "PLAYGROUND", "SPORT_FLDS", 
+  "VOLLEYBALL", "WNDSRF_KIT", "KAYAKING", "SURFING", "FISHING", "BOATING"
 ] as const
+
+// Organized feature categories for UI display
+export const FEATURE_CATEGORIES = {
+  access: {
+    label: "Access & Fees",
+    features: ["O_PUBLIC", "FEE", "PARKING", "RSTRCTNS", "DSABLDACSS"] as const
+  },
+  facilities: {
+    label: "Facilities & Amenities", 
+    features: ["RESTROOMS", "VISTOR_CTR", "DOG_FRIEND", "EZ4STROLLE", "LIFEGUARD", 
+              "SHOWERS", "FOOD", "DRINKWTR", "PCNC_AREA", "FIREPITS", "CAMPGROUND", 
+              "RV_CMP", "BT_FACILIT", "LIGHTHOUSE", "PIER", "HAND_LAUNCH"] as const
+  },
+  beachTypes: {
+    label: "Beach Types & Features",
+    features: ["SNDY_BEACH", "DUNES", "RKY_SHORE", "UPLAND_BCH", "STRM_CRDOR", 
+              "WETLAND", "BLUFF", "BAY_LGN_LK", "URBN_WFRNT", "INLND_AREA", 
+              "STRS_BEACH", "PTH_BEACH", "BOARDWLK"] as const
+  },
+  trails: {
+    label: "Trails & Nature",
+    features: ["BLFTP_TRLS", "BLFTP_PRK", "TRAIL_OR_P", "BIKE_PATH", "EQUEST_TRL", "WLDLFE_VWG"] as const
+  },
+  activities: {
+    label: "Activities",
+    features: ["SWIMMING", "DIVING", "SNORKLNG", "TIDEPOOL", "PLAYGROUND", "SPORT_FLDS", 
+              "VOLLEYBALL", "WNDSRF_KIT", "KAYAKING", "SURFING", "FISHING", "BOATING"] as const
+  }
+} as const
 
 // Raw row for details query (before coercion)
 type BeachDetailsRow = Beach & {
+  DISTRICT: string | null
+  CountyNum: number | null  
+  FeatureTyp: string | null
+  AccessType: string | null
+  BT_FACIL_T: string | null // Keep this as string since it's a text field
+} & {
   [K in typeof FEATURE_COLUMNS[number]]: boolean | number | string | null
 }
 
@@ -60,12 +170,81 @@ const toBool = (v: any): boolean => {
   return false
 }
 
+// Helper to get human-readable feature names
+export const getFeatureDisplayName = (featureKey: string): string => {
+  const displayNames: Record<string, string> = {
+    // Access & Fees
+    O_PUBLIC: "Open to Public",
+    FEE: "Entry Fee Required", 
+    PARKING: "Parking Available",
+    RSTRCTNS: "Has Restrictions",
+    DSABLDACSS: "Disabled Access",
+    
+    // Facilities
+    RESTROOMS: "Restrooms",
+    VISTOR_CTR: "Visitor Center",
+    DOG_FRIEND: "Dog Friendly", 
+    EZ4STROLLE: "Stroller Accessible",
+    LIFEGUARD: "Lifeguard on Duty",
+    SHOWERS: "Showers",
+    FOOD: "Food Available",
+    DRINKWTR: "Drinking Water",
+    PCNC_AREA: "Picnic Area",
+    FIREPITS: "Fire Pits",
+    CAMPGROUND: "Campground",
+    RV_CMP: "RV Camping",
+    BT_FACILIT: "Boat Facilities",
+    LIGHTHOUSE: "Lighthouse", // Fixed: was calling toBool incorrectly
+    PIER: "Pier", 
+    HAND_LAUNCH: "Hand Launch Available",
+    
+    // Beach Types
+    SNDY_BEACH: "Sandy Beach",
+    DUNES: "Sand Dunes",
+    RKY_SHORE: "Rocky Shore",
+    UPLAND_BCH: "Upland Beach",
+    STRM_CRDOR: "Stream Corridor", 
+    WETLAND: "Wetland",
+    BLUFF: "Bluff",
+    BAY_LGN_LK: "Bay/Lagoon/Lake",
+    URBN_WFRNT: "Urban Waterfront",
+    INLND_AREA: "Inland Area",
+    STRS_BEACH: "Stairs to Beach",
+    PTH_BEACH: "Path to Beach",
+    BOARDWLK: "Boardwalk",
+    
+    // Trails & Paths
+    BLFTP_TRLS: "Bluff Top Trails",
+    BLFTP_PRK: "Bluff Top Park", 
+    TRAIL_OR_P: "Trail or Path",
+    BIKE_PATH: "Bike Path",
+    EQUEST_TRL: "Equestrian Trail",
+    WLDLFE_VWG: "Wildlife Viewing",
+    
+    // Activities
+    SWIMMING: "Swimming",
+    DIVING: "Diving",
+    SNORKLNG: "Snorkeling",
+    TIDEPOOL: "Tide Pooling", 
+    PLAYGROUND: "Playground",
+    SPORT_FLDS: "Sports Fields",
+    VOLLEYBALL: "Volleyball",
+    WNDSRF_KIT: "Windsurfing/Kiting",
+    KAYAKING: "Kayaking", 
+    SURFING: "Surfing",
+    FISHING: "Fishing",
+    BOATING: "Boating"
+  }
+  
+  return displayNames[featureKey] || featureKey
+}
+
 // ----------------------------
-// Forecast / conditions types
+// Forecast / conditions types (unchanged)
 // ----------------------------
 export interface SupabaseForecastData {
   id?: number
-  beach_id: number
+  beach_id: string
   timestamp: string
   // Swell data (feet/seconds) - NOW INCLUDING TERTIARY
   primary_swell_height_ft: number | null
@@ -183,57 +362,182 @@ export function transformToComponentFormat(data: SupabaseForecastData[]): Foreca
 // ----------------------------
 // Queries
 // ----------------------------
-export async function fetchBeachDetails(id: number): Promise<BeachWithFeatures | null> {
-  const columns = ["id", "Name", "LATITUDE", "LONGITUDE", "COUNTY", ...FEATURE_COLUMNS].join(", ")
+export async function fetchBeachDetails(id: string): Promise<Beach | null> {
+  console.log('fetchBeachDetails called with id:', id);
+  
+  const columns = [
+    "id", "Name", "LATITUDE", "LONGITUDE", "COUNTY", 
+    "DISTRICT", "CountyNum", "FeatureTyp", "AccessType", "BT_FACIL_T",
+    ...FEATURE_COLUMNS
+  ].join(", ")
+  
+  console.log('Querying columns:', columns);
+  
   const { data, error } = await supabase
     .from("beaches")
     .select(columns)
     .eq("id", id)
     .maybeSingle()
-    .returns<BeachDetailsRow>() // <-- typed single row
+    .returns<BeachDetailsRow>()
+
+  console.log('Supabase query result:', { data, error });
 
   if (error) {
     console.error("Error fetching beach details:", error)
     return null
   }
-  if (!data) return null
+  if (!data) {
+    console.log('No data returned from query');
+    return null
+  }
 
-  // Coerce feature fields to booleans
-  const coerced: BeachWithFeatures = {
+  console.log('Raw data from database:', data);
+  console.log('Sample feature values from raw data:', {
+    FISHING: (data as any).FISHING,
+    PARKING: (data as any).PARKING,
+    RESTROOMS: (data as any).RESTROOMS,
+    LIFEGUARD: (data as any).LIFEGUARD,
+  });
+
+  // Return Beach object with all features populated
+  const beachWithFeatures: Beach = {
     id: data.id,
     Name: data.Name,
     LATITUDE: data.LATITUDE,
     LONGITUDE: data.LONGITUDE,
     COUNTY: data.COUNTY,
-    FISHING: toBool((data as any).FISHING),
-    RESTROOMS: toBool((data as any).RESTROOMS),
+    
+    // Access & Fees
+    O_PUBLIC: toBool((data as any).O_PUBLIC),
+    FEE: toBool((data as any).FEE),
     PARKING: toBool((data as any).PARKING),
+    RSTRCTNS: toBool((data as any).RSTRCTNS),
+    DSABLDACSS: toBool((data as any).DSABLDACSS),
+    
+    // Facilities
+    RESTROOMS: toBool((data as any).RESTROOMS),
+    VISTOR_CTR: toBool((data as any).VISTOR_CTR),
     DOG_FRIEND: toBool((data as any).DOG_FRIEND),
-    SNDY_BEACH: toBool((data as any).SNDY_BEACH),
+    EZ4STROLLE: toBool((data as any).EZ4STROLLE),
     LIFEGUARD: toBool((data as any).LIFEGUARD),
+    SHOWERS: toBool((data as any).SHOWERS),
+    FOOD: toBool((data as any).FOOD),
+    DRINKWTR: toBool((data as any).DRINKWTR),
+    PCNC_AREA: toBool((data as any).PCNC_AREA),
+    FIREPITS: toBool((data as any).FIREPITS),
+    CAMPGROUND: toBool((data as any).CAMPGROUND),
+    RV_CMP: toBool((data as any).RV_CMP),
+    BT_FACILIT: toBool((data as any).BT_FACILIT),
+    BT_FACIL_T: data.BT_FACIL_T, // Keep as string
+    LIGHTHOUSE: toBool((data as any).LIGHTHOUSE),
+    PIER: toBool((data as any).PIER),
+    HAND_LAUNCH: toBool((data as any).HAND_LAUNCH),
+    
+    // Beach Types
+    SNDY_BEACH: toBool((data as any).SNDY_BEACH),
+    DUNES: toBool((data as any).DUNES),
+    RKY_SHORE: toBool((data as any).RKY_SHORE),
+    UPLAND_BCH: toBool((data as any).UPLAND_BCH),
+    STRM_CRDOR: toBool((data as any).STRM_CRDOR),
+    WETLAND: toBool((data as any).WETLAND),
+    BLUFF: toBool((data as any).BLUFF),
+    BAY_LGN_LK: toBool((data as any).BAY_LGN_LK),
+    URBN_WFRNT: toBool((data as any).URBN_WFRNT),
+    INLND_AREA: toBool((data as any).INLND_AREA),
+    STRS_BEACH: toBool((data as any).STRS_BEACH),
+    PTH_BEACH: toBool((data as any).PTH_BEACH),
+    BOARDWLK: toBool((data as any).BOARDWLK),
+    
+    // Trails & Paths
+    BLFTP_TRLS: toBool((data as any).BLFTP_TRLS),
+    BLFTP_PRK: toBool((data as any).BLFTP_PRK),
+    TRAIL_OR_P: toBool((data as any).TRAIL_OR_P),
+    BIKE_PATH: toBool((data as any).BIKE_PATH),
+    EQUEST_TRL: toBool((data as any).EQUEST_TRL),
+    WLDLFE_VWG: toBool((data as any).WLDLFE_VWG),
+    
+    // Activities
+    SWIMMING: toBool((data as any).SWIMMING),
+    DIVING: toBool((data as any).DIVING),
+    SNORKLNG: toBool((data as any).SNORKLNG),
+    TIDEPOOL: toBool((data as any).TIDEPOOL),
+    PLAYGROUND: toBool((data as any).PLAYGROUND),
+    SPORT_FLDS: toBool((data as any).SPORT_FLDS),
+    VOLLEYBALL: toBool((data as any).VOLLEYBALL),
+    WNDSRF_KIT: toBool((data as any).WNDSRF_KIT),
+    KAYAKING: toBool((data as any).KAYAKING),
+    SURFING: toBool((data as any).SURFING),
+    FISHING: toBool((data as any).FISHING),
+    BOATING: toBool((data as any).BOATING),
   }
-  return coerced
+  
+  console.log('Final processed beach object:', beachWithFeatures);
+  console.log('Sample processed features:', {
+    FISHING: beachWithFeatures.FISHING,
+    PARKING: beachWithFeatures.PARKING,
+    RESTROOMS: beachWithFeatures.RESTROOMS,
+    LIFEGUARD: beachWithFeatures.LIFEGUARD,
+  });
+  
+  return beachWithFeatures
 }
 
 export async function fetchAllBeaches(): Promise<Beach[]> {
   const { data, error } = await supabase
-    .from('beaches')
-    .select('id, Name, LATITUDE, LONGITUDE, COUNTY')
-    .order('Name')
-    .returns<Beach[]>() // <-- typed array
+    .from("beaches")
+    .select("id, Name, LATITUDE, LONGITUDE, COUNTY")
+    .order("Name")
+    .range(0, 9999)
+    .returns<Beach[]>();
 
   if (error) {
-    console.error('Error fetching beaches:', error)
-    throw new Error(`Database error: ${error.message}`)
+    console.error("Error fetching beaches:", {
+      message: error.message,
+      code: (error as any).code,
+      details: (error as any).details,
+      hint: (error as any).hint,
+    });
+    throw error; // let the page show the real cause
   }
 
-  return (data || []).filter(
-    (beach) =>
-      beach.LATITUDE != null &&
-      beach.LONGITUDE != null &&
-      !isNaN(beach.LATITUDE) &&
-      !isNaN(beach.LONGITUDE)
-  )
+  return (data ?? []).filter(
+    (b) =>
+      b.LATITUDE != null &&
+      b.LONGITUDE != null &&
+      !Number.isNaN(Number(b.LATITUDE)) &&
+      !Number.isNaN(Number(b.LONGITUDE))
+  );
+}
+
+export async function fetchBeachByIdLoose(id: string): Promise<Beach | null> {
+  const target = id.trim();
+
+  // Try strict id match first
+  let q = supabase
+    .from("beaches")
+    .select("id, Name, LATITUDE, LONGITUDE, COUNTY")
+    .eq("id", target)
+    .maybeSingle();
+
+  let { data, error } = await q;
+
+  // If not found and you also store uuid/slug columns, try those too:
+  if ((!data && !error) || (error && error.code === "PGRST116")) {
+    const alt = await supabase
+      .from("beaches")
+      .select("id, Name, LATITUDE, LONGITUDE, COUNTY")
+      .or(`uuid.eq.${target},slug.eq.${target}`) // only if these columns exist
+      .limit(1)
+      .maybeSingle();
+
+    data = alt.data ?? null;
+  }
+
+  if (error && error.code !== "PGRST116") {
+    console.error("fetchBeachByIdLoose error:", error);
+  }
+
+  return data ?? null;
 }
 
 export async function fetchBeachForecast(
@@ -265,7 +569,7 @@ export async function fetchBeachForecast(
   return transformToComponentFormat(data || [])
 }
 
-export async function fetchCurrentConditions(beachId: number): Promise<ForecastData | null> {
+export async function fetchCurrentConditions(beachId: string): Promise<ForecastData | null> {
   const { data, error } = await supabase
     .from('forecast_data')
     .select('*') // This will now include the new tertiary swell columns
@@ -310,13 +614,13 @@ export async function fetchDailyConditions(
   return data ?? null
 }
 
-export async function fetchTodaysForecast(beachId: number): Promise<ForecastData[]> {
+export async function fetchTodaysForecast(beachId: string): Promise<ForecastData[]> {
   const now = new Date()
   const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000)
   return fetchBeachForecast(beachId, now, tomorrow)
 }
 
-export async function fetchWeeklyForecast(beachId: number): Promise<ForecastData[]> {
+export async function fetchWeeklyForecast(beachId: string): Promise<ForecastData[]> {
   const now = new Date()
   const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
   return fetchBeachForecast(beachId, now, weekFromNow)
@@ -340,7 +644,7 @@ export async function searchBeaches(searchTerm: string): Promise<Beach[]> {
 }
 
 // ----------------------------
-// UI helper formatters
+// UI helper formatters (unchanged)
 // ----------------------------
 export const formatTimestamp = (timestamp: string) => {
   return new Date(timestamp).toISOString()

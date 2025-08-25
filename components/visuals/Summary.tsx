@@ -1,7 +1,46 @@
 import { cn } from "@/lib/utils";
 import { TidePreview } from "../graphs/TideChart";
 import SwellStat from "../general/Stats/SwellStat";
-import { Sun, Droplets, Dog, CircleParking, Toilet, LifeBuoy, Fish, Shell } from "lucide-react";
+import { 
+  Sun, 
+  Droplets, 
+  Dog, 
+  CircleParking, 
+  Toilet, 
+  LifeBuoy, 
+  Fish, 
+  Shell,
+  DollarSign,
+  Ban,
+  Accessibility,
+  MapPin,
+  Baby,
+  Sparkles,
+  UtensilsCrossed,
+  Waves,
+  Tent,
+  Truck,
+  Anchor,
+  MapPin as LighthouseIcon,
+  Building2,
+  Mountain,
+  Trees,
+  TreePine,
+  Building,
+  Factory,
+  Footprints,
+  Route,
+  Bike,
+  Rabbit,
+  Binoculars,
+  Droplet,
+  Eye,
+  Gamepad2,
+  MapIcon,
+  Wind,
+  Ship,
+  Zap
+} from "lucide-react";
 import {
   BsArrowDownCircleFill as SArrowIcon,
   BsArrowDownLeftCircleFill as SWArrowIcon,
@@ -12,7 +51,7 @@ import {
   BsArrowRightCircleFill as EArrowIcon,
   BsArrowDownRightCircleFill as SEArrowIcon,
 } from "react-icons/bs";
-import { ForecastData } from "@/lib/supabase";
+import { ForecastData, BeachWithFeatures } from "@/lib/supabase";
 
 interface Beach {
   id: number;
@@ -20,18 +59,67 @@ interface Beach {
   COUNTY: string;
   LATITUDE: number;
   LONGITUDE: number;
-  // Optional feature flags (wired from DB if provided)
+  // Optional feature flags (wired from DB if provided) - BACK TO ORIGINAL STRUCTURE
   FISHING?: boolean | null;
   RESTROOMS?: boolean | null;
   PARKING?: boolean | null;
   DOG_FRIEND?: boolean | null;
   SNDY_BEACH?: boolean | null;
   LIFEGUARD?: boolean | null;
+  
+  // Add the new features as optional
+  O_PUBLIC?: boolean | null;
+  FEE?: boolean | null;
+  RSTRCTNS?: boolean | null;
+  DSABLDACSS?: boolean | null;
+  VISTOR_CTR?: boolean | null;
+  EZ4STROLLE?: boolean | null;
+  SHOWERS?: boolean | null;
+  FOOD?: boolean | null;
+  DRINKWTR?: boolean | null;
+  PCNC_AREA?: boolean | null;
+  FIREPITS?: boolean | null;
+  CAMPGROUND?: boolean | null;
+  RV_CMP?: boolean | null;
+  BT_FACILIT?: boolean | null;
+  HAND_LAUNCH?: boolean | null;
+  LIGHTHOUSE?: boolean | null;
+  PIER?: boolean | null;
+  SNDY_BEACH?: boolean | null;
+  DUNES?: boolean | null;
+  RKY_SHORE?: boolean | null;
+  UPLAND_BCH?: boolean | null;
+  STRM_CRDOR?: boolean | null;
+  WETLAND?: boolean | null;
+  BLUFF?: boolean | null;
+  BAY_LGN_LK?: boolean | null;
+  URBN_WFRNT?: boolean | null;
+  INLND_AREA?: boolean | null;
+  STRS_BEACH?: boolean | null;
+  PTH_BEACH?: boolean | null;
+  BOARDWLK?: boolean | null;
+  BLFTP_TRLS?: boolean | null;
+  BLFTP_PRK?: boolean | null;
+  TRAIL_OR_P?: boolean | null;
+  BIKE_PATH?: boolean | null;
+  EQUEST_TRL?: boolean | null;
+  WLDLFE_VWG?: boolean | null;
+  SWIMMING?: boolean | null;
+  DIVING?: boolean | null;
+  SNORKLNG?: boolean | null;
+  TIDEPOOL?: boolean | null;
+  PLAYGROUND?: boolean | null;
+  SPORT_FLDS?: boolean | null;
+  VOLLEYBALL?: boolean | null;
+  WNDSRF_KIT?: boolean | null;
+  KAYAKING?: boolean | null;
+  SURFING?: boolean | null;
+  BOATING?: boolean | null;
 }
 
 interface SummaryProps {
   currentForecast?: ForecastData | null;
-  beach?: Beach;
+  beach?: Beach; // BACK TO ORIGINAL - accepting either Beach or BeachWithFeatures
   todayForecast?: ForecastData[];
   selectedHour?: number;
   className?: string;
@@ -372,8 +460,10 @@ const Summary = ({
       }
     : defaultStats;
 
-  // Features from DB flags (if provided on beach) - updated with Lucide icons
+  // Features from DB flags (if provided on beach) - BACK TO ORIGINAL WORKING STRUCTURE
   const getBeachFeatures = (b?: Beach) => {
+    console.log('Beach data received:', b);
+    
     if (!b) {
       // Fallback features from origin/main
       return [
@@ -387,12 +477,72 @@ const Summary = ({
     }
     
     const tags = [];
+    
+    // Original 6 features that were working
     if (b.FISHING) tags.push({ label: "Fishing", icon: <Fish size={16} />, color: "bg-blue-100" });
     if (b.RESTROOMS) tags.push({ label: "Bathrooms", icon: <Toilet size={16} />, color: "bg-yellow-100" });
     if (b.PARKING) tags.push({ label: "Parking", icon: <CircleParking size={16} />, color: "bg-green-100" });
     if (b.DOG_FRIEND) tags.push({ label: "Dogs", icon: <Dog size={16} />, color: "bg-red-100" });
     if (b.SNDY_BEACH) tags.push({ label: "Sandy", icon: <Shell size={16} />, color: "bg-orange-100" });
     if (b.LIFEGUARD) tags.push({ label: "Lifeguard", icon: <LifeBuoy size={16} />, color: "bg-purple-100" });
+    
+    // NEW FEATURES - Add them in addition to original ones
+    // Access & Fees
+    if (b.O_PUBLIC) tags.push({ label: "Public", icon: <MapPin size={16} />, color: "bg-green-100" });
+    if (b.FEE) tags.push({ label: "Entry Fee", icon: <DollarSign size={16} />, color: "bg-red-100" });
+    if (b.RSTRCTNS) tags.push({ label: "Restrictions", icon: <Ban size={16} />, color: "bg-red-100" });
+    if (b.DSABLDACSS) tags.push({ label: "Accessible", icon: <Accessibility size={16} />, color: "bg-purple-100" });
+    
+    // Facilities  
+    if (b.VISTOR_CTR) tags.push({ label: "Visitor Center", icon: <Building2 size={16} />, color: "bg-indigo-100" });
+    if (b.EZ4STROLLE) tags.push({ label: "Stroller Friendly", icon: <Baby size={16} />, color: "bg-pink-100" });
+    if (b.SHOWERS) tags.push({ label: "Showers", icon: <Sparkles size={16} />, color: "bg-blue-100" });
+    if (b.FOOD) tags.push({ label: "Food", icon: <UtensilsCrossed size={16} />, color: "bg-orange-100" });
+    if (b.DRINKWTR) tags.push({ label: "Drinking Water", icon: <Droplets size={16} />, color: "bg-cyan-100" });
+    if (b.PCNC_AREA) tags.push({ label: "Picnic Area", icon: <Trees size={16} />, color: "bg-green-100" });
+    if (b.FIREPITS) tags.push({ label: "Fire Pits", icon: <Zap size={16} />, color: "bg-red-100" });
+    if (b.CAMPGROUND) tags.push({ label: "Campground", icon: <Tent size={16} />, color: "bg-green-100" });
+    if (b.RV_CMP) tags.push({ label: "RV Camping", icon: <Truck size={16} />, color: "bg-gray-100" });
+    if (b.BT_FACILIT) tags.push({ label: "Boat Facilities", icon: <Anchor size={16} />, color: "bg-blue-100" });
+    if (b.HAND_LAUNCH) tags.push({ label: "Hand Launch", icon: <Ship size={16} />, color: "bg-teal-100" });
+    if (b.LIGHTHOUSE) tags.push({ label: "Lighthouse", icon: <LighthouseIcon size={16} />, color: "bg-yellow-100" });
+    if (b.PIER) tags.push({ label: "Pier", icon: <Building size={16} />, color: "bg-gray-100" });
+    
+    // Beach Types
+    if (b.DUNES) tags.push({ label: "Sand Dunes", icon: <Mountain size={16} />, color: "bg-yellow-100" });
+    if (b.RKY_SHORE) tags.push({ label: "Rocky Shore", icon: <Mountain size={16} />, color: "bg-gray-100" });
+    if (b.UPLAND_BCH) tags.push({ label: "Upland Beach", icon: <TreePine size={16} />, color: "bg-green-100" });
+    if (b.STRM_CRDOR) tags.push({ label: "Stream", icon: <Waves size={16} />, color: "bg-blue-100" });
+    if (b.WETLAND) tags.push({ label: "Wetland", icon: <Droplets size={16} />, color: "bg-teal-100" });
+    if (b.BLUFF) tags.push({ label: "Bluff", icon: <Mountain size={16} />, color: "bg-stone-100" });
+    if (b.BAY_LGN_LK) tags.push({ label: "Bay/Lagoon", icon: <Waves size={16} />, color: "bg-cyan-100" });
+    if (b.URBN_WFRNT) tags.push({ label: "Urban Waterfront", icon: <Building size={16} />, color: "bg-slate-100" });
+    if (b.INLND_AREA) tags.push({ label: "Inland Area", icon: <Trees size={16} />, color: "bg-emerald-100" });
+    if (b.STRS_BEACH) tags.push({ label: "Beach Stairs", icon: <Footprints size={16} />, color: "bg-gray-100" });
+    if (b.PTH_BEACH) tags.push({ label: "Beach Path", icon: <Route size={16} />, color: "bg-green-100" });
+    if (b.BOARDWLK) tags.push({ label: "Boardwalk", icon: <Route size={16} />, color: "bg-brown-100" });
+    
+    // Trails & Paths  
+    if (b.BLFTP_TRLS) tags.push({ label: "Bluff Trails", icon: <Route size={16} />, color: "bg-green-100" });
+    if (b.BLFTP_PRK) tags.push({ label: "Bluff Park", icon: <Trees size={16} />, color: "bg-emerald-100" });
+    if (b.TRAIL_OR_P) tags.push({ label: "Trail/Path", icon: <Footprints size={16} />, color: "bg-lime-100" });
+    if (b.BIKE_PATH) tags.push({ label: "Bike Path", icon: <Bike size={16} />, color: "bg-green-100" });
+    if (b.EQUEST_TRL) tags.push({ label: "Horse Trail", icon: <Rabbit size={16} />, color: "bg-amber-100" });
+    if (b.WLDLFE_VWG) tags.push({ label: "Wildlife Viewing", icon: <Binoculars size={16} />, color: "bg-teal-100" });
+    
+    // Activities
+    if (b.SWIMMING) tags.push({ label: "Swimming", icon: <Droplet size={16} />, color: "bg-blue-100" });
+    if (b.DIVING) tags.push({ label: "Diving", icon: <Eye size={16} />, color: "bg-indigo-100" });
+    if (b.SNORKLNG) tags.push({ label: "Snorkeling", icon: <Eye size={16} />, color: "bg-cyan-100" });
+    if (b.TIDEPOOL) tags.push({ label: "Tide Pooling", icon: <Shell size={16} />, color: "bg-teal-100" });
+    if (b.PLAYGROUND) tags.push({ label: "Playground", icon: <Gamepad2 size={16} />, color: "bg-pink-100" });
+    if (b.SPORT_FLDS) tags.push({ label: "Sports Fields", icon: <MapIcon size={16} />, color: "bg-green-100" });
+    if (b.VOLLEYBALL) tags.push({ label: "Volleyball", icon: <Gamepad2 size={16} />, color: "bg-orange-100" });
+    if (b.WNDSRF_KIT) tags.push({ label: "Windsurfing", icon: <Wind size={16} />, color: "bg-sky-100" });
+    if (b.KAYAKING) tags.push({ label: "Kayaking", icon: <Ship size={16} />, color: "bg-blue-100" });
+    if (b.SURFING) tags.push({ label: "Surfing", icon: <Waves size={16} />, color: "bg-cyan-100" });
+    if (b.BOATING) tags.push({ label: "Boating", icon: <Anchor size={16} />, color: "bg-indigo-100" });
+    
     return tags;
   };
 

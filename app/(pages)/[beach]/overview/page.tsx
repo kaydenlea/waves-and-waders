@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+
 import DatePicker from "@/components/general/DatePicker";
 import HourSlider from "@/components/general/HourSlider";
 import SurfChart from "@/components/graphs/SurfChart";
@@ -16,6 +18,8 @@ import {
   fetchAllBeaches,
   fetchDailyConditions,
   fetchBeachDetails,
+  // NEW: fallback direct id fetch (add this helper in lib if you don't have it yet)
+  fetchBeachByIdLoose,
   type Beach,
   type BeachWithFeatures,
   type ForecastData,
@@ -23,24 +27,25 @@ import {
 } from "@/lib/supabase";
 
 interface PageProps {
-  // Read ?id=<beach.id> from the URL
   searchParams: { id?: string };
 }
 
-// Get default beach preference
+// Pick a sensible default if no id provided
 const getDefaultBeach = (beaches: Beach[]): Beach | null => {
-  const preferredBeaches = ["Huntington Beach", "Malibu", "Santa Monica", "Laguna Beach"];
-  for (const preferred of preferredBeaches) {
-    const found = beaches.find((b) => b.Name.includes(preferred));
+  const preferred = ["Huntington Beach", "Malibu", "Santa Monica", "Laguna Beach"];
+  for (const name of preferred) {
+    const found = beaches.find((b) => b.Name.includes(name));
     if (found) return found;
   }
-  return beaches[0] || null;
+  return beaches[0] ?? null;
 };
 
 const Page = ({ searchParams }: PageProps) => {
-  // State management
+  const router = useRouter();
+
+  // State
   const [selectedBeach, setSelectedBeach] = useState<Beach | null>(null);
-  const [beachDetail, setBeachDetail] = useState<BeachWithFeatures | null>(null); // ← features
+  const [beachDetail, setBeachDetail] = useState<Beach | null>(null);
   const [allBeaches, setAllBeaches] = useState<Beach[]>([]);
   const [forecastData, setForecastData] = useState<ForecastData[]>([]);
   const [weeklyForecastData, setWeeklyForecastData] = useState<ForecastData[]>([]);
@@ -50,88 +55,129 @@ const Page = ({ searchParams }: PageProps) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Load beaches on mount or when searchParams change
+  // -------- Load beaches + resolve selected beach (by id if present) --------
   useEffect(() => {
-    const loadBeaches = async () => {
+    let cancelled = false;
+
+    const load = async () => {
       try {
         setLoading(true);
+        setError(null);
+
         const beaches = await fetchAllBeaches();
+        if (cancelled) return;
         setAllBeaches(beaches);
 
-        // Prefer selecting by id from ?id=...
-        const { id } = searchParams || {};
-        let foundBeach: Beach | null = null;
+        const urlId = searchParams?.id?.trim();
+        if (urlId) {
+          // Direct fetch by id (bypasses any preloaded list/pagination issues)
+          const byId = await fetchBeachByIdLoose(urlId);
+          if (cancelled) return;
 
-        if (id) {
-          foundBeach = beaches.find((b) => String(b.id) === String(id)) || null;
-        } else {
-          // No id provided — pick a sensible default
-          foundBeach = getDefaultBeach(beaches);
-        }
+          if (byId) {
+            setSelectedBeach(byId);
+            setBeachDetail(null); // details will be fetched below
+            return;
+          }
 
-        if (foundBeach) {
-          setSelectedBeach(foundBeach);
-        } else {
-          setSelectedBeach(null);
+          // Fallback to local list (if direct fetch didn't find it)
+          const found = beaches.find((b) => String(b.id) === String(urlId)) || null;
+          setSelectedBeach(found);
           setBeachDetail(null);
+          return;
         }
-      } catch (err) {
-        setError("Failed to load beaches");
+
+        // No id in URL → pick a default
+        const def = getDefaultBeach(beaches);
+        setSelectedBeach(def);
+        setBeachDetail(null);
+      } catch (err: any) {
         console.error("Error loading beaches:", err);
+        setError(
+          `Failed to load beaches${err?.message ? `: ${err.message}` : ""}`
+        );
+        setSelectedBeach(null);
+        setBeachDetail(null);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
-    loadBeaches();
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, [searchParams]);
 
-  // Load beach features/details when a beach is selected
+  // -------- Load extended details for the selected beach --------
   useEffect(() => {
+    let cancelled = false;
+
     const loadDetails = async () => {
       if (!selectedBeach) {
+        console.log('No selectedBeach, clearing beachDetail');
         setBeachDetail(null);
         return;
       }
+      
       try {
+        console.log('Loading details for beach:', selectedBeach.id, selectedBeach.Name);
+        
+        // Avoid refetch if we already have details for this id
+        if (beachDetail?.id === selectedBeach.id) {
+          console.log('Already have details for this beach, skipping fetch');
+          return;
+        }
+
+        console.log('Calling fetchBeachDetails with id:', selectedBeach.id);
         const detail = await fetchBeachDetails(selectedBeach.id);
-        setBeachDetail(detail);
+        console.log('fetchBeachDetails returned:', detail);
+        
+        if (!cancelled) {
+          console.log('Setting beachDetail to:', detail);
+          setBeachDetail(detail);
+        }
       } catch (e) {
         console.error("Error loading beach details:", e);
-        setBeachDetail(null);
+        if (!cancelled) setBeachDetail(null);
       }
     };
-    loadDetails();
-  }, [selectedBeach]);
 
-  // Load weekly forecast for date picker when beach changes
+    loadDetails();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedBeach, beachDetail?.id]); // Added beachDetail?.id to dependencies
+
+  // -------- Weekly forecast (for date picker mini-graph) --------
   useEffect(() => {
+    let cancelled = false;
+
     const loadWeeklyForecast = async () => {
       if (!selectedBeach) return;
-
       try {
         const startDate = new Date();
         startDate.setHours(0, 0, 0, 0);
-
         const endDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
         endDate.setHours(23, 59, 59, 999);
 
-        const weeklyData = await fetchBeachForecast(selectedBeach.id, startDate, endDate);
-        setWeeklyForecastData(weeklyData);
-
-        console.log(
-          `Loaded ${weeklyData.length} weekly forecast records for ${selectedBeach.Name}`
-        );
+        const weekly = await fetchBeachForecast(selectedBeach.id, startDate, endDate);
+        if (!cancelled) setWeeklyForecastData(weekly);
       } catch (error) {
         console.error("Error loading weekly forecast for date picker:", error);
       }
     };
 
     loadWeeklyForecast();
+    return () => {
+      cancelled = true;
+    };
   }, [selectedBeach]);
 
-  // Load daily forecast data when beach or date changes
+  // -------- Daily forecast (charts) --------
   useEffect(() => {
+    let cancelled = false;
+
     const loadForecastData = async () => {
       if (!selectedBeach) return;
 
@@ -146,116 +192,86 @@ const Page = ({ searchParams }: PageProps) => {
         endDate.setHours(23, 59, 59, 999);
 
         const data = await fetchBeachForecast(selectedBeach.id, startDate, endDate);
-        setForecastData(data);
-
-        console.log(
-          `Loaded ${data.length} daily forecast records for ${selectedBeach.Name} (ID: ${selectedBeach.id}) on ${selectedDate.toLocaleDateString()}`
-        );
-      } catch (err) {
-        setError("Failed to load forecast data");
+        if (!cancelled) setForecastData(data);
+      } catch (err: any) {
         console.error("Error loading forecast:", err);
+        if (!cancelled)
+          setError(`Failed to load forecast data${err?.message ? `: ${err.message}` : ""}`);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     loadForecastData();
+    return () => {
+      cancelled = true;
+    };
   }, [selectedBeach, selectedDate]);
 
-  // Load daily conditions when beach or date changes
+  // -------- Daily county conditions (sunrise/sunset, moon) --------
   useEffect(() => {
+    let cancelled = false;
+
     const loadDaily = async () => {
       if (!selectedBeach) return;
-
       try {
         const daily = await fetchDailyConditions(selectedBeach.COUNTY, selectedDate);
-        setDailyConditions(daily);
-
-        if (daily) {
-          console.log(
-            `Loaded daily conditions for ${selectedBeach.COUNTY} on ${selectedDate.toLocaleDateString()}:`,
-            {
-              sunrise: daily.sunrise,
-              sunset: daily.sunset,
-              moonPhase: daily.moon_phase,
-            }
-          );
-        } else {
-          console.warn(
-            `No daily conditions found for ${selectedBeach.COUNTY} on ${selectedDate.toLocaleDateString()}`
-          );
-        }
+        if (!cancelled) setDailyConditions(daily);
       } catch (error) {
         console.error("Error loading daily conditions:", error);
-        setDailyConditions(null);
+        if (!cancelled) setDailyConditions(null);
       }
     };
 
     loadDaily();
+    return () => {
+      cancelled = true;
+    };
   }, [selectedBeach, selectedDate]);
 
-  // Helpers for current day/hour views
-  const getDayForecastData = (): ForecastData[] => {
-    return forecastData.filter((data) => {
-      const dataDate = new Date(data.timestamp);
-      return dataDate.toDateString() === selectedDate.toDateString();
-    });
-  };
+  // -------- Helpers --------
+  const getDayForecastData = (): ForecastData[] =>
+    forecastData.filter((d) => new Date(d.timestamp).toDateString() === selectedDate.toDateString());
 
   const getCurrentHourData = (): ForecastData | null => {
-    const dayData = getDayForecastData();
-    const targetTime = new Date(selectedDate);
-    targetTime.setHours(selectedHour, 0, 0, 0);
-
-    return (
-      dayData.find((data) => {
-        const dataTime = new Date(data.timestamp);
-        return dataTime.getHours() === selectedHour;
-      }) || dayData[0] || null
-    );
+    const day = getDayForecastData();
+    const match = day.find((d) => new Date(d.timestamp).getHours() === selectedHour);
+    return match || day[0] || null;
   };
 
-  const formatSelectedDate = (date: Date): string => {
-    return date.toLocaleDateString("en-US", {
-      weekday: "long",
-      month: "short",
-      day: "numeric",
-    });
-  };
+  const formatSelectedDate = (date: Date): string =>
+    date.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
 
   const handleDateChange = (date: Date) => {
     setSelectedDate(date);
     const isToday = date.toDateString() === new Date().toDateString();
-    const newHour = isToday ? new Date().getHours() : 9;
-    setSelectedHour(newHour);
+    setSelectedHour(isToday ? new Date().getHours() : 9);
   };
 
-  const handleHourChange = (hour: number) => {
-    setSelectedHour(hour);
-  };
+  const handleHourChange = (hour: number) => setSelectedHour(hour);
 
+  // When a user chooses a beach (search/map), also update the URL
   const handleBeachChange = (beach: Beach) => {
     setSelectedBeach(beach);
-    // Optionally update URL here if you add a local switcher:
-    // router.push(`/beach/overview?id=${encodeURIComponent(String(beach.id))}`);
+    router.push(`?id=${encodeURIComponent(String(beach.id))}`);
   };
 
+  // -------- Derived --------
   const dayForecastData = getDayForecastData();
   const currentHourData = getCurrentHourData();
 
-  // Loading
+  // -------- UI --------
   if (loading && !selectedBeach) {
     return (
       <div className="@container">
         <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
           <span className="ml-3">Loading beach data...</span>
         </div>
       </div>
     );
   }
 
-  // No beach found
   if (!selectedBeach) {
     return (
       <div className="@container">
@@ -278,23 +294,21 @@ const Page = ({ searchParams }: PageProps) => {
       <header className="mb-6">
         <h1 className="font-semibold text-3xl tracking-tight">{selectedBeach.Name}</h1>
         <p className="text-gray-600 mt-1">
-          {selectedBeach.COUNTY} County • {selectedBeach.LATITUDE.toFixed(4)},{" "}
-          {selectedBeach.LONGITUDE.toFixed(4)}
+          {selectedBeach.COUNTY} County • {selectedBeach.LATITUDE.toFixed(4)}, {selectedBeach.LONGITUDE.toFixed(4)}
           {forecastData.length > 0 && (
             <span className="ml-2 text-green-600">• {forecastData.length} forecast points loaded</span>
           )}
         </p>
       </header>
 
-      {/* Summary Section */}
+      {/* Summary */}
       <section className="mb-8">
         <h2 className="mb-2">{formatSelectedDate(selectedDate)}</h2>
         <Summary
           currentForecast={currentHourData}
-          beach={beachDetail ?? selectedBeach}
+          beach={beachDetail ?? selectedBeach} // BACK TO ORIGINAL - fallback to selectedBeach
           todayForecast={dayForecastData}
           selectedHour={selectedHour}
-          dailyConditions={dailyConditions}
         />
       </section>
 
@@ -320,8 +334,8 @@ const Page = ({ searchParams }: PageProps) => {
           </div>
         )}
 
+        {/* Date + Hour controls */}
         <div className="mt-2 mb-4">
-          {/* DatePicker with weekly overview */}
           <DatePicker
             selectedDate={selectedDate}
             onDateChange={handleDateChange}
@@ -329,26 +343,20 @@ const Page = ({ searchParams }: PageProps) => {
             minDate={new Date()}
             maxDate={new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)}
           />
-
-          {/* HourSlider with daily detail */}
           <HourSlider
             selectedHour={selectedHour}
             onHourChange={handleHourChange}
             forecastData={dayForecastData}
             selectedDate={selectedDate}
-            showDataIndicators={true}
+            showDataIndicators
           />
         </div>
 
-        {/* Current selection info */}
+        {/* Selected time snapshot */}
         <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded">
           <p className="text-sm text-blue-800">
             <strong>Selected:</strong>{" "}
-            {selectedDate.toLocaleDateString("en-US", {
-              weekday: "long",
-              month: "long",
-              day: "numeric",
-            })}{" "}
+            {selectedDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}{" "}
             at {selectedHour === 0 ? 12 : selectedHour > 12 ? selectedHour - 12 : selectedHour}
             {selectedHour >= 12 ? "PM" : "AM"}
           </p>
@@ -370,7 +378,7 @@ const Page = ({ searchParams }: PageProps) => {
           </div>
         )}
 
-        {/* Highlights + Tide row */}
+        {/* Highlights + Tide */}
         <div className="grid grid-cols-1 @min-3xl:grid-cols-[1.25fr_1fr] gap-2 items-start">
           <section className="min-w-0">
             <Highlights
@@ -394,7 +402,7 @@ const Page = ({ searchParams }: PageProps) => {
           </figure>
         </div>
 
-        {/* Swell + Surf row */}
+        {/* Swell + Surf */}
         <div className="flex flex-col @min-3xl:flex-row gap-2">
           <figure className="flex-1 min-w-0">
             <SwellChart data={dayForecastData} selectedHour={selectedHour} />
@@ -404,7 +412,7 @@ const Page = ({ searchParams }: PageProps) => {
           </figure>
         </div>
 
-        {/* Optional wind chart (hidden by default) */}
+        {/* Optional wind chart */}
         <figure className="hidden">
           <WindChart data={dayForecastData} selectedHour={selectedHour} />
         </figure>
@@ -416,7 +424,7 @@ const Page = ({ searchParams }: PageProps) => {
         </figure>
       </section>
 
-      {/* Debug info - remove in production */}
+      {/* Debug (dev only) */}
       {process.env.NODE_ENV === "development" && (
         <details className="mt-8 p-4 bg-gray-100 rounded">
           <summary className="cursor-pointer font-medium">🔍 Debug Info</summary>
@@ -444,9 +452,9 @@ const Page = ({ searchParams }: PageProps) => {
                       moonPhase: dailyConditions.moon_phase,
                     }
                   : null,
-                queryUsed: `county='${selectedBeach?.COUNTY}' AND date='${selectedDate
-                  .toISOString()
-                  .split("T")[0]}'`,
+                queryUsed: `county='${selectedBeach?.COUNTY}' AND date='${
+                  selectedDate.toISOString().split("T")[0]
+                }'`,
                 beachDetailLoaded: !!beachDetail,
                 features: beachDetail
                   ? {

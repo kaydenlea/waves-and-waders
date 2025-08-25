@@ -1284,3 +1284,127 @@ https://docs.xarray.dev/en
 2025-08-23 20:41:58,943 - INFO -    🚀 OPTIMIZED: Bulk extracting NOAA data for all beaches...
 2025-08-23 20:41:58,943 - INFO -    📍 Finding optimal grid points for all beaches...
 2025-08-23 20:42:28,862 - WARNING -    ⚠️  No valid ocean point found for Humboldt Redwoods State Park
+2025-08-24 18:26:23,175 - INFO - SURF: Starting HYBRID surf database update (NOAA + Open-Meteo)
+2025-08-24 18:26:23,175 - INFO - SURF: Tide adjustment: +2.4 feet
+2025-08-24 18:26:23,175 - INFO - SURF: Wave energy calculated in kJ (surf-forecast.com style)
+2025-08-24 18:26:23,175 - INFO - SURF: Primary data from NOAA GFSwave, supplemented with Open-Meteo
+2025-08-24 18:26:23,175 - INFO - SURF: DYNAMIC SWELL RANKING - Swells ranked by surf impact score
+2025-08-24 18:26:23,175 - INFO - STEP 1: Cleaning up old data
+2025-08-24 18:26:23,176 - INFO - DELETE: Deleting old forecast data...
+2025-08-24 18:26:27,498 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/forecast_data?timestamp=lt.2025-08-23T18%3A26%3A23.176051 "HTTP/2 500 Internal Server Error"
+2025-08-24 18:26:27,499 - WARNING -    Forecast deletion failed: {'message': 'canceling statement due to statement timeout', 'code': '57014', 'hint': None, 'details': None}, will use UPSERT
+2025-08-24 18:26:27,500 - INFO - DELETE: Deleting old daily conditions...
+2025-08-24 18:26:27,670 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/daily_county_conditions?date=lt.2025-08-23 "HTTP/2 200 OK"
+2025-08-24 18:26:27,799 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/daily_county_conditions?date=gte.2025-08-23 "HTTP/2 200 OK"
+2025-08-24 18:26:27,801 - INFO -    Daily conditions deleted successfully
+2025-08-24 18:26:27,801 - INFO - OK: Old data cleanup completed
+2025-08-24 18:26:27,801 - INFO - STEP 2: Fetching beach data
+2025-08-24 18:26:28,065 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=id%2CName%2CLATITUDE%2CLONGITUDE&offset=0&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-24 18:26:28,087 - INFO -    Fetched 1000 beaches (batch 1)
+2025-08-24 18:26:28,230 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=id%2CName%2CLATITUDE%2CLONGITUDE&offset=1000&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-24 18:26:28,234 - INFO -    Fetched 647 beaches (batch 2)
+2025-08-24 18:26:28,235 - INFO - OK: Found 1647 beaches with valid coordinates
+2025-08-24 18:26:28,235 - INFO - STEP 3: Calculating county centroids
+2025-08-24 18:26:28,352 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=COUNTY%2CLATITUDE%2CLONGITUDE&offset=0&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-24 18:26:28,494 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=COUNTY%2CLATITUDE%2CLONGITUDE&offset=1000&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-24 18:26:28,496 - INFO - OK: Calculated centroids for 17 counties
+2025-08-24 18:26:28,496 - INFO - STEP 4: Updating forecast data with hybrid NOAA + Open-Meteo
+2025-08-24 18:26:28,497 - INFO -    Loading NOAA GFSwave dataset...
+2025-08-24 18:26:28,497 - INFO -    🔍 Searching for available NOAA GFSwave dataset...
+2025-08-24 18:26:28,497 - INFO -    📅 Trying today's data: 20250825
+2025-08-24 18:26:28,497 - INFO -    🌐 Base URL: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave
+2025-08-24 18:26:28,497 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_00z
+2025-08-24 18:26:34,114 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_00z'
+2025-08-24 18:26:34,115 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_06z
+2025-08-24 18:26:39,310 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_06z'
+2025-08-24 18:26:39,310 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_12z
+2025-08-24 18:26:44,545 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_12z'
+2025-08-24 18:26:44,545 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_18z
+2025-08-24 18:26:49,687 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_18z'
+2025-08-24 18:26:49,688 - INFO -    🌐 Base URL: http://nomads.ncep.noaa.gov/dods/wave/gfswave
+2025-08-24 18:26:49,688 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_00z
+2025-08-24 18:26:54,888 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_00z'
+2025-08-24 18:26:54,888 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_06z
+2025-08-24 18:27:00,020 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_06z'
+2025-08-24 18:27:00,020 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_12z
+2025-08-24 18:27:05,148 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_12z'
+2025-08-24 18:27:05,148 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_18z
+2025-08-24 18:27:10,573 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_18z'
+2025-08-24 18:27:10,573 - INFO -    🌐 Base URL: https://nomads.ncep.noaa.gov/dods/wave/gfswave
+2025-08-24 18:27:10,573 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_00z
+2025-08-24 18:27:15,727 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_00z'
+2025-08-24 18:27:15,728 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_06z
+2025-08-24 18:27:20,803 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_06z'
+2025-08-24 18:27:20,803 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_12z
+2025-08-24 18:27:25,914 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_12z'
+2025-08-24 18:27:25,914 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_18z
+2025-08-24 18:27:31,012 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_18z'
+2025-08-24 18:27:31,012 - INFO -    📅 Trying yesterday's data: 20250824
+2025-08-24 18:27:31,012 - INFO -    🌐 Base URL: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave
+2025-08-24 18:27:31,012 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_18z
+2025-08-24 18:28:39,890 - INFO - SURF: Starting HYBRID surf database update (NOAA + Open-Meteo)
+2025-08-24 18:28:39,890 - INFO - SURF: Tide adjustment: +2.4 feet
+2025-08-24 18:28:39,890 - INFO - SURF: Wave energy calculated in kJ (surf-forecast.com style)
+2025-08-24 18:28:39,890 - INFO - SURF: Primary data from NOAA GFSwave, supplemented with Open-Meteo
+2025-08-24 18:28:39,891 - INFO - SURF: DYNAMIC SWELL RANKING - Swells ranked by surf impact score
+2025-08-24 18:28:39,891 - INFO - STEP 1: Cleaning up old data
+2025-08-24 18:28:39,891 - INFO - DELETE: Deleting old forecast data...
+2025-08-24 18:28:43,540 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/forecast_data?timestamp=lt.2025-08-23T18%3A28%3A39.891173 "HTTP/2 500 Internal Server Error"
+2025-08-24 18:28:43,542 - WARNING -    Forecast deletion failed: {'message': 'canceling statement due to statement timeout', 'code': '57014', 'hint': None, 'details': None}, will use UPSERT
+2025-08-24 18:28:43,542 - INFO - DELETE: Deleting old daily conditions...
+2025-08-24 18:28:43,652 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/daily_county_conditions?date=lt.2025-08-23 "HTTP/2 200 OK"
+2025-08-24 18:28:43,761 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/daily_county_conditions?date=gte.2025-08-23 "HTTP/2 200 OK"
+2025-08-24 18:28:43,762 - INFO -    Daily conditions deleted successfully
+2025-08-24 18:28:43,762 - INFO - OK: Old data cleanup completed
+2025-08-24 18:28:43,763 - INFO - STEP 2: Fetching beach data
+2025-08-24 18:28:43,943 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=id%2CName%2CLATITUDE%2CLONGITUDE&offset=0&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-24 18:28:43,951 - INFO -    Fetched 1000 beaches (batch 1)
+2025-08-24 18:28:44,170 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=id%2CName%2CLATITUDE%2CLONGITUDE&offset=1000&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-24 18:28:44,174 - INFO -    Fetched 647 beaches (batch 2)
+2025-08-24 18:28:44,176 - INFO - OK: Found 1647 beaches with valid coordinates
+2025-08-24 18:28:44,177 - INFO - STEP 3: Calculating county centroids
+2025-08-24 18:28:44,314 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=COUNTY%2CLATITUDE%2CLONGITUDE&offset=0&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-24 18:28:44,428 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=COUNTY%2CLATITUDE%2CLONGITUDE&offset=1000&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-24 18:28:44,431 - INFO - OK: Calculated centroids for 17 counties
+2025-08-24 18:28:44,432 - INFO - STEP 4: Updating forecast data with hybrid NOAA + Open-Meteo
+2025-08-24 18:28:44,432 - INFO -    Loading NOAA GFSwave dataset...
+2025-08-24 18:28:44,432 - INFO -    🔍 Searching for available NOAA GFSwave dataset...
+2025-08-24 18:28:44,432 - INFO -    📅 Trying today's data: 20250825
+2025-08-24 18:28:44,432 - INFO -    🌐 Base URL: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave
+2025-08-24 18:28:44,433 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_00z
+2025-08-24 18:28:49,885 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_00z'
+2025-08-24 18:28:49,885 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_06z
+2025-08-24 18:28:55,044 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_06z'
+2025-08-24 18:28:55,044 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_12z
+2025-08-24 18:29:00,341 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_12z'
+2025-08-24 18:29:00,342 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_18z
+2025-08-24 18:29:05,449 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_18z'
+2025-08-24 18:29:05,450 - INFO -    🌐 Base URL: http://nomads.ncep.noaa.gov/dods/wave/gfswave
+2025-08-24 18:29:05,450 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_00z
+2025-08-24 18:29:10,574 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_00z'
+2025-08-24 18:29:10,574 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_06z
+2025-08-24 18:29:15,683 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_06z'
+2025-08-24 18:29:15,683 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_12z
+2025-08-24 18:29:20,793 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_12z'
+2025-08-24 18:29:20,793 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_18z
+2025-08-24 18:29:25,934 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_18z'
+2025-08-24 18:29:25,934 - INFO -    🌐 Base URL: https://nomads.ncep.noaa.gov/dods/wave/gfswave
+2025-08-24 18:29:25,934 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_00z
+2025-08-24 18:29:31,101 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_00z'
+2025-08-24 18:29:31,101 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_06z
+2025-08-24 18:29:36,201 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_06z'
+2025-08-24 18:29:36,201 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_12z
+2025-08-24 18:29:41,293 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_12z'
+2025-08-24 18:29:41,293 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_18z
+2025-08-24 18:29:46,387 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_18z'
+2025-08-24 18:29:46,387 - INFO -    📅 Trying yesterday's data: 20250824
+2025-08-24 18:29:46,388 - INFO -    🌐 Base URL: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave
+2025-08-24 18:29:46,388 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_18z
+2025-08-24 18:29:51,859 - INFO -       ✅ SUCCESS: 129 time steps, swell shape: (129, 151, 241)
+2025-08-24 18:29:51,859 - INFO -    ✅ FOUND: Using 20250824 18z (yesterday)
+2025-08-24 18:29:52,280 - INFO -    NOAA dataset loaded: 129 time steps
+2025-08-24 18:29:52,281 - INFO -    Available variables: ['dirpwsfc', 'htsgwsfc', 'perpwsfc', 'swdir_1', 'swdir_2', 'swdir_3', 'swell_1', 'swell_2', 'swell_3', 'swper_1', 'swper_2', 'swper_3', 'ugrdsfc', 'vgrdsfc', 'wdirsfc', 'windsfc', 'wvdirsfc', 'wvhgtsfc', 'wvpersfc']
+2025-08-24 18:29:52,281 - INFO -    🚀 OPTIMIZED: Bulk extracting NOAA data for all beaches...
+2025-08-24 18:29:52,281 - INFO -    📍 Finding optimal grid points for all beaches...
+2025-08-24 18:30:16,013 - WARNING -    ⚠️  No valid ocean point found for Humboldt Redwoods State Park
+2025-08-24 18:31:21,670 - WARNING -    ⚠️  No valid ocean point found for Los Padres National Forest / Ventana Wilderness
