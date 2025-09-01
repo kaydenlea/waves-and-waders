@@ -39,7 +39,8 @@ import {
   MapIcon,
   Wind,
   Ship,
-  Zap
+  Zap,
+  Clock
 } from "lucide-react";
 import {
   BsArrowDownCircleFill as SArrowIcon,
@@ -51,7 +52,8 @@ import {
   BsArrowRightCircleFill as EArrowIcon,
   BsArrowDownRightCircleFill as SEArrowIcon,
 } from "react-icons/bs";
-import { ForecastData, BeachWithFeatures } from "@/lib/supabase";
+import { ForecastData, BeachWithFeatures, TidePoint, fetchCurrentTide, fetchBeachTides } from "@/lib/supabase";
+import { useEffect, useState } from "react";
 
 interface Beach {
   id: number;
@@ -85,7 +87,6 @@ interface Beach {
   HAND_LAUNCH?: boolean | null;
   LIGHTHOUSE?: boolean | null;
   PIER?: boolean | null;
-  SNDY_BEACH?: boolean | null;
   DUNES?: boolean | null;
   RKY_SHORE?: boolean | null;
   UPLAND_BCH?: boolean | null;
@@ -119,7 +120,7 @@ interface Beach {
 
 interface SummaryProps {
   currentForecast?: ForecastData | null;
-  beach?: Beach; // BACK TO ORIGINAL - accepting either Beach or BeachWithFeatures
+  beach?: Beach;
   todayForecast?: ForecastData[];
   selectedHour?: number;
   className?: string;
@@ -168,11 +169,56 @@ const round1 = (v: number | null | undefined): number => {
   return Math.round(v * 10) / 10;
 };
 
+// Round degrees to nearest whole number
+const roundDegrees = (v: number | null | undefined): number => {
+  if (v == null || Number.isNaN(v)) return 0;
+  return Math.round(v);
+};
+
 // Surf height display
 const formatSurfHeight = (min: number | null, max: number | null): string => {
   if (min == null || max == null) return "0-1";
   if (min === max) return min.toFixed(0);
   return `${min.toFixed(0)}-${max.toFixed(0)}`;
+};
+
+// Get the closest 3-hour interval to the current time
+const getClosest3HourInterval = (forecastData: ForecastData[]): ForecastData | null => {
+  if (forecastData.length === 0) return null;
+  
+  const now = new Date();
+  let closest = forecastData[0];
+  let minDiff = Math.abs(new Date(closest.timestamp).getTime() - now.getTime());
+  
+  for (const forecast of forecastData) {
+    const diff = Math.abs(new Date(forecast.timestamp).getTime() - now.getTime());
+    if (diff < minDiff) {
+      minDiff = diff;
+      closest = forecast;
+    }
+  }
+  
+  return closest;
+};
+
+// Get forecast for specific hour, accounting for 3-hour intervals
+const getForecastForHour = (forecastData: ForecastData[], targetHour: number): ForecastData | null => {
+  if (forecastData.length === 0) return null;
+  
+  // Find the closest 3-hour interval to the target hour
+  let closest = forecastData[0];
+  let minDiff = Math.abs(new Date(closest.timestamp).getHours() - targetHour);
+  
+  for (const forecast of forecastData) {
+    const forecastHour = new Date(forecast.timestamp).getHours();
+    const diff = Math.abs(forecastHour - targetHour);
+    if (diff < minDiff) {
+      minDiff = diff;
+      closest = forecast;
+    }
+  }
+  
+  return closest;
 };
 
 // --- Onshore/Offshore classification from compass strings ---
@@ -346,6 +392,36 @@ const Tag = ({
   );
 };
 
+const TideStat = ({
+  currentTide,
+  tideData,
+}: {
+  currentTide: TidePoint | null;
+  tideData: TidePoint[];
+}) => {
+  const tideLevel = currentTide?.tideLevelFt ?? 0;
+  
+  return (
+    <div className="flex flex-col w-full">
+      <span className="text-2xl font-medium">
+        {tideLevel.toFixed(1)}
+        <span className="text-xs">ft</span>
+      </span>
+      <div className="text-xs text-gray-500 mb-2">
+        {currentTide ? 
+          `Updated: ${new Date(currentTide.timestamp).toLocaleTimeString("en-US", { 
+            hour: "numeric", 
+            minute: "2-digit", 
+            hour12: true 
+          })}` : 
+          "No tide data"
+        }
+      </div>
+      <TidePreview data={tideData} />
+    </div>
+  );
+};
+
 /* =========================
    Summary Component
    ========================= */
@@ -357,21 +433,71 @@ const Summary = ({
   selectedHour,
   className,
 }: SummaryProps) => {
-  // Choose the datapoint to show
-  const getCurrentData = (): ForecastData | null => {
-    if (currentForecast) return currentForecast;
-    if (todayForecast.length === 0) return null;
-    if (selectedHour !== undefined) {
-      const hourData = todayForecast.find((forecast) => {
-        const forecastHour = new Date(forecast.timestamp).getHours();
-        return forecastHour === selectedHour;
-      });
-      if (hourData) return hourData;
+  const [currentTide, setCurrentTide] = useState<TidePoint | null>(null);
+  const [todayTides, setTodayTides] = useState<TidePoint[]>([]);
+
+  // Fetch tide data when beach changes
+  useEffect(() => {
+    if (!beach?.id) return;
+
+    const fetchTideData = async () => {
+      try {
+        // Fetch current tide
+        const current = await fetchCurrentTide(beach.id.toString());
+        setCurrentTide(current);
+
+        // Fetch today's tides
+        const today = new Date();
+        const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+        const tides = await fetchBeachTides(beach.id.toString(), today, tomorrow);
+        setTodayTides(tides);
+      } catch (error) {
+        console.error('Error fetching tide data:', error);
+        setCurrentTide(null);
+        setTodayTides([]);
+      }
+    };
+
+    fetchTideData();
+  }, [beach?.id]);
+
+  // Choose the datapoint to show - Enhanced for 3-hour intervals
+  const getCurrentData = (): { data: ForecastData | null; intervalInfo?: string } => {
+    if (currentForecast) {
+      return { 
+        data: currentForecast,
+        intervalInfo: "Current conditions"
+      };
     }
-    return todayForecast[0] || null;
+    
+    if (todayForecast.length === 0) {
+      return { data: null };
+    }
+    
+    if (selectedHour !== undefined) {
+      const hourData = getForecastForHour(todayForecast, selectedHour);
+      if (hourData) {
+        const actualHour = new Date(hourData.timestamp).getHours();
+        const hourDiff = Math.abs(actualHour - selectedHour);
+        return { 
+          data: hourData,
+          intervalInfo: hourDiff > 0 ? `Closest 3-hour interval (${actualHour}:00)` : undefined
+        };
+      }
+    }
+    
+    const closestData = getClosest3HourInterval(todayForecast);
+    const now = new Date();
+    const dataTime = closestData ? new Date(closestData.timestamp) : null;
+    const timeDiff = dataTime ? Math.abs(dataTime.getTime() - now.getTime()) / (1000 * 60 * 60) : 0;
+    
+    return { 
+      data: closestData,
+      intervalInfo: timeDiff > 1.5 ? `Next 3-hour interval` : "Current 3-hour interval"
+    };
   };
 
-  const currentData = getCurrentData();
+  const { data: currentData, intervalInfo } = getCurrentData();
 
   // Defaults when no data (enhanced from origin/main)
   const defaultStats = {
@@ -386,10 +512,9 @@ const Summary = ({
         { height: 1.2, period: 9.0, wind: { dir: "S", deg: 180 } },
       ],
     },
-    tide: { height: 2.4 },
   };
 
-  // Build processed stats - NOW USING REAL TERTIARY DATA
+  // Build processed stats - NOW USING REAL TERTIARY DATA with rounded degrees
   const windDirStr = getWindDirection(currentData?.conditions.windDirection ?? null);
 
   const processedStats = currentData
@@ -415,7 +540,7 @@ const Summary = ({
           ),
         },
         surf: {
-          direction: getWindDirection(currentData.swell.primary.direction),
+          direction: getWindDirection(roundDegrees(currentData.swell.primary.direction)),
           height: formatSurfHeight(
             currentData.surf.heightMin,
             currentData.surf.heightMax
@@ -429,33 +554,30 @@ const Summary = ({
             height: round1(currentData.swell.primary.height || 0),
             period: round1(currentData.swell.primary.period || 0),
             wind: {
-              dir: getWindDirection(currentData.swell.primary.direction),
-              deg: currentData.swell.primary.direction || 0,
+              dir: getWindDirection(roundDegrees(currentData.swell.primary.direction)),
+              deg: roundDegrees(currentData.swell.primary.direction),
             },
           },
           secondary: [
-            // ACTUAL SECONDARY SWELL DATA
+            // ACTUAL SECONDARY SWELL DATA with rounded degrees
             {
               height: round1(currentData.swell.secondary.height || 0),
               period: round1(currentData.swell.secondary.period || 0),
               wind: {
-                dir: getWindDirection(currentData.swell.secondary.direction),
-                deg: currentData.swell.secondary.direction || 0,
+                dir: getWindDirection(roundDegrees(currentData.swell.secondary.direction)),
+                deg: roundDegrees(currentData.swell.secondary.direction),
               },
             },
-            // ACTUAL TERTIARY SWELL DATA (no longer calculated)
+            // ACTUAL TERTIARY SWELL DATA with rounded degrees
             {
               height: round1(currentData.swell.tertiary.height || 0),
               period: round1(currentData.swell.tertiary.period || 0),
               wind: {
-                dir: getWindDirection(currentData.swell.tertiary.direction),
-                deg: currentData.swell.tertiary.direction || 0,
+                dir: getWindDirection(roundDegrees(currentData.swell.tertiary.direction)),
+                deg: roundDegrees(currentData.swell.tertiary.direction),
               },
             },
           ],
-        },
-        tide: {
-          height: currentData.conditions.tideLevel || 0, // Already includes +2.4ft adjustment
         },
       }
     : defaultStats;
@@ -554,7 +676,7 @@ const Summary = ({
       primary: processedStats.swell.primary,
       secondary: processedStats.swell.secondary,
     },
-    { type: "tide", height: processedStats.tide.height },
+    { type: "tide", currentTide, tideData: todayTides },
     { type: "wind", wind: processedStats.wind },
     { type: "surf", surf: processedStats.surf },
     { type: "features", tags: getBeachFeatures(beach) },
@@ -563,17 +685,20 @@ const Summary = ({
   return (
     <div className={cn("w-full", className)}>
       {currentData && (
-        <div className="mb-2 text-xs text-gray-500">
-          Showing data for{" "}
-          {new Date(currentData.timestamp).toLocaleTimeString("en-US", {
-            hour: "numeric",
-            minute: "2-digit",
-            hour12: true,
-          })}
-          {beach && ` • ${beach.Name}, ${beach.COUNTY} County`}
-          {currentData.swell.tertiary.height && currentData.swell.tertiary.height > 0 && (
-            <span className="text-green-600"> • Tertiary swell detected</span>
-          )}
+        <div className="mb-2 text-xs text-gray-500 flex items-center gap-2">
+          <Clock size={14} />
+          <span>
+            {new Date(currentData.timestamp).toLocaleTimeString("en-US", {
+              hour: "numeric",
+              minute: "2-digit",
+              hour12: true,
+            })}
+            {intervalInfo && ` • ${intervalInfo}`}
+            {beach && ` • ${beach.Name}, ${beach.COUNTY} County`}
+            {currentData.swell.tertiary.height && currentData.swell.tertiary.height > 0 && (
+              <span className="text-green-600"> • Tertiary swell detected</span>
+            )}
+          </span>
         </div>
       )}
 
@@ -612,17 +737,7 @@ const Summary = ({
               break;
 
             case "tide":
-              content = (
-                <div className="flex flex-col w-full">
-                  <span className="text-2xl font-medium">
-                    {typeof stat.height === "number"
-                      ? stat.height.toFixed(1)
-                      : stat.height}
-                    <span className="text-xs">ft</span>
-                  </span>
-                  <TidePreview data={todayForecast} selectedHour={selectedHour} />
-                </div>
-              );
+              content = <TideStat currentTide={stat.currentTide} tideData={stat.tideData} />;
               break;
 
             case "wind":

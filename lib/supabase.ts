@@ -308,6 +308,24 @@ export interface ForecastData {
     weather: number | null // weather code
   }
 }
+// ----------------------------
+// Tide types (NEW)
+// ----------------------------
+export interface TideRow {
+  beach_id: string
+  timestamp: string        // timestamptz in DB (ISO string here)
+  tide_level_ft: number | null
+  tide_level_m: number | null
+  source: string
+  created_at?: string
+  updated_at?: string
+}
+
+export interface TidePoint {
+  timestamp: string
+  tideLevelFt: number | null
+  tideLevelM: number | null
+}
 
 export interface DailyConditions {
   id?: number
@@ -357,6 +375,73 @@ export function transformToComponentFormat(data: SupabaseForecastData[]): Foreca
       weather: row.weather,
     },
   }))
+}
+// ----------------------------
+// Tide queries (NEW)
+// ----------------------------
+export async function fetchBeachTides(
+  beachId: string,
+  startDate?: Date,
+  endDate?: Date
+): Promise<TidePoint[]> {
+  console.log('fetchBeachTides called with:', {
+    beachId,
+    startDate: startDate?.toISOString(),
+    endDate: endDate?.toISOString()
+  });
+
+  let q = supabase
+    .from('beach_tides_hourly')
+    .select('timestamp,tide_level_ft,tide_level_m')
+    .eq('beach_id', beachId)
+    .order('timestamp', { ascending: true })
+    .returns<TideRow[]>()
+
+  if (startDate) q = q.gte('timestamp', startDate.toISOString())
+  if (endDate) q = q.lte('timestamp', endDate.toISOString())
+
+  const { data, error } = await q
+
+  console.log('Query result:', { data: data?.length, error });
+
+  if (error) {
+    console.error('Error fetching beach tides:', error)
+    return []
+  }
+
+  const result = (data ?? []).map(r => ({
+    timestamp: r.timestamp,
+    tideLevelFt: r.tide_level_ft,
+    tideLevelM: r.tide_level_m,
+  }));
+
+  console.log('Processed tide data:', result.length, 'points');
+  return result;
+}
+
+export async function fetchCurrentTide(
+  beachId: string
+): Promise<TidePoint | null> {
+  const { data, error } = await supabase
+    .from('beach_tides_hourly')
+    .select('timestamp,tide_level_ft,tide_level_m')
+    .eq('beach_id', beachId)
+    .order('timestamp', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+    .returns<TideRow>()
+
+  if (error) {
+    console.error('Error fetching current tide:', error)
+    return null
+  }
+  if (!data) return null
+
+  return {
+    timestamp: data.timestamp,
+    tideLevelFt: data.tide_level_ft,
+    tideLevelM: data.tide_level_m,
+  }
 }
 
 // ----------------------------

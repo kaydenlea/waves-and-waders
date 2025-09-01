@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 
 import DatePicker from "@/components/general/DatePicker";
@@ -18,16 +18,17 @@ import {
   fetchAllBeaches,
   fetchDailyConditions,
   fetchBeachDetails,
-  // NEW: fallback direct id fetch (add this helper in lib if you don't have it yet)
   fetchBeachByIdLoose,
+  fetchBeachTides, // Add this import
   type Beach,
   type BeachWithFeatures,
   type ForecastData,
   type DailyConditions,
+  type TidePoint, // Add this import
 } from "@/lib/supabase";
 
 interface PageProps {
-  searchParams: { id?: string };
+  searchParams: Promise<{ id?: string }>; // Changed: Now a Promise
 }
 
 // Pick a sensible default if no id provided
@@ -42,6 +43,9 @@ const getDefaultBeach = (beaches: Beach[]): Beach | null => {
 
 const Page = ({ searchParams }: PageProps) => {
   const router = useRouter();
+  
+  // Unwrap the Promise using React.use()
+  const params = use(searchParams);
 
   // State
   const [selectedBeach, setSelectedBeach] = useState<Beach | null>(null);
@@ -50,6 +54,7 @@ const Page = ({ searchParams }: PageProps) => {
   const [forecastData, setForecastData] = useState<ForecastData[]>([]);
   const [weeklyForecastData, setWeeklyForecastData] = useState<ForecastData[]>([]);
   const [dailyConditions, setDailyConditions] = useState<DailyConditions | null>(null);
+  const [tideData, setTideData] = useState<TidePoint[]>([]); // Add tide data state
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedHour, setSelectedHour] = useState<number>(new Date().getHours());
   const [loading, setLoading] = useState(true);
@@ -68,7 +73,7 @@ const Page = ({ searchParams }: PageProps) => {
         if (cancelled) return;
         setAllBeaches(beaches);
 
-        const urlId = searchParams?.id?.trim();
+        const urlId = params?.id?.trim(); // Changed: use params instead of searchParams
         if (urlId) {
           // Direct fetch by id (bypasses any preloaded list/pagination issues)
           const byId = await fetchBeachByIdLoose(urlId);
@@ -107,7 +112,7 @@ const Page = ({ searchParams }: PageProps) => {
     return () => {
       cancelled = true;
     };
-  }, [searchParams]);
+  }, [params]); // Changed: depend on params instead of searchParams
 
   // -------- Load extended details for the selected beach --------
   useEffect(() => {
@@ -174,6 +179,47 @@ const Page = ({ searchParams }: PageProps) => {
     };
   }, [selectedBeach]);
 
+  // -------- Daily tide data (for TideChart) --------
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadTideData = async () => {
+      if (!selectedBeach) return;
+
+      try {
+        const startDate = new Date(selectedDate);
+        startDate.setUTCHours(0, 0, 0, 0); // Use UTC to prevent timezone shift
+
+        const endDate = new Date(selectedDate);
+        endDate.setUTCHours(23, 59, 59, 999); // Use UTC to prevent timezone shift
+
+        console.log('Fetching tide data for:', {
+          beachId: selectedBeach.id,
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString()
+        });
+
+        const tides = await fetchBeachTides(selectedBeach.id.toString(), startDate, endDate);
+        
+        console.log('Received tide data:', {
+          count: tides.length,
+          firstTimestamp: tides[0]?.timestamp,
+          lastTimestamp: tides[tides.length - 1]?.timestamp
+        });
+
+        if (!cancelled) setTideData(tides);
+      } catch (error) {
+        console.error("Error loading tide data:", error);
+        if (!cancelled) setTideData([]);
+      }
+    };
+
+    loadTideData();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedBeach, selectedDate]);
+
   // -------- Daily forecast (charts) --------
   useEffect(() => {
     let cancelled = false;
@@ -192,6 +238,24 @@ const Page = ({ searchParams }: PageProps) => {
         endDate.setHours(23, 59, 59, 999);
 
         const data = await fetchBeachForecast(selectedBeach.id, startDate, endDate);
+        
+        // ENHANCED DEBUG: Check what timestamps we're getting
+        console.log('=== FORECAST DEBUG ===');
+        console.log('Beach ID:', selectedBeach.id);
+        console.log('Selected Date:', selectedDate.toLocaleDateString());
+        console.log('Request range:', {
+          start: startDate.toISOString(),
+          end: endDate.toISOString()
+        });
+        console.log('Data count:', data.length);
+        console.log('All timestamps received:');
+        data.forEach((d, i) => {
+          const date = new Date(d.timestamp);
+          console.log(`${i}: ${d.timestamp} -> ${date.toLocaleDateString()} ${date.getHours()}:00 (${date.toLocaleTimeString()})`);
+        });
+        console.log('Hours array:', data.map(d => new Date(d.timestamp).getHours()));
+        console.log('========================');
+        
         if (!cancelled) setForecastData(data);
       } catch (err: any) {
         console.error("Error loading forecast:", err);
@@ -278,7 +342,7 @@ const Page = ({ searchParams }: PageProps) => {
         <div className="text-center py-12">
           <h1 className="text-2xl font-semibold text-gray-800 mb-4">Beach Not Found</h1>
           <p className="text-gray-600 mb-4">
-            We couldn't find a beach for id "{searchParams.id ?? "N/A"}".
+            We couldn't find a beach for id "{params.id ?? "N/A"}".
           </p>
           <p className="text-sm text-gray-500">
             Available beaches: {allBeaches.slice(0, 5).map((b) => b.Name).join(", ")}
@@ -392,7 +456,7 @@ const Page = ({ searchParams }: PageProps) => {
 
           <figure className="min-w-0">
             <TideChart
-              data={dayForecastData}
+              data={tideData} // Changed: use hourly tide data instead of forecast data
               selectedHour={selectedHour}
               selectedDate={selectedDate}
               dailyConditions={dailyConditions}
@@ -431,7 +495,7 @@ const Page = ({ searchParams }: PageProps) => {
           <pre className="mt-2 text-xs overflow-auto">
             {JSON.stringify(
               {
-                urlParamId: searchParams.id ?? null,
+                urlParamId: params.id ?? null, // Changed: use params
                 selectedBeachId: selectedBeach?.id,
                 selectedBeachName: selectedBeach?.Name,
                 selectedCounty: selectedBeach?.COUNTY,

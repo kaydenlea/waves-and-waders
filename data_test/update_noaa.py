@@ -3,6 +3,7 @@
 Hybrid Surf Database Update Script - IMPERIAL UNITS VERSION
 Combines NOAA GFSwave data with Open-Meteo data for comprehensive forecasting.
 Uses imperial units: mph, feet, Fahrenheit
+RATE LIMITED VERSION - Respects NOAA's 50 requests/minute limit
 """
 
 import urllib.request
@@ -15,6 +16,7 @@ from datetime import datetime, timedelta, timezone
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import math
 import time
+import threading
 
 import openmeteo_requests
 import pandas as pd
@@ -34,10 +36,6 @@ VC_API_KEY = "NFYFM562X2PY2M4W4GE8WZZGC"
 NOAA_BASE_URL = "http://nomads.ncep.noaa.gov:80/dods/wave/gfswave"
 NOAA_BASE_URL_HTTPS = "https://nomads.ncep.noaa.gov/dods/wave/gfswave"  # Alternative HTTPS
 
-# NOAA grid search parameters
-LAT_OFFSETS = [-0.1, -0.05, 0, 0.05, 0.1]
-LON_OFFSETS = [-0.2, -0.1, 0, 0.1, 0.2]
-
 # Script settings with rate limiting
 DAYS_FORECAST = 7
 BATCH_SIZE = 10           
@@ -48,22 +46,33 @@ API_DELAY = 2.0
 RETRY_DELAY = 65          
 MAX_RETRIES = 3           
 
-# NOAA OpenDAP rate limiting (be extra gentle)
-NOAA_REQUEST_DELAY = 5.0     # 5 second delay between NOAA requests
-NOAA_BATCH_DELAY = 15.0      # 15 second delay between grid point batches
-NOAA_MAX_CONCURRENT = 1      # Only 1 concurrent NOAA request at a time
-NOAA_RETRY_DELAY = 300       # 5 minutes wait if rate limited by NOAA           
+# UPDATED NOAA OpenDAP rate limiting - CONSERVATIVE for compliance
+NOAA_REQUEST_DELAY = 2.0        # 2 seconds = 30 requests/minute (well under 50/min target)
+NOAA_BATCH_DELAY = 10.0         # 10 seconds between location groups
+NOAA_MAX_CONCURRENT = 1         # Only 1 concurrent NOAA request at a time
+NOAA_RETRY_DELAY = 600          # 10 minutes if rate limited by NOAA (increased)
+NOAA_DATASET_TEST_DELAY = 5.0   # 5 seconds between dataset URL tests
+
+# Open-Meteo rate limiting - CONSERVATIVE for good API citizenship
+OPENMETEO_REQUEST_DELAY = 1.0   # 1 second between Open-Meteo API calls
+OPENMETEO_BATCH_DELAY = 2.0     # 2 seconds between batches
+OPENMETEO_RETRY_DELAY = 60      # 1 minute wait if rate limited
+OPENMETEO_MAX_RETRIES = 3       # Maximum retry attempts
 
 # Tide adjustment constant (in feet)
 TIDE_ADJUSTMENT_FT = 2.4
 
-# NOAA grid search parameters
-LAT_OFFSETS = [-0.1, -0.05, 0, 0.05, 0.1]
-LON_OFFSETS = [-0.2, -0.1, 0, 0.1, 0.2]
+# NOAA grid search parameters - REDUCED to minimize requests
+LAT_OFFSETS = [-0.05, 0, 0.05]         # Reduced from 5 to 3 offsets  
+LON_OFFSETS = [-0.1, 0, 0.1]           # Reduced from 5 to 3 offsets
 
 # Fix for Windows console encoding
 if sys.platform == "win32":
     os.environ["PYTHONIOENCODING"] = "utf-8"
+
+# === RATE LIMITING GLOBALS ===
+_noaa_last_request_time = 0
+_noaa_request_lock = threading.Lock()
 
 # === LOGGING SETUP ===
 logging.basicConfig(
@@ -147,6 +156,57 @@ def calculate_wave_energy_kj(wave_height_ft, wave_period_s):
     except Exception:
         return None
 
+# === RATE LIMITING FUNCTIONS ===
+def enforce_noaa_rate_limit():
+    """Enforce NOAA rate limiting with thread safety."""
+    global _noaa_last_request_time
+    
+    with _noaa_request_lock:
+        current_time = time.time()
+        time_since_last = current_time - _noaa_last_request_time
+        
+        if time_since_last < NOAA_REQUEST_DELAY:
+            sleep_time = NOAA_REQUEST_DELAY - time_since_last
+            logger.debug(f"      Rate limiting: sleeping {sleep_time:.1f}s")
+            time.sleep(sleep_time)
+        
+        _noaa_last_request_time = time.time()
+
+def api_request_with_retry(api_func, *args, max_retries=OPENMETEO_MAX_RETRIES, **kwargs):
+    """Make Open-Meteo API request with retry logic for rate limiting."""
+    for attempt in range(max_retries + 1):
+        try:
+            # Add delay before each Open-Meteo request
+            if attempt > 0:
+                logger.info(f"      Retry attempt {attempt}, waiting {OPENMETEO_REQUEST_DELAY}s...")
+                time.sleep(OPENMETEO_REQUEST_DELAY)
+            
+            result = api_func(*args, **kwargs)
+            return result
+            
+        except Exception as e:
+            error_str = str(e).lower()
+            
+            # Check if it's a rate limit error
+            if any(phrase in error_str for phrase in ['rate limit', 'limit exceeded', 'try again', 'too many requests', '429']):
+                if attempt < max_retries:
+                    wait_time = OPENMETEO_RETRY_DELAY * (attempt + 1)  # Exponential backoff
+                    logger.warning(f"      Open-Meteo RATE LIMITED (attempt {attempt + 1}/{max_retries + 1}). Waiting {wait_time}s...")
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    logger.error(f"ERROR: Open-Meteo rate limit exceeded after {max_retries + 1} attempts")
+                    raise e
+            else:
+                # Not a rate limit error, don't retry
+                raise e
+    
+    raise Exception("Open-Meteo max retries exceeded")
+
+def safe_openmeteo_delay():
+    """Add a delay between Open-Meteo API calls to be respectful."""
+    time.sleep(OPENMETEO_REQUEST_DELAY)
+
 # === UTILITY FUNCTIONS ===
 def log_step(message: str, step_num: int = None):
     """Log a major step with formatting."""
@@ -198,12 +258,12 @@ def nonempty_record(record, exclude_keys=("beach_id", "timestamp")):
     return False
 
 def test_noaa_url(url):
-    """Test a single NOAA URL and return success/failure with details."""
+    """Test a single NOAA URL and return success/failure with details - RATE LIMITED."""
     try:
         logger.info(f"      Testing: {url}")
         
-        # Add delay before NOAA request to respect rate limits
-        time.sleep(NOAA_REQUEST_DELAY)
+        # Enforce rate limiting BEFORE each request
+        enforce_noaa_rate_limit()
         
         # Check for rate limit HTML response
         try:
@@ -251,11 +311,16 @@ def test_noaa_url(url):
         return False, error_msg
 
 def get_noaa_dataset_url():
-    """Get the current NOAA GFSwave dataset URL with comprehensive testing."""
-    logger.info("   🔍 Searching for available NOAA GFSwave dataset...")
+    """Get the current NOAA GFSwave dataset URL with RATE LIMITED testing."""
+    logger.info("   🔍 Searching for available NOAA GFSwave dataset (rate limited)...")
     
-    today = datetime.now(timezone.utc)
-    today_str = today.strftime("%Y%m%d")
+    # Use UTC time for NOAA dataset dating - FORCE current date calculation
+    now_utc = datetime.now(timezone.utc)
+    today_str = now_utc.strftime("%Y%m%d")
+    
+    # DEBUG: Print exactly what date we're calculating
+    logger.info(f"   🕐 Current UTC time: {now_utc.isoformat()}")
+    logger.info(f"   📅 Calculated today's date string: {today_str}")
     
     # Base URLs to try (HTTP and HTTPS)
     base_urls = [
@@ -264,215 +329,122 @@ def get_noaa_dataset_url():
         "https://nomads.ncep.noaa.gov/dods/wave/gfswave",    # HTTPS
     ]
     
-    # Try today first
+    # Try today first - REDUCED runs to minimize requests
     logger.info(f"   📅 Trying today's data: {today_str}")
     for base_url in base_urls:
         logger.info(f"   🌐 Base URL: {base_url}")
-        for run in ["00z", "06z", "12z", "18z"]:
+        # REDUCED: Only try most recent runs to minimize server hits
+        for run in ["18z", "12z"]:  # Reduced from 4 runs to 2
             # CORRECTED URL FORMAT - includes the full dataset filename
             url = f"{base_url}/{today_str}/gfswave.wcoast.0p16_{run}"
+            logger.info(f"   🔗 Testing URL: {url}")
             success, message = test_noaa_url(url)
             if success:
                 logger.info(f"   ✅ FOUND: Using {today_str} {run}")
                 return url
+            
+            # Add delay between tests to be extra conservative
+            time.sleep(NOAA_DATASET_TEST_DELAY)
     
-    # Try yesterday
-    yesterday = today - timedelta(days=1)
-    yesterday_str = yesterday.strftime("%Y%m%d")
+    # Try yesterday - REDUCED base URLs to minimize requests
+    yesterday_date = now_utc - timedelta(days=1)
+    yesterday_str = yesterday_date.strftime("%Y%m%d")
     logger.info(f"   📅 Trying yesterday's data: {yesterday_str}")
     
-    for base_url in base_urls:
+    # REDUCED: Only try first 2 base URLs
+    for base_url in base_urls[:2]:
         logger.info(f"   🌐 Base URL: {base_url}")
-        for run in ["18z", "12z", "06z", "00z"]:  # Try latest runs first
+        for run in ["18z", "12z"]:  # Try latest runs first
             # CORRECTED URL FORMAT - includes the full dataset filename
             url = f"{base_url}/{yesterday_str}/gfswave.wcoast.0p16_{run}"
+            logger.info(f"   🔗 Testing URL: {url}")
             success, message = test_noaa_url(url)
             if success:
                 logger.info(f"   ✅ FOUND: Using {yesterday_str} {run} (yesterday)")
                 return url
+            
+            time.sleep(NOAA_DATASET_TEST_DELAY)
     
-    # Try a few more days back
+    # Try a few more days back - MINIMAL testing to reduce requests
     logger.info("   📅 Trying additional fallback dates...")
-    for days_back in [2, 3, 4]:
-        fallback_date = today - timedelta(days=days_back)
+    for days_back in [2, 3]:  # Reduced from [2,3,4] to minimize requests
+        fallback_date = now_utc - timedelta(days=days_back)
         fallback_str = fallback_date.strftime("%Y%m%d")
         logger.info(f"   📅 Trying {days_back} days back: {fallback_str}")
         
-        for base_url in base_urls:
-            for run in ["18z", "12z", "06z", "00z"]:
-                # CORRECTED URL FORMAT - includes the full dataset filename
-                url = f"{base_url}/{fallback_str}/gfswave.wcoast.0p16_{run}"
-                success, message = test_noaa_url(url)
-                if success:
-                    logger.info(f"   ✅ FOUND: Using {fallback_str} {run} ({days_back} days back)")
-                    return url
+        # Only try first base URL and most recent run to minimize requests
+        base_url = base_urls[0]
+        run = "18z"
+        # CORRECTED URL FORMAT - includes the full dataset filename
+        url = f"{base_url}/{fallback_str}/gfswave.wcoast.0p16_{run}"
+        logger.info(f"   🔗 Testing URL: {url}")
+        success, message = test_noaa_url(url)
+        if success:
+            logger.info(f"   ✅ FOUND: Using {fallback_str} {run} ({days_back} days back)")
+            return url
+        
+        time.sleep(NOAA_DATASET_TEST_DELAY)
     
     # Comprehensive error message
     logger.error("   ❌ EXHAUSTED ALL OPTIONS:")
-    logger.error(f"      • Tried dates: {today_str} to {(today - timedelta(days=4)).strftime('%Y%m%d')}")
+    logger.error(f"      • Current UTC time: {now_utc.isoformat()}")
+    logger.error(f"      • Tried dates: {today_str}, {yesterday_str}, and {days_back} days back")
     logger.error(f"      • Tried base URLs: {len(base_urls)} different protocols")
-    logger.error(f"      • Tried runs: 00z, 06z, 12z, 18z")
-    logger.error(f"      • Example URL format: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/{today_str}/gfswave.wcoast.0p16_00z")
+    logger.error(f"      • Tried runs: 18z, 12z (reduced to minimize requests)")
     logger.error("      • Possible causes:")
     logger.error("        - Network connectivity issues")
     logger.error("        - NOAA server maintenance")
-    logger.error("        - OpenDAP service unavailable")
+    logger.error("        - OpenDAP service unavailable") 
     logger.error("        - Firewall blocking OpenDAP protocol")
     logger.error("        - Missing netcdf4 library (try: pip install netcdf4)")
+    logger.error("        - Rate limit penalty box (wait 1+ hours)")
+    logger.error("        - Dataset not yet available for today")
     
     raise Exception("No NOAA GFSwave dataset available - exhausted all URL combinations")
 
 def find_nearest_ocean_point(ds, lat0, lon0):
-    """Find the nearest valid ocean grid point for a beach location."""
+    """Find the nearest valid ocean grid point for a beach location - OPTIMIZED."""
     lon0_360 = lon0 % 360  # Convert longitude to 0-360 format for NOAA data
     
-    for dlat in LAT_OFFSETS:
-        for dlon in LON_OFFSETS:
-            try:
-                lat = lat0 + dlat
-                lon = (lon0_360 + dlon) % 360
+    # Try center point first (most likely to work)
+    try:
+        test_var = "swell_2"  # Use swell_2 to test
+        val = ds[test_var].isel(time=0).sel(lat=lat0, lon=lon0_360, method="nearest").values
+        
+        if not np.isnan(val):
+            grid_lat = float(ds.lat.sel(lat=lat0, method="nearest").values)
+            grid_lon = float(ds.lon.sel(lon=lon0_360, method="nearest").values)
+            return grid_lat, grid_lon
+    except Exception:
+        pass
+    
+    # REDUCED offset search to minimize server requests
+    reduced_offsets = [
+        (0, 0.1), (0, -0.1), (0.05, 0), (-0.05, 0),  # Essential offsets only
+        (0.05, 0.1), (-0.05, -0.1)  # Diagonal fallbacks
+    ]
+    
+    for dlat, dlon in reduced_offsets:
+        try:
+            lat = lat0 + dlat
+            lon = (lon0_360 + dlon) % 360
+            
+            # Test if this point has valid data
+            test_var = "swell_2"  # Use swell_2 to test
+            val = ds[test_var].isel(time=0).sel(lat=lat, lon=lon, method="nearest").values
+            
+            if not np.isnan(val):
+                grid_lat = float(ds.lat.sel(lat=lat, method="nearest").values)
+                grid_lon = float(ds.lon.sel(lon=lon, method="nearest").values)
+                return grid_lat, grid_lon
                 
-                # Test if this point has valid data
-                test_var = "swell_2"  # Use swell_2 to test
-                val = ds[test_var].isel(time=0).sel(lat=lat, lon=lon, method="nearest").values
-                
-                if not np.isnan(val):
-                    grid_lat = float(ds.lat.sel(lat=lat, method="nearest").values)
-                    grid_lon = float(ds.lon.sel(lon=lon, method="nearest").values)
-                    return grid_lat, grid_lon
-                    
-            except Exception:
-                continue
+        except Exception:
+            continue
     
     return None, None
 
 # === DATABASE OPERATIONS ===
 def cleanup_old_data():
-    """Delete all existing forecast and daily condition data."""
-    log_step("Cleaning up old data", 1)
-    
-    try:
-        yesterday = (datetime.now() - timedelta(days=1)).isoformat()
-        
-        # Delete forecast data
-        logger.info("DELETE: Deleting old forecast data...")
-        try:
-            forecast_delete = supabase.table("forecast_data").delete().lt('timestamp', yesterday).execute()
-            future_delete = supabase.table("forecast_data").delete().gte('timestamp', yesterday).execute()
-            logger.info("   Forecast data deleted successfully")
-        except Exception as e:
-            logger.warning(f"   Forecast deletion failed: {e}, will use UPSERT")
-        
-        # Delete daily conditions  
-        logger.info("DELETE: Deleting old daily conditions...")
-        try:
-            yesterday_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
-            daily_delete = supabase.table("daily_county_conditions").delete().lt('date', yesterday_date).execute()
-            future_daily_delete = supabase.table("daily_county_conditions").delete().gte('date', yesterday_date).execute()
-            logger.info("   Daily conditions deleted successfully")
-        except Exception as e:
-            logger.warning(f"   Daily conditions deletion failed: {e}, will use UPSERT")
-        
-        log_step("Old data cleanup completed")
-        return True
-        
-    except Exception as e:
-        logger.error(f"ERROR: Error during cleanup: {e}")
-        return True  # Continue with UPSERT mode
-
-def fetch_all_beaches(page_size: int = 1000):
-    """Fetch all beaches with valid coordinates."""
-    log_step("Fetching beach data", 2)
-    
-    all_rows = []
-    start = 0
-    while True:
-        try:
-            end_idx = start + page_size - 1
-            resp = (
-                supabase
-                .table("beaches")
-                .select("id,Name,LATITUDE,LONGITUDE", count="exact")
-                .range(start, end_idx)
-                .execute()
-            )
-            rows = resp.data or []
-            all_rows.extend(rows)
-            
-            logger.info(f"   Fetched {len(rows)} beaches (batch {start//page_size + 1})")
-            
-            if len(rows) < page_size:
-                break
-            start += page_size
-            
-        except Exception as e:
-            logger.error(f"ERROR: Error fetching beaches: {e}")
-            break
-    
-    # Filter for valid coordinates
-    valid_beaches = [
-        {"id": b["id"], "Name": b["Name"], "LATITUDE": b["LATITUDE"], "LONGITUDE": b["LONGITUDE"]}
-        for b in all_rows
-        if valid_coord(b.get("LATITUDE")) and valid_coord(b.get("LONGITUDE"))
-    ]
-    
-    log_step(f"Found {len(valid_beaches)} beaches with valid coordinates")
-    return valid_beaches
-
-def fetch_all_counties(page_size: int = 1000):
-    """Get unique counties with their centroid coordinates."""
-    log_step("Calculating county centroids", 3)
-    
-    all_rows = []
-    start = 0
-    while True:
-        try:
-            end_idx = start + page_size - 1
-            resp = (
-                supabase
-                .table("beaches")
-                .select("COUNTY,LATITUDE,LONGITUDE", count="exact")
-                .range(start, end_idx)
-                .execute()
-            )
-            rows = resp.data or []
-            all_rows.extend(rows)
-            if len(rows) < page_size:
-                break
-            start += page_size
-        except Exception as e:
-            logger.error(f"ERROR: Error fetching county data: {e}")
-            break
-    
-    # Group by county and calculate centroid coordinates
-    county_data = {}
-    for row in all_rows:
-        county = row.get("COUNTY")
-        lat = row.get("LATITUDE")
-        lon = row.get("LONGITUDE")
-        
-        if county and valid_coord(lat) and valid_coord(lon):
-            if county not in county_data:
-                county_data[county] = {"lats": [], "lons": []}
-            county_data[county]["lats"].append(lat)
-            county_data[county]["lons"].append(lon)
-    
-    # Calculate centroids
-    counties = []
-    for county, coords in county_data.items():
-        centroid_lat = sum(coords["lats"]) / len(coords["lats"])
-        centroid_lon = sum(coords["lons"]) / len(coords["lons"])
-        counties.append({
-            "county": county,
-            "latitude": centroid_lat,
-            "longitude": centroid_lon,
-            "beach_count": len(coords["lats"])
-        })
-    
-    log_step(f"Calculated centroids for {len(counties)} counties")
-    return counties
-
-# === NOAA BULK OPTIMIZATION FUNCTIONS ===
     """Delete all existing forecast and daily condition data."""
     log_step("Cleaning up old data", 1)
     
@@ -669,138 +641,9 @@ def rank_swell_trains(swell_data_list):
     
     return [primary, secondary, tertiary]
 
-def get_noaa_data_for_beach(ds, beach):
-    """Extract NOAA data for a single beach with dynamic swell ranking."""
-    beach_id = beach["id"]
-    name = beach["Name"]
-    lat0 = beach["LATITUDE"]
-    lon0 = beach["LONGITUDE"]
-    
-    try:
-        # Find nearest ocean point
-        grid_lat, grid_lon = find_nearest_ocean_point(ds, lat0, lon0)
-        
-        if grid_lat is None or grid_lon is None:
-            logger.warning(f"   No valid ocean point found for {name}")
-            return []
-        
-        # Extract time series
-        time_vals = pd.to_datetime(ds.time.values)
-        
-        # Extract ALL swell data from NOAA (all 3 swell trains)
-        swell_1_height = ds["swell_1"].sel(lat=grid_lat, lon=grid_lon).values
-        swell_1_period = ds["swper_1"].sel(lat=grid_lat, lon=grid_lon).values
-        swell_1_direction = ds["swdir_1"].sel(lat=grid_lat, lon=grid_lon).values
-        
-        swell_2_height = ds["swell_2"].sel(lat=grid_lat, lon=grid_lon).values
-        swell_2_period = ds["swper_2"].sel(lat=grid_lat, lon=grid_lon).values
-        swell_2_direction = ds["swdir_2"].sel(lat=grid_lat, lon=grid_lon).values
-        
-        swell_3_height = ds["swell_3"].sel(lat=grid_lat, lon=grid_lon).values
-        swell_3_period = ds["swper_3"].sel(lat=grid_lat, lon=grid_lon).values
-        swell_3_direction = ds["swdir_3"].sel(lat=grid_lat, lon=grid_lon).values
-        
-        # Other NOAA variables
-        sig_wave_height = ds["htsgwsfc"].sel(lat=grid_lat, lon=grid_lon).values
-        wind_speed_mps = ds["windsfc"].sel(lat=grid_lat, lon=grid_lon).values
-        wind_direction_deg = ds["wdirsfc"].sel(lat=grid_lat, lon=grid_lon).values
-        
-        # Build records with dynamic ranking
-        records = []
-        for i, timestamp in enumerate(time_vals):
-            # Prepare all 3 swell trains for ranking
-            swell_trains = [
-                {
-                    'height_ft': safe_float(meters_to_feet(swell_1_height[i])),
-                    'period_s': safe_float(swell_1_period[i]),
-                    'direction_deg': safe_float(swell_1_direction[i]),
-                    'beach_lat': lat0,
-                    'beach_lon': lon0,
-                    'source': 'swell_1'
-                },
-                {
-                    'height_ft': safe_float(meters_to_feet(swell_2_height[i])),
-                    'period_s': safe_float(swell_2_period[i]),
-                    'direction_deg': safe_float(swell_2_direction[i]),
-                    'beach_lat': lat0,
-                    'beach_lon': lon0,
-                    'source': 'swell_2'
-                },
-                {
-                    'height_ft': safe_float(meters_to_feet(swell_3_height[i])),
-                    'period_s': safe_float(swell_3_period[i]),
-                    'direction_deg': safe_float(swell_3_direction[i]),
-                    'beach_lat': lat0,
-                    'beach_lon': lon0,
-                    'source': 'swell_3'
-                }
-            ]
-            
-            # DYNAMICALLY RANK the swell trains for this timestamp
-            primary, secondary, tertiary = rank_swell_trains(swell_trains)
-            
-            # NOAA surf height (convert to feet)
-            sig_wave_height_m = safe_float(sig_wave_height[i])
-            surf_max_ft = safe_float(meters_to_feet(sig_wave_height_m * 1.86)) if sig_wave_height_m else None
-            surf_min_ft = safe_float(meters_to_feet(sig_wave_height_m * 0.5)) if sig_wave_height_m else None
-            
-            # NOAA wind data (convert to mph)
-            wind_speed_mph = safe_float(mps_to_mph(wind_speed_mps[i]))
-            wind_direction = safe_float(wind_direction_deg[i])
-            
-            # Calculate wave energy using PRIMARY (highest ranked) swell
-            primary_height = primary['height_ft'] if primary else None
-            primary_period = primary['period_s'] if primary else None
-            wave_energy_kj = calculate_wave_energy_kj(primary_height, primary_period)
-            
-            record = {
-                "beach_id": beach_id,
-                "timestamp": pd.Timestamp(timestamp).isoformat(),
-                
-                # DYNAMICALLY RANKED swell data (in feet and seconds)
-                "primary_swell_height_ft": primary['height_ft'] if primary else None,
-                "primary_swell_period_s": primary['period_s'] if primary else None,
-                "primary_swell_direction": primary['direction_deg'] if primary else None,
-                
-                "secondary_swell_height_ft": secondary['height_ft'] if secondary else None,
-                "secondary_swell_period_s": secondary['period_s'] if secondary else None,
-                "secondary_swell_direction": secondary['direction_deg'] if secondary else None,
-                
-                "tertiary_swell_height_ft": tertiary['height_ft'] if tertiary else None,
-                "tertiary_swell_period_s": tertiary['period_s'] if tertiary else None,
-                "tertiary_swell_direction": tertiary['direction_deg'] if tertiary else None,
-                
-                # NOAA surf data (in feet)
-                "surf_height_min_ft": surf_min_ft,
-                "surf_height_max_ft": surf_max_ft,
-                "wave_energy_kj": wave_energy_kj,
-                
-                # NOAA wind data (in mph)
-                "wind_speed_mph": wind_speed_mph,
-                "wind_direction_deg": wind_direction,
-                
-                # These will be filled by Open-Meteo later
-                "wind_gust_mph": None,
-                "water_temp_f": None,
-                "tide_level_ft": None,
-                "temperature": None,
-                "weather": None,
-                "pressure_inhg": None,
-            }
-            
-            if nonempty_record(record):
-                records.append(record)
-        
-        logger.info(f"   NOAA: {name} - {len(records)} records with dynamic swell ranking from grid point ({grid_lat:.2f}, {grid_lon:.2f})")
-        return records
-        
-    except Exception as e:
-        logger.error(f"ERROR: NOAA processing failed for {name}: {e}")
-        return []
-
 def get_openmeteo_supplement_data(beaches, existing_records):
-    """Get supplementary data from Open-Meteo for variables not in NOAA."""
-    logger.info("   Fetching Open-Meteo supplement data...")
+    """Get supplementary data from Open-Meteo for variables not in NOAA - RATE LIMITED."""
+    logger.info("   Fetching Open-Meteo supplement data (rate limited)...")
     
     # Date range
     tz = pytz.timezone("America/Los_Angeles")
@@ -812,7 +655,9 @@ def get_openmeteo_supplement_data(beaches, existing_records):
         lons = [b["LONGITUDE"] for b in beaches]
         ids = [b["id"] for b in beaches]
         
-        # Weather API call for temperature, pressure, weather code, and wind gusts
+        logger.info(f"   Making Open-Meteo weather API call for {len(beaches)} beaches...")
+        
+        # Weather API call for temperature, pressure, weather code, and wind gusts - WITH RATE LIMITING
         weather_url = "https://api.open-meteo.com/v1/forecast"
         weather_params = {
             "latitude": lats,
@@ -825,9 +670,19 @@ def get_openmeteo_supplement_data(beaches, existing_records):
             "end_date": end
         }
         
-        weather_responses = openmeteo.weather_api(weather_url, params=weather_params)
+        weather_responses = api_request_with_retry(
+            openmeteo.weather_api,
+            weather_url,
+            params=weather_params
+        )
         
-        # Marine API call for water temperature and tides
+        # Delay between API calls to be respectful
+        logger.info(f"   Waiting {OPENMETEO_REQUEST_DELAY}s before marine API call...")
+        safe_openmeteo_delay()
+        
+        logger.info(f"   Making Open-Meteo marine API call for {len(beaches)} beaches...")
+        
+        # Marine API call for water temperature and tides - WITH RATE LIMITING
         marine_url = "https://marine-api.open-meteo.com/v1/marine"
         marine_params = {
             "latitude": lats,
@@ -840,7 +695,11 @@ def get_openmeteo_supplement_data(beaches, existing_records):
             "end_date": end
         }
         
-        marine_responses = openmeteo.weather_api(marine_url, params=marine_params)
+        marine_responses = api_request_with_retry(
+            openmeteo.weather_api,
+            marine_url,
+            params=marine_params
+        )
         
         # Create a mapping of beach_id + timestamp to supplementary data
         supplement_data = {}
@@ -901,55 +760,58 @@ def get_openmeteo_supplement_data(beaches, existing_records):
         logger.error(f"ERROR: Open-Meteo supplement failed: {e}")
         return existing_records
 
-# === NOAA BULK OPTIMIZATION FUNCTIONS ===
+# === RATE LIMITED NOAA BULK OPTIMIZATION FUNCTIONS ===
 def get_noaa_data_bulk_optimized(ds, beaches):
-    """Extract NOAA data for all beaches efficiently with bulk loading and caching."""
-    logger.info("   🚀 OPTIMIZED: Bulk extracting NOAA data for all beaches...")
+    """Extract NOAA data for all beaches efficiently with RATE LIMITING and location grouping."""
+    logger.info("   RATE-LIMITED: Bulk extracting NOAA data for all beaches...")
     
-    # Step 1: Find unique grid points for all beaches (avoid duplicate processing)
-    unique_grids = {}
-    beach_to_grid = {}
+    # Step 1: Group beaches by approximate location to minimize unique grid points
+    logger.info("   Grouping beaches by location to minimize server requests...")
+    location_groups = {}
     
-    logger.info("   📍 Finding optimal grid points for all beaches...")
     for beach in beaches:
-        beach_id = beach["id"]
-        name = beach["Name"]
-        lat0 = beach["LATITUDE"]
-        lon0 = beach["LONGITUDE"]
+        # Round coordinates more aggressively to create larger groups
+        # 0.1 degree is roughly 6-7 miles, acceptable for wave data
+        rounded_lat = round(beach["LATITUDE"] / 0.1) * 0.1
+        rounded_lon = round(beach["LONGITUDE"] / 0.1) * 0.1
+        location_key = f"{rounded_lat:.1f},{rounded_lon:.1f}"
         
-        # Find nearest ocean point
-        grid_lat, grid_lon = find_nearest_ocean_point(ds, lat0, lon0)
-        
-        if grid_lat is not None and grid_lon is not None:
-            # Round to avoid tiny differences
-            grid_key = f"{grid_lat:.2f},{grid_lon:.2f}"
-            
-            if grid_key not in unique_grids:
-                unique_grids[grid_key] = {
-                    'lat': grid_lat, 
-                    'lon': grid_lon, 
-                    'beaches': []
-                }
-            
-            unique_grids[grid_key]['beaches'].append(beach)
-            beach_to_grid[beach_id] = grid_key
-        else:
-            logger.warning(f"   ⚠️  No valid ocean point found for {name}")
-            beach_to_grid[beach_id] = None
+        if location_key not in location_groups:
+            location_groups[location_key] = []
+        location_groups[location_key].append(beach)
     
-    logger.info(f"   📊 Found {len(unique_grids)} unique grid points for {len(beaches)} beaches")
+    logger.info(f"   Grouped {len(beaches)} beaches into {len(location_groups)} location groups")
     
-    # Step 2: Bulk extract data for each unique grid point
+    # Step 2: Process each location group with rate limiting
     grid_data_cache = {}
     time_vals = pd.to_datetime(ds.time.values)
     
-    logger.info("   💾 Bulk loading NOAA data by grid points...")
-    for grid_key, grid_info in unique_grids.items():
-        grid_lat = grid_info['lat']
-        grid_lon = grid_info['lon']
-        beach_count = len(grid_info['beaches'])
+    group_count = 0
+    for location_key, group_beaches in location_groups.items():
+        group_count += 1
+        beach_count = len(group_beaches)
         
-        logger.info(f"   📥 Loading grid {grid_key} (serves {beach_count} beaches)...")
+        logger.info(f"   Loading location group {group_count}/{len(location_groups)}: {location_key} (serves {beach_count} beaches)...")
+        
+        # Use first beach as representative for grid point search
+        representative_beach = group_beaches[0]
+        
+        # Enforce rate limiting before grid point search
+        enforce_noaa_rate_limit()
+        
+        # Find grid point for this location
+        grid_lat, grid_lon = find_nearest_ocean_point(
+            ds, 
+            representative_beach["LATITUDE"], 
+            representative_beach["LONGITUDE"]
+        )
+        
+        if grid_lat is None or grid_lon is None:
+            logger.warning(f"   No valid ocean point for location {location_key}")
+            continue
+        
+        # Enforce rate limiting before bulk data extraction
+        enforce_noaa_rate_limit()
         
         try:
             # BULK EXTRACT all variables for this grid point at once
@@ -969,42 +831,40 @@ def get_noaa_data_bulk_optimized(ds, beaches):
                 'wind_direction_deg': ds["wdirsfc"].sel(lat=grid_lat, lon=grid_lon).values,
             }
             
-            grid_data_cache[grid_key] = grid_data
-            logger.info(f"   ✅ Grid {grid_key} loaded successfully")
+            grid_data_cache[location_key] = grid_data
+            logger.info(f"   Location {location_key} loaded successfully")
             
         except Exception as e:
-            logger.error(f"   ❌ Failed to load grid {grid_key}: {e}")
-            grid_data_cache[grid_key] = None
+            logger.error(f"   Failed to load location {location_key}: {e}")
+            grid_data_cache[location_key] = None
+        
+        # Add delay between location groups to be extra conservative
+        if group_count < len(location_groups):
+            logger.info(f"   Rate limiting: waiting {NOAA_BATCH_DELAY}s before next location...")
+            time.sleep(NOAA_BATCH_DELAY)
     
     # Step 3: Process all beaches using cached grid data
-    logger.info("   🏖️  Processing all beaches using cached grid data...")
+    logger.info("   Processing all beaches using cached grid data...")
     all_records = []
     
-    for beach in beaches:
-        beach_id = beach["id"]
-        name = beach["Name"]
-        lat0 = beach["LATITUDE"]
-        lon0 = beach["LONGITUDE"]
-        
-        grid_key = beach_to_grid.get(beach_id)
-        if not grid_key or grid_key not in grid_data_cache:
+    for location_key, group_beaches in location_groups.items():
+        if location_key not in grid_data_cache or grid_data_cache[location_key] is None:
             continue
             
-        grid_data = grid_data_cache[grid_key]
-        if grid_data is None:
-            continue
+        grid_data = grid_data_cache[location_key]
         
-        try:
-            # Process this beach using the cached grid data
-            beach_records = process_beach_with_cached_data(
-                beach, grid_data, grid_key
-            )
-            all_records.extend(beach_records)
-            
-        except Exception as e:
-            logger.error(f"   ❌ Error processing {name} with cached data: {e}")
+        for beach in group_beaches:
+            try:
+                # Process this beach using the cached grid data
+                beach_records = process_beach_with_cached_data(
+                    beach, grid_data, location_key
+                )
+                all_records.extend(beach_records)
+                
+            except Exception as e:
+                logger.error(f"   Error processing {beach['Name']} with cached data: {e}")
     
-    logger.info(f"   🎯 OPTIMIZED: Processed {len(beaches)} beaches → {len(all_records)} records")
+    logger.info(f"   RATE-LIMITED: Processed {len(beaches)} beaches -> {len(all_records)} records")
     return all_records
 
 def process_beach_with_cached_data(beach, grid_data, grid_key):
@@ -1104,14 +964,79 @@ def process_beach_with_cached_data(beach, grid_data, grid_key):
     
     return records
 
-# === MAIN FORECAST UPDATE FUNCTIONS ===
+# === MAIN EXECUTION ===
+def main():
+    """Main execution function."""
+    start_time = time.time()
+    logger.info("SURF: Starting RATE-LIMITED HYBRID surf database update (NOAA + Open-Meteo)")
+    logger.info(f"SURF: Tide adjustment: +{TIDE_ADJUSTMENT_FT} feet")
+    logger.info("SURF: Wave energy calculated in kJ (surf-forecast.com style)")
+    logger.info("SURF: Primary data from NOAA GFSwave, supplemented with Open-Meteo")
+    logger.info("SURF: DYNAMIC SWELL RANKING - Swells ranked by surf impact score")
+    logger.info(f"SURF: NOAA RATE LIMITING - {NOAA_REQUEST_DELAY}s delays, {NOAA_BATCH_DELAY}s between groups")
+    logger.info(f"SURF: OPEN-METEO RATE LIMITING - {OPENMETEO_REQUEST_DELAY}s delays, {OPENMETEO_BATCH_DELAY}s between batches")
+    
+    try:
+        # Step 1: Cleanup old data
+        if not cleanup_old_data():
+            logger.warning("Cleanup had issues, but continuing...")
+        
+        # Step 2: Fetch beaches and counties
+        beaches = fetch_all_beaches()
+        if not beaches:
+            logger.error("ERROR: No beaches found, aborting")
+            return False
+            
+        counties = fetch_all_counties()
+        if not counties:
+            logger.error("ERROR: No counties found, aborting")
+            return False
+        
+        # Step 3: Update forecast data with rate-limited hybrid approach
+        forecast_count = update_forecast_data_hybrid(beaches)
+        
+        # Step 4: Update daily conditions
+        daily_count = update_daily_conditions(counties)
+        
+        # Summary
+        total_time = time.time() - start_time
+        log_step("RATE-LIMITED HYBRID DATABASE UPDATE COMPLETED! SUCCESS!")
+        logger.info(f"STATS: Summary:")
+        logger.info(f"   • Beaches processed: {len(beaches)}")
+        logger.info(f"   • Counties processed: {len(counties)}")
+        logger.info(f"   • Forecast records: {forecast_count}")
+        logger.info(f"   • Daily condition records: {daily_count}")
+        logger.info(f"   • Total time: {total_time:.1f} seconds")
+        logger.info(f"   • Primary source: NOAA GFSwave (rate limited)")
+        logger.info(f"   • Supplement source: Open-Meteo (rate limited)")
+        logger.info(f"   • Units: Imperial (mph, feet, Fahrenheit, inHg)")
+        logger.info(f"   • Tide adjustment: +{TIDE_ADJUSTMENT_FT} feet applied")
+        logger.info(f"   • Wave energy: kJ (surf-forecast.com compatible)")
+        logger.info(f"   • Swell ranking: Dynamic by surf impact score")
+        logger.info(f"   • Rate limiting: NOAA {NOAA_REQUEST_DELAY}s, Open-Meteo {OPENMETEO_REQUEST_DELAY}s")
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"ERROR: CRITICAL ERROR: {e}")
+        return False
+
+if __name__ == "__main__":
+    success = main()
+    exit_code = 0 if success else 1
+    logger.info(f"DONE: Rate-limited hybrid script finished with exit code: {exit_code}")
+    sys.exit(exit_code) FORECAST UPDATE FUNCTIONS ===
 def update_forecast_data_hybrid(beaches):
-    """Update forecast data using hybrid NOAA + Open-Meteo approach with BULK OPTIMIZATION."""
+    """Update forecast data using hybrid NOAA + Open-Meteo approach with RATE LIMITING."""
+    log_step("Updating forecast data with hybrid NOAA + Open-Meteo", 4)
     
     try:
         # Load NOAA dataset
-        logger.info("   Loading NOAA GFSwave dataset...")
+        logger.info("   Loading NOAA GFSwave dataset with rate limiting...")
         noaa_url = get_noaa_dataset_url()
+        
+        # Enforce rate limiting before dataset open
+        enforce_noaa_rate_limit()
         
         # Load dataset with proper OpenDAP settings
         ds = xr.open_dataset(
@@ -1123,7 +1048,7 @@ def update_forecast_data_hybrid(beaches):
         logger.info(f"   NOAA dataset loaded: {len(ds.time)} time steps")
         logger.info(f"   Available variables: {list(ds.data_vars.keys())}")
         
-        # 🚀 OPTIMIZED: Process all beaches at once with bulk loading
+        # Use rate-limited bulk processing
         all_noaa_records = get_noaa_data_bulk_optimized(ds, beaches)
         
         # Close NOAA dataset
@@ -1149,172 +1074,7 @@ def update_forecast_data_hybrid(beaches):
                 except Exception as e:
                     logger.error(f"ERROR: Error upserting hybrid forecast chunk: {e}")
         
-        log_step(f"Hybrid forecast update completed: {len(beaches)} beaches, {total_inserted} records")
-        return total_inserted
-        
-    except Exception as e:
-        logger.error(f"ERROR: Hybrid forecast update failed: {e}")
-        logger.error(f"      Full error details: {str(e)}")
-        # Fallback to pure Open-Meteo if NOAA fails
-        logger.info("   Falling back to pure Open-Meteo data...")
-        return update_forecast_data_fallback(beaches)
-
-def process_beach_with_cached_data(beach, grid_data, grid_key):
-    """Process a single beach using pre-loaded grid data."""
-    beach_id = beach["id"]
-    name = beach["Name"]
-    lat0 = beach["LATITUDE"]
-    lon0 = beach["LONGITUDE"]
-    
-    records = []
-    time_vals = grid_data['time_vals']
-    
-    # Process each timestamp using cached data
-    for i, timestamp in enumerate(time_vals):
-        # Prepare all 3 swell trains for ranking using cached data
-        swell_trains = [
-            {
-                'height_ft': safe_float(meters_to_feet(grid_data['swell_1_height'][i])),
-                'period_s': safe_float(grid_data['swell_1_period'][i]),
-                'direction_deg': safe_float(grid_data['swell_1_direction'][i]),
-                'beach_lat': lat0,
-                'beach_lon': lon0,
-                'source': 'swell_1'
-            },
-            {
-                'height_ft': safe_float(meters_to_feet(grid_data['swell_2_height'][i])),
-                'period_s': safe_float(grid_data['swell_2_period'][i]),
-                'direction_deg': safe_float(grid_data['swell_2_direction'][i]),
-                'beach_lat': lat0,
-                'beach_lon': lon0,
-                'source': 'swell_2'
-            },
-            {
-                'height_ft': safe_float(meters_to_feet(grid_data['swell_3_height'][i])),
-                'period_s': safe_float(grid_data['swell_3_period'][i]),
-                'direction_deg': safe_float(grid_data['swell_3_direction'][i]),
-                'beach_lat': lat0,
-                'beach_lon': lon0,
-                'source': 'swell_3'
-            }
-        ]
-        
-        # DYNAMICALLY RANK the swell trains for this timestamp
-        primary, secondary, tertiary = rank_swell_trains(swell_trains)
-        
-        # NOAA surf height (convert to feet)
-        sig_wave_height_m = safe_float(grid_data['sig_wave_height'][i])
-        surf_max_ft = safe_float(meters_to_feet(sig_wave_height_m * 1.86)) if sig_wave_height_m else None
-        surf_min_ft = safe_float(meters_to_feet(sig_wave_height_m * 0.5)) if sig_wave_height_m else None
-        
-        # NOAA wind data (convert to mph)
-        wind_speed_mph = safe_float(mps_to_mph(grid_data['wind_speed_mps'][i]))
-        wind_direction = safe_float(grid_data['wind_direction_deg'][i])
-        
-        # Calculate wave energy using PRIMARY (highest ranked) swell
-        primary_height = primary['height_ft'] if primary else None
-        primary_period = primary['period_s'] if primary else None
-        wave_energy_kj = calculate_wave_energy_kj(primary_height, primary_period)
-        
-        record = {
-            "beach_id": beach_id,
-            "timestamp": pd.Timestamp(timestamp).isoformat(),
-            
-            # DYNAMICALLY RANKED swell data (in feet and seconds)
-            "primary_swell_height_ft": primary['height_ft'] if primary else None,
-            "primary_swell_period_s": primary['period_s'] if primary else None,
-            "primary_swell_direction": primary['direction_deg'] if primary else None,
-            
-            "secondary_swell_height_ft": secondary['height_ft'] if secondary else None,
-            "secondary_swell_period_s": secondary['period_s'] if secondary else None,
-            "secondary_swell_direction": secondary['direction_deg'] if secondary else None,
-            
-            "tertiary_swell_height_ft": tertiary['height_ft'] if tertiary else None,
-            "tertiary_swell_period_s": tertiary['period_s'] if tertiary else None,
-            "tertiary_swell_direction": tertiary['direction_deg'] if tertiary else None,
-            
-            # NOAA surf data (in feet)
-            "surf_height_min_ft": surf_min_ft,
-            "surf_height_max_ft": surf_max_ft,
-            "wave_energy_kj": wave_energy_kj,
-            
-            # NOAA wind data (in mph)
-            "wind_speed_mph": wind_speed_mph,
-            "wind_direction_deg": wind_direction,
-            
-            # These will be filled by Open-Meteo later
-            "wind_gust_mph": None,
-            "water_temp_f": None,
-            "tide_level_ft": None,
-            "temperature": None,
-            "weather": None,
-            "pressure_inhg": None,
-        }
-        
-        if nonempty_record(record):
-            records.append(record)
-    
-    return records
-    """Update forecast data using hybrid NOAA + Open-Meteo approach."""
-    log_step("Updating forecast data with hybrid NOAA + Open-Meteo", 4)
-    
-    try:
-        # Load NOAA dataset
-        logger.info("   Loading NOAA GFSwave dataset...")
-        noaa_url = get_noaa_dataset_url()
-        
-        # Load dataset with proper OpenDAP settings
-        # REMOVED timeout parameter - not supported by netcdf4 backend
-        ds = xr.open_dataset(
-            noaa_url,
-            engine='netcdf4',  # Explicitly use netcdf4 for OpenDAP
-            decode_times=True,
-            chunks=None  # Disable dask chunking for OpenDAP
-        )
-        logger.info(f"   NOAA dataset loaded: {len(ds.time)} time steps")
-        logger.info(f"   Available variables: {list(ds.data_vars.keys())}")
-        
-        # Process beaches in batches for NOAA data
-        all_noaa_records = []
-        total_batches = len(list(chunk_iter(beaches, BATCH_SIZE)))
-        batch_count = 0
-        
-        for batch in chunk_iter(beaches, BATCH_SIZE):
-            batch_count += 1
-            logger.info(f"   Processing NOAA batch {batch_count}/{total_batches} ({len(batch)} beaches)...")
-            
-            batch_records = []
-            for beach in batch:
-                beach_records = get_noaa_data_for_beach(ds, beach)
-                batch_records.extend(beach_records)
-            
-            all_noaa_records.extend(batch_records)
-            logger.info(f"   NOAA batch {batch_count}/{total_batches}: {len(batch_records)} records")
-        
-        # Close NOAA dataset
-        ds.close()
-        
-        logger.info(f"   Total NOAA records extracted: {len(all_noaa_records)}")
-        
-        # Get Open-Meteo supplement data for the same beaches
-        logger.info("   Enhancing with Open-Meteo supplement data...")
-        enhanced_records = get_openmeteo_supplement_data(beaches, all_noaa_records)
-        
-        # Bulk upsert records
-        logger.info("   Uploading enhanced records to database...")
-        total_inserted = 0
-        if enhanced_records:
-            for chunk in chunk_iter(enhanced_records, UPSERT_CHUNK):
-                try:
-                    supabase.table("forecast_data").upsert(
-                        chunk, 
-                        on_conflict="beach_id,timestamp"
-                    ).execute()
-                    total_inserted += len(chunk)
-                except Exception as e:
-                    logger.error(f"ERROR: Error upserting hybrid forecast chunk: {e}")
-        
-        log_step(f"Hybrid forecast update completed: {len(beaches)} beaches, {total_inserted} records")
+        log_step(f"Rate-limited hybrid forecast update completed: {len(beaches)} beaches, {total_inserted} records")
         return total_inserted
         
     except Exception as e:
@@ -1325,8 +1085,8 @@ def process_beach_with_cached_data(beach, grid_data, grid_key):
         return update_forecast_data_fallback(beaches)
 
 def update_forecast_data_fallback(beaches):
-    """Fallback to pure Open-Meteo data if NOAA fails."""
-    logger.info("   Using Open-Meteo fallback mode...")
+    """Fallback to pure Open-Meteo data if NOAA fails - WITH RATE LIMITING."""
+    logger.info("   Using Open-Meteo fallback mode (rate limited)...")
     
     tz = pytz.timezone("America/Los_Angeles")
     today = datetime.now(tz).strftime("%Y-%m-%d")
@@ -1343,9 +1103,14 @@ def update_forecast_data_fallback(beaches):
             lats = [b["LATITUDE"] for b in batch]
             lons = [b["LONGITUDE"] for b in batch]
             
-            logger.info(f"   Open-Meteo batch {batch_count}/{total_batches} ({len(batch)} beaches)...")
+            logger.info(f"   Open-Meteo fallback batch {batch_count}/{total_batches} ({len(batch)} beaches)...")
             
-            # Weather API call
+            # Add delay between batches (except first)
+            if batch_count > 1:
+                logger.info(f"   Waiting {OPENMETEO_BATCH_DELAY}s between Open-Meteo batches...")
+                time.sleep(OPENMETEO_BATCH_DELAY)
+            
+            # Weather API call - WITH RATE LIMITING
             weather_url = "https://api.open-meteo.com/v1/forecast"
             weather_params = {
                 "latitude": lats,
@@ -1359,9 +1124,17 @@ def update_forecast_data_fallback(beaches):
                 "end_date": end
             }
             
-            weather_responses = openmeteo.weather_api(weather_url, params=weather_params)
+            weather_responses = api_request_with_retry(
+                openmeteo.weather_api,
+                weather_url,
+                params=weather_params
+            )
             
-            # Marine API call
+            # Delay between weather and marine API
+            logger.info(f"   Waiting {OPENMETEO_REQUEST_DELAY}s before marine API...")
+            safe_openmeteo_delay()
+            
+            # Marine API call - WITH RATE LIMITING
             marine_url = "https://marine-api.open-meteo.com/v1/marine"
             marine_params = {
                 "latitude": lats,
@@ -1377,7 +1150,11 @@ def update_forecast_data_fallback(beaches):
                 "end_date": end
             }
             
-            marine_responses = openmeteo.weather_api(marine_url, params=marine_params)
+            marine_responses = api_request_with_retry(
+                openmeteo.weather_api,
+                marine_url,
+                params=marine_params
+            )
             
             # Process responses
             if len(weather_responses) != len(marine_responses) or len(weather_responses) != len(batch):
@@ -1487,6 +1264,10 @@ def update_forecast_data_fallback(beaches):
             
         except Exception as e:
             logger.error(f"ERROR: Fallback batch {batch_count} failed: {e}")
+            # Add extra delay after API errors
+            if any(phrase in str(e).lower() for phrase in ['rate limit', 'too many requests']):
+                logger.info(f"   Extra delay after Open-Meteo rate limit...")
+                time.sleep(OPENMETEO_RETRY_DELAY)
     
     return total_inserted
 
@@ -1590,63 +1371,4 @@ def update_daily_conditions(counties):
     log_step(f"Daily conditions updated: {len(counties)} counties, {inserted_total} records")
     return inserted_total
 
-# === MAIN EXECUTION ===
-def main():
-    """Main execution function."""
-    start_time = time.time()
-    logger.info("SURF: Starting HYBRID surf database update (NOAA + Open-Meteo)")
-    logger.info(f"SURF: Tide adjustment: +{TIDE_ADJUSTMENT_FT} feet")
-    logger.info("SURF: Wave energy calculated in kJ (surf-forecast.com style)")
-    logger.info("SURF: Primary data from NOAA GFSwave, supplemented with Open-Meteo")
-    logger.info("SURF: DYNAMIC SWELL RANKING - Swells ranked by surf impact score")
-    
-    try:
-        # Step 1: Cleanup old data
-        if not cleanup_old_data():
-            logger.warning("Cleanup had issues, but continuing...")
-        
-        # Step 2: Fetch beaches and counties
-        beaches = fetch_all_beaches()
-        if not beaches:
-            logger.error("ERROR: No beaches found, aborting")
-            return False
-            
-        counties = fetch_all_counties()
-        if not counties:
-            logger.error("ERROR: No counties found, aborting")
-            return False
-        
-        # Step 3: Update forecast data with hybrid approach
-        log_step("Updating forecast data with hybrid NOAA + Open-Meteo", 4)
-        forecast_count = update_forecast_data_hybrid(beaches)
-        
-        # Step 4: Update daily conditions
-        daily_count = update_daily_conditions(counties)
-        
-        # Summary
-        total_time = time.time() - start_time
-        log_step("HYBRID DATABASE UPDATE COMPLETED! SUCCESS!")
-        logger.info(f"STATS: Summary:")
-        logger.info(f"   • Beaches processed: {len(beaches)}")
-        logger.info(f"   • Counties processed: {len(counties)}")
-        logger.info(f"   • Forecast records: {forecast_count}")
-        logger.info(f"   • Daily condition records: {daily_count}")
-        logger.info(f"   • Total time: {total_time:.1f} seconds")
-        logger.info(f"   • Primary source: NOAA GFSwave")
-        logger.info(f"   • Supplement source: Open-Meteo")
-        logger.info(f"   • Units: Imperial (mph, feet, Fahrenheit, inHg)")
-        logger.info(f"   • Tide adjustment: +{TIDE_ADJUSTMENT_FT} feet applied")
-        logger.info(f"   • Wave energy: kJ (surf-forecast.com compatible)")
-        logger.info(f"   • Swell ranking: Dynamic by surf impact score")
-        
-        return True
-        
-    except Exception as e:
-        logger.error(f"ERROR: CRITICAL ERROR: {e}")
-        return False
-
-if __name__ == "__main__":
-    success = main()
-    exit_code = 0 if success else 1
-    logger.info(f"DONE: Hybrid script finished with exit code: {exit_code}")
-    sys.exit(exit_code)
+# === MAIN

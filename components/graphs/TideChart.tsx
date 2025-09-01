@@ -21,7 +21,7 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import { Sun, Sunrise, Sunset } from "lucide-react";
-import { ForecastData } from "@/lib/supabase";
+import { ForecastData, TidePoint } from "@/lib/supabase";
 
 /* ---------------- Types ---------------- */
 
@@ -42,13 +42,13 @@ interface TideDataPoint {
 }
 
 interface TidePreviewProps {
-  data?: ForecastData[];
+  data?: ForecastData[] | TidePoint[];
   selectedHour?: number;
   className?: string;
 }
 
 interface TideChartProps {
-  data?: ForecastData[];
+  data?: ForecastData[] | TidePoint[];
   dailyConditions?: DailyConditions;
   selectedHour?: number;
   selectedDate?: Date;
@@ -57,6 +57,11 @@ interface TideChartProps {
 }
 
 /* ---------------- Utilities ---------------- */
+
+// Type guard to check if data is TidePoint array
+function isTidePointArray(data: any[]): data is TidePoint[] {
+  return data.length > 0 && 'tideLevelFt' in data[0];
+}
 
 const nowHour = () => new Date().getHours();
 
@@ -106,8 +111,8 @@ const getSunTimes = (daily?: DailyConditions, selectedDate?: Date) => {
   };
 };
 
-const processHourlyTideData = (hourly?: ForecastData[]): TideDataPoint[] => {
-  if (!hourly || hourly.length === 0) {
+const processHourlyTideData = (data?: ForecastData[] | TidePoint[]): TideDataPoint[] => {
+  if (!data || data.length === 0) {
     // Fallback data that matches origin/main structure but with more realistic tide patterns
     return Array.from({ length: 24 }, (_, h) => {
       // Create realistic tide curve with two highs and two lows per day
@@ -128,18 +133,37 @@ const processHourlyTideData = (hourly?: ForecastData[]): TideDataPoint[] => {
     });
   }
 
-  const out: TideDataPoint[] = hourly
-    .filter((f) => f.conditions.tideLevel !== null)
-    .map((f) => {
-      const d = new Date(f.timestamp);
-      const h = d.getHours();
-      return {
-        hour: h,
-        tide: f.conditions.tideLevel as number,
-        time: formatHourLabel(h),
-      };
-    })
-    .sort((a, b) => a.hour - b.hour);
+  let out: TideDataPoint[] = [];
+
+  if (isTidePointArray(data)) {
+    // Handle TidePoint[] from hourly tide table
+    out = data
+      .filter((t) => t.tideLevelFt !== null)
+      .map((t) => {
+        const d = new Date(t.timestamp);
+        const h = d.getHours();
+        return {
+          hour: h,
+          tide: t.tideLevelFt as number,
+          time: formatHourLabel(h),
+        };
+      })
+      .sort((a, b) => a.hour - b.hour);
+  } else {
+    // Handle ForecastData[] from forecast table
+    out = data
+      .filter((f) => f.conditions.tideLevel !== null)
+      .map((f) => {
+        const d = new Date(f.timestamp);
+        const h = d.getHours();
+        return {
+          hour: h,
+          tide: f.conditions.tideLevel as number,
+          time: formatHourLabel(h),
+        };
+      })
+      .sort((a, b) => a.hour - b.hour);
+  }
 
   // Mark local highs/lows with 3-hour separation
   const peaks: TideDataPoint[] = [];
@@ -253,6 +277,10 @@ export const TideChart = ({
   const yMax = Math.ceil((dataMax + 0.4) * 2) / 2;
   const ticks = buildNiceTicks(yMin, yMax);
 
+  // Determine data source for header info
+  const dataSource = isTidePointArray(data || []) ? "Hourly Tide Data" : 
+                     (data && data.length > 0) ? "Forecast Tide Data" : "Sample Data";
+
   return (
     <div className={`h-full bg-background border border-border p-2 rounded-md shadow-sm ${className || ""}`}>
       <header className="mx-2 mb-4 mt-2">
@@ -262,7 +290,7 @@ export const TideChart = ({
         <span className="text-muted-foreground text-sm">
           {selectedDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
           {beach && ` • ${beach.Name}`}
-          {rows.length > 0 && ` • ${rows.length} pts`}
+          {rows.length > 0 && ` • ${rows.length} pts • ${dataSource}`}
         </span>
       </header>
 
@@ -287,13 +315,11 @@ export const TideChart = ({
             x={sun.sunriseHour}
             stroke="#f59e0b"
             strokeWidth={2}
-            // label={{ value: "Sunrise", position: "top", fill: "#f59e0b" }}
           />
           <ReferenceLine
             x={sun.sunsetHour}
             stroke="#ea580c"
             strokeWidth={2}
-            // label={{ value: "Sunset", position: "top", fill: "#ea580c" }}
           />
 
           {/* Sun indicator dots */}
@@ -364,7 +390,7 @@ export const TideChart = ({
             dot={({ payload, cx, cy, index }) => {
               if (!payload || typeof cx !== "number" || typeof cy !== "number") return null;
               
-              // Only show peak indicators (removed sun indicators)
+              // Only show peak indicators
               if (payload.isPeak) {
                 return (
                   <circle
@@ -381,8 +407,6 @@ export const TideChart = ({
               return <g key={payload.hour} />;
             }}
           >
-            {/* Removed Sun icons LabelList - no longer needed */}
-
             {/* Peak labels with enhanced formatting */}
             <LabelList
               dataKey="isPeak"
@@ -424,7 +448,7 @@ export const TideChart = ({
                       >
                         {`${tideHeight} ft`}
                       </text>
-                      {/* Enhanced labeling from HEAD version */}
+                      {/* Enhanced labeling */}
                       {(pt.isHigh || pt.isLow) && (
                         <text
                           x={x + xShift}
