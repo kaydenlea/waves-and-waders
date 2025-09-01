@@ -40,7 +40,7 @@ const DatePicker = ({ className }: { className?: string }) => {
   return (
     <div
       className={cn(
-        "relative w-full bg-background px-2 py-1 rounded-t-sm drop-shadow-sm border border-border",
+        "relative w-full bg-highlight-4 px-2 py-3 rounded-t-xl drop-shadow-sm",
         className
       )}
     >
@@ -75,10 +75,10 @@ const DatePicker = ({ className }: { className?: string }) => {
                 <button
                   onClick={() => setSelectedDate(day)}
                   className={cn(
-                    "flex flex-col items-center w-full py-1.5 rounded-sm text-center text-sm font-medium transition-colors bg-highlight-2",
+                    "flex flex-col items-center w-full py-1.5 rounded-sm text-center text-sm font-medium transition-colors",
                     isSelected
-                      ? "bg-highlight-1 border border-border"
-                      : "hover:bg-highlight-1"
+                      ? "bg-highlight-2 border border-border"
+                      : "hover:bg-highlight-5"
                   )}
                 >
                   <span className="font-semibold text-[0.65rem] whitespace-nowrap">

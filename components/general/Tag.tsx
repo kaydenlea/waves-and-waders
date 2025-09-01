@@ -8,7 +8,7 @@ const Tag = ({
   return (
     <div
       className={cn(
-        "flex items-center justify-center gap-1 py-1.5 px-4 rounded-md border border-border",
+        "flex items-center justify-center gap-1 py-2 px-4 rounded-full border border-border/20",
         data.color
       )}
     >

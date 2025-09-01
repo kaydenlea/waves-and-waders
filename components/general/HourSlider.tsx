@@ -10,7 +10,7 @@ const HourSlider = () => {
   const max = 24;
   const step = 1;
   return (
-    <div className="space-y-1 flex flex-col gap-2 relative p-2.5 bg-background border-x border-b border-border shadow-md rounded-b-sm">
+    <div className="space-y-1 flex flex-col gap-2 relative p-3 bg-highlight-4 border-t border-border shadow-md rounded-b-xl">
       <h3 className="text-md font-medium">{`${displayValue} ${
         value[0] >= 12 && value[0] < 24 ? "PM" : "AM"
       }`}</h3>

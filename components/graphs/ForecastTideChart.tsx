@@ -142,7 +142,7 @@ const ForecastTideChart = () => {
 
   React.useEffect(() => {
     const handleResize = () => {
-      const container = document.querySelector("#content-container");
+      const container = document.querySelector("#content");
       const width = container ? container.clientWidth : 0;
 
       if (width < 550) {
@@ -197,6 +197,7 @@ const ForecastTideChart = () => {
             right: 15,
             bottom: 5,
           }}
+          syncId="anyId"
         >
           {visibleData.map(
             (entry) =>
@@ -379,7 +380,7 @@ const ForecastTideChart = () => {
               : ["8:00 PM", "8:30 PM"];
             return (
               <div
-                className="text-center gap-8 bg-highlight-1 py-1 px-3 ring-1 ring-slate-900/5 rounded-sm"
+                className="text-center gap-8 bg-highlight-5 py-1 px-3 ring-1 ring-slate-900/5 rounded-sm"
                 key={entry.hour}
               >
                 <div className="flex gap-4 items-center">

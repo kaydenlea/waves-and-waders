@@ -17,18 +17,20 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 
+import { MousePointer2 as ArrowIcon } from "lucide-react";
+
 const chartConfig = {
   primary: {
     label: "Primary",
-    color: "#2563eb",
+    color: "#0077b6",
   },
   secondary: {
     label: "Secondary",
-    color: "#95c5ffff",
+    color: "#48cae4",
   },
   tertiary: {
     label: "tertiary",
-    color: "#2564b8ff",
+    color: "#adf1ffff",
   },
 } satisfies ChartConfig;
 
@@ -47,14 +49,16 @@ const SwellChart = () => {
   return (
     <ChartContainer
       config={chartConfig}
-      className="@min-lg:aspect-auto @min-lg:h-[250px] w-full"
+      className="@min-lg:aspect-auto @min-lg:h-[300px] w-full"
     >
       <AreaChart
         accessibilityLayer
         data={mockSwellData}
         margin={{
-          left: -30,
-          right: 15,
+          top: 5,
+          right: 10,
+          left: -28,
+          bottom: 5,
         }}
         syncId="anyId"
       >
@@ -89,29 +93,78 @@ const SwellChart = () => {
         />
         <ChartLegend content={<ChartLegendContent />} />
         <ChartTooltip content={<ChartTooltipContent />} />
+
         <Area
           type="monotone"
-          dataKey="tertiary"
+          dataKey="primary"
           stackId="1"
-          stroke="#70ccebff"
-          fill="#adf1ffff"
-          fillOpacity={0.6}
+          activeDot={false}
+          stroke="#023e8a"
+          fill="#0077b6"
+          fillOpacity={0.2}
+          dot={({ payload, cx, cy }) => {
+            const iconSize = 15;
+            return (
+              <ArrowIcon
+                key={`swell-${cx}-${cy}`}
+                size={iconSize}
+                x={cx - iconSize / 2}
+                y={cy - iconSize / 2}
+                // fill="var(--color-primary)"
+                // fill="#37f2ffff"
+                fill="var(--swell-primary)"
+                color="var(--color-highlight-2)"
+              />
+            );
+          }}
         />
         <Area
           type="monotone"
           dataKey="secondary"
           stackId="1"
+          activeDot={false}
           stroke="#0096c7"
           fill="#48cae4"
-          fillOpacity={0.6}
+          fillOpacity={0.2}
+          dot={({ payload, cx, cy }) => {
+            const iconSize = 15;
+            return (
+              <ArrowIcon
+                key={`swell-${cx}-${cy}`}
+                size={iconSize}
+                x={cx - iconSize / 2}
+                y={cy - iconSize / 2}
+                // fill="var(--color-primary)"
+                // fill="#37f2ffff"
+                fill="var(--swell-primary)"
+                color="var(--color-highlight-2)"
+              />
+            );
+          }}
         />
         <Area
           type="monotone"
-          dataKey="primary"
+          dataKey="tertiary"
           stackId="1"
-          stroke="#023e8a"
-          fill="#0077b6"
-          fillOpacity={0.6}
+          activeDot={false}
+          stroke="#70ccebff"
+          fill="#adf1ffff"
+          fillOpacity={0.2}
+          dot={({ payload, cx, cy }) => {
+            const iconSize = 15;
+            return (
+              <ArrowIcon
+                key={`swell-${cx}-${cy}`}
+                size={iconSize}
+                x={cx - iconSize / 2}
+                y={cy - iconSize / 2}
+                // fill="var(--color-primary)"
+                // fill="#37f2ffff"
+                fill="var(--swell-primary)"
+                color="var(--color-highlight-2)"
+              />
+            );
+          }}
         />
       </AreaChart>
     </ChartContainer>

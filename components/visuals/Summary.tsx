@@ -51,7 +51,7 @@ const Summary = () => {
     },
   ];
   return (
-    <ul className="grid grid-cols-2 @min-xl:grid-cols-3 @min-4xl:grid-cols-6 gap-2">
+    <ul className="grid grid-cols-2 @min-xl:grid-cols-3 @min-4xl:grid-cols-6 gap-3">
       {stats.map((stat) => {
         let content;
         switch (stat.type) {

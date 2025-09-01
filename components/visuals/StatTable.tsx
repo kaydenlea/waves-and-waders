@@ -132,7 +132,7 @@ const StatTable = ({
 
   React.useEffect(() => {
     const handleResize = () => {
-      const tableContainer = document.querySelector("#content-container");
+      const tableContainer = document.querySelector("#content");
       const width = tableContainer ? tableContainer.clientWidth : 0;
 
       if (width < 750) {
@@ -201,7 +201,7 @@ const StatTable = ({
       <table className="w-full table-auto border-collapse text-sm">
         <thead>
           <tr>
-            <th className="sticky left-0 z-1 bg-background" />
+            <th className="sticky left-0 z-1 bg-highlight-4" />
             {visibleColumns.map((col) => {
               return (
                 <th
@@ -223,12 +223,13 @@ const StatTable = ({
                 <tr
                   key={`${i}-${entry.index}`}
                   className={cn(
-                    rowIdx !== day.vals.length - 1 && "border-b border-border"
+                    rowIdx !== day.vals.length - 1 &&
+                      "border-b border-border/40"
                   )}
                 >
                   <th
                     scope="row"
-                    className="relative w-5 h-14 border-r border-border p-0"
+                    className="relative w-5 h-14 border-r border-border/40 p-0"
                   >
                     <span className="-translate-x-1/2 -translate-y-1/2 transform absolute top-1/2 left-1/2 -rotate-90 text-xs">
                       {entry.index % 12 === 0 ? 12 : entry.index % 12}
@@ -295,7 +296,7 @@ const StatTable = ({
                         className={cn(
                           "px-1",
                           colIdx !== visibleColumns.length - 1 &&
-                            "border-r border-border"
+                            "border-r border-border/40"
                         )}
                       >
                         {content}
@@ -311,7 +312,7 @@ const StatTable = ({
                   <tr key={`${i}-date`}>
                     <td
                       colSpan={6}
-                      className="p-3 bg-highlight-3 font-semibold rounded-sm"
+                      className="p-3 bg-highlight-5 font-semibold rounded-sm"
                     >
                       {day.date}
                     </td>

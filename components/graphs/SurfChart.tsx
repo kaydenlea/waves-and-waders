@@ -14,6 +14,8 @@ import { MousePointer2 as ArrowIcon } from "lucide-react";
 import {
   ChartConfig,
   ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
@@ -38,12 +40,12 @@ const SurfChart = () => {
   return (
     <ChartContainer
       config={chartConfig}
-      className="@min-lg:aspect-auto @min-lg:h-[250px] w-full"
+      className="@min-lg:aspect-auto @min-lg:h-[300px] w-full"
     >
       <BarChart
         margin={{
           top: 5,
-          right: 5,
+          right: 10,
           left: -28,
           bottom: 5,
         }}
@@ -77,11 +79,11 @@ const SurfChart = () => {
           domain={[0, (dataMax: number) => Math.ceil(dataMax * 2)]}
         />
         <ChartTooltip content={<ChartTooltipContent />} />
-        {/* <ChartLegend content={<ChartLegendContent />} /> */}
+        <ChartLegend content={<ChartLegendContent />} />
         <Bar
           dataKey="tide"
           fill="var(--color-tide)"
-          radius={3}
+          radius={4}
           stroke="#0000006e"
           strokeWidth={0.5}
         >

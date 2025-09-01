@@ -30,7 +30,7 @@ const DaySlider = ({
       >
         <ArrowLeft />
       </Button>
-      <span className="font-semibold text-sm bg-background border border-border drop-shadow-sm px-4 py-2 rounded-2xl">
+      <span className="font-semibold text-sm bg-highlight-4 border border-border drop-shadow-sm px-4 py-2 rounded-2xl">
         {days}
       </span>
       <Button
