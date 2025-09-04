@@ -82,7 +82,7 @@ const InteractiveMap = () => {
         reuseMaps
         initialViewState={initialViewState}
         style={{ width: "100%", height: "100%", borderRadius: 12 }}
-        mapStyle="https://demotiles.maplibre.org/style.json"
+        mapStyle="https://tiles.openfreemap.org/styles/liberty"
         attributionControl={false}
         dragRotate={false}
         touchZoomRotate
