@@ -41,7 +41,7 @@ const GradientCircle = ({
       />
 
       <div
-        className="absolute rounded-full bg-background"
+        className="absolute rounded-full bg-highlight-4"
         style={{
           width: size - strokeWidth * 2,
           height: size - strokeWidth * 2,

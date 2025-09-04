@@ -22,30 +22,30 @@ import DaySlider from "../general/DaySlider";
 import { MousePointer2 as ArrowIcon } from "lucide-react";
 
 const chartData = [
-  { day: "Mon", tide1: 2, tide2: 4, tide3: 1 },
-  { day: "Tues", tide1: 3, tide2: 3, tide3: 5 },
-  { day: "Wed", tide1: 2, tide2: 2, tide3: 1 },
-  { day: "Thurs", tide1: 2, tide2: 4, tide3: 1 },
-  { day: "Fri", tide1: 3, tide2: 3, tide3: 5 },
-  { day: "Sat", tide1: 2, tide2: 2, tide3: 1 },
-  { day: "Sun", tide1: 2, tide2: 4, tide3: 1 },
+  { day: "Mon", wind1: 2, wind2: 4, wind3: 1 },
+  { day: "Tues", wind1: 3, wind2: 3, wind3: 5 },
+  { day: "Wed", wind1: 2, wind2: 2, wind3: 1 },
+  { day: "Thurs", wind1: 2, wind2: 4, wind3: 1 },
+  { day: "Fri", wind1: 3, wind2: 3, wind3: 5 },
+  { day: "Sat", wind1: 2, wind2: 2, wind3: 1 },
+  { day: "Sun", wind1: 2, wind2: 4, wind3: 1 },
 ];
 const chartConfig = {
-  tide1: {
+  wind1: {
     label: "6 AM",
     color: "#2563eb",
   },
-  tide2: {
+  wind2: {
     label: "12 PM",
     color: "#95c5ffff",
   },
-  tide3: {
+  wind3: {
     label: "6 PM",
     color: "#3584e6ff",
   },
 } satisfies ChartConfig;
 
-const ForecastSurfChart = () => {
+const ForecastWindChart = () => {
   const [startIndex, setStartIndex] = React.useState(0);
   const [windowSize, setWindowSize] = React.useState(0);
 
@@ -194,14 +194,14 @@ const ForecastSurfChart = () => {
           />
           <ChartTooltip content={<ChartTooltipContent />} />
           <Bar
-            dataKey="tide1"
-            fill="var(--color-tide1)"
+            dataKey="wind1"
+            fill="var(--color-wind1)"
             radius={4}
             stroke="#5f5f5fff"
             strokeWidth={0.5}
           >
             <LabelList
-              dataKey="tide1"
+              dataKey="wind1"
               position="top"
               content={(props: LabelProps) => {
                 const safeX = typeof props.x === "number" ? props.x : 0;
@@ -224,14 +224,14 @@ const ForecastSurfChart = () => {
             />
           </Bar>
           <Bar
-            dataKey="tide2"
-            fill="var(--color-tide2)"
+            dataKey="wind2"
+            fill="var(--color-wind2)"
             radius={4}
             stroke="#5f5f5fff"
             strokeWidth={0.5}
           >
             <LabelList
-              dataKey="tide2"
+              dataKey="wind2"
               position="top"
               content={(props: LabelProps) => {
                 const safeX = typeof props.x === "number" ? props.x : 0;
@@ -254,14 +254,14 @@ const ForecastSurfChart = () => {
             />
           </Bar>
           <Bar
-            dataKey="tide3"
-            fill="var(--color-tide3)"
+            dataKey="wind3"
+            fill="var(--color-wind3)"
             radius={4}
             stroke="#5f5f5fff"
             strokeWidth={0.5}
           >
             <LabelList
-              dataKey="tide3"
+              dataKey="wind3"
               position="top"
               content={(props: LabelProps) => {
                 const safeX = typeof props.x === "number" ? props.x : 0;
@@ -289,4 +289,4 @@ const ForecastSurfChart = () => {
   );
 };
 
-export default ForecastSurfChart;
+export default ForecastWindChart;

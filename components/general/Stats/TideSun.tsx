@@ -16,7 +16,7 @@ const TideSun = ({
         entry.hour === 6 ? ["6:30 AM", "6:10 AM"] : ["8:00 PM", "8:30 PM"];
       return (
         <div
-          className="text-center gap-8 bg-highlight-1 py-1 px-3 ring-1 ring-slate-900/5 rounded-sm"
+          className="text-center gap-8 bg-highlight-5 py-1 px-3 ring-1 ring-slate-900/5 rounded-sm"
           key={entry.hour}
         >
           <div className="flex gap-4 items-center">

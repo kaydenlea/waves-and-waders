@@ -4,6 +4,7 @@ import { MousePointer2 as ArrowIcon } from "lucide-react";
 const SwellStat = ({
   primary = false,
   data,
+  small = false,
 }: {
   primary?: boolean;
   data: {
@@ -11,6 +12,7 @@ const SwellStat = ({
     period: number;
     wind: { dir: string; deg: number };
   };
+  small?: boolean;
 }) => {
   const stats = [
     { label: "swell height", value: data.height, unit: "ft" },
@@ -31,7 +33,7 @@ const SwellStat = ({
       className={cn(
         "flex items-center justify-center",
         primary
-          ? "border border-border shadow-sm rounded-md px-2 gap-1"
+          ? "border border-border shadow-sm rounded-md px-1 gap-1"
           : "gap-1"
       )}
     >
@@ -39,7 +41,7 @@ const SwellStat = ({
         if (stat.label === "swell wind arrow") {
           return (
             <ArrowIcon
-              size={12}
+              size={primary ? 14 : 10}
               fill="#51e72bff"
               color="#51e72bff"
               key={stat.label}
@@ -50,14 +52,17 @@ const SwellStat = ({
           <span
             key={stat.label}
             className={cn(
-              primary ? "text-md font-semibold" : "text-sm font-medium"
+              !small && !primary && "text-sm font-medium",
+              !small && primary && "text-md font-semibold",
+              small && !primary && "text-xs font-medium",
+              small && primary && "text-sm font-semibold"
             )}
           >
             {stat.value}
             <span
               className={cn(
                 "font-normal",
-                primary ? "text-xs" : "text-[0.6rem]"
+                primary ? "text-[0.7rem]" : "text-[0.6rem]"
               )}
             >
               {stat.unit}

@@ -1,0 +1,89 @@
+import React from "react";
+import { cn } from "@/lib/utils";
+
+import {
+  Atom,
+  CircleGauge,
+  Droplets,
+  MoonStar,
+  Shell,
+  Sun,
+  Waves,
+  Wind,
+} from "lucide-react";
+
+const iconMap: Record<string, { icon: React.ReactNode; bgColor: string }> = {
+  wind: {
+    icon: <Wind size={16} className="text-gray-700" />,
+    bgColor: "bg-gray-50",
+  },
+  surf: {
+    icon: <Droplets size={16} className="text-blue-400" />,
+    bgColor: "bg-blue-100",
+  },
+  weather: {
+    icon: <Sun size={16} className="text-orange-500" />,
+    bgColor: "bg-orange-100",
+  },
+  moon: {
+    icon: <MoonStar size={16} className="text-purple-600" />,
+    bgColor: "bg-purple-100",
+  },
+  "hourly stats": {
+    icon: <CircleGauge size={16} className="text-orange-800" />,
+    bgColor: "bg-orange-100",
+  },
+  swell: {
+    icon: <Shell size={16} className="text-blue-900" />,
+    bgColor: "bg-blue-200",
+  },
+  tide: {
+    icon: <Waves size={16} className="text-blue-500" />,
+    bgColor: "bg-blue-100",
+  },
+  "wave energy": {
+    icon: <Atom size={16} className="text-red-400" />,
+    bgColor: "bg-red-100",
+  },
+};
+
+const VisualWrapper = ({
+  children,
+  label,
+  unit,
+}: {
+  children: React.ReactNode;
+  label: string;
+  unit?: string;
+}) => {
+  const lowerCaseLabel = label.toLowerCase();
+  return (
+    <figure className="relative flex-1">
+      <div className="bg-highlight-4 border border-border/40 rounded-2xl shadow-sm h-full w-full">
+        <div className="p-4 rounded-t-2xl bg-highlight-6 w-full shadow-sm">
+          <header className="flex justify-between gap-1 items-center">
+            <div className="flex items-center gap-2">
+              <div
+                className={cn(
+                  "rounded-full flex items-center justify-center p-1 border border-border",
+                  iconMap[lowerCaseLabel].bgColor
+                )}
+              >
+                {iconMap[lowerCaseLabel].icon}
+              </div>
+              <h3 className="leading-none font-semibold text-xl">{label}</h3>
+            </div>
+            {unit && (
+              <span className="flex items-center px-2 py-1 rounded-md bg-highlight-4 text-xs shadow-sm">
+                {unit}
+              </span>
+            )}
+          </header>
+        </div>
+        <div className="px-2 pt-6 pb-4">{children}</div>
+      </div>
+    </figure>
+  );
+};
+
+export default VisualWrapper;
