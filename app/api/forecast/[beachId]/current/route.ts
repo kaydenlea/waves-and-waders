@@ -4,7 +4,7 @@ import { supabase, formatTimestamp } from '@/lib/supabase'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { beachId: string } }
+  { params }: any
 ) {
   try {
     const beachId = parseInt(params.beachId)

@@ -395,12 +395,11 @@ export async function fetchBeachTides(
     .select('timestamp,tide_level_ft,tide_level_m')
     .eq('beach_id', beachId)
     .order('timestamp', { ascending: true })
-    .returns<TideRow[]>()
 
   if (startDate) q = q.gte('timestamp', startDate.toISOString())
   if (endDate) q = q.lte('timestamp', endDate.toISOString())
 
-  const { data, error } = await q
+  const { data, error } = await q.returns<TideRow[]>()
 
   console.log('Query result:', { data: data?.length, error });
 
@@ -635,7 +634,6 @@ export async function fetchBeachForecast(
     .select('*') // This will now include the new tertiary swell columns
     .eq('beach_id', beachId)
     .order('timestamp', { ascending: true })
-    .returns<SupabaseForecastData[]>() // <-- typed array
 
   if (startDate) {
     query = query.gte('timestamp', startDate.toISOString())
@@ -644,7 +642,7 @@ export async function fetchBeachForecast(
     query = query.lte('timestamp', endDate.toISOString())
   }
 
-  const { data, error } = await query
+  const { data, error } = await query.returns<SupabaseForecastData[]>()
 
   if (error) {
     console.error('Error fetching forecast data:', error)

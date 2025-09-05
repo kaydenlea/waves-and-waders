@@ -2,6 +2,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase, formatTimestamp } from '@/lib/supabase'
 
+type BestSpotRow = {
+  beach_id: number
+  surf_height_max_m: number | null
+  wave_energy_joules: number | null
+  wind_speed_kph: number | null
+  timestamp: string
+  beaches: { Name: string; COUNTY: string }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
@@ -22,6 +31,7 @@ export async function GET(request: NextRequest) {
       .not('wave_energy_joules', 'is', null)
       .order('wave_energy_joules', { ascending: false })
       .limit(limit)
+      .returns<BestSpotRow[]>()
 
     if (error) {
       console.error('Supabase error:', error)
