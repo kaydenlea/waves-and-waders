@@ -595,12 +595,13 @@ export async function fetchAllBeaches(): Promise<Beach[]> {
 
 export async function fetchBeachByIdLoose(id: string): Promise<Beach | null> {
   const target = id.trim();
+  const isDigits = /^\d+$/.test(target);
 
   // Try strict id match first
   let q = supabase
     .from("beaches")
     .select("id, Name, LATITUDE, LONGITUDE, COUNTY")
-    .eq("id", target)
+    .eq("id", isDigits ? Number(target) : target)
     .maybeSingle();
 
   let { data, error } = await q;
@@ -615,6 +616,17 @@ export async function fetchBeachByIdLoose(id: string): Promise<Beach | null> {
       .maybeSingle();
 
     data = alt.data ?? null;
+  }
+
+  // Final fallback: fuzzy match by Name if still not found
+  if (!data) {
+    const byName = await supabase
+      .from("beaches")
+      .select("id, Name, LATITUDE, LONGITUDE, COUNTY")
+      .ilike("Name", `%${target}%`)
+      .limit(1)
+      .maybeSingle();
+    if (byName.data) data = byName.data as any;
   }
 
   if (error && error.code !== "PGRST116") {

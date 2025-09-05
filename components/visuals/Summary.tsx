@@ -62,7 +62,7 @@ const Summary = ({ beachId }: { beachId?: string }) => {
 
         const first = forecast[0];
         const windDirDeg = current?.conditions.windDirection ?? null;
-        const dirStr = windDirDeg == null ? "N/A" : getWindDirection(windDirDeg);
+        const windDirStr = windDirDeg == null ? "N/A" : getWindDirection(windDirDeg);
 
         const s: SummaryStat[] = [];
         if (current?.conditions.waterTemp != null) {
@@ -112,10 +112,11 @@ const Summary = ({ beachId }: { beachId?: string }) => {
           const max = first.surf.heightMax ?? 0;
           const minR = Number(min.toFixed(0));
           const maxR = Number(max.toFixed(0));
+          const surfDirStr = getWindDirection(first.swell.primary.direction ?? 0);
           s.push({
             type: "surf",
             surf: {
-              direction: dirStr,
+              direction: surfDirStr,
               height: minR === maxR ? `${maxR}` : `${minR}-${maxR}`,
               period: Math.round(first.swell.primary.period ?? 0),
             },
@@ -133,7 +134,7 @@ const Summary = ({ beachId }: { beachId?: string }) => {
           s.push({
             type: "wind",
             wind: {
-              direction: dirStr,
+              direction: windDirStr,
               speed: Math.round(current?.conditions.windSpeed ?? 0),
               loc: "-",
             },
