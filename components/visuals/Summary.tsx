@@ -30,7 +30,33 @@ type SummaryStat =
   | { type: "features"; tags: { label: string; icon: React.ReactNode; color: string }[] };
 
 const Summary = ({ beachId }: { beachId?: string }) => {
-  const [stats, setStats] = useState<SummaryStat[]>([]);
+  const sample: SummaryStat[] = [
+    { type: "water", temp: 64 },
+    { type: "weather", temp: 60 },
+    {
+      type: "swell",
+      primary: { height: 2.1, period: 7, wind: { dir: "W", deg: 272 } },
+      secondary: [
+        { height: 2.1, period: 7, wind: { dir: "W", deg: 272 } },
+        { height: 2.1, period: 7, wind: { dir: "W", deg: 272 } },
+      ],
+    },
+    { type: "tide", height: 2.4 },
+    { type: "wind", wind: { direction: "NNE", speed: 12, loc: "—" } },
+    { type: "surf", surf: { direction: "NNW", height: "2-3", period: 11 } },
+    {
+      type: "features",
+      tags: [
+        { label: "Fishing", icon: <Fish size={16} />, color: "bg-blue" },
+        { label: "Bathrooms", icon: <Toilet size={16} />, color: "bg-yellow" },
+        { label: "Parking", icon: <CircleParking size={16} />, color: "bg-green" },
+        { label: "Dogs", icon: <Dog size={16} />, color: "bg-red" },
+        { label: "Sandy", icon: <Shell size={16} />, color: "bg-orange" },
+        { label: "Lifeguard", icon: <LifeBuoy size={16} />, color: "bg-purple" },
+      ],
+    },
+  ];
+  const [stats, setStats] = useState<SummaryStat[]>(beachId ? [] : sample);
 
   useEffect(() => {
     const load = async () => {
@@ -38,9 +64,14 @@ const Summary = ({ beachId }: { beachId?: string }) => {
         if (!beachId) return;
         const now = new Date();
         const end = new Date(now.getTime() + 6 * 60 * 60 * 1000);
+        // Resolve id from slug/uuid if needed
+        const resolved = (await import("@/lib/supabase")).fetchBeachByIdLoose
+          ? await (await import("@/lib/supabase")).fetchBeachByIdLoose(beachId)
+          : null;
+        const resolvedId = resolved?.id ?? beachId;
         const [current, forecast] = await Promise.all([
-          fetchCurrentConditions(beachId),
-          fetchBeachForecast(beachId, now, end),
+          fetchCurrentConditions(resolvedId),
+          fetchBeachForecast(resolvedId, now, end),
         ]);
         const first = forecast[0];
         const windDirDeg = current?.conditions.windDirection ?? 0;

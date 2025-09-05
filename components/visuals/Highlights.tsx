@@ -263,16 +263,15 @@ const Highlights = ({
     const load = async () => {
       try {
         if (!beachId) return;
-        const [current, beach] = await Promise.all([
-          fetchCurrentConditions(beachId),
-          fetchBeachByIdLoose(beachId),
-        ]);
+        const beach = await fetchBeachByIdLoose(beachId);
+        const resolvedId = beach?.id ?? beachId;
+        const current = await fetchCurrentConditions(resolvedId);
         const county = beach?.COUNTY ?? null;
         const daily = county ? await fetchDailyConditions(county) : null;
         // compute swell from forecast slice
         const now = new Date();
         const end = new Date(now.getTime() + 6 * 60 * 60 * 1000);
-        const forecast = await fetchBeachForecast(beachId, now, end);
+        const forecast = await fetchBeachForecast(resolvedId, now, end);
         const first = forecast[0];
 
         const nextStats: Stat[] = [];
