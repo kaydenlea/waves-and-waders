@@ -9,7 +9,7 @@ import Tag from "../general/Tag";
 import WindStat from "../general/Stats/WindStat";
 import SurfStat from "../general/Stats/SurfStat";
 
-import { Dog, CircleParking, Toilet, LifeBuoy, Fish, Shell } from "lucide-react";
+import { Dog, CircleParking, Toilet, LifeBuoy, Fish, Shell, BadgeCheck } from "lucide-react";
 
 import {
   fetchCurrentConditions,
@@ -18,6 +18,13 @@ import {
   fetchBeachByIdLoose,
   fetchBeachDetails,
 } from "@/lib/supabase";
+// Optionally import the feature registry if exposed
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+import { FEATURE_COLUMNS } from "@/lib/supabase";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+import { getFeatureDisplayName } from "@/lib/supabase";
 
 type SummaryStat =
   | { type: "water"; temp: number }
@@ -34,22 +41,7 @@ type SummaryStat =
 
 const Summary = ({ beachId }: { beachId?: string }) => {
   // Visible immediately while data loads
-  const sample: SummaryStat[] = [
-    { type: "water", temp: 64 },
-    { type: "weather", temp: 60 },
-    {
-      type: "swell",
-      primary: { height: 2.1, period: 7, wind: { dir: "W", deg: 272 } },
-      secondary: [
-        { height: 2.1, period: 7, wind: { dir: "W", deg: 272 } },
-        { height: 2.1, period: 7, wind: { dir: "W", deg: 272 } },
-      ],
-    },
-    { type: "tide", height: 2.4 },
-    { type: "wind", wind: { direction: "NNE", speed: 12, loc: "-" } },
-    { type: "surf", surf: { direction: "NNW", height: "2-3", period: 11 } },
-  ];
-  const [stats, setStats] = useState<SummaryStat[]>(sample);
+  const [stats, setStats] = useState<SummaryStat[]>([]);
 
   useEffect(() => {
     const load = async () => {
@@ -72,22 +64,13 @@ const Summary = ({ beachId }: { beachId?: string }) => {
         const windDirDeg = current?.conditions.windDirection ?? null;
         const dirStr = windDirDeg == null ? "N/A" : getWindDirection(windDirDeg);
 
-        const s: SummaryStat[] = [
-          {
-            type: "water",
-            temp:
-              current?.conditions.waterTemp != null
-                ? Math.round(current.conditions.waterTemp)
-                : (sample[0] as any).temp,
-          },
-          {
-            type: "weather",
-            temp:
-              current?.conditions.airTemp != null
-                ? Math.round(current.conditions.airTemp)
-                : (sample[1] as any).temp,
-          },
-        ];
+        const s: SummaryStat[] = [];
+        if (current?.conditions.waterTemp != null) {
+          s.push({ type: "water", temp: Math.round(current.conditions.waterTemp) });
+        }
+        if (current?.conditions.airTemp != null) {
+          s.push({ type: "weather", temp: Math.round(current.conditions.airTemp) });
+        }
 
         if (first) {
           s.push({
@@ -106,17 +89,22 @@ const Summary = ({ beachId }: { beachId?: string }) => {
                 period: Math.round(first.swell.secondary.period ?? 0),
                 wind: {
                   dir: getWindDirection(first.swell.secondary.direction ?? 0),
-                  deg: first.swell.secondary.direction ?? 0,
+                  deg: Math.round(first.swell.secondary.direction ?? 0),
                 },
               },
-              {
-                height: Number((first.swell.tertiary?.height ?? 0).toFixed(1)),
-                period: Math.round(first.swell.tertiary?.period ?? 0),
-                wind: {
-                  dir: getWindDirection(first.swell.tertiary?.direction ?? 0),
-                  deg: first.swell.tertiary?.direction ?? 0,
-                },
-              },
+              // Only include tertiary if present
+              ...((first.swell.tertiary?.height ?? null) != null
+                ? [
+                    {
+                      height: Number((first.swell.tertiary!.height ?? 0).toFixed(1)),
+                      period: Math.round(first.swell.tertiary!.period ?? 0),
+                      wind: {
+                        dir: getWindDirection(first.swell.tertiary!.direction ?? 0),
+                        deg: Math.round(first.swell.tertiary!.direction ?? 0),
+                      },
+                    },
+                  ]
+                : []),
             ],
           });
 
@@ -138,20 +126,49 @@ const Summary = ({ beachId }: { beachId?: string }) => {
           s.push({ type: "tide", height: Number(current.conditions.tideLevel.toFixed(1)) });
         }
 
-        s.push({
-          type: "wind",
-          wind: { direction: dirStr, speed: Math.round(current?.conditions.windSpeed ?? 0), loc: "-" },
-        });
+        if (
+          current?.conditions.windSpeed != null ||
+          current?.conditions.windDirection != null
+        ) {
+          s.push({
+            type: "wind",
+            wind: {
+              direction: dirStr,
+              speed: Math.round(current?.conditions.windSpeed ?? 0),
+              loc: "-",
+            },
+          });
+        }
 
         // Build features from beach flags when available
         if (beach) {
           const tags: { label: string; icon: React.ReactNode; color: string }[] = [];
-          if ((beach as any).FISHING) tags.push({ label: "Fishing", icon: <Fish size={16} />, color: "bg-blue" });
-          if ((beach as any).RESTROOMS) tags.push({ label: "Bathrooms", icon: <Toilet size={16} />, color: "bg-yellow" });
-          if ((beach as any).PARKING) tags.push({ label: "Parking", icon: <CircleParking size={16} />, color: "bg-green" });
-          if ((beach as any).DOG_FRIEND) tags.push({ label: "Dogs", icon: <Dog size={16} />, color: "bg-red" });
-          if ((beach as any).SNDY_BEACH) tags.push({ label: "Sandy", icon: <Shell size={16} />, color: "bg-orange" });
-          if ((beach as any).LIFEGUARD) tags.push({ label: "Lifeguard", icon: <LifeBuoy size={16} />, color: "bg-purple" });
+          // If FEATURE_COLUMNS/getFeatureDisplayName are exported, iterate them; else, fallback to known ones
+          const keys: string[] = (typeof FEATURE_COLUMNS !== "undefined" && Array.isArray(FEATURE_COLUMNS))
+            ? FEATURE_COLUMNS as string[]
+            : [
+                "FISHING",
+                "RESTROOMS",
+                "PARKING",
+                "DOG_FRIEND",
+                "SNDY_BEACH",
+                "LIFEGUARD",
+              ];
+          for (const key of keys) {
+            const val = (beach as any)[key];
+            if (val === true) {
+              const label = typeof getFeatureDisplayName === "function" ? getFeatureDisplayName(key) : key;
+              let icon: React.ReactNode = <BadgeCheck size={16} />;
+              let color = "bg-highlight-2";
+              if (key === "FISHING") { icon = <Fish size={16} />; color = "bg-blue"; }
+              else if (key === "RESTROOMS") { icon = <Toilet size={16} />; color = "bg-yellow"; }
+              else if (key === "PARKING") { icon = <CircleParking size={16} />; color = "bg-green"; }
+              else if (key === "DOG_FRIEND") { icon = <Dog size={16} />; color = "bg-red"; }
+              else if (key === "SNDY_BEACH") { icon = <Shell size={16} />; color = "bg-orange"; }
+              else if (key === "LIFEGUARD") { icon = <LifeBuoy size={16} />; color = "bg-purple"; }
+              tags.push({ label, icon, color });
+            }
+          }
           if (tags.length > 0) s.push({ type: "features", tags });
         }
 
@@ -232,4 +249,3 @@ const Summary = ({ beachId }: { beachId?: string }) => {
 };
 
 export default Summary;
-
