@@ -25,7 +25,7 @@ type SummaryStat =
   | { type: "weather"; temp: number }
   | { type: "swell"; primary: { height: number; period: number; wind: { dir: string; deg: number } }; secondary: { height: number; period: number; wind: { dir: string; deg: number } }[] }
   | { type: "tide"; height: number }
-  | { type: "wind"; wind: { direction: string; speed: number; loc?: string } }
+  | { type: "wind"; wind: { direction: string; speed: number; loc: string } }
   | { type: "surf"; surf: { direction: string; height: string; period: number } }
   | { type: "features"; tags: { label: string; icon: React.ReactNode; color: string }[] };
 
@@ -64,7 +64,7 @@ const Summary = ({ beachId }: { beachId?: string }) => {
           s.push({ type: "surf", surf: { direction: dirStr, height: min === max ? `${max.toFixed(0)}` : `${min.toFixed(0)}-${max.toFixed(0)}`, period: first.swell.primary.period ?? 0 } });
         }
         s.push({ type: "tide", height: Number((current?.conditions.tideLevel ?? 0).toFixed(1)) });
-        s.push({ type: "wind", wind: { direction: dirStr, speed: Math.round(current?.conditions.windSpeed ?? 0) } });
+        s.push({ type: "wind", wind: { direction: dirStr, speed: Math.round(current?.conditions.windSpeed ?? 0), loc: "—" } });
         s.push({
           type: "features",
           tags: [
