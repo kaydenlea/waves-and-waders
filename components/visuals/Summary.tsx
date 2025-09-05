@@ -195,8 +195,9 @@ const Summary = ({ beachId }: { beachId?: string }) => {
             content = stat.primary && stat.secondary && (
               <div className="flex flex-col items-center">
                 <SwellStat primary data={stat.primary} />
-                <SwellStat data={stat.secondary[0]} />
-                <SwellStat data={stat.secondary[1]} />
+                {stat.secondary.map((sec, i) => (
+                  <SwellStat key={i} data={sec} />
+                ))}
               </div>
             );
             break;

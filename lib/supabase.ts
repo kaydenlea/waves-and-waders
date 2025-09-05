@@ -629,10 +629,11 @@ export async function fetchBeachForecast(
   startDate?: Date,
   endDate?: Date
 ): Promise<ForecastData[]> {
+  const idValue: any = /^\d+$/.test(beachId) ? Number(beachId) : beachId
   let query = supabase
     .from('forecast_data')
     .select('*') // This will now include the new tertiary swell columns
-    .eq('beach_id', beachId)
+    .eq('beach_id', idValue)
     .order('timestamp', { ascending: true })
 
   if (startDate) {
@@ -653,15 +654,19 @@ export async function fetchBeachForecast(
 }
 
 export async function fetchCurrentConditions(beachId: string): Promise<ForecastData | null> {
+  const idValue: any = /^\d+$/.test(beachId) ? Number(beachId) : beachId
   const { data, error } = await supabase
     .from('forecast_data')
     .select('*') // This will now include the new tertiary swell columns
-    .eq('beach_id', beachId)
+    .eq('beach_id', idValue)
     .order('timestamp', { ascending: false })
     .maybeSingle() // <-- one row
 
   if (error) {
-    console.error('Error fetching current conditions:', error)
+    const hasDetails = (error as any)?.message || (error as any)?.code
+    if (hasDetails) {
+      console.error('Error fetching current conditions:', error)
+    }
     return null
   }
   if (!data) return null
@@ -688,7 +693,6 @@ export async function fetchDailyConditions(
     .maybeSingle()
 
   if (error) {
-    console.error('Error fetching daily conditions:', error)
     return null
   }
 
