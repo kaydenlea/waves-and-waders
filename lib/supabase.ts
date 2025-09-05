@@ -686,14 +686,13 @@ export async function fetchDailyConditions(
   const { data, error } = await q
     .order('date', { ascending: false })
     .maybeSingle()
-    .returns<DailyConditions>() // <-- typed single row
 
   if (error) {
     console.error('Error fetching daily conditions:', error)
     return null
   }
 
-  return data ?? null
+  return (data as DailyConditions) ?? null
 }
 
 export async function fetchTodaysForecast(beachId: string): Promise<ForecastData[]> {
