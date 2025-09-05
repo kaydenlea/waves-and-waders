@@ -130,10 +130,10 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
         </div>
         <div className="flex flex-col @min-3xl:flex-row gap-3">
           <VisualWrapper label="Swell" unit="ft">
-            <LazyLoadSwell />
+            <LazyLoadSwell beachId={beach} />
           </VisualWrapper>
           <VisualWrapper label="Surf" unit="ft">
-            <LazyLoadSurf />
+            <LazyLoadSurf beachId={beach} />
           </VisualWrapper>
         </div>
         {/* <div className="flex flex-col @min-3xl:flex-row gap-2">

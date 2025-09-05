@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   CartesianGrid,
   XAxis,
@@ -33,38 +33,13 @@ const chartConfig = {
   //   },
 } satisfies ChartConfig;
 
-const mockEnergyData = [
-  { time: 0, energy: 1 },
-  { time: 3, energy: 2 },
-  { time: 6, energy: 2 },
-  { time: 9, energy: 3 },
-  { time: 12, energy: 2 },
-  { time: 15, energy: 3 },
-  { time: 18, energy: 2 },
-  { time: 21, energy: 1 },
-];
+type Props = { beachId?: string; hours?: number };
+type EnergyPoint = { time: number; energy: number };
 
-const gradientOffset = () => {
-  const dataMax = Math.max(...mockEnergyData.map((i) => i.energy));
-  const dataMin = Math.min(...mockEnergyData.map((i) => i.energy));
-
-  if (dataMax <= 0) {
-    return 0;
-  }
-  if (dataMin >= 0) {
-    return 1;
-  }
-
-  return dataMax / (dataMax - dataMin);
-};
-
-type WavePoint = {
-  time: number;
-  energy: number;
-};
+import { fetchBeachForecast } from "@/lib/supabase";
 
 function buildTrendStops(
-  series: WavePoint[],
+  series: EnergyPoint[],
   incColor: string,
   decColor: string
 ) {
@@ -99,12 +74,44 @@ function buildTrendStops(
   return stops;
 }
 
-// const off = buildTrendStops(mockEnergyData, 'green', 'red');
+const WaveEnergyChart = ({ beachId, hours = 24 }: Props) => {
+  const [series, setSeries] = useState<EnergyPoint[]>([]);
+  useEffect(() => {
+    const load = async () => {
+      try {
+        if (!beachId) {
+          setSeries([
+            { time: 0, energy: 1 },
+            { time: 3, energy: 2 },
+            { time: 6, energy: 2 },
+            { time: 9, energy: 3 },
+            { time: 12, energy: 2 },
+            { time: 15, energy: 3 },
+            { time: 18, energy: 2 },
+            { time: 21, energy: 1 },
+          ]);
+          return;
+        }
+        const start = new Date();
+        const end = new Date(start.getTime() + hours * 60 * 60 * 1000);
+        const rows = await fetchBeachForecast(beachId, start, end);
+        const baseHour = start.getHours();
+        setSeries(
+          rows.map((r, idx) => ({
+            time: (baseHour + idx) % 24,
+            energy: r.surf.waveEnergy ?? 0,
+          }))
+        );
+      } catch (e) {
+        console.error("Failed to load wave energy", e);
+      }
+    };
+    load();
+  }, [beachId, hours]);
 
-const WaveEnergyChart = () => {
-  const stops = React.useMemo(
-    () => buildTrendStops(mockEnergyData, "var(--green)", "var(--red)"),
-    []
+  const stops = useMemo(
+    () => buildTrendStops(series, "var(--green)", "var(--red)"),
+    [series]
   );
   return (
     <ChartContainer
@@ -113,7 +120,7 @@ const WaveEnergyChart = () => {
     >
       <AreaChart
         accessibilityLayer
-        data={mockEnergyData}
+        data={series}
         margin={{
           top: 5,
           right: 10,

@@ -1,5 +1,6 @@
 "use client";
 
+import React, { useEffect, useState } from "react";
 import {
   CartesianGrid,
   XAxis,
@@ -34,18 +35,47 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-const mockSwellData = [
-  { time: 0, primary: 1.2, secondary: 0.6, tertiary: 0.3 },
-  { time: 3, primary: 1.5, secondary: 0.7, tertiary: 0.4 },
-  { time: 6, primary: 1.8, secondary: 0.9, tertiary: 0.7 },
-  { time: 9, primary: 1.4, secondary: 0.8, tertiary: 0.6 },
-  { time: 12, primary: 1.1, secondary: 0.5, tertiary: 0.4 },
-  { time: 15, primary: 1.6, secondary: 0.7, tertiary: 0.6 },
-  { time: 18, primary: 1.9, secondary: 1.0, tertiary: 0.8 },
-  { time: 21, primary: 1.3, secondary: 0.6, tertiary: 0.5 },
-];
+import { fetchBeachForecast } from "@/lib/supabase";
 
-const SwellChart = () => {
+type Props = { beachId?: string; hours?: number };
+type Row = { time: number; primary: number; secondary: number; tertiary: number };
+
+const SwellChart = ({ beachId, hours = 24 }: Props) => {
+  const [data, setData] = useState<Row[]>([]);
+  useEffect(() => {
+    const load = async () => {
+      try {
+        if (!beachId) {
+          setData([
+            { time: 0, primary: 2, secondary: 1, tertiary: 0.5 },
+            { time: 3, primary: 2.2, secondary: 1.1, tertiary: 0.6 },
+            { time: 6, primary: 2.5, secondary: 1.3, tertiary: 0.7 },
+            { time: 9, primary: 2.1, secondary: 1.0, tertiary: 0.6 },
+            { time: 12, primary: 1.8, secondary: 0.8, tertiary: 0.5 },
+            { time: 15, primary: 2.4, secondary: 1.2, tertiary: 0.7 },
+            { time: 18, primary: 2.7, secondary: 1.3, tertiary: 0.9 },
+            { time: 21, primary: 2.0, secondary: 0.9, tertiary: 0.6 },
+          ]);
+          return;
+        }
+        const start = new Date();
+        const end = new Date(start.getTime() + hours * 60 * 60 * 1000);
+        const rows = await fetchBeachForecast(beachId, start, end);
+        const baseHour = start.getHours();
+        setData(
+          rows.map((r, idx) => ({
+            time: (baseHour + idx) % 24,
+            primary: r.swell.primary.height ?? 0,
+            secondary: r.swell.secondary.height ?? 0,
+            tertiary: r.swell.tertiary?.height ?? 0,
+          }))
+        );
+      } catch (e) {
+        console.error("Failed to load swell data", e);
+      }
+    };
+    load();
+  }, [beachId, hours]);
   return (
     <ChartContainer
       config={chartConfig}
@@ -53,7 +83,7 @@ const SwellChart = () => {
     >
       <AreaChart
         accessibilityLayer
-        data={mockSwellData}
+        data={data}
         margin={{
           top: 5,
           right: 10,
