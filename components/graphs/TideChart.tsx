@@ -27,39 +27,33 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-const dataBackup = [
-  { hour: 0, tide: 5, isPeak: 5 },
-  { hour: 1, tide: 4.5 },
-  { hour: 2, tide: 4.3 },
-  { hour: 3, tide: 4.1 },
-  { hour: 4, tide: 3 },
-  { hour: 5, tide: 2 },
-  { hour: 6, tide: 1, isPeak: 1 },
-  { hour: 7, tide: 2 },
-  { hour: 8, tide: 2.5 },
-  { hour: 9, tide: 2.8 },
-  { hour: 10, tide: 3 },
-  { hour: 11, tide: 4.5 },
-  { hour: 12, tide: 5 },
-  { hour: 13, tide: 5.1 },
-  { hour: 14, tide: 5.2 },
-  { hour: 15, tide: 5.3 },
-  { hour: 16, tide: 5.5 },
-  { hour: 17, tide: 5.3 },
-  { hour: 18, tide: 5.5, isPeak: 5.5 },
-  { hour: 19, tide: 5 },
-  { hour: 20, tide: 4.5 },
-  { hour: 21, tide: 4.3 },
-  { hour: 22, tide: 3 },
-  { hour: 23, tide: 2 },
-  { hour: 24, tide: 1, isPeak: 1 },
-];
+import React, { useEffect, useState } from "react";
+import { fetchBeachTides } from "@/lib/supabase";
 
-const TideChart = ({
-  chartData = dataBackup,
-}: {
-  chartData?: { hour: number; tide: number; isPeak?: number }[];
-}) => {
+type TidePoint = { hour: number; tide: number; isPeak?: number };
+
+const TideChart = ({ beachId, hours = 24, chartData: chartDataProp }: { beachId?: string; hours?: number; chartData?: TidePoint[] }) => {
+  const [chartData, setChartData] = useState<TidePoint[]>(chartDataProp ?? []);
+
+  useEffect(() => {
+    if (chartDataProp || !beachId) return; // allow override or skip without id
+    const load = async () => {
+      try {
+        const start = new Date();
+        const end = new Date(start.getTime() + hours * 60 * 60 * 1000);
+        const points = await fetchBeachTides(beachId, start, end);
+        const baseHour = start.getHours();
+        const data = points.map((p, idx) => ({
+          hour: (baseHour + idx) % 24,
+          tide: p.tideLevelFt ?? 0,
+        }));
+        setChartData(data);
+      } catch (e) {
+        console.error("Failed to load tide data", e);
+      }
+    };
+    load();
+  }, [beachId, hours, chartDataProp]);
   return (
     <>
       <ChartContainer

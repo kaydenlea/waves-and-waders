@@ -1,5 +1,6 @@
 "use client";
 
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -20,15 +21,9 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 
-const chartData = [
-  { hour: 0, wind: 2 },
-  { hour: 1, wind: 3 },
-  { hour: 2, wind: 1 },
-  { hour: 3, wind: 1 },
-  { hour: 4, wind: 4 },
-  { hour: 5, wind: 2 },
-  { hour: 6, wind: 2 },
-];
+import { fetchBeachForecast } from "@/lib/supabase";
+
+type Props = { beachId: string; hours?: number };
 const chartConfig = {
   wind: {
     label: "Wind (mph)",
@@ -36,7 +31,29 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-const WindChart = () => {
+const WindChart = ({ beachId, hours = 24 }: Props) => {
+  const [chartData, setChartData] = useState<{ hour: number; wind: number }[]>([]);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const start = new Date();
+        const end = new Date(start.getTime() + hours * 60 * 60 * 1000);
+        const rows = await fetchBeachForecast(beachId, start, end);
+        const baseHour = start.getHours();
+        const data = rows.map((r, idx) => ({
+          hour: (baseHour + idx) % 24,
+          wind: r.conditions.windSpeed ?? 0,
+        }));
+        setChartData(data);
+      } catch (e) {
+        console.error("Failed to load wind data", e);
+      }
+    };
+    load();
+  }, [beachId, hours]);
+
+  const domainMax = useMemo(() => (chartData.length ? chartData.length - 1 : 6), [chartData]);
   return (
     <ChartContainer
       config={chartConfig}
@@ -68,7 +85,7 @@ const WindChart = () => {
           tickLine={false}
           tickMargin={10}
           axisLine={false}
-          domain={[0, 6]}
+          domain={[0, domainMax]}
         />
         <YAxis
           dataKey="wind"

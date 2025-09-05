@@ -2,7 +2,6 @@ import Link from "next/link";
 
 import Highlights from "@/components/visuals/Highlights";
 import Summary from "@/components/visuals/Summary";
-import TideSun from "@/components/general/Stats/TideSun";
 import { LazyLoadTide } from "@/components/general/LazyLoad/LazyLoadTide";
 import { LazyLoadSwell } from "@/components/general/LazyLoad/LazyLoadSwell";
 import { LazyLoadSurf } from "@/components/general/LazyLoad/LazyLoadSurf";
@@ -123,13 +122,10 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
         </span> */}
         <div className="flex flex-col @min-3xl:flex-row gap-3">
           <VisualWrapper label="Wind" unit="mph">
-            <LazyLoadWind />
+            <LazyLoadWind beachId={beach} />
           </VisualWrapper>
           <VisualWrapper label="Tide" unit="ft">
-            <LazyLoadTide chartData={chartData} />
-            <figcaption className="flex justify-between ml-10 mr-8 mt-2">
-              <TideSun chartData={chartData} />
-            </figcaption>
+            <LazyLoadTide beachId={beach} />
           </VisualWrapper>
         </div>
         <div className="flex flex-col @min-3xl:flex-row gap-3">
