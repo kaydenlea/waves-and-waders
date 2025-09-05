@@ -65,9 +65,8 @@ const Summary = ({ beachId }: { beachId?: string }) => {
         const now = new Date();
         const end = new Date(now.getTime() + 6 * 60 * 60 * 1000);
         // Resolve id from slug/uuid if needed
-        const resolved = (await import("@/lib/supabase")).fetchBeachByIdLoose
-          ? await (await import("@/lib/supabase")).fetchBeachByIdLoose(beachId)
-          : null;
+        const { fetchBeachByIdLoose } = await import("@/lib/supabase");
+        const resolved = await fetchBeachByIdLoose(beachId);
         const resolvedId = resolved?.id ?? beachId;
         const [current, forecast] = await Promise.all([
           fetchCurrentConditions(resolvedId),
