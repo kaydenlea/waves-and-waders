@@ -340,41 +340,56 @@ export interface DailyConditions {
 // Transform helpers
 // ----------------------------
 export function transformToComponentFormat(data: SupabaseForecastData[]): ForecastData[] {
-  return data.map(row => ({
-    timestamp: row.timestamp,
-    swell: {
-      primary: {
-        height: row.primary_swell_height_ft,
-        period: row.primary_swell_period_s,
-        direction: row.primary_swell_direction,
+  return data.map(row => {
+    const anyRow: any = row as any
+    const toF = (c: number | null) => (c == null ? null : (c * 9) / 5 + 32)
+    const mToFt = (m: number | null) => (m == null ? null : m * 3.28084)
+    const kphToMph = (kph: number | null) => (kph == null ? null : kph * 0.621371)
+    const hPaToInHg = (hpa: number | null) => (hpa == null ? null : hpa * 0.02953)
+
+    const waterTempF = row.water_temp_f ?? toF(anyRow.water_temp_c ?? null)
+    const tideFt = row.tide_level_ft ?? mToFt(anyRow.tide_level_m ?? null)
+    const windMph = row.wind_speed_mph ?? kphToMph(anyRow.wind_speed_kph ?? null)
+    const gustMph = row.wind_gust_mph ?? kphToMph(anyRow.wind_gust_kph ?? null)
+    const pressureInHg = row.pressure_inhg ?? hPaToInHg(anyRow.pressure_hpa ?? null)
+    const energyKj = row.wave_energy_kj ?? (anyRow.wave_energy_joules != null ? anyRow.wave_energy_joules / 1000 : null)
+
+    return ({
+      timestamp: row.timestamp,
+      swell: {
+        primary: {
+          height: row.primary_swell_height_ft,
+          period: row.primary_swell_period_s,
+          direction: row.primary_swell_direction,
+        },
+        secondary: {
+          height: row.secondary_swell_height_ft,
+          period: row.secondary_swell_period_s,
+          direction: row.secondary_swell_direction,
+        },
+        tertiary: { // NEW: Tertiary swell transformation
+          height: row.tertiary_swell_height_ft,
+          period: row.tertiary_swell_period_s,
+          direction: row.tertiary_swell_direction,
+        },
       },
-      secondary: {
-        height: row.secondary_swell_height_ft,
-        period: row.secondary_swell_period_s,
-        direction: row.secondary_swell_direction,
+      surf: {
+        heightMin: row.surf_height_min_ft,
+        heightMax: row.surf_height_max_ft,
+        waveEnergy: energyKj, // kJ, fallback from joules
       },
-      tertiary: { // NEW: Tertiary swell transformation
-        height: row.tertiary_swell_height_ft,
-        period: row.tertiary_swell_period_s,
-        direction: row.tertiary_swell_direction,
+      conditions: {
+        waterTemp: waterTempF,
+        tideLevel: tideFt, // NOTE: Includes +2.4ft adjustment from Python script if applied upstream
+        windSpeed: windMph,
+        windGust: gustMph,
+        windDirection: row.wind_direction_deg,
+        airTemp: row.temperature ?? toF(anyRow.temperature_c ?? null),
+        pressure: pressureInHg,
+        weather: row.weather,
       },
-    },
-    surf: {
-      heightMin: row.surf_height_min_ft,
-      heightMax: row.surf_height_max_ft,
-      waveEnergy: row.wave_energy_kj, // UPDATED: Now in kilojoules
-    },
-    conditions: {
-      waterTemp: row.water_temp_f,
-      tideLevel: row.tide_level_ft, // NOTE: Includes +2.4ft adjustment from Python script
-      windSpeed: row.wind_speed_mph,
-      windGust: row.wind_gust_mph,
-      windDirection: row.wind_direction_deg,
-      airTemp: row.temperature,
-      pressure: row.pressure_inhg,
-      weather: row.weather,
-    },
-  }))
+    })
+  })
 }
 // ----------------------------
 // Tide queries (NEW)
