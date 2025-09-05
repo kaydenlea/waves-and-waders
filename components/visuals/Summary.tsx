@@ -56,7 +56,7 @@ const Summary = ({ beachId }: { beachId?: string }) => {
       ],
     },
   ];
-  const [stats, setStats] = useState<SummaryStat[]>(beachId ? [] : sample);
+  const [stats, setStats] = useState<SummaryStat[]>(sample);
 
   useEffect(() => {
     const load = async () => {
