@@ -18,7 +18,7 @@ import {
   Shell,
 } from "lucide-react";
 
-import { fetchCurrentConditions, fetchBeachForecast, getWindDirection } from "@/lib/supabase";
+import { fetchCurrentConditions, fetchBeachForecast, getWindDirection, fetchBeachByIdLoose, fetchBeachDetails } from "@/lib/supabase";
 
 type SummaryStat =
   | { type: "water"; temp: number }
@@ -65,7 +65,6 @@ const Summary = ({ beachId }: { beachId?: string }) => {
         const now = new Date();
         const end = new Date(now.getTime() + 6 * 60 * 60 * 1000);
         // Resolve id from slug/uuid if needed
-        const { fetchBeachByIdLoose } = await import("@/lib/supabase");
         const resolved = await fetchBeachByIdLoose(beachId);
         const resolvedId = resolved?.id ?? beachId;
         const [current, forecast] = await Promise.all([
@@ -186,3 +185,4 @@ const Summary = ({ beachId }: { beachId?: string }) => {
 };
 
 export default Summary;
+
