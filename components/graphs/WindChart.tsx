@@ -23,7 +23,7 @@ import {
 
 import { fetchBeachForecast } from "@/lib/supabase";
 
-type Props = { beachId: string; hours?: number };
+type Props = { beachId?: string; hours?: number };
 const chartConfig = {
   wind: {
     label: "Wind (mph)",
@@ -37,6 +37,19 @@ const WindChart = ({ beachId, hours = 24 }: Props) => {
   useEffect(() => {
     const load = async () => {
       try {
+        if (!beachId) {
+          // default placeholder 7 hours
+          setChartData([
+            { hour: 0, wind: 2 },
+            { hour: 1, wind: 3 },
+            { hour: 2, wind: 1 },
+            { hour: 3, wind: 1 },
+            { hour: 4, wind: 4 },
+            { hour: 5, wind: 2 },
+            { hour: 6, wind: 2 },
+          ]);
+          return;
+        }
         const start = new Date();
         const end = new Date(start.getTime() + hours * 60 * 60 * 1000);
         const rows = await fetchBeachForecast(beachId, start, end);
