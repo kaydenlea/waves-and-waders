@@ -19,8 +19,9 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { Button } from "../ui/button";
-import { ArrowLeft, ArrowRight, Sun, Sunrise, Sunset } from "lucide-react";
+import DaySlider from "../general/DaySlider";
+
+import { Sun, Sunrise, Sunset } from "lucide-react";
 
 const chartData = [
   { hour: 0, tide: 5, isPeak: 5 },
@@ -141,10 +142,10 @@ const ForecastTideChart = () => {
 
   React.useEffect(() => {
     const handleResize = () => {
-      const container = document.querySelector("#content-container");
+      const container = document.querySelector("#content");
       const width = container ? container.clientWidth : 0;
 
-      if (width < 500) {
+      if (width < 550) {
         setWindowSize(25);
       } else if (width < 750) {
         setWindowSize(49);
@@ -176,34 +177,17 @@ const ForecastTideChart = () => {
 
   return (
     <>
-      <div className="flex gap-2 items-center justify-center mb-2">
-        <Button
-          aria-label="previous slide"
-          size="icon"
-          variant="outline"
-          className="border border-border bg-background rounded-full drop-shadow-sm"
-          onClick={handleBack}
-          disabled={startIndex === 0}
-        >
-          <ArrowLeft />
-        </Button>
-        <span className="font-semibold text-sm bg-background border border-border drop-shadow-sm px-4 py-2 rounded-2xl">
-          Wed, 8/15 - Fri, 8/17
-        </span>
-        <Button
-          aria-label="next slide"
-          size="icon"
-          variant="outline"
-          className="border border-border bg-background rounded-full drop-shadow-sm"
-          onClick={handleNext}
-          disabled={startIndex + windowSize >= chartData.length}
-        >
-          <ArrowRight />
-        </Button>
-      </div>
+      <DaySlider
+        handleBack={handleBack}
+        handleNext={handleNext}
+        startIndex={startIndex}
+        windowSize={windowSize}
+        length={chartData.length}
+        days="Wed, 8/15 - Fri, 8/17"
+      />
       <ChartContainer
         config={chartConfig}
-        className="@min-xl:aspect-auto @min-xl:h-[250px] w-full"
+        className="@min-md:aspect-auto @min-md:h-[250px] w-full"
       >
         <LineChart
           accessibilityLayer
@@ -213,6 +197,7 @@ const ForecastTideChart = () => {
             right: 15,
             bottom: 5,
           }}
+          syncId="anyId"
         >
           {visibleData.map(
             (entry) =>
@@ -253,11 +238,10 @@ const ForecastTideChart = () => {
               );
             }
           })}
-
           <CartesianGrid
             strokeDasharray="3 3"
-            stroke="#eee"
-            strokeWidth={0.5}
+            stroke="var(--foreground)"
+            strokeWidth={0.1}
             vertical={false}
           />
           <XAxis
@@ -396,7 +380,7 @@ const ForecastTideChart = () => {
               : ["8:00 PM", "8:30 PM"];
             return (
               <div
-                className="text-center gap-8 bg-highlight-1 py-1 px-3 ring-1 ring-slate-900/5 rounded-sm"
+                className="text-center gap-8 bg-highlight-5 py-1 px-3 ring-1 ring-slate-900/5 rounded-sm"
                 key={entry.hour}
               >
                 <div className="flex gap-4 items-center">
