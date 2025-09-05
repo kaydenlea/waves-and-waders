@@ -1,3 +1,6 @@
+"use client";
+
+import React, { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import SwellStat from "../general/Stats/SwellStat";
 
@@ -210,30 +213,106 @@ const HighlightCard = ({
   );
 };
 
+import {
+  fetchCurrentConditions,
+  fetchDailyConditions,
+  fetchBeachForecast,
+  fetchBeachByIdLoose,
+  getWindDirection,
+} from "@/lib/supabase";
+
+type Stat =
+  | { label: "weather"; weather: { temp: number; condition?: string } }
+  | { label: "water"; temp: number }
+  | {
+      label: "swell";
+      primary: { height: number; period: number; wind: { dir: string; deg: number } };
+      secondary: [
+        { height: number; period: number; wind: { dir: string; deg: number } },
+        { height: number; period: number; wind: { dir: string; deg: number } }
+      ];
+    }
+  | { label: "tide"; tide: { value: number | string; unit: string } }
+  | { label: "moon"; phase: string }
+  | { label: "wind"; wind: { speed: number; max: number } }
+  | { label: "pressure"; pressure: { value: number; unit: string } }
+  | { label: "energy"; energy: { value: number; unit: string } };
+
 const Highlights = ({
+  beachId,
   startIdx = 0,
   endIdx = 7,
 }: {
+  beachId?: string;
   startIdx?: number;
   endIdx?: number;
 }) => {
-  const stats = [
-    { label: "weather", weather: { temp: 64, condition: "sun" } },
-    { label: "water", temp: 60 },
-    {
-      label: "swell",
-      primary: { height: 2.1, period: 7, wind: { dir: "W", deg: 272 } },
-      secondary: [
-        { height: 2.1, period: 7, wind: { dir: "W", deg: 272 } },
-        { height: 2.1, period: 7, wind: { dir: "W", deg: 272 } },
-      ],
-    },
-    { label: "tide", tide: { value: "2-3", unit: "ft" } },
-    { label: "moon", phase: "Waning Cresent" },
-    { label: "wind", wind: { speed: 12, max: 17 } },
-    { label: "pressure", pressure: { value: 29.9, unit: "in" } },
-    { label: "energy", energy: { value: 278, unit: "kJ" } },
-  ];
+  const [stats, setStats] = useState<Stat[]>([{
+    label: "weather",
+    weather: { temp: 64, condition: "sun" },
+  }, { label: "water", temp: 60 }, {
+    label: "swell",
+    primary: { height: 2.1, period: 7, wind: { dir: "W", deg: 272 } },
+    secondary: [
+      { height: 2.1, period: 7, wind: { dir: "W", deg: 272 } },
+      { height: 2.1, period: 7, wind: { dir: "W", deg: 272 } },
+    ],
+  }, { label: "tide", tide: { value: "2-3", unit: "ft" } }, { label: "moon", phase: "Waning Cresent" }, { label: "wind", wind: { speed: 12, max: 17 } }, { label: "pressure", pressure: { value: 29.9, unit: "in" } }, { label: "energy", energy: { value: 278, unit: "kJ" } }]);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        if (!beachId) return;
+        const [current, beach] = await Promise.all([
+          fetchCurrentConditions(beachId),
+          fetchBeachByIdLoose(beachId),
+        ]);
+        const county = beach?.COUNTY ?? null;
+        const daily = county ? await fetchDailyConditions(county) : null;
+        // compute swell from forecast slice
+        const now = new Date();
+        const end = new Date(now.getTime() + 6 * 60 * 60 * 1000);
+        const forecast = await fetchBeachForecast(beachId, now, end);
+        const first = forecast[0];
+
+        const nextStats: Stat[] = [];
+        // weather air temp
+        nextStats.push({ label: "weather", weather: { temp: Math.round(current?.conditions.airTemp ?? 0), condition: "sun" } });
+        // water temp
+        nextStats.push({ label: "water", temp: Math.round(current?.conditions.waterTemp ?? 0) });
+        // swell primary/secondary
+        if (first) {
+          const pDir = first.swell.primary.direction ?? 0;
+          const sDir = first.swell.secondary.direction ?? 0;
+          nextStats.push({
+            label: "swell",
+            primary: { height: first.swell.primary.height ?? 0, period: first.swell.primary.period ?? 0, wind: { dir: getWindDirection(pDir), deg: pDir } },
+            secondary: [
+              { height: first.swell.secondary.height ?? 0, period: first.swell.secondary.period ?? 0, wind: { dir: getWindDirection(sDir), deg: sDir } },
+              { height: first.swell.tertiary?.height ?? 0, period: first.swell.tertiary?.period ?? 0, wind: { dir: getWindDirection(first.swell.tertiary?.direction ?? 0), deg: first.swell.tertiary?.direction ?? 0 } },
+            ],
+          });
+        }
+        // tide
+        nextStats.push({ label: "tide", tide: { value: Number((current?.conditions.tideLevel ?? 0).toFixed(1)), unit: "ft" } });
+        // moon
+        if (daily?.moon_phase != null) {
+          nextStats.push({ label: "moon", phase: String(daily.moon_phase) });
+        }
+        // wind
+        nextStats.push({ label: "wind", wind: { speed: Math.round(current?.conditions.windSpeed ?? 0), max: Math.round(current?.conditions.windGust ?? 0) } });
+        // pressure
+        nextStats.push({ label: "pressure", pressure: { value: Number((current?.conditions.pressure ?? 0).toFixed(2)), unit: "in" } });
+        // energy
+        nextStats.push({ label: "energy", energy: { value: Math.round(current?.surf.waveEnergy ?? 0), unit: "kJ" } });
+
+        setStats(nextStats);
+      } catch (e) {
+        console.error("Failed to load highlights", e);
+      }
+    };
+    load();
+  }, [beachId]);
 
   return (
     // <div className="p-2 border border-border/40 rounded-md shadow-sm bg-highlight-4">

@@ -71,7 +71,7 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
         <h2 className="mb-2 ml-2 text-muted-foreground text-lg">
           Thursday, Aug 14
         </h2>
-        <Summary />
+        <Summary beachId={beach} />
       </section>
       <section
         id="overview-content"
@@ -115,7 +115,7 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
               Local time: 8:30 PM, PDT
             </span>
           </header>
-          <Highlights startIdx={0} endIdx={7} />
+          <Highlights beachId={beach} startIdx={0} endIdx={7} />
         </section>
         {/* <span className="leading-none font-semibold text-2xl ml-2 mt-10 mb-3">
           Visuals
