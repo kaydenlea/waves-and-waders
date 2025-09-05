@@ -659,7 +659,6 @@ export async function fetchCurrentConditions(beachId: string): Promise<ForecastD
     .eq('beach_id', beachId)
     .order('timestamp', { ascending: false })
     .maybeSingle() // <-- one row
-    .returns<SupabaseForecastData>() // <-- typed single row
 
   if (error) {
     console.error('Error fetching current conditions:', error)
@@ -667,7 +666,7 @@ export async function fetchCurrentConditions(beachId: string): Promise<ForecastD
   }
   if (!data) return null
 
-  return transformToComponentFormat([data])[0] ?? null
+  return transformToComponentFormat([data as SupabaseForecastData])[0] ?? null
 }
 
 export async function fetchDailyConditions(
