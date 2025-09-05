@@ -27,7 +27,7 @@ type SummaryStat =
   | { type: "tide"; height: number }
   | { type: "wind"; wind: { direction: string; speed: number; loc?: string } }
   | { type: "surf"; surf: { direction: string; height: string; period: number } }
-  | { type: "features"; tags: { label: string; icon: JSX.Element; color: string }[] };
+  | { type: "features"; tags: { label: string; icon: React.ReactNode; color: string }[] };
 
 const Summary = ({ beachId }: { beachId?: string }) => {
   const [stats, setStats] = useState<SummaryStat[]>([]);
