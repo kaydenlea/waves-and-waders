@@ -96,7 +96,7 @@ export interface BeachWithFeatures extends Beach {
 }
 
 // All feature columns for database queries
-const FEATURE_COLUMNS = [
+export const FEATURE_COLUMNS = [
   // Access & Fees
   "O_PUBLIC", "FEE", "PARKING", "RSTRCTNS", "DSABLDACSS",
   
