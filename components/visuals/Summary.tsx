@@ -35,7 +35,7 @@ type SummaryStat =
       secondary: { height: number; period: number; wind: { dir: string; deg: number } }[];
     }
   | { type: "tide"; height: number }
-  | { type: "wind"; wind: { direction: string; speed: number; loc: string } }
+  | { type: "wind"; wind: { direction: string; speed: number; loc: string; gust?: number } }
   | { type: "surf"; surf: { direction: string; height: string; period: number } }
   | { type: "features"; tags: { label: string; icon: React.ReactNode; color: string }[] };
 
@@ -61,15 +61,17 @@ const Summary = ({ beachId }: { beachId?: string }) => {
         ]);
 
         const first = forecast[0];
-        const windDirDeg = current?.conditions.windDirection ?? null;
+        // Use latest current conditions when available; otherwise fall back to first forecast row
+        const base = current ?? first;
+        const windDirDeg = base?.conditions.windDirection ?? null;
         const windDirStr = windDirDeg == null ? "N/A" : getWindDirection(windDirDeg);
 
         const s: SummaryStat[] = [];
-        if (current?.conditions.waterTemp != null) {
-          s.push({ type: "water", temp: Math.round(current.conditions.waterTemp) });
+        if (base?.conditions.waterTemp != null) {
+          s.push({ type: "water", temp: Math.round(base.conditions.waterTemp) });
         }
-        if (current?.conditions.airTemp != null) {
-          s.push({ type: "weather", temp: Math.round(current.conditions.airTemp) });
+        if (base?.conditions.airTemp != null) {
+          s.push({ type: "weather", temp: Math.round(base.conditions.airTemp) });
         }
 
         if (first) {
@@ -123,19 +125,20 @@ const Summary = ({ beachId }: { beachId?: string }) => {
           });
         }
 
-        if (current?.conditions.tideLevel != null) {
-          s.push({ type: "tide", height: Number(current.conditions.tideLevel.toFixed(1)) });
+        if (base?.conditions.tideLevel != null) {
+          s.push({ type: "tide", height: Number(base.conditions.tideLevel.toFixed(1)) });
         }
 
         if (
-          current?.conditions.windSpeed != null ||
-          current?.conditions.windDirection != null
+          base?.conditions.windSpeed != null ||
+          base?.conditions.windDirection != null
         ) {
           s.push({
             type: "wind",
             wind: {
               direction: windDirStr,
-              speed: Math.round(current?.conditions.windSpeed ?? 0),
+              speed: Math.round(base?.conditions.windSpeed ?? 0),
+              gust: base?.conditions.windGust != null ? Math.round(base.conditions.windGust) : undefined,
               loc: "-",
             },
           });

@@ -21,7 +21,7 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 
-import { fetchBeachForecast } from "@/lib/supabase";
+import { fetchBeachForecast, fetchBeachByIdLoose } from "@/lib/supabase";
 
 type Props = { beachId?: string; hours?: number };
 const chartConfig = {
@@ -50,12 +50,13 @@ const WindChart = ({ beachId, hours = 24 }: Props) => {
           ]);
           return;
         }
+        const resolved = await fetchBeachByIdLoose(beachId);
+        const id = resolved?.id ?? beachId;
         const start = new Date();
         const end = new Date(start.getTime() + hours * 60 * 60 * 1000);
-        const rows = await fetchBeachForecast(beachId, start, end);
-        const baseHour = start.getHours();
-        const data = rows.map((r, idx) => ({
-          hour: (baseHour + idx) % 24,
+        const rows = await fetchBeachForecast(id, start, end);
+        const data = rows.map((r) => ({
+          hour: new Date(r.timestamp).getHours(),
           wind: r.conditions.windSpeed ?? 0,
         }));
         setChartData(data);

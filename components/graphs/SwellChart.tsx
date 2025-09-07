@@ -35,7 +35,7 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-import { fetchBeachForecast } from "@/lib/supabase";
+import { fetchBeachForecast, fetchBeachByIdLoose } from "@/lib/supabase";
 
 type Props = { beachId?: string; hours?: number };
 type Row = { time: number; primary: number; secondary: number; tertiary: number };
@@ -58,13 +58,14 @@ const SwellChart = ({ beachId, hours = 24 }: Props) => {
           ]);
           return;
         }
+        const resolved = await fetchBeachByIdLoose(beachId);
+        const id = resolved?.id ?? beachId;
         const start = new Date();
         const end = new Date(start.getTime() + hours * 60 * 60 * 1000);
-        const rows = await fetchBeachForecast(beachId, start, end);
-        const baseHour = start.getHours();
+        const rows = await fetchBeachForecast(id, start, end);
         setData(
-          rows.map((r, idx) => ({
-            time: (baseHour + idx) % 24,
+          rows.map((r) => ({
+            time: new Date(r.timestamp).getHours(),
             primary: r.swell.primary.height ?? 0,
             secondary: r.swell.secondary.height ?? 0,
             tertiary: r.swell.tertiary?.height ?? 0,

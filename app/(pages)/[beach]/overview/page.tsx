@@ -15,6 +15,8 @@ import PageTabs from "@/components/general/PageTabs";
 import BackButton from "@/components/general/BackButton";
 
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { fetchBeachByIdLoose } from "@/lib/supabase";
 import { Pencil, ArrowLeft as BackIcon, Heart } from "lucide-react";
 import SaveButton from "@/components/general/SaveButton";
 
@@ -54,6 +56,15 @@ export const metadata: Metadata = {
 
 const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
   const { beach } = await params;
+  // If user visits /beach/overview (literal "beach"), send them to selector
+  if (beach === "beach") {
+    redirect("/beaches");
+  }
+
+  // Resolve the beach param to a concrete ID and name (supports id/uuid/slug)
+  const resolved = await fetchBeachByIdLoose(beach);
+  const beachId = (resolved?.id ?? beach).toString();
+  const beachName = resolved?.Name ?? beach;
   const isFav = false;
   return (
     <div id="content" className="@container p-2 scroll-mt-30">
@@ -63,15 +74,13 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
           beach={beach}
           tabs={["overview", "forecast"]}
         />
-        <h1 className="font-semibold text-4xl tracking-tight">
-          Huntington Beach
-        </h1>
+        <h1 className="font-semibold text-4xl tracking-tight">{beachName}</h1>
       </header>
       <section className="mb-8">
         <h2 className="mb-2 ml-2 text-muted-foreground text-lg">
           Thursday, Aug 14
         </h2>
-        <Summary beachId={beach} />
+        <Summary beachId={beachId} />
       </section>
       <section
         id="overview-content"
@@ -102,7 +111,7 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
         </header>
         {/* <Dashboard /> */}
         <div className="mt-2 mb-8">
-          <LazyLoadDatePicker />
+          <LazyLoadDatePicker beachId={beachId} />
           <LazyLoadHourSlider />
         </div>
         <section className="flex-1">
@@ -115,25 +124,25 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
               Local time: 8:30 PM, PDT
             </span>
           </header>
-          <Highlights beachId={beach} startIdx={0} endIdx={7} />
+          <Highlights beachId={beachId} startIdx={0} endIdx={7} />
         </section>
         {/* <span className="leading-none font-semibold text-2xl ml-2 mt-10 mb-3">
           Visuals
         </span> */}
         <div className="flex flex-col @min-3xl:flex-row gap-3">
           <VisualWrapper label="Wind" unit="mph">
-            <LazyLoadWind beachId={beach} />
+            <LazyLoadWind beachId={beachId} />
           </VisualWrapper>
           <VisualWrapper label="Tide" unit="ft">
-            <LazyLoadTide beachId={beach} />
+            <LazyLoadTide beachId={beachId} />
           </VisualWrapper>
         </div>
         <div className="flex flex-col @min-3xl:flex-row gap-3">
           <VisualWrapper label="Swell" unit="ft">
-            <LazyLoadSwell beachId={beach} />
+            <LazyLoadSwell beachId={beachId} />
           </VisualWrapper>
           <VisualWrapper label="Surf" unit="ft">
-            <LazyLoadSurf beachId={beach} />
+            <LazyLoadSurf beachId={beachId} />
           </VisualWrapper>
         </div>
         {/* <div className="flex flex-col @min-3xl:flex-row gap-2">

@@ -28,7 +28,7 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 import React, { useEffect, useState } from "react";
-import { fetchBeachTides } from "@/lib/supabase";
+import { fetchBeachTides, fetchBeachByIdLoose, fetchBeachForecast } from "@/lib/supabase";
 
 type TidePoint = { hour: number; tide: number; isPeak?: number };
 
@@ -39,14 +39,28 @@ const TideChart = ({ beachId, hours = 24, chartData: chartDataProp }: { beachId?
     if (chartDataProp || !beachId) return; // allow override or skip without id
     const load = async () => {
       try {
+        const resolved = await fetchBeachByIdLoose(beachId);
+        const id = resolved?.id ?? beachId;
         const start = new Date();
         const end = new Date(start.getTime() + hours * 60 * 60 * 1000);
-        const points = await fetchBeachTides(beachId, start, end);
-        const baseHour = start.getHours();
-        const data = points.map((p, idx) => ({
-          hour: (baseHour + idx) % 24,
-          tide: p.tideLevelFt ?? 0,
-        }));
+        const points = await fetchBeachTides(id, start, end);
+        // Fallback: if tide table empty for this window, use forecast tideLevel
+        if (!points || points.length === 0) {
+          const rows = await fetchBeachForecast(id, start, end);
+          const fallback = rows.map((r) => ({
+            hour: new Date(r.timestamp).getHours(),
+            tide: r.conditions.tideLevel ?? 0,
+          }));
+          setChartData(fallback);
+          return;
+        }
+        const data = points.map((p) => {
+          const h = new Date(p.timestamp).getHours();
+          return {
+            hour: h,
+            tide: p.tideLevelFt ?? 0,
+          };
+        });
         setChartData(data);
       } catch (e) {
         console.error("Failed to load tide data", e);
@@ -98,7 +112,7 @@ const TideChart = ({ beachId, hours = 24, chartData: chartDataProp }: { beachId?
             tickMargin={8}
             fontSize={11}
             domain={[
-              0,
+              (dataMin: number) => Math.floor(dataMin) - 1,
               (dataMax: number) => Math.max(Math.ceil(dataMax) + 1, 8),
             ]}
           />

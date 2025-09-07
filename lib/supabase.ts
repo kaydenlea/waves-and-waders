@@ -405,10 +405,13 @@ export async function fetchBeachTides(
     endDate: endDate?.toISOString()
   });
 
+  // Coerce to numeric id when possible to match DB type
+  const idValue: any = /^\d+$/.test(beachId) ? Number(beachId) : beachId
+
   let q = supabase
     .from('beach_tides_hourly')
     .select('timestamp,tide_level_ft,tide_level_m')
-    .eq('beach_id', beachId)
+    .eq('beach_id', idValue)
     .order('timestamp', { ascending: true })
 
   if (startDate) q = q.gte('timestamp', startDate.toISOString())
@@ -687,7 +690,8 @@ export async function fetchCurrentConditions(beachId: string): Promise<ForecastD
     .select('*') // This will now include the new tertiary swell columns
     .eq('beach_id', idValue)
     .order('timestamp', { ascending: false })
-    .maybeSingle() // <-- one row
+    .limit(1)
+    .maybeSingle() // ensure only one row is returned to avoid PGRST116
 
   if (error) {
     const hasDetails = (error as any)?.message || (error as any)?.code
@@ -736,6 +740,36 @@ export async function fetchWeeklyForecast(beachId: string): Promise<ForecastData
   const now = new Date()
   const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
   return fetchBeachForecast(beachId, now, weekFromNow)
+}
+
+// Returns the earliest and latest timestamps available for a beach's forecast data
+export async function fetchForecastRange(
+  beachId: string
+): Promise<{ start: string; end: string } | null> {
+  const idValue: any = /^\d+$/.test(beachId) ? Number(beachId) : beachId
+
+  const earliest = await supabase
+    .from('forecast_data')
+    .select('timestamp')
+    .eq('beach_id', idValue)
+    .order('timestamp', { ascending: true })
+    .limit(1)
+    .maybeSingle()
+
+  if (earliest.error) return null
+  if (!earliest.data) return null
+
+  const latest = await supabase
+    .from('forecast_data')
+    .select('timestamp')
+    .eq('beach_id', idValue)
+    .order('timestamp', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (latest.error || !latest.data) return null
+
+  return { start: (earliest.data as { timestamp: string }).timestamp, end: (latest.data as { timestamp: string }).timestamp }
 }
 
 export async function searchBeaches(searchTerm: string): Promise<Beach[]> {

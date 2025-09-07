@@ -19,7 +19,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { fetchBeachForecast } from "@/lib/supabase";
+import { fetchBeachForecast, fetchBeachByIdLoose } from "@/lib/supabase";
 
 type Props = { beachId?: string; hours?: number };
 type Row = { hour: number; max: number; range: string };
@@ -49,15 +49,16 @@ const SurfChart = ({ beachId, hours = 24 }: Props) => {
           ]);
           return;
         }
+        const resolved = await fetchBeachByIdLoose(beachId);
+        const id = resolved?.id ?? beachId;
         const start = new Date();
         const end = new Date(start.getTime() + hours * 60 * 60 * 1000);
-        const rows = await fetchBeachForecast(beachId, start, end);
-        const baseHour = start.getHours();
-        const data: Row[] = rows.map((r, idx) => {
+        const rows = await fetchBeachForecast(id, start, end);
+        const data: Row[] = rows.map((r) => {
           const min = r.surf.heightMin ?? 0;
           const max = r.surf.heightMax ?? 0;
           return {
-            hour: (baseHour + idx) % 24,
+            hour: new Date(r.timestamp).getHours(),
             max,
             range: min === max ? `${max.toFixed(0)}` : `${min.toFixed(0)}-${max.toFixed(0)}`,
           };
