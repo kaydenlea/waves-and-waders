@@ -216,28 +216,41 @@ def analyze_swell_conditions(primary, secondary, tertiary):
 
 def get_surf_height_range(significant_wave_height_m, swell_height_ft=None):
     """
-    Calculate surf height range from significant wave height.
-    Uses the standard oceanographic conversion factors.
-    
+    Calculate a compact surf height range from significant wave height.
+    Returns Surfline-style bands (e.g., 2-3 ft, 3-5 ft) instead of very
+    wide ranges.
+
     Args:
         significant_wave_height_m: Significant wave height in meters
-        swell_height_ft: Optional swell height for validation
-    
+        swell_height_ft: Optional swell height for validation (unused here)
+
     Returns:
         tuple: (surf_min_ft, surf_max_ft)
     """
     if significant_wave_height_m is None:
         return None, None
-    
+
     try:
-        # Standard surf forecasting conversions
-        # Max: Hs * 1.86 (roughly 1.8-2.0 multiplier for occasional larger sets)
-        # Min: Hs * 0.5 (smaller waves in the mix)
-        surf_max_ft = safe_float((significant_wave_height_m * 3.28084) * 1.86)
-        surf_min_ft = safe_float((significant_wave_height_m * 3.28084) * 0.5)
-        
-        return surf_min_ft, surf_max_ft
-        
+        hs_ft = safe_float(significant_wave_height_m * 3.28084)
+        if hs_ft is None:
+            return None, None
+
+        # Width buckets by size
+        if hs_ft < 3:
+            width = 1
+        elif hs_ft < 6:
+            width = 2
+        else:
+            width = 3
+
+        band_min = max(0, math.floor(hs_ft - (width / 2.0)))
+        band_max = band_min + width
+
+        if band_max <= band_min:
+            band_max = band_min + 1
+
+        return float(band_min), float(band_max)
+
     except Exception as e:
         logger.error(f"Error calculating surf height range: {e}")
         return None, None

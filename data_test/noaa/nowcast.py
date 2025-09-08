@@ -23,6 +23,9 @@ except ImportError:
     print("ERROR: Could not import required modules - make sure config.py, utils.py, and database.py are available")
     sys.exit(1)
 
+# Use the same compact surf-range logic used elsewhere
+from swell_ranking import get_surf_height_range
+
 # Configuration
 CDIP_NOWCAST_URLS = {
     'socal': "http://thredds.cdip.ucsd.edu/thredds/dodsC/cdip/model/MOP_alongshore/socal_alongshore_nowcast.nc",
@@ -304,13 +307,16 @@ def update_records_with_cdip_nowcast(existing_records: List[Dict], beaches: List
             if wave_energy_kj is None:
                 wave_energy_kj = (1025 * 9.81 / 16) * (hs_m ** 2) * (tp_s / 10) / 1000
             
+            # Compute compact Surfline-style height range (in feet)
+            rmin_ft, rmax_ft = get_surf_height_range(hs_m)
+
             # Update ONLY the wave-related fields with CDIP nowcast data
             updated_record.update({
                 "primary_swell_height_ft": safe_float(hs_ft),
                 "primary_swell_period_s": safe_float(tp_s),
                 "primary_swell_direction": safe_float(dp_deg) if not np.isnan(dp_deg) else None,
-                "surf_height_min_ft": safe_float(hs_ft * 0.5),
-                "surf_height_max_ft": safe_float(hs_ft * 1.86),
+                "surf_height_min_ft": safe_float(rmin_ft),
+                "surf_height_max_ft": safe_float(rmax_ft),
                 "wave_energy_kj": safe_float(wave_energy_kj),
             })
             
@@ -414,9 +420,8 @@ def create_cdip_nowcast_records(beaches: List[Dict], cdip_data: Dict) -> List[Di
                 # Convert to feet
                 hs_ft = hs_m * M_TO_FT
                 
-                # Calculate surf height range
-                surf_min_ft = hs_ft * 0.5
-                surf_max_ft = hs_ft * 1.86
+                # Calculate compact Surfline-style surf height range (feet)
+                surf_min_ft, surf_max_ft = get_surf_height_range(hs_m)
                 
                 # Calculate wave energy (spectral if available, otherwise parametric)
                 wave_energy_kj = calculate_spectral_energy(cdip_data, cdip_idx, time_idx)

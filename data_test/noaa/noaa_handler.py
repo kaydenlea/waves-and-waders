@@ -21,7 +21,7 @@ from utils import (
     nonempty_record
 )
 from swell_ranking import (
-    rank_swell_trains, calculate_wave_energy_kj
+    rank_swell_trains, calculate_wave_energy_kj, get_surf_height_range
 )
 
 # CDIP Constants
@@ -816,10 +816,9 @@ def process_beach_with_cached_data(beach, grid_data, grid_key, cdip_data=None):
         primary_height = primary['height_ft'] if primary else None
         primary_period = primary['period_s'] if primary else None
         
-        # NOAA surf height (convert to feet) - enhanced with CDIP where available
+        # NOAA surf height (compact display range in feet) - enhanced with CDIP where available
         sig_wave_height_m = safe_float(grid_data['sig_wave_height'][i])
-        surf_max_ft = safe_float(meters_to_feet(sig_wave_height_m * 1.86)) if sig_wave_height_m else None
-        surf_min_ft = safe_float(meters_to_feet(sig_wave_height_m * 0.5)) if sig_wave_height_m else None
+        surf_min_ft, surf_max_ft = get_surf_height_range(sig_wave_height_m)
         
         # NOAA wind data (convert to mph)
         wind_speed_mph = safe_float(mps_to_mph(grid_data['wind_speed_mps'][i]))
