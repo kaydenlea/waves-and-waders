@@ -13,7 +13,13 @@ import {
 } from "@/components/ui/carousel";
 import { Cloudy, Sun } from "lucide-react";
 
-const DatePicker = ({ className }: { className?: string }) => {
+const DatePicker = ({
+  className,
+  forecast = false,
+}: {
+  className?: string;
+  forecast?: boolean;
+}) => {
   const today = dayjs();
   const totalDays = 14;
   const days = Array.from({ length: totalDays }, (_, i) => today.add(i, "day"));
@@ -37,10 +43,26 @@ const DatePicker = ({ className }: { className?: string }) => {
     const prevIndex = Math.max(api.selectedScrollSnap() - scrollBy, 0);
     api.scrollTo(prevIndex);
   };
+
+  let startIdx: number = 0;
+  let endIdx: number;
+  days.forEach((day, index) => {
+    if (selectedDate.isSame(day, "day")) {
+      startIdx = index;
+      return;
+    }
+  });
+  if (startIdx + 6 > days.length - 1) {
+    endIdx = startIdx;
+    startIdx -= 6;
+  } else {
+    endIdx = startIdx + 6;
+  }
+
   return (
     <div
       className={cn(
-        "relative w-full bg-highlight-4 px-2 py-3 rounded-t-xl drop-shadow-sm",
+        "relative w-full bg-highlight-4 px-2 py-3 rounded-t-xl shadow-even",
         className
       )}
     >
@@ -65,20 +87,37 @@ const DatePicker = ({ className }: { className?: string }) => {
               ) : (
                 <Cloudy size={16} color="#bdbdbdff" />
               );
+            let itemStyle = "bg-highlight-4 rounded-md";
+            if (typeof startIdx === "number" && forecast) {
+              if (startIdx === index) {
+                itemStyle =
+                  "bg-highlight-7 rounded-l-md border-y-border border-l-border";
+              } else if (index === endIdx) {
+                itemStyle =
+                  "bg-highlight-7 rounded-r-md border-y-border border-r-border";
+              } else if (startIdx <= index && index <= endIdx) {
+                itemStyle = "bg-highlight-7 border-y-border";
+              }
+            }
             return (
               <CarouselItem
                 key={index}
                 className={cn(
-                  "basis-1/3 @min-md:basis-1/5 @min-2xl:basis-1/7 @min-4xl:basis-1/10 flex justify-center py-1 px-1"
+                  "basis-1/3 @min-md:basis-1/5 @min-2xl:basis-1/7 @min-4xl:basis-1/10 flex justify-center"
                 )}
               >
                 <button
-                  onClick={() => setSelectedDate(day)}
+                  onClick={() => {
+                    // if (!forecast || startIdx > index || index > endIdx) {
+                    //   setSelectedDate(day);
+                    // }
+                    setSelectedDate(day);
+                  }}
                   className={cn(
-                    "flex flex-col items-center w-full py-1.5 rounded-sm text-center text-sm font-medium transition-colors",
-                    isSelected
-                      ? "bg-highlight-2 border border-border"
-                      : "hover:bg-highlight-5"
+                    "flex flex-col items-center w-full py-3 text-center text-sm font-medium transition-colors hover:bg-highlight-5/60 border border-transparent",
+                    !forecast && "rounded-md",
+                    !forecast && isSelected && "bg-highlight-7 border-border",
+                    forecast && itemStyle
                   )}
                 >
                   <span className="font-semibold text-[0.65rem] whitespace-nowrap">

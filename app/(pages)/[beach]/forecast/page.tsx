@@ -19,8 +19,11 @@ export const metadata: Metadata = {
 const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
   const { beach } = await params;
   return (
-    <div id="content" className="@container p-2 scroll-mt-30">
-      <header className="relative w-full flex flex-col gap-6 px-2">
+    <div className="@container p-2">
+      <header
+        id="content"
+        className="relative w-full flex flex-col gap-6 px-2 scroll-mt-30"
+      >
         <PageTabs
           defaultPage="forecast"
           beach={beach}
@@ -35,7 +38,7 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
           <h2 className="ml-2 text-muted-foreground text-lg">
             Weekly Forecast
           </h2>
-          <LazyLoadDatePicker className="rounded-b-xl mt-4 mb-4" />
+          <LazyLoadDatePicker forecast className="rounded-b-xl mt-4 mb-4" />
         </section>
         <section id="forecast-content" className="scroll-mt-25">
           <header className="mx-2 flex gap-12 justify-between">

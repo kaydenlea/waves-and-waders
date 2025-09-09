@@ -18,6 +18,7 @@ import BackButton from "@/components/general/BackButton";
 import type { Metadata } from "next";
 import { Pencil, ArrowLeft as BackIcon, Heart } from "lucide-react";
 import SaveButton from "@/components/general/SaveButton";
+import GradientCircle from "@/components/general/Stats/GradientCircle";
 
 const chartData = [
   { hour: 0, tide: 5, isPeak: 5 },
@@ -57,8 +58,11 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
   const { beach } = await params;
   const isFav = false;
   return (
-    <div id="content" className="@container p-2 scroll-mt-30">
-      <header className="relative w-full flex flex-col gap-6 px-2">
+    <div className="@container p-2">
+      <header
+        id="content"
+        className="relative w-full flex flex-col gap-6 px-2 scroll-mt-30"
+      >
         <PageTabs
           defaultPage="overview"
           beach={beach}
@@ -102,10 +106,57 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
           </Link>
         </header>
         {/* <Dashboard /> */}
-        <div className="mt-2 mb-8">
+        <section className="mt-2 mb-8">
           <LazyLoadDatePicker />
+          <section className="p-4 bg-highlight-4 border-y border-border/60 shadow-even flex justify-center gap-2">
+            <div className="relative p-2 w-50 rounded-lg bg-highlight-7 hidden @min-3xl:block shadow-sm border border-border/50">
+              <h3 className="absolute top-2 left-2 text-xs font-semibold">
+                TIDE
+              </h3>
+              <div className="flex justify-center items-center h-full">
+                <GradientCircle
+                  color="bg-highlight-7"
+                  condition="tide"
+                  size={90}
+                  percentage={80}
+                  data={"2-3"}
+                />
+              </div>
+            </div>
+            <div className="flex-1 p-3 bg-highlight-7 rounded-lg border border-border/50 shadow-even space-y-4">
+              {/* <div className="w-30 h-30 bg-gray-700 rounded-lg" /> */}
+              <div className="flex gap-2">
+                <div className="w-1 p-1 rounded-full bg-green-400" />
+                <header>
+                  <h3 className="text-xl font-semibold">
+                    Huntington Beach Summary
+                  </h3>
+                  <span className="text-sm">Tues, Sep 3, 1 PM PDT</span>
+                </header>
+              </div>
+              <p className="text-base">
+                The waves are <span className="font-bold">2-3 ft</span> and{" "}
+                <span className="font-bold">calm</span>. Be careful of winds
+                coming in at <span className="font-bold">12 mph SW</span>.
+              </p>
+            </div>
+            <div className="relative p-2 w-50 rounded-lg bg-highlight-7 hidden @min-3xl:block shadow-sm border border-border/50">
+              <h3 className="absolute top-2 left-2 text-xs font-semibold">
+                WIND
+              </h3>
+              <div className="flex justify-center items-center h-full">
+                <GradientCircle
+                  color="bg-highlight-7"
+                  condition="wind"
+                  size={90}
+                  percentage={20}
+                  data={"12"}
+                />
+              </div>
+            </div>
+          </section>
           <LazyLoadHourSlider />
-        </div>
+        </section>
         <section className="flex-1">
           <header className="ml-2 mb-6">
             {/* <Calendar className="h-7 w-7" /> */}

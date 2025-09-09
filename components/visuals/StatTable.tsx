@@ -130,11 +130,14 @@ const StatTable = ({
   const [currentPage, setCurrentPage] = React.useState(0);
   const [startIndex, setStartIndex] = React.useState(0);
 
-  React.useEffect(() => {
-    const handleResize = () => {
-      const tableContainer = document.querySelector("#content");
-      const width = tableContainer ? tableContainer.clientWidth : 0;
+  const tableRef = React.useRef<HTMLTableElement>(null);
 
+  React.useEffect(() => {
+    const table = tableRef.current;
+    if (!table) return;
+
+    const adjustData = () => {
+      const width = table.clientWidth;
       if (width < 750) {
         setVisibleCols(3);
       } else {
@@ -143,11 +146,32 @@ const StatTable = ({
       }
     };
 
-    handleResize();
-    window.addEventListener("resize", handleResize);
+    const observer = new ResizeObserver(adjustData);
+    observer.observe(table);
 
-    return () => window.removeEventListener("resize", handleResize);
+    adjustData();
+
+    return () => observer.disconnect();
   }, []);
+
+  // React.useEffect(() => {
+  //   const handleResize = () => {
+  //     const tableContainer = document.querySelector("#content");
+  //     const width = tableContainer ? tableContainer.clientWidth : 0;
+
+  //     if (width < 750) {
+  //       setVisibleCols(3);
+  //     } else {
+  //       setVisibleCols(5);
+  //       setCurrentPage(0);
+  //     }
+  //   };
+
+  //   handleResize();
+  //   window.addEventListener("resize", handleResize);
+
+  //   return () => window.removeEventListener("resize", handleResize);
+  // }, []);
 
   const columnPages =
     visibleCols !== 5
@@ -198,7 +222,10 @@ const StatTable = ({
           days="Wed, 8/15 - Fri, 8/17"
         />
       )}
-      <table className="w-full table-auto border-collapse text-sm">
+      <table
+        ref={tableRef}
+        className="w-full table-auto border-collapse text-sm"
+      >
         <thead>
           <tr>
             <th className="sticky left-0 z-1 bg-highlight-4" />

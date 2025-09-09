@@ -80,7 +80,7 @@ const VisualWrapper = ({
             )}
           </header>
         </div>
-        <div className="px-2 pt-6 pb-4">{children}</div>
+        <div className="px-2 pt-6 pb-4 overflow-x-hidden">{children}</div>
       </div>
     </figure>
   );

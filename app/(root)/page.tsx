@@ -195,7 +195,7 @@
 //   );
 // }
 
-"use client";
+// "use client";
 
 import React, { Suspense, useMemo } from "react";
 import Link from "next/link";
@@ -409,8 +409,8 @@ const Home = () => {
 
   return (
     <div className="touch-pan-y">
-      <header className="fixed top-0 z-40 w-full border-b border-border bg-background/60 backdrop-blur">
-        <div className="mx-auto flex items-center justify-between px-4 py-5 sm:px-6">
+      <header className="fixed top-0 z-40 w-full border-x border-b border-border bg-background/60 backdrop-blur rounded-b-md">
+        <div className="mx-auto flex items-center justify-between px-4 py-6 sm:px-6">
           <Link href="#" className="group inline-flex items-center gap-2">
             <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-cyan-300 to-blue-500 text-foreground shadow-lg shadow-cyan-500/20">
               <Waves className="h-6 w-6" aria-hidden />

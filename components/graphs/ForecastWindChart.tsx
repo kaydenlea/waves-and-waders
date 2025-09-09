@@ -49,11 +49,14 @@ const ForecastWindChart = () => {
   const [startIndex, setStartIndex] = React.useState(0);
   const [windowSize, setWindowSize] = React.useState(0);
 
-  React.useEffect(() => {
-    const handleResize = () => {
-      const container = document.querySelector("#content");
-      const width = container ? container.clientWidth : 0;
+  const chartRef = React.useRef<HTMLDivElement>(null);
 
+  React.useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+
+    const adjustData = () => {
+      const width = chart.clientWidth;
       if (width < 500) {
         setWindowSize(3);
       } else if (width < 750) {
@@ -63,11 +66,33 @@ const ForecastWindChart = () => {
       }
     };
 
-    handleResize();
-    window.addEventListener("resize", handleResize);
+    const observer = new ResizeObserver(adjustData);
+    observer.observe(chart);
 
-    return () => window.removeEventListener("resize", handleResize);
+    adjustData();
+
+    return () => observer.disconnect();
   }, []);
+
+  // React.useEffect(() => {
+  //   const handleResize = () => {
+  //     const container = document.querySelector("#content");
+  //     const width = container ? container.clientWidth : 0;
+
+  //     if (width < 500) {
+  //       setWindowSize(3);
+  //     } else if (width < 750) {
+  //       setWindowSize(5);
+  //     } else {
+  //       setWindowSize(7);
+  //     }
+  //   };
+
+  //   handleResize();
+  //   window.addEventListener("resize", handleResize);
+
+  //   return () => window.removeEventListener("resize", handleResize);
+  // }, []);
 
   const handleNext = () => {
     if (startIndex + windowSize < chartData.length) {
@@ -95,6 +120,7 @@ const ForecastWindChart = () => {
         />
       )}
       <ChartContainer
+        ref={chartRef}
         config={chartConfig}
         className="aspect-auto h-[250px] w-full"
       >

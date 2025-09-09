@@ -21,7 +21,7 @@ const PageTabs = ({
       {buttons && (
         <>
           <Link
-            href={`/beaches`}
+            href={`/beaches#content`}
             className="bg-highlight-5 hover:bg-highlight-3 my-auto rounded-full p-2"
           >
             <Map className="w-5 h-5 @min-sm:w-6 @min-sm:h-6" />
@@ -33,7 +33,9 @@ const PageTabs = ({
         <Link
           className={cn(
             "px-3 py-1 rounded-full capitalize",
-            defaultPage === tabs[0] && "bg-background dark:bg-highlight-5"
+            defaultPage === tabs[0]
+              ? "bg-background dark:bg-highlight-5"
+              : "hover:bg-background/50 dark:hover:bg-highlight-5/50"
           )}
           href={beach ? `/${beach}/overview#content` : "/beaches"}
         >
@@ -42,7 +44,9 @@ const PageTabs = ({
         <Link
           className={cn(
             "px-3 py-1 rounded-full capitalize",
-            defaultPage === tabs[1] && "bg-background dark:bg-highlight-5"
+            defaultPage === tabs[1]
+              ? "bg-background dark:bg-highlight-5"
+              : "hover:bg-background/50 dark:hover:bg-highlight-5/50"
           )}
           href={beach ? `/${beach}/forecast#content` : "/beaches"}
         >

@@ -11,8 +11,14 @@ import {
   MousePointer2 as ArrowIcon,
   Tag as TagIcon,
   Fish,
+  Toilet,
+  CircleParking,
+  Dog,
+  Shell,
+  LifeBuoy,
 } from "lucide-react";
 import Tag from "./Tag";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 
 export type Beach = {
   id: string;
@@ -54,19 +60,19 @@ function StarRating({ value }: { value: number }) {
 
 const tags = [
   { label: "Fishing", icon: <Fish size={16} />, color: "bg-blue" },
-  // { label: "Bathrooms", icon: <Toilet size={16} />, color: "bg-yellow" },
-  // {
-  //   label: "Parking",
-  //   icon: <CircleParking size={16} />,
-  //   color: "bg-green",
-  // },
-  // { label: "Dogs", icon: <Dog size={16} />, color: "bg-red" },
-  // { label: "Sandy", icon: <Shell size={16} />, color: "bg-orange" },
-  // {
-  //   label: "Lifeguard",
-  //   icon: <LifeBuoy size={16} />,
-  //   color: "bg-purple",
-  // },
+  { label: "Bathrooms", icon: <Toilet size={16} />, color: "bg-yellow" },
+  {
+    label: "Parking",
+    icon: <CircleParking size={16} />,
+    color: "bg-green",
+  },
+  { label: "Dogs", icon: <Dog size={16} />, color: "bg-red" },
+  { label: "Sandy", icon: <Shell size={16} />, color: "bg-orange" },
+  {
+    label: "Lifeguard",
+    icon: <LifeBuoy size={16} />,
+    color: "bg-purple",
+  },
 ];
 
 const BeachCard = ({
@@ -116,8 +122,8 @@ const BeachCard = ({
       </div>
       <div className="p-4 flex-1 flex flex-col justify-between">
         <div className="flex flex-col gap-2">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex gap-1">
+          <div className="flex items-start justify-between gap-3 w-full">
+            <div className="flex gap-1 truncate">
               <div className="w-1 bg-green-300 p-1 rounded-full" />
               <div className="min-w-0">
                 <h3 className="truncate text-md font-semibold leading-tight text-foreground">
@@ -128,7 +134,7 @@ const BeachCard = ({
                 </p>
               </div>
             </div>
-            <div className="text-foreground/70 text-sm">
+            <div className="text-foreground/70 text-sm whitespace-nowrap">
               {distance != null ? (
                 <span>
                   {Math.round(Number(distance.toFixed(1)))}{" "}
@@ -185,10 +191,21 @@ const BeachCard = ({
           </div>
         </div>
         <div className="mt-4 flex items-center justify-between">
-          <span className="text-sm py-1 px-3 rounded-full bg-highlight-5 hover:bg-highlight-3 flex gap-1 items-center">
-            <TagIcon className="h-4 w-4" />
-            Tags
-          </span>
+          <Popover>
+            <PopoverTrigger>
+              <span className="text-sm py-1 px-3 rounded-full bg-highlight-5 hover:bg-highlight-3 flex gap-1 items-center">
+                <TagIcon className="h-4 w-4" />
+                Tags
+              </span>
+            </PopoverTrigger>
+            <PopoverContent className="max-w-70">
+              <div className="grid grid-cols-2 gap-1">
+                {tags.map((tag) => (
+                  <Tag key={tag.label} data={tag} />
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
           {/* <Tag data={tags[0]} /> */}
           <div className="flex items-center gap-2">
             <button

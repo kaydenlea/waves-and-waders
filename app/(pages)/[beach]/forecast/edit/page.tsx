@@ -42,7 +42,10 @@ const chartData = [
 const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
   const { beach } = await params;
   return (
-    <div id="content" className="@container p-2 scroll-mt-25">
+    <div
+      id="content"
+      className="@container p-2 -mt-[calc(100vh-6rem)] @min-3xl:-mt-0"
+    >
       {/* <header className="ml-2">
         <h1 className="font-semibold text-4xl tracking-tight">
           Huntington Beach
@@ -56,7 +59,7 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
       </section> */}
       <section
         id="forecast-content"
-        className="flex flex-col gap-3 w-full mb-2 scroll-mt-25"
+        className="flex flex-col gap-3 w-full mb-2 scroll-mt-30"
       >
         <header className="mx-2 flex justify-between">
           <div>

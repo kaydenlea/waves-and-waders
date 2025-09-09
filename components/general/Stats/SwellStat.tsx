@@ -33,7 +33,7 @@ const SwellStat = ({
       className={cn(
         "flex items-center justify-center",
         primary
-          ? "border border-border shadow-sm rounded-md px-1 gap-1"
+          ? "border border-border shadow-sm rounded-md px-0.5 gap-1"
           : "gap-1"
       )}
     >
@@ -41,7 +41,7 @@ const SwellStat = ({
         if (stat.label === "swell wind arrow") {
           return (
             <ArrowIcon
-              size={primary ? 14 : 10}
+              size={primary ? 16 : 12}
               fill="#51e72bff"
               color="#51e72bff"
               key={stat.label}

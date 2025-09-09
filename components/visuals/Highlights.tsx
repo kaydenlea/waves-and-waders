@@ -192,10 +192,10 @@ const HighlightCard = ({
   };
   return (
     <div className="flex flex-col gap-4 items-center">
-      <h3 className="absolute top-2 left-2  text-muted-foreground text-[0.7rem] font-medium whitespace-nowrap">
+      <h3 className="absolute top-2 left-2 text-muted-foreground text-[0.7rem] font-medium whitespace-nowrap">
         {label.toUpperCase()}
       </h3>
-      <div className="p-0.5 rounded-full bg-highlight-5/50 border border-border/40 absolute -top-3 right-2">
+      <div className="p-0.5 rounded-full bg-highlight-5/50 border border-border/40 absolute -top-3 right-1">
         <div
           className={cn(
             "flex justify-center items-center w-8 h-8 rounded-full",
@@ -244,7 +244,7 @@ const Highlights = ({
           Showing the stats for the day
         </p>
       </header> */}
-      <ul className="grid grid-cols-2 @min-lg:grid-cols-4 @min-4xl:grid-cols-8 gap-3.5">
+      <ul className="grid grid-cols-2 @min-lg:grid-cols-4 @min-5xl:grid-cols-8 gap-1.5">
         {stats.slice(startIdx, endIdx + 1).map((stat) => {
           let content;
           switch (stat.label) {
@@ -311,7 +311,10 @@ const Highlights = ({
               //     {content}
               //   </div>
               // </li>
-              <li key={stat.label} className="relative highlight-card">
+              <li
+                key={stat.label}
+                className="relative highlight-card shadow-even"
+              >
                 <div className="flex-1 flex items-center justify-center gap-1 mt-1 h-full">
                   {content}
                 </div>

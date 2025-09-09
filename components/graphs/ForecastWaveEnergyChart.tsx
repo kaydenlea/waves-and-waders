@@ -180,11 +180,14 @@ const ForecastWaveEnergyChart = () => {
   const [startIndex, setStartIndex] = React.useState(0);
   const [windowSize, setWindowSize] = React.useState(0);
 
-  React.useEffect(() => {
-    const handleResize = () => {
-      const container = document.querySelector("#content");
-      const width = container ? container.clientWidth : 0;
+  const chartRef = React.useRef<HTMLDivElement>(null);
 
+  React.useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+
+    const adjustData = () => {
+      const width = chart.clientWidth;
       if (width < 550) {
         setWindowSize(25);
       } else if (width < 750) {
@@ -194,11 +197,33 @@ const ForecastWaveEnergyChart = () => {
       }
     };
 
-    handleResize();
-    window.addEventListener("resize", handleResize);
+    const observer = new ResizeObserver(adjustData);
+    observer.observe(chart);
 
-    return () => window.removeEventListener("resize", handleResize);
+    adjustData();
+
+    return () => observer.disconnect();
   }, []);
+
+  // React.useEffect(() => {
+  //   const handleResize = () => {
+  //     const container = document.querySelector("#content");
+  //     const width = container ? container.clientWidth : 0;
+
+  //     if (width < 550) {
+  //       setWindowSize(25);
+  //     } else if (width < 750) {
+  //       setWindowSize(49);
+  //     } else {
+  //       setWindowSize(73);
+  //     }
+  //   };
+
+  //   handleResize();
+  //   window.addEventListener("resize", handleResize);
+
+  //   return () => window.removeEventListener("resize", handleResize);
+  // }, []);
 
   const handleNext = () => {
     if (startIndex + windowSize < chartData.length) {
@@ -231,6 +256,7 @@ const ForecastWaveEnergyChart = () => {
         days="Wed, 8/15 - Fri, 8/17"
       />
       <ChartContainer
+        ref={chartRef}
         config={chartConfig}
         className="@min-md:aspect-auto @min-md:h-[250px] w-full"
       >

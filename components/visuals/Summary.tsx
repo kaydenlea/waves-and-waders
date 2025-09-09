@@ -99,7 +99,7 @@ const Summary = () => {
             <li
               key={stat.type}
               className={cn(
-                "highlight-card flex flex-col overflow-hidden",
+                "highlight-card shadow-even flex flex-col overflow-hidden",
                 stat.type === "features" &&
                   "col-span-2 @min-xl:col-span-3 @min-4xl:col-span-6"
               )}

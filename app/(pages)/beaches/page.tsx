@@ -185,7 +185,7 @@ const BEACHES: Beach[] = [
 const page = () => {
   const favorites = ["2", "4"];
   return (
-    <div id="content" className="@container p-2 scroll-mt-25">
+    <div className="@container p-2">
       <div className="relative w-full flex flex-col gap-6">
         {/* <Tabs
           defaultValue="nearby"
@@ -205,14 +205,14 @@ const page = () => {
           tabs={["nearby", "saved"]}
           defaultPage="nearby"
         />
-        <header className="ml-2 mb-4">
+        <header id="content" className="ml-2 mb-4 scroll-mt-30">
           <h1 className="font-semibold text-3xl tracking-tight">Surf spots</h1>
           <span className="text-muted-foreground">
             Explore nearby beaches on the map
           </span>
         </header>
       </div>
-      <section className="grid grid-cols-1 gap-3 @min-md:grid-cols-2 @min-4xl:grid-cols-3 mb-2">
+      <section className="grid grid-cols-1 gap-3 @min-md:grid-cols-2 mb-2">
         {BEACHES.map((b) => (
           <BeachCard
             key={b.id}

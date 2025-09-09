@@ -2,7 +2,7 @@ import { AlignJustify, Search, SlidersVertical } from "lucide-react";
 
 const SearchBar = ({ className }: { className?: string }) => {
   return (
-    <form className="relative flex items-center gap-1 w-full justify-end @min-4xl:justify-center">
+    <form className="relative flex items-center gap-2 w-full justify-end @min-4xl:justify-center">
       <div className="pl-1.5 py-1.5 flex min-w-40 items-center rounded-full h-full shadow-lg ring ring-border/70 gap-2 bg-highlight-4 hidden @min-4xl:flex">
         <button
           aria-label="search"

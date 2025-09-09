@@ -50,14 +50,23 @@
 import Link from "next/link";
 import SearchBar from "./SearchBar";
 import ThemeToggle from "./ThemeToggle";
-import { AlignJustify, Waves } from "lucide-react";
+import { AlignJustify, TagIcon, Waves } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 
 const NavBar = () => {
   return (
     <header className="fixed px-1.5 pt-1.5 @min-3xl:p-0 z-2 w-full @container backdrop-blur-md">
       <nav
         aria-label="primary navigation"
-        className="flex items-center justify-between p-5 shadow-md bg-background rounded-md @min-3xl:rounded-none w-full border border-border"
+        className="h-23 flex items-center justify-between px-6 shadow-md bg-background rounded-md @min-3xl:rounded-t-none w-full border border-border"
       >
         {/* <Link href="/" className="p-3 icon-button">
           Logo
@@ -82,12 +91,28 @@ const NavBar = () => {
             Sign in
           </Link>
           <ThemeToggle className="hide-button" />
-          <button
-            aria-label="more options"
-            className="icon-button p-3 hover:bg-highlight-3"
-          >
-            <AlignJustify className="icon-sm" />
-          </button>
+          <Popover>
+            <PopoverTrigger className="icon-button p-3 hover:bg-highlight-3">
+              <AlignJustify className="icon-md" />
+            </PopoverTrigger>
+            <PopoverContent className="z-3 max-w-30 flex flex-col gap-1">
+              <div>Content</div>
+              <div>Sign in</div>
+            </PopoverContent>
+          </Popover>
+          {/* <DropdownMenu>
+            <DropdownMenuTrigger className="icon-button p-3 hover:bg-highlight-3">
+              <AlignJustify className="icon-md" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuLabel>My Account</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem>Profile</DropdownMenuItem>
+              <DropdownMenuItem>Billing</DropdownMenuItem>
+              <DropdownMenuItem>Team</DropdownMenuItem>
+              <DropdownMenuItem>Subscription</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu> */}
         </div>
       </nav>
     </header>
