@@ -9,6 +9,7 @@ import { LazyLoadDatePicker } from "@/components/general/LazyLoad/LazyLoadDatePi
 import { LazyLoadHourSlider } from "@/components/general/LazyLoad/LazyLoadHourSlider";
 import { LazyLoadTable } from "@/components/general/LazyLoad/LazyLoadTable";
 import { LazyLoadWind } from "@/components/general/LazyLoad/LazyLoadWind";
+import { LazyLoadMap } from "@/components/general/LazyLoad/LazyLoadMap";
 import { LazyLoadEnergy } from "@/components/general/LazyLoad/LazyLoadEnergy";
 import VisualWrapper from "@/components/general/VisualWrapper";
 import PageTabs from "@/components/general/PageTabs";
@@ -162,7 +163,7 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
           </figure>
         </div> */}
         <VisualWrapper label="Hourly Stats">
-          <LazyLoadTable numHours={8} numDays={1} />
+          <LazyLoadTable beachId={beachId} numHours={8} numDays={1} />
         </VisualWrapper>
       </section>
     </div>

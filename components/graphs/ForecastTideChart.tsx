@@ -136,9 +136,14 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-const ForecastTideChart = () => {
+import { fetchWeeklyForecast, type ForecastData } from "@/lib/supabase";
+
+type Props = { beachId?: string };
+
+const ForecastTideChart: React.FC<Props> = ({ beachId }) => {
   const [startIndex, setStartIndex] = React.useState(0);
   const [windowSize, setWindowSize] = React.useState(0);
+  const [data, setData] = React.useState<{ hour: number; tide: number; isPeak?: number }[]>([]);
 
   React.useEffect(() => {
     const handleResize = () => {
@@ -160,6 +165,28 @@ const ForecastTideChart = () => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // Load weekly forecast and map tide levels hour-by-hour
+  React.useEffect(() => {
+    const load = async () => {
+      try {
+        if (!beachId) return;
+        const rows = await fetchWeeklyForecast(beachId);
+        // Build sequential hourly tide series starting from first row
+        const series: { hour: number; tide: number; isPeak?: number }[] = [];
+        let hourIdx = 0;
+        for (const r of rows) {
+          const tide = r.conditions.tideLevel ?? null;
+          if (tide == null) continue;
+          series.push({ hour: hourIdx++, tide: Number(tide.toFixed(1)) });
+        }
+        setData(series);
+      } catch (e) {
+        console.error("Failed to load weekly tide", e);
+      }
+    };
+    load();
+  }, [beachId]);
+
   const handleNext = () => {
     if (startIndex + windowSize < chartData.length) {
       setStartIndex((prev) => prev + 24);
@@ -172,7 +199,8 @@ const ForecastTideChart = () => {
     }
   };
 
-  const visibleData = chartData.slice(startIndex, startIndex + windowSize);
+  const source = data.length ? data : chartData;
+  const visibleData = source.slice(startIndex, startIndex + windowSize);
   let start = startIndex;
 
   return (

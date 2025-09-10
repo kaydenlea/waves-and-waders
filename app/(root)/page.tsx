@@ -197,7 +197,7 @@
 
 "use client";
 
-import React, { Suspense, useMemo } from "react";
+import React, { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 // import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import ThemeToggle from "@/components/general/ThemeToggle";
@@ -227,6 +227,7 @@ import Footer from "@/components/general/Footer";
 //   { ssr: false }
 // );
 
+// Fallback demo data; replaced at runtime by API data
 const BEACHES: Beach[] = [
   {
     id: "1",
@@ -363,40 +364,84 @@ function StarRating({ value }: { value: number }) {
 }
 
 const Home = () => {
-  // const prefersReducedMotion = useReducedMotion();
-  // const [query, setQuery] = useState("");
-  const query = "";
-  // const [favorites, setFavorites] = useState<string[]>(["2", "4"]);
+  // Search + feature chips
+  const [query, setQuery] = useState("");
+  const [featureFilters, setFeatureFilters] = useState<Set<string>>(new Set());
+  // Data from API (/api/beaches includes feature flags)
+  const [apiBeaches, setApiBeaches] = useState<
+    { id: string | number; Name?: string; name?: string; COUNTY?: string; county?: string; LATITUDE?: number; latitude?: number; LONGITUDE?: number; longitude?: number; features?: Record<string, boolean> }[]
+  >([]);
+  // Location
+  const [location, setLocation] = useState<{ lat: number; lon: number } | null>(null);
   const favorites = ["2", "4"];
-  // const [location, setLocation] = useState<{ lat: number; lon: number } | null>(
-  //   null
-  // );
-  // const [useMiles, setUseMiles] = useState(true);
 
-  // useEffect(() => {
-  //   if (!navigator?.geolocation) return;
-  //   navigator.geolocation.getCurrentPosition(
-  //     (pos) =>
-  //       setLocation({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
-  //     () => {},
-  //     { enableHighAccuracy: false, maximumAge: 60000, timeout: 6000 }
-  //   );
-  // }, []);
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await fetch("/api/beaches");
+        const json = await res.json();
+        if (!cancelled && json?.success && Array.isArray(json.data)) {
+          setApiBeaches(json.data);
+        }
+      } catch (e) {
+        console.error("Home: failed to load beaches", e);
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!navigator?.geolocation) return;
+    const id = setTimeout(() => {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => setLocation({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+        () => {},
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+    }, 0);
+    return () => clearTimeout(id);
+  }, []);
 
   const computedBeaches = useMemo(() => {
-    const location = { lat: 0, lon: 0 };
-    const enriched = BEACHES.map((b) => {
-      if (!location) return b;
+    // Prefer live API data; fall back to demo BEACHES
+    const source = (apiBeaches.length ? apiBeaches.map((b) => ({
+      id: String(b.id),
+      name: b.name ?? (b as any).Name,
+      region: b.county ?? (b as any).COUNTY,
+      coords: [Number(b.latitude ?? (b as any).LATITUDE), Number(b.longitude ?? (b as any).LONGITUDE)] as [number, number],
+      features: b.features ?? {},
+    })) : BEACHES) as (Beach & { features?: Record<string, boolean> })[];
+
+    const enriched = source.map((b) => {
+      if (!location) return b as Beach;
       const km = haversineKm([location.lat, location.lon], b.coords);
-      return { ...b, distanceKm: km } as Beach;
+      return { ...(b as Beach), distanceKm: km } as Beach;
     });
-    const filtered = enriched.filter((b) =>
-      `${b.name} ${b.region}`.toLowerCase().includes(query.toLowerCase())
-    );
-    return filtered.sort(
+
+    // Apply text search
+    const q = query.trim().toLowerCase();
+    const textFiltered = q
+      ? enriched.filter((b) => `${b.name} ${b.region}`.toLowerCase().includes(q))
+      : enriched;
+
+    // Apply feature filters (all selected must be true)
+    const featureKeys = Array.from(featureFilters);
+    const featureFiltered = featureKeys.length
+      ? textFiltered.filter((b) => {
+          const f = (b as any).features || {};
+          return featureKeys.every((k) => !!f[k]);
+        })
+      : textFiltered;
+
+    // Sort by distance when available
+    return featureFiltered.sort(
       (a, z) => (a.distanceKm ?? 9e9) - (z.distanceKm ?? 9e9)
     );
-  }, [query]);
+  }, [apiBeaches, location, query, featureFilters]);
 
   const nearby = computedBeaches.slice(0, 6);
   const saved = computedBeaches.filter((b) => favorites.includes(b.id));
@@ -567,24 +612,26 @@ const Home = () => {
                     aria-label="Search for a beach"
                     className="h-12 w-full rounded-xl border border-border/50 bg-background/60 pl-10 pr-4 text-foreground placeholder:text-foreground/40 focus:outline-none focus:ring-2 focus:ring-cyan-400/60"
                     placeholder="Search beaches…"
-                    // value={query}
-                    // onChange={(e) => setQuery(e.target.value)}
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
                   />
                 </div>
                 <div className="flex w-full flex-wrap items-center gap-2 md:w-1/3 md:justify-end">
                   {[
-                    { label: "Sandy", value: "Sandy" },
-                    { label: "Bathrooms", value: "Bathrooms" },
-                    { label: "Fishing", value: "Fishing" },
+                    { label: "Sandy", key: "SNDY_BEACH" },
+                    { label: "Bathrooms", key: "RESTROOMS" },
+                    { label: "Fishing", key: "FISHING" },
                   ].map((chip) => (
                     <button
-                      key={chip.value}
-                      // onClick={() =>
-                      //   setQuery((q) =>
-                      //     q.includes(chip.value) ? q : `${q} ${chip.value}`.trim()
-                      //   )
-                      // }
-                      className="rounded-full border border-border/10 bg-muted-foreground/20 px-3 py-1 text-sm text-foreground/80 transition hover:bg-foreground/10"
+                      key={chip.key}
+                      onClick={() =>
+                        setFeatureFilters((prev) => {
+                          const next = new Set(prev);
+                          next.has(chip.key) ? next.delete(chip.key) : next.add(chip.key);
+                          return next;
+                        })
+                      }
+                      className={`rounded-full border px-3 py-1 text-sm transition ${featureFilters.has(chip.key) ? "border-blue bg-blue text-white" : "border-border/10 bg-muted-foreground/20 text-foreground/80 hover:bg-foreground/10"}`}
                     >
                       {chip.label}
                     </button>
@@ -608,7 +655,7 @@ const Home = () => {
                         </p>
                       </div>
                       <Link
-                        href={`#beach-${b.id}`}
+                        href={`/${b.id}/overview`}
                         className="text-cyan-300 hover:underline"
                       >
                         View

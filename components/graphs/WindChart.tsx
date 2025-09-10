@@ -103,7 +103,8 @@ const WindChart = ({ beachId, hours = 24 }: Props) => {
         />
         <YAxis
           dataKey="wind"
-          allowDecimals={false}
+          allowDecimals={true}
+          tickFormatter={(v: number) => (typeof v === 'number' ? v.toFixed(1) : String(v))}
           tickLine={false}
           axisLine={false}
           tickMargin={8}
@@ -167,7 +168,7 @@ const WindChart = ({ beachId, hours = 24 }: Props) => {
                       fontWeight="bold"
                       fontSize={fontSize}
                     >
-                      {`${props.value}-${props.value + 1}`}
+                      {`${props.value.toFixed(1)}-${(props.value + 1).toFixed(1)}`}
                     </text>
                   </g>
                 );

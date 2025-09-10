@@ -10,6 +10,7 @@ import { LazyLoadTable } from "@/components/general/LazyLoad/LazyLoadTable";
 import type { Metadata } from "next";
 import { Pencil } from "lucide-react";
 import PageTabs from "@/components/general/PageTabs";
+import { fetchBeachByIdLoose } from "@/lib/supabase";
 
 export const metadata: Metadata = {
   title: "Surf Weekly Forecast | Waves and Waders",
@@ -18,6 +19,9 @@ export const metadata: Metadata = {
 
 const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
   const { beach } = await params;
+  const resolved = await fetchBeachByIdLoose(beach);
+  const beachId = (resolved?.id ?? beach).toString();
+  const beachName = resolved?.Name ?? beach;
   return (
     <div id="content" className="@container p-2 scroll-mt-30">
       <header className="relative w-full flex flex-col gap-6 px-2">
@@ -26,16 +30,14 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
           beach={beach}
           tabs={["overview", "forecast"]}
         />
-        <h1 className="font-semibold text-4xl tracking-tight">
-          Huntington Beach
-        </h1>
+        <h1 className="font-semibold text-4xl tracking-tight">{beachName}</h1>
       </header>
       <section className="flex flex-col gap-4 mb-2">
         <section>
           <h2 className="ml-2 text-muted-foreground text-lg">
             Weekly Forecast
           </h2>
-          <LazyLoadDatePicker className="rounded-b-xl mt-4 mb-4" />
+          <LazyLoadDatePicker beachId={beachId} className="rounded-b-xl mt-4 mb-4" />
         </section>
         <section id="forecast-content" className="scroll-mt-25">
           <header className="mx-2 flex gap-12 justify-between">
@@ -57,19 +59,19 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
           </header>
         </section>
         <VisualWrapper label="Tide" unit="ft">
-          <LazyLoadForecastTide />
+          <LazyLoadForecastTide beachId={beachId} />
         </VisualWrapper>
         <VisualWrapper label="Surf" unit="ft">
-          <LazyLoadForecastSurf />
+          <LazyLoadForecastSurf beachId={beachId} />
         </VisualWrapper>
         <VisualWrapper label="Wind" unit="mph">
-          <LazyLoadForecastWind />
+          <LazyLoadForecastWind beachId={beachId} />
         </VisualWrapper>
         <VisualWrapper label="Wave Energy" unit="kJ">
-          <LazyLoadForecastWaveEnergy />
+          <LazyLoadForecastWaveEnergy beachId={beachId} />
         </VisualWrapper>
         <VisualWrapper label="Hourly Stats">
-          <LazyLoadTable numHours={3} numDays={7} header />
+          <LazyLoadTable beachId={beachId} numHours={3} numDays={7} header />
         </VisualWrapper>
         {/* <figure className="relative h-full bg-highlight-4 border border-border/40 p-2 rounded-2xl shadow-sm">
           <header className="mx-3 mt-3 mb-2">

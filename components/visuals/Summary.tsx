@@ -79,19 +79,19 @@ const Summary = ({ beachId }: { beachId?: string }) => {
             type: "swell",
             primary: {
               height: Number((first.swell.primary.height ?? 0).toFixed(1)),
-              period: Math.round(first.swell.primary.period ?? 0),
+              period: Number((first.swell.primary.period ?? 0).toFixed(1)),
               wind: {
                 dir: getWindDirection(first.swell.primary.direction ?? 0),
-                deg: first.swell.primary.direction ?? 0,
+                deg: Number(((first.swell.primary.direction ?? 0)).toFixed(1)),
               },
             },
             secondary: [
               {
                 height: Number((first.swell.secondary.height ?? 0).toFixed(1)),
-                period: Math.round(first.swell.secondary.period ?? 0),
+                period: Number((first.swell.secondary.period ?? 0).toFixed(1)),
                 wind: {
                   dir: getWindDirection(first.swell.secondary.direction ?? 0),
-                  deg: Math.round(first.swell.secondary.direction ?? 0),
+                  deg: Number(((first.swell.secondary.direction ?? 0)).toFixed(1)),
                 },
               },
               // Only include tertiary if present
@@ -99,10 +99,10 @@ const Summary = ({ beachId }: { beachId?: string }) => {
                 ? [
                     {
                       height: Number((first.swell.tertiary!.height ?? 0).toFixed(1)),
-                      period: Math.round(first.swell.tertiary!.period ?? 0),
+                      period: Number((first.swell.tertiary!.period ?? 0).toFixed(1)),
                       wind: {
                         dir: getWindDirection(first.swell.tertiary!.direction ?? 0),
-                        deg: Math.round(first.swell.tertiary!.direction ?? 0),
+                        deg: Number(((first.swell.tertiary!.direction ?? 0)).toFixed(1)),
                       },
                     },
                   ]

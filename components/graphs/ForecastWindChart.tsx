@@ -45,9 +45,14 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-const ForecastWindChart = () => {
+import { fetchWeeklyForecast, type ForecastData } from "@/lib/supabase";
+
+type Props = { beachId?: string };
+
+const ForecastWindChart: React.FC<Props> = ({ beachId }) => {
   const [startIndex, setStartIndex] = React.useState(0);
   const [windowSize, setWindowSize] = React.useState(0);
+  const [data, setData] = React.useState<{ day: string; wind1: number; wind2: number; wind3: number }[]>([]);
 
   React.useEffect(() => {
     const handleResize = () => {
@@ -69,6 +74,46 @@ const ForecastWindChart = () => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // Load weekly forecast and build 3 samples per day (06:00, 12:00, 18:00)
+  React.useEffect(() => {
+    const load = async () => {
+      try {
+        if (!beachId) return;
+        const rows = await fetchWeeklyForecast(beachId);
+        const byDay = new Map<string, ForecastData[]>();
+        for (const r of rows) {
+          const d = new Date(r.timestamp);
+          const key = d.toLocaleDateString("en-US", { weekday: "short" });
+          const arr = byDay.get(key) ?? [];
+          arr.push(r);
+          byDay.set(key, arr);
+        }
+        const out: { day: string; wind1: number; wind2: number; wind3: number }[] = [];
+        for (const [day, arr] of byDay.entries()) {
+          // sort by hour
+          arr.sort((a,b)=> new Date(a.timestamp).getTime()-new Date(b.timestamp).getTime());
+          const pick = (target: number) => {
+            const near = arr.reduce((best, cur) => {
+              const h = new Date(cur.timestamp).getHours();
+              const dist = Math.abs(h - target);
+              if (!best || dist < best.dist) return { dist, v: Math.round(cur.conditions.windSpeed ?? 0) };
+              return best;
+            }, null as any);
+            return near ? near.v : 0;
+          };
+          out.push({ day, wind1: pick(6), wind2: pick(12), wind3: pick(18) });
+        }
+        // Keep consistent order Mon..Sun
+        const order = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]; 
+        out.sort((a,b)=> order.indexOf(a.day) - order.indexOf(b.day));
+        setData(out);
+      } catch (e) {
+        console.error("Failed to load weekly wind", e);
+      }
+    };
+    load();
+  }, [beachId]);
+
   const handleNext = () => {
     if (startIndex + windowSize < chartData.length) {
       setStartIndex((prev) => prev + 1);
@@ -81,7 +126,8 @@ const ForecastWindChart = () => {
     }
   };
 
-  const visibleData = chartData.slice(startIndex, startIndex + windowSize);
+  const source = data.length ? data : chartData;
+  const visibleData = source.slice(startIndex, startIndex + windowSize);
   return (
     <>
       {windowSize !== 7 && (

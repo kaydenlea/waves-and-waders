@@ -205,7 +205,7 @@ const BeachCard = ({
               />
             </button>
             <Link
-              href={`/${b.name}/overview#content`}
+              href={`/${b.id}/overview`}
               className="text-center rounded-full bg-highlight-5 px-3 py-1.5 text-sm text-foreground/90 transition hover:bg-highlight-3"
             >
               View

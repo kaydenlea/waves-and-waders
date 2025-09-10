@@ -45,9 +45,14 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-const ForecastSurfChart = () => {
+import { fetchWeeklyForecast, type ForecastData } from "@/lib/supabase";
+
+type Props = { beachId?: string };
+
+const ForecastSurfChart: React.FC<Props> = ({ beachId }) => {
   const [startIndex, setStartIndex] = React.useState(0);
   const [windowSize, setWindowSize] = React.useState(0);
+  const [data, setData] = React.useState<{ day: string; tide1: number; tide2: number; tide3: number }[]>([]);
 
   React.useEffect(() => {
     const handleResize = () => {
@@ -69,6 +74,45 @@ const ForecastSurfChart = () => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // Load weekly forecast and build 3 samples per day (06:00, 12:00, 18:00) using surf height max
+  React.useEffect(() => {
+    const load = async () => {
+      try {
+        if (!beachId) return;
+        const rows = await fetchWeeklyForecast(beachId);
+        const byDay = new Map<string, ForecastData[]>();
+        for (const r of rows) {
+          const d = new Date(r.timestamp);
+          const key = d.toLocaleDateString("en-US", { weekday: "short" });
+          const arr = byDay.get(key) ?? [];
+          arr.push(r);
+          byDay.set(key, arr);
+        }
+        const out: { day: string; tide1: number; tide2: number; tide3: number }[] = [];
+        for (const [day, arr] of byDay.entries()) {
+          arr.sort((a,b)=> new Date(a.timestamp).getTime()-new Date(b.timestamp).getTime());
+          const pick = (target: number) => {
+            const near = arr.reduce((best, cur) => {
+              const h = new Date(cur.timestamp).getHours();
+              const dist = Math.abs(h - target);
+              const val = Math.round(cur.surf.heightMax ?? 0);
+              if (!best || dist < best.dist) return { dist, v: val };
+              return best;
+            }, null as any);
+            return near ? near.v : 0;
+          };
+          out.push({ day, tide1: pick(6), tide2: pick(12), tide3: pick(18) });
+        }
+        const order = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]; 
+        out.sort((a,b)=> order.indexOf(a.day) - order.indexOf(b.day));
+        setData(out);
+      } catch (e) {
+        console.error("Failed to load weekly surf", e);
+      }
+    };
+    load();
+  }, [beachId]);
+
   const handleNext = () => {
     if (startIndex + windowSize < chartData.length) {
       setStartIndex((prev) => prev + 1);
@@ -81,7 +125,8 @@ const ForecastSurfChart = () => {
     }
   };
 
-  const visibleData = chartData.slice(startIndex, startIndex + windowSize);
+  const source = data.length ? data : chartData;
+  const visibleData = source.slice(startIndex, startIndex + windowSize);
   return (
     <>
       {windowSize !== 7 && (

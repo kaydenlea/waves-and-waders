@@ -35,7 +35,7 @@ const PageTabs = ({
             "px-3 py-1 rounded-full capitalize",
             defaultPage === tabs[0] && "bg-background dark:bg-highlight-5"
           )}
-          href={beach ? `/${beach}/overview#content` : "/beaches"}
+          href={beach ? `/${beach}/overview` : "/beaches"}
         >
           {tabs[0]}
         </Link>
@@ -44,7 +44,7 @@ const PageTabs = ({
             "px-3 py-1 rounded-full capitalize",
             defaultPage === tabs[1] && "bg-background dark:bg-highlight-5"
           )}
-          href={beach ? `/${beach}/forecast#content` : "/beaches"}
+          href={beach ? `/${beach}/forecast` : "/beaches"}
         >
           {tabs[1]}
         </Link>

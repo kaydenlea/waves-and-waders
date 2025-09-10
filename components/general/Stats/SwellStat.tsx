@@ -14,27 +14,29 @@ const SwellStat = ({
   };
   small?: boolean;
 }) => {
+  const heightVal = typeof data.height === "number" ? Number(data.height.toFixed(1)) : (data.height as any);
+  const periodVal = typeof data.period === "number" ? Number(data.period.toFixed(1)) : (data.period as any);
+  const degVal = typeof data.wind.deg === "number" ? Number(data.wind.deg.toFixed(1)) : (data.wind.deg as any);
+
   const stats = [
-    { label: "swell height", value: data.height, unit: "ft" },
-    { label: "swell period", value: data.period, unit: "s" },
+    { label: "swell height", value: heightVal, unit: "ft" },
+    { label: "swell period", value: periodVal, unit: "s" },
     {
       label: "swell wind arrow",
       value: data.wind.dir,
-      unit: data.wind.deg,
+      unit: degVal,
     },
     {
       label: "swell wind",
       value: data.wind.dir,
-      unit: `${data.wind.deg}°`,
+      unit: `${typeof degVal === "number" ? degVal.toFixed(1) : degVal}°`,
     },
   ];
   return (
     <div
       className={cn(
         "flex items-center justify-center",
-        primary
-          ? "border border-border shadow-sm rounded-md px-1 gap-1"
-          : "gap-1"
+        primary ? "border border-border shadow-sm rounded-md px-1 gap-1" : "gap-1"
       )}
     >
       {stats.map((stat) => {
@@ -58,7 +60,7 @@ const SwellStat = ({
               small && primary && "text-sm font-semibold"
             )}
           >
-            {stat.value}
+            {typeof stat.value === "number" ? stat.value.toFixed(1) : stat.value}
             <span
               className={cn(
                 "font-normal",
@@ -75,3 +77,4 @@ const SwellStat = ({
 };
 
 export default SwellStat;
+

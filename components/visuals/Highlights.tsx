@@ -285,10 +285,10 @@ const Highlights = ({
           const sDir = first.swell.secondary.direction ?? 0;
           nextStats.push({
             label: "swell",
-            primary: { height: first.swell.primary.height ?? 0, period: first.swell.primary.period ?? 0, wind: { dir: getWindDirection(pDir), deg: pDir } },
+            primary: { height: Number((first.swell.primary.height ?? 0).toFixed(1)), period: Number((first.swell.primary.period ?? 0).toFixed(1)), wind: { dir: getWindDirection(pDir), deg: Number((pDir).toFixed(1)) } },
             secondary: [
-              { height: first.swell.secondary.height ?? 0, period: first.swell.secondary.period ?? 0, wind: { dir: getWindDirection(sDir), deg: sDir } },
-              { height: first.swell.tertiary?.height ?? 0, period: first.swell.tertiary?.period ?? 0, wind: { dir: getWindDirection(first.swell.tertiary?.direction ?? 0), deg: first.swell.tertiary?.direction ?? 0 } },
+              { height: Number((first.swell.secondary.height ?? 0).toFixed(1)), period: Number((first.swell.secondary.period ?? 0).toFixed(1)), wind: { dir: getWindDirection(sDir), deg: Number((sDir).toFixed(1)) } },
+              { height: Number((first.swell.tertiary?.height ?? 0).toFixed(1)), period: Number((first.swell.tertiary?.period ?? 0).toFixed(1)), wind: { dir: getWindDirection(first.swell.tertiary?.direction ?? 0), deg: Number(((first.swell.tertiary?.direction ?? 0)).toFixed(1)) } },
             ],
           });
         }

@@ -156,6 +156,51 @@ def calculate_wave_energy_kj(wave_height_ft, wave_period_s):
     except Exception:
         return None
 
+def compute_display_surf_range_ft(significant_wave_height_m, primary_height_ft=None, primary_period_s=None):
+    """Compute a compact, Surfline-style surf height range in feet.
+
+    Produces tighter, more readable bands (e.g., 2-3 ft, 3-5 ft)
+    instead of very wide min/max derived from extreme multipliers.
+
+    Logic:
+    - Center the range around the better signal: primary swell height if
+      available, otherwise significant wave height converted to feet.
+    - Choose a band width based on overall size:
+        <3 ft  -> 1 ft band (e.g., 2-3)
+        3–6 ft -> 2 ft band (e.g., 3-5)
+        >6 ft  -> 3 ft band (e.g., 6-9)
+    - Snap to whole-foot boundaries for clean display.
+    """
+    try:
+        if significant_wave_height_m is None:
+            return None, None
+
+        hs_ft = meters_to_feet(significant_wave_height_m)
+        # Prefer primary swell height if present; otherwise use Hs
+        center = safe_float(primary_height_ft) or safe_float(hs_ft)
+        if center is None:
+            return None, None
+
+        # Pick width bucket
+        if center < 3:
+            width = 1
+        elif center < 6:
+            width = 2
+        else:
+            width = 3
+
+        # Build integer-foot band around center
+        band_min = max(0, math.floor(center - (width / 2.0)))
+        band_max = band_min + width
+
+        # Ensure at least 1 ft spread
+        if band_max <= band_min:
+            band_max = band_min + 1
+
+        return float(band_min), float(band_max)
+    except Exception:
+        return None, None
+
 # === RATE LIMITING FUNCTIONS ===
 def enforce_noaa_rate_limit():
     """Enforce NOAA rate limiting with thread safety."""
@@ -657,13 +702,15 @@ def get_openmeteo_supplement_data(beaches, existing_records):
         
         logger.info(f"   Making Open-Meteo weather API call for {len(beaches)} beaches...")
         
-        # Weather API call for temperature, pressure, weather code, and wind gusts - WITH RATE LIMITING
+        # Weather API call for sustained wind, wind gusts, direction, temperature, pressure, weather - WITH RATE LIMITING
         weather_url = "https://api.open-meteo.com/v1/forecast"
         weather_params = {
             "latitude": lats,
             "longitude": lons,
             "hourly": [
-                "windgusts_10m", "temperature_2m", "pressure_msl", "weather_code"
+                # Use Open-Meteo for BOTH sustained and gusts (and direction) to keep them consistent
+                "windspeed_10m", "windgusts_10m", "winddirection_10m",
+                "temperature_2m", "pressure_msl", "weather_code"
             ],
             "timezone": "America/Los_Angeles",
             "start_date": today,
@@ -716,11 +763,13 @@ def get_openmeteo_supplement_data(beaches, existing_records):
                     utc=True
                 ).tz_convert("America/Los_Angeles")
                 
-                # Extract arrays
-                wind_gust_kph = wr.Variables(0).ValuesAsNumpy()
-                temp_2m_c = wr.Variables(1).ValuesAsNumpy()
-                pressure_hpa = wr.Variables(2).ValuesAsNumpy()
-                weather_code = wr.Variables(3).ValuesAsNumpy()
+                # Extract arrays (match order defined above)
+                wind_speed_kph = wr.Variables(0).ValuesAsNumpy()
+                wind_gust_kph = wr.Variables(1).ValuesAsNumpy()
+                wind_dir_deg = wr.Variables(2).ValuesAsNumpy()
+                temp_2m_c = wr.Variables(3).ValuesAsNumpy()
+                pressure_hpa = wr.Variables(4).ValuesAsNumpy()
+                weather_code = wr.Variables(5).ValuesAsNumpy()
                 
                 water_temp_c = mr.Variables(0).ValuesAsNumpy()
                 tide_level_m = mr.Variables(1).ValuesAsNumpy()
@@ -733,8 +782,17 @@ def get_openmeteo_supplement_data(beaches, existing_records):
                     raw_tide_ft = safe_float(meters_to_feet(tide_level_m[j]))
                     adjusted_tide_ft = (raw_tide_ft + TIDE_ADJUSTMENT_FT) if raw_tide_ft is not None else None
                     
+                    # Prefer Open-Meteo wind fields to ensure consistency between speed and gust
+                    wind_speed_mph = safe_float(kph_to_mph(wind_speed_kph[j]))
+                    wind_gust_mph = safe_float(kph_to_mph(wind_gust_kph[j]))
+                    # Sanity clamp: gust should not be lower than sustained
+                    if wind_speed_mph is not None and wind_gust_mph is not None and wind_gust_mph < wind_speed_mph:
+                        wind_gust_mph = wind_speed_mph
+
                     supplement_data[key] = {
-                        "wind_gust_mph": safe_float(kph_to_mph(wind_gust_kph[j])),
+                        "wind_speed_mph": wind_speed_mph,
+                        "wind_gust_mph": wind_gust_mph,
+                        "wind_direction_deg": safe_float(wind_dir_deg[j]),
                         "water_temp_f": safe_float(celsius_to_fahrenheit(water_temp_c[j])),
                         "tide_level_ft": adjusted_tide_ft,
                         "temperature": safe_float(celsius_to_fahrenheit(temp_2m_c[j])),
@@ -910,18 +968,22 @@ def process_beach_with_cached_data(beach, grid_data, grid_key):
         # DYNAMICALLY RANK the swell trains for this timestamp
         primary, secondary, tertiary = rank_swell_trains(swell_trains)
         
-        # NOAA surf height (convert to feet)
+        # NOAA surf height -> compact display range (feet)
         sig_wave_height_m = safe_float(grid_data['sig_wave_height'][i])
-        surf_max_ft = safe_float(meters_to_feet(sig_wave_height_m * 1.86)) if sig_wave_height_m else None
-        surf_min_ft = safe_float(meters_to_feet(sig_wave_height_m * 0.5)) if sig_wave_height_m else None
+        # Use primary swell characteristics to anchor a tighter range
+        primary_height = primary['height_ft'] if primary else None
+        primary_period = primary['period_s'] if primary else None
+        surf_min_ft, surf_max_ft = compute_display_surf_range_ft(
+            sig_wave_height_m,
+            primary_height,
+            primary_period
+        )
         
         # NOAA wind data (convert to mph)
         wind_speed_mph = safe_float(mps_to_mph(grid_data['wind_speed_mps'][i]))
         wind_direction = safe_float(grid_data['wind_direction_deg'][i])
         
         # Calculate wave energy using PRIMARY (highest ranked) swell
-        primary_height = primary['height_ft'] if primary else None
-        primary_period = primary['period_s'] if primary else None
         wave_energy_kj = calculate_wave_energy_kj(primary_height, primary_period)
         
         record = {
@@ -1025,7 +1087,9 @@ if __name__ == "__main__":
     success = main()
     exit_code = 0 if success else 1
     logger.info(f"DONE: Rate-limited hybrid script finished with exit code: {exit_code}")
-    sys.exit(exit_code) FORECAST UPDATE FUNCTIONS ===
+    sys.exit(exit_code)
+
+# === FORECAST UPDATE FUNCTIONS ===
 def update_forecast_data_hybrid(beaches):
     """Update forecast data using hybrid NOAA + Open-Meteo approach with RATE LIMITING."""
     log_step("Updating forecast data with hybrid NOAA + Open-Meteo", 4)
@@ -1199,12 +1263,14 @@ def update_forecast_data_fallback(beaches):
                     # Build records
                     n = min(len(timestamps), len(wind_speed_kph), len(surf_height_max_m))
                     for j in range(n):
-                        # Convert to imperial units
-                        surf_max_ft = safe_float(meters_to_feet(surf_height_max_m[j]))
-                        surf_min_ft = surf_max_ft * 0.7 if surf_max_ft is not None else None
-                        
+                        # Convert to imperial units and compute compact display range
                         pri_swell_height_ft = safe_float(meters_to_feet(pri_swell_h_m[j]))
                         pri_swell_period_s = safe_float(pri_swell_p[j])
+                        surf_min_ft, surf_max_ft = compute_display_surf_range_ft(
+                            safe_float(surf_height_max_m[j]),
+                            pri_swell_height_ft,
+                            pri_swell_period_s
+                        )
                         wave_energy_kj = calculate_wave_energy_kj(pri_swell_height_ft, pri_swell_period_s)
                         
                         raw_tide_ft = safe_float(meters_to_feet(tide_level_m[j]))
@@ -1234,7 +1300,8 @@ def update_forecast_data_fallback(beaches):
                             "tide_level_ft": adjusted_tide_ft,
                             
                             "wind_speed_mph": safe_float(kph_to_mph(wind_speed_kph[j])),
-                            "wind_gust_mph": safe_float(kph_to_mph(wind_gust_kph[j])),
+                            "wind_gust_mph": (lambda spd, gst: (spd if (spd is not None and gst is not None and kph_to_mph(gst) < kph_to_mph(spd)) else kph_to_mph(gst)))(wind_speed_kph[j], wind_gust_kph[j]),
+                            "wind_direction_deg": safe_float(wind_dir_deg[j]),
                             "wind_direction_deg": safe_float(wind_dir_deg[j]),
                             
                             "temperature": safe_float(celsius_to_fahrenheit(temp_2m_c[j])),
