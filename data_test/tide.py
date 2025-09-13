@@ -72,7 +72,13 @@ def chunk_iter(seq, n):
 def to_local_timestamps(start_unix, end_unix, interval_sec, tz_str="America/Los_Angeles"):
     start = pd.to_datetime(start_unix, unit="s", utc=True).tz_convert(tz_str)
     end = pd.to_datetime(end_unix, unit="s", utc=True).tz_convert(tz_str)
-    return pd.date_range(start=start, end=end, freq=pd.Timedelta(seconds=interval_sec), inclusive="left")
+    # Pandas >= 1.4 uses 'inclusive'; older versions use 'closed'.
+    freq = pd.Timedelta(seconds=interval_sec)
+    try:
+        return pd.date_range(start=start, end=end, freq=freq, inclusive="left")
+    except TypeError:
+        # Fallback for older pandas that don't support 'inclusive'
+        return pd.date_range(start=start, end=end, freq=freq, closed="left")
 
 # === FETCH BEACHES ===
 def fetch_all_beaches():
