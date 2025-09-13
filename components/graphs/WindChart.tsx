@@ -23,7 +23,7 @@ import {
 
 import { fetchBeachForecast, fetchBeachByIdLoose } from "@/lib/supabase";
 
-type Props = { beachId?: string; hours?: number };
+type Props = { beachId?: string; hours?: number; date?: Date };
 const chartConfig = {
   wind: {
     label: "Wind (mph)",
@@ -31,7 +31,7 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-const WindChart = ({ beachId, hours = 24 }: Props) => {
+const WindChart = ({ beachId, hours = 24, date }: Props) => {
   const [chartData, setChartData] = useState<{ hour: number; wind: number }[]>([]);
 
   useEffect(() => {
@@ -52,8 +52,14 @@ const WindChart = ({ beachId, hours = 24 }: Props) => {
         }
         const resolved = await fetchBeachByIdLoose(beachId);
         const id = resolved?.id ?? beachId;
-        const start = new Date();
-        const end = new Date(start.getTime() + hours * 60 * 60 * 1000);
+        let start = new Date();
+        let end = new Date(start.getTime() + hours * 60 * 60 * 1000);
+        if (date instanceof Date) {
+          const d = new Date(date);
+          d.setHours(0, 0, 0, 0);
+          start = d;
+          end = new Date(d.getTime() + 24 * 60 * 60 * 1000);
+        }
         const rows = await fetchBeachForecast(id, start, end);
         const data = rows.map((r) => ({
           hour: new Date(r.timestamp).getHours(),
@@ -65,7 +71,7 @@ const WindChart = ({ beachId, hours = 24 }: Props) => {
       }
     };
     load();
-  }, [beachId, hours]);
+  }, [beachId, hours, date]);
 
   const domainMax = useMemo(() => (chartData.length ? chartData.length - 1 : 6), [chartData]);
   return (

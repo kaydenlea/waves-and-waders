@@ -37,10 +37,10 @@ const chartConfig = {
 
 import { fetchBeachForecast, fetchBeachByIdLoose } from "@/lib/supabase";
 
-type Props = { beachId?: string; hours?: number };
+type Props = { beachId?: string; hours?: number; date?: Date };
 type Row = { time: number; primary: number; secondary: number; tertiary: number };
 
-const SwellChart = ({ beachId, hours = 24 }: Props) => {
+const SwellChart = ({ beachId, hours = 24, date }: Props) => {
   const [data, setData] = useState<Row[]>([]);
   useEffect(() => {
     const load = async () => {
@@ -60,8 +60,14 @@ const SwellChart = ({ beachId, hours = 24 }: Props) => {
         }
         const resolved = await fetchBeachByIdLoose(beachId);
         const id = resolved?.id ?? beachId;
-        const start = new Date();
-        const end = new Date(start.getTime() + hours * 60 * 60 * 1000);
+        let start = new Date();
+        let end = new Date(start.getTime() + hours * 60 * 60 * 1000);
+        if (date instanceof Date) {
+          const d = new Date(date);
+          d.setHours(0, 0, 0, 0);
+          start = d;
+          end = new Date(d.getTime() + 24 * 60 * 60 * 1000);
+        }
         const rows = await fetchBeachForecast(id, start, end);
         setData(
           rows.map((r) => ({
@@ -76,7 +82,7 @@ const SwellChart = ({ beachId, hours = 24 }: Props) => {
       }
     };
     load();
-  }, [beachId, hours]);
+  }, [beachId, hours, date]);
   return (
     <ChartContainer
       config={chartConfig}

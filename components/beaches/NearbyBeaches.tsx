@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useMapFilters } from "@/components/context/MapFilterContext";
 import BeachCard, { type Beach as UIBeach } from "@/components/general/BeachCard";
 
 type DbBeach = {
@@ -9,6 +10,15 @@ type DbBeach = {
   COUNTY: string;
   LATITUDE: number;
   LONGITUDE: number;
+};
+
+type ApiBeach = {
+  id: string | number;
+  name: string;
+  county: string;
+  latitude: number;
+  longitude: number;
+  features?: Record<string, boolean>;
 };
 
 const haversineKm = (a: [number, number], b: [number, number]) => {
@@ -25,6 +35,7 @@ const haversineKm = (a: [number, number], b: [number, number]) => {
 };
 
 export default function NearbyBeaches({ beaches }: { beaches: DbBeach[] }) {
+  const { filters } = useMapFilters();
   const initialList: UIBeach[] = useMemo(
     () =>
       (beaches || []).map((b) => ({
@@ -45,13 +56,45 @@ export default function NearbyBeaches({ beaches }: { beaches: DbBeach[] }) {
   );
 
   const [sorted, setSorted] = useState<UIBeach[]>(initialList);
+  const [apiBeaches, setApiBeaches] = useState<ApiBeach[] | null>(null);
   const [status, setStatus] = useState<
     "idle" | "locating" | "granted" | "denied" | "unavailable"
   >("idle");
 
   useEffect(() => {
+    // Load richer beach data (with features) to enable filtering like the map
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await fetch('/api/beaches');
+        const json = await res.json();
+        if (!cancelled && json?.success) setApiBeaches(json.data as ApiBeach[]);
+      } catch {}
+    };
+    load();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
     if (!navigator?.geolocation) {
       setStatus("unavailable");
+      // Still apply filter without location
+      const base = (apiBeaches ?? []).length ? apiBeaches! : (beaches || []).map(b => ({ id: b.id, name: b.Name, county: b.COUNTY, latitude: b.LATITUDE, longitude: b.LONGITUDE } as any));
+      const filtered = base.filter((b: any) => {
+        if (!filters.size) return true;
+        const feats = (b.features ?? {}) as Record<string, boolean>;
+        for (const k of filters) if (!feats[k]) return false;
+        return true;
+      });
+      const toUi = filtered.map((b: any) => ({
+        id: String(b.id),
+        name: b.name ?? b.Name,
+        region: b.county ?? b.COUNTY ?? '',
+        coords: [Number(b.latitude ?? b.LATITUDE), Number(b.longitude ?? b.LONGITUDE)],
+        image: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1600&auto=format&fit=crop",
+        conditions: { surf: '-', wind: '-', temp: 0, rating: 0 },
+      }));
+      setSorted(toUi);
       return;
     }
     setStatus("locating");
@@ -61,9 +104,21 @@ export default function NearbyBeaches({ beaches }: { beaches: DbBeach[] }) {
           pos.coords.latitude,
           pos.coords.longitude,
         ];
-        const withDistance = initialList.map((b) => ({
-          ...b,
-          distanceKm: haversineKm(origin, b.coords),
+        const base = (apiBeaches ?? []).length ? apiBeaches! : (beaches || []).map(b => ({ id: b.id, name: b.Name, county: b.COUNTY, latitude: b.LATITUDE, longitude: b.LONGITUDE } as any));
+        const filtered = base.filter((b: any) => {
+          if (!filters.size) return true;
+          const feats = (b.features ?? {}) as Record<string, boolean>;
+          for (const k of filters) if (!feats[k]) return false;
+          return true;
+        });
+        const withDistance = filtered.map((b: any) => ({
+          id: String(b.id),
+          name: b.name ?? b.Name,
+          region: b.county ?? b.COUNTY ?? '',
+          coords: [Number(b.latitude ?? b.LATITUDE), Number(b.longitude ?? b.LONGITUDE)] as [number,number],
+          image: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1600&auto=format&fit=crop",
+          conditions: { surf: '-', wind: '-', temp: 0, rating: 0 },
+          distanceKm: haversineKm(origin, [Number(b.latitude ?? b.LATITUDE), Number(b.longitude ?? b.LONGITUDE)]),
         }));
         withDistance.sort(
           (a, z) => (a.distanceKm ?? 9e9) - (z.distanceKm ?? 9e9)
@@ -73,11 +128,27 @@ export default function NearbyBeaches({ beaches }: { beaches: DbBeach[] }) {
       },
       () => {
         setStatus("denied");
-        setSorted(initialList);
+        // Fall back to filtered list without sorting by distance
+        const base = (apiBeaches ?? []).length ? apiBeaches! : (beaches || []).map(b => ({ id: b.id, name: b.Name, county: b.COUNTY, latitude: b.LATITUDE, longitude: b.LONGITUDE } as any));
+        const filtered = base.filter((b: any) => {
+          if (!filters.size) return true;
+          const feats = (b.features ?? {}) as Record<string, boolean>;
+          for (const k of filters) if (!feats[k]) return false;
+          return true;
+        });
+        const toUi = filtered.map((b: any) => ({
+          id: String(b.id),
+          name: b.name ?? b.Name,
+          region: b.county ?? b.COUNTY ?? '',
+          coords: [Number(b.latitude ?? b.LATITUDE), Number(b.longitude ?? b.LONGITUDE)],
+          image: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1600&auto=format&fit=crop",
+          conditions: { surf: '-', wind: '-', temp: 0, rating: 0 },
+        }));
+        setSorted(toUi);
       },
       { enableHighAccuracy: true, timeout: 8000 }
     );
-  }, [initialList]);
+  }, [initialList, filters, apiBeaches]);
 
   return (
     <>
@@ -99,4 +170,3 @@ export default function NearbyBeaches({ beaches }: { beaches: DbBeach[] }) {
     </>
   );
 }
-

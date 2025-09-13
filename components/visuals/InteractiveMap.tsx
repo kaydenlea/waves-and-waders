@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { AttributionControl, Map, Popup, Source, Layer } from "react-map-gl/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { FEATURE_CATEGORIES, getFeatureDisplayName } from "@/lib/supabase";
 
 type BeachPoint = {
   id: string | number;
@@ -19,7 +20,9 @@ type Props = { beachId?: string | number };
 const InteractiveMap: React.FC<Props> = ({ beachId }) => {
   const [beaches, setBeaches] = React.useState<BeachPoint[]>([]);
   const [selected, setSelected] = React.useState<BeachPoint | null>(null);
-  const [filters, setFilters] = React.useState<Set<string>>(new Set());
+  const { filters, setFilters } = require("@/components/context/MapFilterContext").useMapFilters();
+  const [located, setLocated] = React.useState<boolean>(false);
+  const [showFilters, setShowFilters] = React.useState<boolean>(false);
   const router = useRouter();
   const pathname = usePathname();
   const mapRef = React.useRef<any>(null);
@@ -82,6 +85,18 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
         return;
       }
     }
+    // Otherwise, optionally use user's location once
+    if (!located && navigator?.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setLocated(true);
+          map.easeTo({ center: [pos.coords.longitude, pos.coords.latitude], zoom: 10, duration: 600 });
+        },
+        () => setLocated(true),
+        { enableHighAccuracy: true, timeout: 7000 }
+      );
+      return;
+    }
     // Else center to all beaches (simple bbox center)
     const list = filteredBeaches.length ? filteredBeaches : beaches;
     const lons = list.map((b) => b.longitude);
@@ -103,7 +118,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
       style={{ width: "100%", height: "100%", borderRadius: "12px" }}
       mapStyle="https://demotiles.maplibre.org/style.json"
       attributionControl={false}
-      interactiveLayerIds={["clusters", "unclustered-point"]}
+      interactiveLayerIds={["clusters", "cluster-count", "unclustered-point"]}
       onClick={(e) => {
         const feature = e.features && e.features[0];
         if (!feature) return;
@@ -194,39 +209,65 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
         </Source>
       )}
 
-      {/* Filter controls */}
+      {/* Filter controls (collapsible) */}
       <div className="absolute top-2 left-2 z-[1]">
-        <div className="flex flex-wrap gap-1 bg-white/90 backdrop-blur px-2 py-1 rounded border border-border shadow">
-          {FILTER_KEYS.map((key) => {
-            const active = filters.has(key);
-            return (
-              <button
-                key={key}
-                className={
-                  "text-[10px] px-2 py-1 rounded-full border " +
-                  (active ? "bg-blue text-white border-blue" : "bg-white border-gray-300 text-gray-800")
-                }
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setFilters((prev) => {
-                    const next = new Set(prev);
-                    if (next.has(key)) next.delete(key); else next.add(key);
-                    return next;
-                  });
-                }}
-                title={key}
-              >
-                {key.replace(/_/g, ' ').toLowerCase()}
-              </button>
-            );
-          })}
-          {filters.size > 0 && (
-            <button
-              className="text-[10px] px-2 py-1 rounded-full border bg-gray-100 border-gray-300 text-gray-700"
-              onClick={(e) => { e.stopPropagation(); setFilters(new Set()); }}
-            >
-              clear
-            </button>
+        <div className="bg-white/90 backdrop-blur rounded border border-border shadow min-w-[220px]">
+          <button
+            className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium"
+            onClick={(e) => { e.stopPropagation(); setShowFilters((s) => !s); }}
+          >
+            <span>Filters {filters.size ? `(${filters.size})` : ""}</span>
+            <span className="text-gray-500">{showFilters ? "▴" : "▾"}</span>
+          </button>
+          {showFilters && (
+            <div className="max-h-72 overflow-auto px-2 pb-2">
+              {Object.entries(FEATURE_CATEGORIES).map(([catKey, cat]) => (
+                <div key={catKey} className="mb-2">
+                  <div className="px-1 py-1 text-[11px] uppercase text-gray-600 font-semibold">
+                    {(cat as any).label}
+                  </div>
+                  <div className="grid grid-cols-1 gap-1 px-1">
+                    {(cat as any).features.map((key: string) => {
+                      const checked = filters.has(key);
+                      const label = getFeatureDisplayName(key) || key;
+                      return (
+                        <label key={key} className="flex items-center gap-2 text-[12px]">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => {
+                              const che = e.currentTarget.checked;
+                              setFilters((prev) => {
+                                const next = new Set(prev);
+                                if (che) next.add(key); else next.delete(key);
+                                return next;
+                              });
+                            }}
+                          />
+                          <span>{label}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+              <div className="flex justify-end gap-2 mt-2 px-1">
+                {filters.size > 0 && (
+                  <button
+                    className="text-[11px] px-2 py-1 rounded border bg-gray-100 border-gray-300 text-gray-700"
+                    onClick={(e) => { e.stopPropagation(); setFilters(new Set()); }}
+                  >
+                    Clear
+                  </button>
+                )}
+                <button
+                  className="text-[11px] px-2 py-1 rounded border bg-highlight-4 border-border text-foreground"
+                  onClick={(e) => { e.stopPropagation(); setShowFilters(false); }}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
           )}
         </div>
       </div>

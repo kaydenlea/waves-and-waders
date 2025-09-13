@@ -350,7 +350,11 @@ export function transformToComponentFormat(data: SupabaseForecastData[]): Foreca
     const waterTempF = row.water_temp_f ?? toF(anyRow.water_temp_c ?? null)
     const tideFt = row.tide_level_ft ?? mToFt(anyRow.tide_level_m ?? null)
     const windMph = row.wind_speed_mph ?? kphToMph(anyRow.wind_speed_kph ?? null)
-    const gustMph = row.wind_gust_mph ?? kphToMph(anyRow.wind_gust_kph ?? null)
+    let gustMph = row.wind_gust_mph ?? kphToMph(anyRow.wind_gust_kph ?? null)
+    // Guardrail: ensure gust is never lower than sustained when both present
+    if (gustMph != null && windMph != null && gustMph < windMph) {
+      gustMph = windMph
+    }
     const pressureInHg = row.pressure_inhg ?? hPaToInHg(anyRow.pressure_hpa ?? null)
     const energyKj = row.wave_energy_kj ?? (anyRow.wave_energy_joules != null ? anyRow.wave_energy_joules / 1000 : null)
 

@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import React from "react";
 
-type Props = { beachId?: string };
+type Props = { beachId?: string; date?: Date };
 
 const ForecastTideChart = dynamic<React.ComponentProps<any>>(
   () => import("../../graphs/ForecastTideChart"),

@@ -8,6 +8,7 @@ type Props = {
   numHours: number;
   numDays: number;
   header?: boolean;
+  date?: Date;
 };
 
 const StatTable = dynamic<React.ComponentProps<any>>(

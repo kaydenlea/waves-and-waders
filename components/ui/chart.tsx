@@ -154,11 +154,19 @@ function ChartTooltipContent({
     }
     // console.log(item);
     if (item.name === "tide") {
-      const hour = item.payload.hour % 12 === 0 ? 12 : item.payload.hour % 12;
-      const amPm = item.payload.hour >= 12 ? "PM" : "AM";
+      const x: unknown = (item as any)?.payload?.x;
+      const hourSource: unknown = (item as any)?.payload?.hour;
+      let hourNum: number | null = null;
+      if (typeof x === "number") {
+        hourNum = new Date(x).getHours();
+      } else if (typeof hourSource === "number") {
+        hourNum = hourSource;
+      }
+      const hour = hourNum !== null ? (hourNum % 12 === 0 ? 12 : hourNum % 12) : null;
+      const amPm = hourNum !== null ? (hourNum >= 12 ? "PM" : "AM") : "";
       return (
         <div className={cn("font-medium", labelClassName)}>
-          {`${hour} ${amPm}`}
+          {hour !== null ? `${hour} ${amPm}` : value}
         </div>
       );
     }

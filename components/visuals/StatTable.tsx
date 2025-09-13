@@ -114,11 +114,13 @@ const StatTable = ({
   numHours,
   header = false,
   beachId,
+  date,
 }: {
   numDays: number;
   numHours: number;
   header?: boolean;
   beachId?: string;
+  date?: Date;
 }) => {
   const [data, setData] = React.useState<TableDay[]>([]);
 
@@ -130,16 +132,17 @@ const StatTable = ({
         const resolvedId = resolved?.id ?? beachId;
         const weekly = await fetchWeeklyForecast(resolvedId);
 
-        // Group by local (Pacific) date
+        // Group by Pacific date (explicit timezone to avoid browser locale shifts)
         const byDay = new Map<string, ForecastData[]>();
+        const fmtDayLabel = (d: Date) => d.toLocaleDateString("en-US", {
+          weekday: "long",
+          month: "long",
+          day: "numeric",
+          timeZone: "America/Los_Angeles",
+        });
         weekly.forEach((row) => {
           const d = new Date(row.timestamp);
-          // Format like "Monday, July 10"
-          const label = d.toLocaleDateString("en-US", {
-            weekday: "long",
-            month: "long",
-            day: "numeric",
-          });
+          const label = fmtDayLabel(d);
           const arr = byDay.get(label) ?? [];
           arr.push(row);
           byDay.set(label, arr);
@@ -147,12 +150,42 @@ const StatTable = ({
 
         // Build table structure
         const days: TableDay[] = [];
-        for (const [label, rows] of byDay.entries()) {
+        const entriesByDay = Array.from(byDay.entries()).sort((a, b) => {
+          // sort days chronologically by first timestamp
+          const ta = new Date(a[1][0]?.timestamp ?? 0).getTime();
+          const tb = new Date(b[1][0]?.timestamp ?? 0).getTime();
+          return ta - tb;
+        });
+
+        const onlyLabel = date instanceof Date ? fmtDayLabel(date) : null;
+
+        // Optionally narrow to selected label; if no exact match, try +/- 1 day as fallback
+        let allowedLabels: Set<string> | null = null;
+        if (onlyLabel) {
+          const labels = entriesByDay.map(([lbl]) => lbl);
+          if (labels.includes(onlyLabel)) {
+            allowedLabels = new Set([onlyLabel]);
+          } else {
+            const prev = fmtDayLabel(new Date(date!.getTime() - 24 * 60 * 60 * 1000));
+            const next = fmtDayLabel(new Date(date!.getTime() + 24 * 60 * 60 * 1000));
+            const cands = [prev, next].filter(l => labels.includes(l));
+            if (cands.length) allowedLabels = new Set([cands[0]]);
+          }
+        }
+
+        for (const [label, rows] of entriesByDay) {
+          if (allowedLabels && !allowedLabels.has(label)) continue;
           // Sort by time ascending
           rows.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+          const pacificHour = (ts: string) => {
+            try {
+              const fmt = new Intl.DateTimeFormat('en-US', { hour: 'numeric', hour12: false, timeZone: 'America/Los_Angeles' });
+              const h = Number(fmt.format(new Date(ts)));
+              return Number.isFinite(h) ? h : new Date(ts).getUTCHours();
+            } catch { return new Date(ts).getUTCHours(); }
+          };
           const entries: TableEntry[] = rows.slice(0, numHours).map((r) => {
-            const t = new Date(r.timestamp);
-            const hour = t.getHours();
+            const hour = pacificHour(r.timestamp);
             const displayHour = ((hour % 12) === 0 ? 12 : (hour % 12));
             const ampm = hour >= 12 ? "PM" : "AM";
 
@@ -208,15 +241,15 @@ const StatTable = ({
           days.push({ date: label, dateMs: midnight, vals: entries });
         }
 
-        // Keep only requested number of days if provided
-        const finalDays = days.slice(0, numDays);
+        // Keep only requested number of days
+        const finalDays = allowedLabels ? days.slice(0, 1) : days.slice(0, numDays);
         setData(finalDays);
       } catch (e) {
         console.error("Failed to load StatTable data", e);
       }
     };
     load();
-  }, [beachId, numDays, numHours]);
+  }, [beachId, numDays, numHours, date]);
 
   const COLUMNS = [
     { id: "wind", label: "Wind" },

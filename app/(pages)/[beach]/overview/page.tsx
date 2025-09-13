@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import Highlights from "@/components/visuals/Highlights";
 import Summary from "@/components/visuals/Summary";
+import DateSummaryBridge from "@/components/general/DateSummaryBridge";
 import { LazyLoadTide } from "@/components/general/LazyLoad/LazyLoadTide";
 import { LazyLoadSwell } from "@/components/general/LazyLoad/LazyLoadSwell";
 import { LazyLoadSurf } from "@/components/general/LazyLoad/LazyLoadSurf";
@@ -77,75 +78,17 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
         />
         <h1 className="font-semibold text-4xl tracking-tight">{beachName}</h1>
       </header>
-      <section className="mb-8">
-        <h2 className="mb-2 ml-2 text-muted-foreground text-lg">
-          Thursday, Aug 14
-        </h2>
-        <Summary beachId={beachId} />
-      </section>
+      <DateSummaryBridge beachId={beachId} />
       <section
         id="overview-content"
         className="flex flex-col gap-3 w-full mb-2 scroll-mt-25"
       >
-        <header className="mx-2 flex gap-5 justify-between">
-          <div>
-            <h2 className="text-3xl font-semibold">Daily Overview</h2>
-            <p className="text-sm text-muted-foreground">
-              An insight into the forecast of any day
-            </p>
-          </div>
-          {/* <Button
-            aria-label="edit layout"
-            size="icon"
-            variant="outline"
-            className="border border-border bg-background rounded-full drop-shadow-sm"
-          >
-            <Pencil />
-          </Button> */}
-          <Link
-            href={`/${beach}/overview/edit#overview-content`}
-            className="flex justify-center text-sm gap-1 h-10 px-3 items-center border border-border bg-highlight-4 rounded-full drop-shadow-sm hover:bg-highlight-3"
-          >
-            <Pencil size={16} />
-            Edit
-          </Link>
-        </header>
-        {/* <Dashboard /> */}
-        <div className="mt-2 mb-8">
-          <LazyLoadDatePicker beachId={beachId} />
-          <LazyLoadHourSlider />
-        </div>
-        <section className="flex-1">
-          <header className="ml-2 mb-6">
-            {/* <Calendar className="h-7 w-7" /> */}
-            <h3 className="leading-none font-semibold text-2xl">
-              Monday, August 14
-            </h3>
-            <span className="text-sm text-muted-foreground">
-              Local time: 8:30 PM, PDT
-            </span>
-          </header>
-          <Highlights beachId={beachId} startIdx={0} endIdx={7} />
-        </section>
+        {/* Daily Overview title and Hour Slider moved above Highlights in DateSummaryBridge */}
+        {/* Highlights for selected date are now shown above via DateSummaryBridge */}
         {/* <span className="leading-none font-semibold text-2xl ml-2 mt-10 mb-3">
           Visuals
         </span> */}
-        <div className="flex flex-col @min-3xl:flex-row gap-3">
-          <VisualWrapper label="Wind" unit="mph">
-            <LazyLoadWind beachId={beachId} />
-          </VisualWrapper>
-          <VisualWrapper label="Tide" unit="ft">
-            <LazyLoadTide beachId={beachId} />
-          </VisualWrapper>
-        </div>
-        <div className="flex flex-col @min-3xl:flex-row gap-3">
-          <VisualWrapper label="Swell" unit="ft">
-            <LazyLoadSwell beachId={beachId} />
-          </VisualWrapper>
-          <VisualWrapper label="Surf" unit="ft">
-            <LazyLoadSurf beachId={beachId} />
-          </VisualWrapper>
-        </div>
+        {/* Chart rows moved into DateSummaryBridge to share selected date */}
         {/* <div className="flex flex-col @min-3xl:flex-row gap-2">
           <figure className="flex-1">
             <div className="h-full bg-highlight-4 border border-border/40 p-2 rounded-xl shadow-sm">
@@ -162,9 +105,7 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
             </div>
           </figure>
         </div> */}
-        <VisualWrapper label="Hourly Stats">
-          <LazyLoadTable beachId={beachId} numHours={8} numDays={1} />
-        </VisualWrapper>
+        {/* Hourly Stats moved into DateSummaryBridge so it follows DatePicker */}
       </section>
     </div>
   );

@@ -25,6 +25,8 @@ import { fetchBeachForecast, fetchForecastRange, type ForecastData } from "@/lib
 type DatePickerProps = {
   beachId: string;
   className?: string;
+  value?: Date | null; // controlled selected date (optional)
+  onSelect?: (date: Date) => void; // notify parent on selection
 };
 
 type DaySummary = {
@@ -52,7 +54,7 @@ const getWeatherIcon = (code: number | null) => {
   return <CloudIcon size={16} color="#bdbdbdff" />;
 };
 
-const DatePicker = ({ className, beachId }: DatePickerProps) => {
+const DatePicker = ({ className, beachId, value, onSelect }: DatePickerProps) => {
   const [api, setApi] = useState<CarouselApi>();
   const [selectedDate, setSelectedDate] = useState<Dayjs | null>(null);
   const [summaries, setSummaries] = useState<Record<string, DaySummary>>({});
@@ -153,8 +155,14 @@ const DatePicker = ({ className, beachId }: DatePickerProps) => {
           const keys = Object.keys(groups).sort();
           setSummaries(groups);
           setOrderedKeys(keys);
-          if (!selectedDate && keys.length > 0) {
-            setSelectedDate(groups[keys[0]].date);
+          // initialize selection: prefer controlled value; else first key
+          if (value instanceof Date) {
+            setSelectedDate(dayjs(value).startOf("day"));
+          } else if (!selectedDate && keys.length > 0) {
+            const first = groups[keys[0]].date;
+            setSelectedDate(first);
+            // notify parent so external consumers (Summary) can react
+            onSelect?.(first.toDate());
           }
         }
       } catch (e) {
@@ -171,7 +179,17 @@ const DatePicker = ({ className, beachId }: DatePickerProps) => {
     return () => {
       active = false;
     };
-  }, [beachId]);
+  }, [beachId, value]);
+
+  // Keep internal selection in sync with controlled value
+  useEffect(() => {
+    if (value instanceof Date) {
+      const next = dayjs(value).startOf("day");
+      if (!selectedDate || !selectedDate.isSame(next, "day")) {
+        setSelectedDate(next);
+      }
+    }
+  }, [value]);
   return (
     <div
       className={cn(
@@ -194,7 +212,8 @@ const DatePicker = ({ className, beachId }: DatePickerProps) => {
           {orderedKeys.map((key, index) => {
             const summary = summaries[key];
             const day = summary?.date ?? dayjs(key);
-            const isSelected = selectedDate ? selectedDate.isSame(day, "day") : index === 0;
+            const controlledSelected = value ? day.isSame(dayjs(value), "day") : undefined;
+            const isSelected = controlledSelected ?? (selectedDate ? selectedDate.isSame(day, "day") : index === 0);
             const min = summary?.min ?? null;
             const max = summary?.max ?? null;
             const code = summary?.code ?? null;
@@ -214,7 +233,10 @@ const DatePicker = ({ className, beachId }: DatePickerProps) => {
                 )}
               >
                 <button
-                  onClick={() => setSelectedDate(day)}
+                  onClick={() => {
+                    setSelectedDate(day);
+                    onSelect?.(day.toDate());
+                  }}
                   className={cn(
                     "flex flex-col items-center w-full py-1.5 rounded-sm text-center text-sm font-medium transition-colors",
                     isSelected

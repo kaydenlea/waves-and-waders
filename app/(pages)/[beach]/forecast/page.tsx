@@ -1,11 +1,11 @@
 import Link from "next/link";
 import VisualWrapper from "@/components/general/VisualWrapper";
-import { LazyLoadDatePicker } from "@/components/general/LazyLoad/LazyLoadDatePicker";
 import { LazyLoadForecastSurf } from "@/components/general/LazyLoad/LazyLoadForecastSurf";
 import { LazyLoadForecastTide } from "@/components/general/LazyLoad/LazyLoadForecastTide";
 import { LazyLoadForecastWaveEnergy } from "@/components/general/LazyLoad/LazyLoadForecastWaveEnergy";
 import { LazyLoadForecastWind } from "@/components/general/LazyLoad/LazyLoadForecastWind";
 import { LazyLoadTable } from "@/components/general/LazyLoad/LazyLoadTable";
+import ForecastBridge from "@/components/general/ForecastBridge";
 
 import type { Metadata } from "next";
 import { Pencil } from "lucide-react";
@@ -33,12 +33,7 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
         <h1 className="font-semibold text-4xl tracking-tight">{beachName}</h1>
       </header>
       <section className="flex flex-col gap-4 mb-2">
-        <section>
-          <h2 className="ml-2 text-muted-foreground text-lg">
-            Weekly Forecast
-          </h2>
-          <LazyLoadDatePicker beachId={beachId} className="rounded-b-xl mt-4 mb-4" />
-        </section>
+        <ForecastBridge beachId={beachId} />
         <section id="forecast-content" className="scroll-mt-25">
           <header className="mx-2 flex gap-12 justify-between">
             <div>
@@ -58,9 +53,7 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
             </Link>
           </header>
         </section>
-        <VisualWrapper label="Tide" unit="ft">
-          <LazyLoadForecastTide beachId={beachId} />
-        </VisualWrapper>
+        {/* Tide + Table above via ForecastBridge to align with DatePicker */}
         <VisualWrapper label="Surf" unit="ft">
           <LazyLoadForecastSurf beachId={beachId} />
         </VisualWrapper>
@@ -70,9 +63,7 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
         <VisualWrapper label="Wave Energy" unit="kJ">
           <LazyLoadForecastWaveEnergy beachId={beachId} />
         </VisualWrapper>
-        <VisualWrapper label="Hourly Stats">
-          <LazyLoadTable beachId={beachId} numHours={3} numDays={7} header />
-        </VisualWrapper>
+        {/* Hourly Stats moved to ForecastBridge */}
         {/* <figure className="relative h-full bg-highlight-4 border border-border/40 p-2 rounded-2xl shadow-sm">
           <header className="mx-3 mt-3 mb-2">
             <h3 className="leading-none font-semibold">Weekly Statistics</h3>

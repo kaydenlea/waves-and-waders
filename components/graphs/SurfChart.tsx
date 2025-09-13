@@ -21,8 +21,8 @@ import {
 } from "@/components/ui/chart";
 import { fetchBeachForecast, fetchBeachByIdLoose } from "@/lib/supabase";
 
-type Props = { beachId?: string; hours?: number };
-type Row = { hour: number; max: number; range: string };
+type Props = { beachId?: string; hours?: number; date?: Date };
+type Row = { hour: number; actual: number };
 
 const chartConfig = {
   surf: {
@@ -31,7 +31,7 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-const SurfChart = ({ beachId, hours = 24 }: Props) => {
+const SurfChart = ({ beachId, hours = 24, date }: Props) => {
   const [chartData, setChartData] = useState<Row[]>([]);
 
   useEffect(() => {
@@ -39,28 +39,53 @@ const SurfChart = ({ beachId, hours = 24 }: Props) => {
       try {
         if (!beachId) {
           setChartData([
-            { hour: 0, max: 2, range: "1-2" },
-            { hour: 1, max: 3, range: "2-3" },
-            { hour: 2, max: 1, range: "1-1" },
-            { hour: 3, max: 1, range: "1-1" },
-            { hour: 4, max: 4, range: "3-4" },
-            { hour: 5, max: 2, range: "1-2" },
-            { hour: 6, max: 2, range: "1-2" },
+            { hour: 0, actual: 2 },
+            { hour: 1, actual: 2.5 },
+            { hour: 2, actual: 1 },
+            { hour: 3, actual: 1 },
+            { hour: 4, actual: 3.5 },
+            { hour: 5, actual: 1.5 },
+            { hour: 6, actual: 1.5 },
           ]);
           return;
         }
         const resolved = await fetchBeachByIdLoose(beachId);
         const id = resolved?.id ?? beachId;
-        const start = new Date();
-        const end = new Date(start.getTime() + hours * 60 * 60 * 1000);
+        let start = new Date();
+        let end = new Date(start.getTime() + hours * 60 * 60 * 1000);
+        if (date instanceof Date) {
+          const d = new Date(date);
+          d.setHours(0, 0, 0, 0);
+          start = d;
+          end = new Date(d.getTime() + 24 * 60 * 60 * 1000);
+        }
         const rows = await fetchBeachForecast(id, start, end);
         const data: Row[] = rows.map((r) => {
-          const min = r.surf.heightMin ?? 0;
-          const max = r.surf.heightMax ?? 0;
+          const h1 = r.swell.primary.height ?? 0;
+          const p1 = r.swell.primary.period ?? 10;
+          const h2 = r.swell.secondary.height ?? 0;
+          const p2 = r.swell.secondary.period ?? 10;
+          const h3 = r.swell.tertiary?.height ?? 0;
+          const p3 = r.swell.tertiary?.period ?? 10;
+          // Period influence: longer period swells carry more energy; scale ~ sqrt(P/10)
+          const s1 = h1 * Math.sqrt(Math.max(0, p1) / 10);
+          const s2 = h2 * Math.sqrt(Math.max(0, p2) / 10);
+          const s3 = h3 * Math.sqrt(Math.max(0, p3) / 10);
+          // Component weights: primary dominant, secondary moderate, tertiary light
+          const w1 = 1.0, w2 = 0.6, w3 = 0.3;
+          // Combine components in quadrature (energy-like)
+          const combined = Math.sqrt(
+            Math.pow(w1 * s1, 2) + Math.pow(w2 * s2, 2) + Math.pow(w3 * s3, 2)
+          );
+          // Wind penalty: reduce height for stronger winds
+          const wind = r.conditions.windSpeed ?? 0; // mph
+          // No penalty <= 5 mph; up to 50% reduction by 40+ mph
+          const windPenalty = Math.min(0.5, Math.max(0, (wind - 5) / 35));
+          const effective = Math.max(0, combined * (1 - windPenalty));
+
           return {
             hour: new Date(r.timestamp).getHours(),
-            max,
-            range: min === max ? `${max.toFixed(0)}` : `${min.toFixed(0)}-${max.toFixed(0)}`,
+            actual: Number(effective.toFixed(1)),
           };
         });
         setChartData(data);
@@ -69,7 +94,7 @@ const SurfChart = ({ beachId, hours = 24 }: Props) => {
       }
     };
     load();
-  }, [beachId, hours]);
+  }, [beachId, hours, date]);
 
   const domainMax = useMemo(() => (chartData.length ? chartData.length - 1 : 6), [chartData]);
   return (
@@ -106,7 +131,7 @@ const SurfChart = ({ beachId, hours = 24 }: Props) => {
           domain={[0, domainMax]}
         />
         <YAxis
-          dataKey="max"
+          dataKey="actual"
           allowDecimals={false}
           tickLine={false}
           axisLine={false}
@@ -116,14 +141,14 @@ const SurfChart = ({ beachId, hours = 24 }: Props) => {
         <ChartTooltip content={<ChartTooltipContent />} />
         <ChartLegend content={<ChartLegendContent />} />
         <Bar
-          dataKey="max"
+          dataKey="actual"
           fill="var(--color-surf, var(--color-tide))"
           radius={4}
           stroke="#0000006e"
           strokeWidth={0.5}
         >
           <LabelList
-            dataKey="range"
+            dataKey="actual"
             position="middle"
             content={(props: LabelProps) => {
               const safeX = typeof props.x === "number" ? props.x : 0;
@@ -131,7 +156,7 @@ const SurfChart = ({ beachId, hours = 24 }: Props) => {
               const safeWidth = typeof props.width === "number" ? props.width : 0;
               const safeHeight = typeof props.height === "number" ? props.height : 0;
               const fontSize = Math.max(10, safeWidth * 0.15);
-              if (typeof props.value === "string") {
+              if (typeof props.value === "number") {
                 return (
                   <g>
                     <text
@@ -142,7 +167,7 @@ const SurfChart = ({ beachId, hours = 24 }: Props) => {
                       fontWeight="bold"
                       fontSize={fontSize}
                     >
-                      {`${props.value} ft`}
+                      {`${props.value.toFixed(1)} ft`}
                     </text>
                   </g>
                 );

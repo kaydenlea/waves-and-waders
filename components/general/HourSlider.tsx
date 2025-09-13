@@ -1,25 +1,39 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Slider } from "@/components/ui/slider";
 
-const HourSlider = () => {
-  const [value, setValue] = useState([10]);
-  const displayValue = value[0] % 12 === 0 ? 12 : value[0] % 12;
-  const min = 0;
-  const max = 24;
-  const step = 1;
+type Props = {
+  value?: number | null;
+  onChange?: (value: number) => void;
+  min?: number;
+  max?: number;
+  step?: number;
+};
+
+const HourSlider = ({ value: controlled, onChange, min = 0, max = 23, step = 3 }: Props) => {
+  const [internal, setInternal] = useState<number>(controlled ?? 10);
+  const hour = controlled ?? internal;
+  const displayValue = (hour % 12 === 0 ? 12 : hour % 12);
+  const ampm = hour >= 12 && hour < 24 ? "PM" : "AM";
+
+  const sliderValue = useMemo(() => [hour], [hour]);
+
+  const handleChange = (vals: number[]) => {
+    const v = Math.max(min, Math.min(max, Math.round(vals[0] ?? hour)));
+    setInternal(v);
+    onChange?.(v);
+  };
+
   return (
     <div className="space-y-1 flex flex-col gap-2 relative p-3 bg-highlight-4 border-t border-border shadow-md rounded-b-xl">
-      <h3 className="text-md font-medium">{`${displayValue} ${
-        value[0] >= 12 && value[0] < 24 ? "PM" : "AM"
-      }`}</h3>
+      <h3 className="text-md font-medium">{`${displayValue} ${ampm}`}</h3>
       <Slider
         min={min}
         max={max}
         step={step}
-        value={value}
-        onValueChange={setValue}
+        value={sliderValue}
+        onValueChange={handleChange}
         className="z-1"
       />
       <div className="w-full flex justify-between pl-1.5 pr-2.5">
