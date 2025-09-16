@@ -506,10 +506,13 @@ const Highlights = ({
                 <BasicStat data={stat.tide} label={stat.label} />
               );
               break;
-            case "moon":
-              content = stat.phase && (
-                <MoonStat data={stat.phase} label={stat.label} />
+            case "moon": {
+              const hasPhase = stat.phase !== null && stat.phase !== undefined;
+              content = hasPhase && (
+                <MoonStat data={stat.phase as any} label={stat.label} />
               );
+              break;
+            }
               break;
             case "wind":
               content = stat.wind && (

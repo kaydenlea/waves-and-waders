@@ -41,7 +41,7 @@ def update_forecast_data_hybrid(beaches):
     """
     Update forecast data using:
       1) NOAA GFSwave (primary: swell, surf, wind speed/dir) -> records with local timestamps
-      2) Open-Meteo supplement (fills ONLY: temperature, weather, wind_gust_mph,
+      2) Open-Meteo supplement (fills ONLY: temperature, weather, wind_speed_mph, wind_gust_mph,
          water_temp_f, pressure_inhg, tide_level_ft) on the SAME (beach_id, timestamp)
     """
     log_step("Updating forecast data with hybrid NOAA + Open-Meteo", 4)

@@ -21,8 +21,12 @@ const SwellStat = ({
   data,
 }: {
   primary?: boolean;
-  data: { height: number; period: number; dir: string; deg: number };
+  data?: { height?: number | string | null; period?: number | null; dir?: string | null; deg?: number | null } | null;
 }) => {
+  const height = data?.height ?? "—";
+  const period = data?.period ?? "—";
+  const dir = data?.dir ?? "—";
+  const deg = data?.deg ?? "—";
   return (
     <div
       className={cn(
@@ -37,20 +41,16 @@ const SwellStat = ({
         )}
       >
         <span className="flex items-baseline gap-[1px] whitespace-nowrap">
-          <span
-            className={cn("font-semibold", primary ? "text-sm" : "text-xs")}
-          >
-            {data.height}
+          <span className={cn("font-semibold", primary ? "text-sm" : "text-xs")}>
+            {height}
           </span>
           <span className={cn(primary ? "text-[.65rem]" : "text-[.6rem]")}>
             ft
           </span>
         </span>
         <span className="flex items-baseline gap-[1px] whitespace-nowrap">
-          <span
-            className={cn("font-semibold", primary ? "text-sm" : "text-xs")}
-          >
-            {data.period}
+          <span className={cn("font-semibold", primary ? "text-sm" : "text-xs")}>
+            {period}
           </span>
           <span className={cn(primary ? "text-[.65rem]" : "text-[.6rem]")}>
             s
@@ -58,13 +58,11 @@ const SwellStat = ({
         </span>
         <ArrowIcon size={16} color="#51e72bff" fill="#51e72bff" />
         <span className="flex items-baseline gap-[1px] whitespace-nowrap">
-          <span
-            className={cn("font-semibold", primary ? "text-sm" : "text-xs")}
-          >
-            {data.dir}
+          <span className={cn("font-semibold", primary ? "text-sm" : "text-xs")}>
+            {dir}
           </span>
           <span className={cn(primary ? "text-[.65rem]" : "text-[.55rem]")}>
-            {data.deg}&deg;
+            {deg}&deg;
           </span>
         </span>
       </div>
@@ -402,19 +400,24 @@ const StatTable = ({
                           </span>
                         );
                         break;
-                      case "Swell":
+                      case "Swell": {
                         content = (
-                          <SwellStat primary data={entry.swell.primary} />
+                          <SwellStat primary data={entry.swell?.primary as any} />
                         );
                         break;
-                      case "Secondary Swell":
+                      }
+                        break;
+                      case "Secondary Swell": {
+                        const s0 = entry.swell?.secondary?.[0];
+                        const s1 = entry.swell?.secondary?.[1];
                         content = (
                           <div className="flex gap-1">
-                            <SwellStat data={entry.swell.secondary[0]} />
-                            <SwellStat data={entry.swell.secondary[1]} />
+                            <SwellStat data={s0 as any} />
+                            <SwellStat data={s1 as any} />
                           </div>
                         );
                         break;
+                      }
                       case "Pressure":
                         content = (
                           <span

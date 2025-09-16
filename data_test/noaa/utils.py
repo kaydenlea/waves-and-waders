@@ -52,17 +52,80 @@ def hpa_to_inhg(hpa):
         return None
     return hpa * 0.02953
 
-def calculate_wave_energy_kj(wave_height_ft, wave_period_s):
+def surf_energy_kj_per_m(height_m: float, period_s: float, direction_deg: float = None, beach_normal_deg: float = None) -> float:
     """
-    Calculate wave energy in kilojoules matching surf-forecast.com values.
+    Surf-Forecast style wave energy score (kJ per meter of crest per wave).
+    Deep water approximation: E = 0.490605 * H^2 * T^2 (kJ/m).
+    Optionally attenuate by approach angle: max(0, cos(delta_theta)).
+    """
+    if height_m is None or period_s is None:
+        return None
+    try:
+        coeff = 0.4906050716986906  # (rho*g^2)/(64*pi)/1000, rho=1025 kg/m^3, g=9.81 m/s^2
+        base = coeff * (height_m ** 2) * (period_s ** 2)
+        if direction_deg is not None and beach_normal_deg is not None:
+            # Direction is "from". Convert to approach relative to shoreline normal.
+            delta = abs(((direction_deg - beach_normal_deg + 180) % 360) - 180)
+            angle_factor = max(0.0, np.cos(np.deg2rad(delta)))  # simple cosine attenuation
+            return float(base * angle_factor)
+        return float(base)
+    except Exception:
+        return None
+
+def surf_energy_kj_per_ft(height_ft: float, period_s: float, direction_deg: float = None, beach_normal_deg: float = None) -> float:
+    """
+    Wave energy score using feet input (kJ per foot of crest per wave).
+    Converts feet->meters, computes kJ/m using surf_energy_kj_per_m, then converts to kJ/ft.
+    """
+    if height_ft is None or period_s is None:
+        return None
+    try:
+        height_m = height_ft / 3.28084
+        kj_per_m = surf_energy_kj_per_m(height_m, period_s, direction_deg, beach_normal_deg)
+        if kj_per_m is None:
+            return None
+        return float(kj_per_m / 3.28084)  # convert per-meter to per-foot
+    except Exception:
+        return None
+
+def surfline_energy_kj_index(height_ft: float, period_s: float, direction_deg: float = None, beach_normal_deg: float = None):
+    """
+    Surfline-style wave energy index (approximate), scaled to match observed magnitudes.
+    Heavier weight on period than height: E ≈ k1*H*ft*T^2 + k2*H^2*T, with k2 slightly negative
+    to keep long-period small swells competitive with short-period large swells.
+
+    Calibrated anchors (approx):
+      - ~100 at 2 ft @ 20 s
+      - ~50 at 11 ft @ 8 s
+
+    Returns an integer index ("kJ" display style).
+    """
+    if height_ft is None or period_s is None:
+        return None
+    try:
+        H = float(height_ft)
+        T = float(period_s)
+        # Coefficients from two-point calibration
+        k1 = 0.129233  # for H*T^2
+        k2 = -0.04233  # for H^2*T
+        base = (k1 * H * (T ** 2)) + (k2 * (H ** 2) * T)
+        if direction_deg is not None and beach_normal_deg is not None:
+            delta = abs(((direction_deg - beach_normal_deg + 180) % 360) - 180)
+            base *= max(0.0, np.cos(np.deg2rad(delta)))
+        # Clamp to non-negative and round
+        return int(round(max(0.0, base)))
+    except Exception:
+        return None
+
+def calculate_wave_energy_kj(wave_height_ft, wave_period_s, direction_deg: float = None, beach_normal_deg: float = None):
+    """
+    Return Surf-Forecast-like energy index (rounded int).
+    Wrapper that accepts height in feet and delegates to surfline_energy_kj_index.
     """
     if wave_height_ft is None or wave_period_s is None:
         return None
-    
     try:
-        wave_height_m = wave_height_ft / 3.28084
-        energy_kj = (wave_height_m ** 2) * wave_period_s * 8.5
-        return round(energy_kj)
+        return surfline_energy_kj_index(wave_height_ft, wave_period_s, direction_deg, beach_normal_deg)
     except Exception:
         return None
 

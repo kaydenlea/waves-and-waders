@@ -6,7 +6,7 @@ Handles dynamic swell prioritization and surf impact calculations
 
 import math
 import logging
-from utils import safe_float
+from utils import safe_float, calculate_wave_energy_kj as util_wave_energy_kj
 
 # Get shared logger
 logger = logging.getLogger("surf_update")
@@ -63,31 +63,13 @@ def calculate_surf_size_score(height_ft, period_s, direction_deg=None, beach_lat
         logger.error(f"Error calculating surf size score: {e}")
         return 0
 
-def calculate_wave_energy_kj(wave_height_ft, wave_period_s):
+def calculate_wave_energy_kj(wave_height_ft, wave_period_s, direction_deg=None, beach_normal_deg=None):
     """
-    Calculate wave energy in kilojoules matching surf-forecast.com values.
-    Uses the deep water wave energy formula: E = (rho * g * H^2 * T) / 8
-    Simplified to match surf-forecast.com methodology.
-    
-    Args:
-        wave_height_ft: Wave height in feet
-        wave_period_s: Wave period in seconds
-    
-    Returns:
-        int: Wave energy in kilojoules (rounded)
+    Calculate wave energy in kilojoules using deep-water approximation.
+    Delegates to utils.calculate_wave_energy_kj (now uses H^2*T^2 with coefficient).
     """
-    if wave_height_ft is None or wave_period_s is None:
-        return None
-    
     try:
-        # Convert feet to meters for calculation
-        wave_height_m = wave_height_ft / 3.28084
-        
-        # Simplified energy calculation matching surf-forecast.com
-        # Uses empirical constant 8.5 to match their values
-        energy_kj = (wave_height_m ** 2) * wave_period_s * 8.5
-        
-        return round(energy_kj)
+        return util_wave_energy_kj(wave_height_ft, wave_period_s, direction_deg, beach_normal_deg)
     except Exception as e:
         logger.error(f"Error calculating wave energy: {e}")
         return None

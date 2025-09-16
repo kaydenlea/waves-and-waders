@@ -6,6 +6,7 @@ Supplement mode: fills ONLY missing fields on top of NOAA rows, aligned by (beac
 Fills these fields if they are None:
   - temperature (F)
   - weather (code)
+  - wind_speed_mph
   - wind_gust_mph
   - water_temp_f
   - pressure_inhg
@@ -39,6 +40,7 @@ openmeteo = openmeteo_requests.Client(session=retry_session)
 TARGET_FIELDS = (
     "temperature",
     "weather",
+    "wind_speed_mph",
     "wind_gust_mph",
     "water_temp_f",
     "pressure_inhg",
@@ -149,7 +151,7 @@ def get_openmeteo_supplement_data(beaches, existing_records):
         weather_params = {
             "latitude": lats,
             "longitude": lons,
-            "hourly": ["windgusts_10m", "temperature_2m", "pressure_msl", "weather_code"],
+            "hourly": ["windgusts_10m", "temperature_2m", "pressure_msl", "weather_code", "windspeed_10m"],
             "timezone": "America/Los_Angeles",
             "start_date": start_date,
             "end_date": end_date
@@ -194,6 +196,7 @@ def get_openmeteo_supplement_data(beaches, existing_records):
                 temp_c        = wh.Variables(1).ValuesAsNumpy()
                 pressure_hpa  = wh.Variables(2).ValuesAsNumpy()
                 weather_code  = wh.Variables(3).ValuesAsNumpy()
+                wind_speed_kph= wh.Variables(4).ValuesAsNumpy()
 
                 water_temp_c  = mh.Variables(0).ValuesAsNumpy()
                 tide_level_m  = mh.Variables(1).ValuesAsNumpy()
@@ -240,11 +243,26 @@ def get_openmeteo_supplement_data(beaches, existing_records):
                     candidates = {
                         "temperature":   safe_float(celsius_to_fahrenheit(temp_c[j])),
                         "weather":       safe_int(weather_code[j]),
+                        "wind_speed_mph": safe_float(kph_to_mph(wind_speed_kph[j])),
                         "wind_gust_mph": safe_float(kph_to_mph(wind_gust_kph[j])),
                         "water_temp_f":  safe_float(celsius_to_fahrenheit(water_temp_c[j])),
                         "pressure_inhg": safe_float(hpa_to_inhg(pressure_hpa[j])),
                         "tide_level_ft": adjusted_tide_ft,
                     }
+
+                    # Guardrail: ensure gusts are never lower than speed
+                    # Determine effective speed/gust considering existing record values
+                    existing_speed = rec.get("wind_speed_mph")
+                    existing_gust = rec.get("wind_gust_mph")
+                    cand_speed = candidates.get("wind_speed_mph")
+                    cand_gust = candidates.get("wind_gust_mph")
+                    # What speed/gust will end up on the record after this update?
+                    final_speed = cand_speed if ("wind_speed_mph" in missing and cand_speed is not None) else existing_speed
+                    final_gust  = cand_gust  if ("wind_gust_mph"  in missing and cand_gust  is not None) else existing_gust
+                    if final_speed is not None and final_gust is not None and final_gust < final_speed:
+                        # Prefer bumping gust up to at least speed
+                        if "wind_gust_mph" in missing and cand_gust is not None:
+                            candidates["wind_gust_mph"] = final_speed
 
                     # Only set the fields that are actually missing in this record
                     for f in missing:

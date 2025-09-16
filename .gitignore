@@ -42,4 +42,8 @@ next-env.d.ts
 
 # local data caches
 data_test/.cache.sqlite
-*.sqlite
+*.sqlite# python artifacts
+__pycache__/
+*.pyc
+# data/log artifacts
+*.log

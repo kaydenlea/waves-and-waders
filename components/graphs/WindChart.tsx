@@ -21,7 +21,7 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 
-import { fetchBeachForecast, fetchBeachByIdLoose } from "@/lib/supabase";
+import { fetchBeachForecast, fetchBeachByIdLoose, fetchBeachDetails, fetchDailyConditions } from "@/lib/supabase";
 
 type Props = { beachId?: string; hours?: number; date?: Date };
 const chartConfig = {
@@ -33,6 +33,7 @@ const chartConfig = {
 
 const WindChart = ({ beachId, hours = 24, date }: Props) => {
   const [chartData, setChartData] = useState<{ hour: number; wind: number }[]>([]);
+  const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
 
   useEffect(() => {
     const load = async () => {
@@ -66,6 +67,33 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
           wind: r.conditions.windSpeed ?? 0,
         }));
         setChartData(data);
+
+        // Build sunrise/sunset shading for the day in view (hours)
+        try {
+          const beach = await fetchBeachDetails(String(id));
+          const county = beach?.COUNTY;
+          if (county) {
+            const basisDate = date instanceof Date ? new Date(date) : new Date(start);
+            const cond = await fetchDailyConditions(county, basisDate);
+            const parseHM = (s: string | null): { h: number; m: number } | null => {
+              if (!s) return null;
+              const m = /^(\d{1,2}):(\d{2})/.exec(s.trim());
+              if (!m) return null;
+              const h = Number(m[1]); const mm = Number(m[2]);
+              if (!Number.isFinite(h) || !Number.isFinite(mm)) return null;
+              return { h, m: mm };
+            };
+            const rise = parseHM(cond?.sunrise ?? null);
+            const setv = parseHM(cond?.sunset ?? null);
+            if (rise && setv) {
+              setDayAreas([{ x1: Math.min(rise.h, setv.h), x2: Math.max(rise.h, setv.h) }]);
+            } else {
+              setDayAreas([]);
+            }
+          }
+        } catch (_) {
+          setDayAreas([]);
+        }
       } catch (e) {
         console.error("Failed to load wind data", e);
       }
@@ -90,9 +118,9 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
         data={chartData}
         syncId="anyId"
       >
-        <ReferenceArea x2={1} fill="#ccc1ffff" fillOpacity={0.2} />
-        <ReferenceArea x1={2} x2={5} fill="#FFE58F" fillOpacity={0.2} />
-        <ReferenceArea x1={6} fill="#ccc1ffff" fillOpacity={0.2} />
+        {dayAreas.map((a, idx) => (
+          <ReferenceArea key={`day-${idx}`} x1={a.x1} x2={a.x2} fill="#FFE58F" fillOpacity={0.2} />
+        ))}
         <CartesianGrid
           strokeDasharray="3 3"
           stroke="var(--foreground)"
@@ -106,6 +134,10 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
           tickMargin={10}
           axisLine={false}
           domain={[0, domainMax]}
+          tickFormatter={(value: number) => {
+            if (typeof value !== 'number') return '';
+            return value % 3 === 0 ? String(value % 12 === 0 ? 12 : value % 12) : '';
+          }}
         />
         <YAxis
           dataKey="wind"

@@ -35,13 +35,14 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-import { fetchBeachForecast, fetchBeachByIdLoose } from "@/lib/supabase";
+import { fetchBeachForecast, fetchBeachByIdLoose, fetchBeachDetails, fetchDailyConditions } from "@/lib/supabase";
 
 type Props = { beachId?: string; hours?: number; date?: Date };
 type Row = { time: number; primary: number; secondary: number; tertiary: number };
 
 const SwellChart = ({ beachId, hours = 24, date }: Props) => {
   const [data, setData] = useState<Row[]>([]);
+  const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]); // day shading intervals in hours
   useEffect(() => {
     const load = async () => {
       try {
@@ -69,14 +70,43 @@ const SwellChart = ({ beachId, hours = 24, date }: Props) => {
           end = new Date(d.getTime() + 24 * 60 * 60 * 1000);
         }
         const rows = await fetchBeachForecast(id, start, end);
-        setData(
-          rows.map((r) => ({
-            time: new Date(r.timestamp).getHours(),
-            primary: r.swell.primary.height ?? 0,
-            secondary: r.swell.secondary.height ?? 0,
-            tertiary: r.swell.tertiary?.height ?? 0,
-          }))
-        );
+        const series = rows.map((r) => ({
+          time: new Date(r.timestamp).getHours(),
+          primary: r.swell.primary.height ?? 0,
+          secondary: r.swell.secondary.height ?? 0,
+          tertiary: r.swell.tertiary?.height ?? 0,
+        }));
+        setData(series);
+
+        // Compute sunrise/sunset shading for the day in view
+        try {
+          const beach = await fetchBeachDetails(String(id));
+          const county = beach?.COUNTY;
+          if (county) {
+            // Choose the date basis: if an explicit date given, use that; otherwise use "start"
+            const basisDate = date instanceof Date ? new Date(date) : new Date(start);
+            const cond = await fetchDailyConditions(county, basisDate);
+            const parseHM = (s: string | null): number | null => {
+              if (!s) return null;
+              const m = /^(\d{1,2}):(\d{2})/.exec(s.trim());
+              if (!m) return null;
+              const h = Number(m[1]);
+              const mm = Number(m[2]);
+              if (!Number.isFinite(h) || !Number.isFinite(mm)) return null;
+              return h; // chart uses hour buckets
+            };
+            const riseH = parseHM(cond?.sunrise ?? null);
+            const setH = parseHM(cond?.sunset ?? null);
+            if (riseH != null && setH != null) {
+              setDayAreas([{ x1: Math.min(riseH, setH), x2: Math.max(riseH, setH) }]);
+            } else {
+              setDayAreas([]);
+            }
+          }
+        } catch (e) {
+          // ignore shading errors
+          setDayAreas([]);
+        }
       } catch (e) {
         console.error("Failed to load swell data", e);
       }
@@ -99,9 +129,10 @@ const SwellChart = ({ beachId, hours = 24, date }: Props) => {
         }}
         syncId="anyId"
       >
-        <ReferenceArea x2={6} fill="#ccc1ffff" fillOpacity={0.2} />
-        <ReferenceArea x1={6} x2={18} fill="#FFE58F" fillOpacity={0.2} />
-        <ReferenceArea x1={18} x2={21} fill="#ccc1ffff" fillOpacity={0.2} />
+        {/* Daytime shading from sunrise to sunset (hours) */}
+        {dayAreas.map((a, idx) => (
+          <ReferenceArea key={`day-${idx}`} x1={a.x1} x2={a.x2} fill="#FFE58F" fillOpacity={0.2} />
+        ))}
         <CartesianGrid
           strokeDasharray="3 3"
           stroke="var(--foreground)"

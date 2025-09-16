@@ -16,35 +16,70 @@ logger = logging.getLogger("surf_update")
 # Initialize Supabase client
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-def cleanup_old_data():
-    """Delete all existing forecast and daily condition data."""
+def cleanup_old_data(batch_size: int = 100):
+    """Delete existing forecast and daily condition data in safe batches.
+
+    - Forecast: delete by beach_id chunks to avoid statement timeouts on huge range deletes.
+    - Daily conditions: full delete by date ranges (smaller table, typically safe).
+    """
     log_step("Cleaning up old data", 1)
-    
+
     try:
-        yesterday = (datetime.now() - timedelta(days=1)).isoformat()
-        
-        # Delete forecast data
-        logger.info("DELETE: Deleting old forecast data...")
+        # -------- Forecast data (batched by beach_id) --------
+        logger.info("DELETE: Purging forecast_data in batches by beach_id...")
         try:
-            forecast_delete = supabase.table("forecast_data").delete().lt('timestamp', yesterday).execute()
-            future_delete = supabase.table("forecast_data").delete().gte('timestamp', yesterday).execute()
-            logger.info("   Forecast data deleted successfully")
+            # Fetch ALL beach IDs with pagination (Supabase defaults to 1000 per page)
+            beach_ids = []
+            page_size = 1000
+            start = 0
+            while True:
+                end_idx = start + page_size - 1
+                resp = (
+                    supabase
+                    .table("beaches")
+                    .select("id", count="exact")
+                    .range(start, end_idx)
+                    .execute()
+                )
+                rows = resp.data or []
+                beach_ids.extend([r["id"] for r in rows if r.get("id") is not None])
+                if len(rows) < page_size:
+                    break
+                start += page_size
+
+            if not beach_ids:
+                logger.warning("   No beach IDs found; skipping forecast delete")
+            else:
+                total = len(beach_ids)
+                processed = 0
+                for chunk in chunk_iter(beach_ids, batch_size):
+                    try:
+                        supabase.table("forecast_data").delete().in_("beach_id", chunk).execute()
+                        processed += len(chunk)
+                        logger.info(f"   Deleted forecast rows for {processed}/{total} beaches...")
+                    except Exception as e:
+                        logger.warning(f"   Batch delete failed for {len(chunk)} beaches: {e}")
+                logger.info("   Forecast data purge (by beach_id) completed")
         except Exception as e:
-            logger.warning(f"   Forecast deletion failed: {e}, will use UPSERT")
-        
-        # Delete daily conditions  
-        logger.info("DELETE: Deleting old daily conditions...")
+            logger.warning(f"   Forecast batched deletion failed: {e}; attempting coarse range delete")
+            try:
+                # Last-resort coarse deletes (may still time out on very large tables)
+                supabase.table("forecast_data").delete().neq("beach_id", None).execute()
+                logger.info("   Coarse forecast delete succeeded")
+            except Exception as e2:
+                logger.warning(f"   Coarse forecast delete also failed: {e2}; will rely on UPSERT")
+
+        # -------- Daily county conditions (usually small) --------
+        logger.info("DELETE: Deleting all daily_county_conditions entries...")
         try:
-            yesterday_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
-            daily_delete = supabase.table("daily_county_conditions").delete().lt('date', yesterday_date).execute()
-            future_daily_delete = supabase.table("daily_county_conditions").delete().gte('date', yesterday_date).execute()
+            supabase.table("daily_county_conditions").delete().neq("county", None).execute()
             logger.info("   Daily conditions deleted successfully")
         except Exception as e:
             logger.warning(f"   Daily conditions deletion failed: {e}, will use UPSERT")
-        
+
         log_step("Old data cleanup completed")
         return True
-        
+
     except Exception as e:
         logger.error(f"ERROR: Error during cleanup: {e}")
         return True  # Continue with UPSERT mode

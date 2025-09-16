@@ -24,7 +24,7 @@ except ImportError:
     sys.exit(1)
 
 # Use the same compact surf-range logic used elsewhere
-from swell_ranking import get_surf_height_range
+from swell_ranking import get_surf_height_range, calculate_wave_energy_kj
 
 # Configuration
 CDIP_NOWCAST_URLS = {
@@ -302,10 +302,8 @@ def update_records_with_cdip_nowcast(existing_records: List[Dict], beaches: List
             # Update the record with CDIP nowcast data
             hs_ft = hs_m * M_TO_FT
             
-            # Calculate wave energy
-            wave_energy_kj = calculate_spectral_energy(cdip_data, cdip_idx, matching_time_idx)
-            if wave_energy_kj is None:
-                wave_energy_kj = (1025 * 9.81 / 16) * (hs_m ** 2) * (tp_s / 10) / 1000
+            # Surf-Forecast-like energy index based on CDIP H,T
+            wave_energy_kj = calculate_wave_energy_kj(hs_ft, tp_s)
             
             # Compute compact Surfline-style height range (in feet)
             rmin_ft, rmax_ft = get_surf_height_range(hs_m)
@@ -424,10 +422,8 @@ def create_cdip_nowcast_records(beaches: List[Dict], cdip_data: Dict) -> List[Di
                 surf_min_ft, surf_max_ft = get_surf_height_range(hs_m)
                 
                 # Calculate wave energy (spectral if available, otherwise parametric)
-                wave_energy_kj = calculate_spectral_energy(cdip_data, cdip_idx, time_idx)
-                if wave_energy_kj is None:
-                    # Fallback to parametric calculation
-                    wave_energy_kj = (1025 * 9.81 / 16) * (hs_m ** 2) * (tp_s / 10) / 1000
+                # Use index consistently even when spectral is available
+                wave_energy_kj = calculate_wave_energy_kj(hs_ft, tp_s)
                 
                 record = {
                     "beach_id": beach["id"],

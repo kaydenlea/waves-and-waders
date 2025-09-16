@@ -220,43 +220,51 @@ def find_nearest_cdip_site(cdip_data, target_lat, target_lon):
     return nearest_idx
 
 def calculate_cdip_wave_energy(cdip_data, site_idx, time_idx):
-    """Calculate total wave energy from CDIP spectral energy density data."""
-    if cdip_data is None or cdip_data['wave_energy_density'] is None:
+    """Calculate wave energy per foot of crest per wave from CDIP spectra.
+
+    Steps:
+      1) Integrate spectral variance (m^2/Hz over Hz) -> variance (m^2)
+      2) Convert to energy per unit area: E_area = variance * rho * g  [kJ/m^2]
+      3) Convert to per-crest-per-wave: E_crest = E_area * Cg * T       [kJ/m]
+         with deep-water Cg = g*T/(4*pi) using CDIP peak period T
+      4) Convert to per foot of crest: divide by 3.28084
+    """
+    if cdip_data is None or cdip_data.get('wave_energy_density') is None:
         return None
     
     try:
-        # Get spectral energy density for this site and time
-        # Shape: (time, frequency, sites)
         energy_spectrum = cdip_data['wave_energy_density'][time_idx, :, site_idx]
-        frequencies = cdip_data['wave_frequencies']
-        
+        frequencies = cdip_data.get('wave_frequencies')
         if frequencies is None or len(energy_spectrum) == 0:
             return None
-        
-        # Remove NaN values
+
         valid_mask = ~np.isnan(energy_spectrum)
         if not np.any(valid_mask):
             return None
-        
+
         clean_spectrum = energy_spectrum[valid_mask]
         clean_freqs = frequencies[valid_mask]
-        
-        # Integrate energy density over frequency to get total energy
-        # Energy density units: m^2/Hz, frequency units: Hz
-        # Integration gives total energy in m^2
         if len(clean_spectrum) < 2:
             return None
-        
-        # Simple trapezoidal integration
-        total_energy_m2 = np.trapz(clean_spectrum, clean_freqs)
-        
-        # Convert to more meaningful units (kJ/m^2)
-        # Assuming standard seawater density ~1025 kg/m^3, g=9.81 m/s^2
+
+        total_variance_m2 = np.trapz(clean_spectrum, clean_freqs)
+
+        # Energy per unit surface area (kJ/m^2)
         rho_g = 1025 * 9.81  # N/m^3
-        energy_kj_per_m2 = (total_energy_m2 * rho_g) / 1000  # kJ/m^2
-        
-        return float(energy_kj_per_m2)
-        
+        energy_kj_per_m2 = (total_variance_m2 * rho_g) / 1000.0
+
+        # Use CDIP peak period to estimate group velocity (deep water)
+        T = cdip_data['tp_s'][time_idx, site_idx]
+        if T is None or np.isnan(T) or T <= 0:
+            return None
+        g = 9.81
+        Cg = g * T / (4.0 * np.pi)
+
+        # Convert to per-crest-length per wave (kJ/m), then to kJ/ft
+        energy_kj_per_m = energy_kj_per_m2 * Cg * T
+        energy_kj_per_ft = energy_kj_per_m / 3.28084
+        return float(energy_kj_per_ft)
+
     except Exception as e:
         logger.debug(f"   Error calculating CDIP wave energy: {e}")
         return None
@@ -580,7 +588,7 @@ def get_noaa_data_bulk_optimized(ds, beaches):
     # Load CDIP data once for all beaches (both NorCal and SoCal)
     cdip_data = load_cdip_data()
 
-    # ---- Filter to 7-day window (UTC) ----
+    # ---- Filter to 7-day window starting at today's local midnight (Pacific) ----
     time_vals_full = pd.to_datetime(ds.time.values)
     # Make sure the index is UTC-aware
     if time_vals_full.tz is None:
@@ -588,10 +596,10 @@ def get_noaa_data_bulk_optimized(ds, beaches):
     else:
         time_vals_full = time_vals_full.tz_convert("UTC")
 
-    # Get a guaranteed UTC-aware "now"
-    now_utc = pd.Timestamp.now(tz="UTC")
-
-    window_start = now_utc.floor("H")
+    # Compute Pacific midnight for "today" and convert to UTC
+    pacific_tz = pytz.timezone("America/Los_Angeles")
+    pacific_today_midnight = pd.Timestamp.now(pacific_tz).normalize()
+    window_start = pacific_today_midnight.tz_convert("UTC")
     window_end = window_start + pd.Timedelta(days=7)
 
     mask = (time_vals_full >= window_start) & (time_vals_full < window_end)
@@ -820,8 +828,8 @@ def process_beach_with_cached_data(beach, grid_data, grid_key, cdip_data=None):
         sig_wave_height_m = safe_float(grid_data['sig_wave_height'][i])
         surf_min_ft, surf_max_ft = get_surf_height_range(sig_wave_height_m)
         
-        # NOAA wind data (convert to mph)
-        wind_speed_mph = safe_float(mps_to_mph(grid_data['wind_speed_mps'][i]))
+        # Wind speed: defer to Open-Meteo supplement (do not use NOAA here)
+        wind_speed_mph = None
         wind_direction = safe_float(grid_data['wind_direction_deg'][i])
         
         # Calculate wave energy using CDIP spectral data if available, otherwise fallback
@@ -853,6 +861,9 @@ def process_beach_with_cached_data(beach, grid_data, grid_key, cdip_data=None):
             # Standard calculation using PRIMARY (highest ranked) swell
             wave_energy_kj = calculate_wave_energy_kj(primary_height, primary_period)
         
+        # Override to ensure Surf-Forecast-like index scale consistently
+        wave_energy_kj = calculate_wave_energy_kj(primary_height, primary_period)
+        
         record = {
             "beach_id": beach_id,
             "timestamp": final_timestamp,  # Clean Pacific intervals: 00:00, 03:00, 06:00, etc.
@@ -875,7 +886,7 @@ def process_beach_with_cached_data(beach, grid_data, grid_key, cdip_data=None):
             "surf_height_max_ft": surf_max_ft,
             "wave_energy_kj": wave_energy_kj,
             
-            # NOAA wind data (in mph)
+            # Wind data (speed from Open-Meteo supplement; direction from NOAA)
             "wind_speed_mph": wind_speed_mph,
             "wind_direction_deg": wind_direction,
             

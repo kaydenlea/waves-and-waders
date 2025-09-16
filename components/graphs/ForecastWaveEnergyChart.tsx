@@ -176,9 +176,15 @@ function buildTrendStops(
   return stops;
 }
 
-const ForecastWaveEnergyChart = () => {
+import { fetchWeeklyForecast, fetchBeachByIdLoose, fetchBeachDetails, fetchDailyConditions } from "@/lib/supabase";
+
+type Props = { beachId?: string; date?: Date };
+
+const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, date }) => {
   const [startIndex, setStartIndex] = React.useState(0);
   const [windowSize, setWindowSize] = React.useState(0);
+  const [energyData, setEnergyData] = React.useState<WavePoint[]>([]);
+  const [baseStartMs, setBaseStartMs] = React.useState<number | null>(null);
 
   React.useEffect(() => {
     const handleResize = () => {
@@ -212,13 +218,100 @@ const ForecastWaveEnergyChart = () => {
     }
   };
 
-  const visibleData = chartData.slice(startIndex, startIndex + windowSize);
+  const [dayAreas, setDayAreas] = React.useState<{ x1: number; x2: number }[]>([]);
+  const [sunMarkers, setSunMarkers] = React.useState<number[]>([]);
+  
+  // Build energy series from forecast rows (wave_energy_kj or surf.waveEnergy)
+  React.useEffect(() => {
+    const load = async () => {
+      try {
+        if (!beachId) { setEnergyData([]); setBaseStartMs(null); return; }
+        const resolved = await fetchBeachByIdLoose(beachId);
+        const id = resolved?.id ?? beachId;
+        const rows = await fetchWeeklyForecast(String(id));
+        if (!rows || !rows.length) { setEnergyData([]); setBaseStartMs(null); return; }
+        // Sort rows and determine Pacific midnight of the earliest row without string roundtrip
+        rows.sort((a:any,b:any)=> new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+        const earliest = new Date(rows[0].timestamp);
+        const parts = new Intl.DateTimeFormat('en-US', {
+          timeZone: 'America/Los_Angeles',
+          hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+        }).formatToParts(earliest);
+        const hh = Number(parts.find(p=>p.type==='hour')?.value ?? '0');
+        const mm = Number(parts.find(p=>p.type==='minute')?.value ?? '0');
+        const ss = Number(parts.find(p=>p.type==='second')?.value ?? '0');
+        const baseMs = earliest.getTime() - ((hh*3600 + mm*60 + ss) * 1000);
+        setBaseStartMs(baseMs);
+
+        const series: WavePoint[] = [];
+        for (const r of rows) {
+          const ts = new Date(r.timestamp).getTime();
+          const hour = Math.round((ts - baseMs) / 3600000);
+          const v = (r as any)?.surf?.waveEnergy ?? (r as any)?.wave_energy_kj ?? 0;
+          series.push({ hour, energy: Number(v) || 0 });
+        }
+        // Keep within a reasonable window (e.g., first 96 hours)
+        series.sort((a,b)=> a.hour - b.hour);
+        setEnergyData(series);
+      } catch (e) {
+        setEnergyData([]); setBaseStartMs(null);
+      }
+    };
+    load();
+  }, [beachId]);
+
+  const source = energyData.length ? energyData : chartData;
+  const visibleData = source.slice(startIndex, startIndex + windowSize);
   let start = startIndex;
 
   const stops = React.useMemo(
     () => buildTrendStops(visibleData, "var(--green)", "var(--red)"),
     [visibleData]
   );
+
+  // Build sunrise/sunset shading for the visible window (based on baseStartMs)
+  React.useEffect(() => {
+    const run = async () => {
+      try {
+        if (!beachId || baseStartMs == null) { setDayAreas([]); setSunMarkers([]); return; }
+        const resolved = await fetchBeachByIdLoose(beachId);
+        const id = resolved?.id ?? beachId;
+        const beach = await fetchBeachDetails(String(id));
+        const county = beach?.COUNTY;
+        if (!county) { setDayAreas([]); setSunMarkers([]); return; }
+        const baseDate = new Date(baseStartMs);
+        const parseHM = (s: string | null): { h:number; m:number } | null => {
+          if (!s) return null; const m = /^(\d{1,2}):(\d{2})/.exec(s.trim()); if (!m) return null; const h=Number(m[1]); const mm=Number(m[2]); if(!Number.isFinite(h)||!Number.isFinite(mm)) return null; return {h, m:mm};
+        };
+        const days = [new Date(baseDate), new Date(baseDate.getTime() + 24*3600*1000)];
+        const areas: {x1:number;x2:number}[] = []; const markers:number[] = [];
+        for (let di=0; di<days.length; di++){
+          const cond = await fetchDailyConditions(county, days[di]);
+          const rise = parseHM(cond?.sunrise ?? null); const setv = parseHM(cond?.sunset ?? null);
+          if (!rise || !setv) continue; const offset = di*24; const rH = offset + rise.h; const sH = offset + setv.h;
+          areas.push({ x1: Math.min(rH, sH), x2: Math.max(rH, sH) }); markers.push(rH, sH);
+        }
+        setDayAreas(areas); setSunMarkers(markers);
+      } catch { setDayAreas([]); setSunMarkers([]); }
+    };
+    run();
+  }, [beachId, baseStartMs, startIndex, windowSize]);
+
+  const pacificMidnight = React.useMemo(() => {
+    if (baseStartMs != null) return baseStartMs;
+    const now = new Date();
+    const local = new Date(now.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+    local.setHours(0,0,0,0);
+    return local.getTime();
+  }, [baseStartMs]);
+
+  const fmtRange = React.useMemo(() => {
+    if (!visibleData.length) return '';
+    const startMs = pacificMidnight + visibleData[0].hour * 3600 * 1000;
+    const endMs = pacificMidnight + visibleData[visibleData.length - 1].hour * 3600 * 1000;
+    const fmt = (ms: number) => new Date(ms).toLocaleDateString('en-US', { weekday:'short', month:'numeric', day:'numeric', timeZone:'America/Los_Angeles' });
+    return `${fmt(startMs)} - ${fmt(endMs)}`;
+  }, [visibleData, pacificMidnight]);
 
   return (
     <>
@@ -228,7 +321,7 @@ const ForecastWaveEnergyChart = () => {
         startIndex={startIndex}
         windowSize={windowSize}
         length={chartData.length}
-        days="Wed, 8/15 - Fri, 8/17"
+        days={fmtRange}
       />
       <ChartContainer
         config={chartConfig}
@@ -244,6 +337,9 @@ const ForecastWaveEnergyChart = () => {
           }}
           syncId="anyId"
         >
+          {dayAreas.map((a, idx) => (
+            <ReferenceArea key={`day-${idx}`} x1={a.x1} x2={a.x2} fill="#FFE58F" fillOpacity={0.2} />
+          ))}
           {visibleData.map(
             (entry) =>
               entry.hour % 24 === 0 && (

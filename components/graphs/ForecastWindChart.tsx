@@ -52,7 +52,7 @@ type Props = { beachId?: string };
 const ForecastWindChart: React.FC<Props> = ({ beachId }) => {
   const [startIndex, setStartIndex] = React.useState(0);
   const [windowSize, setWindowSize] = React.useState(0);
-  const [data, setData] = React.useState<{ day: string; wind1: number; wind2: number; wind3: number }[]>([]);
+  const [data, setData] = React.useState<{ day: string; dateMs: number; wind1: number; wind2: number; wind3: number }[]>([]);
 
   React.useEffect(() => {
     const handleResize = () => {
@@ -83,15 +83,16 @@ const ForecastWindChart: React.FC<Props> = ({ beachId }) => {
         const byDay = new Map<string, ForecastData[]>();
         for (const r of rows) {
           const d = new Date(r.timestamp);
-          const key = d.toLocaleDateString("en-US", { weekday: "short" });
+          const key = d.toLocaleDateString("en-US", { weekday: "short", timeZone: 'America/Los_Angeles' });
           const arr = byDay.get(key) ?? [];
           arr.push(r);
           byDay.set(key, arr);
         }
-        const out: { day: string; wind1: number; wind2: number; wind3: number }[] = [];
+        const out: { day: string; dateMs: number; wind1: number; wind2: number; wind3: number }[] = [];
         for (const [day, arr] of byDay.entries()) {
           // sort by hour
           arr.sort((a,b)=> new Date(a.timestamp).getTime()-new Date(b.timestamp).getTime());
+          const firstTs = new Date(arr[0]?.timestamp ?? Date.now()).getTime();
           const pick = (target: number) => {
             const near = arr.reduce((best, cur) => {
               const h = new Date(cur.timestamp).getHours();
@@ -101,7 +102,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId }) => {
             }, null as any);
             return near ? near.v : 0;
           };
-          out.push({ day, wind1: pick(6), wind2: pick(12), wind3: pick(18) });
+          out.push({ day, dateMs: firstTs, wind1: pick(6), wind2: pick(12), wind3: pick(18) });
         }
         // Keep consistent order Mon..Sun
         const order = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]; 
@@ -128,6 +129,8 @@ const ForecastWindChart: React.FC<Props> = ({ beachId }) => {
 
   const source = data.length ? data : chartData;
   const visibleData = source.slice(startIndex, startIndex + windowSize);
+  const fmt = (ms: number) => new Date(ms).toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric', timeZone: 'America/Los_Angeles' });
+  const daysLabel = visibleData.length ? `${fmt(visibleData[0].dateMs)} - ${fmt(visibleData[visibleData.length-1].dateMs)}` : '';
   return (
     <>
       {windowSize !== 7 && (
@@ -137,7 +140,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId }) => {
           startIndex={startIndex}
           windowSize={windowSize}
           length={chartData.length}
-          days="Wed, 8/15 - Fri, 8/17"
+          days={daysLabel}
         />
       )}
       <ChartContainer
@@ -170,61 +173,11 @@ const ForecastWindChart: React.FC<Props> = ({ beachId }) => {
             tick={(props) => {
               const safeX = typeof props.x === "number" ? props.x : 0;
               const safeY = typeof props.y === "number" ? props.y : 0;
-              const safeOffset =
-                typeof props.payload.offset === "number"
-                  ? props.payload.offset
-                  : 0;
-
+              const label = String(props.payload?.value ?? '');
               return (
                 <g>
-                  <rect
-                    x={safeX - safeOffset + 4}
-                    y={safeY - 15}
-                    width={safeOffset * 2 - 10}
-                    height={24}
-                    fill="var(--blue)"
-                    stroke="#cacacaff"
-                    strokeWidth={0.3}
-                    rx={4}
-                  />
-                  <text
-                    x={safeX}
-                    y={safeY + 1}
-                    textAnchor="middle"
-                    fill="var(--foreground)"
-                    fontSize={13}
-                    fontWeight={600}
-                  >
-                    2-3 ft
-                  </text>
-                  <rect
-                    x={safeX - safeOffset + 4}
-                    y={safeY - 15 + 25}
-                    width={safeOffset * 2 - 10}
-                    height={24 + 15}
-                    fill="var(--highlight-2)"
-                    stroke="#cacacaff"
-                    strokeWidth={0.3}
-                    rx={4}
-                  />
-                  <text
-                    x={safeX}
-                    y={safeY + 25}
-                    textAnchor="middle"
-                    fill="var(--foreground)"
-                    fontSize={11}
-                  >
-                    8/10
-                  </text>
-                  <text
-                    x={safeX}
-                    y={safeY + 25 + 15}
-                    textAnchor="middle"
-                    fill="var(--foreground)"
-                    fontSize={11}
-                    fontWeight={500}
-                  >
-                    {props.payload.value}
+                  <text x={safeX} y={safeY + 5} textAnchor="middle" fill="var(--foreground)" fontSize={13} fontWeight={600}>
+                    {label}
                   </text>
                 </g>
               );
