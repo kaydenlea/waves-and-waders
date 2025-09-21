@@ -411,10 +411,14 @@ def main():
             logger.error("CRITICAL: System checks failed. Aborting.")
             return False
 
-        # Step 1: Cleanup old data
-        log_step("Starting data cleanup", 1)
-        if not cleanup_old_data():
-            logger.warning("Cleanup had issues, continuing with upsert mode…")
+        # Step 1: Cleanup old data (skippable in scheduled upsert-only runs)
+        import os
+        if os.environ.get("UPSERT_ONLY", "0") == "1":
+            logger.info("UPSERT_ONLY=1 set — skipping destructive cleanup step")
+        else:
+            log_step("Starting data cleanup", 1)
+            if not cleanup_old_data():
+                logger.warning("Cleanup had issues, continuing with upsert mode…")
 
         # Step 2: Fetch beaches and counties
         log_step("Fetching location data", 2)
