@@ -735,15 +735,27 @@ export async function fetchDailyConditions(
 }
 
 export async function fetchTodaysForecast(beachId: string): Promise<ForecastData[]> {
-  const now = new Date()
-  const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000)
-  return fetchBeachForecast(beachId, now, tomorrow)
+  const start = pacificMidnightUTC()
+  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000)
+  return fetchBeachForecast(beachId, start, end)
 }
 
 export async function fetchWeeklyForecast(beachId: string): Promise<ForecastData[]> {
-  const now = new Date()
-  const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
-  return fetchBeachForecast(beachId, now, weekFromNow)
+  const start = pacificMidnightUTC()
+  const end = new Date(start.getTime() + 7 * 24 * 60 * 60 * 1000)
+  return fetchBeachForecast(beachId, start, end)
+}
+
+// Helper: compute the UTC Date corresponding to today's 00:00 in America/Los_Angeles
+function pacificMidnightUTC(base: Date = new Date()): Date {
+  // Derive a Date for what the local clock in LA says now
+  const laNow = new Date(base.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }))
+  // Midnight in LA for that calendar day (interpreted in runner's tz)
+  const laMidnightLocal = new Date(laNow.getFullYear(), laNow.getMonth(), laNow.getDate(), 0, 0, 0)
+  // Difference between runner clock (UTC on Actions) and LA representation above
+  const offsetMs = base.getTime() - laNow.getTime()
+  // Convert the LA-local midnight to an absolute UTC instant
+  return new Date(laMidnightLocal.getTime() + offsetMs)
 }
 
 // Returns the earliest and latest timestamps available for a beach's forecast data
