@@ -11,7 +11,7 @@ import {
 import DaySlider from "../general/DaySlider";
 import {
   fetchBeachByIdLoose,
-  fetchWeeklyForecast,
+  fetchBeachForecast,
   getWindDirection,
   type ForecastData,
 } from "@/lib/supabase";
@@ -107,6 +107,39 @@ type TableEntry = {
 
 type TableDay = { date: string; dateMs: number; vals: TableEntry[] };
 
+type DateLike = Date | undefined | null;
+
+const isValidDate = (value: DateLike): value is Date => value instanceof Date && !Number.isNaN(value.getTime());
+
+const pacificStartOfDay = (input: Date) => {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Los_Angeles",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZoneName: "short",
+  });
+  const parts = formatter.formatToParts(input);
+  const partValue = (type: Intl.DateTimeFormatPart["type"]) => parts.find((p) => p.type === type)?.value ?? "";
+  const year = Number(partValue("year"));
+  const month = Number(partValue("month")) - 1;
+  const day = Number(partValue("day"));
+  const tzName = partValue("timeZoneName") || "";
+  let offsetMinutes = 0;
+  const match = tzName.match(/GMT([+-]\d{1,2})(?::(\d{2}))?/);
+  if (match) {
+    const rawHours = match[1] ?? "+0";
+    const sign = rawHours.startsWith("-") ? -1 : 1;
+    const hours = Math.abs(Number(rawHours));
+    const minutes = match[2] ? Number(match[2]) : 0;
+    offsetMinutes = sign * (hours * 60 + minutes);
+  }
+  const utcMillis = Date.UTC(year, month, day, 0, 0, 0) - offsetMinutes * 60 * 1000;
+  return new Date(utcMillis);
+};
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 const StatTable = ({
   numDays,
   numHours,
@@ -128,7 +161,15 @@ const StatTable = ({
         if (!beachId) return;
         const resolved = await fetchBeachByIdLoose(beachId);
         const resolvedId = resolved?.id ?? beachId;
-        const weekly = await fetchWeeklyForecast(resolvedId);
+        const requestedDate = isValidDate(date) ? date : undefined;
+        const anchor = requestedDate ?? new Date();
+        const anchorStart = pacificStartOfDay(anchor);
+        const bufferBefore = requestedDate ? 1 : 0;
+        const bufferAfter = requestedDate ? 1 : 0;
+        const rangeStart = new Date(anchorStart.getTime() - bufferBefore * DAY_MS);
+        const daysToFetch = Math.max(numDays, 1) + bufferAfter;
+        const rangeEnd = new Date(anchorStart.getTime() + daysToFetch * DAY_MS);
+        const weekly = await fetchBeachForecast(resolvedId, rangeStart, rangeEnd);
 
         // Group by Pacific date (explicit timezone to avoid browser locale shifts)
         const byDay = new Map<string, ForecastData[]>();
@@ -155,7 +196,7 @@ const StatTable = ({
           return ta - tb;
         });
 
-        const onlyLabel = date instanceof Date ? fmtDayLabel(date) : null;
+        const onlyLabel = requestedDate ? fmtDayLabel(requestedDate) : null;
 
         // Optionally narrow to selected label; if no exact match, try +/- 1 day as fallback
         let allowedLabels: Set<string> | null = null;
@@ -164,10 +205,12 @@ const StatTable = ({
           if (labels.includes(onlyLabel)) {
             allowedLabels = new Set([onlyLabel]);
           } else {
-            const prev = fmtDayLabel(new Date(date!.getTime() - 24 * 60 * 60 * 1000));
-            const next = fmtDayLabel(new Date(date!.getTime() + 24 * 60 * 60 * 1000));
-            const cands = [prev, next].filter(l => labels.includes(l));
-            if (cands.length) allowedLabels = new Set([cands[0]]);
+            if (requestedDate) {
+              const prev = fmtDayLabel(new Date(requestedDate.getTime() - DAY_MS));
+              const next = fmtDayLabel(new Date(requestedDate.getTime() + DAY_MS));
+              const cands = [prev, next].filter((l) => labels.includes(l));
+              if (cands.length) allowedLabels = new Set([cands[0]]);
+            }
           }
         }
 
@@ -503,3 +546,4 @@ const StatTable = ({
 };
 
 export default StatTable;
+

@@ -5,6 +5,8 @@ import { useRouter, usePathname } from "next/navigation";
 import { AttributionControl, Map, Popup, Source, Layer } from "react-map-gl/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { FEATURE_CATEGORIES, getFeatureDisplayName } from "@/lib/supabase";
+const DEFAULT_MAP_STYLE = "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
+const MAP_STYLE_URL = process.env.NEXT_PUBLIC_MAP_STYLE_URL ?? DEFAULT_MAP_STYLE;
 
 type BeachPoint = {
   id: string | number;
@@ -116,7 +118,9 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
       reuseMaps
       initialViewState={initialView}
       style={{ width: "100%", height: "100%", borderRadius: "12px" }}
-      mapStyle="https://demotiles.maplibre.org/style.json"
+      mapStyle={MAP_STYLE_URL}
+      maxZoom={16}
+      minZoom={3}
       attributionControl={false}
       interactiveLayerIds={["clusters", "cluster-count", "unclustered-point"]}
       onClick={(e) => {
