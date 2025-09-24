@@ -37,6 +37,98 @@ from openmeteo_handler import (
 # HYBRID FORECAST UPDATE
 # --------------------------------------------------------------------------------------
 
+def _ensure_today_midnight_start(records, beaches):
+    """Ensure each beach has records starting from today's 12:00 AM (Pacific).
+
+    If NOAA starts later (e.g., first timestep is 06:00), create placeholder
+    rows at 00:00, 03:00, etc., up to (but not including) the earliest existing
+    timestamp. Open-Meteo supplement will fill target fields on these rows.
+    """
+    if not records:
+        return records
+
+    import pytz
+    from datetime import datetime, timedelta, time as dtime
+
+    pacific = pytz.timezone('America/Los_Angeles')
+    today = datetime.now(pacific).date()
+    midnight = pacific.localize(datetime.combine(today, dtime(0, 0)))
+
+    # Build quick lookups
+    by_beach = {}
+    for r in records:
+        bid = r.get("beach_id")
+        if bid is None:
+            continue
+        by_beach.setdefault(bid, []).append(r)
+
+    beach_ids = {b["id"] for b in beaches if b.get("id") is not None}
+    all_out = list(records)
+
+    for bid in beach_ids:
+        recs = by_beach.get(bid, [])
+        # Find earliest timestamp for today for this beach
+        earliest_ts = None
+        for r in recs:
+            ts_str = r.get("timestamp")
+            if not ts_str:
+                continue
+            try:
+                ts = datetime.fromisoformat(ts_str)
+            except Exception:
+                continue
+            # Only consider timestamps on or after today's midnight
+            if ts.tzinfo is None:
+                continue  # expect tz-aware local ISO
+            if ts >= midnight and (earliest_ts is None or ts < earliest_ts):
+                earliest_ts = ts
+
+        # If no records at/after midnight, we will backfill the entire day start
+        if earliest_ts is None:
+            # No records for today yet; start at midnight and let supplement fill
+            target_end = midnight
+        else:
+            target_end = earliest_ts
+
+        # Generate 3-hour steps from midnight up to target_end (exclusive)
+        t = midnight
+        placeholders = []
+        while t < target_end:
+            # Avoid duplicating if a record already exists at this timestamp
+            ts_iso = t.isoformat()
+            if not any(r.get("timestamp") == ts_iso for r in recs):
+                placeholders.append({
+                    "beach_id": bid,
+                    "timestamp": ts_iso,
+                    # NOAA fields left None; Open-Meteo will fill supplement fields
+                    "primary_swell_height_ft": None,
+                    "primary_swell_period_s": None,
+                    "primary_swell_direction": None,
+                    "secondary_swell_height_ft": None,
+                    "secondary_swell_period_s": None,
+                    "secondary_swell_direction": None,
+                    "tertiary_swell_height_ft": None,
+                    "tertiary_swell_period_s": None,
+                    "tertiary_swell_direction": None,
+                    "surf_height_min_ft": None,
+                    "surf_height_max_ft": None,
+                    "wave_energy_kj": None,
+                    "wind_speed_mph": None,
+                    "wind_direction_deg": None,
+                    "wind_gust_mph": None,
+                    "water_temp_f": None,
+                    "tide_level_ft": None,
+                    "temperature": None,
+                    "weather": None,
+                    "pressure_inhg": None,
+                })
+            t += timedelta(hours=3)
+
+        if placeholders:
+            all_out.extend(placeholders)
+
+    return all_out
+
 def update_forecast_data_hybrid(beaches):
     """
     Update forecast data using:
@@ -66,6 +158,9 @@ def update_forecast_data_hybrid(beaches):
         if all_noaa_records:
             sample_ts = all_noaa_records[0].get("timestamp")
             logger.info(f"   Sample NOAA timestamp (should be America/Los_Angeles ISO): {sample_ts}")
+
+        # Ensure we start from today's 12:00 AM (Pacific) per-beach
+        all_noaa_records = _ensure_today_midnight_start(all_noaa_records, beaches)
 
         # --- OPEN-METEO SUPPLEMENT ---
         logger.info("   Enhancing with Open-Meteo supplement (fill missing fields only)…")
@@ -316,10 +411,14 @@ def main():
             logger.error("CRITICAL: System checks failed. Aborting.")
             return False
 
-        # Step 1: Cleanup old data
-        log_step("Starting data cleanup", 1)
-        if not cleanup_old_data():
-            logger.warning("Cleanup had issues, continuing with upsert mode…")
+        # Step 1: Cleanup old data (skippable in scheduled upsert-only runs)
+        import os
+        if os.environ.get("UPSERT_ONLY", "0") == "1":
+            logger.info("UPSERT_ONLY=1 set — skipping destructive cleanup step")
+        else:
+            log_step("Starting data cleanup", 1)
+            if not cleanup_old_data():
+                logger.warning("Cleanup had issues, continuing with upsert mode…")
 
         # Step 2: Fetch beaches and counties
         log_step("Fetching location data", 2)

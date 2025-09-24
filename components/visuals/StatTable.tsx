@@ -225,8 +225,17 @@ const StatTable = ({
               return Number.isFinite(h) ? h : new Date(ts).getUTCHours();
             } catch { return new Date(ts).getUTCHours(); }
           };
-          const entries: TableEntry[] = rows.slice(0, numHours).map((r) => {
-            const hour = pacificHour(r.timestamp);
+          // Build a map from Pacific hour -> row
+          const hourMap = new Map<number, ForecastData>();
+          for (const r of rows) {
+            hourMap.set(pacificHour(r.timestamp), r);
+          }
+
+          // Target hours start at 12 AM local; default to 3-hour grid
+          const THREE_HOUR_GRID = [0, 3, 6, 9, 12, 15, 18, 21];
+          const targetHours = THREE_HOUR_GRID.slice(0, Math.min(numHours, THREE_HOUR_GRID.length));
+
+          const makeEntryFromRow = (r: ForecastData, hour: number): TableEntry => {
             const displayHour = ((hour % 12) === 0 ? 12 : (hour % 12));
             const ampm = hour >= 12 ? "PM" : "AM";
 
@@ -238,9 +247,9 @@ const StatTable = ({
             const max = r.surf.heightMax ?? 0;
             const minR = Math.round(min);
             const maxR = Math.round(max);
-            const surfHeight = minR === maxR ? `${maxR}` : `${minR}-${maxR}`;
+            const surfHeight = (minR === 0 && maxR === 0) ? "—" : (minR === maxR ? `${maxR}` : `${minR}-${maxR}`);
 
-            const priH = Number((r.swell.primary.height ?? 0).toFixed(1));
+            const priH = r.swell.primary.height != null ? Number((r.swell.primary.height).toFixed(1)) : 0;
             const priP = Math.round(r.swell.primary.period ?? 0);
             const priDeg = Math.round(r.swell.primary.direction ?? 0);
             const priDir = getWindDirection(priDeg);
@@ -273,6 +282,28 @@ const StatTable = ({
               },
               pressure: { label: "pressure", value: pressure },
             };
+          };
+
+          const makePlaceholder = (hour: number): TableEntry => {
+            const displayHour = ((hour % 12) === 0 ? 12 : (hour % 12));
+            const ampm = hour >= 12 ? "PM" : "AM";
+            return {
+              index: hour,
+              time: `${displayHour} ${ampm}`,
+              wind: { label: "wind", dir: "—", speed: 0, max: 0 },
+              surf: { label: "surf", height: "—" },
+              swell: {
+                label: "swell",
+                primary: { height: 0, period: 0, dir: "—", deg: 0 },
+                secondary: [],
+              },
+              pressure: { label: "pressure", value: 0 },
+            };
+          };
+
+          const entries: TableEntry[] = targetHours.map((h) => {
+            const r = hourMap.get(h);
+            return r ? makeEntryFromRow(r, h) : makePlaceholder(h);
           });
 
           // Use first row's midnight for stable date range labeling

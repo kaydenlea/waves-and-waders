@@ -14,9 +14,9 @@ if sys.platform == "win32":
     os.environ["PYTHONIOENCODING"] = "utf-8"
 
 # === API CREDENTIALS ===
-SUPABASE_URL = "https://wborkytqlmkcgwzhsoiz.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indib3JreXRxbG1rY2d3emhzb2l6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQxMTMxNDcsImV4cCI6MjA2OTY4OTE0N30.9kRB3eSEL_N37dy6FjGfNJEDBiCXam9nepDLowCCxk0"
-VC_API_KEY = "NFYFM562X2PY2M4W4GE8WZZGC"
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://wborkytqlmkcgwzhsoiz.supabase.co")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indib3JreXRxbG1rY2d3emhzb2l6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQxMTMxNDcsImV4cCI6MjA2OTY4OTE0N30.9kRB3eSEL_N37dy6FjGfNJEDBiCXam9nepDLowCCxk0")
+VC_API_KEY = os.environ.get("VC_API_KEY", "NFYFM562X2PY2M4W4GE8WZZGC")
 
 # === NOAA CONFIGURATION ===
 NOAA_BASE_URL = "http://nomads.ncep.noaa.gov:80/dods/wave/gfswave"
