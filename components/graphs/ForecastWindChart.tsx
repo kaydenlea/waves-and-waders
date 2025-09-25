@@ -64,7 +64,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId }) => {
       } else if (width < 750) {
         setWindowSize(5);
       } else {
-        setWindowSize(7);
+        setWindowSize(6);
       }
     };
 
@@ -104,10 +104,10 @@ const ForecastWindChart: React.FC<Props> = ({ beachId }) => {
           };
           out.push({ day, dateMs: firstTs, wind1: pick(6), wind2: pick(12), wind3: pick(18) });
         }
-        // Keep consistent order Mon..Sun
-        const order = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]; 
-        out.sort((a,b)=> order.indexOf(a.day) - order.indexOf(b.day));
-        setData(out);
+        // Sort chronologically so we can cap the slider range.
+        out.sort((a, b) => a.dateMs - b.dateMs);
+        const trimmed = out.slice(0, 7);
+        setData(trimmed);
       } catch (e) {
         console.error("Failed to load weekly wind", e);
       }
@@ -115,8 +115,11 @@ const ForecastWindChart: React.FC<Props> = ({ beachId }) => {
     load();
   }, [beachId]);
 
+  const totalLength = data.length ? data.length : chartData.length;
+
   const handleNext = () => {
-    if (startIndex + windowSize < chartData.length) {
+    if (!windowSize) return;
+    if (startIndex + windowSize < totalLength) {
       setStartIndex((prev) => prev + 1);
     }
   };
@@ -131,15 +134,16 @@ const ForecastWindChart: React.FC<Props> = ({ beachId }) => {
   const visibleData = source.slice(startIndex, startIndex + windowSize);
   const fmt = (ms: number) => new Date(ms).toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric', timeZone: 'America/Los_Angeles' });
   const daysLabel = visibleData.length ? `${fmt(visibleData[0].dateMs)} - ${fmt(visibleData[visibleData.length-1].dateMs)}` : '';
+  const showSlider = windowSize > 0 && windowSize < totalLength;
   return (
     <>
-      {windowSize !== 7 && (
+      {showSlider && (
         <DaySlider
           handleBack={handleBack}
           handleNext={handleNext}
           startIndex={startIndex}
           windowSize={windowSize}
-          length={chartData.length}
+          length={totalLength}
           days={daysLabel}
         />
       )}
@@ -289,3 +293,9 @@ const ForecastWindChart: React.FC<Props> = ({ beachId }) => {
 };
 
 export default ForecastWindChart;
+
+
+
+
+
+

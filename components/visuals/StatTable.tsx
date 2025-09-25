@@ -231,9 +231,11 @@ const StatTable = ({
             hourMap.set(pacificHour(r.timestamp), r);
           }
 
-          // Target hours start at 12 AM local; default to 3-hour grid
+          // Choose hour checkpoints: when only a few rows are requested, focus on 6/12/18; otherwise use a 3-hour grid.
           const THREE_HOUR_GRID = [0, 3, 6, 9, 12, 15, 18, 21];
-          const targetHours = THREE_HOUR_GRID.slice(0, Math.min(numHours, THREE_HOUR_GRID.length));
+          const SPOT_HOURS = [6, 12, 18];
+          const baseHours = numHours <= SPOT_HOURS.length ? SPOT_HOURS : THREE_HOUR_GRID;
+          const targetHours = baseHours.slice(0, Math.min(numHours, baseHours.length));
 
           const makeEntryFromRow = (r: ForecastData, hour: number): TableEntry => {
             const displayHour = ((hour % 12) === 0 ? 12 : (hour % 12));
@@ -577,4 +579,8 @@ const StatTable = ({
 };
 
 export default StatTable;
+
+
+
+
 

@@ -151,15 +151,20 @@ const DatePicker = ({ className, beachId, value, onSelect }: DatePickerProps) =>
           groups[key].code = best;
         }
         if (active) {
-          // Order keys ascending
+          // Order keys ascending and cap to first seven entries to avoid overcrowding.
           const keys = Object.keys(groups).sort();
-          setSummaries(groups);
-          setOrderedKeys(keys);
+          const limitedKeys = keys.slice(0, 7);
+          const limitedGroups: Record<string, DaySummary> = {};
+          for (const key of limitedKeys) {
+            limitedGroups[key] = groups[key];
+          }
+          setSummaries(limitedGroups);
+          setOrderedKeys(limitedKeys);
           // initialize selection: prefer controlled value; else first key
           if (value instanceof Date) {
             setSelectedDate(dayjs(value).startOf("day"));
-          } else if (!selectedDate && keys.length > 0) {
-            const first = groups[keys[0]].date;
+          } else if (!selectedDate && limitedKeys.length > 0) {
+            const first = limitedGroups[limitedKeys[0]].date;
             setSelectedDate(first);
             // notify parent so external consumers (Summary) can react
             onSelect?.(first.toDate());
@@ -276,3 +281,5 @@ const DatePicker = ({ className, beachId, value, onSelect }: DatePickerProps) =>
 };
 
 export default DatePicker;
+
+

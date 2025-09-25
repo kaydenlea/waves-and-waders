@@ -8,7 +8,6 @@ import {
   CartesianGrid,
   XAxis,
   YAxis,
-  ReferenceArea,
   LabelList,
   LabelProps,
   ReferenceLine,
@@ -22,8 +21,7 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import DaySlider from "../general/DaySlider";
-
-import { Sun, Sunrise, Sunset } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
 
 const chartData = [
   { hour: 0, energy: 1 },
@@ -125,9 +123,6 @@ const chartData = [
   { hour: 96, energy: 1 },
 ];
 
-const sunRises = new Set([6, 31, 55, 79]);
-const sunSets = new Set([20, 45, 69, 93]);
-
 const chartConfig = {
   energy: {
     label: "Energy (kJ)",
@@ -139,6 +134,8 @@ type WavePoint = {
   hour: number;
   energy: number;
 };
+
+const HOURS_PER_DAY = 24;
 
 function buildTrendStops(
   series: WavePoint[],
@@ -176,51 +173,16 @@ function buildTrendStops(
   return stops;
 }
 
-import { fetchWeeklyForecast, fetchBeachByIdLoose, fetchBeachDetails, fetchDailyConditions } from "@/lib/supabase";
+import { fetchWeeklyForecast, fetchBeachByIdLoose } from "@/lib/supabase";
 
 type Props = { beachId?: string; date?: Date };
 
 const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, date }) => {
   const [startIndex, setStartIndex] = React.useState(0);
-  const [windowSize, setWindowSize] = React.useState(0);
+  const [dayWindow, setDayWindow] = React.useState(3);
   const [energyData, setEnergyData] = React.useState<WavePoint[]>([]);
   const [baseStartMs, setBaseStartMs] = React.useState<number | null>(null);
 
-  React.useEffect(() => {
-    const handleResize = () => {
-      const container = document.querySelector("#content");
-      const width = container ? container.clientWidth : 0;
-
-      if (width < 550) {
-        setWindowSize(25);
-      } else if (width < 750) {
-        setWindowSize(49);
-      } else {
-        setWindowSize(73);
-      }
-    };
-
-    handleResize();
-    window.addEventListener("resize", handleResize);
-
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  const handleNext = () => {
-    if (startIndex + windowSize < chartData.length) {
-      setStartIndex((prev) => prev + 24);
-    }
-  };
-
-  const handleBack = () => {
-    if (startIndex > 0) {
-      setStartIndex((prev) => prev - 24);
-    }
-  };
-
-  const [dayAreas, setDayAreas] = React.useState<{ x1: number; x2: number }[]>([]);
-  const [sunMarkers, setSunMarkers] = React.useState<number[]>([]);
-  
   // Build energy series from forecast rows (wave_energy_kj or surf.waveEnergy)
   React.useEffect(() => {
     const load = async () => {
@@ -261,41 +223,54 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, date }) => {
   }, [beachId]);
 
   const source = energyData.length ? energyData : chartData;
+  const pointsPerDay = React.useMemo(() => {
+    if (source.length < 2) {
+      return HOURS_PER_DAY;
+    }
+    let minStep = Infinity;
+    for (let i = 1; i < source.length; i++) {
+      const diff = Math.abs(source[i].hour - source[i - 1].hour);
+      if (diff > 0 && diff < minStep) {
+        minStep = diff;
+      }
+    }
+    if (!Number.isFinite(minStep) || minStep <= 0) {
+      return HOURS_PER_DAY;
+    }
+    return Math.max(1, Math.ceil(HOURS_PER_DAY / minStep));
+  }, [source]);
+  const totalLength = source.length;
+
+  const maxSelectableDays = React.useMemo(() => {
+    if (!totalLength || !pointsPerDay) {
+      return 1;
+    }
+    const available = Math.floor(totalLength / pointsPerDay);
+    const capped = Math.min(7, available > 0 ? available : 1);
+    return Math.max(1, capped);
+  }, [pointsPerDay, totalLength]);
+
+  const effectiveDayWindow = Math.min(dayWindow, maxSelectableDays);
+  const windowSize = pointsPerDay * effectiveDayWindow;
+  const maxStartIndex = Math.max(0, totalLength - windowSize);
+
+  React.useEffect(() => {
+    if (dayWindow > maxSelectableDays) {
+      setDayWindow(maxSelectableDays);
+    }
+  }, [dayWindow, maxSelectableDays]);
+
+  React.useEffect(() => {
+    setStartIndex((prev) => Math.min(prev, maxStartIndex));
+  }, [maxStartIndex]);
+
   const visibleData = source.slice(startIndex, startIndex + windowSize);
-  let start = startIndex;
 
   const stops = React.useMemo(
     () => buildTrendStops(visibleData, "var(--green)", "var(--red)"),
     [visibleData]
   );
 
-  // Build sunrise/sunset shading for the visible window (based on baseStartMs)
-  React.useEffect(() => {
-    const run = async () => {
-      try {
-        if (!beachId || baseStartMs == null) { setDayAreas([]); setSunMarkers([]); return; }
-        const resolved = await fetchBeachByIdLoose(beachId);
-        const id = resolved?.id ?? beachId;
-        const beach = await fetchBeachDetails(String(id));
-        const county = beach?.COUNTY;
-        if (!county) { setDayAreas([]); setSunMarkers([]); return; }
-        const baseDate = new Date(baseStartMs);
-        const parseHM = (s: string | null): { h:number; m:number } | null => {
-          if (!s) return null; const m = /^(\d{1,2}):(\d{2})/.exec(s.trim()); if (!m) return null; const h=Number(m[1]); const mm=Number(m[2]); if(!Number.isFinite(h)||!Number.isFinite(mm)) return null; return {h, m:mm};
-        };
-        const days = [new Date(baseDate), new Date(baseDate.getTime() + 24*3600*1000)];
-        const areas: {x1:number;x2:number}[] = []; const markers:number[] = [];
-        for (let di=0; di<days.length; di++){
-          const cond = await fetchDailyConditions(county, days[di]);
-          const rise = parseHM(cond?.sunrise ?? null); const setv = parseHM(cond?.sunset ?? null);
-          if (!rise || !setv) continue; const offset = di*24; const rH = offset + rise.h; const sH = offset + setv.h;
-          areas.push({ x1: Math.min(rH, sH), x2: Math.max(rH, sH) }); markers.push(rH, sH);
-        }
-        setDayAreas(areas); setSunMarkers(markers);
-      } catch { setDayAreas([]); setSunMarkers([]); }
-    };
-    run();
-  }, [beachId, baseStartMs, startIndex, windowSize]);
 
   const pacificMidnight = React.useMemo(() => {
     if (baseStartMs != null) return baseStartMs;
@@ -313,14 +288,48 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, date }) => {
     return `${fmt(startMs)} - ${fmt(endMs)}`;
   }, [visibleData, pacificMidnight]);
 
+  const handleNext = () => {
+    if (startIndex < maxStartIndex) {
+      setStartIndex((prev) => Math.min(prev + pointsPerDay, maxStartIndex));
+    }
+  };
+
+  const handleBack = () => {
+    if (startIndex > 0) {
+      setStartIndex((prev) => Math.max(prev - pointsPerDay, 0));
+    }
+  };
+
+  const handleDayWindowChange = React.useCallback((value: number[]) => {
+    const raw = value?.[0];
+    const candidate = raw == null ? effectiveDayWindow : raw;
+    const next = Math.min(Math.max(Math.round(candidate), 1), maxSelectableDays);
+    setDayWindow(next);
+    setStartIndex(0);
+  }, [effectiveDayWindow, maxSelectableDays]);
+
   return (
     <>
+      <div className="mb-4">
+        <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
+          <span>Range</span>
+          <span>{effectiveDayWindow} {effectiveDayWindow === 1 ? "day" : "days"}</span>
+        </div>
+        <Slider
+          value={[effectiveDayWindow]}
+          min={1}
+          max={maxSelectableDays}
+          step={1}
+          onValueChange={handleDayWindowChange}
+          className="mt-2"
+        />
+      </div>
       <DaySlider
         handleBack={handleBack}
         handleNext={handleNext}
         startIndex={startIndex}
         windowSize={windowSize}
-        length={chartData.length}
+        length={totalLength}
         days={fmtRange}
       />
       <ChartContainer
@@ -337,48 +346,17 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, date }) => {
           }}
           syncId="anyId"
         >
-          {dayAreas.map((a, idx) => (
-            <ReferenceArea key={`day-${idx}`} x1={a.x1} x2={a.x2} fill="#FFE58F" fillOpacity={0.2} />
-          ))}
-          {visibleData.map(
-            (entry) =>
-              entry.hour % 24 === 0 && (
-                <ReferenceLine
-                  key={entry.hour}
-                  x={entry.hour}
-                  stroke="#c2c2c2ff"
-                  strokeWidth={0.5}
-                />
-              )
+          {visibleData.map((entry) =>
+            entry.hour % 24 === 0 ? (
+              <ReferenceLine
+                key={entry.hour}
+                x={entry.hour}
+                stroke="#c2c2c2ff"
+                strokeWidth={0.5}
+              />
+            ) : null
           )}
 
-          {visibleData.map((entry, index) => {
-            if (sunRises.has(entry.hour) || index === windowSize - 1) {
-              const prev = start;
-              start = entry.hour;
-              return (
-                <ReferenceArea
-                  key={`${prev}-${start}`}
-                  x1={prev}
-                  x2={start}
-                  fill="#ccc1ffff"
-                  fillOpacity={0.2}
-                />
-              );
-            } else if (sunSets.has(entry.hour)) {
-              const prev = start;
-              start = entry.hour;
-              return (
-                <ReferenceArea
-                  key={`${prev}-${start}`}
-                  x1={prev}
-                  x2={start}
-                  fill="#FFE58F"
-                  fillOpacity={0.2}
-                />
-              );
-            }
-          })}
           <CartesianGrid
             strokeDasharray="3 3"
             stroke="var(--foreground)"
@@ -447,3 +425,4 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, date }) => {
 };
 
 export default ForecastWaveEnergyChart;
+
