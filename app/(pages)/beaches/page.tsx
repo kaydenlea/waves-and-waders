@@ -185,9 +185,13 @@ const BEACHES: Beach[] = [
 const page = () => {
   const favorites = ["2", "4"];
   return (
-    <div className="@container p-2">
-      <div className="relative w-full flex flex-col gap-6">
-        {/* <Tabs
+    <>
+      <div className="block @min-3xl:hidden flex justify-center pt-5 pb-7">
+        <div className="bg-gray-300 w-16 h-1.5 rounded-full" />
+      </div>
+      <div className="@container p-2">
+        <div className="relative w-full flex flex-col gap-6">
+          {/* <Tabs
           defaultValue="nearby"
           className="mx-auto @min-lg:absolute @min-lg:right-0"
         >
@@ -200,30 +204,33 @@ const page = () => {
             </TabsTrigger>
           </TabsList>
         </Tabs> */}
-        <PageTabs
-          buttons={false}
-          tabs={["nearby", "saved"]}
-          defaultPage="nearby"
-        />
-        <header id="content" className="ml-2 mb-4 scroll-mt-30">
-          <h1 className="font-semibold text-3xl tracking-tight">Surf spots</h1>
-          <span className="text-muted-foreground">
-            Explore nearby beaches on the map
-          </span>
-        </header>
-      </div>
-      <section className="grid grid-cols-1 gap-3 @min-md:grid-cols-2 mb-2">
-        {BEACHES.map((b) => (
-          <BeachCard
-            key={b.id}
-            b={b}
-            // useMiles={useMiles}
-            // onToggleFavorite={toggleFavorite}
-            isFav={favorites.includes(b.id)}
+          <PageTabs
+            buttons={false}
+            tabs={["nearby", "saved"]}
+            defaultPage="nearby"
           />
-        ))}
-      </section>
-    </div>
+          <header id="content" className="ml-2 mb-4 scroll-mt-30">
+            <h1 className="font-semibold text-3xl tracking-tight">
+              Surf spots
+            </h1>
+            <span className="text-muted-foreground">
+              Explore nearby beaches on the map
+            </span>
+          </header>
+        </div>
+        <section className="grid grid-cols-1 gap-3 @min-md:grid-cols-2 mb-2">
+          {BEACHES.map((b) => (
+            <BeachCard
+              key={b.id}
+              b={b}
+              // useMiles={useMiles}
+              // onToggleFavorite={toggleFavorite}
+              isFav={favorites.includes(b.id)}
+            />
+          ))}
+        </section>
+      </div>
+    </>
   );
 };
 

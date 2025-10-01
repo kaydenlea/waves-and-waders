@@ -198,7 +198,7 @@ const BeachCard = ({
                 Tags
               </span>
             </PopoverTrigger>
-            <PopoverContent className="max-w-70">
+            <PopoverContent className="max-w-70 touch-pan-y">
               <div className="grid grid-cols-2 gap-1">
                 {tags.map((tag) => (
                   <Tag key={tag.label} data={tag} />

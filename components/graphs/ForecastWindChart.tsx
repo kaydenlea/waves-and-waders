@@ -55,14 +55,23 @@ const ForecastWindChart = () => {
     const chart = chartRef.current;
     if (!chart) return;
 
+    // const adjustData = () => {
+    //   const width = chart.clientWidth;
+    //   if (width < 500) {
+    //     setWindowSize(3);
+    //   } else if (width < 750) {
+    //     setWindowSize(5);
+    //   } else {
+    //     setWindowSize(7);
+    //   }
+    // };
+
     const adjustData = () => {
       const width = chart.clientWidth;
       if (width < 500) {
         setWindowSize(3);
-      } else if (width < 750) {
-        setWindowSize(5);
       } else {
-        setWindowSize(7);
+        setWindowSize(4);
       }
     };
 
@@ -131,6 +140,7 @@ const ForecastWindChart = () => {
             left: -38,
             bottom: 50,
           }}
+          syncId="barId"
           accessibilityLayer
           data={visibleData}
         >

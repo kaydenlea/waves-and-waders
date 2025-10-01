@@ -52,11 +52,17 @@ const DatePicker = ({
       return;
     }
   });
-  if (startIdx + 6 > days.length - 1) {
+  // if (startIdx + 6 > days.length - 1) {
+  //   endIdx = startIdx;
+  //   startIdx -= 6;
+  // } else {
+  //   endIdx = startIdx + 6;
+  // }
+  if (startIdx + 3 > days.length - 1) {
     endIdx = startIdx;
-    startIdx -= 6;
+    startIdx -= 3;
   } else {
-    endIdx = startIdx + 6;
+    endIdx = startIdx + 3;
   }
 
   return (
@@ -83,27 +89,34 @@ const DatePicker = ({
                 : "bg-orange-400";
             const weather =
               index % 3 === 0 ? (
-                <Sun size={16} strokeWidth={3} color="#f79e55ff" />
+                <Sun
+                  className="w-4 h-4 @min-xl:w-5 @min-xl:h-5"
+                  strokeWidth={3}
+                  color="#f79e55ff"
+                />
               ) : (
-                <Cloudy size={16} color="#bdbdbdff" />
+                <Cloudy
+                  className="w-4 h-4 @min-xl:w-5 @min-xl:h-5"
+                  color="#bdbdbdff"
+                />
               );
             let itemStyle = "bg-highlight-4 rounded-md";
             if (typeof startIdx === "number" && forecast) {
               if (startIdx === index) {
                 itemStyle =
-                  "bg-highlight-7 rounded-l-md border-y-border border-l-border";
+                  "bg-highlight-7 rounded-l-md border-y-border border-y-2 border-l-border border-l-2";
               } else if (index === endIdx) {
                 itemStyle =
-                  "bg-highlight-7 rounded-r-md border-y-border border-r-border";
+                  "bg-highlight-7 rounded-r-md border-y-border border-y-2 border-r-border border-r-2";
               } else if (startIdx <= index && index <= endIdx) {
-                itemStyle = "bg-highlight-7 border-y-border";
+                itemStyle = "bg-highlight-7 border-y-border border-y-2";
               }
             }
             return (
               <CarouselItem
                 key={index}
                 className={cn(
-                  "basis-1/3 @min-md:basis-1/5 @min-2xl:basis-1/7 @min-4xl:basis-1/10 flex justify-center"
+                  "basis-1/3 @min-md:basis-1/5 @min-3xl:basis-1/7 @min-6xl:basis-1/10 flex justify-center"
                 )}
               >
                 <button
@@ -114,19 +127,24 @@ const DatePicker = ({
                     setSelectedDate(day);
                   }}
                   className={cn(
-                    "flex flex-col items-center w-full py-3 text-center text-sm font-medium transition-colors hover:bg-highlight-5/60 border border-transparent",
+                    "flex flex-col items-center w-full py-3 text-center text-sm font-medium transition-colors hover:bg-highlight-5/60",
                     !forecast && "rounded-md",
-                    !forecast && isSelected && "bg-highlight-7 border-border",
+                    !forecast &&
+                      isSelected &&
+                      "bg-highlight-7 border-border border-2",
                     forecast && itemStyle
                   )}
                 >
-                  <span className="font-semibold text-[0.65rem] whitespace-nowrap">
+                  <span className="font-semibold text-[0.65rem] @min-xl:text-xs whitespace-nowrap">
                     {day.format("ddd")}, {day.format("M/D")}
                   </span>
                   <span
-                    className={cn("inline-block w-12 h-1 rounded-full", color)}
+                    className={cn(
+                      "inline-block w-12 @min-xl:w-16 h-1 rounded-full",
+                      color
+                    )}
                   />
-                  <span className="text-md font-semibold mb-1">
+                  <span className="text-md @min-xl:text-lg font-semibold mb-1">
                     2-3<span className="text-xs font-normal">ft</span>
                   </span>
                   {weather}

@@ -198,6 +198,7 @@
 // "use client";
 
 import React, { Suspense, useMemo } from "react";
+import Image from "next/image";
 import Link from "next/link";
 // import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import ThemeToggle from "@/components/general/ThemeToggle";
@@ -219,8 +220,18 @@ import {
   Trophy,
   Map,
   AlignJustify,
+  Pencil,
 } from "lucide-react";
 import Footer from "@/components/general/Footer";
+import { LazyLoadLogoLoop } from "@/components/general/LazyLoad/LazyLoadLogoLoop";
+import { LazyLoadCountNums } from "@/components/general/LazyLoad/LazyLoadCountNums";
+import { LazyLoadCountSection } from "@/components/general/LazyLoad/LazyLoadCountSection";
+import { LazyLoadScrollSection } from "@/components/general/LazyLoad/LazyLoadScrollSection";
+import { LazyLoadCardsSection } from "@/components/general/LazyLoad/LazyLoadCardsSection";
+import { LazyLoadSpotlightCard } from "@/components/general/LazyLoad/LazyLoadSpotlightCard";
+import { Description } from "@/components/visuals/AnimatedCardsSection";
+import AnimatedCountSection from "@/components/visuals/AnimatedCountSection";
+import FaqSection from "@/components/visuals/FaqSection";
 
 // const Canvas = dynamic(
 //   () => import("@react-three/fiber").then((m) => m.Canvas),
@@ -409,9 +420,12 @@ const Home = () => {
 
   return (
     <div className="touch-pan-y">
-      <header className="fixed top-0 z-40 w-full border-x border-b border-border bg-background/60 backdrop-blur rounded-b-md">
+      <header className="fixed top-0 z-40 w-full border-x border-b border-border bg-background/80 backdrop-blur rounded-b-md">
         <div className="mx-auto flex items-center justify-between px-4 py-6 sm:px-6">
-          <Link href="#" className="group inline-flex items-center gap-2">
+          <Link
+            href="#"
+            className="group inline-flex items-center gap-2 outline-none"
+          >
             <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-cyan-300 to-blue-500 text-foreground shadow-lg shadow-cyan-500/20">
               <Waves className="h-6 w-6" aria-hidden />
             </div>
@@ -422,21 +436,21 @@ const Home = () => {
               W&W
             </span>
           </Link>
-          <nav className="hidden items-center gap-6 md:flex">
+          <nav className="text-lg hidden items-center gap-6 md:flex">
             <Link
-              className="text-foreground/80 transition hover:text-foreground"
+              className="text-foreground transition hover:text-foreground"
               href="#nearby"
             >
               Nearby
             </Link>
             <Link
-              className="text-foreground/80 transition hover:text-foreground"
+              className="text-foreground transition hover:text-foreground"
               href="#saved"
             >
               Saved
             </Link>
             <Link
-              className="text-foreground/80 transition hover:text-foreground"
+              className="text-foreground transition hover:text-foreground"
               href="#why"
             >
               Why Us
@@ -452,7 +466,7 @@ const Home = () => {
             </button> */}
             <Link
               href="/"
-              className="whitespace-nowrap flex items-center text-md font-medium text-foreground/70 hidden md:flex hover:bg-highlight-3 p-2 rounded-full"
+              className="whitespace-nowrap flex items-center font-medium text-foreground hidden md:flex hover:bg-highlight-3 p-2 rounded-full"
             >
               Sign in
             </Link>
@@ -473,7 +487,7 @@ const Home = () => {
           </div>
         </div>
       </header>
-      <main className="relative min-h-screen bg-background text-foreground selection:bg-cyan-300/40 mt-[5rem]">
+      <main className="relative min-h-screen bg-background text-foreground selection:bg-cyan-300/40">
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
@@ -490,31 +504,42 @@ const Home = () => {
             }),
           }}
         />
-        <div className="bg-gradient-to-br from-blue/20 to-blue pb-12 rounded-b-4xl">
-          <section className="@container relative mx-auto grid max-w-7xl grid-cols-1 items-center gap-10 px-4 py-10 sm:px-6 md:grid-cols-[1.05fr_.95fr] md:py-15">
-            <div className="">
-              <h1 className="text-center md:text-start text-balance text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl md:text-5xl lg:text-7xl text-foreground">
-                Know the ocean{" "}
-                <span className="bg-gradient-to-r from-cyan-300 to-blue-500 bg-clip-text text-transparent">
+        <div className="relative bg-gradient-to-br from-blue-dark/40 to-blue-dark pb-16 overflow-hidden">
+          <LazyLoadOceanScene />
+          {/* <Image
+            className="absolute z-0 rounded-b-2xl"
+            src="/surf2.png"
+            alt="Surf background"
+            width={1000}
+            height={1000}
+            priority
+          /> */}
+          <section className="@container relative mx-auto grid max-w-7xl grid-cols-1 items-center gap-10 px-4 py-8 sm:px-6 md:py-10">
+            <div className="mt-[7rem] lg:mt-[9rem]">
+              <div className="flex justify-center mb-4">
+                <Badge icon={Sparkles}>All-in-one forecasts</Badge>
+              </div>
+              <h1 className="flex flex-col text-center text-balance text-[2.5rem] font-semibold leading-[1.05] tracking-tight sm:text-6xl md:text-7xl lg:text-8xl text-white">
+                <span>Know the ocean</span>
+                <span className="pb-2 bg-gradient-to-r from-cyan-200 to-cyan-400 bg-clip-text text-transparent">
                   before you go
                 </span>
               </h1>
-              <p className="mx-auto sm:mx-40 md:mx-0 text-center md:text-start mt-4 max-w-xl text-md md:text-lg text-foreground/70">
-                Live surf conditions, ultra-fast search, and a personalized feed
-                of your spots.
+              <p className="mx-auto text-center mt-4 text-md md:text-xl text-white">
+                Live surf conditions. Ultra-fast search. Personalized forecast.
               </p>
               <div className="mt-6 flex flex-wrap items-center gap-3">
-                <div className="flex flex-row flex-wrap items-center justify-center md:justify-start w-full gap-2 whitespace-nowrap">
+                <div className="flex flex-row flex-wrap items-center justify-center w-full gap-2 whitespace-nowrap">
                   <Link
                     href="/beaches#content"
-                    className="group inline-flex items-center gap-2 rounded-full bg-foreground border border-border px-4 py-3 font-medium text-background shadow-xl transition hover:shadow-cyan-500/20"
+                    className="group inline-flex items-center gap-2 rounded-full bg-foreground border border-transparent px-4 py-3 font-medium text-background shadow-xl transition hover:shadow-cyan-500/20"
                   >
                     <Compass className="h-4 w-4" /> Explore
                     <span className="hidden md:block md:-ml-1">nearby</span>
                   </Link>
                   <Link
                     href="#search"
-                    className="shadow-xl inline-flex items-center gap-2 rounded-full border border-border/40 bg-highlight-1/60 px-4 py-3 font-medium text-foreground/90 backdrop-blur transition hover:shadow-cyan-500/20"
+                    className="shadow-xl inline-flex items-center gap-2 rounded-full border border-border/40 bg-highlight-1 px-4 py-3 font-medium text-foreground/90 backdrop-blur transition hover:shadow-cyan-500/20"
                   >
                     <Heart className="h-4 w-4" /> Saved
                     <span className="hidden md:block md:-ml-1">spots</span>
@@ -523,55 +548,33 @@ const Home = () => {
               </div>
             </div>
 
-            {/* <div className="relative aspect-video w-full md:aspect-[4/3] hidden @min-xs:block max-w-150 lg:max-w-full mx-auto"> */}
-            <div className="relative aspect-video w-full md:aspect-[4/3] max-w-150 lg:max-w-full mx-auto shadow-2xl rounded-4xl">
-              <div className="absolute inset-0 rounded-4xl border border-white/10 bg-gradient-to-br from-slate-700 to-slate-700/40 p-1 drop-shadow-2xl">
-                <div className="h-full w-full overflow-hidden rounded-4xl">
-                  {/* <AnimatePresence> */}
-                  {/* {!prefersReducedMotion && (
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="h-full w-full"
-                    >
-                      {!prefersReducedMotion && (
-                        <Suspense fallback={<VisualFallback />}>
-                          <LazyLoadOceanScene />
-                        </Suspense>
-                      )}
-                    </motion.div>
-                  )} */}
-                  <div className="h-full w-full">
-                    {/* <Suspense fallback={<VisualFallback />}>
-                    <LazyLoadOceanScene />
-                  </Suspense> */}
-                    <LazyLoadOceanScene />
-                  </div>
-                  {/* </AnimatePresence> */}
-                  {/* {prefersReducedMotion && <VisualFallback />} */}
-                </div>
-              </div>
-            </div>
+            {/* <Image
+              className="rounded-b-2xl"
+              src="/surf2.png"
+              alt="Surf background"
+              width={900}
+              height={900}
+              priority
+            /> */}
           </section>
 
           <section
             id="search"
-            className="mx-auto max-w-160 md:max-w-7xl px-4 sm:px-6"
+            className="mx-auto max-w-160 md:max-w-5xl px-4 sm:px-6"
           >
-            <div className="rounded-3xl border border-border/50 bg-highlight-2 p-4 backdrop-blur md:p-6 shadow-md">
+            <div className="rounded-3xl border border-border/50 bg-highlight-1/15 dark:bg-highlight-2 p-4 backdrop-blur md:p-6 shadow-md">
               <div className="flex flex-col items-start gap-3 md:flex-row md:items-center">
-                <div className="relative w-full md:w-2/3">
+                <div className="relative w-full">
                   <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" />
                   <input
                     aria-label="Search for a beach"
-                    className="h-12 w-full rounded-xl border border-border/50 bg-background/60 pl-10 pr-4 text-foreground placeholder:text-foreground/40 focus:outline-none focus:ring-2 focus:ring-cyan-400/60"
+                    className="h-12 w-full rounded-xl border border-border/50 dark:bg-background/60 bg-background/50 pl-10 pr-4 text-foreground placeholder:text-foreground/50 focus:outline-none focus:ring-2 focus:ring-cyan-400/60"
                     placeholder="Search beaches…"
                     // value={query}
                     // onChange={(e) => setQuery(e.target.value)}
                   />
                 </div>
-                <div className="flex w-full flex-wrap items-center gap-2 md:w-1/3 md:justify-end">
+                {/* <div className="flex w-full flex-wrap items-center gap-2 md:w-1/3 md:justify-end">
                   {[
                     { label: "Sandy", value: "Sandy" },
                     { label: "Bathrooms", value: "Bathrooms" },
@@ -589,7 +592,7 @@ const Home = () => {
                       {chip.label}
                     </button>
                   ))}
-                </div>
+                </div> */}
               </div>
 
               {query && (
@@ -618,17 +621,23 @@ const Home = () => {
                 </ul>
               )}
             </div>
-            <div className="mt-8 flex flex-wrap justify-center gap-2">
+            <div className="flex justify-center">
+              <LazyLoadLogoLoop
+                className="text-white touch-pan-y"
+                width="90%"
+              />
+            </div>
+            {/* <div className="mt-8 flex flex-wrap justify-center gap-2">
               <Badge icon={Zap}>Realtime swell + wind</Badge>
               <Badge icon={ShieldCheck}>Verified buoy sources</Badge>
               <Badge icon={Trophy}>Crowd-rated breaks</Badge>
-            </div>
+            </div> */}
           </section>
         </div>
 
-        <section
+        {/* <section
           id="nearby"
-          className="@container mx-auto max-w-7xl px-4 py-6 sm:px-6 md:py-10"
+          className="@container mx-auto max-w-7xl px-4 pt-12 sm:px-6 md:pt-16"
         >
           <div className="flex justify-between items-start">
             <SectionHeader
@@ -654,7 +663,178 @@ const Home = () => {
               />
             ))}
           </div>
+        </section> */}
+        <AnimatedCountSection />
+        <section
+          id="why"
+          className="mx-auto max-w-7xl px-4 pt-24 pb-16 sm:px-6"
+        >
+          <div>
+            <h2 className="text-center text-foreground text-4xl sm:text-5xl font-semibold tracking-tight mb-10">
+              All the essentials.
+            </h2>
+            <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+              <WhyItem icon={ShieldCheck} title="Reliable data">
+                Sourced from NOAA/NDBC buoys, tide stations, and curated
+                reports. Redundant caching keeps the app fast—even on flaky
+                beach Wi‑Fi.
+              </WhyItem>
+              <WhyItem icon={Zap} title="Real-time insights">
+                We fuse multiple signals (swell height, direction, wind shear,
+                tide) into a simple readability score so you know if it’s worth
+                the trip.
+              </WhyItem>
+              <WhyItem icon={Sparkles} title="Personal & clean">
+                Minimal UI, maximal clarity. Save spots, tailor alerts, and get
+                concise summaries—no ads, no clutter, just surf.
+              </WhyItem>
+            </div>
+          </div>
         </section>
+        <section className="relative flex flex-col xl:flex-row mt-16 mx-auto max-w-7xl px-4 sm:px-6">
+          <div className="flex-1 p-2 space-y-4 flex flex-col items-center xl:items-start mb-16 xl:mb-0">
+            <h2 className="text-4xl sm:text-5xl font-semibold">
+              Personalize your forecasts.
+            </h2>
+            <p className="text-muted-foreground w-9/10 sm:w-3/4 md:w-3/5 lg:w-2/5 xl:w-5/6 text-center xl:text-start">
+              Decide what conditions you want to see in your forecasts. Simplify
+              your dashboard to what you need.
+            </p>
+            <div className="mt-6 flex flex-wrap items-center gap-3">
+              <div className="flex flex-row flex-wrap items-center justify-center w-full gap-2 whitespace-nowrap">
+                <Link
+                  href="/beaches#content"
+                  className="group inline-flex items-center gap-2 rounded-full bg-foreground border border-transparent px-4 py-3 font-medium text-background shadow-xl transition hover:shadow-cyan-500/20"
+                >
+                  <Compass className="h-4 w-4" /> Explore
+                  <span className="hidden md:block md:-ml-1">nearby</span>
+                </Link>
+                <Link
+                  href="#search"
+                  className="shadow-xl inline-flex items-center gap-2 rounded-full border border-border/40 bg-highlight-1 px-4 py-3 font-medium text-foreground/90 backdrop-blur transition hover:shadow-cyan-500/20"
+                >
+                  <Heart className="h-4 w-4" /> Saved
+                  <span className="hidden md:block md:-ml-1">spots</span>
+                </Link>
+              </div>
+            </div>
+          </div>
+          <div className="flex-1 flex w-full">
+            <LazyLoadScrollSection />
+          </div>
+        </section>
+        <section className="relative flex flex-col xl:flex-row gap-10 sm:gap-50 md:gap-55 xl:gap-65 mt-30 mx-auto max-w-7xl px-4 sm:px-6 pb-10 overflow-hidden">
+          <Description className="xl:hidden" />
+          <div className="flex-1 relative xl:pl-10 h-200 w-full flex -ml-7 justify-center scale-[0.5] sm:scale-[0.75] md:scale-[1]">
+            <LazyLoadCardsSection />
+          </div>
+          <Description className="hidden xl:flex" />
+        </section>
+        {/* <section
+          id="nearby"
+          className="@container mx-auto max-w-7xl px-4 pt-12 sm:px-6 md:pt-16"
+        >
+          <div className="flex justify-between items-start">
+            <SectionHeader
+              icon={MapPin}
+              title="Nearby"
+              // subtitle="Calculated from your device location for a fast, privacy-first experience."
+            />
+            <Link
+              href="/beaches#content"
+              className="whitespace-nowrap inline-flex items-center gap-2 rounded-full border border-border bg-highlight-1/60 px-4 py-2 font-medium text-foreground/90 backdrop-blur transition hover:bg-highlight-3"
+            >
+              <Map className="h-4 w-4" /> See more
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 gap-5 @min-md:grid-cols-2 @min-3xl:grid-cols-3">
+            {nearby.map((b) => (
+              <BeachCard
+                key={b.id}
+                b={b}
+                // useMiles={useMiles}
+                // onToggleFavorite={toggleFavorite}
+                isFav={favorites.includes(b.id)}
+              />
+            ))}
+          </div>
+        </section> */}
+        <section className="px-6 max-w-2xl lg:max-w-7xl my-18 mx-auto">
+          <div className="flex flex-col lg:flex-row gap-10">
+            <LazyLoadSpotlightCard
+              className="flex-1"
+              spotlightColor="rgba(92, 190, 255, 0.38)"
+            >
+              <div className="space-y-8">
+                <header className="space-y-2">
+                  <Pencil className="w-8 h-8 md:w-12 md:h-12" />
+                  <h2 className="text-2xl md:text-3xl font-medium">
+                    Customize your forecasts
+                  </h2>
+                </header>
+                <p className="w-full xl:w-9/10 text-muted-foreground">
+                  All-in-one forecasts of your local spots provide all the
+                  conditions you need. Feel too cluttered? Pick and choose what
+                  data you want!
+                </p>
+                <Link
+                  href="/beaches#content"
+                  className="group inline-flex items-center gap-2 rounded-full bg-foreground border border-transparent px-4 py-3 font-medium text-background shadow-xl transition hover:shadow-cyan-500/20"
+                >
+                  <Sparkles className="h-4 w-4" /> Try
+                  <span className="hidden md:block md:-ml-1">free</span>
+                </Link>
+              </div>
+            </LazyLoadSpotlightCard>
+            <LazyLoadSpotlightCard
+              className="flex-1"
+              spotlightColor="rgba(92, 190, 255, 0.38)"
+            >
+              <div className="space-y-8">
+                <header className="space-y-2">
+                  <Sparkles className="w-8 h-8 md:w-12 md:h-12" />
+                  <h2 className="text-2xl md:text-3xl font-medium">
+                    Simple, accurate, easy
+                  </h2>
+                </header>
+                <p className="w-full xl:w-9/10 text-muted-foreground">
+                  Get ahead and access 14 day forecasts of your favorite local
+                  spots! Enjoy a simplified and modern view of all the
+                  conditions you need.
+                </p>
+                <Link
+                  href="/beaches#content"
+                  className="group inline-flex items-center gap-2 rounded-full bg-foreground border border-transparent px-4 py-3 font-medium text-background shadow-xl transition hover:shadow-cyan-500/20"
+                >
+                  <Sparkles className="h-4 w-4" /> Explore
+                </Link>
+              </div>
+            </LazyLoadSpotlightCard>
+          </div>
+        </section>
+        <FaqSection />
+        {/* <section className="flex justify-center">
+          <div className="flex flex-col md:flex-row">
+            <Image
+              className="rounded-b-2xl"
+              src="/surf2.png"
+              alt="Surf background"
+              width={500}
+              height={500}
+              priority
+            />
+            <ul>
+              <li>
+                <LazyLoadCountNums
+                  from={900}
+                  to={1000}
+                  separator=","
+                  direction="up"
+                />
+              </li>
+            </ul>
+          </div>
+        </section> */}
 
         {/* <section
         id="saved"
@@ -682,7 +862,7 @@ const Home = () => {
         )}
       </section> */}
 
-        <section id="why" className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
+        {/* <section id="why" className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
           <div className="shadow-lg rounded-3xl border border-border/50 bg-gradient-to-br from-highlight-1 to-highlight-1/40 p-6 shadow-2xl shadow-highlight-3/50 md:p-10">
             <h2 className="text-foreground text-2xl font-semibold tracking-tight sm:text-3xl mb-5">
               Learn More
@@ -704,14 +884,14 @@ const Home = () => {
               </WhyItem>
             </div>
           </div>
-        </section>
+        </section> */}
       </main>
       <Footer />
     </div>
   );
 };
 
-function SectionHeader({
+export function SectionHeader({
   icon: Icon,
   title,
   subtitle,
@@ -721,12 +901,12 @@ function SectionHeader({
   subtitle?: string;
 }) {
   return (
-    <div className="mt-1 mb-6 flex items-start gap-3">
+    <div className="mt-1 mb-12 flex items-center gap-3">
       <div className="p-1.5 rounded-xl bg-gradient-to-br from-cyan-300 to-blue-500 text-foreground shadow-lg shadow-cyan-500/20">
-        <Icon className="h-5 w-5" aria-hidden />
+        <Icon className="h-7 w-7" aria-hidden />
       </div>
       <div>
-        <h2 className="text-foreground text-2xl font-semibold tracking-tight sm:text-3xl">
+        <h2 className="text-foreground font-semibold tracking-tight text-4xl sm:text-5xl">
           {title}
         </h2>
         {subtitle && (
@@ -756,13 +936,14 @@ function WhyItem({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border border-border/50 bg-white/5 p-5 shadow-sm">
-      <div className="mb-3 flex items-center gap-2">
+    <div className="mx-auto max-w-160 flex flex-col gap-5 rounded-2xl border border-border/50 bg-white/5 p-5 shadow-sm">
+      <div className="flex items-center gap-2">
         <div className="grid h-9 w-9 place-items-center rounded-lg bg-gradient-to-br from-cyan-300 to-blue-500 text-foreground shadow-cyan-500/20">
           <Icon className="h-5 w-5" aria-hidden />
         </div>
         <h3 className="text-lg font-semibold">{title}</h3>
       </div>
+      <div className="w-full h-60 bg-highlight-5 rounded-xl" />
       <p className="text-foreground/70">{children}</p>
     </div>
   );

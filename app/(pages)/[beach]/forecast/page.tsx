@@ -19,62 +19,70 @@ export const metadata: Metadata = {
 const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
   const { beach } = await params;
   return (
-    <div className="@container p-2">
-      <header
-        id="content"
-        className="relative w-full flex flex-col gap-6 px-2 scroll-mt-30"
-      >
-        <PageTabs
-          defaultPage="forecast"
-          beach={beach}
-          tabs={["overview", "forecast"]}
-        />
-        <h1 className="font-semibold text-4xl tracking-tight">
-          Huntington Beach
-        </h1>
-      </header>
-      <section className="flex flex-col gap-4 mb-2">
-        <section>
-          <h2 className="ml-2 text-muted-foreground text-lg">
-            Weekly Forecast
-          </h2>
-          <LazyLoadDatePicker forecast className="rounded-b-xl mt-4 mb-4" />
-        </section>
-        <section id="forecast-content" className="scroll-mt-25">
-          <header className="mx-2 flex gap-12 justify-between">
-            <div>
-              <h2 className="leading-none font-semibold text-2xl">
-                Mon, Aug 14 - Sun, Aug 20
-              </h2>
-              <span className="text-sm text-muted-foreground">
-                Local time: 8:30 PM, PDT
-              </span>
+    <>
+      <div className="block @min-3xl:hidden flex justify-center pt-5 pb-7">
+        <div className="bg-gray-300 w-16 h-1.5 rounded-full" />
+      </div>
+      <div className="@container p-2">
+        <header
+          id="content"
+          className="relative w-full flex flex-col gap-6 px-2 scroll-mt-30"
+        >
+          <PageTabs
+            defaultPage="forecast"
+            beach={beach}
+            tabs={["overview", "forecast"]}
+          />
+          <h1 className="font-semibold text-4xl tracking-tight">
+            Huntington Beach
+          </h1>
+        </header>
+        <section className="flex flex-col gap-4 mb-2">
+          <section>
+            <h2 className="ml-2 text-muted-foreground text-lg">
+              Weekly Forecast
+            </h2>
+            <div className="rounded-b-xl mt-4 mb-4">
+              <LazyLoadDatePicker forecast className="rounded-b-xl" />
             </div>
-            <Link
-              href={`/${beach}/forecast/edit#forecast-content`}
-              className="flex justify-center text-sm gap-1 h-10 px-3 items-center border border-border bg-highlight-4 rounded-full drop-shadow-sm hover:bg-highlight-3"
-            >
-              <Pencil size={16} />
-              Edit
-            </Link>
-          </header>
-        </section>
-        <VisualWrapper label="Tide" unit="ft">
-          <LazyLoadForecastTide />
-        </VisualWrapper>
-        <VisualWrapper label="Surf" unit="ft">
-          <LazyLoadForecastSurf />
-        </VisualWrapper>
-        <VisualWrapper label="Wind" unit="mph">
-          <LazyLoadForecastWind />
-        </VisualWrapper>
-        <VisualWrapper label="Wave Energy" unit="kJ">
-          <LazyLoadForecastWaveEnergy />
-        </VisualWrapper>
-        <VisualWrapper label="Hourly Stats">
-          <LazyLoadTable numHours={3} numDays={7} header />
-        </VisualWrapper>
-        {/* <figure className="relative h-full bg-highlight-4 border border-border/40 p-2 rounded-2xl shadow-sm">
+          </section>
+          <section id="forecast-content" className="scroll-mt-25">
+            <header className="mx-2 flex gap-12 justify-between">
+              <div>
+                <h2 className="leading-none font-semibold text-2xl">
+                  Mon, Aug 14 - Sun, Aug 20
+                </h2>
+                <span className="text-sm text-muted-foreground">
+                  Local time: 8:30 PM, PDT
+                </span>
+              </div>
+              <Link
+                href={`/${beach}/forecast/edit#forecast-content`}
+                className="flex justify-center text-sm gap-1 h-10 px-3 items-center border border-border bg-highlight-4 rounded-full drop-shadow-sm hover:bg-highlight-3"
+              >
+                <Pencil size={16} />
+                Edit
+              </Link>
+            </header>
+          </section>
+          <VisualWrapper label="Tide" unit="ft">
+            <LazyLoadForecastTide />
+          </VisualWrapper>
+          <VisualWrapper label="Wave Energy" unit="kJ">
+            <LazyLoadForecastWaveEnergy />
+          </VisualWrapper>
+          <div className="flex flex-col @min-3xl:flex-row gap-3">
+            <VisualWrapper label="Surf" unit="ft">
+              <LazyLoadForecastSurf />
+            </VisualWrapper>
+            <VisualWrapper label="Wind" unit="mph">
+              <LazyLoadForecastWind />
+            </VisualWrapper>
+          </div>
+          <VisualWrapper label="Hourly Stats">
+            <LazyLoadTable numHours={3} numDays={7} header />
+          </VisualWrapper>
+          {/* <figure className="relative h-full bg-highlight-4 border border-border/40 p-2 rounded-2xl shadow-sm">
           <header className="mx-3 mt-3 mb-2">
             <h3 className="leading-none font-semibold">Weekly Statistics</h3>
             <span className="text-muted-foreground text-sm">
@@ -88,8 +96,9 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
             <LazyLoadTable numHours={3} numDays={7} header />
           </div>
         </figure> */}
-      </section>
-    </div>
+        </section>
+      </div>
+    </>
   );
 };
 

@@ -7,6 +7,7 @@ export const LazyLoadOceanScene = dynamic(
   () => import("@/components/visuals/OceanScene"),
   {
     ssr: false,
-    loading: () => <VisualFallback />,
+    // loading: () => <VisualFallback />,
+    loading: () => <div className="absolute">Loading...</div>,
   }
 );

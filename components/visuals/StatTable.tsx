@@ -7,6 +7,8 @@ import {
   ArrowLeft,
   ArrowRight,
   MousePointer2 as ArrowIcon,
+  Sun,
+  Cloudy,
 } from "lucide-react";
 import DaySlider from "../general/DaySlider";
 
@@ -27,37 +29,37 @@ const SwellStat = ({
       <div
         className={cn(
           "flex items-center mt-0.5",
-          primary ? "gap-1.5" : "gap-1"
+          primary ? "gap-1.5" : "gap-1.5"
         )}
       >
         <span className="flex items-baseline gap-[1px] whitespace-nowrap">
           <span
-            className={cn("font-semibold", primary ? "text-sm" : "text-xs")}
+            className={cn("font-semibold", primary ? "text-sm" : "text-sm")}
           >
             {data.height}
           </span>
-          <span className={cn(primary ? "text-[.65rem]" : "text-[.6rem]")}>
+          <span className={cn(primary ? "text-[.65rem]" : "text-[.65rem]")}>
             ft
           </span>
         </span>
         <span className="flex items-baseline gap-[1px] whitespace-nowrap">
           <span
-            className={cn("font-semibold", primary ? "text-sm" : "text-xs")}
+            className={cn("font-semibold", primary ? "text-sm" : "text-sm")}
           >
             {data.period}
           </span>
-          <span className={cn(primary ? "text-[.65rem]" : "text-[.6rem]")}>
+          <span className={cn(primary ? "text-[.65rem]" : "text-[.65rem]")}>
             s
           </span>
         </span>
         <ArrowIcon size={16} color="#51e72bff" fill="#51e72bff" />
         <span className="flex items-baseline gap-[1px] whitespace-nowrap">
           <span
-            className={cn("font-semibold", primary ? "text-sm" : "text-xs")}
+            className={cn("font-semibold", primary ? "text-sm" : "text-sm")}
           >
             {data.dir}
           </span>
-          <span className={cn(primary ? "text-[.65rem]" : "text-[.55rem]")}>
+          <span className={cn(primary ? "text-[.65rem]" : "text-[.65rem]")}>
             {data.deg}&deg;
           </span>
         </span>
@@ -73,10 +75,6 @@ const WindStat = ({
 }) => {
   return (
     <div className="flex items-center gap-1">
-      <div className="shadow-sm border border-border p-1 rounded-md text-center">
-        <ArrowIcon size={16} color="#ff6a34ff" fill="#ff6a34ff" />
-        <span className="text-[.6rem]">{data.dir}</span>
-      </div>
       <span className="flex-1 justify-center flex gap-1 bg-highlight-1 rounded-md py-2 px-3">
         <span className="text-lg font-medium">{data.speed}</span>
         <span className="flex flex-col -space-y-1">
@@ -84,7 +82,53 @@ const WindStat = ({
           <span className="text-[0.7rem]">mph</span>
         </span>
       </span>
+      <div className="shadow-sm border border-border p-1 rounded-md text-center">
+        <ArrowIcon size={16} color="#ff6a34ff" fill="#ff6a34ff" />
+        <span className="text-[.6rem]">{data.dir}</span>
+      </div>
     </div>
+  );
+};
+
+const WeatherStat = ({
+  data,
+}: {
+  data: { condition?: string; temp: number };
+}) => {
+  const conditionIcon: Record<string, React.ReactNode> = {
+    clear: <Sun className="w-4 h-4" strokeWidth={3} color="#f79e55ff" />,
+    cloudy: <Cloudy className="w-4 h-4" color="#bdbdbdff" />,
+  };
+  return (
+    <div className="w-full flex justify-center items-center gap-0.5">
+      {data.condition && conditionIcon[data.condition]}
+      <span>
+        <span className="text-base font-medium">{data.temp}</span>
+        <span className="text-xs">&deg;F</span>
+      </span>
+    </div>
+  );
+};
+
+const GeneralStat = ({
+  val,
+  unit,
+  level,
+}: {
+  val: number | string;
+  unit: string;
+  level: string;
+}) => {
+  return (
+    <span
+      className={cn(
+        "text-base font-medium flex justify-center items-center text-center gap-1 whitespace-nowrap rounded-sm p-1 h-10",
+        level
+      )}
+    >
+      {val}
+      <span className="text-xs hidden sm:inline">{unit}</span>
+    </span>
   );
 };
 
@@ -115,18 +159,26 @@ const StatTable = ({
         ],
       },
       pressure: { label: "pressure", value: 29.94 },
+      weather: { label: "weather", condition: "clear", temp: 64 },
+      water: { label: "water", temp: 64 },
+      energy: { label: "energy", value: 278 },
     })),
   }));
 
   const COLUMNS = [
-    { id: "wind", label: "Wind" },
     { id: "surf", label: "Surf" },
+    { id: "wind", label: "Wind" },
     { id: "swellPriamry", label: "Swell" },
     { id: "swellSecond", label: "Secondary Swell" },
+    { id: "weather", label: "Weather" },
+    { id: "water", label: "Water" },
+    { id: "energy", label: "Energy" },
     { id: "pressure", label: "Pressure" },
   ];
 
   const [visibleCols, setVisibleCols] = React.useState(0);
+  const [width, setWidth] = React.useState(0);
+  const [columnPages, setColumnPages] = React.useState([COLUMNS]);
   const [currentPage, setCurrentPage] = React.useState(0);
   const [startIndex, setStartIndex] = React.useState(0);
 
@@ -138,10 +190,22 @@ const StatTable = ({
 
     const adjustData = () => {
       const width = table.clientWidth;
-      if (width < 750) {
+      setWidth(width);
+      console.log("width", width);
+      if (width < 600) {
         setVisibleCols(3);
+        setColumnPages([
+          COLUMNS.slice(0, 3),
+          COLUMNS.slice(3, 4),
+          COLUMNS.slice(4, COLUMNS.length),
+        ]);
+      } else if (width < 900) {
+        setVisibleCols(3);
+        setColumnPages([COLUMNS.slice(0, 4), COLUMNS.slice(4, COLUMNS.length)]);
+        setCurrentPage(0);
       } else {
         setVisibleCols(5);
+        setColumnPages([COLUMNS]);
         setCurrentPage(0);
       }
     };
@@ -173,13 +237,24 @@ const StatTable = ({
   //   return () => window.removeEventListener("resize", handleResize);
   // }, []);
 
-  const columnPages =
-    visibleCols !== 5
-      ? [
-          COLUMNS.slice(0, visibleCols),
-          COLUMNS.slice(visibleCols, COLUMNS.length),
-        ]
-      : [COLUMNS];
+  // const columnPages =
+  //   visibleCols !== 5
+  //     ? [
+  //         COLUMNS.slice(0, visibleCols),
+  //         COLUMNS.slice(visibleCols, COLUMNS.length),
+  //       ]
+  //     : [COLUMNS];
+
+  // let columnPages = [COLUMNS];
+  // console.log(visibleCols);
+  // if (visibleCols === 3) {
+  //   columnPages = [
+  //     COLUMNS.slice(0, visibleCols),
+  //     COLUMNS.slice(visibleCols, visibleCols + 1),
+  //     COLUMNS.slice(visibleCols + 1, COLUMNS.length),
+  //   ];
+  // } else if (visibleCols === 3) {
+  // }
 
   // handle visible columns
   const handleNext = () => {
@@ -193,8 +268,8 @@ const StatTable = ({
 
   // handle visible days
 
-  // show 3 days at a time
-  const windowSize = 3;
+  // show 4 days at a time
+  const windowSize = 4;
 
   const handleNextDays = () => {
     if (startIndex + windowSize < data.length) {
@@ -212,7 +287,7 @@ const StatTable = ({
 
   return (
     <>
-      {windowSize < data.length && (
+      {/* {windowSize < data.length && (
         <DaySlider
           handleBack={handleBackDays}
           handleNext={handleNextDays}
@@ -221,7 +296,7 @@ const StatTable = ({
           startIndex={startIndex}
           days="Wed, 8/15 - Fri, 8/17"
         />
-      )}
+      )} */}
       <table
         ref={tableRef}
         className="w-full table-auto border-collapse text-sm"
@@ -277,17 +352,16 @@ const StatTable = ({
                       case "Wind":
                         content = <WindStat data={entry.wind} />;
                         break;
+                      case "Weather":
+                        content = <WeatherStat data={entry.weather} />;
+                        break;
                       case "Surf":
                         content = (
-                          <span
-                            className={cn(
-                              "text-base font-medium flex justify-center items-center text-center gap-1 whitespace-nowrap rounded-sm p-1 h-10",
-                              level
-                            )}
-                          >
-                            {entry.surf.height}
-                            <span className="text-xs hidden sm:inline">ft</span>
-                          </span>
+                          <GeneralStat
+                            val={entry.surf.height}
+                            unit="ft"
+                            level={level}
+                          />
                         );
                         break;
                       case "Swell":
@@ -305,15 +379,23 @@ const StatTable = ({
                         break;
                       case "Pressure":
                         content = (
-                          <span
-                            className={cn(
-                              "text-base font-medium flex justify-center items-center text-center gap-1 whitespace-nowrap rounded-sm p-1 h-10",
-                              level
-                            )}
-                          >
-                            {entry.pressure.value}
-                            <span className="text-xs hidden sm:inline">in</span>
-                          </span>
+                          <GeneralStat
+                            val={entry.pressure.value}
+                            unit="in"
+                            level={level}
+                          />
+                        );
+                        break;
+                      case "Water":
+                        content = <WeatherStat data={entry.water} />;
+                        break;
+                      case "Energy":
+                        content = (
+                          <GeneralStat
+                            val={entry.energy.value}
+                            unit="kJ"
+                            level={level}
+                          />
                         );
                         break;
                     }
@@ -338,7 +420,7 @@ const StatTable = ({
                 {header && (
                   <tr key={`${i}-date`}>
                     <td
-                      colSpan={6}
+                      colSpan={9}
                       className="p-3 bg-highlight-5 font-semibold rounded-sm"
                     >
                       {day.date}

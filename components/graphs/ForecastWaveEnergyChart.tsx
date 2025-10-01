@@ -192,8 +192,10 @@ const ForecastWaveEnergyChart = () => {
         setWindowSize(25);
       } else if (width < 750) {
         setWindowSize(49);
-      } else {
+      } else if (width < 1000) {
         setWindowSize(73);
+      } else {
+        setWindowSize(97);
       }
     };
 

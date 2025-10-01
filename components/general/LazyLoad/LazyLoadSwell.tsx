@@ -4,5 +4,8 @@ import dynamic from "next/dynamic";
 
 export const LazyLoadSwell = dynamic(() => import("../../graphs/SwellChart"), {
   ssr: false,
-  loading: () => <div>Loading...</div>,
+  loading: () => (
+    // <div className="animate-pulse bg-highlight-5 rounded-2xl h-[250px] w-full" />
+    <div className="animate-pulse bg-highlight-5 rounded-2xl touch-pan-y @min-lg:aspect-auto h-[200px] @min-lg:h-[300px] w-full" />
+  ),
 });
