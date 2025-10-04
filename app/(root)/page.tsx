@@ -504,7 +504,7 @@ const Home = () => {
             }),
           }}
         />
-        <div className="relative bg-gradient-to-br from-blue-dark/40 to-blue-dark pb-16 overflow-hidden">
+        <div className="relative pb-16">
           <LazyLoadOceanScene />
           {/* <Image
             className="absolute z-0 rounded-b-2xl"
@@ -514,7 +514,7 @@ const Home = () => {
             height={1000}
             priority
           /> */}
-          <section className="@container relative mx-auto grid max-w-7xl grid-cols-1 items-center gap-10 px-4 py-8 sm:px-6 md:py-10">
+          <section className="@container relative mx-auto grid max-w-7xl grid-cols-1 items-center gap-10 px-6 py-12 sm:px-6 md:py-20">
             <div className="mt-[7rem] lg:mt-[9rem]">
               <div className="flex justify-center mb-4">
                 <Badge icon={Sparkles}>All-in-one forecasts</Badge>
@@ -560,7 +560,7 @@ const Home = () => {
 
           <section
             id="search"
-            className="mx-auto max-w-160 md:max-w-5xl px-4 sm:px-6"
+            className="mx-auto max-w-70 xs:max-w-80 sm:max-w-140 md:max-w-xl lg:max-w-5xl px-4 sm:px-6"
           >
             <div className="rounded-3xl border border-border/50 bg-highlight-1/15 dark:bg-highlight-2 p-4 backdrop-blur md:p-6 shadow-md">
               <div className="flex flex-col items-start gap-3 md:flex-row md:items-center">
@@ -621,12 +621,12 @@ const Home = () => {
                 </ul>
               )}
             </div>
-            <div className="flex justify-center">
+            {/* <div className="flex justify-center">
               <LazyLoadLogoLoop
                 className="text-white touch-pan-y"
-                width="90%"
+                width="98%"
               />
-            </div>
+            </div> */}
             {/* <div className="mt-8 flex flex-wrap justify-center gap-2">
               <Badge icon={Zap}>Realtime swell + wind</Badge>
               <Badge icon={ShieldCheck}>Verified buoy sources</Badge>

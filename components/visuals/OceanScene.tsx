@@ -209,8 +209,8 @@ const WaveBg = ({
   );
 
   return (
-    <div className="absolute w-full h-full">
-      <Canvas dpr={[1, 2]} frameloop="always" className=" min-w-200">
+    <div className="absolute w-full h-full mx-auto px-5 pt-30">
+      <Canvas dpr={[1, 2]} frameloop="always" className="rounded-2xl">
         <SilkPlane ref={meshRef} uniforms={uniforms} />
       </Canvas>
     </div>
