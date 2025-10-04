@@ -37,7 +37,7 @@ const PageTabs = ({
               ? "bg-background dark:bg-highlight-5"
               : "hover:bg-background/50 dark:hover:bg-highlight-5/50"
           )}
-          href={beach ? `/${beach}/overview#content` : "/beaches"}
+          href={beach ? `/${beach}/overview` : "/beaches"}
         >
           {tabs[0]}
         </Link>
@@ -48,7 +48,7 @@ const PageTabs = ({
               ? "bg-background dark:bg-highlight-5"
               : "hover:bg-background/50 dark:hover:bg-highlight-5/50"
           )}
-          href={beach ? `/${beach}/forecast#content` : "/beaches"}
+          href={beach ? `/${beach}/forecast` : "/beaches"}
         >
           {tabs[1]}
         </Link>

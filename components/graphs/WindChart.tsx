@@ -1,5 +1,6 @@
 "use client";
 
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -20,15 +21,9 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 
-const chartData = [
-  { hour: 0, wind: 2 },
-  { hour: 1, wind: 3 },
-  { hour: 2, wind: 1 },
-  { hour: 3, wind: 1 },
-  { hour: 4, wind: 4 },
-  { hour: 5, wind: 2 },
-  { hour: 6, wind: 2 },
-];
+import { fetchBeachForecast, fetchBeachByIdLoose, fetchBeachDetails, fetchDailyConditions } from "@/lib/supabase";
+
+type Props = { beachId?: string; hours?: number; date?: Date };
 const chartConfig = {
   wind: {
     label: "Wind (mph)",
@@ -36,7 +31,77 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-const WindChart = () => {
+const WindChart = ({ beachId, hours = 24, date }: Props) => {
+  const [chartData, setChartData] = useState<{ hour: number; wind: number }[]>([]);
+  const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        if (!beachId) {
+          // default placeholder 7 hours
+          setChartData([
+            { hour: 0, wind: 2 },
+            { hour: 1, wind: 3 },
+            { hour: 2, wind: 1 },
+            { hour: 3, wind: 1 },
+            { hour: 4, wind: 4 },
+            { hour: 5, wind: 2 },
+            { hour: 6, wind: 2 },
+          ]);
+          return;
+        }
+        const resolved = await fetchBeachByIdLoose(beachId);
+        const id = resolved?.id ?? beachId;
+        let start = new Date();
+        let end = new Date(start.getTime() + hours * 60 * 60 * 1000);
+        if (date instanceof Date) {
+          const d = new Date(date);
+          d.setHours(0, 0, 0, 0);
+          start = d;
+          end = new Date(d.getTime() + 24 * 60 * 60 * 1000);
+        }
+        const rows = await fetchBeachForecast(id, start, end);
+        const data = rows.map((r) => ({
+          hour: new Date(r.timestamp).getHours(),
+          wind: r.conditions.windSpeed ?? 0,
+        }));
+        setChartData(data);
+
+        // Build sunrise/sunset shading for the day in view (hours)
+        try {
+          const beach = await fetchBeachDetails(String(id));
+          const county = beach?.COUNTY;
+          if (county) {
+            const basisDate = date instanceof Date ? new Date(date) : new Date(start);
+            const cond = await fetchDailyConditions(county, basisDate);
+            const parseHM = (s: string | null): { h: number; m: number } | null => {
+              if (!s) return null;
+              const m = /^(\d{1,2}):(\d{2})/.exec(s.trim());
+              if (!m) return null;
+              const h = Number(m[1]); const mm = Number(m[2]);
+              if (!Number.isFinite(h) || !Number.isFinite(mm)) return null;
+              return { h, m: mm };
+            };
+            const rise = parseHM(cond?.sunrise ?? null);
+            const setv = parseHM(cond?.sunset ?? null);
+            if (rise && setv) {
+              setDayAreas([{ x1: Math.min(rise.h, setv.h), x2: Math.max(rise.h, setv.h) }]);
+            } else {
+              setDayAreas([]);
+            }
+          }
+        } catch (_) {
+          setDayAreas([]);
+        }
+      } catch (e) {
+        console.error("Failed to load wind data", e);
+      }
+    };
+    load();
+  }, [beachId, hours, date]);
+
+  const domainMax = useMemo(() => (chartData.length ? chartData.length - 1 : 6), [chartData]);
   return (
     <ChartContainer
       config={chartConfig}
@@ -53,9 +118,9 @@ const WindChart = () => {
         data={chartData}
         syncId="anyId"
       >
-        <ReferenceArea x2={1} fill="#ccc1ffff" fillOpacity={0.2} />
-        <ReferenceArea x1={2} x2={5} fill="#FFE58F" fillOpacity={0.2} />
-        <ReferenceArea x1={6} fill="#ccc1ffff" fillOpacity={0.2} />
+        {dayAreas.map((a, idx) => (
+          <ReferenceArea key={`day-${idx}`} x1={a.x1} x2={a.x2} fill="#FFE58F" fillOpacity={0.2} />
+        ))}
         <CartesianGrid
           strokeDasharray="3 3"
           stroke="var(--foreground)"
@@ -68,11 +133,16 @@ const WindChart = () => {
           tickLine={false}
           tickMargin={10}
           axisLine={false}
-          domain={[0, 6]}
+          domain={[0, domainMax]}
+          tickFormatter={(value: number) => {
+            if (typeof value !== 'number') return '';
+            return value % 3 === 0 ? String(value % 12 === 0 ? 12 : value % 12) : '';
+          }}
         />
         <YAxis
           dataKey="wind"
-          allowDecimals={false}
+          allowDecimals={true}
+          tickFormatter={(v: number) => (typeof v === 'number' ? v.toFixed(1) : String(v))}
           tickLine={false}
           axisLine={false}
           tickMargin={8}
@@ -136,7 +206,7 @@ const WindChart = () => {
                       fontWeight="bold"
                       fontSize={fontSize}
                     >
-                      {`${props.value}-${props.value + 1}`}
+                      {`${props.value.toFixed(1)}-${(props.value + 1).toFixed(1)}`}
                     </text>
                   </g>
                 );

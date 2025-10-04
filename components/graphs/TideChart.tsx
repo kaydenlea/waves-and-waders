@@ -27,39 +27,138 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-const dataBackup = [
-  { hour: 0, tide: 5, isPeak: 5 },
-  { hour: 1, tide: 4.5 },
-  { hour: 2, tide: 4.3 },
-  { hour: 3, tide: 4.1 },
-  { hour: 4, tide: 3 },
-  { hour: 5, tide: 2 },
-  { hour: 6, tide: 1, isPeak: 1 },
-  { hour: 7, tide: 2 },
-  { hour: 8, tide: 2.5 },
-  { hour: 9, tide: 2.8 },
-  { hour: 10, tide: 3 },
-  { hour: 11, tide: 4.5 },
-  { hour: 12, tide: 5 },
-  { hour: 13, tide: 5.1 },
-  { hour: 14, tide: 5.2 },
-  { hour: 15, tide: 5.3 },
-  { hour: 16, tide: 5.5 },
-  { hour: 17, tide: 5.3 },
-  { hour: 18, tide: 5.5, isPeak: 5.5 },
-  { hour: 19, tide: 5 },
-  { hour: 20, tide: 4.5 },
-  { hour: 21, tide: 4.3 },
-  { hour: 22, tide: 3 },
-  { hour: 23, tide: 2 },
-  { hour: 24, tide: 1, isPeak: 1 },
-];
+import React, { useEffect, useMemo, useState } from "react";
+import { fetchBeachTides, fetchBeachByIdLoose, fetchBeachForecast, fetchBeachDetails, fetchDailyConditions } from "@/lib/supabase";
 
-const TideChart = ({
-  chartData = dataBackup,
-}: {
-  chartData?: { hour: number; tide: number; isPeak?: number }[];
-}) => {
+type TidePoint = { x: number; tide: number; isPeak?: number };
+
+const TideChart = ({ beachId, hours = 24, chartData: chartDataProp, date }: { beachId?: string; hours?: number; chartData?: TidePoint[]; date?: Date }) => {
+  const [chartData, setChartData] = useState<TidePoint[]>(chartDataProp ?? []);
+  const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]); // daytime intervals in ms
+  const [sunMarkers, setSunMarkers] = useState<number[]>([]); // exact sunrise/sunset ms
+
+  useEffect(() => {
+    if (chartDataProp || !beachId) return; // allow override or skip without id
+    const load = async () => {
+      try {
+        const resolved = await fetchBeachByIdLoose(beachId);
+        const id = resolved?.id ?? beachId;
+        // If a date is provided, use that entire day; else next `hours`
+        let start = new Date();
+        let end = new Date(start.getTime() + hours * 60 * 60 * 1000);
+        if (date instanceof Date) {
+          const d = new Date(date);
+          d.setHours(0, 0, 0, 0);
+          start = d;
+          end = new Date(d.getTime() + 24 * 60 * 60 * 1000);
+        }
+        const points = await fetchBeachTides(id, start, end);
+        // Fallback: if tide table empty for this window, use forecast tideLevel
+        if (!points || points.length === 0) {
+          const rows = await fetchBeachForecast(id, start, end);
+          let fallback = rows.map((r) => ({
+            x: new Date(r.timestamp).getTime(),
+            tide: r.conditions.tideLevel ?? 0,
+          }));
+          // compute peaks (highs and lows)
+          fallback = computePeaks(fallback);
+          setChartData(fallback);
+          return;
+        }
+        let data = points
+          .map((p) => ({
+            x: new Date(p.timestamp).getTime(),
+            tide: p.tideLevelFt ?? 0,
+          }))
+          .sort((a, b) => a.x - b.x);
+        // compute peaks (highs and lows)
+        data = computePeaks(data);
+        setChartData(data);
+      } catch (e) {
+        console.error("Failed to load tide data", e);
+      }
+    };
+    load();
+  }, [beachId, hours, chartDataProp, date]);
+
+  // Compute sunrise/sunset daytime shading from daily conditions (Pacific) for days in view
+  useEffect(() => {
+    const run = async () => {
+      try {
+        if (!beachId || chartData.length === 0) return;
+        const resolved = await fetchBeachByIdLoose(beachId);
+        const id = resolved?.id ?? beachId;
+        const beach = await fetchBeachDetails(String(id));
+        const county = beach?.COUNTY;
+        if (!county) return;
+
+        // Group points by Pacific date key
+        const fmtKey = (ms: number) => new Date(ms).toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles' });
+        const pointsByDay = new Map<string, TidePoint[]>();
+        for (const p of chartData) {
+          const key = fmtKey(p.x);
+          const arr = pointsByDay.get(key) ?? [];
+          arr.push(p);
+          pointsByDay.set(key, arr);
+        }
+
+        const parseHM = (s: string | null): { h: number; m: number } | null => {
+          if (!s) return null;
+          const m = /^(\d{1,2}):(\d{2})/.exec(s.trim());
+          if (!m) return null;
+          const h = Number(m[1]);
+          const mm = Number(m[2]);
+          if (!Number.isFinite(h) || !Number.isFinite(mm)) return null;
+          return { h, m: mm };
+        };
+
+        const areas: { x1: number; x2: number }[] = [];
+        const markers: number[] = [];
+        const dayKeys = Array.from(pointsByDay.keys());
+        for (const key of dayKeys) {
+          const dayPts = (pointsByDay.get(key) ?? []).sort((a,b)=>a.x-b.x);
+          if (dayPts.length === 0) continue;
+          const d0 = new Date(dayPts[0].x);
+          const cond = await fetchDailyConditions(county, d0);
+          const rise = parseHM(cond?.sunrise ?? null); // {h,m}
+          const setv = parseHM(cond?.sunset ?? null);
+          if (!rise || !setv) continue;
+          // Build ms for sunrise and sunset aligned to the day of these points (same local basis as x)
+          const riseMs = new Date(d0).setHours(rise.h, rise.m, 0, 0);
+          const setMs  = new Date(d0).setHours(setv.h, setv.m, 0, 0);
+          markers.push(riseMs, setMs);
+          const minX = dayPts[0].x;
+          const maxX = dayPts[dayPts.length - 1].x;
+          // Constrain to visible range for this day
+          const x1 = Math.max(minX, Math.min(riseMs, setMs));
+          const x2 = Math.min(maxX, Math.max(riseMs, setMs));
+          if (x2 > x1) areas.push({ x1, x2 });
+        }
+        setDayAreas(areas);
+        setSunMarkers(markers);
+      } catch (e) {
+        // ignore; keep previous markers
+      }
+    };
+    run();
+  }, [beachId, chartData]);
+
+  // Helper: detect peaks (high and low tides)
+  function computePeaks(arr: TidePoint[]): TidePoint[] {
+    if (!arr || arr.length < 3) return arr;
+    const out = arr.map((p) => ({ ...p }));
+    for (let i = 1; i < arr.length - 1; i++) {
+      const prev = arr[i - 1];
+      const curr = arr[i];
+      const next = arr[i + 1];
+      if (curr.tide > prev.tide && curr.tide >= next.tide) {
+        out[i].isPeak = Number(curr.tide.toFixed(1)); // high tide
+      } else if (curr.tide < prev.tide && curr.tide <= next.tide) {
+        out[i].isPeak = Number(curr.tide.toFixed(1)); // low tide (negative OK)
+      }
+    }
+    return out;
+  }
   return (
     <>
       <ChartContainer
@@ -75,9 +174,16 @@ const TideChart = ({
             right: 15,
           }}
         >
-          <ReferenceArea x1={0} x2={6} fill="#ccc1ffff" fillOpacity={0.2} />
-          <ReferenceArea x1={6} x2={20} fill="#FFE58F" fillOpacity={0.2} />
-          <ReferenceArea x1={20} x2={24} fill="#ccc1ffff" fillOpacity={0.2} />
+          {/* Daytime shading between sunrise and sunset intervals */}
+          {dayAreas.map((a, idx) => (
+            <ReferenceArea
+              key={`day-${idx}`}
+              x1={a.x1}
+              x2={a.x2}
+              fill="#FFE58F"
+              fillOpacity={0.2}
+            />
+          ))}
           <CartesianGrid
             strokeDasharray="3 3"
             stroke="var(--foreground)"
@@ -85,17 +191,19 @@ const TideChart = ({
             vertical={false}
           />
           <XAxis
-            dataKey="hour"
+            dataKey="x"
+            type="number"
+            scale="time"
+            domain={["dataMin", "dataMax"]}
             tickLine={false}
             axisLine={false}
             tickMargin={8}
             minTickGap={0}
             fontSize={11}
-            tickFormatter={(value) =>
-              value % 3 === 0
-                ? (value % 12 === 0 ? 12 : value % 12).toString()
-                : ""
-            }
+            tickFormatter={(value) => {
+              const h = new Date(Number(value)).getHours();
+              return h % 3 === 0 ? ((h % 12 === 0 ? 12 : h % 12).toString()) : "";
+            }}
           />
           <YAxis
             dataKey="tide"
@@ -104,7 +212,7 @@ const TideChart = ({
             tickMargin={8}
             fontSize={11}
             domain={[
-              0,
+              (dataMin: number) => Math.floor(dataMin) - 1,
               (dataMax: number) => Math.max(Math.ceil(dataMax) + 1, 8),
             ]}
           />
@@ -115,10 +223,13 @@ const TideChart = ({
             stroke="var(--color-tide)"
             strokeWidth={2}
             dot={({ payload, cx, cy }) => {
-              if (payload.hour === 6 || payload.hour === 20) {
+              const hour = new Date(payload.x).getHours();
+              const NEAR = 30 * 60 * 1000; // 30 minutes threshold
+              const isNearSun = sunMarkers.some(ms => Math.abs(ms - (payload.x as number)) <= NEAR);
+              if (isNearSun) {
                 return (
                   <circle
-                    key={payload.hour}
+                    key={payload.x}
                     cx={cx}
                     cy={cy}
                     r={3}
@@ -127,20 +238,21 @@ const TideChart = ({
                     strokeWidth={1}
                   />
                 );
-              } else if (payload.isPeak) {
+              } else if (payload.isPeak !== undefined && payload.isPeak !== null) {
+                const isLow = typeof payload.isPeak === 'number' && payload.isPeak <= (payload.tide ?? 0) && payload.isPeak <= 0;
                 return (
                   <circle
-                    key={payload.hour}
+                    key={payload.x}
                     cx={cx}
                     cy={cy}
                     r={3}
-                    fill="green"
+                    fill={isLow ? "#ef4444" : "#22c55e"}
                     stroke="var(--color-tide)"
                     strokeWidth={1}
                   />
                 );
               } else {
-                return <g key={payload.hour} />;
+                return <g key={payload.x} />;
               }
             }}
           >
@@ -150,15 +262,21 @@ const TideChart = ({
                 const safeX = typeof props.x === "number" ? props.x : 0;
                 return (
                   <g>
-                    {(props.index === 6 || props.index === 20) && (
-                      <Sun
-                        size={20}
-                        x={safeX - 12}
-                        y={0}
-                        fill="#ff9946ff"
-                        color="#ff9946ff"
-                      />
-                    )}
+                    {(() => {
+                      const datum = chartData[props.index ?? -1];
+                      if (!datum) return null;
+                      const NEAR = 30 * 60 * 1000;
+                      const isNearSun = sunMarkers.some(ms => Math.abs(ms - datum.x) <= NEAR);
+                      return isNearSun ? (
+                        <Sun
+                          size={20}
+                          x={safeX - 12}
+                          y={0}
+                          fill="#ff9946ff"
+                          color="#ff9946ff"
+                        />
+                      ) : null;
+                    })()}
                   </g>
                 );
               }}

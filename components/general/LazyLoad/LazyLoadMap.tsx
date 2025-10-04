@@ -62,10 +62,18 @@ const Loading = () => {
   );
 };
 
-export const LazyLoadMap = dynamic(
+type Props = {
+  beachId?: string | number;
+};
+
+const InteractiveMap = dynamic<React.ComponentProps<any>>(
   () => import("../../visuals/InteractiveMap"),
   {
     ssr: false,
     loading: () => <Loading />,
   }
 );
+
+export const LazyLoadMap: React.FC<Props> = (props) => {
+  return <InteractiveMap {...props} />;
+};

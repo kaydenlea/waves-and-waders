@@ -11,14 +11,29 @@ import {
   Cloudy,
 } from "lucide-react";
 import DaySlider from "../general/DaySlider";
+import {
+  fetchBeachByIdLoose,
+  fetchBeachForecast,
+  getWindDirection,
+  type ForecastData,
+} from "@/lib/supabase";
 
 const SwellStat = ({
   primary = false,
   data,
 }: {
   primary?: boolean;
-  data: { height: number; period: number; dir: string; deg: number };
+  data?: {
+    height?: number | string | null;
+    period?: number | null;
+    dir?: string | null;
+    deg?: number | null;
+  } | null;
 }) => {
+  const height = data?.height ?? "—";
+  const period = data?.period ?? "—";
+  const dir = data?.dir ?? "—";
+  const deg = data?.deg ?? "—";
   return (
     <div
       className={cn(
@@ -36,7 +51,7 @@ const SwellStat = ({
           <span
             className={cn("font-semibold", primary ? "text-sm" : "text-sm")}
           >
-            {data.height}
+            {height}
           </span>
           <span className={cn(primary ? "text-[.65rem]" : "text-[.65rem]")}>
             ft
@@ -46,7 +61,7 @@ const SwellStat = ({
           <span
             className={cn("font-semibold", primary ? "text-sm" : "text-sm")}
           >
-            {data.period}
+            {period}
           </span>
           <span className={cn(primary ? "text-[.65rem]" : "text-[.65rem]")}>
             s
@@ -57,10 +72,10 @@ const SwellStat = ({
           <span
             className={cn("font-semibold", primary ? "text-sm" : "text-sm")}
           >
-            {data.dir}
+            {dir}
           </span>
           <span className={cn(primary ? "text-[.65rem]" : "text-[.65rem]")}>
-            {data.deg}&deg;
+            {deg}&deg;
           </span>
         </span>
       </div>
@@ -132,38 +147,337 @@ const GeneralStat = ({
   );
 };
 
+type TableEntry = {
+  index: number; // hour in local time (0,3,6,...)
+  time: string; // e.g., "3 PM"
+  wind: { label: string; dir: string; speed: number; max: number };
+  surf: { label: string; height: string };
+  swell: {
+    label: string;
+    primary: { height: number; period: number; dir: string; deg: number };
+    secondary: { height: number; period: number; dir: string; deg: number }[];
+  };
+  pressure: { label: string; value: number };
+  weather: { label: string; condition: string; temp: number };
+  water: { label: string; temp: number };
+  energy: { label: string; value: number };
+};
+
+type TableDay = { date: string; dateMs: number; vals: TableEntry[] };
+
+type DateLike = Date | undefined | null;
+
+const isValidDate = (value: DateLike): value is Date =>
+  value instanceof Date && !Number.isNaN(value.getTime());
+
+const pacificStartOfDay = (input: Date) => {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Los_Angeles",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZoneName: "short",
+  });
+  const parts = formatter.formatToParts(input);
+  const partValue = (type: Intl.DateTimeFormatPart["type"]) =>
+    parts.find((p) => p.type === type)?.value ?? "";
+  const year = Number(partValue("year"));
+  const month = Number(partValue("month")) - 1;
+  const day = Number(partValue("day"));
+  const tzName = partValue("timeZoneName") || "";
+  let offsetMinutes = 0;
+  const match = tzName.match(/GMT([+-]\d{1,2})(?::(\d{2}))?/);
+  if (match) {
+    const rawHours = match[1] ?? "+0";
+    const sign = rawHours.startsWith("-") ? -1 : 1;
+    const hours = Math.abs(Number(rawHours));
+    const minutes = match[2] ? Number(match[2]) : 0;
+    offsetMinutes = sign * (hours * 60 + minutes);
+  }
+  const utcMillis =
+    Date.UTC(year, month, day, 0, 0, 0) - offsetMinutes * 60 * 1000;
+  return new Date(utcMillis);
+};
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 const StatTable = ({
   numDays,
   numHours,
   header = false,
+  beachId,
+  date,
 }: {
   numDays: number;
   numHours: number;
   header?: boolean;
+  beachId?: string;
+  date?: Date;
 }) => {
-  const data = Array.from({ length: numDays }, () => ({
-    date: "Monday, July 10",
-    vals: Array.from({ length: numHours }, (_, index) => ({
-      index: index * 3,
-      time: `${(index * 3) % 12 === 0 ? 12 : (index * 3) % 12} ${
-        index * 3 >= 12 ? "PM" : "AM"
-      }`,
-      wind: { label: "wind", dir: "NNE", speed: 12, max: 17 },
-      surf: { label: "surf", height: "2-3" },
-      swell: {
-        label: "swell",
-        primary: { height: 2.1, period: 7, dir: "W", deg: 272 },
-        secondary: [
-          { height: 2.1, period: 7, dir: "W", deg: 272 },
-          { height: 2.1, period: 7, dir: "W", deg: 272 },
-        ],
-      },
-      pressure: { label: "pressure", value: 29.94 },
-      weather: { label: "weather", condition: "clear", temp: 64 },
-      water: { label: "water", temp: 64 },
-      energy: { label: "energy", value: 278 },
-    })),
-  }));
+  // const dataDummy = Array.from({ length: numDays }, () => ({
+  //   date: "Monday, July 10",
+  //   vals: Array.from({ length: numHours }, (_, index) => ({
+  //     index: index * 3,
+  //     time: `${(index * 3) % 12 === 0 ? 12 : (index * 3) % 12} ${
+  //       index * 3 >= 12 ? "PM" : "AM"
+  //     }`,
+  //     wind: { label: "wind", dir: "NNE", speed: 12, max: 17 },
+  //     surf: { label: "surf", height: "2-3" },
+  //     swell: {
+  //       label: "swell",
+  //       primary: { height: 2.1, period: 7, dir: "W", deg: 272 },
+  //       secondary: [
+  //         { height: 2.1, period: 7, dir: "W", deg: 272 },
+  //         { height: 2.1, period: 7, dir: "W", deg: 272 },
+  //       ],
+  //     },
+  //     pressure: { label: "pressure", value: 29.94 },
+  //     weather: { label: "weather", condition: "clear", temp: 64 },
+  //     water: { label: "water", temp: 64 },
+  //     energy: { label: "energy", value: 278 },
+  //   })),
+  // }));
+  const [data, setData] = React.useState<TableDay[]>([]);
+
+  React.useEffect(() => {
+    const load = async () => {
+      try {
+        if (!beachId) return;
+        const resolved = await fetchBeachByIdLoose(beachId);
+        const resolvedId = resolved?.id ?? beachId;
+        const requestedDate = isValidDate(date) ? date : undefined;
+        const anchor = requestedDate ?? new Date();
+        const anchorStart = pacificStartOfDay(anchor);
+        const bufferBefore = requestedDate ? 1 : 0;
+        const bufferAfter = requestedDate ? 1 : 0;
+        const rangeStart = new Date(
+          anchorStart.getTime() - bufferBefore * DAY_MS
+        );
+        const daysToFetch = Math.max(numDays, 1) + bufferAfter;
+        const rangeEnd = new Date(anchorStart.getTime() + daysToFetch * DAY_MS);
+        const weekly = await fetchBeachForecast(
+          resolvedId,
+          rangeStart,
+          rangeEnd
+        );
+
+        // Group by Pacific date (explicit timezone to avoid browser locale shifts)
+        const byDay = new Map<string, ForecastData[]>();
+        const fmtDayLabel = (d: Date) =>
+          d.toLocaleDateString("en-US", {
+            weekday: "long",
+            month: "long",
+            day: "numeric",
+            timeZone: "America/Los_Angeles",
+          });
+        weekly.forEach((row) => {
+          const d = new Date(row.timestamp);
+          const label = fmtDayLabel(d);
+          const arr = byDay.get(label) ?? [];
+          arr.push(row);
+          byDay.set(label, arr);
+        });
+
+        // Build table structure
+        const days: TableDay[] = [];
+        const entriesByDay = Array.from(byDay.entries()).sort((a, b) => {
+          // sort days chronologically by first timestamp
+          const ta = new Date(a[1][0]?.timestamp ?? 0).getTime();
+          const tb = new Date(b[1][0]?.timestamp ?? 0).getTime();
+          return ta - tb;
+        });
+
+        const onlyLabel = requestedDate ? fmtDayLabel(requestedDate) : null;
+
+        // Optionally narrow to selected label; if no exact match, try +/- 1 day as fallback
+        let allowedLabels: Set<string> | null = null;
+        if (onlyLabel) {
+          const labels = entriesByDay.map(([lbl]) => lbl);
+          if (labels.includes(onlyLabel)) {
+            allowedLabels = new Set([onlyLabel]);
+          } else {
+            if (requestedDate) {
+              const prev = fmtDayLabel(
+                new Date(requestedDate.getTime() - DAY_MS)
+              );
+              const next = fmtDayLabel(
+                new Date(requestedDate.getTime() + DAY_MS)
+              );
+              const cands = [prev, next].filter((l) => labels.includes(l));
+              if (cands.length) allowedLabels = new Set([cands[0]]);
+            }
+          }
+        }
+
+        for (const [label, rows] of entriesByDay) {
+          if (allowedLabels && !allowedLabels.has(label)) continue;
+          // Sort by time ascending
+          rows.sort(
+            (a, b) =>
+              new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+          );
+          const pacificHour = (ts: string) => {
+            try {
+              const fmt = new Intl.DateTimeFormat("en-US", {
+                hour: "numeric",
+                hour12: false,
+                timeZone: "America/Los_Angeles",
+              });
+              const h = Number(fmt.format(new Date(ts)));
+              return Number.isFinite(h) ? h : new Date(ts).getUTCHours();
+            } catch {
+              return new Date(ts).getUTCHours();
+            }
+          };
+          // Build a map from Pacific hour -> row
+          const hourMap = new Map<number, ForecastData>();
+          for (const r of rows) {
+            hourMap.set(pacificHour(r.timestamp), r);
+          }
+
+          // Choose hour checkpoints: when only a few rows are requested, focus on 6/12/18; otherwise use a 3-hour grid.
+          const THREE_HOUR_GRID = [0, 3, 6, 9, 12, 15, 18, 21];
+          const SPOT_HOURS = [6, 12, 18];
+          const baseHours =
+            numHours <= SPOT_HOURS.length ? SPOT_HOURS : THREE_HOUR_GRID;
+          const targetHours = baseHours.slice(
+            0,
+            Math.min(numHours, baseHours.length)
+          );
+
+          const makeEntryFromRow = (
+            r: ForecastData,
+            hour: number
+          ): TableEntry => {
+            const displayHour = hour % 12 === 0 ? 12 : hour % 12;
+            const ampm = hour >= 12 ? "PM" : "AM";
+
+            const windDir = getWindDirection(r.conditions.windDirection ?? 0);
+            const windSpeed = Math.round(r.conditions.windSpeed ?? 0);
+            const windGust = Math.round(r.conditions.windGust ?? windSpeed);
+
+            const min = r.surf.heightMin ?? 0;
+            const max = r.surf.heightMax ?? 0;
+            const minR = Math.round(min);
+            const maxR = Math.round(max);
+            const surfHeight =
+              minR === 0 && maxR === 0
+                ? "—"
+                : minR === maxR
+                ? `${maxR}`
+                : `${minR}-${maxR}`;
+
+            const priH =
+              r.swell.primary.height != null
+                ? Number(r.swell.primary.height.toFixed(1))
+                : 0;
+            const priP = Math.round(r.swell.primary.period ?? 0);
+            const priDeg = Math.round(r.swell.primary.direction ?? 0);
+            const priDir = getWindDirection(priDeg);
+
+            const secList: TableEntry["swell"]["secondary"] = [];
+            if (r.swell.secondary.height != null) {
+              const sH = Number((r.swell.secondary.height ?? 0).toFixed(1));
+              const sP = Math.round(r.swell.secondary.period ?? 0);
+              const sDg = Math.round(r.swell.secondary.direction ?? 0);
+              secList.push({
+                height: sH,
+                period: sP,
+                dir: getWindDirection(sDg),
+                deg: sDg,
+              });
+            }
+            if (r.swell.tertiary?.height != null) {
+              const tH = Number((r.swell.tertiary.height ?? 0).toFixed(1));
+              const tP = Math.round(r.swell.tertiary.period ?? 0);
+              const tDg = Math.round(r.swell.tertiary.direction ?? 0);
+              secList.push({
+                height: tH,
+                period: tP,
+                dir: getWindDirection(tDg),
+                deg: tDg,
+              });
+            }
+
+            const pressure =
+              r.conditions.pressure != null
+                ? Number(r.conditions.pressure.toFixed(2))
+                : 0;
+
+            return {
+              index: hour,
+              time: `${displayHour} ${ampm}`,
+              wind: {
+                label: "wind",
+                dir: windDir,
+                speed: windSpeed,
+                max: windGust,
+              },
+              surf: { label: "surf", height: surfHeight },
+              swell: {
+                label: "swell",
+                primary: {
+                  height: priH,
+                  period: priP,
+                  dir: priDir,
+                  deg: priDeg,
+                },
+                secondary: secList.slice(0, 2),
+              },
+              pressure: { label: "pressure", value: pressure },
+              weather: { label: "weather", condition: "clear", temp: 64 },
+              water: { label: "water", temp: 64 },
+              energy: { label: "energy", value: 278 },
+            };
+          };
+
+          const makePlaceholder = (hour: number): TableEntry => {
+            const displayHour = hour % 12 === 0 ? 12 : hour % 12;
+            const ampm = hour >= 12 ? "PM" : "AM";
+            return {
+              index: hour,
+              time: `${displayHour} ${ampm}`,
+              wind: { label: "wind", dir: "—", speed: 0, max: 0 },
+              surf: { label: "surf", height: "—" },
+              swell: {
+                label: "swell",
+                primary: { height: 0, period: 0, dir: "—", deg: 0 },
+                secondary: [],
+              },
+              pressure: { label: "pressure", value: 0 },
+              weather: { label: "weather", condition: "clear", temp: 64 },
+              water: { label: "water", temp: 64 },
+              energy: { label: "energy", value: 278 },
+            };
+          };
+
+          const entries: TableEntry[] = targetHours.map((h) => {
+            const r = hourMap.get(h);
+            return r ? makeEntryFromRow(r, h) : makePlaceholder(h);
+          });
+
+          // Use first row's midnight for stable date range labeling
+          const firstTs = rows[0]?.timestamp ?? new Date().toISOString();
+          const d0 = new Date(firstTs);
+          const midnight = new Date(
+            d0.getFullYear(),
+            d0.getMonth(),
+            d0.getDate()
+          ).getTime();
+          days.push({ date: label, dateMs: midnight, vals: entries });
+        }
+
+        // Keep only requested number of days
+        const finalDays = allowedLabels
+          ? days.slice(0, 1)
+          : days.slice(0, numDays);
+        setData(finalDays);
+      } catch (e) {
+        console.error("Failed to load StatTable data", e);
+      }
+    };
+    load();
+  }, [beachId, numDays, numHours, date]);
 
   const COLUMNS = [
     { id: "surf", label: "Surf" },
@@ -294,7 +608,13 @@ const StatTable = ({
           windowSize={3}
           length={data.length}
           startIndex={startIndex}
-          days="Wed, 8/15 - Fri, 8/17"
+          days={(() => {
+            const s = data[startIndex];
+            const e = data[Math.min(startIndex + windowSize - 1, data.length - 1)];
+            if (!s || !e) return "";
+            const fmt = (ms: number) => new Date(ms).toLocaleDateString("en-US", { weekday: "short", month: "numeric", day: "numeric" });
+            return `${fmt(s.dateMs)} - ${fmt(e.dateMs)}`;
+          })()}
         />
       )} */}
       <table
@@ -365,18 +685,27 @@ const StatTable = ({
                         );
                         break;
                       case "Swell":
-                        content = (
-                          <SwellStat primary data={entry.swell.primary} />
-                        );
+                        {
+                          content = (
+                            <SwellStat
+                              primary
+                              data={entry.swell?.primary as any}
+                            />
+                          );
+                          break;
+                        }
                         break;
-                      case "Secondary Swell":
+                      case "Secondary Swell": {
+                        const s0 = entry.swell?.secondary?.[0];
+                        const s1 = entry.swell?.secondary?.[1];
                         content = (
                           <div className="flex gap-1">
-                            <SwellStat data={entry.swell.secondary[0]} />
-                            <SwellStat data={entry.swell.secondary[1]} />
+                            <SwellStat data={s0 as any} />
+                            <SwellStat data={s1 as any} />
                           </div>
                         );
                         break;
+                      }
                       case "Pressure":
                         content = (
                           <GeneralStat

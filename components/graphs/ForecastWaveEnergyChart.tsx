@@ -8,7 +8,6 @@ import {
   CartesianGrid,
   XAxis,
   YAxis,
-  ReferenceArea,
   LabelList,
   LabelProps,
   ReferenceLine,
@@ -22,8 +21,7 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import DaySlider from "../general/DaySlider";
-
-import { Sun, Sunrise, Sunset } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
 
 const chartData = [
   { hour: 0, energy: 1 },
@@ -125,9 +123,6 @@ const chartData = [
   { hour: 96, energy: 1 },
 ];
 
-const sunRises = new Set([6, 31, 55, 79]);
-const sunSets = new Set([20, 45, 69, 93]);
-
 const chartConfig = {
   energy: {
     label: "Energy (kJ)",
@@ -139,6 +134,8 @@ type WavePoint = {
   hour: number;
   energy: number;
 };
+
+const HOURS_PER_DAY = 24;
 
 function buildTrendStops(
   series: WavePoint[],
@@ -176,89 +173,198 @@ function buildTrendStops(
   return stops;
 }
 
-const ForecastWaveEnergyChart = () => {
+import { fetchWeeklyForecast, fetchBeachByIdLoose } from "@/lib/supabase";
+
+type Props = { beachId?: string; date?: Date };
+
+const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, date }) => {
   const [startIndex, setStartIndex] = React.useState(0);
-  const [windowSize, setWindowSize] = React.useState(0);
+  const [dayWindow, setDayWindow] = React.useState(3);
+  const [energyData, setEnergyData] = React.useState<WavePoint[]>([]);
+  const [baseStartMs, setBaseStartMs] = React.useState<number | null>(null);
 
-  const chartRef = React.useRef<HTMLDivElement>(null);
-
+  // Build energy series from forecast rows (wave_energy_kj or surf.waveEnergy)
   React.useEffect(() => {
-    const chart = chartRef.current;
-    if (!chart) return;
+    const load = async () => {
+      try {
+        if (!beachId) {
+          setEnergyData([]);
+          setBaseStartMs(null);
+          return;
+        }
+        const resolved = await fetchBeachByIdLoose(beachId);
+        const id = resolved?.id ?? beachId;
+        const rows = await fetchWeeklyForecast(String(id));
+        if (!rows || !rows.length) {
+          setEnergyData([]);
+          setBaseStartMs(null);
+          return;
+        }
+        // Sort rows and determine Pacific midnight of the earliest row without string roundtrip
+        rows.sort(
+          (a: any, b: any) =>
+            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        );
+        const earliest = new Date(rows[0].timestamp);
+        const parts = new Intl.DateTimeFormat("en-US", {
+          timeZone: "America/Los_Angeles",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hourCycle: "h23",
+        }).formatToParts(earliest);
+        const hh = Number(parts.find((p) => p.type === "hour")?.value ?? "0");
+        const mm = Number(parts.find((p) => p.type === "minute")?.value ?? "0");
+        const ss = Number(parts.find((p) => p.type === "second")?.value ?? "0");
+        const baseMs = earliest.getTime() - (hh * 3600 + mm * 60 + ss) * 1000;
+        setBaseStartMs(baseMs);
 
-    const adjustData = () => {
-      const width = chart.clientWidth;
-      if (width < 550) {
-        setWindowSize(25);
-      } else if (width < 750) {
-        setWindowSize(49);
-      } else if (width < 1000) {
-        setWindowSize(73);
-      } else {
-        setWindowSize(97);
+        const series: WavePoint[] = [];
+        for (const r of rows) {
+          const ts = new Date(r.timestamp).getTime();
+          const hour = Math.round((ts - baseMs) / 3600000);
+          const v =
+            (r as any)?.surf?.waveEnergy ?? (r as any)?.wave_energy_kj ?? 0;
+          series.push({ hour, energy: Number(v) || 0 });
+        }
+        // Keep within a reasonable window (e.g., first 96 hours)
+        series.sort((a, b) => a.hour - b.hour);
+        setEnergyData(series);
+      } catch (e) {
+        setEnergyData([]);
+        setBaseStartMs(null);
       }
     };
+    load();
+  }, [beachId]);
 
-    const observer = new ResizeObserver(adjustData);
-    observer.observe(chart);
-
-    adjustData();
-
-    return () => observer.disconnect();
-  }, []);
-
-  // React.useEffect(() => {
-  //   const handleResize = () => {
-  //     const container = document.querySelector("#content");
-  //     const width = container ? container.clientWidth : 0;
-
-  //     if (width < 550) {
-  //       setWindowSize(25);
-  //     } else if (width < 750) {
-  //       setWindowSize(49);
-  //     } else {
-  //       setWindowSize(73);
-  //     }
-  //   };
-
-  //   handleResize();
-  //   window.addEventListener("resize", handleResize);
-
-  //   return () => window.removeEventListener("resize", handleResize);
-  // }, []);
-
-  const handleNext = () => {
-    if (startIndex + windowSize < chartData.length) {
-      setStartIndex((prev) => prev + 24);
+  const source = energyData.length ? energyData : chartData;
+  const pointsPerDay = React.useMemo(() => {
+    if (source.length < 2) {
+      return HOURS_PER_DAY;
     }
-  };
-
-  const handleBack = () => {
-    if (startIndex > 0) {
-      setStartIndex((prev) => prev - 24);
+    let minStep = Infinity;
+    for (let i = 1; i < source.length; i++) {
+      const diff = Math.abs(source[i].hour - source[i - 1].hour);
+      if (diff > 0 && diff < minStep) {
+        minStep = diff;
+      }
     }
-  };
+    if (!Number.isFinite(minStep) || minStep <= 0) {
+      return HOURS_PER_DAY;
+    }
+    return Math.max(1, Math.ceil(HOURS_PER_DAY / minStep));
+  }, [source]);
+  const totalLength = source.length;
 
-  const visibleData = chartData.slice(startIndex, startIndex + windowSize);
-  let start = startIndex;
+  const maxSelectableDays = React.useMemo(() => {
+    if (!totalLength || !pointsPerDay) {
+      return 1;
+    }
+    const available = Math.floor(totalLength / pointsPerDay);
+    const capped = Math.min(7, available > 0 ? available : 1);
+    return Math.max(1, capped);
+  }, [pointsPerDay, totalLength]);
+
+  const effectiveDayWindow = Math.min(dayWindow, maxSelectableDays);
+  const windowSize = pointsPerDay * effectiveDayWindow;
+  const maxStartIndex = Math.max(0, totalLength - windowSize);
+
+  React.useEffect(() => {
+    if (dayWindow > maxSelectableDays) {
+      setDayWindow(maxSelectableDays);
+    }
+  }, [dayWindow, maxSelectableDays]);
+
+  React.useEffect(() => {
+    setStartIndex((prev) => Math.min(prev, maxStartIndex));
+  }, [maxStartIndex]);
+
+  const visibleData = source.slice(startIndex, startIndex + windowSize);
 
   const stops = React.useMemo(
     () => buildTrendStops(visibleData, "var(--green)", "var(--red)"),
     [visibleData]
   );
 
+  const pacificMidnight = React.useMemo(() => {
+    if (baseStartMs != null) return baseStartMs;
+    const now = new Date();
+    const local = new Date(
+      now.toLocaleString("en-US", { timeZone: "America/Los_Angeles" })
+    );
+    local.setHours(0, 0, 0, 0);
+    return local.getTime();
+  }, [baseStartMs]);
+
+  const fmtRange = React.useMemo(() => {
+    if (!visibleData.length) return "";
+    const startMs = pacificMidnight + visibleData[0].hour * 3600 * 1000;
+    const endMs =
+      pacificMidnight + visibleData[visibleData.length - 1].hour * 3600 * 1000;
+    const fmt = (ms: number) =>
+      new Date(ms).toLocaleDateString("en-US", {
+        weekday: "short",
+        month: "numeric",
+        day: "numeric",
+        timeZone: "America/Los_Angeles",
+      });
+    return `${fmt(startMs)} - ${fmt(endMs)}`;
+  }, [visibleData, pacificMidnight]);
+
+  const handleNext = () => {
+    if (startIndex < maxStartIndex) {
+      setStartIndex((prev) => Math.min(prev + pointsPerDay, maxStartIndex));
+    }
+  };
+
+  const handleBack = () => {
+    if (startIndex > 0) {
+      setStartIndex((prev) => Math.max(prev - pointsPerDay, 0));
+    }
+  };
+
+  const handleDayWindowChange = React.useCallback(
+    (value: number[]) => {
+      const raw = value?.[0];
+      const candidate = raw == null ? effectiveDayWindow : raw;
+      const next = Math.min(
+        Math.max(Math.round(candidate), 1),
+        maxSelectableDays
+      );
+      setDayWindow(next);
+      setStartIndex(0);
+    },
+    [effectiveDayWindow, maxSelectableDays]
+  );
+
   return (
     <>
+      <div className="mb-4">
+        <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
+          <span>Range</span>
+          <span>
+            {effectiveDayWindow} {effectiveDayWindow === 1 ? "day" : "days"}
+          </span>
+        </div>
+        <Slider
+          value={[effectiveDayWindow]}
+          min={1}
+          max={maxSelectableDays}
+          step={1}
+          onValueChange={handleDayWindowChange}
+          className="mt-2"
+        />
+      </div>
       <DaySlider
         handleBack={handleBack}
         handleNext={handleNext}
         startIndex={startIndex}
         windowSize={windowSize}
-        length={chartData.length}
-        days="Wed, 8/15 - Fri, 8/17"
+        length={totalLength}
+        days={fmtRange}
       />
       <ChartContainer
-        ref={chartRef}
         config={chartConfig}
         className="@min-md:aspect-auto @min-md:h-[250px] w-full"
       >
@@ -272,45 +378,17 @@ const ForecastWaveEnergyChart = () => {
           }}
           syncId="anyId"
         >
-          {visibleData.map(
-            (entry) =>
-              entry.hour % 24 === 0 && (
-                <ReferenceLine
-                  key={entry.hour}
-                  x={entry.hour}
-                  stroke="#c2c2c2ff"
-                  strokeWidth={0.5}
-                />
-              )
+          {visibleData.map((entry) =>
+            entry.hour % 24 === 0 ? (
+              <ReferenceLine
+                key={entry.hour}
+                x={entry.hour}
+                stroke="#c2c2c2ff"
+                strokeWidth={0.5}
+              />
+            ) : null
           )}
 
-          {visibleData.map((entry, index) => {
-            if (sunRises.has(entry.hour) || index === windowSize - 1) {
-              const prev = start;
-              start = entry.hour;
-              return (
-                <ReferenceArea
-                  key={`${prev}-${start}`}
-                  x1={prev}
-                  x2={start}
-                  fill="#ccc1ffff"
-                  fillOpacity={0.2}
-                />
-              );
-            } else if (sunSets.has(entry.hour)) {
-              const prev = start;
-              start = entry.hour;
-              return (
-                <ReferenceArea
-                  key={`${prev}-${start}`}
-                  x1={prev}
-                  x2={start}
-                  fill="#FFE58F"
-                  fillOpacity={0.2}
-                />
-              );
-            }
-          })}
           <CartesianGrid
             strokeDasharray="3 3"
             stroke="var(--foreground)"

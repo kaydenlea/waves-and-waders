@@ -3,7 +3,7 @@ import { MousePointer2 as ArrowIcon } from "lucide-react";
 const WindStat = ({
   data,
 }: {
-  data: { direction: string; speed: number; loc: string };
+  data: { direction: string; speed: number; loc: string; gust?: number };
 }) => {
   return (
     <div className="flex items-center gap-1">
@@ -17,7 +17,7 @@ const WindStat = ({
           <span className="text-xs font-normal">mph</span>
         </span>
         <span className="text-xs p-1 border border-border rounded-xl bg-highlight-1">
-          {data.loc}
+          {data.gust != null ? `Gust ${data.gust} mph` : data.loc}
         </span>
       </div>
     </div>

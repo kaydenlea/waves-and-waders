@@ -8,12 +8,13 @@ const Tag = ({
   return (
     <div
       className={cn(
-        "flex items-center justify-center gap-1 py-2 px-4 rounded-full border border-border/20",
+        // Prevent wrapping inside tag; allow tag to expand horizontally
+        "inline-flex flex-none items-center justify-center gap-1 py-2 px-4 rounded-full border border-border/20 whitespace-nowrap",
         data.color
       )}
     >
       {data.icon}
-      <span className="text-xs">{data.label}</span>
+      <span className="text-xs whitespace-nowrap">{data.label}</span>
     </div>
   );
 };

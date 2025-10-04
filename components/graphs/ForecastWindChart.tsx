@@ -45,9 +45,22 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-const ForecastWindChart = () => {
+import { fetchWeeklyForecast, type ForecastData } from "@/lib/supabase";
+
+type Props = { beachId?: string };
+
+const ForecastWindChart: React.FC<Props> = ({ beachId }) => {
   const [startIndex, setStartIndex] = React.useState(0);
   const [windowSize, setWindowSize] = React.useState(0);
+  const [data, setData] = React.useState<
+    {
+      day: string;
+      dateMs: number;
+      wind1: number;
+      wind2: number;
+      wind3: number;
+    }[]
+  >([]);
 
   const chartRef = React.useRef<HTMLDivElement>(null);
 
@@ -83,28 +96,71 @@ const ForecastWindChart = () => {
     return () => observer.disconnect();
   }, []);
 
-  // React.useEffect(() => {
-  //   const handleResize = () => {
-  //     const container = document.querySelector("#content");
-  //     const width = container ? container.clientWidth : 0;
+  // Load weekly forecast and build 3 samples per day (06:00, 12:00, 18:00)
+  React.useEffect(() => {
+    const load = async () => {
+      try {
+        if (!beachId) return;
+        const rows = await fetchWeeklyForecast(beachId);
+        const byDay = new Map<string, ForecastData[]>();
+        for (const r of rows) {
+          const d = new Date(r.timestamp);
+          const key = d.toLocaleDateString("en-US", {
+            weekday: "short",
+            timeZone: "America/Los_Angeles",
+          });
+          const arr = byDay.get(key) ?? [];
+          arr.push(r);
+          byDay.set(key, arr);
+        }
+        const out: {
+          day: string;
+          dateMs: number;
+          wind1: number;
+          wind2: number;
+          wind3: number;
+        }[] = [];
+        for (const [day, arr] of byDay.entries()) {
+          // sort by hour
+          arr.sort(
+            (a, b) =>
+              new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+          );
+          const firstTs = new Date(arr[0]?.timestamp ?? Date.now()).getTime();
+          const pick = (target: number) => {
+            const near = arr.reduce((best, cur) => {
+              const h = new Date(cur.timestamp).getHours();
+              const dist = Math.abs(h - target);
+              if (!best || dist < best.dist)
+                return { dist, v: Math.round(cur.conditions.windSpeed ?? 0) };
+              return best;
+            }, null as any);
+            return near ? near.v : 0;
+          };
+          out.push({
+            day,
+            dateMs: firstTs,
+            wind1: pick(6),
+            wind2: pick(12),
+            wind3: pick(18),
+          });
+        }
+        // Sort chronologically so we can cap the slider range.
+        out.sort((a, b) => a.dateMs - b.dateMs);
+        const trimmed = out.slice(0, 7);
+        setData(trimmed);
+      } catch (e) {
+        console.error("Failed to load weekly wind", e);
+      }
+    };
+    load();
+  }, [beachId]);
 
-  //     if (width < 500) {
-  //       setWindowSize(3);
-  //     } else if (width < 750) {
-  //       setWindowSize(5);
-  //     } else {
-  //       setWindowSize(7);
-  //     }
-  //   };
-
-  //   handleResize();
-  //   window.addEventListener("resize", handleResize);
-
-  //   return () => window.removeEventListener("resize", handleResize);
-  // }, []);
+  const totalLength = data.length ? data.length : chartData.length;
 
   const handleNext = () => {
-    if (startIndex + windowSize < chartData.length) {
+    if (!windowSize) return;
+    if (startIndex + windowSize < totalLength) {
       setStartIndex((prev) => prev + 1);
     }
   };
@@ -115,17 +171,31 @@ const ForecastWindChart = () => {
     }
   };
 
-  const visibleData = chartData.slice(startIndex, startIndex + windowSize);
+  const source = data.length ? data : chartData;
+  const visibleData = source.slice(startIndex, startIndex + windowSize);
+  const fmt = (ms: number) =>
+    new Date(ms).toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "numeric",
+      day: "numeric",
+      timeZone: "America/Los_Angeles",
+    });
+  const daysLabel = visibleData.length
+    ? `${fmt(visibleData[0].dateMs)} - ${fmt(
+        visibleData[visibleData.length - 1].dateMs
+      )}`
+    : "";
+  const showSlider = windowSize > 0 && windowSize < totalLength;
   return (
     <>
-      {windowSize !== 7 && (
+      {showSlider && (
         <DaySlider
           handleBack={handleBack}
           handleNext={handleNext}
           startIndex={startIndex}
           windowSize={windowSize}
-          length={chartData.length}
-          days="Wed, 8/15 - Fri, 8/17"
+          length={totalLength}
+          days={daysLabel}
         />
       )}
       <ChartContainer
@@ -160,61 +230,18 @@ const ForecastWindChart = () => {
             tick={(props) => {
               const safeX = typeof props.x === "number" ? props.x : 0;
               const safeY = typeof props.y === "number" ? props.y : 0;
-              const safeOffset =
-                typeof props.payload.offset === "number"
-                  ? props.payload.offset
-                  : 0;
-
+              const label = String(props.payload?.value ?? "");
               return (
                 <g>
-                  <rect
-                    x={safeX - safeOffset + 4}
-                    y={safeY - 15}
-                    width={safeOffset * 2 - 10}
-                    height={24}
-                    fill="var(--blue)"
-                    stroke="#cacacaff"
-                    strokeWidth={0.3}
-                    rx={4}
-                  />
                   <text
                     x={safeX}
-                    y={safeY + 1}
+                    y={safeY + 5}
                     textAnchor="middle"
                     fill="var(--foreground)"
                     fontSize={13}
                     fontWeight={600}
                   >
-                    2-3 ft
-                  </text>
-                  <rect
-                    x={safeX - safeOffset + 4}
-                    y={safeY - 15 + 25}
-                    width={safeOffset * 2 - 10}
-                    height={24 + 15}
-                    fill="var(--highlight-2)"
-                    stroke="#cacacaff"
-                    strokeWidth={0.3}
-                    rx={4}
-                  />
-                  <text
-                    x={safeX}
-                    y={safeY + 25}
-                    textAnchor="middle"
-                    fill="var(--foreground)"
-                    fontSize={11}
-                  >
-                    8/10
-                  </text>
-                  <text
-                    x={safeX}
-                    y={safeY + 25 + 15}
-                    textAnchor="middle"
-                    fill="var(--foreground)"
-                    fontSize={11}
-                    fontWeight={500}
-                  >
-                    {props.payload.value}
+                    {label}
                   </text>
                 </g>
               );

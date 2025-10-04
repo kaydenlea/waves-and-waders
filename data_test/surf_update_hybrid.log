@@ -1,0 +1,1652 @@
+2025-08-23 19:33:14,415 - INFO - SURF: Starting HYBRID surf database update (NOAA + Open-Meteo)
+2025-08-23 19:33:14,415 - INFO - SURF: Tide adjustment: +2.4 feet
+2025-08-23 19:33:14,416 - INFO - SURF: Wave energy calculated in kJ (surf-forecast.com style)
+2025-08-23 19:33:14,416 - INFO - SURF: Primary data from NOAA GFSwave, supplemented with Open-Meteo
+2025-08-23 19:33:14,416 - INFO - SURF: DYNAMIC SWELL RANKING - Swells ranked by surf impact score
+2025-08-23 19:33:14,416 - INFO - STEP 1: Cleaning up old data
+2025-08-23 19:33:14,416 - INFO - DELETE: Deleting old forecast data...
+2025-08-23 19:33:18,593 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/forecast_data?timestamp=lt.2025-08-22T19%3A33%3A14.416524 "HTTP/2 500 Internal Server Error"
+2025-08-23 19:33:18,608 - WARNING -    Forecast deletion failed: {'message': 'canceling statement due to statement timeout', 'code': '57014', 'hint': None, 'details': None}, will use UPSERT
+2025-08-23 19:33:18,608 - INFO - DELETE: Deleting old daily conditions...
+2025-08-23 19:33:18,840 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/daily_county_conditions?date=lt.2025-08-22 "HTTP/2 200 OK"
+2025-08-23 19:33:18,986 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/daily_county_conditions?date=gte.2025-08-22 "HTTP/2 200 OK"
+2025-08-23 19:33:18,987 - INFO -    Daily conditions deleted successfully
+2025-08-23 19:33:18,987 - INFO - OK: Old data cleanup completed
+2025-08-23 19:33:18,987 - INFO - STEP 2: Fetching beach data
+2025-08-23 19:33:19,319 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=id%2CName%2CLATITUDE%2CLONGITUDE&offset=0&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 19:33:19,323 - INFO -    Fetched 1000 beaches (batch 1)
+2025-08-23 19:33:19,527 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=id%2CName%2CLATITUDE%2CLONGITUDE&offset=1000&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 19:33:19,531 - INFO -    Fetched 647 beaches (batch 2)
+2025-08-23 19:33:19,533 - INFO - OK: Found 1647 beaches with valid coordinates
+2025-08-23 19:33:19,533 - INFO - STEP 3: Calculating county centroids
+2025-08-23 19:33:19,694 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=COUNTY%2CLATITUDE%2CLONGITUDE&offset=0&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 19:33:19,891 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=COUNTY%2CLATITUDE%2CLONGITUDE&offset=1000&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 19:33:19,894 - INFO - OK: Calculated centroids for 17 counties
+2025-08-23 19:33:19,894 - INFO - STEP 4: Updating forecast data with hybrid NOAA + Open-Meteo
+2025-08-23 19:33:19,895 - INFO -    Loading NOAA GFSwave dataset...
+2025-08-23 19:33:19,904 - ERROR - ERROR: Hybrid forecast update failed: No NOAA GFSwave dataset available for today or yesterday
+2025-08-23 19:33:19,904 - INFO -    Falling back to pure Open-Meteo data...
+2025-08-23 19:33:19,904 - INFO -    Using Open-Meteo fallback mode...
+2025-08-23 19:33:21,516 - INFO -    Open-Meteo batch 1/165 (10 beaches)...
+2025-08-23 19:33:25,867 - INFO - HTTP Request: POST https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/forecast_data?on_conflict=beach_id%2Ctimestamp&columns=%22timestamp%22%2C%22wind_direction_deg%22%2C%22pressure_inhg%22%2C%22water_temp_f%22%2C%22tide_level_ft%22%2C%22primary_swell_direction%22%2C%22secondary_swell_height_ft%22%2C%22tertiary_swell_direction%22%2C%22primary_swell_period_s%22%2C%22surf_height_max_ft%22%2C%22tertiary_swell_period_s%22%2C%22primary_swell_height_ft%22%2C%22secondary_swell_direction%22%2C%22surf_height_min_ft%22%2C%22beach_id%22%2C%22wind_speed_mph%22%2C%22weather%22%2C%22temperature%22%2C%22wave_energy_kj%22%2C%22wind_gust_mph%22%2C%22secondary_swell_period_s%22%2C%22tertiary_swell_height_ft%22 "HTTP/2 201 Created"
+2025-08-23 19:33:26,026 - INFO -    Fallback batch 1/165: 1920 records
+2025-08-23 19:33:26,026 - INFO -    Open-Meteo batch 2/165 (10 beaches)...
+2025-08-23 19:33:27,636 - INFO - HTTP Request: POST https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/forecast_data?on_conflict=beach_id%2Ctimestamp&columns=%22timestamp%22%2C%22wind_direction_deg%22%2C%22pressure_inhg%22%2C%22water_temp_f%22%2C%22tide_level_ft%22%2C%22primary_swell_direction%22%2C%22secondary_swell_height_ft%22%2C%22tertiary_swell_direction%22%2C%22primary_swell_period_s%22%2C%22surf_height_max_ft%22%2C%22tertiary_swell_period_s%22%2C%22primary_swell_height_ft%22%2C%22secondary_swell_direction%22%2C%22surf_height_min_ft%22%2C%22beach_id%22%2C%22wind_speed_mph%22%2C%22weather%22%2C%22temperature%22%2C%22wave_energy_kj%22%2C%22wind_gust_mph%22%2C%22secondary_swell_period_s%22%2C%22tertiary_swell_height_ft%22 "HTTP/2 201 Created"
+2025-08-23 19:33:27,744 - INFO -    Fallback batch 2/165: 1920 records
+2025-08-23 19:33:27,744 - INFO -    Open-Meteo batch 3/165 (10 beaches)...
+2025-08-23 19:33:28,996 - INFO - HTTP Request: POST https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/forecast_data?on_conflict=beach_id%2Ctimestamp&columns=%22timestamp%22%2C%22wind_direction_deg%22%2C%22pressure_inhg%22%2C%22water_temp_f%22%2C%22tide_level_ft%22%2C%22primary_swell_direction%22%2C%22secondary_swell_height_ft%22%2C%22tertiary_swell_direction%22%2C%22primary_swell_period_s%22%2C%22surf_height_max_ft%22%2C%22tertiary_swell_period_s%22%2C%22primary_swell_height_ft%22%2C%22secondary_swell_direction%22%2C%22surf_height_min_ft%22%2C%22beach_id%22%2C%22wind_speed_mph%22%2C%22weather%22%2C%22temperature%22%2C%22wave_energy_kj%22%2C%22wind_gust_mph%22%2C%22secondary_swell_period_s%22%2C%22tertiary_swell_height_ft%22 "HTTP/2 201 Created"
+2025-08-23 19:33:29,041 - INFO -    Fallback batch 3/165: 1920 records
+2025-08-23 19:33:29,041 - INFO -    Open-Meteo batch 4/165 (10 beaches)...
+2025-08-23 19:33:30,042 - INFO - HTTP Request: POST https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/forecast_data?on_conflict=beach_id%2Ctimestamp&columns=%22timestamp%22%2C%22wind_direction_deg%22%2C%22pressure_inhg%22%2C%22water_temp_f%22%2C%22tide_level_ft%22%2C%22primary_swell_direction%22%2C%22secondary_swell_height_ft%22%2C%22tertiary_swell_direction%22%2C%22primary_swell_period_s%22%2C%22surf_height_max_ft%22%2C%22tertiary_swell_period_s%22%2C%22primary_swell_height_ft%22%2C%22secondary_swell_direction%22%2C%22surf_height_min_ft%22%2C%22beach_id%22%2C%22wind_speed_mph%22%2C%22weather%22%2C%22temperature%22%2C%22wave_energy_kj%22%2C%22wind_gust_mph%22%2C%22secondary_swell_period_s%22%2C%22tertiary_swell_height_ft%22 "HTTP/2 201 Created"
+2025-08-23 19:33:30,085 - INFO -    Fallback batch 4/165: 1920 records
+2025-08-23 19:33:30,085 - INFO -    Open-Meteo batch 5/165 (10 beaches)...
+2025-08-23 19:33:31,009 - INFO - HTTP Request: POST https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/forecast_data?on_conflict=beach_id%2Ctimestamp&columns=%22timestamp%22%2C%22wind_direction_deg%22%2C%22pressure_inhg%22%2C%22water_temp_f%22%2C%22tide_level_ft%22%2C%22primary_swell_direction%22%2C%22secondary_swell_height_ft%22%2C%22tertiary_swell_direction%22%2C%22primary_swell_period_s%22%2C%22surf_height_max_ft%22%2C%22tertiary_swell_period_s%22%2C%22primary_swell_height_ft%22%2C%22secondary_swell_direction%22%2C%22surf_height_min_ft%22%2C%22beach_id%22%2C%22wind_speed_mph%22%2C%22weather%22%2C%22temperature%22%2C%22wave_energy_kj%22%2C%22wind_gust_mph%22%2C%22secondary_swell_period_s%22%2C%22tertiary_swell_height_ft%22 "HTTP/2 201 Created"
+2025-08-23 19:33:31,050 - INFO -    Fallback batch 5/165: 1920 records
+2025-08-23 19:33:31,050 - INFO -    Open-Meteo batch 6/165 (10 beaches)...
+2025-08-23 19:33:32,075 - INFO - HTTP Request: POST https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/forecast_data?on_conflict=beach_id%2Ctimestamp&columns=%22timestamp%22%2C%22wind_direction_deg%22%2C%22pressure_inhg%22%2C%22water_temp_f%22%2C%22tide_level_ft%22%2C%22primary_swell_direction%22%2C%22secondary_swell_height_ft%22%2C%22tertiary_swell_direction%22%2C%22primary_swell_period_s%22%2C%22surf_height_max_ft%22%2C%22tertiary_swell_period_s%22%2C%22primary_swell_height_ft%22%2C%22secondary_swell_direction%22%2C%22surf_height_min_ft%22%2C%22beach_id%22%2C%22wind_speed_mph%22%2C%22weather%22%2C%22temperature%22%2C%22wave_energy_kj%22%2C%22wind_gust_mph%22%2C%22secondary_swell_period_s%22%2C%22tertiary_swell_height_ft%22 "HTTP/2 201 Created"
+2025-08-23 19:33:32,109 - INFO -    Fallback batch 6/165: 1920 records
+2025-08-23 19:33:32,109 - INFO -    Open-Meteo batch 7/165 (10 beaches)...
+2025-08-23 19:33:32,976 - INFO - HTTP Request: POST https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/forecast_data?on_conflict=beach_id%2Ctimestamp&columns=%22timestamp%22%2C%22wind_direction_deg%22%2C%22pressure_inhg%22%2C%22water_temp_f%22%2C%22tide_level_ft%22%2C%22primary_swell_direction%22%2C%22secondary_swell_height_ft%22%2C%22tertiary_swell_direction%22%2C%22primary_swell_period_s%22%2C%22surf_height_max_ft%22%2C%22tertiary_swell_period_s%22%2C%22primary_swell_height_ft%22%2C%22secondary_swell_direction%22%2C%22surf_height_min_ft%22%2C%22beach_id%22%2C%22wind_speed_mph%22%2C%22weather%22%2C%22temperature%22%2C%22wave_energy_kj%22%2C%22wind_gust_mph%22%2C%22secondary_swell_period_s%22%2C%22tertiary_swell_height_ft%22 "HTTP/2 201 Created"
+2025-08-23 19:33:33,006 - INFO -    Fallback batch 7/165: 1920 records
+2025-08-23 19:33:33,007 - INFO -    Open-Meteo batch 8/165 (10 beaches)...
+2025-08-23 19:33:33,890 - INFO - HTTP Request: POST https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/forecast_data?on_conflict=beach_id%2Ctimestamp&columns=%22timestamp%22%2C%22wind_direction_deg%22%2C%22pressure_inhg%22%2C%22water_temp_f%22%2C%22tide_level_ft%22%2C%22primary_swell_direction%22%2C%22secondary_swell_height_ft%22%2C%22tertiary_swell_direction%22%2C%22primary_swell_period_s%22%2C%22surf_height_max_ft%22%2C%22tertiary_swell_period_s%22%2C%22primary_swell_height_ft%22%2C%22secondary_swell_direction%22%2C%22surf_height_min_ft%22%2C%22beach_id%22%2C%22wind_speed_mph%22%2C%22weather%22%2C%22temperature%22%2C%22wave_energy_kj%22%2C%22wind_gust_mph%22%2C%22secondary_swell_period_s%22%2C%22tertiary_swell_height_ft%22 "HTTP/2 201 Created"
+2025-08-23 19:33:33,914 - INFO -    Fallback batch 8/165: 1920 records
+2025-08-23 19:33:33,915 - INFO -    Open-Meteo batch 9/165 (10 beaches)...
+2025-08-23 19:35:56,442 - INFO - SURF: Starting HYBRID surf database update (NOAA + Open-Meteo)
+2025-08-23 19:35:56,442 - INFO - SURF: Tide adjustment: +2.4 feet
+2025-08-23 19:35:56,442 - INFO - SURF: Wave energy calculated in kJ (surf-forecast.com style)
+2025-08-23 19:35:56,442 - INFO - SURF: Primary data from NOAA GFSwave, supplemented with Open-Meteo
+2025-08-23 19:35:56,443 - INFO - SURF: DYNAMIC SWELL RANKING - Swells ranked by surf impact score
+2025-08-23 19:35:56,443 - INFO - STEP 1: Cleaning up old data
+2025-08-23 19:35:56,443 - INFO - DELETE: Deleting old forecast data...
+2025-08-23 19:36:00,564 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/forecast_data?timestamp=lt.2025-08-22T19%3A35%3A56.443334 "HTTP/2 500 Internal Server Error"
+2025-08-23 19:36:00,565 - WARNING -    Forecast deletion failed: {'message': 'canceling statement due to statement timeout', 'code': '57014', 'hint': None, 'details': None}, will use UPSERT
+2025-08-23 19:36:00,565 - INFO - DELETE: Deleting old daily conditions...
+2025-08-23 19:36:00,695 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/daily_county_conditions?date=lt.2025-08-22 "HTTP/2 200 OK"
+2025-08-23 19:36:00,782 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/daily_county_conditions?date=gte.2025-08-22 "HTTP/2 200 OK"
+2025-08-23 19:36:00,783 - INFO -    Daily conditions deleted successfully
+2025-08-23 19:36:00,783 - INFO - OK: Old data cleanup completed
+2025-08-23 19:36:00,783 - INFO - STEP 2: Fetching beach data
+2025-08-23 19:36:00,983 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=id%2CName%2CLATITUDE%2CLONGITUDE&offset=0&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 19:36:00,988 - INFO -    Fetched 1000 beaches (batch 1)
+2025-08-23 19:36:01,103 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=id%2CName%2CLATITUDE%2CLONGITUDE&offset=1000&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 19:36:01,108 - INFO -    Fetched 647 beaches (batch 2)
+2025-08-23 19:36:01,109 - INFO - OK: Found 1647 beaches with valid coordinates
+2025-08-23 19:36:01,109 - INFO - STEP 3: Calculating county centroids
+2025-08-23 19:36:01,237 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=COUNTY%2CLATITUDE%2CLONGITUDE&offset=0&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 19:36:01,343 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=COUNTY%2CLATITUDE%2CLONGITUDE&offset=1000&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 19:36:01,346 - INFO - OK: Calculated centroids for 17 counties
+2025-08-23 19:36:01,346 - INFO - STEP 4: Updating forecast data with hybrid NOAA + Open-Meteo
+2025-08-23 19:36:01,346 - INFO -    Loading NOAA GFSwave dataset...
+2025-08-23 19:36:01,346 - INFO -    🔍 Searching for available NOAA GFSwave dataset...
+2025-08-23 19:36:01,347 - INFO -    📅 Trying today's data: 20250824
+2025-08-23 19:36:01,347 - INFO -    🌐 Base URL: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave
+2025-08-23 19:36:01,347 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_00z
+2025-08-23 19:36:01,355 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,355 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_06z
+2025-08-23 19:36:01,355 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,356 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_12z
+2025-08-23 19:36:01,356 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,356 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_18z
+2025-08-23 19:36:01,356 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,356 - INFO -    🌐 Base URL: https://nomads.ncep.noaa.gov/dods/wave/gfswave
+2025-08-23 19:36:01,356 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_00z
+2025-08-23 19:36:01,356 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,357 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_06z
+2025-08-23 19:36:01,357 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,357 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_12z
+2025-08-23 19:36:01,357 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,357 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_18z
+2025-08-23 19:36:01,357 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,357 - INFO -    🌐 Base URL: http://nomads.ncep.noaa.gov/dods/wave/gfswave
+2025-08-23 19:36:01,357 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_00z
+2025-08-23 19:36:01,358 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,358 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_06z
+2025-08-23 19:36:01,358 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,358 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_12z
+2025-08-23 19:36:01,358 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,358 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_18z
+2025-08-23 19:36:01,359 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,359 - INFO -    🌐 Base URL: https://nomads.ncep.noaa.gov/dods/wave/gfswave
+2025-08-23 19:36:01,359 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_00z
+2025-08-23 19:36:01,359 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,359 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_06z
+2025-08-23 19:36:01,359 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,359 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_12z
+2025-08-23 19:36:01,360 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,360 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_18z
+2025-08-23 19:36:01,360 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,360 - INFO -    📅 Trying yesterday's data: 20250823
+2025-08-23 19:36:01,360 - INFO -    🌐 Base URL: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave
+2025-08-23 19:36:01,360 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_18z
+2025-08-23 19:36:01,360 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,360 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_12z
+2025-08-23 19:36:01,361 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,361 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_06z
+2025-08-23 19:36:01,361 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,361 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_00z
+2025-08-23 19:36:01,361 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,362 - INFO -    🌐 Base URL: https://nomads.ncep.noaa.gov/dods/wave/gfswave
+2025-08-23 19:36:01,362 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_18z
+2025-08-23 19:36:01,362 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,362 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_12z
+2025-08-23 19:36:01,362 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,362 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_06z
+2025-08-23 19:36:01,362 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,362 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_00z
+2025-08-23 19:36:01,363 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,363 - INFO -    🌐 Base URL: http://nomads.ncep.noaa.gov/dods/wave/gfswave
+2025-08-23 19:36:01,363 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_18z
+2025-08-23 19:36:01,363 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,363 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_12z
+2025-08-23 19:36:01,363 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,363 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_06z
+2025-08-23 19:36:01,364 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,364 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_00z
+2025-08-23 19:36:01,364 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,364 - INFO -    🌐 Base URL: https://nomads.ncep.noaa.gov/dods/wave/gfswave
+2025-08-23 19:36:01,364 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_18z
+2025-08-23 19:36:01,364 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,364 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_12z
+2025-08-23 19:36:01,364 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,365 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_06z
+2025-08-23 19:36:01,365 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,365 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_00z
+2025-08-23 19:36:01,365 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,365 - INFO -    📅 Trying additional fallback dates...
+2025-08-23 19:36:01,365 - INFO -    📅 Trying 2 days back: 20250822
+2025-08-23 19:36:01,365 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_18z
+2025-08-23 19:36:01,366 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,366 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_12z
+2025-08-23 19:36:01,366 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,366 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_06z
+2025-08-23 19:36:01,366 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,366 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_00z
+2025-08-23 19:36:01,367 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,367 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_18z
+2025-08-23 19:36:01,367 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,367 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_12z
+2025-08-23 19:36:01,367 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,367 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_06z
+2025-08-23 19:36:01,367 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,367 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_00z
+2025-08-23 19:36:01,368 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,368 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_18z
+2025-08-23 19:36:01,368 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,368 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_12z
+2025-08-23 19:36:01,368 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,368 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_06z
+2025-08-23 19:36:01,368 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,369 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_00z
+2025-08-23 19:36:01,369 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,369 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_18z
+2025-08-23 19:36:01,369 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,369 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_12z
+2025-08-23 19:36:01,369 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,369 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_06z
+2025-08-23 19:36:01,369 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,370 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_00z
+2025-08-23 19:36:01,370 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,370 - INFO -    📅 Trying 3 days back: 20250821
+2025-08-23 19:36:01,370 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_18z
+2025-08-23 19:36:01,370 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,370 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_12z
+2025-08-23 19:36:01,370 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,371 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_06z
+2025-08-23 19:36:01,371 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,371 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_00z
+2025-08-23 19:36:01,371 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,371 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_18z
+2025-08-23 19:36:01,372 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,372 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_12z
+2025-08-23 19:36:01,372 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,372 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_06z
+2025-08-23 19:36:01,372 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,373 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_00z
+2025-08-23 19:36:01,373 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,373 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_18z
+2025-08-23 19:36:01,373 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,373 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_12z
+2025-08-23 19:36:01,373 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,373 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_06z
+2025-08-23 19:36:01,374 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,374 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_00z
+2025-08-23 19:36:01,374 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,374 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_18z
+2025-08-23 19:36:01,374 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,374 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_12z
+2025-08-23 19:36:01,375 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,375 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_06z
+2025-08-23 19:36:01,375 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,375 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_00z
+2025-08-23 19:36:01,375 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,375 - INFO -    📅 Trying 4 days back: 20250820
+2025-08-23 19:36:01,376 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_18z
+2025-08-23 19:36:01,376 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,376 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_12z
+2025-08-23 19:36:01,376 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,376 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_06z
+2025-08-23 19:36:01,376 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,377 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_00z
+2025-08-23 19:36:01,377 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,377 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_18z
+2025-08-23 19:36:01,377 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,377 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_12z
+2025-08-23 19:36:01,377 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,377 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_06z
+2025-08-23 19:36:01,378 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,378 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_00z
+2025-08-23 19:36:01,378 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,378 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_18z
+2025-08-23 19:36:01,378 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,378 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_12z
+2025-08-23 19:36:01,379 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,379 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_06z
+2025-08-23 19:36:01,379 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,379 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_00z
+2025-08-23 19:36:01,379 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,380 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_18z
+2025-08-23 19:36:01,380 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,380 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_12z
+2025-08-23 19:36:01,380 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,380 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_06z
+2025-08-23 19:36:01,380 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,381 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_00z
+2025-08-23 19:36:01,381 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:36:01,381 - ERROR -    ❌ EXHAUSTED ALL OPTIONS:
+2025-08-23 19:36:01,381 - ERROR -       • Tried dates: 20250824 to 20250820
+2025-08-23 19:36:01,381 - ERROR -       • Tried base URLs: 4 different protocols
+2025-08-23 19:36:01,381 - ERROR -       • Tried runs: 00z, 06z, 12z, 18z
+2025-08-23 19:36:01,381 - ERROR -       • Possible causes:
+2025-08-23 19:36:01,382 - ERROR -         - Network connectivity issues
+2025-08-23 19:36:01,382 - ERROR -         - NOAA server maintenance
+2025-08-23 19:36:01,382 - ERROR -         - OpenDAP service unavailable
+2025-08-23 19:36:01,382 - ERROR -         - Firewall blocking OpenDAP protocol
+2025-08-23 19:36:01,382 - ERROR - ERROR: Hybrid forecast update failed: No NOAA GFSwave dataset available - exhausted all URL combinations
+2025-08-23 19:36:01,382 - INFO -    Falling back to pure Open-Meteo data...
+2025-08-23 19:36:01,382 - INFO -    Using Open-Meteo fallback mode...
+2025-08-23 19:36:01,422 - INFO -    Open-Meteo batch 1/165 (10 beaches)...
+2025-08-23 19:36:02,706 - INFO - HTTP Request: POST https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/forecast_data?on_conflict=beach_id%2Ctimestamp&columns=%22secondary_swell_period_s%22%2C%22tide_level_ft%22%2C%22primary_swell_direction%22%2C%22beach_id%22%2C%22secondary_swell_direction%22%2C%22primary_swell_height_ft%22%2C%22wind_speed_mph%22%2C%22tertiary_swell_period_s%22%2C%22primary_swell_period_s%22%2C%22wave_energy_kj%22%2C%22timestamp%22%2C%22weather%22%2C%22temperature%22%2C%22water_temp_f%22%2C%22wind_direction_deg%22%2C%22wind_gust_mph%22%2C%22surf_height_min_ft%22%2C%22tertiary_swell_direction%22%2C%22pressure_inhg%22%2C%22tertiary_swell_height_ft%22%2C%22surf_height_max_ft%22%2C%22secondary_swell_height_ft%22 "HTTP/2 200 OK"
+2025-08-23 19:36:02,739 - INFO -    Fallback batch 1/165: 1920 records
+2025-08-23 19:36:02,740 - INFO -    Open-Meteo batch 2/165 (10 beaches)...
+2025-08-23 19:36:03,478 - INFO - HTTP Request: POST https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/forecast_data?on_conflict=beach_id%2Ctimestamp&columns=%22secondary_swell_period_s%22%2C%22tide_level_ft%22%2C%22primary_swell_direction%22%2C%22beach_id%22%2C%22secondary_swell_direction%22%2C%22primary_swell_height_ft%22%2C%22wind_speed_mph%22%2C%22tertiary_swell_period_s%22%2C%22primary_swell_period_s%22%2C%22wave_energy_kj%22%2C%22timestamp%22%2C%22weather%22%2C%22temperature%22%2C%22water_temp_f%22%2C%22wind_direction_deg%22%2C%22wind_gust_mph%22%2C%22surf_height_min_ft%22%2C%22tertiary_swell_direction%22%2C%22pressure_inhg%22%2C%22tertiary_swell_height_ft%22%2C%22surf_height_max_ft%22%2C%22secondary_swell_height_ft%22 "HTTP/2 200 OK"
+2025-08-23 19:36:03,522 - INFO -    Fallback batch 2/165: 1920 records
+2025-08-23 19:36:03,522 - INFO -    Open-Meteo batch 3/165 (10 beaches)...
+2025-08-23 19:36:04,165 - INFO - HTTP Request: POST https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/forecast_data?on_conflict=beach_id%2Ctimestamp&columns=%22secondary_swell_period_s%22%2C%22tide_level_ft%22%2C%22primary_swell_direction%22%2C%22beach_id%22%2C%22secondary_swell_direction%22%2C%22primary_swell_height_ft%22%2C%22wind_speed_mph%22%2C%22tertiary_swell_period_s%22%2C%22primary_swell_period_s%22%2C%22wave_energy_kj%22%2C%22timestamp%22%2C%22weather%22%2C%22temperature%22%2C%22water_temp_f%22%2C%22wind_direction_deg%22%2C%22wind_gust_mph%22%2C%22surf_height_min_ft%22%2C%22tertiary_swell_direction%22%2C%22pressure_inhg%22%2C%22tertiary_swell_height_ft%22%2C%22surf_height_max_ft%22%2C%22secondary_swell_height_ft%22 "HTTP/2 200 OK"
+2025-08-23 19:36:04,200 - INFO -    Fallback batch 3/165: 1920 records
+2025-08-23 19:36:04,200 - INFO -    Open-Meteo batch 4/165 (10 beaches)...
+2025-08-23 19:36:04,636 - INFO - HTTP Request: POST https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/forecast_data?on_conflict=beach_id%2Ctimestamp&columns=%22secondary_swell_period_s%22%2C%22tide_level_ft%22%2C%22primary_swell_direction%22%2C%22beach_id%22%2C%22secondary_swell_direction%22%2C%22primary_swell_height_ft%22%2C%22wind_speed_mph%22%2C%22tertiary_swell_period_s%22%2C%22primary_swell_period_s%22%2C%22wave_energy_kj%22%2C%22timestamp%22%2C%22weather%22%2C%22temperature%22%2C%22water_temp_f%22%2C%22wind_direction_deg%22%2C%22wind_gust_mph%22%2C%22surf_height_min_ft%22%2C%22tertiary_swell_direction%22%2C%22pressure_inhg%22%2C%22tertiary_swell_height_ft%22%2C%22surf_height_max_ft%22%2C%22secondary_swell_height_ft%22 "HTTP/2 200 OK"
+2025-08-23 19:36:04,673 - INFO -    Fallback batch 4/165: 1920 records
+2025-08-23 19:36:04,674 - INFO -    Open-Meteo batch 5/165 (10 beaches)...
+2025-08-23 19:39:17,270 - INFO - SURF: Starting HYBRID surf database update (NOAA + Open-Meteo)
+2025-08-23 19:39:17,270 - INFO - SURF: Tide adjustment: +2.4 feet
+2025-08-23 19:39:17,270 - INFO - SURF: Wave energy calculated in kJ (surf-forecast.com style)
+2025-08-23 19:39:17,271 - INFO - SURF: Primary data from NOAA GFSwave, supplemented with Open-Meteo
+2025-08-23 19:39:17,271 - INFO - SURF: DYNAMIC SWELL RANKING - Swells ranked by surf impact score
+2025-08-23 19:39:17,271 - INFO - STEP 1: Cleaning up old data
+2025-08-23 19:39:17,271 - INFO - DELETE: Deleting old forecast data...
+2025-08-23 19:39:21,207 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/forecast_data?timestamp=lt.2025-08-22T19%3A39%3A17.271502 "HTTP/2 500 Internal Server Error"
+2025-08-23 19:39:21,208 - WARNING -    Forecast deletion failed: {'message': 'canceling statement due to statement timeout', 'code': '57014', 'hint': None, 'details': None}, will use UPSERT
+2025-08-23 19:39:21,208 - INFO - DELETE: Deleting old daily conditions...
+2025-08-23 19:39:21,376 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/daily_county_conditions?date=lt.2025-08-22 "HTTP/2 200 OK"
+2025-08-23 19:39:21,475 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/daily_county_conditions?date=gte.2025-08-22 "HTTP/2 200 OK"
+2025-08-23 19:39:21,476 - INFO -    Daily conditions deleted successfully
+2025-08-23 19:39:21,476 - INFO - OK: Old data cleanup completed
+2025-08-23 19:39:21,476 - INFO - STEP 2: Fetching beach data
+2025-08-23 19:39:21,674 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=id%2CName%2CLATITUDE%2CLONGITUDE&offset=0&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 19:39:21,683 - INFO -    Fetched 1000 beaches (batch 1)
+2025-08-23 19:39:21,780 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=id%2CName%2CLATITUDE%2CLONGITUDE&offset=1000&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 19:39:21,784 - INFO -    Fetched 647 beaches (batch 2)
+2025-08-23 19:39:21,785 - INFO - OK: Found 1647 beaches with valid coordinates
+2025-08-23 19:39:21,785 - INFO - STEP 3: Calculating county centroids
+2025-08-23 19:39:21,872 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=COUNTY%2CLATITUDE%2CLONGITUDE&offset=0&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 19:39:21,994 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=COUNTY%2CLATITUDE%2CLONGITUDE&offset=1000&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 19:39:21,997 - INFO - OK: Calculated centroids for 17 counties
+2025-08-23 19:39:21,997 - INFO - STEP 4: Updating forecast data with hybrid NOAA + Open-Meteo
+2025-08-23 19:39:21,997 - INFO -    Loading NOAA GFSwave dataset...
+2025-08-23 19:39:21,997 - INFO -    🔍 Searching for available NOAA GFSwave dataset...
+2025-08-23 19:39:21,997 - INFO -    📅 Trying today's data: 20250824
+2025-08-23 19:39:21,997 - INFO -    🌐 Base URL: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave
+2025-08-23 19:39:21,998 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_00z
+2025-08-23 19:39:22,006 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,006 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_06z
+2025-08-23 19:39:22,007 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,007 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_12z
+2025-08-23 19:39:22,007 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,007 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_18z
+2025-08-23 19:39:22,007 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,007 - INFO -    🌐 Base URL: http://nomads.ncep.noaa.gov/dods/wave/gfswave
+2025-08-23 19:39:22,007 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_00z
+2025-08-23 19:39:22,008 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,008 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_06z
+2025-08-23 19:39:22,008 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,008 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_12z
+2025-08-23 19:39:22,008 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,008 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_18z
+2025-08-23 19:39:22,009 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,009 - INFO -    🌐 Base URL: https://nomads.ncep.noaa.gov/dods/wave/gfswave
+2025-08-23 19:39:22,009 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_00z
+2025-08-23 19:39:22,009 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,009 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_06z
+2025-08-23 19:39:22,009 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,009 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_12z
+2025-08-23 19:39:22,010 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,010 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_18z
+2025-08-23 19:39:22,010 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,010 - INFO -    📅 Trying yesterday's data: 20250823
+2025-08-23 19:39:22,010 - INFO -    🌐 Base URL: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave
+2025-08-23 19:39:22,010 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_18z
+2025-08-23 19:39:22,010 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,011 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_12z
+2025-08-23 19:39:22,011 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,011 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_06z
+2025-08-23 19:39:22,011 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,011 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_00z
+2025-08-23 19:39:22,011 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,011 - INFO -    🌐 Base URL: http://nomads.ncep.noaa.gov/dods/wave/gfswave
+2025-08-23 19:39:22,012 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_18z
+2025-08-23 19:39:22,012 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,012 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_12z
+2025-08-23 19:39:22,012 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,012 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_06z
+2025-08-23 19:39:22,012 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,013 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_00z
+2025-08-23 19:39:22,013 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,013 - INFO -    🌐 Base URL: https://nomads.ncep.noaa.gov/dods/wave/gfswave
+2025-08-23 19:39:22,013 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_18z
+2025-08-23 19:39:22,013 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,014 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_12z
+2025-08-23 19:39:22,014 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,014 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_06z
+2025-08-23 19:39:22,014 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,014 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_00z
+2025-08-23 19:39:22,014 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,014 - INFO -    📅 Trying additional fallback dates...
+2025-08-23 19:39:22,014 - INFO -    📅 Trying 2 days back: 20250822
+2025-08-23 19:39:22,015 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_18z
+2025-08-23 19:39:22,015 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,015 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_12z
+2025-08-23 19:39:22,015 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,015 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_06z
+2025-08-23 19:39:22,015 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,015 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_00z
+2025-08-23 19:39:22,016 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,016 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_18z
+2025-08-23 19:39:22,016 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,016 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_12z
+2025-08-23 19:39:22,016 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,016 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_06z
+2025-08-23 19:39:22,016 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,016 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_00z
+2025-08-23 19:39:22,017 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,017 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_18z
+2025-08-23 19:39:22,017 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,017 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_12z
+2025-08-23 19:39:22,018 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,018 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_06z
+2025-08-23 19:39:22,018 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,018 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_00z
+2025-08-23 19:39:22,018 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,018 - INFO -    📅 Trying 3 days back: 20250821
+2025-08-23 19:39:22,018 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_18z
+2025-08-23 19:39:22,019 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,019 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_12z
+2025-08-23 19:39:22,019 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,019 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_06z
+2025-08-23 19:39:22,019 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,019 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_00z
+2025-08-23 19:39:22,020 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,020 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_18z
+2025-08-23 19:39:22,020 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,020 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_12z
+2025-08-23 19:39:22,020 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,020 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_06z
+2025-08-23 19:39:22,020 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,021 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_00z
+2025-08-23 19:39:22,021 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,021 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_18z
+2025-08-23 19:39:22,021 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,021 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_12z
+2025-08-23 19:39:22,021 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,021 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_06z
+2025-08-23 19:39:22,021 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,021 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_00z
+2025-08-23 19:39:22,022 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,022 - INFO -    📅 Trying 4 days back: 20250820
+2025-08-23 19:39:22,022 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_18z
+2025-08-23 19:39:22,022 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,022 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_12z
+2025-08-23 19:39:22,022 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,022 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_06z
+2025-08-23 19:39:22,023 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,023 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_00z
+2025-08-23 19:39:22,023 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,023 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_18z
+2025-08-23 19:39:22,023 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,023 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_12z
+2025-08-23 19:39:22,023 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,024 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_06z
+2025-08-23 19:39:22,024 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,024 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_00z
+2025-08-23 19:39:22,024 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,024 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_18z
+2025-08-23 19:39:22,024 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,024 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_12z
+2025-08-23 19:39:22,025 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,025 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_06z
+2025-08-23 19:39:22,025 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,025 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_00z
+2025-08-23 19:39:22,025 - WARNING -       ❌ FAILED: found the following matches with the input file in xarray's IO backends: ['netcd
+2025-08-23 19:39:22,025 - ERROR -    ❌ EXHAUSTED ALL OPTIONS:
+2025-08-23 19:39:22,026 - ERROR -       • Tried dates: 20250824 to 20250820
+2025-08-23 19:39:22,026 - ERROR -       • Tried base URLs: 3 different protocols
+2025-08-23 19:39:22,026 - ERROR -       • Tried runs: 00z, 06z, 12z, 18z
+2025-08-23 19:39:22,026 - ERROR -       • Example URL format: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_00z
+2025-08-23 19:39:22,026 - ERROR -       • Possible causes:
+2025-08-23 19:39:22,026 - ERROR -         - Network connectivity issues
+2025-08-23 19:39:22,026 - ERROR -         - NOAA server maintenance
+2025-08-23 19:39:22,026 - ERROR -         - OpenDAP service unavailable
+2025-08-23 19:39:22,026 - ERROR -         - Firewall blocking OpenDAP protocol
+2025-08-23 19:39:22,027 - ERROR - ERROR: Hybrid forecast update failed: No NOAA GFSwave dataset available - exhausted all URL combinations
+2025-08-23 19:39:22,027 - INFO -    Falling back to pure Open-Meteo data...
+2025-08-23 19:39:22,027 - INFO -    Using Open-Meteo fallback mode...
+2025-08-23 19:39:22,065 - INFO -    Open-Meteo batch 1/165 (10 beaches)...
+2025-08-23 19:39:23,163 - INFO - HTTP Request: POST https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/forecast_data?on_conflict=beach_id%2Ctimestamp&columns=%22primary_swell_height_ft%22%2C%22wind_speed_mph%22%2C%22surf_height_max_ft%22%2C%22tertiary_swell_height_ft%22%2C%22secondary_swell_height_ft%22%2C%22secondary_swell_period_s%22%2C%22wave_energy_kj%22%2C%22timestamp%22%2C%22primary_swell_direction%22%2C%22tide_level_ft%22%2C%22water_temp_f%22%2C%22wind_gust_mph%22%2C%22secondary_swell_direction%22%2C%22surf_height_min_ft%22%2C%22weather%22%2C%22temperature%22%2C%22primary_swell_period_s%22%2C%22beach_id%22%2C%22tertiary_swell_direction%22%2C%22pressure_inhg%22%2C%22tertiary_swell_period_s%22%2C%22wind_direction_deg%22 "HTTP/2 200 OK"
+2025-08-23 19:39:23,192 - INFO -    Fallback batch 1/165: 1920 records
+2025-08-23 19:39:23,193 - INFO -    Open-Meteo batch 2/165 (10 beaches)...
+2025-08-23 19:39:23,879 - INFO - HTTP Request: POST https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/forecast_data?on_conflict=beach_id%2Ctimestamp&columns=%22primary_swell_height_ft%22%2C%22wind_speed_mph%22%2C%22surf_height_max_ft%22%2C%22tertiary_swell_height_ft%22%2C%22secondary_swell_height_ft%22%2C%22secondary_swell_period_s%22%2C%22wave_energy_kj%22%2C%22timestamp%22%2C%22primary_swell_direction%22%2C%22tide_level_ft%22%2C%22water_temp_f%22%2C%22wind_gust_mph%22%2C%22secondary_swell_direction%22%2C%22surf_height_min_ft%22%2C%22weather%22%2C%22temperature%22%2C%22primary_swell_period_s%22%2C%22beach_id%22%2C%22tertiary_swell_direction%22%2C%22pressure_inhg%22%2C%22tertiary_swell_period_s%22%2C%22wind_direction_deg%22 "HTTP/2 200 OK"
+2025-08-23 19:39:23,919 - INFO -    Fallback batch 2/165: 1920 records
+2025-08-23 19:39:23,919 - INFO -    Open-Meteo batch 3/165 (10 beaches)...
+2025-08-23 19:39:24,449 - INFO - HTTP Request: POST https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/forecast_data?on_conflict=beach_id%2Ctimestamp&columns=%22primary_swell_height_ft%22%2C%22wind_speed_mph%22%2C%22surf_height_max_ft%22%2C%22tertiary_swell_height_ft%22%2C%22secondary_swell_height_ft%22%2C%22secondary_swell_period_s%22%2C%22wave_energy_kj%22%2C%22timestamp%22%2C%22primary_swell_direction%22%2C%22tide_level_ft%22%2C%22water_temp_f%22%2C%22wind_gust_mph%22%2C%22secondary_swell_direction%22%2C%22surf_height_min_ft%22%2C%22weather%22%2C%22temperature%22%2C%22primary_swell_period_s%22%2C%22beach_id%22%2C%22tertiary_swell_direction%22%2C%22pressure_inhg%22%2C%22tertiary_swell_period_s%22%2C%22wind_direction_deg%22 "HTTP/2 200 OK"
+2025-08-23 19:39:24,498 - INFO -    Fallback batch 3/165: 1920 records
+2025-08-23 19:39:24,498 - INFO -    Open-Meteo batch 4/165 (10 beaches)...
+2025-08-23 19:39:24,971 - INFO - HTTP Request: POST https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/forecast_data?on_conflict=beach_id%2Ctimestamp&columns=%22primary_swell_height_ft%22%2C%22wind_speed_mph%22%2C%22surf_height_max_ft%22%2C%22tertiary_swell_height_ft%22%2C%22secondary_swell_height_ft%22%2C%22secondary_swell_period_s%22%2C%22wave_energy_kj%22%2C%22timestamp%22%2C%22primary_swell_direction%22%2C%22tide_level_ft%22%2C%22water_temp_f%22%2C%22wind_gust_mph%22%2C%22secondary_swell_direction%22%2C%22surf_height_min_ft%22%2C%22weather%22%2C%22temperature%22%2C%22primary_swell_period_s%22%2C%22beach_id%22%2C%22tertiary_swell_direction%22%2C%22pressure_inhg%22%2C%22tertiary_swell_period_s%22%2C%22wind_direction_deg%22 "HTTP/2 200 OK"
+2025-08-23 19:39:25,012 - INFO -    Fallback batch 4/165: 1920 records
+2025-08-23 19:39:25,013 - INFO -    Open-Meteo batch 5/165 (10 beaches)...
+2025-08-23 19:43:56,282 - INFO - SURF: Starting HYBRID surf database update (NOAA + Open-Meteo)
+2025-08-23 19:43:56,282 - INFO - SURF: Tide adjustment: +2.4 feet
+2025-08-23 19:43:56,283 - INFO - SURF: Wave energy calculated in kJ (surf-forecast.com style)
+2025-08-23 19:43:56,283 - INFO - SURF: Primary data from NOAA GFSwave, supplemented with Open-Meteo
+2025-08-23 19:43:56,283 - INFO - SURF: DYNAMIC SWELL RANKING - Swells ranked by surf impact score
+2025-08-23 19:43:56,283 - INFO - STEP 1: Cleaning up old data
+2025-08-23 19:43:56,283 - INFO - DELETE: Deleting old forecast data...
+2025-08-23 19:44:00,415 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/forecast_data?timestamp=lt.2025-08-22T19%3A43%3A56.283562 "HTTP/2 500 Internal Server Error"
+2025-08-23 19:44:00,416 - WARNING -    Forecast deletion failed: {'message': 'canceling statement due to statement timeout', 'code': '57014', 'hint': None, 'details': None}, will use UPSERT
+2025-08-23 19:44:00,416 - INFO - DELETE: Deleting old daily conditions...
+2025-08-23 19:44:00,550 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/daily_county_conditions?date=lt.2025-08-22 "HTTP/2 200 OK"
+2025-08-23 19:44:00,688 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/daily_county_conditions?date=gte.2025-08-22 "HTTP/2 200 OK"
+2025-08-23 19:44:00,696 - INFO -    Daily conditions deleted successfully
+2025-08-23 19:44:00,696 - INFO - OK: Old data cleanup completed
+2025-08-23 19:44:00,696 - INFO - STEP 2: Fetching beach data
+2025-08-23 19:44:00,921 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=id%2CName%2CLATITUDE%2CLONGITUDE&offset=0&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 19:44:00,926 - INFO -    Fetched 1000 beaches (batch 1)
+2025-08-23 19:44:01,086 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=id%2CName%2CLATITUDE%2CLONGITUDE&offset=1000&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 19:44:01,091 - INFO -    Fetched 647 beaches (batch 2)
+2025-08-23 19:44:01,092 - INFO - OK: Found 1647 beaches with valid coordinates
+2025-08-23 19:44:01,093 - INFO - STEP 3: Calculating county centroids
+2025-08-23 19:44:01,191 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=COUNTY%2CLATITUDE%2CLONGITUDE&offset=0&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 19:44:01,307 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=COUNTY%2CLATITUDE%2CLONGITUDE&offset=1000&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 19:44:01,310 - INFO - OK: Calculated centroids for 17 counties
+2025-08-23 19:44:01,310 - INFO - STEP 4: Updating forecast data with hybrid NOAA + Open-Meteo
+2025-08-23 19:44:01,310 - INFO -    Loading NOAA GFSwave dataset...
+2025-08-23 19:44:01,310 - INFO -    🔍 Searching for available NOAA GFSwave dataset...
+2025-08-23 19:44:01,310 - INFO -    📅 Trying today's data: 20250824
+2025-08-23 19:44:01,311 - INFO -    🌐 Base URL: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave
+2025-08-23 19:44:01,311 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_00z
+2025-08-23 19:44:01,319 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,319 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_06z
+2025-08-23 19:44:01,319 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,319 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_12z
+2025-08-23 19:44:01,319 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,319 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_18z
+2025-08-23 19:44:01,319 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,320 - INFO -    🌐 Base URL: http://nomads.ncep.noaa.gov/dods/wave/gfswave
+2025-08-23 19:44:01,320 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_00z
+2025-08-23 19:44:01,320 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,320 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_06z
+2025-08-23 19:44:01,320 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,320 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_12z
+2025-08-23 19:44:01,320 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,321 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_18z
+2025-08-23 19:44:01,321 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,321 - INFO -    🌐 Base URL: https://nomads.ncep.noaa.gov/dods/wave/gfswave
+2025-08-23 19:44:01,321 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_00z
+2025-08-23 19:44:01,321 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,321 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_06z
+2025-08-23 19:44:01,321 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,321 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_12z
+2025-08-23 19:44:01,322 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,322 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_18z
+2025-08-23 19:44:01,322 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,322 - INFO -    📅 Trying yesterday's data: 20250823
+2025-08-23 19:44:01,322 - INFO -    🌐 Base URL: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave
+2025-08-23 19:44:01,322 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_18z
+2025-08-23 19:44:01,322 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,323 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_12z
+2025-08-23 19:44:01,323 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,323 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_06z
+2025-08-23 19:44:01,323 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,323 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_00z
+2025-08-23 19:44:01,323 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,323 - INFO -    🌐 Base URL: http://nomads.ncep.noaa.gov/dods/wave/gfswave
+2025-08-23 19:44:01,323 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_18z
+2025-08-23 19:44:01,323 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,324 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_12z
+2025-08-23 19:44:01,324 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,324 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_06z
+2025-08-23 19:44:01,324 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,324 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_00z
+2025-08-23 19:44:01,324 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,324 - INFO -    🌐 Base URL: https://nomads.ncep.noaa.gov/dods/wave/gfswave
+2025-08-23 19:44:01,324 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_18z
+2025-08-23 19:44:01,325 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,325 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_12z
+2025-08-23 19:44:01,325 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,325 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_06z
+2025-08-23 19:44:01,325 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,325 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_00z
+2025-08-23 19:44:01,325 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,326 - INFO -    📅 Trying additional fallback dates...
+2025-08-23 19:44:01,326 - INFO -    📅 Trying 2 days back: 20250822
+2025-08-23 19:44:01,326 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_18z
+2025-08-23 19:44:01,326 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,326 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_12z
+2025-08-23 19:44:01,326 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,326 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_06z
+2025-08-23 19:44:01,326 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,327 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_00z
+2025-08-23 19:44:01,327 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,327 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_18z
+2025-08-23 19:44:01,327 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,327 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_12z
+2025-08-23 19:44:01,327 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,327 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_06z
+2025-08-23 19:44:01,328 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,328 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_00z
+2025-08-23 19:44:01,328 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,328 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_18z
+2025-08-23 19:44:01,328 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,328 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_12z
+2025-08-23 19:44:01,328 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,329 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_06z
+2025-08-23 19:44:01,329 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,329 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_00z
+2025-08-23 19:44:01,329 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,329 - INFO -    📅 Trying 3 days back: 20250821
+2025-08-23 19:44:01,329 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_18z
+2025-08-23 19:44:01,329 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,330 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_12z
+2025-08-23 19:44:01,330 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,330 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_06z
+2025-08-23 19:44:01,330 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,330 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_00z
+2025-08-23 19:44:01,330 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,330 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_18z
+2025-08-23 19:44:01,330 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,331 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_12z
+2025-08-23 19:44:01,331 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,331 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_06z
+2025-08-23 19:44:01,331 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,331 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_00z
+2025-08-23 19:44:01,331 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,331 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_18z
+2025-08-23 19:44:01,331 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,332 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_12z
+2025-08-23 19:44:01,332 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,332 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_06z
+2025-08-23 19:44:01,332 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,332 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_00z
+2025-08-23 19:44:01,332 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,332 - INFO -    📅 Trying 4 days back: 20250820
+2025-08-23 19:44:01,332 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_18z
+2025-08-23 19:44:01,333 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,333 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_12z
+2025-08-23 19:44:01,333 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,333 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_06z
+2025-08-23 19:44:01,333 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,333 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_00z
+2025-08-23 19:44:01,333 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,334 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_18z
+2025-08-23 19:44:01,334 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,334 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_12z
+2025-08-23 19:44:01,334 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,334 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_06z
+2025-08-23 19:44:01,334 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,334 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_00z
+2025-08-23 19:44:01,334 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,335 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_18z
+2025-08-23 19:44:01,335 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,335 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_12z
+2025-08-23 19:44:01,335 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,335 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_06z
+2025-08-23 19:44:01,335 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,335 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_00z
+2025-08-23 19:44:01,335 - WARNING -       ❌ FAILED: unrecognized engine 'netcdf4' must be one of your download engines: ['store']. To install additional dependencies, see:
+https://docs.xarray.dev/en/stable/user-guide/io.html 
+https://docs.xarray.dev/en
+2025-08-23 19:44:01,336 - ERROR -    ❌ EXHAUSTED ALL OPTIONS:
+2025-08-23 19:44:01,336 - ERROR -       • Tried dates: 20250824 to 20250820
+2025-08-23 19:44:01,336 - ERROR -       • Tried base URLs: 3 different protocols
+2025-08-23 19:44:01,336 - ERROR -       • Tried runs: 00z, 06z, 12z, 18z
+2025-08-23 19:44:01,336 - ERROR -       • Example URL format: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_00z
+2025-08-23 19:44:01,336 - ERROR -       • Possible causes:
+2025-08-23 19:44:01,336 - ERROR -         - Network connectivity issues
+2025-08-23 19:44:01,336 - ERROR -         - NOAA server maintenance
+2025-08-23 19:44:01,337 - ERROR -         - OpenDAP service unavailable
+2025-08-23 19:44:01,337 - ERROR -         - Firewall blocking OpenDAP protocol
+2025-08-23 19:44:01,337 - ERROR -         - Missing netcdf4 library (try: pip install netcdf4)
+2025-08-23 19:44:01,337 - ERROR - ERROR: Hybrid forecast update failed: No NOAA GFSwave dataset available - exhausted all URL combinations
+2025-08-23 19:44:01,337 - ERROR -       Full error details: No NOAA GFSwave dataset available - exhausted all URL combinations
+2025-08-23 19:44:01,337 - INFO -    Falling back to pure Open-Meteo data...
+2025-08-23 19:44:01,337 - INFO -    Using Open-Meteo fallback mode...
+2025-08-23 19:44:01,376 - INFO -    Open-Meteo batch 1/165 (10 beaches)...
+2025-08-23 19:44:02,858 - INFO - HTTP Request: POST https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/forecast_data?on_conflict=beach_id%2Ctimestamp&columns=%22tertiary_swell_height_ft%22%2C%22secondary_swell_direction%22%2C%22tertiary_swell_direction%22%2C%22weather%22%2C%22water_temp_f%22%2C%22temperature%22%2C%22tertiary_swell_period_s%22%2C%22primary_swell_height_ft%22%2C%22surf_height_max_ft%22%2C%22secondary_swell_period_s%22%2C%22wind_gust_mph%22%2C%22tide_level_ft%22%2C%22beach_id%22%2C%22pressure_inhg%22%2C%22wave_energy_kj%22%2C%22primary_swell_period_s%22%2C%22secondary_swell_height_ft%22%2C%22timestamp%22%2C%22primary_swell_direction%22%2C%22wind_direction_deg%22%2C%22surf_height_min_ft%22%2C%22wind_speed_mph%22 "HTTP/2 200 OK"
+2025-08-23 19:44:02,888 - INFO -    Fallback batch 1/165: 1920 records
+2025-08-23 19:44:02,889 - INFO -    Open-Meteo batch 2/165 (10 beaches)...
+2025-08-23 19:45:17,561 - INFO - SURF: Starting HYBRID surf database update (NOAA + Open-Meteo)
+2025-08-23 19:45:17,562 - INFO - SURF: Tide adjustment: +2.4 feet
+2025-08-23 19:45:17,562 - INFO - SURF: Wave energy calculated in kJ (surf-forecast.com style)
+2025-08-23 19:45:17,562 - INFO - SURF: Primary data from NOAA GFSwave, supplemented with Open-Meteo
+2025-08-23 19:45:17,562 - INFO - SURF: DYNAMIC SWELL RANKING - Swells ranked by surf impact score
+2025-08-23 19:45:17,562 - INFO - STEP 1: Cleaning up old data
+2025-08-23 19:45:17,562 - INFO - DELETE: Deleting old forecast data...
+2025-08-23 19:45:21,047 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/forecast_data?timestamp=lt.2025-08-22T19%3A45%3A17.562662 "HTTP/2 500 Internal Server Error"
+2025-08-23 19:45:21,048 - WARNING -    Forecast deletion failed: {'message': 'canceling statement due to statement timeout', 'code': '57014', 'hint': None, 'details': None}, will use UPSERT
+2025-08-23 19:45:21,048 - INFO - DELETE: Deleting old daily conditions...
+2025-08-23 19:45:21,151 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/daily_county_conditions?date=lt.2025-08-22 "HTTP/2 200 OK"
+2025-08-23 19:45:21,247 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/daily_county_conditions?date=gte.2025-08-22 "HTTP/2 200 OK"
+2025-08-23 19:45:21,248 - INFO -    Daily conditions deleted successfully
+2025-08-23 19:45:21,248 - INFO - OK: Old data cleanup completed
+2025-08-23 19:45:21,248 - INFO - STEP 2: Fetching beach data
+2025-08-23 19:45:21,396 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=id%2CName%2CLATITUDE%2CLONGITUDE&offset=0&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 19:45:21,400 - INFO -    Fetched 1000 beaches (batch 1)
+2025-08-23 19:45:21,570 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=id%2CName%2CLATITUDE%2CLONGITUDE&offset=1000&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 19:45:21,575 - INFO -    Fetched 647 beaches (batch 2)
+2025-08-23 19:45:21,576 - INFO - OK: Found 1647 beaches with valid coordinates
+2025-08-23 19:45:21,576 - INFO - STEP 3: Calculating county centroids
+2025-08-23 19:45:21,667 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=COUNTY%2CLATITUDE%2CLONGITUDE&offset=0&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 19:45:21,766 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=COUNTY%2CLATITUDE%2CLONGITUDE&offset=1000&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 19:45:21,769 - INFO - OK: Calculated centroids for 17 counties
+2025-08-23 19:45:21,769 - INFO - STEP 4: Updating forecast data with hybrid NOAA + Open-Meteo
+2025-08-23 19:45:21,769 - INFO -    Loading NOAA GFSwave dataset...
+2025-08-23 19:45:21,769 - INFO -    🔍 Searching for available NOAA GFSwave dataset...
+2025-08-23 19:45:21,769 - INFO -    📅 Trying today's data: 20250824
+2025-08-23 19:45:21,770 - INFO -    🌐 Base URL: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave
+2025-08-23 19:45:21,770 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_00z
+2025-08-23 19:45:21,778 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,778 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_06z
+2025-08-23 19:45:21,778 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,778 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_12z
+2025-08-23 19:45:21,778 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,779 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_18z
+2025-08-23 19:45:21,779 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,779 - INFO -    🌐 Base URL: http://nomads.ncep.noaa.gov/dods/wave/gfswave
+2025-08-23 19:45:21,779 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_00z
+2025-08-23 19:45:21,779 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,779 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_06z
+2025-08-23 19:45:21,779 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,780 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_12z
+2025-08-23 19:45:21,780 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,780 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_18z
+2025-08-23 19:45:21,780 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,780 - INFO -    🌐 Base URL: https://nomads.ncep.noaa.gov/dods/wave/gfswave
+2025-08-23 19:45:21,780 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_00z
+2025-08-23 19:45:21,780 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,780 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_06z
+2025-08-23 19:45:21,781 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,781 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_12z
+2025-08-23 19:45:21,781 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,781 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_18z
+2025-08-23 19:45:21,781 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,781 - INFO -    📅 Trying yesterday's data: 20250823
+2025-08-23 19:45:21,782 - INFO -    🌐 Base URL: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave
+2025-08-23 19:45:21,782 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_18z
+2025-08-23 19:45:21,782 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,782 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_12z
+2025-08-23 19:45:21,782 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,782 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_06z
+2025-08-23 19:45:21,782 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,783 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_00z
+2025-08-23 19:45:21,783 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,783 - INFO -    🌐 Base URL: http://nomads.ncep.noaa.gov/dods/wave/gfswave
+2025-08-23 19:45:21,783 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_18z
+2025-08-23 19:45:21,783 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,783 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_12z
+2025-08-23 19:45:21,783 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,783 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_06z
+2025-08-23 19:45:21,783 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,783 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_00z
+2025-08-23 19:45:21,783 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,784 - INFO -    🌐 Base URL: https://nomads.ncep.noaa.gov/dods/wave/gfswave
+2025-08-23 19:45:21,784 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_18z
+2025-08-23 19:45:21,784 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,784 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_12z
+2025-08-23 19:45:21,784 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,784 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_06z
+2025-08-23 19:45:21,784 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,784 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_00z
+2025-08-23 19:45:21,785 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,785 - INFO -    📅 Trying additional fallback dates...
+2025-08-23 19:45:21,785 - INFO -    📅 Trying 2 days back: 20250822
+2025-08-23 19:45:21,785 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_18z
+2025-08-23 19:45:21,785 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,785 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_12z
+2025-08-23 19:45:21,785 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,785 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_06z
+2025-08-23 19:45:21,785 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,786 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_00z
+2025-08-23 19:45:21,786 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,786 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_18z
+2025-08-23 19:45:21,786 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,786 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_12z
+2025-08-23 19:45:21,786 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,786 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_06z
+2025-08-23 19:45:21,786 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,786 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_00z
+2025-08-23 19:45:21,786 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,787 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_18z
+2025-08-23 19:45:21,787 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,787 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_12z
+2025-08-23 19:45:21,787 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,787 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_06z
+2025-08-23 19:45:21,787 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,787 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250822/gfswave.wcoast.0p16_00z
+2025-08-23 19:45:21,787 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,787 - INFO -    📅 Trying 3 days back: 20250821
+2025-08-23 19:45:21,787 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_18z
+2025-08-23 19:45:21,787 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,788 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_12z
+2025-08-23 19:45:21,788 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,788 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_06z
+2025-08-23 19:45:21,788 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,788 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_00z
+2025-08-23 19:45:21,788 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,788 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_18z
+2025-08-23 19:45:21,789 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,789 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_12z
+2025-08-23 19:45:21,789 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,789 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_06z
+2025-08-23 19:45:21,789 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,789 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_00z
+2025-08-23 19:45:21,789 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,790 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_18z
+2025-08-23 19:45:21,790 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,790 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_12z
+2025-08-23 19:45:21,790 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,790 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_06z
+2025-08-23 19:45:21,790 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,790 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250821/gfswave.wcoast.0p16_00z
+2025-08-23 19:45:21,791 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,791 - INFO -    📅 Trying 4 days back: 20250820
+2025-08-23 19:45:21,791 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_18z
+2025-08-23 19:45:21,791 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,791 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_12z
+2025-08-23 19:45:21,791 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,791 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_06z
+2025-08-23 19:45:21,791 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,791 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_00z
+2025-08-23 19:45:21,792 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,792 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_18z
+2025-08-23 19:45:21,792 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,792 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_12z
+2025-08-23 19:45:21,792 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,792 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_06z
+2025-08-23 19:45:21,792 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,792 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_00z
+2025-08-23 19:45:21,792 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,793 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_18z
+2025-08-23 19:45:21,793 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,793 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_12z
+2025-08-23 19:45:21,793 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,793 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_06z
+2025-08-23 19:45:21,793 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,793 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250820/gfswave.wcoast.0p16_00z
+2025-08-23 19:45:21,793 - WARNING -       ❌ FAILED: NetCDF4BackendEntrypoint.open_dataset() got an unexpected keyword argument 'timeout'
+2025-08-23 19:45:21,793 - ERROR -    ❌ EXHAUSTED ALL OPTIONS:
+2025-08-23 19:45:21,793 - ERROR -       • Tried dates: 20250824 to 20250820
+2025-08-23 19:45:21,794 - ERROR -       • Tried base URLs: 3 different protocols
+2025-08-23 19:45:21,794 - ERROR -       • Tried runs: 00z, 06z, 12z, 18z
+2025-08-23 19:45:21,794 - ERROR -       • Example URL format: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_00z
+2025-08-23 19:45:21,794 - ERROR -       • Possible causes:
+2025-08-23 19:45:21,794 - ERROR -         - Network connectivity issues
+2025-08-23 19:45:21,794 - ERROR -         - NOAA server maintenance
+2025-08-23 19:45:21,794 - ERROR -         - OpenDAP service unavailable
+2025-08-23 19:45:21,794 - ERROR -         - Firewall blocking OpenDAP protocol
+2025-08-23 19:45:21,795 - ERROR -         - Missing netcdf4 library (try: pip install netcdf4)
+2025-08-23 19:45:21,795 - ERROR - ERROR: Hybrid forecast update failed: No NOAA GFSwave dataset available - exhausted all URL combinations
+2025-08-23 19:45:21,795 - ERROR -       Full error details: No NOAA GFSwave dataset available - exhausted all URL combinations
+2025-08-23 19:45:21,795 - INFO -    Falling back to pure Open-Meteo data...
+2025-08-23 19:45:21,795 - INFO -    Using Open-Meteo fallback mode...
+2025-08-23 19:45:21,844 - INFO -    Open-Meteo batch 1/165 (10 beaches)...
+2025-08-23 19:45:22,788 - INFO - HTTP Request: POST https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/forecast_data?on_conflict=beach_id%2Ctimestamp&columns=%22primary_swell_height_ft%22%2C%22tertiary_swell_height_ft%22%2C%22wave_energy_kj%22%2C%22weather%22%2C%22tide_level_ft%22%2C%22beach_id%22%2C%22tertiary_swell_period_s%22%2C%22secondary_swell_height_ft%22%2C%22secondary_swell_direction%22%2C%22tertiary_swell_direction%22%2C%22wind_gust_mph%22%2C%22wind_direction_deg%22%2C%22temperature%22%2C%22primary_swell_period_s%22%2C%22primary_swell_direction%22%2C%22water_temp_f%22%2C%22secondary_swell_period_s%22%2C%22wind_speed_mph%22%2C%22surf_height_max_ft%22%2C%22pressure_inhg%22%2C%22surf_height_min_ft%22%2C%22timestamp%22 "HTTP/2 200 OK"
+2025-08-23 19:45:22,835 - INFO -    Fallback batch 1/165: 1920 records
+2025-08-23 19:45:22,835 - INFO -    Open-Meteo batch 2/165 (10 beaches)...
+2025-08-23 19:47:54,525 - INFO - SURF: Starting HYBRID surf database update (NOAA + Open-Meteo)
+2025-08-23 19:47:54,525 - INFO - SURF: Tide adjustment: +2.4 feet
+2025-08-23 19:47:54,525 - INFO - SURF: Wave energy calculated in kJ (surf-forecast.com style)
+2025-08-23 19:47:54,526 - INFO - SURF: Primary data from NOAA GFSwave, supplemented with Open-Meteo
+2025-08-23 19:47:54,526 - INFO - SURF: DYNAMIC SWELL RANKING - Swells ranked by surf impact score
+2025-08-23 19:47:54,526 - INFO - STEP 1: Cleaning up old data
+2025-08-23 19:47:54,526 - INFO - DELETE: Deleting old forecast data...
+2025-08-23 19:47:58,505 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/forecast_data?timestamp=lt.2025-08-22T19%3A47%3A54.526380 "HTTP/2 500 Internal Server Error"
+2025-08-23 19:47:58,506 - WARNING -    Forecast deletion failed: {'message': 'canceling statement due to statement timeout', 'code': '57014', 'hint': None, 'details': None}, will use UPSERT
+2025-08-23 19:47:58,506 - INFO - DELETE: Deleting old daily conditions...
+2025-08-23 19:47:58,663 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/daily_county_conditions?date=lt.2025-08-22 "HTTP/2 200 OK"
+2025-08-23 19:47:58,732 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/daily_county_conditions?date=gte.2025-08-22 "HTTP/2 200 OK"
+2025-08-23 19:47:58,733 - INFO -    Daily conditions deleted successfully
+2025-08-23 19:47:58,733 - INFO - OK: Old data cleanup completed
+2025-08-23 19:47:58,733 - INFO - STEP 2: Fetching beach data
+2025-08-23 19:47:58,934 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=id%2CName%2CLATITUDE%2CLONGITUDE&offset=0&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 19:47:58,939 - INFO -    Fetched 1000 beaches (batch 1)
+2025-08-23 19:47:59,046 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=id%2CName%2CLATITUDE%2CLONGITUDE&offset=1000&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 19:47:59,050 - INFO -    Fetched 647 beaches (batch 2)
+2025-08-23 19:47:59,052 - INFO - OK: Found 1647 beaches with valid coordinates
+2025-08-23 19:47:59,052 - INFO - STEP 3: Calculating county centroids
+2025-08-23 19:47:59,184 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=COUNTY%2CLATITUDE%2CLONGITUDE&offset=0&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 19:47:59,269 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=COUNTY%2CLATITUDE%2CLONGITUDE&offset=1000&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 19:47:59,272 - INFO - OK: Calculated centroids for 17 counties
+2025-08-23 19:47:59,272 - INFO - STEP 4: Updating forecast data with hybrid NOAA + Open-Meteo
+2025-08-23 19:47:59,272 - INFO -    Loading NOAA GFSwave dataset...
+2025-08-23 19:47:59,272 - INFO -    🔍 Searching for available NOAA GFSwave dataset...
+2025-08-23 19:47:59,272 - INFO -    📅 Trying today's data: 20250824
+2025-08-23 19:47:59,272 - INFO -    🌐 Base URL: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave
+2025-08-23 19:47:59,273 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_00z
+2025-08-23 19:47:59,654 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_00z'
+2025-08-23 19:47:59,655 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_06z
+2025-08-23 19:47:59,822 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_06z'
+2025-08-23 19:47:59,822 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_12z
+2025-08-23 19:47:59,910 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_12z'
+2025-08-23 19:47:59,910 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_18z
+2025-08-23 19:48:00,008 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_18z'
+2025-08-23 19:48:00,008 - INFO -    🌐 Base URL: http://nomads.ncep.noaa.gov/dods/wave/gfswave
+2025-08-23 19:48:00,009 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_00z
+2025-08-23 19:48:00,120 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_00z'
+2025-08-23 19:48:00,120 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_06z
+2025-08-23 19:48:00,201 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_06z'
+2025-08-23 19:48:00,201 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_12z
+2025-08-23 19:48:00,286 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_12z'
+2025-08-23 19:48:00,286 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_18z
+2025-08-23 19:48:00,527 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_18z'
+2025-08-23 19:48:00,528 - INFO -    🌐 Base URL: https://nomads.ncep.noaa.gov/dods/wave/gfswave
+2025-08-23 19:48:00,528 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_00z
+2025-08-23 19:48:00,587 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_00z'
+2025-08-23 19:48:00,587 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_06z
+2025-08-23 19:48:00,654 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_06z'
+2025-08-23 19:48:00,654 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_12z
+2025-08-23 19:48:00,717 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_12z'
+2025-08-23 19:48:00,718 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_18z
+2025-08-23 19:48:00,813 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_18z'
+2025-08-23 19:48:00,813 - INFO -    📅 Trying yesterday's data: 20250823
+2025-08-23 19:48:00,813 - INFO -    🌐 Base URL: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave
+2025-08-23 19:48:00,814 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_18z
+2025-08-23 19:48:01,107 - INFO -       ✅ SUCCESS: 129 time steps, swell shape: (129, 151, 241)
+2025-08-23 19:48:01,107 - INFO -    ✅ FOUND: Using 20250823 18z (yesterday)
+2025-08-23 19:48:01,520 - INFO -    NOAA dataset loaded: 129 time steps
+2025-08-23 19:48:01,521 - INFO -    Available variables: ['dirpwsfc', 'htsgwsfc', 'perpwsfc', 'swdir_1', 'swdir_2', 'swdir_3', 'swell_1', 'swell_2', 'swell_3', 'swper_1', 'swper_2', 'swper_3', 'ugrdsfc', 'vgrdsfc', 'wdirsfc', 'windsfc', 'wvdirsfc', 'wvhgtsfc', 'wvpersfc']
+2025-08-23 19:48:01,521 - INFO -    Processing NOAA batch 1/165 (10 beaches)...
+2025-08-23 19:48:13,150 - INFO -    NOAA: Pelican State Beach - 129 records with dynamic swell ranking from grid point (41.83, 235.67)
+2025-08-23 19:48:24,955 - INFO -    NOAA: Clifford Kamph Memorial Park - 129 records with dynamic swell ranking from grid point (41.83, 235.67)
+2025-08-23 19:48:36,643 - INFO -    NOAA: Smith River County Park - 129 records with dynamic swell ranking from grid point (41.83, 235.67)
+2025-08-23 19:48:48,226 - INFO -    NOAA: Smith River Boating Access - 129 records with dynamic swell ranking from grid point (41.83, 235.67)
+2025-08-23 19:48:58,930 - INFO -    NOAA: Xaa-wan'-k'wvt Village & Resort Boat Ramp - 129 records with dynamic swell ranking from grid point (41.83, 235.67)
+2025-08-23 19:49:10,371 - INFO -    NOAA: Kellogg Beach Park - 129 records with dynamic swell ranking from grid point (41.83, 235.67)
+2025-08-23 19:54:19,360 - INFO - SURF: Starting HYBRID surf database update (NOAA + Open-Meteo)
+2025-08-23 19:54:19,360 - INFO - SURF: Tide adjustment: +2.4 feet
+2025-08-23 19:54:19,360 - INFO - SURF: Wave energy calculated in kJ (surf-forecast.com style)
+2025-08-23 19:54:19,360 - INFO - SURF: Primary data from NOAA GFSwave, supplemented with Open-Meteo
+2025-08-23 19:54:19,360 - INFO - SURF: DYNAMIC SWELL RANKING - Swells ranked by surf impact score
+2025-08-23 19:54:19,361 - INFO - STEP 1: Cleaning up old data
+2025-08-23 19:54:19,361 - INFO - DELETE: Deleting old forecast data...
+2025-08-23 19:54:23,352 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/forecast_data?timestamp=lt.2025-08-22T19%3A54%3A19.361125 "HTTP/2 500 Internal Server Error"
+2025-08-23 19:54:23,354 - WARNING -    Forecast deletion failed: {'message': 'canceling statement due to statement timeout', 'code': '57014', 'hint': None, 'details': None}, will use UPSERT
+2025-08-23 19:54:23,354 - INFO - DELETE: Deleting old daily conditions...
+2025-08-23 19:54:23,465 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/daily_county_conditions?date=lt.2025-08-22 "HTTP/2 200 OK"
+2025-08-23 19:54:23,540 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/daily_county_conditions?date=gte.2025-08-22 "HTTP/2 200 OK"
+2025-08-23 19:54:23,541 - INFO -    Daily conditions deleted successfully
+2025-08-23 19:54:23,541 - INFO - OK: Old data cleanup completed
+2025-08-23 19:54:23,541 - INFO - STEP 2: Fetching beach data
+2025-08-23 19:54:23,770 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=id%2CName%2CLATITUDE%2CLONGITUDE&offset=0&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 19:54:23,780 - INFO -    Fetched 1000 beaches (batch 1)
+2025-08-23 19:54:23,945 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=id%2CName%2CLATITUDE%2CLONGITUDE&offset=1000&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 19:54:23,949 - INFO -    Fetched 647 beaches (batch 2)
+2025-08-23 19:54:23,950 - INFO - OK: Found 1647 beaches with valid coordinates
+2025-08-23 19:54:23,951 - INFO - STEP 3: Calculating county centroids
+2025-08-23 19:54:24,080 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=COUNTY%2CLATITUDE%2CLONGITUDE&offset=0&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 19:54:24,201 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=COUNTY%2CLATITUDE%2CLONGITUDE&offset=1000&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 19:54:24,204 - INFO - OK: Calculated centroids for 17 counties
+2025-08-23 19:54:24,204 - ERROR - ERROR: CRITICAL ERROR: name 'update_forecast_data_hybrid' is not defined
+2025-08-23 19:54:24,204 - INFO - DONE: Hybrid script finished with exit code: 1
+2025-08-23 19:56:48,437 - INFO - SURF: Starting HYBRID surf database update (NOAA + Open-Meteo)
+2025-08-23 19:56:48,438 - INFO - SURF: Tide adjustment: +2.4 feet
+2025-08-23 19:56:48,438 - INFO - SURF: Wave energy calculated in kJ (surf-forecast.com style)
+2025-08-23 19:56:48,438 - INFO - SURF: Primary data from NOAA GFSwave, supplemented with Open-Meteo
+2025-08-23 19:56:48,438 - INFO - SURF: DYNAMIC SWELL RANKING - Swells ranked by surf impact score
+2025-08-23 19:56:48,438 - INFO - STEP 1: Cleaning up old data
+2025-08-23 19:56:48,438 - INFO - DELETE: Deleting old forecast data...
+2025-08-23 19:57:07,910 - WARNING -    Forecast deletion failed: [WinError 10054] An existing connection was forcibly closed by the remote host, will use UPSERT
+2025-08-23 19:57:07,910 - INFO - DELETE: Deleting old daily conditions...
+2025-08-23 19:57:27,113 - WARNING -    Daily conditions deletion failed: [WinError 10054] An existing connection was forcibly closed by the remote host, will use UPSERT
+2025-08-23 19:57:27,113 - INFO - OK: Old data cleanup completed
+2025-08-23 19:57:27,114 - INFO - STEP 2: Fetching beach data
+2025-08-23 19:57:46,306 - ERROR - ERROR: Error fetching beaches: [WinError 10054] An existing connection was forcibly closed by the remote host
+2025-08-23 19:57:46,307 - INFO - OK: Found 0 beaches with valid coordinates
+2025-08-23 19:57:46,307 - ERROR - ERROR: No beaches found, aborting
+2025-08-23 19:57:46,307 - INFO - DONE: Hybrid script finished with exit code: 1
+2025-08-23 19:59:42,522 - INFO - SURF: Starting HYBRID surf database update (NOAA + Open-Meteo)
+2025-08-23 19:59:42,522 - INFO - SURF: Tide adjustment: +2.4 feet
+2025-08-23 19:59:42,523 - INFO - SURF: Wave energy calculated in kJ (surf-forecast.com style)
+2025-08-23 19:59:42,523 - INFO - SURF: Primary data from NOAA GFSwave, supplemented with Open-Meteo
+2025-08-23 19:59:42,523 - INFO - SURF: DYNAMIC SWELL RANKING - Swells ranked by surf impact score
+2025-08-23 19:59:42,523 - INFO - STEP 1: Cleaning up old data
+2025-08-23 19:59:42,523 - INFO - DELETE: Deleting old forecast data...
+2025-08-23 19:59:46,193 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/forecast_data?timestamp=lt.2025-08-22T19%3A59%3A42.523589 "HTTP/2 500 Internal Server Error"
+2025-08-23 19:59:46,194 - WARNING -    Forecast deletion failed: {'message': 'canceling statement due to statement timeout', 'code': '57014', 'hint': None, 'details': None}, will use UPSERT
+2025-08-23 19:59:46,194 - INFO - DELETE: Deleting old daily conditions...
+2025-08-23 19:59:46,309 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/daily_county_conditions?date=lt.2025-08-22 "HTTP/2 200 OK"
+2025-08-23 19:59:46,417 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/daily_county_conditions?date=gte.2025-08-22 "HTTP/2 200 OK"
+2025-08-23 19:59:46,418 - INFO -    Daily conditions deleted successfully
+2025-08-23 19:59:46,418 - INFO - OK: Old data cleanup completed
+2025-08-23 19:59:46,418 - INFO - STEP 2: Fetching beach data
+2025-08-23 19:59:46,559 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=id%2CName%2CLATITUDE%2CLONGITUDE&offset=0&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 19:59:46,565 - INFO -    Fetched 1000 beaches (batch 1)
+2025-08-23 19:59:46,724 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=id%2CName%2CLATITUDE%2CLONGITUDE&offset=1000&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 19:59:46,728 - INFO -    Fetched 647 beaches (batch 2)
+2025-08-23 19:59:46,729 - INFO - OK: Found 1647 beaches with valid coordinates
+2025-08-23 19:59:46,729 - INFO - STEP 3: Calculating county centroids
+2025-08-23 19:59:46,821 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=COUNTY%2CLATITUDE%2CLONGITUDE&offset=0&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 19:59:46,944 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=COUNTY%2CLATITUDE%2CLONGITUDE&offset=1000&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 19:59:46,946 - INFO - OK: Calculated centroids for 17 counties
+2025-08-23 19:59:46,946 - INFO -    🚀 OPTIMIZED: Bulk extracting NOAA data for all beaches...
+2025-08-23 19:59:46,946 - INFO -    📍 Finding optimal grid points for all beaches...
+2025-08-23 19:59:46,946 - ERROR - ERROR: CRITICAL ERROR: name 'ds' is not defined
+2025-08-23 19:59:46,947 - INFO - DONE: Hybrid script finished with exit code: 1
+2025-08-23 20:35:00,659 - INFO - SURF: Starting HYBRID surf database update (NOAA + Open-Meteo)
+2025-08-23 20:35:00,659 - INFO - SURF: Tide adjustment: +2.4 feet
+2025-08-23 20:35:00,659 - INFO - SURF: Wave energy calculated in kJ (surf-forecast.com style)
+2025-08-23 20:35:00,659 - INFO - SURF: Primary data from NOAA GFSwave, supplemented with Open-Meteo
+2025-08-23 20:35:00,660 - INFO - SURF: DYNAMIC SWELL RANKING - Swells ranked by surf impact score
+2025-08-23 20:35:00,660 - INFO - STEP 1: Cleaning up old data
+2025-08-23 20:35:00,660 - INFO - DELETE: Deleting old forecast data...
+2025-08-23 20:35:04,724 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/forecast_data?timestamp=lt.2025-08-22T20%3A35%3A00.660236 "HTTP/2 500 Internal Server Error"
+2025-08-23 20:35:04,725 - WARNING -    Forecast deletion failed: {'message': 'canceling statement due to statement timeout', 'code': '57014', 'hint': None, 'details': None}, will use UPSERT
+2025-08-23 20:35:04,725 - INFO - DELETE: Deleting old daily conditions...
+2025-08-23 20:35:04,880 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/daily_county_conditions?date=lt.2025-08-22 "HTTP/2 200 OK"
+2025-08-23 20:35:05,014 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/daily_county_conditions?date=gte.2025-08-22 "HTTP/2 200 OK"
+2025-08-23 20:35:05,015 - INFO -    Daily conditions deleted successfully
+2025-08-23 20:35:05,015 - INFO - OK: Old data cleanup completed
+2025-08-23 20:35:05,015 - INFO - STEP 2: Fetching beach data
+2025-08-23 20:35:05,340 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=id%2CName%2CLATITUDE%2CLONGITUDE&offset=0&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 20:35:05,350 - INFO -    Fetched 1000 beaches (batch 1)
+2025-08-23 20:35:05,539 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=id%2CName%2CLATITUDE%2CLONGITUDE&offset=1000&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 20:35:05,544 - INFO -    Fetched 647 beaches (batch 2)
+2025-08-23 20:35:05,545 - INFO - OK: Found 1647 beaches with valid coordinates
+2025-08-23 20:35:05,545 - INFO - STEP 3: Calculating county centroids
+2025-08-23 20:35:05,662 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=COUNTY%2CLATITUDE%2CLONGITUDE&offset=0&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 20:35:05,816 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=COUNTY%2CLATITUDE%2CLONGITUDE&offset=1000&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 20:35:05,818 - INFO - OK: Calculated centroids for 17 counties
+2025-08-23 20:35:05,819 - INFO -    🚀 OPTIMIZED: Bulk extracting NOAA data for all beaches...
+2025-08-23 20:35:05,819 - INFO -    📍 Finding optimal grid points for all beaches...
+2025-08-23 20:35:05,819 - ERROR - ERROR: CRITICAL ERROR: name 'ds' is not defined
+2025-08-23 20:35:05,819 - INFO - DONE: Hybrid script finished with exit code: 1
+2025-08-23 20:35:20,815 - INFO - SURF: Starting HYBRID surf database update (NOAA + Open-Meteo)
+2025-08-23 20:35:20,816 - INFO - SURF: Tide adjustment: +2.4 feet
+2025-08-23 20:35:20,816 - INFO - SURF: Wave energy calculated in kJ (surf-forecast.com style)
+2025-08-23 20:35:20,816 - INFO - SURF: Primary data from NOAA GFSwave, supplemented with Open-Meteo
+2025-08-23 20:35:20,816 - INFO - SURF: DYNAMIC SWELL RANKING - Swells ranked by surf impact score
+2025-08-23 20:35:20,816 - INFO - STEP 1: Cleaning up old data
+2025-08-23 20:35:20,816 - INFO - DELETE: Deleting old forecast data...
+2025-08-23 20:35:24,272 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/forecast_data?timestamp=lt.2025-08-22T20%3A35%3A20.816811 "HTTP/2 500 Internal Server Error"
+2025-08-23 20:35:24,273 - WARNING -    Forecast deletion failed: {'message': 'canceling statement due to statement timeout', 'code': '57014', 'hint': None, 'details': None}, will use UPSERT
+2025-08-23 20:35:24,273 - INFO - DELETE: Deleting old daily conditions...
+2025-08-23 20:35:24,381 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/daily_county_conditions?date=lt.2025-08-22 "HTTP/2 200 OK"
+2025-08-23 20:35:24,485 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/daily_county_conditions?date=gte.2025-08-22 "HTTP/2 200 OK"
+2025-08-23 20:35:24,486 - INFO -    Daily conditions deleted successfully
+2025-08-23 20:35:24,486 - INFO - OK: Old data cleanup completed
+2025-08-23 20:35:24,486 - INFO - STEP 2: Fetching beach data
+2025-08-23 20:35:24,605 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=id%2CName%2CLATITUDE%2CLONGITUDE&offset=0&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 20:35:24,608 - INFO -    Fetched 1000 beaches (batch 1)
+2025-08-23 20:35:24,758 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=id%2CName%2CLATITUDE%2CLONGITUDE&offset=1000&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 20:35:24,762 - INFO -    Fetched 647 beaches (batch 2)
+2025-08-23 20:35:24,764 - INFO - OK: Found 1647 beaches with valid coordinates
+2025-08-23 20:35:24,764 - INFO - STEP 3: Calculating county centroids
+2025-08-23 20:35:24,893 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=COUNTY%2CLATITUDE%2CLONGITUDE&offset=0&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 20:35:25,025 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=COUNTY%2CLATITUDE%2CLONGITUDE&offset=1000&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 20:35:25,028 - INFO - OK: Calculated centroids for 17 counties
+2025-08-23 20:35:25,028 - INFO -    🚀 OPTIMIZED: Bulk extracting NOAA data for all beaches...
+2025-08-23 20:35:25,028 - INFO -    📍 Finding optimal grid points for all beaches...
+2025-08-23 20:35:25,028 - ERROR - ERROR: CRITICAL ERROR: name 'ds' is not defined
+2025-08-23 20:35:25,029 - INFO - DONE: Hybrid script finished with exit code: 1
+2025-08-23 20:37:06,074 - INFO - SURF: Starting HYBRID surf database update (NOAA + Open-Meteo)
+2025-08-23 20:37:06,074 - INFO - SURF: Tide adjustment: +2.4 feet
+2025-08-23 20:37:06,074 - INFO - SURF: Wave energy calculated in kJ (surf-forecast.com style)
+2025-08-23 20:37:06,074 - INFO - SURF: Primary data from NOAA GFSwave, supplemented with Open-Meteo
+2025-08-23 20:37:06,074 - INFO - SURF: DYNAMIC SWELL RANKING - Swells ranked by surf impact score
+2025-08-23 20:37:06,074 - INFO - STEP 1: Cleaning up old data
+2025-08-23 20:37:06,075 - INFO - DELETE: Deleting old forecast data...
+2025-08-23 20:37:09,651 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/forecast_data?timestamp=lt.2025-08-22T20%3A37%3A06.075011 "HTTP/2 500 Internal Server Error"
+2025-08-23 20:37:09,652 - WARNING -    Forecast deletion failed: {'message': 'canceling statement due to statement timeout', 'code': '57014', 'hint': None, 'details': None}, will use UPSERT
+2025-08-23 20:37:09,652 - INFO - DELETE: Deleting old daily conditions...
+2025-08-23 20:37:09,794 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/daily_county_conditions?date=lt.2025-08-22 "HTTP/2 200 OK"
+2025-08-23 20:37:09,905 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/daily_county_conditions?date=gte.2025-08-22 "HTTP/2 200 OK"
+2025-08-23 20:37:09,905 - INFO -    Daily conditions deleted successfully
+2025-08-23 20:37:09,906 - INFO - OK: Old data cleanup completed
+2025-08-23 20:37:09,906 - INFO - STEP 2: Fetching beach data
+2025-08-23 20:37:10,136 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=id%2CName%2CLATITUDE%2CLONGITUDE&offset=0&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 20:37:10,144 - INFO -    Fetched 1000 beaches (batch 1)
+2025-08-23 20:37:10,278 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=id%2CName%2CLATITUDE%2CLONGITUDE&offset=1000&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 20:37:10,282 - INFO -    Fetched 647 beaches (batch 2)
+2025-08-23 20:37:10,283 - INFO - OK: Found 1647 beaches with valid coordinates
+2025-08-23 20:37:10,284 - INFO - STEP 3: Calculating county centroids
+2025-08-23 20:37:10,379 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=COUNTY%2CLATITUDE%2CLONGITUDE&offset=0&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 20:37:10,488 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=COUNTY%2CLATITUDE%2CLONGITUDE&offset=1000&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 20:37:10,490 - INFO - OK: Calculated centroids for 17 counties
+2025-08-23 20:37:10,490 - INFO -    🚀 OPTIMIZED: Bulk extracting NOAA data for all beaches...
+2025-08-23 20:37:10,491 - INFO -    📍 Finding optimal grid points for all beaches...
+2025-08-23 20:37:10,491 - ERROR - ERROR: CRITICAL ERROR: name 'ds' is not defined
+2025-08-23 20:37:10,491 - INFO - DONE: Hybrid script finished with exit code: 1
+2025-08-23 20:38:08,313 - INFO - SURF: Starting HYBRID surf database update (NOAA + Open-Meteo)
+2025-08-23 20:38:08,313 - INFO - SURF: Tide adjustment: +2.4 feet
+2025-08-23 20:38:08,314 - INFO - SURF: Wave energy calculated in kJ (surf-forecast.com style)
+2025-08-23 20:38:08,314 - INFO - SURF: Primary data from NOAA GFSwave, supplemented with Open-Meteo
+2025-08-23 20:38:08,314 - INFO - SURF: DYNAMIC SWELL RANKING - Swells ranked by surf impact score
+2025-08-23 20:38:08,314 - INFO - STEP 1: Cleaning up old data
+2025-08-23 20:38:08,314 - INFO - DELETE: Deleting old forecast data...
+2025-08-23 20:38:11,774 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/forecast_data?timestamp=lt.2025-08-22T20%3A38%3A08.314642 "HTTP/2 500 Internal Server Error"
+2025-08-23 20:38:11,775 - WARNING -    Forecast deletion failed: {'message': 'canceling statement due to statement timeout', 'code': '57014', 'hint': None, 'details': None}, will use UPSERT
+2025-08-23 20:38:11,775 - INFO - DELETE: Deleting old daily conditions...
+2025-08-23 20:38:11,895 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/daily_county_conditions?date=lt.2025-08-22 "HTTP/2 200 OK"
+2025-08-23 20:38:11,985 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/daily_county_conditions?date=gte.2025-08-22 "HTTP/2 200 OK"
+2025-08-23 20:38:11,985 - INFO -    Daily conditions deleted successfully
+2025-08-23 20:38:11,985 - INFO - OK: Old data cleanup completed
+2025-08-23 20:38:11,986 - INFO - STEP 2: Fetching beach data
+2025-08-23 20:38:12,080 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=id%2CName%2CLATITUDE%2CLONGITUDE&offset=0&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 20:38:12,088 - INFO -    Fetched 1000 beaches (batch 1)
+2025-08-23 20:38:12,205 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=id%2CName%2CLATITUDE%2CLONGITUDE&offset=1000&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 20:38:12,209 - INFO -    Fetched 647 beaches (batch 2)
+2025-08-23 20:38:12,210 - INFO - OK: Found 1647 beaches with valid coordinates
+2025-08-23 20:38:12,211 - INFO - STEP 3: Calculating county centroids
+2025-08-23 20:38:12,314 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=COUNTY%2CLATITUDE%2CLONGITUDE&offset=0&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 20:38:12,379 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=COUNTY%2CLATITUDE%2CLONGITUDE&offset=1000&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 20:38:12,382 - INFO - OK: Calculated centroids for 17 counties
+2025-08-23 20:38:12,382 - INFO -    🚀 OPTIMIZED: Bulk extracting NOAA data for all beaches...
+2025-08-23 20:38:12,382 - INFO -    📍 Finding optimal grid points for all beaches...
+2025-08-23 20:38:12,382 - ERROR - ERROR: CRITICAL ERROR: name 'ds' is not defined
+2025-08-23 20:38:12,382 - INFO - DONE: Hybrid script finished with exit code: 1
+2025-08-23 20:38:23,385 - INFO - SURF: Starting HYBRID surf database update (NOAA + Open-Meteo)
+2025-08-23 20:38:23,386 - INFO - SURF: Tide adjustment: +2.4 feet
+2025-08-23 20:38:23,386 - INFO - SURF: Wave energy calculated in kJ (surf-forecast.com style)
+2025-08-23 20:38:23,386 - INFO - SURF: Primary data from NOAA GFSwave, supplemented with Open-Meteo
+2025-08-23 20:38:23,386 - INFO - SURF: DYNAMIC SWELL RANKING - Swells ranked by surf impact score
+2025-08-23 20:38:23,386 - INFO - STEP 1: Cleaning up old data
+2025-08-23 20:38:23,386 - INFO - DELETE: Deleting old forecast data...
+2025-08-23 20:38:33,547 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/forecast_data?timestamp=lt.2025-08-22T20%3A38%3A23.386679 "HTTP/2 500 Internal Server Error"
+2025-08-23 20:38:33,547 - WARNING -    Forecast deletion failed: {'message': 'canceling statement due to statement timeout', 'code': '57014', 'hint': None, 'details': None}, will use UPSERT
+2025-08-23 20:38:33,548 - INFO - DELETE: Deleting old daily conditions...
+2025-08-23 20:38:33,952 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/daily_county_conditions?date=lt.2025-08-22 "HTTP/2 200 OK"
+2025-08-23 20:38:34,114 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/daily_county_conditions?date=gte.2025-08-22 "HTTP/2 200 OK"
+2025-08-23 20:38:34,115 - INFO -    Daily conditions deleted successfully
+2025-08-23 20:38:34,115 - INFO - OK: Old data cleanup completed
+2025-08-23 20:38:34,115 - INFO - STEP 2: Fetching beach data
+2025-08-23 20:38:34,501 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=id%2CName%2CLATITUDE%2CLONGITUDE&offset=0&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 20:38:34,520 - INFO -    Fetched 1000 beaches (batch 1)
+2025-08-23 20:38:34,709 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=id%2CName%2CLATITUDE%2CLONGITUDE&offset=1000&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 20:38:34,713 - INFO -    Fetched 647 beaches (batch 2)
+2025-08-23 20:38:34,714 - INFO - OK: Found 1647 beaches with valid coordinates
+2025-08-23 20:38:34,715 - INFO - STEP 3: Calculating county centroids
+2025-08-23 20:38:34,868 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=COUNTY%2CLATITUDE%2CLONGITUDE&offset=0&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 20:38:35,030 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=COUNTY%2CLATITUDE%2CLONGITUDE&offset=1000&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 20:38:35,032 - INFO - OK: Calculated centroids for 17 counties
+2025-08-23 20:38:35,033 - INFO - STEP 4: Updating forecast data with hybrid NOAA + Open-Meteo
+2025-08-23 20:38:35,033 - INFO -    🚀 OPTIMIZED: Bulk extracting NOAA data for all beaches...
+2025-08-23 20:38:35,033 - INFO -    📍 Finding optimal grid points for all beaches...
+2025-08-23 20:38:35,033 - ERROR - ERROR: CRITICAL ERROR: name 'ds' is not defined
+2025-08-23 20:38:35,033 - INFO - DONE: Hybrid script finished with exit code: 1
+2025-08-23 20:41:52,205 - INFO - SURF: Starting HYBRID surf database update (NOAA + Open-Meteo)
+2025-08-23 20:41:52,205 - INFO - SURF: Tide adjustment: +2.4 feet
+2025-08-23 20:41:52,205 - INFO - SURF: Wave energy calculated in kJ (surf-forecast.com style)
+2025-08-23 20:41:52,205 - INFO - SURF: Primary data from NOAA GFSwave, supplemented with Open-Meteo
+2025-08-23 20:41:52,205 - INFO - SURF: DYNAMIC SWELL RANKING - Swells ranked by surf impact score
+2025-08-23 20:41:52,205 - INFO - STEP 1: Cleaning up old data
+2025-08-23 20:41:52,206 - INFO - DELETE: Deleting old forecast data...
+2025-08-23 20:41:56,100 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/forecast_data?timestamp=lt.2025-08-22T20%3A41%3A52.205992 "HTTP/2 500 Internal Server Error"
+2025-08-23 20:41:56,101 - WARNING -    Forecast deletion failed: {'message': 'canceling statement due to statement timeout', 'code': '57014', 'hint': None, 'details': None}, will use UPSERT
+2025-08-23 20:41:56,101 - INFO - DELETE: Deleting old daily conditions...
+2025-08-23 20:41:56,206 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/daily_county_conditions?date=lt.2025-08-22 "HTTP/2 200 OK"
+2025-08-23 20:41:56,318 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/daily_county_conditions?date=gte.2025-08-22 "HTTP/2 200 OK"
+2025-08-23 20:41:56,319 - INFO -    Daily conditions deleted successfully
+2025-08-23 20:41:56,319 - INFO - OK: Old data cleanup completed
+2025-08-23 20:41:56,319 - INFO - STEP 2: Fetching beach data
+2025-08-23 20:41:56,567 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=id%2CName%2CLATITUDE%2CLONGITUDE&offset=0&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 20:41:56,582 - INFO -    Fetched 1000 beaches (batch 1)
+2025-08-23 20:41:56,744 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=id%2CName%2CLATITUDE%2CLONGITUDE&offset=1000&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 20:41:56,748 - INFO -    Fetched 647 beaches (batch 2)
+2025-08-23 20:41:56,749 - INFO - OK: Found 1647 beaches with valid coordinates
+2025-08-23 20:41:56,749 - INFO - STEP 3: Calculating county centroids
+2025-08-23 20:41:56,893 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=COUNTY%2CLATITUDE%2CLONGITUDE&offset=0&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 20:41:57,034 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=COUNTY%2CLATITUDE%2CLONGITUDE&offset=1000&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-23 20:41:57,036 - INFO - OK: Calculated centroids for 17 counties
+2025-08-23 20:41:57,037 - INFO - STEP 4: Updating forecast data with hybrid NOAA + Open-Meteo
+2025-08-23 20:41:57,037 - INFO -    Loading NOAA GFSwave dataset...
+2025-08-23 20:41:57,037 - INFO -    🔍 Searching for available NOAA GFSwave dataset...
+2025-08-23 20:41:57,037 - INFO -    📅 Trying today's data: 20250824
+2025-08-23 20:41:57,037 - INFO -    🌐 Base URL: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave
+2025-08-23 20:41:57,037 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_00z
+2025-08-23 20:41:57,263 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_00z'
+2025-08-23 20:41:57,263 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_06z
+2025-08-23 20:41:57,362 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_06z'
+2025-08-23 20:41:57,362 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_12z
+2025-08-23 20:41:57,461 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_12z'
+2025-08-23 20:41:57,461 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_18z
+2025-08-23 20:41:57,562 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_18z'
+2025-08-23 20:41:57,563 - INFO -    🌐 Base URL: http://nomads.ncep.noaa.gov/dods/wave/gfswave
+2025-08-23 20:41:57,563 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_00z
+2025-08-23 20:41:57,668 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_00z'
+2025-08-23 20:41:57,668 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_06z
+2025-08-23 20:41:57,765 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_06z'
+2025-08-23 20:41:57,766 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_12z
+2025-08-23 20:41:57,865 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_12z'
+2025-08-23 20:41:57,866 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_18z
+2025-08-23 20:41:57,948 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_18z'
+2025-08-23 20:41:57,948 - INFO -    🌐 Base URL: https://nomads.ncep.noaa.gov/dods/wave/gfswave
+2025-08-23 20:41:57,948 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_00z
+2025-08-23 20:41:58,012 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_00z'
+2025-08-23 20:41:58,013 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_06z
+2025-08-23 20:41:58,081 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_06z'
+2025-08-23 20:41:58,081 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_12z
+2025-08-23 20:41:58,145 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_12z'
+2025-08-23 20:41:58,146 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_18z
+2025-08-23 20:41:58,208 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_18z'
+2025-08-23 20:41:58,209 - INFO -    📅 Trying yesterday's data: 20250823
+2025-08-23 20:41:58,209 - INFO -    🌐 Base URL: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave
+2025-08-23 20:41:58,209 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250823/gfswave.wcoast.0p16_18z
+2025-08-23 20:41:58,541 - INFO -       ✅ SUCCESS: 129 time steps, swell shape: (129, 151, 241)
+2025-08-23 20:41:58,541 - INFO -    ✅ FOUND: Using 20250823 18z (yesterday)
+2025-08-23 20:41:58,943 - INFO -    NOAA dataset loaded: 129 time steps
+2025-08-23 20:41:58,943 - INFO -    Available variables: ['dirpwsfc', 'htsgwsfc', 'perpwsfc', 'swdir_1', 'swdir_2', 'swdir_3', 'swell_1', 'swell_2', 'swell_3', 'swper_1', 'swper_2', 'swper_3', 'ugrdsfc', 'vgrdsfc', 'wdirsfc', 'windsfc', 'wvdirsfc', 'wvhgtsfc', 'wvpersfc']
+2025-08-23 20:41:58,943 - INFO -    🚀 OPTIMIZED: Bulk extracting NOAA data for all beaches...
+2025-08-23 20:41:58,943 - INFO -    📍 Finding optimal grid points for all beaches...
+2025-08-23 20:42:28,862 - WARNING -    ⚠️  No valid ocean point found for Humboldt Redwoods State Park
+2025-08-24 18:26:23,175 - INFO - SURF: Starting HYBRID surf database update (NOAA + Open-Meteo)
+2025-08-24 18:26:23,175 - INFO - SURF: Tide adjustment: +2.4 feet
+2025-08-24 18:26:23,175 - INFO - SURF: Wave energy calculated in kJ (surf-forecast.com style)
+2025-08-24 18:26:23,175 - INFO - SURF: Primary data from NOAA GFSwave, supplemented with Open-Meteo
+2025-08-24 18:26:23,175 - INFO - SURF: DYNAMIC SWELL RANKING - Swells ranked by surf impact score
+2025-08-24 18:26:23,175 - INFO - STEP 1: Cleaning up old data
+2025-08-24 18:26:23,176 - INFO - DELETE: Deleting old forecast data...
+2025-08-24 18:26:27,498 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/forecast_data?timestamp=lt.2025-08-23T18%3A26%3A23.176051 "HTTP/2 500 Internal Server Error"
+2025-08-24 18:26:27,499 - WARNING -    Forecast deletion failed: {'message': 'canceling statement due to statement timeout', 'code': '57014', 'hint': None, 'details': None}, will use UPSERT
+2025-08-24 18:26:27,500 - INFO - DELETE: Deleting old daily conditions...
+2025-08-24 18:26:27,670 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/daily_county_conditions?date=lt.2025-08-23 "HTTP/2 200 OK"
+2025-08-24 18:26:27,799 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/daily_county_conditions?date=gte.2025-08-23 "HTTP/2 200 OK"
+2025-08-24 18:26:27,801 - INFO -    Daily conditions deleted successfully
+2025-08-24 18:26:27,801 - INFO - OK: Old data cleanup completed
+2025-08-24 18:26:27,801 - INFO - STEP 2: Fetching beach data
+2025-08-24 18:26:28,065 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=id%2CName%2CLATITUDE%2CLONGITUDE&offset=0&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-24 18:26:28,087 - INFO -    Fetched 1000 beaches (batch 1)
+2025-08-24 18:26:28,230 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=id%2CName%2CLATITUDE%2CLONGITUDE&offset=1000&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-24 18:26:28,234 - INFO -    Fetched 647 beaches (batch 2)
+2025-08-24 18:26:28,235 - INFO - OK: Found 1647 beaches with valid coordinates
+2025-08-24 18:26:28,235 - INFO - STEP 3: Calculating county centroids
+2025-08-24 18:26:28,352 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=COUNTY%2CLATITUDE%2CLONGITUDE&offset=0&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-24 18:26:28,494 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=COUNTY%2CLATITUDE%2CLONGITUDE&offset=1000&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-24 18:26:28,496 - INFO - OK: Calculated centroids for 17 counties
+2025-08-24 18:26:28,496 - INFO - STEP 4: Updating forecast data with hybrid NOAA + Open-Meteo
+2025-08-24 18:26:28,497 - INFO -    Loading NOAA GFSwave dataset...
+2025-08-24 18:26:28,497 - INFO -    🔍 Searching for available NOAA GFSwave dataset...
+2025-08-24 18:26:28,497 - INFO -    📅 Trying today's data: 20250825
+2025-08-24 18:26:28,497 - INFO -    🌐 Base URL: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave
+2025-08-24 18:26:28,497 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_00z
+2025-08-24 18:26:34,114 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_00z'
+2025-08-24 18:26:34,115 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_06z
+2025-08-24 18:26:39,310 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_06z'
+2025-08-24 18:26:39,310 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_12z
+2025-08-24 18:26:44,545 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_12z'
+2025-08-24 18:26:44,545 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_18z
+2025-08-24 18:26:49,687 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_18z'
+2025-08-24 18:26:49,688 - INFO -    🌐 Base URL: http://nomads.ncep.noaa.gov/dods/wave/gfswave
+2025-08-24 18:26:49,688 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_00z
+2025-08-24 18:26:54,888 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_00z'
+2025-08-24 18:26:54,888 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_06z
+2025-08-24 18:27:00,020 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_06z'
+2025-08-24 18:27:00,020 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_12z
+2025-08-24 18:27:05,148 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_12z'
+2025-08-24 18:27:05,148 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_18z
+2025-08-24 18:27:10,573 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_18z'
+2025-08-24 18:27:10,573 - INFO -    🌐 Base URL: https://nomads.ncep.noaa.gov/dods/wave/gfswave
+2025-08-24 18:27:10,573 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_00z
+2025-08-24 18:27:15,727 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_00z'
+2025-08-24 18:27:15,728 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_06z
+2025-08-24 18:27:20,803 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_06z'
+2025-08-24 18:27:20,803 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_12z
+2025-08-24 18:27:25,914 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_12z'
+2025-08-24 18:27:25,914 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_18z
+2025-08-24 18:27:31,012 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_18z'
+2025-08-24 18:27:31,012 - INFO -    📅 Trying yesterday's data: 20250824
+2025-08-24 18:27:31,012 - INFO -    🌐 Base URL: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave
+2025-08-24 18:27:31,012 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_18z
+2025-08-24 18:28:39,890 - INFO - SURF: Starting HYBRID surf database update (NOAA + Open-Meteo)
+2025-08-24 18:28:39,890 - INFO - SURF: Tide adjustment: +2.4 feet
+2025-08-24 18:28:39,890 - INFO - SURF: Wave energy calculated in kJ (surf-forecast.com style)
+2025-08-24 18:28:39,890 - INFO - SURF: Primary data from NOAA GFSwave, supplemented with Open-Meteo
+2025-08-24 18:28:39,891 - INFO - SURF: DYNAMIC SWELL RANKING - Swells ranked by surf impact score
+2025-08-24 18:28:39,891 - INFO - STEP 1: Cleaning up old data
+2025-08-24 18:28:39,891 - INFO - DELETE: Deleting old forecast data...
+2025-08-24 18:28:43,540 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/forecast_data?timestamp=lt.2025-08-23T18%3A28%3A39.891173 "HTTP/2 500 Internal Server Error"
+2025-08-24 18:28:43,542 - WARNING -    Forecast deletion failed: {'message': 'canceling statement due to statement timeout', 'code': '57014', 'hint': None, 'details': None}, will use UPSERT
+2025-08-24 18:28:43,542 - INFO - DELETE: Deleting old daily conditions...
+2025-08-24 18:28:43,652 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/daily_county_conditions?date=lt.2025-08-23 "HTTP/2 200 OK"
+2025-08-24 18:28:43,761 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/daily_county_conditions?date=gte.2025-08-23 "HTTP/2 200 OK"
+2025-08-24 18:28:43,762 - INFO -    Daily conditions deleted successfully
+2025-08-24 18:28:43,762 - INFO - OK: Old data cleanup completed
+2025-08-24 18:28:43,763 - INFO - STEP 2: Fetching beach data
+2025-08-24 18:28:43,943 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=id%2CName%2CLATITUDE%2CLONGITUDE&offset=0&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-24 18:28:43,951 - INFO -    Fetched 1000 beaches (batch 1)
+2025-08-24 18:28:44,170 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=id%2CName%2CLATITUDE%2CLONGITUDE&offset=1000&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-24 18:28:44,174 - INFO -    Fetched 647 beaches (batch 2)
+2025-08-24 18:28:44,176 - INFO - OK: Found 1647 beaches with valid coordinates
+2025-08-24 18:28:44,177 - INFO - STEP 3: Calculating county centroids
+2025-08-24 18:28:44,314 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=COUNTY%2CLATITUDE%2CLONGITUDE&offset=0&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-24 18:28:44,428 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=COUNTY%2CLATITUDE%2CLONGITUDE&offset=1000&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-24 18:28:44,431 - INFO - OK: Calculated centroids for 17 counties
+2025-08-24 18:28:44,432 - INFO - STEP 4: Updating forecast data with hybrid NOAA + Open-Meteo
+2025-08-24 18:28:44,432 - INFO -    Loading NOAA GFSwave dataset...
+2025-08-24 18:28:44,432 - INFO -    🔍 Searching for available NOAA GFSwave dataset...
+2025-08-24 18:28:44,432 - INFO -    📅 Trying today's data: 20250825
+2025-08-24 18:28:44,432 - INFO -    🌐 Base URL: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave
+2025-08-24 18:28:44,433 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_00z
+2025-08-24 18:28:49,885 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_00z'
+2025-08-24 18:28:49,885 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_06z
+2025-08-24 18:28:55,044 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_06z'
+2025-08-24 18:28:55,044 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_12z
+2025-08-24 18:29:00,341 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_12z'
+2025-08-24 18:29:00,342 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_18z
+2025-08-24 18:29:05,449 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_18z'
+2025-08-24 18:29:05,450 - INFO -    🌐 Base URL: http://nomads.ncep.noaa.gov/dods/wave/gfswave
+2025-08-24 18:29:05,450 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_00z
+2025-08-24 18:29:10,574 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_00z'
+2025-08-24 18:29:10,574 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_06z
+2025-08-24 18:29:15,683 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_06z'
+2025-08-24 18:29:15,683 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_12z
+2025-08-24 18:29:20,793 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_12z'
+2025-08-24 18:29:20,793 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_18z
+2025-08-24 18:29:25,934 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_18z'
+2025-08-24 18:29:25,934 - INFO -    🌐 Base URL: https://nomads.ncep.noaa.gov/dods/wave/gfswave
+2025-08-24 18:29:25,934 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_00z
+2025-08-24 18:29:31,101 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_00z'
+2025-08-24 18:29:31,101 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_06z
+2025-08-24 18:29:36,201 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_06z'
+2025-08-24 18:29:36,201 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_12z
+2025-08-24 18:29:41,293 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_12z'
+2025-08-24 18:29:41,293 - INFO -       Testing: https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_18z
+2025-08-24 18:29:46,387 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'https://nomads.ncep.noaa.gov/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_18z'
+2025-08-24 18:29:46,387 - INFO -    📅 Trying yesterday's data: 20250824
+2025-08-24 18:29:46,388 - INFO -    🌐 Base URL: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave
+2025-08-24 18:29:46,388 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250824/gfswave.wcoast.0p16_18z
+2025-08-24 18:29:51,859 - INFO -       ✅ SUCCESS: 129 time steps, swell shape: (129, 151, 241)
+2025-08-24 18:29:51,859 - INFO -    ✅ FOUND: Using 20250824 18z (yesterday)
+2025-08-24 18:29:52,280 - INFO -    NOAA dataset loaded: 129 time steps
+2025-08-24 18:29:52,281 - INFO -    Available variables: ['dirpwsfc', 'htsgwsfc', 'perpwsfc', 'swdir_1', 'swdir_2', 'swdir_3', 'swell_1', 'swell_2', 'swell_3', 'swper_1', 'swper_2', 'swper_3', 'ugrdsfc', 'vgrdsfc', 'wdirsfc', 'windsfc', 'wvdirsfc', 'wvhgtsfc', 'wvpersfc']
+2025-08-24 18:29:52,281 - INFO -    🚀 OPTIMIZED: Bulk extracting NOAA data for all beaches...
+2025-08-24 18:29:52,281 - INFO -    📍 Finding optimal grid points for all beaches...
+2025-08-24 18:30:16,013 - WARNING -    ⚠️  No valid ocean point found for Humboldt Redwoods State Park
+2025-08-24 18:31:21,670 - WARNING -    ⚠️  No valid ocean point found for Los Padres National Forest / Ventana Wilderness
+2025-08-25 16:25:09,102 - INFO - SURF: Starting HYBRID surf database update (NOAA + Open-Meteo)
+2025-08-25 16:25:09,102 - INFO - SURF: Tide adjustment: +2.4 feet
+2025-08-25 16:25:09,102 - INFO - SURF: Wave energy calculated in kJ (surf-forecast.com style)
+2025-08-25 16:25:09,102 - INFO - SURF: Primary data from NOAA GFSwave, supplemented with Open-Meteo
+2025-08-25 16:25:09,102 - INFO - SURF: DYNAMIC SWELL RANKING - Swells ranked by surf impact score
+2025-08-25 16:25:09,102 - INFO - STEP 1: Cleaning up old data
+2025-08-25 16:25:09,103 - INFO - DELETE: Deleting old forecast data...
+2025-08-25 16:25:13,441 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/forecast_data?timestamp=lt.2025-08-24T16%3A25%3A09.103020 "HTTP/2 500 Internal Server Error"
+2025-08-25 16:25:13,446 - WARNING -    Forecast deletion failed: {'message': 'canceling statement due to statement timeout', 'code': '57014', 'hint': None, 'details': None}, will use UPSERT
+2025-08-25 16:25:13,446 - INFO - DELETE: Deleting old daily conditions...
+2025-08-25 16:25:13,623 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/daily_county_conditions?date=lt.2025-08-24 "HTTP/2 200 OK"
+2025-08-25 16:25:13,825 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/daily_county_conditions?date=gte.2025-08-24 "HTTP/2 200 OK"
+2025-08-25 16:25:13,826 - INFO -    Daily conditions deleted successfully
+2025-08-25 16:25:13,827 - INFO - OK: Old data cleanup completed
+2025-08-25 16:25:13,827 - INFO - STEP 2: Fetching beach data
+2025-08-25 16:25:14,136 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=id%2CName%2CLATITUDE%2CLONGITUDE&offset=0&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-25 16:25:14,143 - INFO -    Fetched 1000 beaches (batch 1)
+2025-08-25 16:25:14,265 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=id%2CName%2CLATITUDE%2CLONGITUDE&offset=1000&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-25 16:25:14,269 - INFO -    Fetched 647 beaches (batch 2)
+2025-08-25 16:25:14,270 - INFO - OK: Found 1647 beaches with valid coordinates
+2025-08-25 16:25:14,271 - INFO - STEP 3: Calculating county centroids
+2025-08-25 16:25:14,427 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=COUNTY%2CLATITUDE%2CLONGITUDE&offset=0&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-25 16:25:14,580 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=COUNTY%2CLATITUDE%2CLONGITUDE&offset=1000&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-25 16:25:14,583 - INFO - OK: Calculated centroids for 17 counties
+2025-08-25 16:25:14,583 - INFO - STEP 4: Updating forecast data with hybrid NOAA + Open-Meteo
+2025-08-25 16:25:14,584 - INFO -    Loading NOAA GFSwave dataset...
+2025-08-25 16:25:14,584 - INFO -    🔍 Searching for available NOAA GFSwave dataset...
+2025-08-25 16:25:14,584 - INFO -    📅 Trying today's data: 20250825
+2025-08-25 16:25:14,584 - INFO -    🌐 Base URL: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave
+2025-08-25 16:25:14,584 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250825/gfswave.wcoast.0p16_00z
+2025-08-25 16:25:20,500 - INFO -       ✅ SUCCESS: 129 time steps, swell shape: (129, 151, 241)
+2025-08-25 16:25:20,500 - INFO -    ✅ FOUND: Using 20250825 00z
+2025-08-25 16:25:21,000 - INFO -    NOAA dataset loaded: 129 time steps
+2025-08-25 16:25:21,000 - INFO -    Available variables: ['dirpwsfc', 'htsgwsfc', 'perpwsfc', 'swdir_1', 'swdir_2', 'swdir_3', 'swell_1', 'swell_2', 'swell_3', 'swper_1', 'swper_2', 'swper_3', 'ugrdsfc', 'vgrdsfc', 'wdirsfc', 'windsfc', 'wvdirsfc', 'wvhgtsfc', 'wvpersfc']
+2025-08-25 16:25:21,001 - INFO -    🚀 OPTIMIZED: Bulk extracting NOAA data for all beaches...
+2025-08-25 16:25:21,001 - INFO -    📍 Finding optimal grid points for all beaches...
+2025-08-25 16:25:48,539 - WARNING -    ⚠️  No valid ocean point found for Humboldt Redwoods State Park
+2025-08-26 19:37:55,697 - INFO - SURF: Starting RATE-LIMITED HYBRID surf database update (NOAA + Open-Meteo)
+2025-08-26 19:37:55,697 - INFO - SURF: Tide adjustment: +2.4 feet
+2025-08-26 19:37:55,698 - INFO - SURF: Wave energy calculated in kJ (surf-forecast.com style)
+2025-08-26 19:37:55,698 - INFO - SURF: Primary data from NOAA GFSwave, supplemented with Open-Meteo
+2025-08-26 19:37:55,698 - INFO - SURF: DYNAMIC SWELL RANKING - Swells ranked by surf impact score
+2025-08-26 19:37:55,698 - INFO - SURF: NOAA RATE LIMITING - 2.0s delays, 10.0s between groups
+2025-08-26 19:37:55,698 - INFO - STEP 1: Cleaning up old data
+2025-08-26 19:37:55,698 - INFO - DELETE: Deleting old forecast data...
+2025-08-26 19:37:57,109 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/forecast_data?timestamp=lt.2025-08-25T19%3A37%3A55.698608 "HTTP/2 200 OK"
+2025-08-26 19:37:57,274 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/forecast_data?timestamp=gte.2025-08-25T19%3A37%3A55.698608 "HTTP/2 200 OK"
+2025-08-26 19:37:57,275 - INFO -    Forecast data deleted successfully
+2025-08-26 19:37:57,275 - INFO - DELETE: Deleting old daily conditions...
+2025-08-26 19:37:57,367 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/daily_county_conditions?date=lt.2025-08-25 "HTTP/2 200 OK"
+2025-08-26 19:37:57,453 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/daily_county_conditions?date=gte.2025-08-25 "HTTP/2 200 OK"
+2025-08-26 19:37:57,454 - INFO -    Daily conditions deleted successfully
+2025-08-26 19:37:57,454 - INFO - OK: Old data cleanup completed
+2025-08-26 19:37:57,454 - INFO - STEP 2: Fetching beach data
+2025-08-26 19:37:57,806 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=id%2CName%2CLATITUDE%2CLONGITUDE&offset=0&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-26 19:37:57,814 - INFO -    Fetched 1000 beaches (batch 1)
+2025-08-26 19:37:58,031 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=id%2CName%2CLATITUDE%2CLONGITUDE&offset=1000&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-26 19:37:58,035 - INFO -    Fetched 647 beaches (batch 2)
+2025-08-26 19:37:58,037 - INFO - OK: Found 1647 beaches with valid coordinates
+2025-08-26 19:37:58,037 - INFO - STEP 3: Calculating county centroids
+2025-08-26 19:37:58,198 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=COUNTY%2CLATITUDE%2CLONGITUDE&offset=0&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-26 19:37:58,414 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=COUNTY%2CLATITUDE%2CLONGITUDE&offset=1000&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-26 19:37:58,416 - INFO - OK: Calculated centroids for 17 counties
+2025-08-26 19:37:58,417 - INFO - STEP 4: Updating forecast data with hybrid NOAA + Open-Meteo
+2025-08-26 19:37:58,417 - INFO -    Loading NOAA GFSwave dataset with rate limiting...
+2025-08-26 19:37:58,417 - INFO -    🔍 Searching for available NOAA GFSwave dataset (rate limited)...
+2025-08-26 19:37:58,417 - INFO -    📅 Trying today's data: 20250827
+2025-08-26 19:37:58,417 - INFO -    🌐 Base URL: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave
+2025-08-26 19:37:58,417 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250827/gfswave.wcoast.0p16_18z
+2025-08-26 19:37:58,930 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250827/gfswave.wcoast.0p16_18z'
+2025-08-26 19:38:03,930 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250827/gfswave.wcoast.0p16_12z
+2025-08-26 19:38:04,130 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250827/gfswave.wcoast.0p16_12z'
+2025-08-26 19:39:56,751 - INFO - SURF: Starting RATE-LIMITED HYBRID surf database update (NOAA + Open-Meteo)
+2025-08-26 19:39:56,751 - INFO - SURF: Tide adjustment: +2.4 feet
+2025-08-26 19:39:56,752 - INFO - SURF: Wave energy calculated in kJ (surf-forecast.com style)
+2025-08-26 19:39:56,752 - INFO - SURF: Primary data from NOAA GFSwave, supplemented with Open-Meteo
+2025-08-26 19:39:56,752 - INFO - SURF: DYNAMIC SWELL RANKING - Swells ranked by surf impact score
+2025-08-26 19:39:56,752 - INFO - SURF: NOAA RATE LIMITING - 2.0s delays, 10.0s between groups
+2025-08-26 19:39:56,752 - INFO - STEP 1: Cleaning up old data
+2025-08-26 19:39:56,752 - INFO - DELETE: Deleting old forecast data...
+2025-08-26 19:39:57,377 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/forecast_data?timestamp=lt.2025-08-25T19%3A39%3A56.752473 "HTTP/2 200 OK"
+2025-08-26 19:39:57,517 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/forecast_data?timestamp=gte.2025-08-25T19%3A39%3A56.752473 "HTTP/2 200 OK"
+2025-08-26 19:39:57,518 - INFO -    Forecast data deleted successfully
+2025-08-26 19:39:57,518 - INFO - DELETE: Deleting old daily conditions...
+2025-08-26 19:39:57,625 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/daily_county_conditions?date=lt.2025-08-25 "HTTP/2 200 OK"
+2025-08-26 19:39:57,683 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/daily_county_conditions?date=gte.2025-08-25 "HTTP/2 200 OK"
+2025-08-26 19:39:57,684 - INFO -    Daily conditions deleted successfully
+2025-08-26 19:39:57,684 - INFO - OK: Old data cleanup completed
+2025-08-26 19:39:57,684 - INFO - STEP 2: Fetching beach data
+2025-08-26 19:39:57,826 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=id%2CName%2CLATITUDE%2CLONGITUDE&offset=0&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-26 19:39:57,833 - INFO -    Fetched 1000 beaches (batch 1)
+2025-08-26 19:39:57,944 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=id%2CName%2CLATITUDE%2CLONGITUDE&offset=1000&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-26 19:39:57,949 - INFO -    Fetched 647 beaches (batch 2)
+2025-08-26 19:39:57,950 - INFO - OK: Found 1647 beaches with valid coordinates
+2025-08-26 19:39:57,950 - INFO - STEP 3: Calculating county centroids
+2025-08-26 19:39:58,059 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=COUNTY%2CLATITUDE%2CLONGITUDE&offset=0&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-26 19:39:58,113 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=COUNTY%2CLATITUDE%2CLONGITUDE&offset=1000&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-26 19:39:58,115 - INFO - OK: Calculated centroids for 17 counties
+2025-08-26 19:39:58,115 - INFO - STEP 4: Updating forecast data with hybrid NOAA + Open-Meteo
+2025-08-26 19:39:58,115 - INFO -    Loading NOAA GFSwave dataset with rate limiting...
+2025-08-26 19:39:58,116 - INFO -    🔍 Searching for available NOAA GFSwave dataset (rate limited)...
+2025-08-26 19:39:58,116 - INFO -    📅 Current UTC time: 2025-08-27 02:39 UTC
+2025-08-26 19:39:58,116 - INFO -    📅 Looking for dataset date: 20250827
+2025-08-26 19:39:58,116 - INFO -    📅 Trying today's data: 20250827
+2025-08-26 19:39:58,116 - INFO -    🌐 Base URL: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave
+2025-08-26 19:39:58,116 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250827/gfswave.wcoast.0p16_18z
+2025-08-26 19:39:58,367 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250827/gfswave.wcoast.0p16_18z'
+2025-08-26 19:40:03,367 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250827/gfswave.wcoast.0p16_12z
+2025-08-26 19:40:03,709 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250827/gfswave.wcoast.0p16_12z'
+2025-08-26 19:40:08,710 - INFO -    🌐 Base URL: http://nomads.ncep.noaa.gov/dods/wave/gfswave
+2025-08-26 19:40:08,710 - INFO -       Testing: http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250827/gfswave.wcoast.0p16_18z
+2025-08-26 19:40:09,104 - WARNING -       ❌ FAILED: [Errno -70] NetCDF: DAP server error: 'http://nomads.ncep.noaa.gov/dods/wave/gfswave/20250827/gfswave.wcoast.0p16_18z'
+2025-08-26 19:41:51,179 - INFO - SURF: Starting RATE-LIMITED HYBRID surf database update (NOAA + Open-Meteo)
+2025-08-26 19:41:51,180 - INFO - SURF: Tide adjustment: +2.4 feet
+2025-08-26 19:41:51,180 - INFO - SURF: Wave energy calculated in kJ (surf-forecast.com style)
+2025-08-26 19:41:51,180 - INFO - SURF: Primary data from NOAA GFSwave, supplemented with Open-Meteo
+2025-08-26 19:41:51,180 - INFO - SURF: DYNAMIC SWELL RANKING - Swells ranked by surf impact score
+2025-08-26 19:41:51,180 - INFO - SURF: NOAA RATE LIMITING - 2.0s delays, 10.0s between groups
+2025-08-26 19:41:51,180 - INFO - STEP 1: Cleaning up old data
+2025-08-26 19:41:51,180 - INFO - DELETE: Deleting old forecast data...
+2025-08-26 19:41:51,725 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/forecast_data?timestamp=lt.2025-08-25T19%3A41%3A51.180966 "HTTP/2 200 OK"
+2025-08-26 19:41:51,811 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/forecast_data?timestamp=gte.2025-08-25T19%3A41%3A51.180966 "HTTP/2 200 OK"
+2025-08-26 19:41:51,811 - INFO -    Forecast data deleted successfully
+2025-08-26 19:41:51,812 - INFO - DELETE: Deleting old daily conditions...
+2025-08-26 19:41:51,857 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/daily_county_conditions?date=lt.2025-08-25 "HTTP/2 200 OK"
+2025-08-26 19:41:51,901 - INFO - HTTP Request: DELETE https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/daily_county_conditions?date=gte.2025-08-25 "HTTP/2 200 OK"
+2025-08-26 19:41:51,902 - INFO -    Daily conditions deleted successfully
+2025-08-26 19:41:51,902 - INFO - OK: Old data cleanup completed
+2025-08-26 19:41:51,903 - INFO - STEP 2: Fetching beach data
+2025-08-26 19:41:52,031 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=id%2CName%2CLATITUDE%2CLONGITUDE&offset=0&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-26 19:41:52,039 - INFO -    Fetched 1000 beaches (batch 1)
+2025-08-26 19:41:52,151 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=id%2CName%2CLATITUDE%2CLONGITUDE&offset=1000&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-26 19:41:52,156 - INFO -    Fetched 647 beaches (batch 2)
+2025-08-26 19:41:52,157 - INFO - OK: Found 1647 beaches with valid coordinates
+2025-08-26 19:41:52,157 - INFO - STEP 3: Calculating county centroids
+2025-08-26 19:41:52,255 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=COUNTY%2CLATITUDE%2CLONGITUDE&offset=0&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-26 19:41:52,394 - INFO - HTTP Request: GET https://wborkytqlmkcgwzhsoiz.supabase.co/rest/v1/beaches?select=COUNTY%2CLATITUDE%2CLONGITUDE&offset=1000&limit=1000 "HTTP/2 206 Partial Content"
+2025-08-26 19:41:52,396 - INFO - OK: Calculated centroids for 17 counties
+2025-08-26 19:41:52,396 - INFO - STEP 4: Updating forecast data with hybrid NOAA + Open-Meteo
+2025-08-26 19:41:52,397 - INFO -    Loading NOAA GFSwave dataset with rate limiting...
+2025-08-26 19:41:52,397 - INFO -    🔍 Searching for available NOAA GFSwave dataset (rate limited)...
+2025-08-26 19:41:52,397 - INFO -    🕐 Current UTC time: 2025-08-27T02:41:52.397796+00:00
+2025-08-26 19:41:52,397 - INFO -    📅 Calculated today's date string: 20250827
+2025-08-26 19:41:52,398 - INFO -    📅 Expected: 20250826, Got: 20250827
+2025-08-26 19:41:52,398 - WARNING -    ⚠️  Date mismatch! Expected 20250826, got 20250827
+2025-08-26 19:41:52,398 - WARNING -    ⚠️  System timezone might be affecting UTC calculation
+2025-08-26 19:41:52,398 - INFO -    🔧 FORCED today's date to: 20250826
+2025-08-26 19:41:52,398 - INFO -    📅 Using dataset date: 20250826
+2025-08-26 19:41:52,398 - INFO -    📅 Trying today's data: 20250826
+2025-08-26 19:41:52,398 - INFO -    🌐 Base URL: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave
+2025-08-26 19:41:52,399 - INFO -    🔗 Testing URL: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250826/gfswave.wcoast.0p16_18z
+2025-08-26 19:41:52,399 - INFO -       Testing: http://nomads.ncep.noaa.gov:80/dods/wave/gfswave/20250826/gfswave.wcoast.0p16_18z
+2025-08-26 19:41:53,087 - INFO -       ✅ SUCCESS: 129 time steps, swell shape: (129, 151, 241)
+2025-08-26 19:41:53,088 - INFO -    ✅ FOUND: Using 20250826 18z
+2025-08-26 19:41:54,857 - INFO -    NOAA dataset loaded: 129 time steps
+2025-08-26 19:41:54,857 - INFO -    Available variables: ['dirpwsfc', 'htsgwsfc', 'perpwsfc', 'swdir_1', 'swdir_2', 'swdir_3', 'swell_1', 'swell_2', 'swell_3', 'swper_1', 'swper_2', 'swper_3', 'ugrdsfc', 'vgrdsfc', 'wdirsfc', 'windsfc', 'wvdirsfc', 'wvhgtsfc', 'wvpersfc']
+2025-08-26 19:41:54,858 - INFO -    🚀 RATE-LIMITED: Bulk extracting NOAA data for all beaches...
+2025-08-26 19:41:54,858 - INFO -    📍 Grouping beaches by location to minimize server requests...
+2025-08-26 19:41:54,860 - INFO -    📊 Grouped 1647 beaches into 219 location groups
+2025-08-26 19:41:54,862 - INFO -    📥 Loading location group 1/219: 34.0,-118.5 (serves 27 beaches)...
+2025-08-26 19:42:13,964 - INFO -    ✅ Location 34.0,-118.5 loaded successfully
+2025-08-26 19:42:13,965 - INFO -    ⏱️  Rate limiting: waiting 10.0s before next location...
+2025-08-26 19:42:23,965 - INFO -    📥 Loading location group 2/219: 33.8,-118.4 (serves 21 beaches)...
+2025-08-26 19:42:37,683 - INFO -    ✅ Location 33.8,-118.4 loaded successfully
+2025-08-26 19:42:37,683 - INFO -    ⏱️  Rate limiting: waiting 10.0s before next location...
+2025-08-26 19:42:47,683 - INFO -    📥 Loading location group 3/219: 33.3,-117.4 (serves 1 beaches)...
+2025-08-26 19:43:01,182 - INFO -    ✅ Location 33.3,-117.4 loaded successfully
+2025-08-26 19:43:01,183 - INFO -    ⏱️  Rate limiting: waiting 10.0s before next location...
+2025-08-26 19:43:11,183 - INFO -    📥 Loading location group 4/219: 32.6,-117.1 (serves 18 beaches)...
+2025-08-26 19:43:25,246 - INFO -    ✅ Location 32.6,-117.1 loaded successfully
+2025-08-26 19:43:25,246 - INFO -    ⏱️  Rate limiting: waiting 10.0s before next location...
+2025-08-26 19:43:35,247 - INFO -    📥 Loading location group 5/219: 32.5,-117.1 (serves 2 beaches)...
+2025-08-26 19:43:48,013 - INFO -    ✅ Location 32.5,-117.1 loaded successfully
+2025-08-26 19:43:48,013 - INFO -    ⏱️  Rate limiting: waiting 10.0s before next location...
+2025-08-26 19:43:58,013 - INFO -    📥 Loading location group 6/219: 40.9,-124.1 (serves 8 beaches)...
+2025-08-26 19:43:58,971 - WARNING -    ⚠️  No valid ocean point for location 40.9,-124.1
+2025-08-26 19:43:58,971 - INFO -    📥 Loading location group 7/219: 42.0,-124.2 (serves 2 beaches)...
+2025-08-26 19:44:16,426 - INFO -    ✅ Location 42.0,-124.2 loaded successfully
+2025-08-26 19:44:16,426 - INFO -    ⏱️  Rate limiting: waiting 10.0s before next location...
+2025-08-26 19:44:26,427 - INFO -    📥 Loading location group 8/219: 41.9,-124.2 (serves 4 beaches)...
+2025-08-26 19:44:39,046 - INFO -    ✅ Location 41.9,-124.2 loaded successfully
+2025-08-26 19:44:39,046 - INFO -    ⏱️  Rate limiting: waiting 10.0s before next location...
+2025-08-26 19:44:49,046 - INFO -    📥 Loading location group 9/219: 41.9,-124.1 (serves 2 beaches)...
+2025-08-26 19:44:49,926 - WARNING -    ⚠️  No valid ocean point for location 41.9,-124.1
+2025-08-26 19:44:49,926 - INFO -    📥 Loading location group 10/219: 41.8,-124.2 (serves 12 beaches)...
+2025-08-26 19:45:04,776 - INFO -    ✅ Location 41.8,-124.2 loaded successfully
+2025-08-26 19:45:04,776 - INFO -    ⏱️  Rate limiting: waiting 10.0s before next location...
+2025-08-26 19:45:14,776 - INFO -    📥 Loading location group 11/219: 41.8,-124.3 (serves 1 beaches)...
+2025-08-26 19:45:27,452 - INFO -    ✅ Location 41.8,-124.3 loaded successfully
+2025-08-26 19:45:27,452 - INFO -    ⏱️  Rate limiting: waiting 10.0s before next location...
+2025-08-26 19:45:37,453 - INFO -    📥 Loading location group 12/219: 41.8,-124.1 (serves 1 beaches)...
+2025-08-26 19:45:50,572 - INFO -    ✅ Location 41.8,-124.1 loaded successfully
+2025-08-26 19:45:50,572 - INFO -    ⏱️  Rate limiting: waiting 10.0s before next location...
+2025-08-26 19:46:00,573 - INFO -    📥 Loading location group 13/219: 41.8,-124.0 (serves 1 beaches)...
+2025-08-26 19:46:01,578 - WARNING -    ⚠️  No valid ocean point for location 41.8,-124.0
+2025-08-26 19:46:01,579 - INFO -    📥 Loading location group 14/219: 41.7,-124.2 (serves 12 beaches)...
+2025-08-26 19:46:19,737 - INFO -    ✅ Location 41.7,-124.2 loaded successfully
+2025-08-26 19:46:19,738 - INFO -    ⏱️  Rate limiting: waiting 10.0s before next location...
+2025-08-26 19:46:29,738 - INFO -    📥 Loading location group 15/219: 41.5,-124.1 (serves 6 beaches)...
+2025-08-26 19:46:42,426 - INFO -    ✅ Location 41.5,-124.1 loaded successfully
+2025-08-26 19:46:42,427 - INFO -    ⏱️  Rate limiting: waiting 10.0s before next location...
+2025-08-26 19:46:52,427 - INFO -    📥 Loading location group 16/219: 41.7,-124.1 (serves 5 beaches)...
+2025-08-26 19:47:05,681 - INFO -    ✅ Location 41.7,-124.1 loaded successfully
+2025-08-26 19:47:05,681 - INFO -    ⏱️  Rate limiting: waiting 10.0s before next location...
+2025-08-26 19:47:15,682 - INFO -    📥 Loading location group 17/219: 41.6,-124.1 (serves 4 beaches)...
+2025-08-26 19:47:28,451 - INFO -    ✅ Location 41.6,-124.1 loaded successfully
+2025-08-26 19:47:28,452 - INFO -    ⏱️  Rate limiting: waiting 10.0s before next location...
+2025-08-26 19:47:38,452 - INFO -    📥 Loading location group 18/219: 41.5,-124.0 (serves 2 beaches)...
+2025-08-26 19:47:51,747 - INFO -    ✅ Location 41.5,-124.0 loaded successfully
+2025-08-26 19:47:51,748 - INFO -    ⏱️  Rate limiting: waiting 10.0s before next location...
+2025-08-26 19:48:01,748 - INFO -    📥 Loading location group 19/219: 41.3,-124.0 (serves 4 beaches)...
+2025-08-26 19:48:14,418 - INFO -    ✅ Location 41.3,-124.0 loaded successfully
+2025-08-26 19:48:14,419 - INFO -    ⏱️  Rate limiting: waiting 10.0s before next location...
+2025-08-26 19:48:24,419 - INFO -    📥 Loading location group 20/219: 41.4,-124.0 (serves 3 beaches)...
+2025-08-26 19:48:37,480 - INFO -    ✅ Location 41.4,-124.0 loaded successfully
+2025-08-26 19:48:37,480 - INFO -    ⏱️  Rate limiting: waiting 10.0s before next location...
+2025-08-26 19:48:47,481 - INFO -    📥 Loading location group 21/219: 41.4,-124.1 (serves 5 beaches)...
+2025-08-26 19:49:00,553 - INFO -    ✅ Location 41.4,-124.1 loaded successfully
+2025-08-26 19:49:00,554 - INFO -    ⏱️  Rate limiting: waiting 10.0s before next location...
+2025-08-26 19:49:10,555 - INFO -    📥 Loading location group 22/219: 41.3,-124.1 (serves 5 beaches)...
+2025-08-26 19:49:23,573 - INFO -    ✅ Location 41.3,-124.1 loaded successfully
+2025-08-26 19:49:23,573 - INFO -    ⏱️  Rate limiting: waiting 10.0s before next location...
+2025-08-26 19:49:33,574 - INFO -    📥 Loading location group 23/219: 41.2,-124.1 (serves 5 beaches)...
+2025-08-26 19:49:46,513 - INFO -    ✅ Location 41.2,-124.1 loaded successfully
+2025-08-26 19:49:46,514 - INFO -    ⏱️  Rate limiting: waiting 10.0s before next location...
+2025-08-26 19:49:56,515 - INFO -    📥 Loading location group 24/219: 41.1,-124.2 (serves 4 beaches)...
+2025-08-26 19:50:09,714 - INFO -    ✅ Location 41.1,-124.2 loaded successfully
+2025-08-26 19:50:09,715 - INFO -    ⏱️  Rate limiting: waiting 10.0s before next location...
+2025-08-26 19:50:19,715 - INFO -    📥 Loading location group 25/219: 41.1,-124.1 (serves 5 beaches)...
+2025-08-26 19:50:32,774 - INFO -    ✅ Location 41.1,-124.1 loaded successfully
+2025-08-26 19:50:32,774 - INFO -    ⏱️  Rate limiting: waiting 10.0s before next location...
+2025-08-26 19:50:42,775 - INFO -    📥 Loading location group 26/219: 41.0,-124.1 (serves 7 beaches)...
+2025-08-26 19:50:55,981 - INFO -    ✅ Location 41.0,-124.1 loaded successfully
+2025-08-26 19:50:55,981 - INFO -    ⏱️  Rate limiting: waiting 10.0s before next location...
+2025-08-26 19:51:05,982 - INFO -    📥 Loading location group 27/219: 40.8,-124.2 (serves 18 beaches)...
+2025-08-26 19:51:19,762 - INFO -    ✅ Location 40.8,-124.2 loaded successfully
+2025-08-26 19:51:19,763 - INFO -    ⏱️  Rate limiting: waiting 10.0s before next location...
+2025-08-26 19:51:29,763 - INFO -    📥 Loading location group 28/219: 40.8,-124.1 (serves 6 beaches)...
+2025-08-26 19:51:30,613 - WARNING -    ⚠️  No valid ocean point for location 40.8,-124.1
+2025-08-26 19:51:30,613 - INFO -    📥 Loading location group 29/219: 40.9,-124.2 (serves 4 beaches)...
+2025-08-26 19:51:45,388 - INFO -    ✅ Location 40.9,-124.2 loaded successfully
+2025-08-26 19:51:45,388 - INFO -    ⏱️  Rate limiting: waiting 10.0s before next location...

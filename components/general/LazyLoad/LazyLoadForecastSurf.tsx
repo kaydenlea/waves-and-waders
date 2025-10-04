@@ -1,8 +1,11 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import React from "react";
 
-export const LazyLoadForecastSurf = dynamic(
+type Props = { beachId?: string };
+
+const ForecastSurfChart = dynamic<React.ComponentProps<any>>(
   () => import("../../graphs/ForecastSurfChart"),
   {
     ssr: false,
@@ -11,3 +14,7 @@ export const LazyLoadForecastSurf = dynamic(
     ),
   }
 );
+
+export const LazyLoadForecastSurf: React.FC<Props> = (props) => {
+  return <ForecastSurfChart {...props} />;
+};

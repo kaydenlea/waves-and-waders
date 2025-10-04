@@ -1,18 +1,34 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import React from "react";
 
-export const LazyLoadTable = dynamic(() => import("../../visuals/StatTable"), {
-  ssr: false,
-  loading: () => (
-    <div className="rounded-2xl border border-border bg-highlight-2 p-4">
-      <ul>
-        {Array.from({ length: 8 }).map((_, rowIdx) => (
-          <li key={rowIdx} className="p-2">
-            <div className="h-10 w-full rounded bg-highlight-3" />
-          </li>
-        ))}
-      </ul>
-    </div>
-  ),
-});
+type Props = {
+  beachId?: string;
+  numHours: number;
+  numDays: number;
+  header?: boolean;
+  date?: Date;
+};
+
+const StatTable = dynamic<React.ComponentProps<any>>(
+  () => import("../../visuals/StatTable"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="rounded-2xl border border-border bg-highlight-2 p-4">
+        <ul>
+          {Array.from({ length: 8 }).map((_, rowIdx) => (
+            <li key={rowIdx} className="p-2">
+              <div className="h-10 w-full rounded bg-highlight-3" />
+            </li>
+          ))}
+        </ul>
+      </div>
+    ),
+  }
+);
+
+export const LazyLoadTable: React.FC<Props> = (props) => {
+  return <StatTable {...props} />;
+};

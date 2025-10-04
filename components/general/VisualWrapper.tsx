@@ -10,9 +10,14 @@ import {
   Sun,
   Waves,
   Wind,
+  MapPin,
 } from "lucide-react";
 
 const iconMap: Record<string, { icon: React.ReactNode; bgColor: string }> = {
+  map: {
+    icon: <MapPin size={16} className="text-green-700" />,
+    bgColor: "bg-green-100",
+  },
   wind: {
     icon: <Wind size={16} className="text-gray-700" />,
     bgColor: "bg-gray-50",
@@ -57,6 +62,7 @@ const VisualWrapper = ({
   unit?: string;
 }) => {
   const lowerCaseLabel = label.toLowerCase();
+  const iconDef = iconMap[lowerCaseLabel] ?? { icon: <CircleGauge size={16} className="text-gray-600" />, bgColor: "bg-gray-100" };
   return (
     <figure className="relative flex-1">
       <div className="bg-highlight-4 border border-border/40 rounded-2xl shadow-sm h-full w-full">
@@ -66,10 +72,10 @@ const VisualWrapper = ({
               <div
                 className={cn(
                   "rounded-full flex items-center justify-center p-1 border border-border",
-                  iconMap[lowerCaseLabel].bgColor
+                  iconDef.bgColor
                 )}
               >
-                {iconMap[lowerCaseLabel].icon}
+                {iconDef.icon}
               </div>
               <h3 className="leading-none font-semibold text-xl">{label}</h3>
             </div>
