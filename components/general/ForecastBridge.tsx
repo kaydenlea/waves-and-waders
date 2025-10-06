@@ -7,13 +7,19 @@ import { LazyLoadForecastTide } from "@/components/general/LazyLoad/LazyLoadFore
 import { LazyLoadTable } from "@/components/general/LazyLoad/LazyLoadTable";
 import Link from "next/link";
 import { Pencil } from "lucide-react";
+import { useDateContext } from "../context/DateContext";
+import dayjs from "dayjs";
+import { LazyLoadForecastWaveEnergy } from "./LazyLoad/LazyLoadForecastWaveEnergy";
+import { LazyLoadForecastSurf } from "./LazyLoad/LazyLoadForecastSurf";
+import { LazyLoadForecastWind } from "./LazyLoad/LazyLoadForecastWind";
 
 type Props = { beachId: string };
 
 const ForecastBridge: React.FC<Props> = ({ beachId }) => {
-  const [selected, setSelected] = React.useState<Date | null>(null);
+  const [selected, setSelected] = React.useState<Date | null>(dayjs().toDate());
+  const { selectedDays } = useDateContext();
   return (
-    <>
+    <section className="flex flex-col gap-4 mb-2">
       <section>
         <h2 className="ml-2 text-muted-foreground text-lg">Weekly Forecast</h2>
         <LazyLoadDatePicker
@@ -44,7 +50,10 @@ const ForecastBridge: React.FC<Props> = ({ beachId }) => {
         </header>
       </section>
       <VisualWrapper label="Tide" unit="ft">
-        <LazyLoadForecastTide beachId={beachId} date={selected ?? undefined} />
+        <LazyLoadForecastTide
+          beachId={beachId}
+          date={selectedDays?.[0] ?? undefined}
+        />
       </VisualWrapper>
       <VisualWrapper label="Hourly Stats">
         <LazyLoadTable
@@ -55,7 +64,18 @@ const ForecastBridge: React.FC<Props> = ({ beachId }) => {
           date={selected ?? undefined}
         />
       </VisualWrapper>
-    </>
+      <div className="flex flex-col @min-3xl:flex-row gap-3">
+        <VisualWrapper label="Surf" unit="ft">
+          <LazyLoadForecastSurf beachId={beachId} />
+        </VisualWrapper>
+        <VisualWrapper label="Wind" unit="mph">
+          <LazyLoadForecastWind beachId={beachId} />
+        </VisualWrapper>
+      </div>
+      <VisualWrapper label="Wave Energy" unit="kJ">
+        <LazyLoadForecastWaveEnergy beachId={beachId} />
+      </VisualWrapper>
+    </section>
   );
 };
 

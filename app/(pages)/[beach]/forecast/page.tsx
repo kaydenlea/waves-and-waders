@@ -42,33 +42,6 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
           </h1>
         </header>
         <ForecastBridge beachId={beachId} />
-        <section className="flex flex-col gap-4 mb-2">
-          <VisualWrapper label="Wave Energy" unit="kJ">
-            <LazyLoadForecastWaveEnergy beachId={beachId} />
-          </VisualWrapper>
-          <div className="flex flex-col @min-3xl:flex-row gap-3">
-            <VisualWrapper label="Surf" unit="ft">
-              <LazyLoadForecastSurf beachId={beachId} />
-            </VisualWrapper>
-            <VisualWrapper label="Wind" unit="mph">
-              <LazyLoadForecastWind beachId={beachId} />
-            </VisualWrapper>
-          </div>
-          {/* <figure className="relative h-full bg-highlight-4 border border-border/40 p-2 rounded-2xl shadow-sm">
-          <header className="mx-3 mt-3 mb-2">
-            <h3 className="leading-none font-semibold">Weekly Statistics</h3>
-            <span className="text-muted-foreground text-sm">
-              Hourly stats for the week
-            </span>
-          </header>
-          <header className="absolute top-0 left-0 rounded-t-2xl flex gap-1 items-center p-5 bg-highlight-5 w-full shadow-md">
-            <h3 className="leading-none font-semibold text-xl">Hourly Stats</h3>
-          </header>
-          <div className="mt-1">
-            <LazyLoadTable numHours={3} numDays={7} header />
-          </div>
-        </figure> */}
-        </section>
       </div>
     </>
   );

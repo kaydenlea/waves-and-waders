@@ -10,7 +10,7 @@ const SwellStat = ({
   data: {
     height: number;
     period: number;
-    wind: { dir: string; deg: number };
+    wind: { dir: string; deg?: number };
   };
   small?: boolean;
 }) => {
@@ -46,7 +46,7 @@ const SwellStat = ({
       className={cn(
         "flex items-center justify-center",
         primary
-          ? "border border-border shadow-sm rounded-md px-0.5 gap-1"
+          ? "border border-border shadow-sm rounded-md px-1.5 gap-1"
           : "gap-1"
       )}
     >
@@ -80,7 +80,7 @@ const SwellStat = ({
                 primary ? "text-[0.7rem]" : "text-[0.6rem]"
               )}
             >
-              {stat.unit}
+              {stat.label !== "swell wind" && stat.unit}
             </span>
           </span>
         );

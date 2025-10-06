@@ -2,9 +2,19 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useMapFilters } from "@/components/context/MapFilterContext";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import BeachCard, {
   type Beach as UIBeach,
 } from "@/components/general/BeachCard";
+import { cn } from "@/lib/utils";
 
 type DbBeach = {
   id: string | number;
@@ -40,20 +50,23 @@ export default function NearbyBeaches({ beaches }: { beaches: DbBeach[] }) {
   const { filters } = useMapFilters();
   const initialList: UIBeach[] = useMemo(
     () =>
-      (beaches || []).map((b) => ({
-        id: String(b.id),
-        name: b.Name,
-        region: b.COUNTY ?? "",
-        coords: [Number(b.LATITUDE), Number(b.LONGITUDE)],
-        image:
-          "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1600&auto=format&fit=crop",
-        conditions: {
-          surf: "-",
-          wind: "-",
-          temp: 0,
-          rating: 0,
-        },
-      })),
+      (beaches || []).map(
+        (b) =>
+          ({
+            id: String(b.id),
+            name: b.Name,
+            region: b.COUNTY ?? "",
+            coords: [Number(b.LATITUDE), Number(b.LONGITUDE)],
+            image:
+              "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1600&auto=format&fit=crop",
+            conditions: {
+              surf: "-",
+              wind: "-",
+              temp: 0,
+              rating: 0,
+            },
+          } satisfies UIBeach)
+      ),
     [beaches]
   );
 
@@ -63,8 +76,11 @@ export default function NearbyBeaches({ beaches }: { beaches: DbBeach[] }) {
     "idle" | "locating" | "granted" | "denied" | "unavailable"
   >("idle");
 
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
+
+  // Load richer beach data
   useEffect(() => {
-    // Load richer beach data (with features) to enable filtering like the map
     let cancelled = false;
     const load = async () => {
       try {
@@ -79,35 +95,39 @@ export default function NearbyBeaches({ beaches }: { beaches: DbBeach[] }) {
     };
   }, []);
 
+  // Filtering + sorting
   useEffect(() => {
-    if (!navigator?.geolocation) {
-      setStatus("unavailable");
-      // Still apply filter without location
-      const base = (apiBeaches ?? []).length
-        ? apiBeaches!
-        : (beaches || []).map(
-            (b) =>
-              ({
-                id: b.id,
-                name: b.Name,
-                county: b.COUNTY,
-                latitude: b.LATITUDE,
-                longitude: b.LONGITUDE,
-              } as any)
-          );
-      const filtered = base.filter((b: any) => {
+    const base = (apiBeaches ?? []).length
+      ? apiBeaches!
+      : (beaches || []).map(
+          (b) =>
+            ({
+              id: b.id,
+              name: b.Name,
+              county: b.COUNTY,
+              latitude: b.LATITUDE,
+              longitude: b.LONGITUDE,
+            } as ApiBeach)
+        );
+
+    const applyFilters = (list: ApiBeach[]) =>
+      list.filter((b) => {
         if (!filters.size) return true;
         const feats = (b.features ?? {}) as Record<string, boolean>;
         for (const k of filters) if (!feats[k]) return false;
         return true;
       });
-      const toUi = filtered.map((b: any) => ({
+
+    if (!navigator?.geolocation) {
+      setStatus("unavailable");
+      const filtered = applyFilters(base);
+      const toUi: UIBeach[] = filtered.map((b) => ({
         id: String(b.id),
-        name: b.name ?? b.Name,
-        region: b.county ?? b.COUNTY ?? "",
+        name: b.name ?? (b as any).Name,
+        region: b.county ?? (b as any).COUNTY ?? "",
         coords: [
-          Number(b.latitude ?? b.LATITUDE),
-          Number(b.longitude ?? b.LONGITUDE),
+          Number(b.latitude ?? (b as any).LATITUDE),
+          Number(b.longitude ?? (b as any).LONGITUDE),
         ],
         image:
           "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1600&auto=format&fit=crop",
@@ -116,6 +136,7 @@ export default function NearbyBeaches({ beaches }: { beaches: DbBeach[] }) {
       setSorted(toUi);
       return;
     }
+
     setStatus("locating");
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -123,38 +144,21 @@ export default function NearbyBeaches({ beaches }: { beaches: DbBeach[] }) {
           pos.coords.latitude,
           pos.coords.longitude,
         ];
-        const base = (apiBeaches ?? []).length
-          ? apiBeaches!
-          : (beaches || []).map(
-              (b) =>
-                ({
-                  id: b.id,
-                  name: b.Name,
-                  county: b.COUNTY,
-                  latitude: b.LATITUDE,
-                  longitude: b.LONGITUDE,
-                } as any)
-            );
-        const filtered = base.filter((b: any) => {
-          if (!filters.size) return true;
-          const feats = (b.features ?? {}) as Record<string, boolean>;
-          for (const k of filters) if (!feats[k]) return false;
-          return true;
-        });
-        const withDistance = filtered.map((b: any) => ({
+        const filtered = applyFilters(base);
+        const withDistance: UIBeach[] = filtered.map((b) => ({
           id: String(b.id),
-          name: b.name ?? b.Name,
-          region: b.county ?? b.COUNTY ?? "",
+          name: b.name ?? (b as any).Name,
+          region: b.county ?? (b as any).COUNTY ?? "",
           coords: [
-            Number(b.latitude ?? b.LATITUDE),
-            Number(b.longitude ?? b.LONGITUDE),
-          ] as [number, number],
+            Number(b.latitude ?? (b as any).LATITUDE),
+            Number(b.longitude ?? (b as any).LONGITUDE),
+          ],
           image:
             "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1600&auto=format&fit=crop",
           conditions: { surf: "-", wind: "-", temp: 0, rating: 0 },
           distanceKm: haversineKm(origin, [
-            Number(b.latitude ?? b.LATITUDE),
-            Number(b.longitude ?? b.LONGITUDE),
+            Number(b.latitude ?? (b as any).LATITUDE),
+            Number(b.longitude ?? (b as any).LONGITUDE),
           ]),
         }));
         withDistance.sort(
@@ -165,32 +169,14 @@ export default function NearbyBeaches({ beaches }: { beaches: DbBeach[] }) {
       },
       () => {
         setStatus("denied");
-        // Fall back to filtered list without sorting by distance
-        const base = (apiBeaches ?? []).length
-          ? apiBeaches!
-          : (beaches || []).map(
-              (b) =>
-                ({
-                  id: b.id,
-                  name: b.Name,
-                  county: b.COUNTY,
-                  latitude: b.LATITUDE,
-                  longitude: b.LONGITUDE,
-                } as any)
-            );
-        const filtered = base.filter((b: any) => {
-          if (!filters.size) return true;
-          const feats = (b.features ?? {}) as Record<string, boolean>;
-          for (const k of filters) if (!feats[k]) return false;
-          return true;
-        });
-        const toUi = filtered.map((b: any) => ({
+        const filtered = applyFilters(base);
+        const toUi: UIBeach[] = filtered.map((b) => ({
           id: String(b.id),
-          name: b.name ?? b.Name,
-          region: b.county ?? b.COUNTY ?? "",
+          name: b.name ?? (b as any).Name,
+          region: b.county ?? (b as any).COUNTY ?? "",
           coords: [
-            Number(b.latitude ?? b.LATITUDE),
-            Number(b.longitude ?? b.LONGITUDE),
+            Number(b.latitude ?? (b as any).LATITUDE),
+            Number(b.longitude ?? (b as any).LONGITUDE),
           ],
           image:
             "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1600&auto=format&fit=crop",
@@ -202,23 +188,135 @@ export default function NearbyBeaches({ beaches }: { beaches: DbBeach[] }) {
     );
   }, [initialList, filters, apiBeaches]);
 
+  const totalPages = Math.ceil(sorted.length / perPage);
+  const currentItems = sorted.slice((page - 1) * perPage, page * perPage);
+
+  const handlePrev = () => setPage((p) => Math.max(1, p - 1));
+  const handleNext = () => setPage((p) => Math.min(totalPages, p + 1));
+
+  // Build pagination range with ellipses
+  const getPageNumbers = () => {
+    const delta = 1;
+    const pages: (number | string)[] = [];
+    const range = [];
+
+    for (
+      let i = Math.max(2, page - delta);
+      i <= Math.min(totalPages - 1, page + delta);
+      i++
+    ) {
+      range.push(i);
+    }
+
+    if (page - delta > 2) {
+      range.unshift("…");
+    }
+    if (page + delta < totalPages - 1) {
+      range.push("…");
+    }
+
+    if (totalPages >= 1) pages.push(1);
+    pages.push(...range);
+    if (totalPages > 1) pages.push(totalPages);
+
+    return pages;
+  };
+
   return (
     <>
-      {status === "locating" && (
-        <div className="text-sm text-foreground/70 mb-2 ml-2">
-          Finding your location…
+      <div className="flex mb-4 ml-2 items-center justify-between">
+        {status === "locating" && (
+          <div className="text-sm text-foreground/70">
+            Finding your location…
+          </div>
+        )}
+        {status === "denied" && (
+          <div className="text-sm text-foreground/70">
+            Location denied. Showing unsorted beaches.
+          </div>
+        )}
+        {/* Per Page Dropdown */}
+        <div className="flex items-center gap-2">
+          <label htmlFor="perPage" className="text-sm text-gray-600">
+            Per page:
+          </label>
+          <select
+            id="perPage"
+            value={perPage}
+            onChange={(e) => {
+              setPerPage(Number(e.target.value));
+              setPage(1);
+            }}
+            className="rounded-md border px-2 py-1 text-sm hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+          </select>
         </div>
-      )}
-      {status === "denied" && (
-        <div className="text-sm text-foreground/70 mb-2 ml-2">
-          Location denied. Showing unsorted beaches.
-        </div>
-      )}
-      <section className="grid grid-cols-1 gap-3 @min-md:grid-cols-2 mb-2">
-        {sorted.map((b) => (
+      </div>
+
+      <section className="grid grid-cols-1 gap-3 @min-md:grid-cols-2 mb-4">
+        {currentItems.map((b) => (
           <BeachCard key={b.id} b={b} isFav={false} />
         ))}
       </section>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <Pagination>
+          <PaginationContent>
+            <PaginationItem>
+              <PaginationPrevious
+                className={cn(
+                  page === 1 && "pointer-events-none text-muted-foreground"
+                )}
+                onClick={() => {
+                  handlePrev();
+                  document
+                    .getElementById("content")
+                    ?.scrollIntoView({ behavior: "smooth" });
+                }}
+              />
+            </PaginationItem>
+            {getPageNumbers().map((p, idx) =>
+              p === "…" ? (
+                <PaginationItem key={`ellipsis-${idx}`}>
+                  <PaginationEllipsis />
+                </PaginationItem>
+              ) : (
+                <PaginationItem key={p}>
+                  <PaginationLink
+                    isActive={p === page}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setPage(p as number);
+                      document
+                        .getElementById("content")
+                        ?.scrollIntoView({ behavior: "smooth" });
+                    }}
+                  >
+                    {p}
+                  </PaginationLink>
+                </PaginationItem>
+              )
+            )}
+            <PaginationItem>
+              <PaginationNext
+                className={cn(
+                  page === totalPages &&
+                    "pointer-events-none text-muted-foreground"
+                )}
+                onClick={() => {
+                  handleNext();
+                  document
+                    .getElementById("content")
+                    ?.scrollIntoView({ behavior: "smooth" });
+                }}
+              />
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
+      )}
     </>
   );
 }

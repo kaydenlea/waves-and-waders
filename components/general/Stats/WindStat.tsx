@@ -7,9 +7,14 @@ const WindStat = ({
 }) => {
   return (
     <div className="flex items-center gap-1">
-      <div className="shadow-sm border border-border p-1 rounded-xl text-center">
-        <ArrowIcon size={30} color="#ff6a34ff" fill="#ff6a34ff" />
-        <span className="text-[.7rem]">{data.direction}</span>
+      <div className="shadow-sm border border-border p-1 rounded-lg text-center">
+        <ArrowIcon
+          size={24}
+          color="#ff6a34ff"
+          fill="#ff6a34ff"
+          className="mx-auto"
+        />
+        <span className="text-[.8rem] font-semibold">{data.direction}</span>
       </div>
       <div className="flex flex-col">
         <span className="text-2xl font-medium">

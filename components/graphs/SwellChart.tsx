@@ -35,14 +35,27 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-import { fetchBeachForecast, fetchBeachByIdLoose, fetchBeachDetails, fetchDailyConditions } from "@/lib/supabase";
+import {
+  fetchBeachForecast,
+  fetchBeachByIdLoose,
+  fetchBeachDetails,
+  fetchDailyConditions,
+} from "@/lib/supabase";
 
 type Props = { beachId?: string; hours?: number; date?: Date };
-type Row = { time: number; primary: number; secondary: number; tertiary: number };
+type Row = {
+  time: number;
+  primary: number;
+  secondary: number;
+  tertiary: number;
+};
 
-const SwellChart = ({ beachId, hours = 24, date }: Props) => {
+const SwellChart = ({ beachId, hours = 21, date }: Props) => {
   const [data, setData] = useState<Row[]>([]);
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]); // day shading intervals in hours
+  const [nightAreas, setNightAreas] = useState<{ x1: number; x2?: number }[]>(
+    []
+  );
   useEffect(() => {
     const load = async () => {
       try {
@@ -67,11 +80,12 @@ const SwellChart = ({ beachId, hours = 24, date }: Props) => {
           const d = new Date(date);
           d.setHours(0, 0, 0, 0);
           start = d;
-          end = new Date(d.getTime() + 24 * 60 * 60 * 1000);
+          end = new Date(d.getTime() + hours * 60 * 60 * 1000);
         }
         const rows = await fetchBeachForecast(id, start, end);
-        const series = rows.map((r) => ({
-          time: new Date(r.timestamp).getHours(),
+        const series = rows.map((r, i) => ({
+          time:
+            i === rows.length - 1 ? hours : new Date(r.timestamp).getHours(),
           primary: r.swell.primary.height ?? 0,
           secondary: r.swell.secondary.height ?? 0,
           tertiary: r.swell.tertiary?.height ?? 0,
@@ -84,7 +98,8 @@ const SwellChart = ({ beachId, hours = 24, date }: Props) => {
           const county = beach?.COUNTY;
           if (county) {
             // Choose the date basis: if an explicit date given, use that; otherwise use "start"
-            const basisDate = date instanceof Date ? new Date(date) : new Date(start);
+            const basisDate =
+              date instanceof Date ? new Date(date) : new Date(start);
             const cond = await fetchDailyConditions(county, basisDate);
             const parseHM = (s: string | null): number | null => {
               if (!s) return null;
@@ -98,7 +113,10 @@ const SwellChart = ({ beachId, hours = 24, date }: Props) => {
             const riseH = parseHM(cond?.sunrise ?? null);
             const setH = parseHM(cond?.sunset ?? null);
             if (riseH != null && setH != null) {
-              setDayAreas([{ x1: Math.min(riseH, setH), x2: Math.max(riseH, setH) }]);
+              const dayStart = Math.min(riseH, setH);
+              const dayEnd = Math.max(riseH, setH);
+              setDayAreas([{ x1: dayStart, x2: dayEnd }]);
+              setNightAreas([{ x1: 0, x2: dayStart }, { x1: dayEnd }]);
             } else {
               setDayAreas([]);
             }
@@ -116,22 +134,35 @@ const SwellChart = ({ beachId, hours = 24, date }: Props) => {
   return (
     <ChartContainer
       config={chartConfig}
-      className="@min-lg:aspect-auto @min-lg:h-[300px] w-full"
+      className="aspect-auto h-[290px] w-full"
     >
       <AreaChart
         accessibilityLayer
         data={data}
         margin={{
-          top: 5,
           right: 10,
           left: -28,
-          bottom: 5,
         }}
         syncId="anyId"
       >
         {/* Daytime shading from sunrise to sunset (hours) */}
         {dayAreas.map((a, idx) => (
-          <ReferenceArea key={`day-${idx}`} x1={a.x1} x2={a.x2} fill="#FFE58F" fillOpacity={0.2} />
+          <ReferenceArea
+            key={`day-${idx}`}
+            x1={a.x1}
+            x2={a.x2}
+            fill="#FFE58F"
+            fillOpacity={0.2}
+          />
+        ))}
+        {nightAreas.map((a, idx) => (
+          <ReferenceArea
+            key={`night-${idx}`}
+            x1={a.x1}
+            x2={a.x2}
+            fill="#ccc1ffff"
+            fillOpacity={0.2}
+          />
         ))}
         <CartesianGrid
           strokeDasharray="3 3"

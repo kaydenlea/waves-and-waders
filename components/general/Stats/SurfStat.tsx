@@ -7,9 +7,14 @@ const SurfStat = ({
 }) => {
   return (
     <div className="flex items-center gap-1">
-      <div className="shadow-sm border border-border p-1 rounded-xl text-center">
-        <ArrowIcon size={30} color="#51e72bff" fill="#51e72bff" />
-        <span className="text-[.7rem]">{data.direction}</span>
+      <div className="shadow-sm border border-border p-1 rounded-lg text-center">
+        <ArrowIcon
+          size={26}
+          color="#51e72bff"
+          fill="#51e72bff"
+          className="mx-auto"
+        />
+        <span className="text-[.8rem] font-semibold">{data.direction}</span>
       </div>
       <div className="flex flex-col">
         <span className="text-2xl font-medium">

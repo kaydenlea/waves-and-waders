@@ -17,6 +17,7 @@ import {
   getWindDirection,
   type ForecastData,
 } from "@/lib/supabase";
+import { useDateContext } from "../context/DateContext";
 
 const SwellStat = ({
   primary = false,
@@ -47,7 +48,7 @@ const SwellStat = ({
           primary ? "gap-1.5" : "gap-1.5"
         )}
       >
-        <span className="flex items-baseline gap-[1px] whitespace-nowrap">
+        <span className="flex items-baseline justify-center gap-[1px] whitespace-nowrap min-w-10">
           <span
             className={cn("font-semibold", primary ? "text-sm" : "text-sm")}
           >
@@ -57,7 +58,7 @@ const SwellStat = ({
             ft
           </span>
         </span>
-        <span className="flex items-baseline gap-[1px] whitespace-nowrap">
+        <span className="flex items-baseline gap-[1px] whitespace-nowrap min-w-8 justify-center">
           <span
             className={cn("font-semibold", primary ? "text-sm" : "text-sm")}
           >
@@ -68,7 +69,7 @@ const SwellStat = ({
           </span>
         </span>
         <ArrowIcon size={16} color="#51e72bff" fill="#51e72bff" />
-        <span className="flex items-baseline gap-[1px] whitespace-nowrap">
+        <span className="flex items-baseline gap-[1px] whitespace-nowrap min-w-17 justify-center">
           <span
             className={cn("font-semibold", primary ? "text-sm" : "text-sm")}
           >
@@ -97,8 +98,13 @@ const WindStat = ({
           <span className="text-[0.7rem]">mph</span>
         </span>
       </span>
-      <div className="shadow-sm border border-border p-1 rounded-md text-center">
-        <ArrowIcon size={16} color="#ff6a34ff" fill="#ff6a34ff" />
+      <div className="shadow-sm border border-border p-1 rounded-md text-center min-w-10">
+        <ArrowIcon
+          size={16}
+          color="#ff6a34ff"
+          fill="#ff6a34ff"
+          className="mx-auto"
+        />
         <span className="text-[.6rem]">{data.dir}</span>
       </div>
     </div>
@@ -238,6 +244,7 @@ const StatTable = ({
   //   })),
   // }));
   const [data, setData] = React.useState<TableDay[]>([]);
+  const { selectedDays } = useDateContext();
 
   React.useEffect(() => {
     const load = async () => {
@@ -250,11 +257,13 @@ const StatTable = ({
         const anchorStart = pacificStartOfDay(anchor);
         const bufferBefore = requestedDate ? 1 : 0;
         const bufferAfter = requestedDate ? 1 : 0;
-        const rangeStart = new Date(
-          anchorStart.getTime() - bufferBefore * DAY_MS
-        );
+        const rangeStart = selectedDays
+          ? selectedDays[0]
+          : new Date(anchorStart.getTime() - bufferBefore * DAY_MS);
         const daysToFetch = Math.max(numDays, 1) + bufferAfter;
-        const rangeEnd = new Date(anchorStart.getTime() + daysToFetch * DAY_MS);
+        const rangeEnd = selectedDays
+          ? selectedDays[selectedDays.length - 1]
+          : new Date(anchorStart.getTime() + daysToFetch * DAY_MS);
         const weekly = await fetchBeachForecast(
           resolvedId,
           rangeStart,
@@ -286,14 +295,16 @@ const StatTable = ({
           const tb = new Date(b[1][0]?.timestamp ?? 0).getTime();
           return ta - tb;
         });
-
         const onlyLabel = requestedDate ? fmtDayLabel(requestedDate) : null;
+        const onlyLabels = selectedDays?.map((day) => fmtDayLabel(day));
 
         // Optionally narrow to selected label; if no exact match, try +/- 1 day as fallback
         let allowedLabels: Set<string> | null = null;
-        if (onlyLabel) {
-          const labels = entriesByDay.map(([lbl]) => lbl);
-          if (labels.includes(onlyLabel)) {
+        const labels = entriesByDay.map(([lbl]) => lbl);
+        if (onlyLabels) {
+          allowedLabels = new Set(onlyLabels);
+        } else if (onlyLabel) {
+          if (onlyLabel && labels.includes(onlyLabel)) {
             allowedLabels = new Set([onlyLabel]);
           } else {
             if (requestedDate) {
@@ -468,16 +479,18 @@ const StatTable = ({
         }
 
         // Keep only requested number of days
-        const finalDays = allowedLabels
-          ? days.slice(0, 1)
-          : days.slice(0, numDays);
+        let finalDays = days;
+        if (allowedLabels) {
+          if (!onlyLabels) finalDays = days.slice(0, 1);
+          else finalDays = days.slice(0, numDays);
+        }
         setData(finalDays);
       } catch (e) {
         console.error("Failed to load StatTable data", e);
       }
     };
     load();
-  }, [beachId, numDays, numHours, date]);
+  }, [selectedDays, beachId, numDays, numHours, date]);
 
   const COLUMNS = [
     { id: "surf", label: "Surf" },
@@ -505,15 +518,14 @@ const StatTable = ({
     const adjustData = () => {
       const width = table.clientWidth;
       setWidth(width);
-      console.log("width", width);
-      if (width < 600) {
+      if (width < 700) {
         setVisibleCols(3);
         setColumnPages([
           COLUMNS.slice(0, 3),
           COLUMNS.slice(3, 4),
           COLUMNS.slice(4, COLUMNS.length),
         ]);
-      } else if (width < 900) {
+      } else if (width < 1050) {
         setVisibleCols(3);
         setColumnPages([COLUMNS.slice(0, 4), COLUMNS.slice(4, COLUMNS.length)]);
         setCurrentPage(0);
@@ -598,9 +610,16 @@ const StatTable = ({
   };
 
   const visibleDays = data.slice(startIndex, startIndex + windowSize);
+  console.log(
+    "VISIBLE DAYS",
+    visibleDays,
+    data,
+    startIndex,
+    startIndex + windowSize
+  );
 
   return (
-    <>
+    <div ref={tableRef}>
       {/* {windowSize < data.length && (
         <DaySlider
           handleBack={handleBackDays}
@@ -617,10 +636,7 @@ const StatTable = ({
           })()}
         />
       )} */}
-      <table
-        ref={tableRef}
-        className="w-full table-auto border-collapse text-sm"
-      >
+      <table className="w-full table-auto border-collapse text-sm">
         <thead>
           <tr>
             <th className="sticky left-0 z-1 bg-highlight-4" />
@@ -794,7 +810,7 @@ const StatTable = ({
           </Button>
         </div>
       )}
-    </>
+    </div>
   );
 };
 

@@ -156,6 +156,15 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  .maplibregl-popup-content {
+    background-color: white !important;
+  }
+
+  .maplibregl-popup-tip,
+  .maplibregl-popup-anchor-top {
+    border-bottom-color: white !important;
+  }
 }
 
 .dark {
@@ -207,4 +216,13 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+
+  .maplibregl-popup-content {
+    background-color: oklch(34.893% 0.06737 251.007) !important;
+  }
+
+  .maplibregl-popup-tip,
+  .maplibregl-popup-anchor-top {
+    border-bottom-color: oklch(34.893% 0.06737 251.007) !important;
+  }
 }

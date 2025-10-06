@@ -21,7 +21,12 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 
-import { fetchBeachForecast, fetchBeachByIdLoose, fetchBeachDetails, fetchDailyConditions } from "@/lib/supabase";
+import {
+  fetchBeachForecast,
+  fetchBeachByIdLoose,
+  fetchBeachDetails,
+  fetchDailyConditions,
+} from "@/lib/supabase";
 
 type Props = { beachId?: string; hours?: number; date?: Date };
 const chartConfig = {
@@ -31,9 +36,14 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-const WindChart = ({ beachId, hours = 24, date }: Props) => {
-  const [chartData, setChartData] = useState<{ hour: number; wind: number }[]>([]);
+const WindChart = ({ beachId, hours = 21, date }: Props) => {
+  const [chartData, setChartData] = useState<{ hour: number; wind: number }[]>(
+    []
+  );
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
+  const [nightAreas, setNightAreas] = useState<{ x1: number; x2: number }[]>(
+    []
+  );
 
   useEffect(() => {
     const load = async () => {
@@ -59,11 +69,12 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
           const d = new Date(date);
           d.setHours(0, 0, 0, 0);
           start = d;
-          end = new Date(d.getTime() + 24 * 60 * 60 * 1000);
+          end = new Date(d.getTime() + hours * 60 * 60 * 1000);
         }
         const rows = await fetchBeachForecast(id, start, end);
-        const data = rows.map((r) => ({
-          hour: new Date(r.timestamp).getHours(),
+        const data = rows.map((r, i) => ({
+          hour:
+            i === rows.length - 1 ? hours : new Date(r.timestamp).getHours(),
           wind: r.conditions.windSpeed ?? 0,
         }));
         setChartData(data);
@@ -73,20 +84,30 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
           const beach = await fetchBeachDetails(String(id));
           const county = beach?.COUNTY;
           if (county) {
-            const basisDate = date instanceof Date ? new Date(date) : new Date(start);
+            const basisDate =
+              date instanceof Date ? new Date(date) : new Date(start);
             const cond = await fetchDailyConditions(county, basisDate);
-            const parseHM = (s: string | null): { h: number; m: number } | null => {
+            const parseHM = (
+              s: string | null
+            ): { h: number; m: number } | null => {
               if (!s) return null;
               const m = /^(\d{1,2}):(\d{2})/.exec(s.trim());
               if (!m) return null;
-              const h = Number(m[1]); const mm = Number(m[2]);
+              const h = Number(m[1]);
+              const mm = Number(m[2]);
               if (!Number.isFinite(h) || !Number.isFinite(mm)) return null;
               return { h, m: mm };
             };
             const rise = parseHM(cond?.sunrise ?? null);
             const setv = parseHM(cond?.sunset ?? null);
             if (rise && setv) {
-              setDayAreas([{ x1: Math.min(rise.h, setv.h), x2: Math.max(rise.h, setv.h) }]);
+              const dayStart = Math.min(rise.h, setv.h);
+              const dayEnd = Math.max(rise.h, setv.h);
+              setDayAreas([{ x1: dayStart, x2: dayEnd }]);
+              setNightAreas([
+                { x1: 0, x2: Math.max(0, dayStart - 3) },
+                { x1: Math.min(24, dayEnd + 3), x2: hours },
+              ]);
             } else {
               setDayAreas([]);
             }
@@ -101,25 +122,41 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
     load();
   }, [beachId, hours, date]);
 
-  const domainMax = useMemo(() => (chartData.length ? chartData.length - 1 : 6), [chartData]);
+  const domainMax = useMemo(
+    () => (chartData.length ? chartData.length - 1 : 6),
+    [chartData]
+  );
   return (
     <ChartContainer
       config={chartConfig}
-      className="@min-lg:aspect-auto @min-lg:h-[300px] w-full"
+      className="aspect-auto h-[280px] w-full"
     >
       <BarChart
         margin={{
-          top: 5,
           right: 10,
           left: -28,
-          bottom: 5,
         }}
         accessibilityLayer
         data={chartData}
         syncId="anyId"
       >
         {dayAreas.map((a, idx) => (
-          <ReferenceArea key={`day-${idx}`} x1={a.x1} x2={a.x2} fill="#FFE58F" fillOpacity={0.2} />
+          <ReferenceArea
+            key={`day-${idx}`}
+            x1={a.x1}
+            x2={a.x2}
+            fill="#FFE58F"
+            fillOpacity={0.2}
+          />
+        ))}
+        {nightAreas.map((a, idx) => (
+          <ReferenceArea
+            key={`night-${idx}`}
+            x1={a.x1}
+            x2={a.x2}
+            fill="#ccc1ffff"
+            fillOpacity={0.2}
+          />
         ))}
         <CartesianGrid
           strokeDasharray="3 3"
@@ -135,14 +172,18 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
           axisLine={false}
           domain={[0, domainMax]}
           tickFormatter={(value: number) => {
-            if (typeof value !== 'number') return '';
-            return value % 3 === 0 ? String(value % 12 === 0 ? 12 : value % 12) : '';
+            if (typeof value !== "number") return "";
+            return value % 3 === 0
+              ? String(value % 12 === 0 ? 12 : value % 12)
+              : "";
           }}
         />
         <YAxis
           dataKey="wind"
-          allowDecimals={true}
-          tickFormatter={(v: number) => (typeof v === 'number' ? v.toFixed(1) : String(v))}
+          allowDecimals={false}
+          // tickFormatter={(v: number) =>
+          //   typeof v === "number" ? v.toFixed(1) : String(v)
+          // }
           tickLine={false}
           axisLine={false}
           tickMargin={8}
@@ -206,7 +247,9 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
                       fontWeight="bold"
                       fontSize={fontSize}
                     >
-                      {`${props.value.toFixed(1)}-${(props.value + 1).toFixed(1)}`}
+                      {`${Math.round(props.value)}-${
+                        Math.round(props.value) + 1
+                      }`}
                     </text>
                   </g>
                 );

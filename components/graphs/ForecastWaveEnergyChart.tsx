@@ -372,7 +372,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, date }) => {
           accessibilityLayer
           data={visibleData}
           margin={{
-            left: -35,
+            left: -25,
             right: 15,
             bottom: 5,
           }}

@@ -16,7 +16,7 @@ const DEFAULT_MAP_STYLE =
 const MAP_STYLE_URL =
   process.env.NEXT_PUBLIC_MAP_STYLE_URL ?? DEFAULT_MAP_STYLE;
 import { cn } from "@/lib/utils";
-import { ArrowLeftFromLine, ArrowRightFromLine } from "lucide-react";
+import { ArrowLeftFromLine, ArrowRightFromLine, X } from "lucide-react";
 
 type BeachPoint = {
   id: string | number;
@@ -112,6 +112,17 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
     });
   }, [beaches, filters]);
 
+  const beachesGeoJSON = React.useMemo(() => {
+    return {
+      type: "FeatureCollection",
+      features: filteredBeaches.map((b) => ({
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [b.longitude, b.latitude] },
+        properties: { id: b.id, name: b.name, county: b.county },
+      })),
+    } as any;
+  }, [filteredBeaches]);
+
   // After beaches load, align map to page context (selected beach if provided, otherwise fit to all)
   React.useEffect(() => {
     if (!beaches.length) return;
@@ -139,7 +150,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
       if (match) {
         map.easeTo({
           center: [match.longitude, match.latitude],
-          zoom: 11,
+          zoom: 16,
           duration: 500,
         });
         setSelected(match);
@@ -177,9 +188,13 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
     }
   }, [beaches, filteredBeaches, beachId, pathname]);
 
-  if (editPage || (forecastPage && !smallScreen)) {
-    return <></>;
-  }
+  // if (editPage || (forecastPage && !smallScreen)) {
+  //   return <></>;
+  // }
+
+  // if (editPage) {
+  //   return <></>;
+  // }
 
   return (
     <aside
@@ -199,6 +214,48 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
         minZoom={3}
         attributionControl={false}
         interactiveLayerIds={["clusters", "cluster-count", "unclustered-point"]}
+        onMouseEnter={(e) => {
+          const map = e.target;
+          if (e.features?.length) {
+            const f = e.features[0];
+            if (
+              // f.layer.id === "clusters" ||
+              f.layer.id === "unclustered-point"
+            ) {
+              map.getCanvas().style.cursor = "pointer";
+            }
+          }
+        }}
+        onMouseLeave={(e) => {
+          const map = e.target;
+          map.getCanvas().style.cursor = "";
+        }}
+        onLoad={async (e) => {
+          const map = e.target;
+
+          // Load the marker image once
+          if (!map.hasImage("marker-icon")) {
+            const imageRespone = await map.loadImage("/marker.png");
+            map.addImage("marker-icon", imageRespone.data);
+          }
+
+          // Hide cluster counts while zooming/panning
+          const hideCounts = () => {
+            if (map.getLayer("cluster-count")) {
+              map.setLayoutProperty("cluster-count", "visibility", "none");
+            }
+          };
+          const showCounts = () => {
+            if (map.getLayer("cluster-count")) {
+              map.setLayoutProperty("cluster-count", "visibility", "visible");
+            }
+          };
+
+          // map.on("movestart", hideCounts);
+          map.on("zoomstart", hideCounts);
+          // map.on("moveend", showCounts);
+          map.on("zoomend", showCounts);
+        }}
         onClick={(e) => {
           const feature = e.features && e.features[0];
           if (!feature) return;
@@ -258,19 +315,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
           <Source
             id="beaches"
             type="geojson"
-            data={
-              {
-                type: "FeatureCollection",
-                features: filteredBeaches.map((b) => ({
-                  type: "Feature",
-                  geometry: {
-                    type: "Point",
-                    coordinates: [b.longitude, b.latitude],
-                  },
-                  properties: { id: b.id, name: b.name, county: b.county },
-                })),
-              } as any
-            }
+            data={beachesGeoJSON}
             cluster={true}
             clusterMaxZoom={12}
             clusterRadius={40}
@@ -307,21 +352,33 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
               type="symbol"
               filter={["has", "point_count"] as any}
               layout={{
-                "text-field": ["get", "point_count_abbreviated"],
-                // omit text-font to use default fonts from style
+                // use the raw point_count (exact) and convert to string to avoid layout/abbrev races
+                "text-field": ["to-string", ["get", "point_count"]],
                 "text-size": 12,
+                // critical — allow overlap & ignore placement so the label renders immediately
+                "text-allow-overlap": true,
+                "text-ignore-placement": true,
+                // optionally specify a bold system font or style available in your style
+                "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
               }}
-              paint={{ "text-color": "#1f2937" }}
+              paint={{
+                "text-color": "#1f2937",
+                "text-halo-color": "#ffffff",
+                "text-halo-width": 1,
+              }}
             />
             <Layer
               id="unclustered-point"
-              type="circle"
+              type="symbol"
               filter={["!has", "point_count"] as any}
-              paint={{
-                "circle-color": "#2563eb",
-                "circle-radius": 5,
-                "circle-stroke-width": 1,
-                "circle-stroke-color": "#ffffff",
+              layout={{
+                "icon-image": "marker-icon", // defined via addImage
+                "icon-size": 0.05,
+                "icon-allow-overlap": true,
+                "text-field": ["get", "name"], // optional label
+                "text-offset": [0, 2],
+                "text-size": 10,
+                "text-anchor": "top",
               }}
             />
           </Source>
@@ -329,7 +386,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
 
         {/* Filter controls (collapsible) */}
         <div className="absolute top-2 left-2 z-[1]">
-          <div className="bg-white/90 backdrop-blur rounded border border-border shadow min-w-[220px]">
+          <div className="bg-background/90 backdrop-blur rounded border border-border shadow min-w-[220px]">
             <button
               className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium"
               onClick={(e) => {
@@ -338,13 +395,15 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
               }}
             >
               <span>Filters {filters.size ? `(${filters.size})` : ""}</span>
-              <span className="text-gray-500">{showFilters ? "▴" : "▾"}</span>
+              <span className="text-muted-foreground">
+                {showFilters ? "▴" : "▾"}
+              </span>
             </button>
             {showFilters && (
               <div className="max-h-72 overflow-auto px-2 pb-2">
                 {Object.entries(FEATURE_CATEGORIES).map(([catKey, cat]) => (
                   <div key={catKey} className="mb-2">
-                    <div className="px-1 py-1 text-[11px] uppercase text-gray-600 font-semibold">
+                    <div className="px-1 py-1 text-[11px] uppercase text-muted-foreground font-semibold">
                       {(cat as any).label}
                     </div>
                     <div className="grid grid-cols-1 gap-1 px-1">
@@ -379,7 +438,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
                 <div className="flex justify-end gap-2 mt-2 px-1">
                   {filters.size > 0 && (
                     <button
-                      className="text-[11px] px-2 py-1 rounded border bg-gray-100 border-gray-300 text-gray-700"
+                      className="text-[11px] px-2 py-1 rounded border bg-highlight-5 border border-border hover:bg-highlight-3"
                       onClick={(e) => {
                         e.stopPropagation();
                         setFilters(new Set());
@@ -389,7 +448,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
                     </button>
                   )}
                   <button
-                    className="text-[11px] px-2 py-1 rounded border bg-highlight-4 border-border text-foreground"
+                    className="text-[11px] px-2 py-1 rounded border border-border bg-highlight-4 border-border text-foreground hover:bg-highlight-5"
                     onClick={(e) => {
                       e.stopPropagation();
                       setShowFilters(false);
@@ -409,11 +468,19 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
             latitude={selected.latitude}
             anchor="top"
             onClose={() => setSelected(null)}
-            closeButton={true}
-            closeOnClick={false}
+            closeButton={false}
+            closeOnClick={true}
           >
+            <button
+              className="p-0.5 rounded-2xl bg-highlight-5 hover:bg-highlight-3 border border-border/30 ml-auto"
+              onClick={() => setSelected(null)}
+            >
+              <X size={16} />
+            </button>
             <div className="flex flex-col gap-1">
-              <strong className="text-sm">{selected.name}</strong>
+              <strong className="text-sm text-foreground">
+                {selected.name}
+              </strong>
               <span className="text-xs text-muted-foreground">
                 {selected.county}
               </span>

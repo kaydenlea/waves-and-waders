@@ -421,8 +421,9 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
               key={stat.type}
               className={cn(
                 "highlight-card shadow-even flex flex-col overflow-hidden",
-                stat.type === "features" &&
-                  "col-span-2 @min-xl:col-span-3 @min-4xl:col-span-6"
+                stat.type === "features"
+                  ? "col-span-2 @min-xl:col-span-3 @min-4xl:col-span-6"
+                  : "min-h-35"
               )}
             >
               <div className="flex items-center justify-between">

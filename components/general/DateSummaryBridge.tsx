@@ -29,7 +29,7 @@ const DateSummaryBridge: React.FC<Props> = ({ beachId }) => {
           {selected
             ? selected.toLocaleDateString(undefined, {
                 weekday: "long",
-                month: "short",
+                month: "long",
                 day: "numeric",
               })
             : "Select a day"}
@@ -115,7 +115,7 @@ const DateSummaryBridge: React.FC<Props> = ({ beachId }) => {
             value={hour}
             onChange={setHour}
             min={0}
-            max={23}
+            max={21}
             step={3}
           />
         </section>
@@ -123,7 +123,13 @@ const DateSummaryBridge: React.FC<Props> = ({ beachId }) => {
           <header className="ml-2 mb-6">
             {/* <Calendar className="h-7 w-7" /> */}
             <h3 className="leading-none font-semibold text-2xl">
-              Monday, August 14
+              {selected
+                ? selected.toLocaleDateString(undefined, {
+                    weekday: "long",
+                    month: "long",
+                    day: "numeric",
+                  })
+                : "Select a day"}
             </h3>
             <span className="text-sm text-muted-foreground">
               Local time: 8:30 PM, PDT

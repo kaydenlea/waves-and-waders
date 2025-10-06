@@ -25,6 +25,7 @@ import {
   fetchForecastRange,
   type ForecastData,
 } from "@/lib/supabase";
+import { useDateContext } from "../context/DateContext";
 
 type DatePickerProps = {
   beachId: string;
@@ -77,6 +78,8 @@ const DatePicker = ({
   const [summaries, setSummaries] = useState<Record<string, DaySummary>>({});
   const [orderedKeys, setOrderedKeys] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+
+  const { setSelectedDays } = useDateContext();
 
   const scrollBy = 3;
 
@@ -227,6 +230,45 @@ const DatePicker = ({
       }
     }
   }, [value]);
+
+  // const [startIdx, setStartIdx] = useState<number>(0);
+  // const [endIdx, setEndIdx] = useState<number>(0);
+  let startIdx: number = 0;
+  let endIdx: number;
+
+  orderedKeys.forEach((key, index) => {
+    const summary = summaries[key];
+    const day = summary?.date ?? dayjs(key);
+    const controlledSelected = value
+      ? day.isSame(dayjs(value), "day")
+      : undefined;
+    const isSelected =
+      controlledSelected ??
+      (selectedDate ? selectedDate.isSame(day, "day") : index === 0);
+    if (isSelected) {
+      startIdx = index;
+      return;
+    }
+  });
+  if (startIdx + 3 > orderedKeys.length - 1) {
+    endIdx = startIdx;
+    startIdx -= 3;
+  } else {
+    endIdx = startIdx + 3;
+  }
+
+  useEffect(() => {
+    const daysRange: Date[] = [];
+    orderedKeys.forEach((key, index) => {
+      if (startIdx <= index && index <= endIdx) {
+        const summary = summaries[key];
+        const day = summary?.date ?? dayjs(key);
+        daysRange.push(day.toDate());
+      }
+    });
+    setSelectedDays(daysRange);
+  }, [value, selectedDate]);
+
   return (
     <div
       className={cn(
@@ -267,11 +309,23 @@ const DatePicker = ({
                 : max >= 3
                 ? "bg-orange-400"
                 : "bg-green-400";
+            let itemStyle = "bg-highlight-4 rounded-md";
+            if (typeof startIdx === "number" && forecast) {
+              if (startIdx === index) {
+                itemStyle =
+                  "bg-highlight-7 rounded-l-md border-y-border border-y-2 border-l-border border-l-2";
+              } else if (index === endIdx) {
+                itemStyle =
+                  "bg-highlight-7 rounded-r-md border-y-border border-y-2 border-r-border border-r-2";
+              } else if (startIdx <= index && index <= endIdx) {
+                itemStyle = "bg-highlight-7 border-y-border border-y-2";
+              }
+            }
             return (
               <CarouselItem
                 key={index}
                 className={cn(
-                  "basis-1/3 @min-md:basis-1/5 @min-3xl:basis-1/7 @min-6xl:basis-1/10 flex justify-center"
+                  "basis-1/3 @min-md:basis-1/5 @min-3xl:basis-1/7 @min-6xl:basis-1/7 flex justify-center"
                 )}
               >
                 <button
@@ -285,7 +339,7 @@ const DatePicker = ({
                     !forecast &&
                       isSelected &&
                       "bg-highlight-7 border-border border-2",
-                    forecast && "bg-highlight-4 rounded-md"
+                    forecast && itemStyle
                   )}
                 >
                   <span className="font-semibold text-[0.65rem] @min-xl:text-xs whitespace-nowrap">

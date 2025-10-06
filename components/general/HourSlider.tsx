@@ -15,7 +15,7 @@ const HourSlider = ({
   value: controlled,
   onChange,
   min = 0,
-  max = 23,
+  max = 21,
   step = 3,
 }: Props) => {
   const [internal, setInternal] = useState<number>(controlled ?? 10);
@@ -43,7 +43,7 @@ const HourSlider = ({
         className="z-1"
       />
       <div className="w-full flex justify-between pl-1.5 pr-2.5">
-        {Array.from({ length: 9 }, (_, i) => (
+        {Array.from({ length: 8 }, (_, i) => (
           <div key={i}>
             <div className="absolute bottom-6 h-3 w-1 rounded-full bg-gray-300" />
           </div>
