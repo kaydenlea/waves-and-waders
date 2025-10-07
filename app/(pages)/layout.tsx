@@ -53,14 +53,13 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
           <NavBar />
           <main
             id="main-content"
-            className="@min-3xl:flex @min-3xl:flex-1 bg-background-2 @min-3xl:mt-[5.5rem] @min-3xl:pb-4"
+            className="@min-3xl:flex @min-3xl:flex-1 @min-3xl:gap-6 bg-background-2 @min-3xl:mt-[5.5rem] @min-3xl:px-3 @min-3xl:pb-4"
           >
             {/* <aside className="fixed @min-3xl:sticky @min-3xl:top-[5.5rem] @min-3xl:flex-1 @min-3xl:py-3 @min-3xl:pl-3 @min-3xl:max-w-200 w-full h-full @min-3xl:h-[calc(100vh-5.5rem)]">
           <LazyLoadMap />
         </aside> */}
             <LazyLoadMap />
-            <div className="h-[calc(100vh-3rem)] @min-3xl:hidden" />
-            <article className="touch-pan-y bg-background-2 w-full px-2 relative @min-3xl:pt-4 @min-3xl:flex-1 z-1 rounded-t-3xl @min-3xl:rounded-t-none max-w-350 mx-auto">
+            <article className="touch-pan-y bg-background-2 w-full px-2 relative mt-6 @min-3xl:mt-0 @min-3xl:pt-4 @min-3xl:flex-1 z-1 rounded-t-3xl @min-3xl:rounded-t-none max-w-350 mx-auto">
               {children}
               <Footer className="@min-3xl:hidden rounded-md" />
             </article>

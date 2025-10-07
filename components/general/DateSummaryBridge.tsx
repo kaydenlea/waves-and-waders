@@ -20,7 +20,37 @@ type Props = { beachId: string };
 
 const DateSummaryBridge: React.FC<Props> = ({ beachId }) => {
   const [selected, setSelected] = React.useState<Date | null>(null);
-  const [hour, setHour] = React.useState<number>(10);
+  const [hour, setHour] = React.useState<number>(() => {
+    const currentHour = new Date().getHours();
+    return Math.round(Math.max(0, Math.min(21, currentHour)) / 3) * 3;
+  });
+  const [currentTime, setCurrentTime] = React.useState<string>(() => {
+    return new Date().toLocaleTimeString(undefined, {
+      hour: "numeric",
+      minute: "2-digit",
+      timeZoneName: "short",
+    });
+  });
+  const { setSelectedDate } =
+    require("@/components/context/MapFilterContext").useMapFilters();
+
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(
+        new Date().toLocaleTimeString(undefined, {
+          hour: "numeric",
+          minute: "2-digit",
+          timeZoneName: "short",
+        })
+      );
+    }, 60000); // Update every minute
+    return () => clearInterval(interval);
+  }, []);
+
+  // Sync selected date with map context
+  React.useEffect(() => {
+    setSelectedDate(selected);
+  }, [selected, setSelectedDate]);
 
   return (
     <>
@@ -132,7 +162,7 @@ const DateSummaryBridge: React.FC<Props> = ({ beachId }) => {
                 : "Select a day"}
             </h3>
             <span className="text-sm text-muted-foreground">
-              Local time: 8:30 PM, PDT
+              Local time: {currentTime}
             </span>
           </header>
           <Highlights
@@ -147,11 +177,11 @@ const DateSummaryBridge: React.FC<Props> = ({ beachId }) => {
           </div>
         </section>
         <div className="flex flex-col @min-3xl:flex-row gap-3">
-          <VisualWrapper label="Wind" unit="mph">
-            <LazyLoadWind beachId={beachId} date={selected ?? undefined} />
-          </VisualWrapper>
           <VisualWrapper label="Tide" unit="ft">
             <LazyLoadTide beachId={beachId} date={selected ?? undefined} />
+          </VisualWrapper>
+          <VisualWrapper label="Wind" unit="mph">
+            <LazyLoadWind beachId={beachId} date={selected ?? undefined} />
           </VisualWrapper>
         </div>
         <div className="flex flex-col @min-3xl:flex-row gap-3 mt-3">

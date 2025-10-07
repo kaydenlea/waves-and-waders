@@ -25,6 +25,7 @@ type BeachPoint = {
   latitude: number;
   longitude: number;
   features?: Record<string, boolean>;
+  surfIntensity?: number;
 };
 
 type Props = { beachId?: string | number };
@@ -32,18 +33,29 @@ type Props = { beachId?: string | number };
 const InteractiveMap: React.FC<Props> = ({ beachId }) => {
   const [beaches, setBeaches] = React.useState<BeachPoint[]>([]);
   const [selected, setSelected] = React.useState<BeachPoint | null>(null);
-  const { filters, setFilters } =
+  const { filters, setFilters, selectedDate } =
     require("@/components/context/MapFilterContext").useMapFilters();
   const [located, setLocated] = React.useState<boolean>(false);
   const [showFilters, setShowFilters] = React.useState<boolean>(false);
+  const [surfIntensity, setSurfIntensity] = React.useState<Record<string | number, number>>({});
   const router = useRouter();
   const pathname = usePathname();
   const mapRef = React.useRef<any>(null);
 
+  const resizeMapViewport = React.useCallback(() => {
+    const ref = mapRef.current;
+    if (!ref) return;
+    const mapInstance = typeof ref.resize === "function" ? ref : ref.getMap?.();
+    if (mapInstance && typeof mapInstance.resize === "function") {
+      mapInstance.resize();
+    }
+  }, []);
+
   const [showMap, setShowMap] = React.useState(true);
   const [smallScreen, setSmallScreen] = React.useState<boolean | null>(null);
-  const pathName = usePathname();
-  const fullMapPage = !pathName.endsWith("/beaches");
+  const pathName = usePathname() ?? "";
+  const fullMapPage =
+    !pathName.endsWith("/beaches") && !pathName.endsWith("/overview");
   const editPage = pathName.includes("edit");
   const forecastPage = pathName.includes("forecast");
 
@@ -68,11 +80,16 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
     let cancelled = false;
     const load = async () => {
       try {
+        console.log("Loading beaches from API...");
         const res = await fetch("/api/beaches");
         const json = await res.json();
+        console.log("Beaches API response:", json);
         if (!cancelled && json?.success && Array.isArray(json.data)) {
-          console.debug("InteractiveMap: loaded beaches", json.data.length);
+          console.log("InteractiveMap: loaded beaches", json.data.length);
+          console.log("Sample beach:", json.data[0]);
           setBeaches(json.data as BeachPoint[]);
+        } else {
+          console.error("Failed to load beaches - invalid response:", json);
         }
       } catch (e) {
         console.error("Failed to load beaches for map", e);
@@ -83,6 +100,58 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
       cancelled = true;
     };
   }, []);
+
+  // Fetch surf intensity when date changes
+  React.useEffect(() => {
+    if (!selectedDate) {
+      console.log("No date selected, clearing surf intensity");
+      setSurfIntensity({});
+      return;
+    }
+
+    let cancelled = false;
+    const loadSurfIntensity = async () => {
+      try {
+        const dateStr = selectedDate.toISOString();
+        console.log("Fetching surf intensity for date:", dateStr);
+        console.log("Selected date local:", selectedDate.toLocaleDateString(), selectedDate.toLocaleTimeString());
+        const res = await fetch(`/api/beaches/surf-intensity?date=${dateStr}`);
+        const json = await res.json();
+        console.log("Surf intensity API response:", json);
+        if (!cancelled && json?.success) {
+          console.log("Setting surf intensity data:", json.data);
+          console.log("Total beaches with data:", Object.keys(json.data).length);
+          const nonZeroCount = Object.values(json.data).filter((v: any) => v > 0).length;
+          console.log("Beaches with non-zero surf:", nonZeroCount);
+          setSurfIntensity(json.data);
+        } else {
+          console.error("API returned error:", json);
+        }
+      } catch (e) {
+        console.error("Failed to load surf intensity", e);
+      }
+    };
+    loadSurfIntensity();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedDate]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const handleWindowResize = () => {
+      resizeMapViewport();
+    };
+    handleWindowResize();
+    window.addEventListener("resize", handleWindowResize);
+    return () => window.removeEventListener("resize", handleWindowResize);
+  }, [resizeMapViewport]);
+
+  React.useEffect(() => {
+    resizeMapViewport();
+  }, [resizeMapViewport, showMap, smallScreen, fullMapPage]);
 
   // Use uncontrolled map; control camera via imperative mapRef to avoid update loops
   const initialView = React.useMemo(
@@ -102,26 +171,82 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
   );
 
   const filteredBeaches = React.useMemo(() => {
-    if (!filters.size) return beaches;
-    return beaches.filter((b) => {
+    console.log("Filtering beaches - total:", beaches.length, "filters:", filters.size);
+    if (!filters.size) {
+      console.log("No filters, returning all beaches:", beaches.length);
+      return beaches;
+    }
+    const filtered = beaches.filter((b) => {
       const f = b.features || {};
       for (const key of filters) {
         if (!f[key]) return false;
       }
       return true;
     });
+    console.log("Filtered beaches:", filtered.length);
+    return filtered;
   }, [beaches, filters]);
 
   const beachesGeoJSON = React.useMemo(() => {
-    return {
-      type: "FeatureCollection",
-      features: filteredBeaches.map((b) => ({
+    const features = filteredBeaches.map((b) => {
+      // Handle both numeric and UUID beach IDs
+      const beachIdKey = typeof b.id === 'string' && isNaN(Number(b.id)) ? b.id : Number(b.id);
+      const intensity = surfIntensity[beachIdKey] || 0;
+
+      // Debug: check if we're missing data for this beach
+      if (!intensity && Object.keys(surfIntensity).length > 0) {
+        // Sample a few misses to see the ID format
+        if (Math.random() < 0.01) {
+          console.log("Beach missing surf data:", {
+            beachId: b.id,
+            beachIdKey,
+            name: b.name,
+            hasSurfData: beachIdKey in surfIntensity
+          });
+        }
+      }
+      return {
         type: "Feature",
         geometry: { type: "Point", coordinates: [b.longitude, b.latitude] },
-        properties: { id: b.id, name: b.name, county: b.county },
-      })),
+        properties: {
+          id: b.id,
+          name: b.name,
+          county: b.county,
+          surfIntensity: intensity
+        },
+      };
+    });
+
+    console.log("Generated GeoJSON with", features.length, "features");
+    const sample = features.slice(0, 10).map(f => ({
+      id: f.properties.id,
+      name: f.properties.name,
+      intensity: f.properties.surfIntensity
+    }));
+    console.log("Sample surf intensities:", sample);
+    console.log("Surf intensity lookup object keys:", Object.keys(surfIntensity).length);
+    console.log("First 5 surf intensity values:", Object.entries(surfIntensity).slice(0, 5));
+
+    // Count how many beaches have surf data vs no data
+    const withData = features.filter(f => f.properties.surfIntensity > 0).length;
+    const withoutData = features.filter(f => f.properties.surfIntensity === 0).length;
+    console.log(`Beaches with surf data: ${withData}, without data: ${withoutData}`);
+
+    return {
+      type: "FeatureCollection",
+      features,
     } as any;
-  }, [filteredBeaches]);
+  }, [filteredBeaches, surfIntensity]);
+
+  // Helper function to determine marker color based on surf intensity (in feet)
+  const getMarkerColor = (intensity: number): string => {
+    if (intensity === 0) return "#9ca3af"; // gray for no data
+    if (intensity < 2) return "#60a5fa"; // light blue for small (< 2ft)
+    if (intensity < 4) return "#3b82f6"; // blue for moderate (2-4ft)
+    if (intensity < 6) return "#f59e0b"; // orange for good (4-6ft)
+    if (intensity < 8) return "#ef4444"; // red for excellent (6-8ft)
+    return "#dc2626"; // dark red for epic (8ft+)
+  };
 
   // After beaches load, align map to page context (selected beach if provided, otherwise fit to all)
   React.useEffect(() => {
@@ -199,9 +324,9 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
   return (
     <aside
       className={cn(
-        "fixed @min-3xl:sticky @min-3xl:top-[5.5rem] @min-3xl:flex-1 @min-3xl:py-3 @min-3xl:pl-3 w-full h-full @min-3xl:h-[calc(100vh-5.5rem)]",
+        "relative w-full h-[320px] sm:h-[380px] @min-3xl:flex-1 @min-3xl:sticky @min-3xl:top-[5.5rem] @min-3xl:h-[calc(100vh-5.5rem)] @min-3xl:py-3 @min-3xl:pl-3 transition-all duration-300",
         !smallScreen && fullMapPage && showMap && "@min-3xl:max-w-200",
-        !smallScreen && fullMapPage && !showMap && "@min-3xl:max-w-20"
+        !smallScreen && fullMapPage && !showMap && "@min-3xl:max-w-20 @min-3xl:overflow-hidden"
       )}
     >
       <Map
@@ -213,7 +338,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
         maxZoom={16}
         minZoom={3}
         attributionControl={false}
-        interactiveLayerIds={["clusters", "cluster-count", "unclustered-point"]}
+        interactiveLayerIds={["clusters", "cluster-count", "unclustered-point", "unclustered-point-label"]}
         onMouseEnter={(e) => {
           const map = e.target;
           if (e.features?.length) {
@@ -232,8 +357,9 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
         }}
         onLoad={async (e) => {
           const map = e.target;
+          resizeMapViewport();
 
-          // Load the marker image once
+          // Load the default marker image
           if (!map.hasImage("marker-icon")) {
             const imageRespone = await map.loadImage("/marker.png");
             map.addImage("marker-icon", imageRespone.data);
@@ -369,16 +495,38 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
             />
             <Layer
               id="unclustered-point"
+              type="circle"
+              filter={["!has", "point_count"] as any}
+              paint={{
+                "circle-radius": 8,
+                "circle-color": [
+                  "step",
+                  ["get", "surfIntensity"],
+                  "#9ca3af", // gray for no data (0)
+                  0.1, "#60a5fa", // light blue for small (> 0.1ft)
+                  2, "#3b82f6", // blue for moderate (>= 2ft)
+                  4, "#f59e0b", // orange for good (>= 4ft)
+                  6, "#ef4444", // red for excellent (>= 6ft)
+                  8, "#dc2626" // dark red for epic (>= 8ft)
+                ],
+                "circle-stroke-width": 2,
+                "circle-stroke-color": "#ffffff",
+              }}
+            />
+            <Layer
+              id="unclustered-point-label"
               type="symbol"
               filter={["!has", "point_count"] as any}
               layout={{
-                "icon-image": "marker-icon", // defined via addImage
-                "icon-size": 0.05,
-                "icon-allow-overlap": true,
-                "text-field": ["get", "name"], // optional label
-                "text-offset": [0, 2],
+                "text-field": ["get", "name"],
+                "text-offset": [0, 1.5],
                 "text-size": 10,
                 "text-anchor": "top",
+              }}
+              paint={{
+                "text-color": "#1f2937",
+                "text-halo-color": "#ffffff",
+                "text-halo-width": 1,
               }}
             />
           </Source>

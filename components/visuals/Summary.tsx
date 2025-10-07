@@ -1,9 +1,7 @@
-"use client";
+﻿"use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import TidePreview from "../graphs/TidePreview";
-import SwellStat from "../general/Stats/SwellStat";
 import GradientCircle from "../general/Stats/GradientCircle";
 import Tag from "../general/Tag";
 import WindStat from "../general/Stats/WindStat";
@@ -30,9 +28,10 @@ import {
 import {
   fetchCurrentConditions,
   fetchBeachForecast,
-  getWindDirection,
   fetchBeachByIdLoose,
   fetchBeachDetails,
+  fetchBeachTides,
+  fetchDailyConditions,
 } from "@/lib/supabase";
 // Optionally import the feature registry if exposed
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -43,39 +42,103 @@ import { FEATURE_COLUMNS } from "@/lib/supabase";
 import { getFeatureDisplayName } from "@/lib/supabase";
 
 type SummaryStat =
-  | { type: "water"; temp: number }
-  | { type: "weather"; temp: number }
+  | { type: "temperature"; waterTemp?: number; airTemp?: number; waterTempPercent?: number; airTempPercent?: number }
   | {
-      type: "swell";
-      primary: {
-        height: number;
-        period: number;
-        wind: { dir: string; deg: number };
-      };
-      secondary: {
-        height: number;
-        period: number;
-        wind: { dir: string; deg: number };
-      }[];
+      type: "tide";
+      currentHeight?: number;
+      peaks: TidePeak[];
+      sunrise?: string;
+      sunset?: string;
     }
-  | { type: "tide"; height: number }
   | {
       type: "wind";
-      wind: { direction: string; speed: number; loc: string; gust?: number };
+      wind: { speed: number; loc?: string; gust?: number; intensity: number };
     }
   | {
       type: "surf";
-      surf: { direction: string; height: string; period: number };
+      surf: { height: string; period: number; intensity: number };
     }
   | {
       type: "features";
       tags: { label: string; icon: React.ReactNode; color: string }[];
     };
 
+type TidePointValue = { x: number; tide: number };
+type TidePeak = { kind: "high" | "low"; time: Date; level: number };
+
+const computeTidePeaks = (points: TidePointValue[]): TidePeak[] => {
+  if (!points || points.length < 3) return [];
+  const sorted = [...points].sort((a, b) => a.x - b.x);
+  const peaks: TidePeak[] = [];
+  for (let i = 1; i < sorted.length - 1; i += 1) {
+    const prev = sorted[i - 1];
+    const curr = sorted[i];
+    const next = sorted[i + 1];
+    const tide = curr.tide;
+    if (tide > prev.tide && tide >= next.tide) {
+      peaks.push({
+        kind: "high",
+        time: new Date(curr.x),
+        level: Number(tide.toFixed(1)),
+      });
+    } else if (tide < prev.tide && tide <= next.tide) {
+      peaks.push({
+        kind: "low",
+        time: new Date(curr.x),
+        level: Number(tide.toFixed(1)),
+      });
+    }
+  }
+  return peaks;
+};
+
+const average = (values: number[]): number | null => {
+  if (!values || values.length === 0) return null;
+  const total = values.reduce((sum, value) => sum + value, 0);
+  return total / values.length;
+};
+
+const formatHeightRange = (
+  minValue: number | null,
+  maxValue: number | null
+): string | null => {
+  if (minValue == null && maxValue == null) return null;
+  
+  // If only one value exists, treat the other as 0
+  const lowRaw = minValue ?? 0;
+  const highRaw = maxValue ?? 0;
+  
+  // If both are effectively 0, return null
+  if (lowRaw === 0 && highRaw === 0) return null;
+  
+  // Round min down, max up for a realistic range
+  const low = Math.floor(lowRaw);
+  const high = Math.ceil(highRaw);
+  
+  // Only show single value if they're the same after rounding
+  if (low === high) {
+    return String(high);
+  }
+  
+  return `${low}-${high}`;
+};
+
+
+const clampIntensity = (value: number, max: number): number => {
+  if (!Number.isFinite(value) || value <= 0) return 0;
+  return Math.min(100, Math.round((value / max) * 100));
+};
+
+const SURF_HEIGHT_CAP = 12;
+const WIND_SPEED_CAP = 40;
+const TEMP_CAP = 100; // For temperature circles
+
 const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
   // Visible immediately while data loads
   const [stats, setStats] = useState<SummaryStat[]>([]);
   const [showAllFeatures, setShowAllFeatures] = useState(false);
+  const featuresContainerRef = useRef<HTMLDivElement | null>(null);
+  const [featuresOverflowing, setFeaturesOverflowing] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -86,130 +149,226 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
         const resolved = await fetchBeachByIdLoose(beachId);
         const resolvedId = resolved?.id ?? beachId;
 
-        // Choose the time window: if a date is provided, use that local day; otherwise next 6 hours
+        // Choose the time window: if a date is provided, use that local day; otherwise next 24 hours
         const now = new Date();
         let startWindow = now;
-        let endWindow = new Date(now.getTime() + 6 * 60 * 60 * 1000);
+        let endWindow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+        let tideEndWindow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
         if (date instanceof Date) {
           const d = new Date(date);
           d.setHours(0, 0, 0, 0);
           startWindow = d;
           endWindow = new Date(d.getTime() + 24 * 60 * 60 * 1000);
+          tideEndWindow = endWindow;
         }
-        const [current, forecast, beach] = await Promise.all([
+        const [current, forecast, beach, tideRows] = await Promise.all([
           fetchCurrentConditions(resolvedId),
           fetchBeachForecast(resolvedId, startWindow, endWindow),
           fetchBeachDetails(resolvedId),
+          fetchBeachTides(resolvedId, startWindow, tideEndWindow),
         ]);
-
         const first = forecast[0];
         // If a specific date is selected, use that day's forecast; otherwise prefer current conditions
         const base = date ? first : current ?? first;
-        const windDirDeg = base?.conditions.windDirection ?? null;
-        const windDirStr =
-          windDirDeg == null ? "N/A" : getWindDirection(windDirDeg);
 
         const s: SummaryStat[] = [];
-        if (base?.conditions.waterTemp != null) {
-          s.push({
-            type: "water",
-            temp: Math.round(base.conditions.waterTemp),
-          });
-        }
-        if (base?.conditions.airTemp != null) {
-          s.push({
-            type: "weather",
-            temp: Math.round(base.conditions.airTemp),
-          });
-        }
-
-        if (first) {
-          s.push({
-            type: "swell",
-            primary: {
-              height: Number((first.swell.primary.height ?? 0).toFixed(1)),
-              period: Number((first.swell.primary.period ?? 0).toFixed(1)),
-              wind: {
-                dir: getWindDirection(first.swell.primary.direction ?? 0),
-                deg: Number((first.swell.primary.direction ?? 0).toFixed(1)),
-              },
-            },
-            secondary: [
-              {
-                height: Number((first.swell.secondary.height ?? 0).toFixed(1)),
-                period: Number((first.swell.secondary.period ?? 0).toFixed(1)),
-                wind: {
-                  dir: getWindDirection(first.swell.secondary.direction ?? 0),
-                  deg: Number(
-                    (first.swell.secondary.direction ?? 0).toFixed(1)
-                  ),
-                },
-              },
-              // Only include tertiary if present
-              ...((first.swell.tertiary?.height ?? null) != null
-                ? [
-                    {
-                      height: Number(
-                        (first.swell.tertiary!.height ?? 0).toFixed(1)
-                      ),
-                      period: Number(
-                        (first.swell.tertiary!.period ?? 0).toFixed(1)
-                      ),
-                      wind: {
-                        dir: getWindDirection(
-                          first.swell.tertiary!.direction ?? 0
-                        ),
-                        deg: Number(
-                          (first.swell.tertiary!.direction ?? 0).toFixed(1)
-                        ),
-                      },
-                    },
-                  ]
-                : []),
-            ],
-          });
-
-          const min = first.surf.heightMin ?? 0;
-          const max = first.surf.heightMax ?? 0;
-          const minR = Number(min.toFixed(0));
-          const maxR = Number(max.toFixed(0));
-          const surfDirStr = getWindDirection(
-            first.swell.primary.direction ?? 0
+        
+        // Calculate average water and air temps for the day
+        const waterTemps = forecast
+          .map((row) => row?.conditions?.waterTemp)
+          .filter((value): value is number =>
+            typeof value === "number" && !Number.isNaN(value)
           );
+        const airTemps = forecast
+          .map((row) => row?.conditions?.airTemp)
+          .filter((value): value is number =>
+            typeof value === "number" && !Number.isNaN(value)
+          );
+        
+        const avgWaterTemp = average(waterTemps);
+        const avgAirTemp = average(airTemps);
+        
+        const waterTemp = avgWaterTemp != null ? Math.round(avgWaterTemp) : undefined;
+        const airTemp = avgAirTemp != null ? Math.round(avgAirTemp) : undefined;
+        
+        if (waterTemp != null || airTemp != null) {
+          s.push({ 
+            type: "temperature", 
+            waterTemp, 
+            airTemp,
+            waterTempPercent: waterTemp != null ? clampIntensity(waterTemp, TEMP_CAP) : undefined,
+            airTempPercent: airTemp != null ? clampIntensity(airTemp, TEMP_CAP) : undefined,
+          });
+        }
+
+        const heightMins = forecast
+          .map((row) => row?.surf?.heightMin)
+          .filter((value): value is number =>
+            typeof value === "number" && !Number.isNaN(value)
+          );
+        const heightMaxes = forecast
+          .map((row) => row?.surf?.heightMax)
+          .filter((value): value is number =>
+            typeof value === "number" && !Number.isNaN(value)
+          );
+        const periods = forecast
+          .map((row) => row?.swell?.primary?.period)
+          .filter((value): value is number =>
+            typeof value === "number" && !Number.isNaN(value)
+          );
+
+        const avgHeightMin = average(heightMins);
+        const avgHeightMax = average(heightMaxes);
+        const avgPeriod = average(periods);
+
+        // Keep decimal precision for the range calculation
+        const resolvedHeightMin = avgHeightMin;
+        const resolvedHeightMax = avgHeightMax;
+        const surfHeightLabel = formatHeightRange(
+          resolvedHeightMin,
+          resolvedHeightMax
+        );
+        const surfPeriod = avgPeriod != null ? Math.round(avgPeriod) : null;
+
+        if (surfHeightLabel && surfPeriod != null) {
+          const surfIntensity = clampIntensity(
+            resolvedHeightMax ?? resolvedHeightMin ?? 0,
+            SURF_HEIGHT_CAP
+          );
+
           s.push({
             type: "surf",
             surf: {
-              direction: surfDirStr,
-              height: minR === maxR ? `${maxR}` : `${minR}-${maxR}`,
-              period: Math.round(first.swell.primary.period ?? 0),
+              height: surfHeightLabel,
+              period: surfPeriod,
+              intensity: surfIntensity,
             },
           });
         }
 
-        if (base?.conditions.tideLevel != null) {
-          s.push({
-            type: "tide",
-            height: Number(base.conditions.tideLevel.toFixed(1)),
-          });
+        const tideSeries: TidePointValue[] = (tideRows ?? [])
+          .map((row) => {
+            const tideFt =
+              typeof row?.tideLevelFt === "number"
+                ? row.tideLevelFt
+                : typeof row?.tideLevelM === "number"
+                ? row.tideLevelM * 3.28084
+                : null;
+            if (tideFt == null || Number.isNaN(tideFt)) return null;
+            return {
+              x: new Date(row.timestamp).getTime(),
+              tide: tideFt,
+            };
+          })
+          .filter((point): point is TidePointValue => point !== null)
+          .sort((a, b) => a.x - b.x);
+
+        let tidePeaks = computeTidePeaks(tideSeries);
+        if (tidePeaks.length === 0 && forecast.length > 0) {
+          const fallbackSeries: TidePointValue[] = forecast
+            .map((row) => {
+              const tideLevel = row?.conditions?.tideLevel;
+              if (tideLevel == null || Number.isNaN(tideLevel)) return null;
+              return {
+                x: new Date(row.timestamp).getTime(),
+                tide: tideLevel,
+              };
+            })
+            .filter((point): point is TidePointValue => point !== null)
+            .sort((a, b) => a.x - b.x);
+          tidePeaks = computeTidePeaks(fallbackSeries);
+        }
+
+        const tideStatPeaks = tidePeaks.slice(0, 4);
+        const currentTideHeight =
+          base?.conditions.tideLevel != null
+            ? Number(base.conditions.tideLevel.toFixed(1))
+            : undefined;
+
+        let sunrise: string | undefined;
+        let sunset: string | undefined;
+        const county = beach?.COUNTY;
+        if (county) {
+          try {
+            const basisDate =
+              date instanceof Date ? new Date(date) : new Date(startWindow);
+            const cond = await fetchDailyConditions(county, basisDate);
+            const dayForFormat = cond?.date
+              ? new Date(`${cond.date}T00:00:00`)
+              : new Date(basisDate);
+            const formatClock = (raw: string | null | undefined) => {
+              if (!raw) return undefined;
+              // Match HH:MM:SS or HH:MM format
+              const match = /^([0-9]{1,2}):([0-9]{2})(?::([0-9]{2}))?/.exec(raw.trim());
+              if (!match) return undefined;
+              const h = Number(match[1]);
+              const m = Number(match[2]);
+              if (!Number.isFinite(h) || !Number.isFinite(m)) return undefined;
+              
+              // Create a date with the correct time
+              const ts = new Date(dayForFormat);
+              ts.setHours(h, m, 0, 0);
+              
+              return ts.toLocaleTimeString([], {
+                hour: "numeric",
+                minute: "2-digit",
+              });
+            };
+            const resolvedSunrise = formatClock(cond?.sunrise);
+            const resolvedSunset = formatClock(cond?.sunset);
+            sunrise = resolvedSunrise ?? cond?.sunrise ?? undefined;
+            sunset = resolvedSunset ?? cond?.sunset ?? undefined;
+          } catch (sunErr) {
+            console.warn("Summary sunrise/sunset unavailable", sunErr);
+          }
         }
 
         if (
-          base?.conditions.windSpeed != null ||
-          base?.conditions.windDirection != null
+          currentTideHeight != null ||
+          tideStatPeaks.length > 0 ||
+          sunrise ||
+          sunset
         ) {
+          s.push({
+            type: "tide",
+            currentHeight: currentTideHeight,
+            peaks: tideStatPeaks,
+            sunrise,
+            sunset,
+          });
+        }
+
+        const windSpeeds = forecast
+          .map((row) => row?.conditions?.windSpeed)
+          .filter((value): value is number =>
+            typeof value === "number" && !Number.isNaN(value)
+          );
+        const windGusts = forecast
+          .map((row) => row?.conditions?.windGust)
+          .filter((value): value is number =>
+            typeof value === "number" && !Number.isNaN(value)
+          );
+
+        const avgWindSpeed = average(windSpeeds);
+        const avgWindGust = average(windGusts);
+
+        const resolvedWindSpeed = avgWindSpeed != null ? Math.round(avgWindSpeed) : null;
+        const resolvedWindGust = avgWindGust != null ? Math.round(avgWindGust) : undefined;
+
+        if (resolvedWindSpeed != null) {
+          const windIntensity = clampIntensity(resolvedWindSpeed, WIND_SPEED_CAP);
+
           s.push({
             type: "wind",
             wind: {
-              direction: windDirStr,
-              speed: Math.round(base?.conditions.windSpeed ?? 0),
-              gust:
-                base?.conditions.windGust != null
-                  ? Math.round(base.conditions.windGust)
-                  : undefined,
-              loc: "-",
+              speed: resolvedWindSpeed,
+              gust: resolvedWindGust,
+              loc: resolvedWindGust == null ? "-" : undefined,
+              intensity: windIntensity,
             },
           });
         }
+
 
         // Build features from beach flags when available
         if (beach) {
@@ -299,8 +458,7 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
             },
             PTH_BEACH: {
               icon: <BadgeCheck size={16} />,
-              color: "bg-slate-100",
-            },
+              color: "bg-slate-100" },
             BOARDWLK: { icon: <BadgeCheck size={16} />, color: "bg-slate-100" },
 
             // Trails & Paths
@@ -371,35 +529,264 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
     load();
   }, [beachId, date]);
 
+  useEffect(() => {
+
+    const el = featuresContainerRef.current;
+
+    if (!el) {
+
+      setFeaturesOverflowing(false);
+
+      return;
+
+    }
+
+
+
+    const measure = () => {
+
+      const target = featuresContainerRef.current;
+
+      if (!target) return;
+
+      const previousWrap = target.style.flexWrap;
+
+      const previousOverflow = target.style.overflow;
+
+
+
+      target.style.flexWrap = "nowrap";
+
+      target.style.overflow = "hidden";
+
+      const isOverflowing = target.scrollWidth > target.clientWidth + 1;
+
+      target.style.flexWrap = previousWrap;
+
+      target.style.overflow = previousOverflow;
+
+
+
+      setFeaturesOverflowing(isOverflowing);
+
+      if (!isOverflowing && showAllFeatures) {
+
+        setShowAllFeatures(false);
+
+      }
+
+    };
+
+
+
+    const scheduleMeasure = () => {
+
+      requestAnimationFrame(measure);
+
+    };
+
+
+
+    scheduleMeasure();
+
+
+
+    let observer: ResizeObserver | null = null;
+
+    if (typeof ResizeObserver !== "undefined") {
+
+      observer = new ResizeObserver(() => scheduleMeasure());
+
+      observer.observe(el);
+
+    }
+
+
+
+    const resizeHandler = () => scheduleMeasure();
+
+    if (typeof window !== "undefined") {
+
+      window.addEventListener("resize", resizeHandler);
+
+    }
+
+
+
+    return () => {
+
+      observer?.disconnect();
+
+      if (typeof window !== "undefined") {
+
+        window.removeEventListener("resize", resizeHandler);
+
+      }
+
+    };
+
+  }, [stats, showAllFeatures]);
+
+
+
+  const surfStat = stats.find(
+    (stat): stat is Extract<SummaryStat, { type: "surf" }> =>
+      stat.type === "surf"
+  );
+  const windStat = stats.find(
+    (stat): stat is Extract<SummaryStat, { type: "wind" }> =>
+      stat.type === "wind"
+  );
+  const tideStat = stats.find(
+    (stat): stat is Extract<SummaryStat, { type: "tide" }> =>
+      stat.type === "tide"
+  );
+
+  // Generate dynamic overview text based on conditions
+  const getOverviewText = () => {
+    const surfHeight = surfStat?.surf?.height || "N/A";
+    const windSpeed = windStat?.wind?.speed;
+    
+    // Determine surf condition
+    let surfCondition = "calm";
+    if (surfStat?.surf?.intensity) {
+      const intensity = surfStat.surf.intensity;
+      if (intensity >= 75) surfCondition = "huge";
+      else if (intensity >= 50) surfCondition = "pumping";
+      else if (intensity >= 25) surfCondition = "moderate";
+      else surfCondition = "calm";
+    }
+    
+    // Determine wind condition
+    let windCondition = "light";
+    let windAction = "barely blowing";
+    if (windSpeed != null) {
+      if (windSpeed >= 25) {
+        windCondition = "strong";
+        windAction = "whipping";
+      } else if (windSpeed >= 15) {
+        windCondition = "moderate";
+        windAction = "blowing";
+      } else if (windSpeed >= 8) {
+        windCondition = "gentle";
+        windAction = "coming in";
+      } else {
+        windCondition = "light";
+        windAction = "barely blowing";
+      }
+    }
+    
+    // Build sentence based on conditions
+    let sentence = `The waves are ${surfHeight} ft and ${surfCondition}.`;
+    
+    if (windSpeed != null) {
+      if (windSpeed >= 15) {
+        sentence += ` Watch out for ${windCondition} winds ${windAction} at ${windSpeed} mph.`;
+      } else {
+        sentence += ` Winds are ${windCondition}, ${windAction} at ${windSpeed} mph.`;
+      }
+    } else {
+      sentence += ` Wind conditions unavailable.`;
+    }
+    
+    return sentence;
+  };
+
   return (
     <ul className="grid grid-cols-2 @min-xl:grid-cols-3 @min-4xl:grid-cols-6 gap-3">
+      {/* Overview card */}
+      <li
+        className="highlight-card shadow-even flex flex-col overflow-hidden col-span-2"
+      >
+        <div className="flex items-center justify-between">
+          <h3 className="highlight-title">OVERVIEW</h3>
+          <div className="text-xs text-muted-foreground text-right uppercase tracking-wide leading-tight space-y-1">
+            <div>
+              Sunrise{" "}
+              <span className="ml-1 text-foreground normal-case">
+                {tideStat?.sunrise ?? "--"}
+              </span>
+            </div>
+            <div>
+              Sunset{" "}
+              <span className="ml-1 text-foreground normal-case">
+                {tideStat?.sunset ?? "--"}
+              </span>
+            </div>
+          </div>
+        </div>
+        <div className="flex-1 flex items-center gap-1 mt-1 justify-center">
+          <p className="text-center text-sm">
+            {getOverviewText()}
+          </p>
+        </div>
+      </li>
       {stats.map((stat) => {
         let content;
         switch (stat.type) {
-          case "water":
-            content = <GradientCircle condition="water" data={stat.temp} />;
-            break;
-          case "weather":
-            content = <GradientCircle condition="sun" data={stat.temp} />;
-            break;
-          case "swell":
-            content = stat.primary && stat.secondary && (
-              <div className="flex flex-col items-center">
-                <SwellStat primary data={stat.primary} />
-                {stat.secondary.map((sec, i) => (
-                  <SwellStat key={i} data={sec} />
-                ))}
+          case "temperature":
+            content = (
+              <div className="flex gap-3 items-center">
+                {stat.waterTemp != null && (
+                  <div className="flex flex-col items-center">
+                    <span className="text-xs text-muted-foreground">WATER</span>
+                    <GradientCircle 
+                      condition="water" 
+                      data={stat.waterTemp}
+                      percent={stat.waterTempPercent}
+                    />
+                    <span className="text-sm mt-1">{stat.waterTemp}°</span>
+                  </div>
+                )}
+                {stat.airTemp != null && (
+                  <div className="flex flex-col items-center">
+                    <span className="text-xs text-muted-foreground">AIR</span>
+                    <GradientCircle 
+                      condition="sun" 
+                      data={stat.airTemp}
+                      percent={stat.airTempPercent}
+                    />
+                    <span className="text-sm mt-1">{stat.airTemp}°</span>
+                  </div>
+                )}
               </div>
             );
             break;
           case "tide":
             content = (
-              <div className="flex flex-col w-full">
-                <span className="text-2xl font-medium">
-                  {stat.height}
-                  <span className="text-xs">ft</span>
+          <div className="flex flex-col w-full gap-2">
+            {stat.currentHeight != null && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-xs text-muted-foreground uppercase tracking-wide">
+                  Current
                 </span>
-                <TidePreview />
+                <span className="text-xl font-medium">
+                  {stat.currentHeight}
+                  <span className="text-xs ml-1">ft</span>
+                </span>
+              </div>
+            )}
+            <div className="flex flex-col gap-1 text-sm">
+              {stat.peaks.length > 0 ? (
+                stat.peaks.slice(0, 4).map((peak) => (
+                  <div
+                    key={`${peak.kind}-${peak.time.getTime()}`}
+                        className="flex items-center justify-between"
+                      >
+                        <span className="font-medium">
+                          {peak.kind === "high" ? "High tide" : "Low tide"}
+                        </span>
+                        <span className="text-muted-foreground">
+                          {`${peak.time.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} - ${peak.level} ft`}
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <span className="text-sm text-muted-foreground text-center">
+                      Tide peaks unavailable
+                    </span>
+                  )}
+                </div>
               </div>
             );
             break;
@@ -426,19 +813,22 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
                   : "min-h-35"
               )}
             >
-              <div className="flex items-center justify-between">
-                <h3 className="highlight-title">{stat.type.toUpperCase()}</h3>
-                {stat.type === "features" && (
+              <div className="flex items-start justify-between">
+                <h3 className="highlight-title mt-0.5">
+                  {stat.type.toUpperCase()}
+                </h3>
+                {stat.type === "features" && featuresOverflowing ? (
                   <button
                     className="text-[11px] px-2 py-0.5 rounded border border-border bg-highlight-5 hover:bg-highlight-4"
                     onClick={() => setShowAllFeatures((v) => !v)}
                   >
                     {showAllFeatures ? "Collapse" : "Show all"}
                   </button>
-                )}
+                ) : null}
               </div>
               {stat.type === "features" ? (
                 <div
+                  ref={featuresContainerRef}
                   className={cn(
                     "flex-1 flex items-center gap-2 mt-2",
                     showAllFeatures

@@ -1,5 +1,4 @@
 "use client";
-
 import { useMemo, useState } from "react";
 import { Slider } from "@/components/ui/slider";
 
@@ -18,11 +17,16 @@ const HourSlider = ({
   max = 21,
   step = 3,
 }: Props) => {
-  const [internal, setInternal] = useState<number>(controlled ?? 10);
+  const [internal, setInternal] = useState<number>(() => {
+    if (controlled !== undefined && controlled !== null) return controlled;
+    const currentHour = new Date().getHours();
+    const constrainedHour = Math.max(min, Math.min(max, currentHour));
+    return Math.round(constrainedHour / step) * step;
+  });
+
   const hour = controlled ?? internal;
   const displayValue = hour % 12 === 0 ? 12 : hour % 12;
   const ampm = hour >= 12 && hour < 24 ? "PM" : "AM";
-
   const sliderValue = useMemo(() => [hour], [hour]);
 
   const handleChange = (vals: number[]) => {

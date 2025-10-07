@@ -51,6 +51,9 @@ export async function GET(request: NextRequest) {
       }
     })
 
+    console.log('Beaches API returning', beaches.length, 'beaches');
+    console.log('Sample beach ID:', beaches[0]?.id, 'type:', typeof beaches[0]?.id);
+
     return NextResponse.json({
       success: true,
       data: beaches

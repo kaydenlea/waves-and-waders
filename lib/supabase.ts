@@ -713,25 +713,134 @@ export async function fetchDailyConditions(
   county: string,
   date?: Date
 ): Promise<DailyConditions | null> {
-  let q = supabase
-    .from('daily_county_conditions')
-    .select('*')
-    .eq('county', county)
-
-  if (date) {
-    const dateStr = date.toISOString().split('T')[0] // YYYY-MM-DD
-    q = q.eq('date', dateStr)
-  }
-
-  const { data, error } = await q
-    .order('date', { ascending: false })
-    .maybeSingle()
-
-  if (error) {
+  const trimmedCounty = county?.trim()
+  if (!trimmedCounty) {
     return null
   }
 
-  return (data as DailyConditions) ?? null
+  const toPacificDate = (value: Date) => {
+    const pacific = new Date(
+      value.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })
+    )
+    const year = pacific.getFullYear()
+    const month = String(pacific.getMonth() + 1).padStart(2, '0')
+    const day = String(pacific.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+
+  const targetDate = date ? toPacificDate(date) : null
+  const toTitleCase = (value: string) =>
+    value
+      .toLowerCase()
+      .split(' ')
+      .filter((part) => part.length > 0)
+      .map((part) => part[0].toUpperCase() + part.slice(1))
+      .join(' ')
+
+  const baseName = trimmedCounty.replace(/\s+County$/i, '').trim()
+  const candidateSet = new Set<string>()
+  const addVariants = (value?: string | null) => {
+    if (!value) return
+    const normalized = value.trim()
+    if (!normalized) return
+    candidateSet.add(normalized)
+    candidateSet.add(normalized.toUpperCase())
+    candidateSet.add(toTitleCase(normalized))
+  }
+
+  addVariants(trimmedCounty)
+  addVariants(baseName)
+  if (baseName) addVariants(`${baseName} County`)
+
+  const candidates = Array.from(candidateSet.values())
+  const escapePattern = (value: string) => value.replace(/([%_])/g, '\\$1')
+
+  const runExactQuery = async (
+    countyName: string,
+    matchDate: boolean
+  ): Promise<DailyConditions | null> => {
+    let query = supabase
+      .from('daily_county_conditions')
+      .select('*')
+      .eq('county', countyName)
+      .order('date', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (matchDate && targetDate) {
+      query = query.eq('date', targetDate)
+    }
+    const { data, error } = await query
+    if (error) {
+      console.warn('fetchDailyConditions error (exact)', {
+        error,
+        county: countyName,
+        matchDate,
+      })
+      return null
+    }
+    return (data as DailyConditions | null) ?? null
+  }
+
+  const runPatternQuery = async (
+    pattern: string,
+    matchDate: boolean
+  ): Promise<DailyConditions | null> => {
+    let query = supabase
+      .from('daily_county_conditions')
+      .select('*')
+      .ilike('county', pattern)
+      .order('date', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (matchDate && targetDate) {
+      query = query.eq('date', targetDate)
+    }
+    const { data, error } = await query
+    if (error) {
+      console.warn('fetchDailyConditions error (pattern)', {
+        error,
+        pattern,
+        matchDate,
+      })
+      return null
+    }
+    return (data as DailyConditions | null) ?? null
+  }
+
+  for (const name of candidates) {
+    const exact = await runExactQuery(name, true)
+    if (exact) return exact
+  }
+  for (const name of candidates) {
+    const latest = await runExactQuery(name, false)
+    if (latest) return latest
+  }
+
+  const likePatterns = Array.from(
+    new Set(
+      candidates.flatMap((name) => {
+        const escaped = escapePattern(name)
+        const patterns = [escaped, `${escaped}%`, `%${escaped}%`]
+        if (!/\bcounty$/i.test(name.trim())) {
+          patterns.push(`${escaped} County`, `${escaped} County%`)
+        }
+        return patterns
+      })
+    )
+  )
+
+  for (const pattern of likePatterns) {
+    const exactDateMatch = await runPatternQuery(pattern, true)
+    if (exactDateMatch) return exactDateMatch
+  }
+  for (const pattern of likePatterns) {
+    const latestMatch = await runPatternQuery(pattern, false)
+    if (latestMatch) return latestMatch
+  }
+
+  return null
 }
 
 export async function fetchTodaysForecast(beachId: string): Promise<ForecastData[]> {

@@ -297,12 +297,14 @@ const DatePicker = ({
             const isSelected =
               controlledSelected ??
               (selectedDate ? selectedDate.isSame(day, "day") : index === 0);
-            const min = summary?.min ?? null;
             const max = summary?.max ?? null;
+            const minWithFallback =
+              summary?.min ?? (max != null && max <= 1 ? 0 : null);
+            const hasRange = minWithFallback != null && max != null;
             const code = summary?.code ?? null;
             const weather = getWeatherIcon(code);
             const color =
-              min == null || max == null
+              !hasRange
                 ? "bg-highlight-3"
                 : max >= 6
                 ? "bg-red-400"
@@ -352,9 +354,9 @@ const DatePicker = ({
                     )}
                   />
                   <span className="text-md @min-xl:text-lg font-semibold mb-1">
-                    {min != null && max != null ? (
+                    {hasRange ? (
                       <>
-                        {min.toFixed(0)}-{max.toFixed(0)}
+                        {minWithFallback!.toFixed(0)}-{max!.toFixed(0)}
                         <span className="text-xs font-normal">ft</span>
                       </>
                     ) : (

@@ -33,10 +33,17 @@ const chartConfig = {
   //   },
 } satisfies ChartConfig;
 
-type Props = { beachId?: string; hours?: number };
+type Props = { beachId?: string; hours?: number; date?: Date };
 type EnergyPoint = { time: number; energy: number };
 
-import { fetchBeachForecast } from "@/lib/supabase";
+import {
+  fetchBeachForecast,
+  fetchBeachByIdLoose,
+  fetchBeachDetails,
+  fetchDailyConditions,
+} from "@/lib/supabase";
+
+const HOURS_TO_MS = 60 * 60 * 1000;
 
 function buildTrendStops(
   series: EnergyPoint[],
@@ -74,8 +81,12 @@ function buildTrendStops(
   return stops;
 }
 
-const WaveEnergyChart = ({ beachId, hours = 24 }: Props) => {
+const WaveEnergyChart = ({ beachId, hours = 24, date }: Props) => {
   const [series, setSeries] = useState<EnergyPoint[]>([]);
+  const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
+  const [nightAreas, setNightAreas] = useState<{ x1: number; x2: number }[]>(
+    []
+  );
   useEffect(() => {
     const load = async () => {
       try {
@@ -90,24 +101,90 @@ const WaveEnergyChart = ({ beachId, hours = 24 }: Props) => {
             { time: 18, energy: 2 },
             { time: 21, energy: 1 },
           ]);
+          setDayAreas([{ x1: 6, x2: 18 }]);
+          setNightAreas([
+            { x1: 0, x2: 6 },
+            { x1: 18, x2: hours },
+          ]);
           return;
         }
-        const start = new Date();
-        const end = new Date(start.getTime() + hours * 60 * 60 * 1000);
-        const rows = await fetchBeachForecast(beachId, start, end);
-        const baseHour = start.getHours();
+
+        const resolved = await fetchBeachByIdLoose(beachId);
+        const id = resolved?.id ?? beachId;
+
+        let start = new Date();
+        let end = new Date(start.getTime() + hours * HOURS_TO_MS);
+        if (date instanceof Date) {
+          const d = new Date(date);
+          d.setHours(0, 0, 0, 0);
+          start = d;
+          end = new Date(d.getTime() + hours * HOURS_TO_MS);
+        }
+
+        const rows = await fetchBeachForecast(id, start, end);
+        const startMs = start.getTime();
         setSeries(
-          rows.map((r, idx) => ({
-            time: (baseHour + idx) % 24,
+          rows.map((r) => ({
+            time: Math.max(
+              0,
+              Math.min(
+                hours,
+                (new Date(r.timestamp).getTime() - startMs) / HOURS_TO_MS
+              )
+            ),
             energy: r.surf.waveEnergy ?? 0,
           }))
         );
+
+        const beach = await fetchBeachDetails(String(id));
+        const county = beach?.COUNTY;
+        if (county) {
+          const basisDate =
+            date instanceof Date ? new Date(date) : new Date(start);
+          const cond = await fetchDailyConditions(county, basisDate);
+          const parseHM = (
+            s: string | null
+          ): { h: number; m: number } | null => {
+            if (!s) return null;
+            const m = /^([0-9]{1,2}):(\d{2})/.exec(s.trim());
+            if (!m) return null;
+            const h = Number(m[1]);
+            const mm = Number(m[2]);
+            if (!Number.isFinite(h) || !Number.isFinite(mm)) return null;
+            return { h, m: mm };
+          };
+          const rise = parseHM(cond?.sunrise ?? null);
+          const setv = parseHM(cond?.sunset ?? null);
+          const toHour = (value: { h: number; m: number }) =>
+            value.h + value.m / 60;
+          const clampHour = (val: number) =>
+            Math.max(0, Math.min(hours, val));
+          if (rise && setv) {
+            const riseHour = clampHour(toHour(rise));
+            const setHour = clampHour(toHour(setv));
+            const x1 = Math.min(riseHour, setHour);
+            const x2 = Math.max(riseHour, setHour);
+            setDayAreas(x2 > x1 ? [{ x1, x2 }] : []);
+            const nights: { x1: number; x2: number }[] = [];
+            if (x1 > 0) nights.push({ x1: 0, x2: x1 });
+            if (x2 < hours) nights.push({ x1: x2, x2: hours });
+            setNightAreas(nights);
+          } else {
+            setDayAreas([]);
+            setNightAreas([{ x1: 0, x2: hours }]);
+          }
+        } else {
+          setDayAreas([]);
+          setNightAreas([{ x1: 0, x2: hours }]);
+        }
       } catch (e) {
         console.error("Failed to load wave energy", e);
+        setDayAreas([]);
+        setNightAreas([{ x1: 0, x2: hours }]);
       }
     };
     load();
-  }, [beachId, hours]);
+  }, [beachId, hours, date]);
 
   const stops = useMemo(
     () => buildTrendStops(series, "var(--green)", "var(--red)"),
@@ -129,9 +206,24 @@ const WaveEnergyChart = ({ beachId, hours = 24 }: Props) => {
         }}
         syncId="anyId"
       >
-        <ReferenceArea x2={6} fill="#ccc1ffff" fillOpacity={0.2} />
-        <ReferenceArea x1={6} x2={18} fill="#FFE58F" fillOpacity={0.2} />
-        <ReferenceArea x1={18} x2={21} fill="#ccc1ffff" fillOpacity={0.2} />
+        {dayAreas.map((area, idx) => (
+          <ReferenceArea
+            key={`day-${idx}`}
+            x1={area.x1}
+            x2={area.x2}
+            fill="#FFE58F"
+            fillOpacity={0.2}
+          />
+        ))}
+        {nightAreas.map((area, idx) => (
+          <ReferenceArea
+            key={`night-${idx}`}
+            x1={area.x1}
+            x2={area.x2}
+            fill="#ccc1ffff"
+            fillOpacity={0.2}
+          />
+        ))}
         <CartesianGrid
           strokeDasharray="3 3"
           stroke="var(--foreground)"
@@ -140,6 +232,8 @@ const WaveEnergyChart = ({ beachId, hours = 24 }: Props) => {
         />
         <XAxis
           dataKey="time"
+          type="number"
+          domain={[0, hours]}
           tickLine={false}
           axisLine={false}
           tickMargin={8}

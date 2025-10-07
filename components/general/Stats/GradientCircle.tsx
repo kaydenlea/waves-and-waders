@@ -1,101 +1,61 @@
 import { cn } from "@/lib/utils";
 import { Droplets, Sun, Waves, Wind } from "lucide-react";
+import React from "react";
 
-// const GradientCircle = ({
-//   data,
-//   percentage = 75,
-//   size = 75,
-//   strokeWidth = 7,
-//   condition = "sun",
-//   color,
-// }: {
-//   data?: React.ReactNode;
-//   percentage?: number;
-//   size?: number;
-//   strokeWidth?: number;
-//   condition?: string;
-//   color?: string;
-// }) => {
-//   const angle = (percentage / 100) * 360;
-//   const colorsMap: Record<string, string[]> = {
-//     water: ["#3b82f6", "#60a5fa", "#0ea5e9", "#22d3ee"],
-//     sun: ["#facc15", "#f97316", "#f59e0b", "#fbbf24"],
-//     tide: ["#1ceb49ff", "#1ceb49ff", "#1ceb49ff", "#1ceb49ff"],
-//     wind: ["#ec291bff", "#ec291bff", "#ec291bff", "#ec291bff"],
-//   };
-//   const iconsMap: Record<string, React.ReactNode> = {
-//     water: <Droplets size={18} className="text-[#1CACD4]" />,
-//     sun: <Sun size={18} className="text-[#FF8D0B]" />,
-//     tide: <Waves size={18} className="text-foreground" />,
-//     wind: <Wind size={18} className="text-foreground" />,
-//   };
-//   const unitsMap: Record<string, string> = {
-//     water: "°F",
-//     sun: "°F",
-//     tide: "ft",
-//     wind: "mph",
-//   };
-//   const icon = iconsMap[condition];
-//   const colors = colorsMap[condition];
-//   const unit = unitsMap[condition];
-//   const bgColor = color ? color : "bg-highlight-4";
+const baseColors: Record<string, string[]> = {
+  water: ["#3b82f6", "#60a5fa", "#0ea5e9", "#22d3ee"],
+  sun: ["#facc15", "#f97316", "#f59e0b", "#fbbf24"],
+};
 
-//   return (
-//     <div
-//       className="relative flex items-center justify-center"
-//       style={{ width: size, height: size }}
-//     >
-//       <div className="absolute inset-0 rounded-full bg-gray-200" />
+const intensityColorSets: Record<string, string[][]> = {
+  tide: [
+    ["#FCA5A5", "#F87171", "#EF4444", "#DC2626"],
+    ["#FDE68A", "#FACC15", "#F59E0B", "#D97706"],
+    ["#34D399", "#22C55E", "#10B981", "#059669"],
+  ],
+  wind: [
+    ["#FCA5A5", "#F87171", "#EF4444", "#DC2626"],
+    ["#FDE68A", "#FACC15", "#F59E0B", "#D97706"],
+    ["#22D3EE", "#0EA5E9", "#0284C7", "#0369A1"],
+  ],
+  surf: [
+    ["#BFDBFE", "#93C5FD", "#60A5FA", "#3B82F6"],
+    ["#93C5FD", "#60A5FA", "#3B82F6", "#2563EB"],
+    ["#818CF8", "#6366F1", "#4F46E5", "#4338CA"],
+  ],
+};
 
-//       <div
-//         className="absolute inset-0 rounded-full"
-//         style={{
-//           background: `conic-gradient(
-//             from -90deg,
-//             ${colors[0]} 0deg,
-//             ${colors[1]} ${angle * 0.33}deg,
-//             ${colors[2]} ${angle * 0.66}deg,
-//             ${colors[3]} ${angle}deg,
-//             transparent ${angle}deg 360deg
-//           )`,
-//           filter: `drop-shadow(0 0 2px ${colors[0]}) drop-shadow(0 0 1px ${colors[1]})`,
-//         }}
-//       />
+const getIntensityColors = (conditionKey: string, pct: number): string[] | null => {
+  const sets = intensityColorSets[conditionKey];
+  if (!sets) return null;
+  if (pct <= 33) return sets[0];
+  if (pct <= 66) return sets[1];
+  return sets[2];
+};
 
-//       <div
-//         className={cn("absolute rounded-full", bgColor)}
-//         style={{
-//           width: size - strokeWidth * 2,
-//           height: size - strokeWidth * 2,
-//         }}
-//       />
-//       <div className="z-1 flex items-center gap-0.5">
-//         {icon}
-//         <span className="flex items-center font-medium whitespace-nowrap">
-//           {data} <span className="text-xs font-normal">{unit}</span>
-//         </span>
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default GradientCircle;
-
-const GradientCircle = ({
-  data,
-  percentage = 75,
-  size = 75,
-  strokeWidth = 7,
-  condition = "sun",
-  color,
-}: {
-  data?: React.ReactNode;
-  percentage?: number;
-  size?: number;
-  strokeWidth?: number;
-  condition?: string;
-  color?: string;
-}) => {
+const GradientCircle = (
+  {
+    data,
+    percentage = 75,
+    size = 75,
+    strokeWidth = 7,
+    condition = "sun",
+    color,
+    content,
+    showIcon = true,
+    unitOverride,
+  }: {
+    data?: React.ReactNode;
+    percentage?: number;
+    size?: number;
+    strokeWidth?: number;
+    condition?: string;
+    color?: string;
+    content?: React.ReactNode;
+    showIcon?: boolean;
+    unitOverride?: string;
+  }
+) => {
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (percentage / 100) * circumference;
@@ -105,44 +65,33 @@ const GradientCircle = ({
     sun: <Sun size={18} className="text-[#FF8D0B]" />,
     tide: <Waves size={18} className="text-foreground" />,
     wind: <Wind size={18} className="text-foreground" />,
+    surf: <Waves size={18} className="text-[#2563eb]" />,
   };
 
   const unitsMap: Record<string, string> = {
-    water: "°F",
-    sun: "°F",
+    water: "\u00b0F",
+    sun: "\u00b0F",
     tide: "ft",
     wind: "mph",
+    surf: "ft",
   };
 
   const bgColor = color ? color : "bg-highlight-4";
-  const icon = iconsMap[condition];
-  const unit = unitsMap[condition];
+  const icon = showIcon ? iconsMap[condition] ?? null : null;
+  const unit = unitOverride ?? unitsMap[condition] ?? "";
 
-  // Define gradient colors
-  const colorsMap: Record<string, string[]> = {
-    water: ["#3b82f6", "#60a5fa", "#0ea5e9", "#22d3ee"],
-    sun: ["#facc15", "#f97316", "#f59e0b", "#fbbf24"],
-    tideGreen: ["#34D399", "#22C55E", "#10B981", "#059669"],
-    tideOrange: ["#FDE68A", "#FACC15", "#F59E0B", "#D97706"],
-    tideRed: ["#FCA5A5", "#F87171", "#d45858ff", "#c74343ff"],
-  };
-
-  // Select gradient for tide/wind based on percentage
-  let selectedColors: string[] = [];
-  if (condition === "tide" || condition === "wind") {
-    if (percentage <= 33) selectedColors = colorsMap.tideRed;
-    else if (percentage <= 66) selectedColors = colorsMap.tideOrange;
-    else selectedColors = colorsMap.tideGreen;
-  } else {
-    selectedColors = colorsMap[condition];
+  let selectedColors = getIntensityColors(condition, percentage);
+  if (!selectedColors) {
+    selectedColors = baseColors[condition] ?? ["#94a3b8", "#64748b", "#475569", "#1f2937"];
   }
+
+  const gradientId = `grad-${condition}`;
 
   return (
     <div
       className="relative flex items-center justify-center"
       style={{ width: size, height: size }}
     >
-      {/* Background circle */}
       <div className="absolute inset-0 rounded-full bg-gray-200" />
 
       <svg
@@ -153,11 +102,11 @@ const GradientCircle = ({
         style={{ overflow: "visible" }}
       >
         <defs>
-          <linearGradient id={`grad-${condition}`} x1="1" y1="0" x2="0" y2="1">
+          <linearGradient id={gradientId} x1="1" y1="0" x2="0" y2="1">
             {selectedColors.map((c, i) => (
               <stop
                 key={i}
-                offset={`${(i / (selectedColors.length - 1)) * 100}%`}
+                offset={`${(i / Math.max(selectedColors.length - 1, 1)) * 100}%`}
                 stopColor={c}
               />
             ))}
@@ -168,7 +117,7 @@ const GradientCircle = ({
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke={`url(#grad-${condition})`}
+          stroke={`url(#${gradientId})`}
           strokeWidth={strokeWidth}
           strokeLinecap="round"
           strokeDasharray={circumference}
@@ -181,7 +130,6 @@ const GradientCircle = ({
         />
       </svg>
 
-      {/* Inner fill */}
       <div
         className={cn("absolute rounded-full", bgColor)}
         style={{
@@ -190,12 +138,16 @@ const GradientCircle = ({
         }}
       />
 
-      {/* Content */}
-      <div className="z-10 flex items-center gap-0.5">
-        {icon}
-        <span className="flex items-center font-medium whitespace-nowrap">
-          {data} <span className="text-xs font-normal">{unit}</span>
-        </span>
+      <div className="z-10 flex flex-col items-center justify-center gap-1 text-center px-1">
+        {content ?? (
+          <div className="flex items-center gap-0.5">
+            {icon}
+            <span className="flex items-center font-medium whitespace-nowrap">
+              {data}
+              {unit && <span className="ml-0.5 text-xs font-normal">{unit}</span>}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );
