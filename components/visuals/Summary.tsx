@@ -42,7 +42,7 @@ import { FEATURE_COLUMNS } from "@/lib/supabase";
 import { getFeatureDisplayName } from "@/lib/supabase";
 
 type SummaryStat =
-  | { type: "temperature"; waterTemp?: number; airTemp?: number; waterTempPercent?: number; airTempPercent?: number }
+  | { type: "temperature"; waterTemp?: number; airTemp?: number; waterTempPercent?: number; airTempPercent?: number; weatherCode?: number | null }
   | {
       type: "tide";
       currentHeight?: number;
@@ -97,32 +97,6 @@ const average = (values: number[]): number | null => {
   const total = values.reduce((sum, value) => sum + value, 0);
   return total / values.length;
 };
-
-const formatHeightRange = (
-  minValue: number | null,
-  maxValue: number | null
-): string | null => {
-  if (minValue == null && maxValue == null) return null;
-  
-  // If only one value exists, treat the other as 0
-  const lowRaw = minValue ?? 0;
-  const highRaw = maxValue ?? 0;
-  
-  // If both are effectively 0, return null
-  if (lowRaw === 0 && highRaw === 0) return null;
-  
-  // Round min down, max up for a realistic range
-  const low = Math.floor(lowRaw);
-  const high = Math.ceil(highRaw);
-  
-  // Only show single value if they're the same after rounding
-  if (low === high) {
-    return String(high);
-  }
-  
-  return `${low}-${high}`;
-};
-
 
 const clampIntensity = (value: number, max: number): number => {
   if (!Number.isFinite(value) || value <= 0) return 0;
@@ -187,17 +161,41 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
         
         const avgWaterTemp = average(waterTemps);
         const avgAirTemp = average(airTemps);
-        
+
         const waterTemp = avgWaterTemp != null ? Math.round(avgWaterTemp) : undefined;
         const airTemp = avgAirTemp != null ? Math.round(avgAirTemp) : undefined;
-        
+
+        // Calculate most occurring weather code for the day
+        const weatherCodes = forecast
+          .map((row) => row?.conditions?.weather)
+          .filter((value): value is number =>
+            typeof value === "number" && !Number.isNaN(value)
+          );
+
+        let dominantWeatherCode: number | null = null;
+        if (weatherCodes.length > 0) {
+          const codeCounts: Record<number, number> = {};
+          for (const code of weatherCodes) {
+            codeCounts[code] = (codeCounts[code] ?? 0) + 1;
+          }
+          let bestCount = -1;
+          for (const code of Object.keys(codeCounts)) {
+            const count = codeCounts[Number(code)];
+            if (count > bestCount) {
+              dominantWeatherCode = Number(code);
+              bestCount = count;
+            }
+          }
+        }
+
         if (waterTemp != null || airTemp != null) {
-          s.push({ 
-            type: "temperature", 
-            waterTemp, 
+          s.push({
+            type: "temperature",
+            waterTemp,
             airTemp,
             waterTempPercent: waterTemp != null ? clampIntensity(waterTemp, TEMP_CAP) : undefined,
             airTempPercent: airTemp != null ? clampIntensity(airTemp, TEMP_CAP) : undefined,
+            weatherCode: dominantWeatherCode,
           });
         }
 
@@ -221,18 +219,30 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
         const avgHeightMax = average(heightMaxes);
         const avgPeriod = average(periods);
 
-        // Keep decimal precision for the range calculation
-        const resolvedHeightMin = avgHeightMin;
-        const resolvedHeightMax = avgHeightMax;
-        const surfHeightLabel = formatHeightRange(
-          resolvedHeightMin,
-          resolvedHeightMax
-        );
+        const minWithFallback =
+          avgHeightMin != null
+            ? avgHeightMin
+            : avgHeightMax != null && avgHeightMax <= 1
+            ? 0
+            : null;
+        const maxWithFallback = avgHeightMax != null ? avgHeightMax : null;
+        const hasRange =
+          minWithFallback != null && maxWithFallback != null;
+
+        let surfHeightLabel: string | null = null;
+        if (hasRange) {
+          let minRounded = Math.round(minWithFallback!);
+          const maxRounded = Math.round(maxWithFallback!);
+          if (minRounded === maxRounded) {
+            minRounded = Math.max(0, maxRounded - 1);
+          }
+          surfHeightLabel = `${minRounded}-${maxRounded}`;
+        }
         const surfPeriod = avgPeriod != null ? Math.round(avgPeriod) : null;
 
-        if (surfHeightLabel && surfPeriod != null) {
+        if (hasRange && surfHeightLabel && surfPeriod != null) {
           const surfIntensity = clampIntensity(
-            resolvedHeightMax ?? resolvedHeightMin ?? 0,
+            maxWithFallback ?? minWithFallback ?? 0,
             SURF_HEIGHT_CAP
           );
 
@@ -659,7 +669,7 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
     
     // Determine wind condition
     let windCondition = "light";
-    let windAction = "barely blowing";
+    let windAction = "blowing";
     if (windSpeed != null) {
       if (windSpeed >= 25) {
         windCondition = "strong";
@@ -672,7 +682,7 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
         windAction = "coming in";
       } else {
         windCondition = "light";
-        windAction = "barely blowing";
+        windAction = "blowing";
       }
     }
     
@@ -716,7 +726,7 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
           </div>
         </div>
         <div className="flex-1 flex items-center gap-1 mt-1 justify-center">
-          <p className="text-center text-sm">
+          <p className="text-center text-base">
             {getOverviewText()}
           </p>
         </div>
@@ -730,23 +740,22 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
                 {stat.waterTemp != null && (
                   <div className="flex flex-col items-center">
                     <span className="text-xs text-muted-foreground">WATER</span>
-                    <GradientCircle 
-                      condition="water" 
+                    <GradientCircle
+                      condition="water"
                       data={stat.waterTemp}
                       percent={stat.waterTempPercent}
                     />
-                    <span className="text-sm mt-1">{stat.waterTemp}°</span>
                   </div>
                 )}
                 {stat.airTemp != null && (
                   <div className="flex flex-col items-center">
                     <span className="text-xs text-muted-foreground">AIR</span>
-                    <GradientCircle 
-                      condition="sun" 
+                    <GradientCircle
+                      condition="sun"
                       data={stat.airTemp}
                       percent={stat.airTempPercent}
+                      weatherCode={stat.weatherCode}
                     />
-                    <span className="text-sm mt-1">{stat.airTemp}°</span>
                   </div>
                 )}
               </div>

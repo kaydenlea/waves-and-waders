@@ -1,5 +1,16 @@
 import { cn } from "@/lib/utils";
-import { Droplets, Sun, Waves, Wind } from "lucide-react";
+import {
+  Droplets,
+  Sun,
+  Waves,
+  Wind,
+  Cloud as CloudIcon,
+  CloudSun,
+  CloudDrizzle,
+  CloudRain,
+  CloudLightning,
+  Snowflake,
+} from "lucide-react";
 import React from "react";
 
 const baseColors: Record<string, string[]> = {
@@ -33,6 +44,30 @@ const getIntensityColors = (conditionKey: string, pct: number): string[] | null 
   return sets[2];
 };
 
+const getWeatherIcon = (code: number | null | undefined) => {
+  if (code == null) return <Sun size={18} className="text-[#FF8D0B]" />;
+  // WMO code groupings per spec
+  if (code === 0) return <Sun size={18} className="text-[#FF8D0B]" />; // Clear
+  if ([1, 2, 3].includes(code)) return <CloudSun size={18} className="text-[#bdbdbd]" />; // Partly cloudy/overcast
+  if ([45, 48].includes(code)) return <CloudIcon size={18} className="text-[#bdbdbd]" />; // Fog
+  if ([51, 53, 55].includes(code))
+    return <CloudDrizzle size={18} className="text-[#66a3ff]" />; // Drizzle
+  if ([56, 57].includes(code))
+    return <CloudDrizzle size={18} className="text-[#66a3ff]" />; // Freezing drizzle
+  if ([61, 63, 65].includes(code))
+    return <CloudRain size={18} className="text-[#66a3ff]" />; // Rain
+  if ([66, 67].includes(code)) return <CloudRain size={18} className="text-[#66a3ff]" />; // Freezing rain
+  if ([71, 73, 75].includes(code))
+    return <Snowflake size={18} className="text-[#8ecaff]" />; // Snow
+  if (code === 77) return <Snowflake size={18} className="text-[#8ecaff]" />; // Snow grains
+  if ([80, 81, 82].includes(code))
+    return <CloudRain size={18} className="text-[#66a3ff]" />; // Showers
+  if ([85, 86].includes(code)) return <Snowflake size={18} className="text-[#8ecaff]" />; // Snow showers
+  if ([95, 96, 99].includes(code))
+    return <CloudLightning size={18} className="text-[#ff8d6b]" />; // Thunderstorm/hail
+  return <CloudIcon size={18} className="text-[#bdbdbd]" />;
+};
+
 const GradientCircle = (
   {
     data,
@@ -44,6 +79,8 @@ const GradientCircle = (
     content,
     showIcon = true,
     unitOverride,
+    weatherCode,
+    percent,
   }: {
     data?: React.ReactNode;
     percentage?: number;
@@ -54,11 +91,12 @@ const GradientCircle = (
     content?: React.ReactNode;
     showIcon?: boolean;
     unitOverride?: string;
+    weatherCode?: number | null;
+    percent?: number;
   }
 ) => {
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (percentage / 100) * circumference;
 
   const iconsMap: Record<string, React.ReactNode> = {
     water: <Droplets size={18} className="text-[#1CACD4]" />,
@@ -77,10 +115,20 @@ const GradientCircle = (
   };
 
   const bgColor = color ? color : "bg-highlight-4";
-  const icon = showIcon ? iconsMap[condition] ?? null : null;
+
+  // Use weather icon if condition is "sun" and weatherCode is provided
+  let icon = showIcon ? iconsMap[condition] ?? null : null;
+  if (showIcon && condition === "sun" && weatherCode !== undefined) {
+    icon = getWeatherIcon(weatherCode);
+  }
+
   const unit = unitOverride ?? unitsMap[condition] ?? "";
 
-  let selectedColors = getIntensityColors(condition, percentage);
+  // Use percent if provided, otherwise use percentage
+  const actualPercentage = percent ?? percentage;
+  const offset = circumference - (actualPercentage / 100) * circumference;
+
+  let selectedColors = getIntensityColors(condition, actualPercentage);
   if (!selectedColors) {
     selectedColors = baseColors[condition] ?? ["#94a3b8", "#64748b", "#475569", "#1f2937"];
   }

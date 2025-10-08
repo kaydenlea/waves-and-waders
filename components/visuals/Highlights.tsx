@@ -34,23 +34,23 @@ const WeatherStat = ({
 }) => {
   // Function to get weather icon based on WMO code
   const getWeatherIcon = (code: number | null) => {
-    if (code == null) return <Sun className="w-4 h-4" strokeWidth={3} color="#f79e55ff" />;
-    
+    if (code == null) return <Sun className="w-5 h-5" strokeWidth={3} color="#f79e55ff" />;
+
     // WMO code groupings
-    if (code === 0) return <Sun className="w-4 h-4" strokeWidth={3} color="#f79e55ff" />; // Clear
-    if ([1, 2, 3].includes(code)) return <CloudSun className="w-4 h-4" color="#bdbdbdff" />; // Partly cloudy/overcast
-    if ([45, 48].includes(code)) return <CloudIcon className="w-4 h-4" color="#bdbdbdff" />; // Fog
-    if ([51, 53, 55].includes(code)) return <CloudDrizzle className="w-4 h-4" color="#66a3ffff" />; // Drizzle
-    if ([56, 57].includes(code)) return <CloudDrizzle className="w-4 h-4" color="#66a3ffff" />; // Freezing drizzle
-    if ([61, 63, 65].includes(code)) return <CloudRain className="w-4 h-4" color="#66a3ffff" />; // Rain
-    if ([66, 67].includes(code)) return <CloudRain className="w-4 h-4" color="#66a3ffff" />; // Freezing rain
-    if ([71, 73, 75].includes(code)) return <Snowflake className="w-4 h-4" color="#8ecaffff" />; // Snow
-    if (code === 77) return <Snowflake className="w-4 h-4" color="#8ecaffff" />; // Snow grains
-    if ([80, 81, 82].includes(code)) return <CloudRain className="w-4 h-4" color="#66a3ffff" />; // Showers
-    if ([85, 86].includes(code)) return <Snowflake className="w-4 h-4" color="#8ecaffff" />; // Snow showers
-    if ([95, 96, 99].includes(code)) return <CloudLightning className="w-4 h-4" color="#ff8d6bff" />; // Thunderstorm/hail
-    
-    return <CloudIcon className="w-4 h-4" color="#bdbdbdff" />;
+    if (code === 0) return <Sun className="w-5 h-5" strokeWidth={3} color="#f79e55ff" />; // Clear
+    if ([1, 2, 3].includes(code)) return <CloudSun className="w-5 h-5" color="#bdbdbdff" />; // Partly cloudy/overcast
+    if ([45, 48].includes(code)) return <CloudIcon className="w-5 h-5" color="#bdbdbdff" />; // Fog
+    if ([51, 53, 55].includes(code)) return <CloudDrizzle className="w-5 h-5" color="#66a3ffff" />; // Drizzle
+    if ([56, 57].includes(code)) return <CloudDrizzle className="w-5 h-5" color="#66a3ffff" />; // Freezing drizzle
+    if ([61, 63, 65].includes(code)) return <CloudRain className="w-5 h-5" color="#66a3ffff" />; // Rain
+    if ([66, 67].includes(code)) return <CloudRain className="w-5 h-5" color="#66a3ffff" />; // Freezing rain
+    if ([71, 73, 75].includes(code)) return <Snowflake className="w-5 h-5" color="#8ecaffff" />; // Snow
+    if (code === 77) return <Snowflake className="w-5 h-5" color="#8ecaffff" />; // Snow grains
+    if ([80, 81, 82].includes(code)) return <CloudRain className="w-5 h-5" color="#66a3ffff" />; // Showers
+    if ([85, 86].includes(code)) return <Snowflake className="w-5 h-5" color="#8ecaffff" />; // Snow showers
+    if ([95, 96, 99].includes(code)) return <CloudLightning className="w-5 h-5" color="#ff8d6bff" />; // Thunderstorm/hail
+
+    return <CloudIcon className="w-5 h-5" color="#bdbdbdff" />;
   };
 
   return (

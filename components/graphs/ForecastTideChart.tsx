@@ -207,7 +207,7 @@ const ForecastTideChart: React.FC<Props> = ({ beachId, date }) => {
       >
         <LineChart
           data={visibleData}
-          margin={{ left: -35, right: 15, bottom: 5 }}
+          margin={{ left: -35, right: 15, bottom: 5, top: 50 }}
         >
           {dayAreas.map((a, idx) => (
             <ReferenceArea

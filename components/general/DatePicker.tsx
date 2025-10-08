@@ -43,27 +43,27 @@ type DaySummary = {
 };
 
 const getWeatherIcon = (code: number | null) => {
-  if (code == null) return <CloudIcon size={16} color="#bdbdbdff" />;
+  if (code == null) return <CloudIcon size={20} color="#bdbdbdff" />;
   // WMO code groupings per spec
-  if (code === 0) return <Sun size={16} strokeWidth={3} color="#f79e55ff" />; // Clear
-  if ([1, 2, 3].includes(code)) return <CloudSun size={16} color="#bdbdbdff" />; // Partly cloudy/overcast
-  if ([45, 48].includes(code)) return <CloudIcon size={16} color="#bdbdbdff" />; // Fog
+  if (code === 0) return <Sun size={20} strokeWidth={3} color="#f79e55ff" />; // Clear
+  if ([1, 2, 3].includes(code)) return <CloudSun size={20} color="#bdbdbdff" />; // Partly cloudy/overcast
+  if ([45, 48].includes(code)) return <CloudIcon size={20} color="#bdbdbdff" />; // Fog
   if ([51, 53, 55].includes(code))
-    return <CloudDrizzle size={16} color="#66a3ffff" />; // Drizzle
+    return <CloudDrizzle size={20} color="#66a3ffff" />; // Drizzle
   if ([56, 57].includes(code))
-    return <CloudDrizzle size={16} color="#66a3ffff" />; // Freezing drizzle
+    return <CloudDrizzle size={20} color="#66a3ffff" />; // Freezing drizzle
   if ([61, 63, 65].includes(code))
-    return <CloudRain size={16} color="#66a3ffff" />; // Rain
-  if ([66, 67].includes(code)) return <CloudRain size={16} color="#66a3ffff" />; // Freezing rain
+    return <CloudRain size={20} color="#66a3ffff" />; // Rain
+  if ([66, 67].includes(code)) return <CloudRain size={20} color="#66a3ffff" />; // Freezing rain
   if ([71, 73, 75].includes(code))
-    return <Snowflake size={16} color="#8ecaffff" />; // Snow
-  if (code === 77) return <Snowflake size={16} color="#8ecaffff" />; // Snow grains
+    return <Snowflake size={20} color="#8ecaffff" />; // Snow
+  if (code === 77) return <Snowflake size={20} color="#8ecaffff" />; // Snow grains
   if ([80, 81, 82].includes(code))
-    return <CloudRain size={16} color="#66a3ffff" />; // Showers
-  if ([85, 86].includes(code)) return <Snowflake size={16} color="#8ecaffff" />; // Snow showers
+    return <CloudRain size={20} color="#66a3ffff" />; // Showers
+  if ([85, 86].includes(code)) return <Snowflake size={20} color="#8ecaffff" />; // Snow showers
   if ([95, 96, 99].includes(code))
-    return <CloudLightning size={16} color="#ff8d6bff" />; // Thunderstorm/hail
-  return <CloudIcon size={16} color="#bdbdbdff" />;
+    return <CloudLightning size={20} color="#ff8d6bff" />; // Thunderstorm/hail
+  return <CloudIcon size={20} color="#bdbdbdff" />;
 };
 
 const DatePicker = ({
@@ -80,6 +80,7 @@ const DatePicker = ({
   const [loading, setLoading] = useState(false);
 
   const { setSelectedDays } = useDateContext();
+  const { setSurfIntensityForDate } = require("@/components/context/MapFilterContext").useMapFilters();
 
   const scrollBy = 3;
 
@@ -142,6 +143,10 @@ const DatePicker = ({
           return s;
         };
 
+        // Track all min and max values per day for averaging
+        const minValues: Record<string, number[]> = {};
+        const maxValues: Record<string, number[]> = {};
+
         for (const row of data) {
           // Normalize timestamp string to ISO-8601 so Date/Dayjs can parse reliably
           const iso = toISO(row.timestamp);
@@ -158,17 +163,33 @@ const DatePicker = ({
               code: null,
             };
             codeCounts[key] = {};
+            minValues[key] = [];
+            maxValues[key] = [];
           }
-          if (typeof minH === "number") {
-            groups[key].min =
-              groups[key].min == null ? minH : Math.min(groups[key].min, minH);
+          if (typeof minH === "number" && !Number.isNaN(minH)) {
+            minValues[key].push(minH);
           }
-          if (typeof maxH === "number") {
-            groups[key].max =
-              groups[key].max == null ? maxH : Math.max(groups[key].max, maxH);
+          if (typeof maxH === "number" && !Number.isNaN(maxH)) {
+            maxValues[key].push(maxH);
           }
           if (code != null) {
             codeCounts[key][code] = (codeCounts[key][code] ?? 0) + 1;
+          }
+        }
+
+        // Calculate average min and max for each day
+        for (const key of Object.keys(groups)) {
+          const mins = minValues[key] || [];
+          const maxs = maxValues[key] || [];
+
+          if (mins.length > 0) {
+            const avgMin = mins.reduce((sum, val) => sum + val, 0) / mins.length;
+            groups[key].min = avgMin;
+          }
+
+          if (maxs.length > 0) {
+            const avgMax = maxs.reduce((sum, val) => sum + val, 0) / maxs.length;
+            groups[key].max = avgMax;
           }
         }
         // Determine dominant code per day
@@ -267,7 +288,14 @@ const DatePicker = ({
       }
     });
     setSelectedDays(daysRange);
-  }, [value, selectedDate]);
+
+    // Update surf intensity for the selected date
+    if (selectedDate) {
+      const key = selectedDate.format("YYYY-MM-DD");
+      const summary = summaries[key];
+      setSurfIntensityForDate(summary?.max ?? null);
+    }
+  }, [value, selectedDate, summaries]);
 
   return (
     <div
@@ -356,7 +384,9 @@ const DatePicker = ({
                   <span className="text-md @min-xl:text-lg font-semibold mb-1">
                     {hasRange ? (
                       <>
-                        {minWithFallback!.toFixed(0)}-{max!.toFixed(0)}
+                        {Math.max(0, Math.round(max!) === Math.round(minWithFallback!) ? Math.round(minWithFallback!) - 1 : Math.round(minWithFallback!))}
+                        -
+                        {Math.round(max!)}
                         <span className="text-xs font-normal">ft</span>
                       </>
                     ) : (
