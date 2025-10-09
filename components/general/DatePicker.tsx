@@ -43,27 +43,33 @@ type DaySummary = {
 };
 
 const getWeatherIcon = (code: number | null) => {
-  if (code == null) return <CloudIcon size={16} color="#bdbdbdff" />;
+  const iconSize = 24;
+  if (code == null) return <CloudIcon size={iconSize} color="#bdbdbdff" />;
   // WMO code groupings per spec
-  if (code === 0) return <Sun size={16} strokeWidth={3} color="#f79e55ff" />; // Clear
-  if ([1, 2, 3].includes(code)) return <CloudSun size={16} color="#bdbdbdff" />; // Partly cloudy/overcast
-  if ([45, 48].includes(code)) return <CloudIcon size={16} color="#bdbdbdff" />; // Fog
+  if (code === 0)
+    return <Sun size={iconSize} strokeWidth={3} color="#f79e55ff" />; // Clear
+  if ([1, 2, 3].includes(code))
+    return <CloudSun size={iconSize} color="#bdbdbdff" />; // Partly cloudy/overcast
+  if ([45, 48].includes(code))
+    return <CloudIcon size={iconSize} color="#bdbdbdff" />; // Fog
   if ([51, 53, 55].includes(code))
-    return <CloudDrizzle size={16} color="#66a3ffff" />; // Drizzle
+    return <CloudDrizzle size={iconSize} color="#66a3ffff" />; // Drizzle
   if ([56, 57].includes(code))
-    return <CloudDrizzle size={16} color="#66a3ffff" />; // Freezing drizzle
+    return <CloudDrizzle size={iconSize} color="#66a3ffff" />; // Freezing drizzle
   if ([61, 63, 65].includes(code))
-    return <CloudRain size={16} color="#66a3ffff" />; // Rain
-  if ([66, 67].includes(code)) return <CloudRain size={16} color="#66a3ffff" />; // Freezing rain
+    return <CloudRain size={iconSize} color="#66a3ffff" />; // Rain
+  if ([66, 67].includes(code))
+    return <CloudRain size={iconSize} color="#66a3ffff" />; // Freezing rain
   if ([71, 73, 75].includes(code))
-    return <Snowflake size={16} color="#8ecaffff" />; // Snow
-  if (code === 77) return <Snowflake size={16} color="#8ecaffff" />; // Snow grains
+    return <Snowflake size={iconSize} color="#8ecaffff" />; // Snow
+  if (code === 77) return <Snowflake size={iconSize} color="#8ecaffff" />; // Snow grains
   if ([80, 81, 82].includes(code))
-    return <CloudRain size={16} color="#66a3ffff" />; // Showers
-  if ([85, 86].includes(code)) return <Snowflake size={16} color="#8ecaffff" />; // Snow showers
+    return <CloudRain size={iconSize} color="#66a3ffff" />; // Showers
+  if ([85, 86].includes(code))
+    return <Snowflake size={iconSize} color="#8ecaffff" />; // Snow showers
   if ([95, 96, 99].includes(code))
-    return <CloudLightning size={16} color="#ff8d6bff" />; // Thunderstorm/hail
-  return <CloudIcon size={16} color="#bdbdbdff" />;
+    return <CloudLightning size={iconSize} color="#ff8d6bff" />; // Thunderstorm/hail
+  return <CloudIcon size={iconSize} color="#bdbdbdff" />;
 };
 
 const DatePicker = ({

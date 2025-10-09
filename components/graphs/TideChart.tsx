@@ -255,7 +255,7 @@ const TideChart = ({
             fontSize={11}
             domain={[
               (dataMin: number) => Math.floor(dataMin) - 1,
-              (dataMax: number) => Math.max(Math.ceil(dataMax) + 1, 8),
+              (dataMax: number) => Math.max(Math.ceil(dataMax) + 3, 8),
             ]}
           />
           <ChartTooltip content={<ChartTooltipContent />} />

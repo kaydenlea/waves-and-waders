@@ -71,7 +71,10 @@ const NavBar = () => {
         {/* <Link href="/" className="p-3 icon-button">
           Logo
         </Link> */}
-        <Link href="/" className="group inline-flex items-center gap-2">
+        <Link
+          href="/"
+          className="group inline-flex items-center gap-2 outline-none"
+        >
           <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-cyan-300 to-blue-500 text-foreground shadow-lg shadow-cyan-500/20">
             <Waves className="h-6 w-6" aria-hidden />
           </div>

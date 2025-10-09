@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useMemo, useState } from "react";
 
 import {
   Line,
@@ -174,10 +174,11 @@ function buildTrendStops(
 }
 
 import { fetchWeeklyForecast, fetchBeachByIdLoose } from "@/lib/supabase";
+import dayjs from "dayjs";
 
-type Props = { beachId?: string; date?: Date };
+type Props = { beachId?: string; days?: Date[] | null };
 
-const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, date }) => {
+const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
   const [startIndex, setStartIndex] = React.useState(0);
   const [dayWindow, setDayWindow] = React.useState(3);
   const [energyData, setEnergyData] = React.useState<WavePoint[]>([]);
@@ -195,6 +196,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, date }) => {
         const resolved = await fetchBeachByIdLoose(beachId);
         const id = resolved?.id ?? beachId;
         const rows = await fetchWeeklyForecast(String(id));
+        console.log("RAW ENERGY", rows);
         if (!rows || !rows.length) {
           setEnergyData([]);
           setBaseStartMs(null);
@@ -262,7 +264,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, date }) => {
       return 1;
     }
     const available = Math.floor(totalLength / pointsPerDay);
-    const capped = Math.min(7, available > 0 ? available : 1);
+    const capped = Math.min(4, available > 0 ? available : 1);
     return Math.max(1, capped);
   }, [pointsPerDay, totalLength]);
 
@@ -280,7 +282,46 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, date }) => {
     setStartIndex((prev) => Math.min(prev, maxStartIndex));
   }, [maxStartIndex]);
 
-  const visibleData = source.slice(startIndex, startIndex + windowSize);
+  const windowDays = days?.map((d) =>
+    d.toLocaleDateString("en-US", {
+      weekday: "short",
+      timeZone: "America/Los_Angeles",
+    })
+  );
+  const startDayVal =
+    days && days.length > 0 ? days[0].getTime() : new Date().getTime();
+  const startDay = windowDays
+    ? windowDays[0]
+    : new Date().toLocaleDateString("en-US", {
+        weekday: "short",
+        timeZone: "America/Los_Angeles",
+      });
+  const currentDay = new Date().toLocaleDateString("en-US", {
+    weekday: "short",
+    timeZone: "America/Los_Angeles",
+  });
+  const daysDiff = Math.floor(
+    Math.abs(startDayVal - new Date().getTime()) /
+      (1000 * 60 * 60 * HOURS_PER_DAY)
+  );
+  const getIndex = (d: string) =>
+    dayjs().day(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(d));
+  const getRelativeIndex = (current: string, selected: string) =>
+    (getIndex(selected).day() - getIndex(current).day() + 7) % 7;
+  const startDayIdx = daysDiff * (HOURS_PER_DAY / 3);
+  console.log(
+    "NUMS",
+    windowDays,
+    source,
+    startDay,
+    currentDay,
+    getRelativeIndex(currentDay, startDay),
+    daysDiff,
+    startDayIdx,
+    startDayIdx + windowSize
+  );
+  const visibleData = source.slice(startDayIdx, startDayIdx + windowSize);
+  // const visibleData = source.slice(startIndex, startIndex + windowSize);
 
   const stops = React.useMemo(
     () => buildTrendStops(visibleData, "var(--green)", "var(--red)"),
@@ -337,6 +378,29 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, date }) => {
     },
     [effectiveDayWindow, maxSelectableDays]
   );
+  const [dayOffset, setDayOffset] = useState(0);
+  // Prepare day label texts for the *visible 4 days* starting at dayOffset
+  const dayLabels = useMemo(() => {
+    const base = days instanceof Date ? new Date(days) : new Date();
+    const startLocal = new Date(
+      base.toLocaleString("en-US", { timeZone: "America/Los_Angeles" })
+    );
+    startLocal.setHours(0, 0, 0, 0);
+    const labels = [];
+    for (let i = 0; i < effectiveDayWindow; i++) {
+      const d = new Date(
+        startLocal.getTime() + (dayOffset + i) * 24 * 60 * 60 * 1000
+      );
+      labels.push(
+        d.toLocaleDateString(undefined, {
+          weekday: "short",
+          month: "numeric",
+          day: "numeric",
+        })
+      );
+    }
+    return labels;
+  }, [days, effectiveDayWindow]);
 
   return (
     <>
@@ -356,14 +420,62 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, date }) => {
           className="mt-2"
         />
       </div>
-      <DaySlider
-        handleBack={handleBack}
-        handleNext={handleNext}
-        startIndex={startIndex}
-        windowSize={windowSize}
-        length={totalLength}
-        days={fmtRange}
-      />
+      {/* <DaySlider
+        chartHandleBack={handleBack}
+        chartHandleNext={handleNext}
+        chartStartIndex={startIndex}
+        chartWindowSize={windowSize}
+        chartLength={totalLength}
+        chartDays={fmtRange}
+      /> */}
+      {/* <DaySlider
+        chartHandleBack={handleBack}
+        chartHandleNext={handleNext}
+        chartStartIndex={startIndex}
+        chartWindowSize={windowSize}
+        chartLength={totalLength}
+        chartDays={fmtRange}
+      /> */}
+      <div
+        className="w-[86%] @min-sm:w-[90%] @min-md:w-[92%] @min-lg:w-[92%] @min-xl:w-[94%] @min-3xl:w-[96%] flex justify-between"
+        style={{
+          position: "relative",
+          zIndex: 40,
+          right: 15,
+          left: 25,
+          top: 0,
+          // gap: 8,
+          // paddingLeft: 8,
+          // paddingRight: 8,
+          boxSizing: "border-box",
+          pointerEvents: "none",
+        }}
+      >
+        {dayLabels.map((label, idx) => (
+          <div
+            key={idx}
+            className=""
+            style={{
+              flex: 1,
+              minWidth: 0,
+              textAlign: "center",
+              // background: "linear-gradient(180deg,#f8fafc,#eef2ff)",
+              borderRadius: 8,
+              padding: "6px 6px",
+              // boxShadow: "0 1px 0 rgba(0,0,0,0.04)",
+              // border: "1px solid rgba(0,0,0,0.06)",
+              fontWeight: 700,
+              fontSize: 13,
+              color: "var(--foreground)",
+              pointerEvents: "none",
+            }}
+          >
+            <div className="@min-sm:whitespace-nowrap max-w-20 mx-auto p-1 rounded-sm bg-highlight-7 border border-border">
+              {label}
+            </div>
+          </div>
+        ))}
+      </div>
       <ChartContainer
         config={chartConfig}
         className="@min-md:aspect-auto @min-md:h-[250px] w-full"
@@ -416,7 +528,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, date }) => {
             fontSize={11}
             domain={[
               0,
-              (dataMax: number) => Math.max(Math.ceil(dataMax) + 1, 8),
+              (dataMax: number) => Math.max(Math.ceil(dataMax) + 5, 8),
             ]}
           />
           <ChartTooltip content={<ChartTooltipContent />} />

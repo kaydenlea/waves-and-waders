@@ -182,6 +182,7 @@ export default function NearbyBeaches({ beaches }: { beaches: DbBeach[] }) {
             "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1600&auto=format&fit=crop",
           conditions: { surf: "-", wind: "-", temp: 0, rating: 0 },
         }));
+        setPage(1);
         setSorted(toUi);
       },
       { enableHighAccuracy: true, timeout: 8000 }
@@ -249,8 +250,12 @@ export default function NearbyBeaches({ beaches }: { beaches: DbBeach[] }) {
             }}
             className="rounded-md border px-2 py-1 text-sm hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
-            <option value={10}>10</option>
-            <option value={20}>20</option>
+            <option className="bg-highlight-5" value={10}>
+              10
+            </option>
+            <option className="bg-highlight-5" value={20}>
+              20
+            </option>
           </select>
         </div>
       </div>

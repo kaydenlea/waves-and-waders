@@ -28,11 +28,12 @@ const Loading = () => {
   }, []);
 
   const pathName = usePathname();
-  if (
-    (pathName.endsWith("/forecast") && !smallScreen) ||
-    pathName.endsWith("/edit")
-  )
-    return;
+  // if (
+  //   (pathName.endsWith("/forecast") && !smallScreen) ||
+  //   pathName.endsWith("/edit")
+  // )
+  //   return;
+  if (pathName.endsWith("/edit")) return;
 
   return (
     // <div

@@ -32,7 +32,7 @@ const AnimatedScrollSection = () => {
     <Carousel
       baseWidth={650}
       autoplay
-      autoplayDelay={4000}
+      autoplayDelay={3000}
       pauseOnHover={false}
       loop
       round={false}

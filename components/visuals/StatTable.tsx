@@ -68,8 +68,13 @@ const SwellStat = ({
             s
           </span>
         </span>
-        <ArrowIcon size={16} color="#51e72bff" fill="#51e72bff" />
-        <span className="flex items-baseline gap-[1px] whitespace-nowrap min-w-17 justify-center">
+        <ArrowIcon
+          size={16}
+          color="#51e72bff"
+          fill="#51e72bff"
+          className="mr-2 @min-md:mr-0"
+        />
+        <span className="flex items-baseline gap-[1px] whitespace-nowrap min-w-17 justify-center hidden @min-md:flex">
           <span
             className={cn("font-semibold", primary ? "text-sm" : "text-sm")}
           >
@@ -98,7 +103,7 @@ const WindStat = ({
           <span className="text-[0.7rem]">mph</span>
         </span>
       </span>
-      <div className="shadow-sm border border-border p-1 rounded-md text-center min-w-10">
+      <div className="shadow-sm border border-border p-1 rounded-md text-center min-w-9">
         <ArrowIcon
           size={16}
           color="#ff6a34ff"
@@ -497,6 +502,7 @@ const StatTable = ({
     { id: "wind", label: "Wind" },
     { id: "swellPriamry", label: "Swell" },
     { id: "swellSecond", label: "Secondary Swell" },
+    { id: "swellTertiary", label: "Tertiary Swell" },
     { id: "weather", label: "Weather" },
     { id: "water", label: "Water" },
     { id: "energy", label: "Energy" },
@@ -522,8 +528,8 @@ const StatTable = ({
         setVisibleCols(3);
         setColumnPages([
           COLUMNS.slice(0, 3),
-          COLUMNS.slice(3, 4),
-          COLUMNS.slice(4, COLUMNS.length),
+          COLUMNS.slice(3, 5),
+          COLUMNS.slice(5, COLUMNS.length),
         ]);
       } else if (width < 1050) {
         setVisibleCols(3);
@@ -645,7 +651,7 @@ const StatTable = ({
                 <th
                   key={col.id}
                   className={cn(
-                    "px-2 pb-3 text-left font-medium text-xs sm:text-sm"
+                    "px-2 pb-3 text-center font-medium text-xs sm:text-sm"
                   )}
                 >
                   {col.label}
@@ -713,13 +719,12 @@ const StatTable = ({
                         break;
                       case "Secondary Swell": {
                         const s0 = entry.swell?.secondary?.[0];
+                        content = <SwellStat data={s0 as any} />;
+                        break;
+                      }
+                      case "Tertiary Swell": {
                         const s1 = entry.swell?.secondary?.[1];
-                        content = (
-                          <div className="flex gap-1">
-                            <SwellStat data={s0 as any} />
-                            <SwellStat data={s1 as any} />
-                          </div>
-                        );
+                        content = <SwellStat data={s1 as any} />;
                         break;
                       }
                       case "Pressure":
@@ -765,7 +770,7 @@ const StatTable = ({
                 {header && (
                   <tr key={`${i}-date`}>
                     <td
-                      colSpan={9}
+                      colSpan={10}
                       className="p-3 bg-highlight-5 font-semibold rounded-sm"
                     >
                       {day.date}

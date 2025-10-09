@@ -46,12 +46,19 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 import { fetchWeeklyForecast, type ForecastData } from "@/lib/supabase";
+import { useForecastChartContext } from "../context/ForecastChartContext";
 
-type Props = { beachId?: string };
+type Props = { beachId?: string; days: Date[] | null };
 
-const ForecastSurfChart: React.FC<Props> = ({ beachId }) => {
-  const [startIndex, setStartIndex] = React.useState(0);
-  const [windowSize, setWindowSize] = React.useState(0);
+const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
+  const {
+    startIndex,
+    windowSize,
+    setWindowSize,
+    length,
+    setLength,
+    setDaysLabel,
+  } = useForecastChartContext();
   const [data, setData] = React.useState<
     {
       day: string;
@@ -82,7 +89,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId }) => {
     const adjustData = () => {
       const width = chart.clientWidth;
       if (width < 500) {
-        setWindowSize(3);
+        setWindowSize(4);
       } else {
         setWindowSize(4);
       }
@@ -102,6 +109,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId }) => {
       try {
         if (!beachId) return;
         const rows = await fetchWeeklyForecast(beachId);
+        console.log("ROWS", rows);
         const byDay = new Map<string, ForecastData[]>();
         for (const r of rows) {
           const d = new Date(r.timestamp);
@@ -155,23 +163,26 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId }) => {
     load();
   }, [beachId]);
 
-  const totalLength = data.length ? data.length : chartData.length;
-
-  const handleNext = () => {
-    if (!windowSize) return;
-    if (startIndex + windowSize < totalLength) {
-      setStartIndex((prev) => prev + 1);
-    }
-  };
-
-  const handleBack = () => {
-    if (startIndex > 0) {
-      setStartIndex((prev) => prev - 1);
-    }
-  };
+  React.useEffect(() => {
+    setLength(data.length ? data.length : chartData.length);
+  }, [data.length, setLength]);
+  // const totalLength = data.length ? data.length : chartData.length;
 
   const source = data.length ? data : chartData;
-  const visibleData = source.slice(startIndex, startIndex + windowSize);
+  const windowDays = days?.map((d) =>
+    d.toLocaleDateString("en-US", {
+      weekday: "short",
+      timeZone: "America/Los_Angeles",
+    })
+  );
+  const startDay = windowDays
+    ? windowDays[0]
+    : new Date().toLocaleDateString("en-US", {
+        weekday: "short",
+        timeZone: "America/Los_Angeles",
+      });
+  const startDayIdx = source.findIndex((entry) => entry.day === startDay);
+  const visibleData = source.slice(startDayIdx, startDayIdx + windowSize);
   const fmt = (ms: number) =>
     new Date(ms).toLocaleDateString("en-US", {
       weekday: "short",
@@ -179,24 +190,26 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId }) => {
       day: "numeric",
       timeZone: "America/Los_Angeles",
     });
-  const daysLabel = visibleData.length
-    ? `${fmt(visibleData[0].dateMs)} - ${fmt(
-        visibleData[visibleData.length - 1].dateMs
-      )}`
-    : "";
-  const showSlider = windowSize > 0 && windowSize < totalLength;
+  // const daysLabel = visibleData.length
+  //   ? `${fmt(visibleData[0].dateMs)} - ${fmt(
+  //       visibleData[visibleData.length - 1].dateMs
+  //     )}`
+  //   : "";
+  React.useEffect(() => {
+    setDaysLabel(
+      visibleData.length
+        ? `${fmt(visibleData[0].dateMs)} - ${fmt(
+            visibleData[visibleData.length - 1].dateMs
+          )}`
+        : ""
+    );
+  }, [visibleData, setDaysLabel]);
+
+  const showSlider = windowSize > 0 && windowSize < length;
+  console.log("COMPARISON", windowSize, length, visibleData.length);
   return (
     <>
-      {showSlider && (
-        <DaySlider
-          handleBack={handleBack}
-          handleNext={handleNext}
-          startIndex={startIndex}
-          windowSize={windowSize}
-          length={totalLength}
-          days={daysLabel}
-        />
-      )}
+      {/* {showSlider && <DaySlider />} */}
       <ChartContainer
         ref={chartRef}
         config={chartConfig}
@@ -229,22 +242,100 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId }) => {
             tick={(props) => {
               const safeX = typeof props.x === "number" ? props.x : 0;
               const safeY = typeof props.y === "number" ? props.y : 0;
-              const label = String(props.payload?.value ?? "");
+              const safeIdx = typeof props.index === "number" ? props.index : 0;
+              const safeDay =
+                typeof props.payload.value === "string"
+                  ? props.payload.value
+                  : "";
+              const safeOffset =
+                typeof props.payload.offset === "number"
+                  ? props.payload.offset
+                  : 0;
+              const dayData = data.find((entry) => entry.day === safeDay);
+              const minSurf = dayData
+                ? Math.min(dayData.tide1, dayData.tide2, dayData.tide3)
+                : 0;
+              const maxSurf = dayData
+                ? Math.max(dayData.tide1, dayData.tide2, dayData.tide3)
+                : 0;
+              const surfVal = dayData
+                ? minSurf === maxSurf
+                  ? `${minSurf}`
+                  : `${minSurf}-${maxSurf}`
+                : "";
               return (
                 <g>
+                  <rect
+                    x={safeX - safeOffset + 4}
+                    y={safeY - 15}
+                    width={safeOffset * 2 - 10}
+                    height={24}
+                    fill="var(--blue)"
+                    stroke="#cacacaff"
+                    strokeWidth={0.3}
+                    rx={4}
+                  />
                   <text
                     x={safeX}
-                    y={safeY + 5}
+                    y={safeY + 2}
                     textAnchor="middle"
                     fill="var(--foreground)"
                     fontSize={13}
                     fontWeight={600}
                   >
-                    {label}
+                    {`${surfVal} ft`}
+                  </text>
+                  <rect
+                    x={safeX - safeOffset + 4}
+                    y={safeY - 15 + 25}
+                    width={safeOffset * 2 - 10}
+                    height={24}
+                    fill="var(--highlight-2)"
+                    stroke="#cacacaff"
+                    strokeWidth={0.3}
+                    rx={4}
+                  />
+                  {/* <text
+                    x={safeX}
+                    y={safeY + 25}
+                    textAnchor="middle"
+                    fill="var(--foreground)"
+                    fontSize={11}
+                  >
+                    8/10
+                  </text> */}
+                  <text
+                    x={safeX}
+                    y={safeY + 25}
+                    textAnchor="middle"
+                    fill="var(--foreground)"
+                    fontSize={11}
+                    fontWeight={500}
+                  >
+                    {props.payload.value}
                   </text>
                 </g>
               );
             }}
+            // tick={(props) => {
+            //   const safeX = typeof props.x === "number" ? props.x : 0;
+            //   const safeY = typeof props.y === "number" ? props.y : 0;
+            //   const label = String(props.payload?.value ?? "");
+            //   return (
+            //     <g>
+            //       <text
+            //         x={safeX}
+            //         y={safeY + 5}
+            //         textAnchor="middle"
+            //         fill="var(--foreground)"
+            //         fontSize={13}
+            //         fontWeight={600}
+            //       >
+            //         {label}
+            //       </text>
+            //     </g>
+            //   );
+            // }}
             tickMargin={10}
             axisLine={false}
           />
@@ -253,6 +344,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId }) => {
             tickLine={false}
             axisLine={false}
             tickMargin={0}
+            domain={[0, (dataMax: number) => Math.ceil(dataMax + 3)]}
           />
           <ChartTooltip content={<ChartTooltipContent />} />
           <Bar

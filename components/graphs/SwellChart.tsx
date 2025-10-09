@@ -189,6 +189,7 @@ const SwellChart = ({ beachId, hours = 21, date }: Props) => {
           axisLine={false}
           tickMargin={8}
           fontSize={11}
+          domain={[0, (dataMax: number) => Math.ceil(dataMax + 2)]}
         />
         <ChartLegend content={<ChartLegendContent />} />
         <ChartTooltip content={<ChartTooltipContent />} />

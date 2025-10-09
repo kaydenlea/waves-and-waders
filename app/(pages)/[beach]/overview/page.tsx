@@ -85,7 +85,9 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
             beach={beach}
             tabs={["overview", "forecast"]}
           />
-          <h1 className="font-semibold text-4xl tracking-tight">{beachName}</h1>
+          <h1 className="font-semibold text-4xl tracking-tight w-full @min-3xl:max-w-3/5">
+            {beachName}
+          </h1>
         </header>
         <DateSummaryBridge beachId={beachId} />
       </div>
