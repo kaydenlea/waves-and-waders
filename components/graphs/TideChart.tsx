@@ -8,7 +8,6 @@ import {
   XAxis,
   YAxis,
   ReferenceArea,
-  ReferenceLine,
   LabelList,
   LabelProps,
 } from "recharts";
@@ -18,7 +17,6 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { Sun } from "lucide-react";
 import {
   fetchBeachTides,
   fetchBeachByIdLoose,
@@ -64,17 +62,6 @@ const formatHourTick = (value: number) => {
   return String(normalized % 12 === 0 ? 12 : normalized % 12);
 };
 
-const renderSunLabel = (props: any) => {
-  const { viewBox } = props;
-  if (!viewBox) return null;
-  const { x = 0, y = 0 } = viewBox as { x: number; y: number };
-  const iconSize = 20;
-  return (
-    <g transform={`translate(${x - iconSize / 2}, ${y - iconSize - 6})`}>
-      <Sun size={iconSize} color="#ff9946ff" />
-    </g>
-  );
-};
 
 const parseHourMinute = (value: string | null) => {
   if (!value) return null;
@@ -100,7 +87,6 @@ const TideChart: React.FC<TideChartProps> = ({
   const [nightAreas, setNightAreas] = useState<{ x1: number; x2?: number }[]>(
     []
   );
-  const [sunMarkers, setSunMarkers] = useState<number[]>([]);
 
   const clampHour = useMemo(
     () => (value: number) => Math.max(0, Math.min(hours, value)),
@@ -225,7 +211,6 @@ const TideChart: React.FC<TideChartProps> = ({
       if (!beachId || windowStart == null || chartData.length === 0) {
         setDayAreas([]);
         setNightAreas([]);
-        setSunMarkers([]);
         return;
       }
       try {
@@ -236,7 +221,6 @@ const TideChart: React.FC<TideChartProps> = ({
         if (!county) {
           setDayAreas([]);
           setNightAreas([]);
-          setSunMarkers([]);
           return;
         }
         const conditions = await fetchDailyConditions(county, new Date(windowStart));
@@ -253,14 +237,12 @@ const TideChart: React.FC<TideChartProps> = ({
         if (!cancelled) {
           setDayAreas(daySegments);
           setNightAreas(nightSegments);
-          setSunMarkers([x1, x2]);
         }
       } catch (error) {
         if (!cancelled) {
           console.error("Failed to build sunrise/sunset shading", error);
           setDayAreas([]);
           setNightAreas([]);
-          setSunMarkers([]);
         }
       }
     };
@@ -282,15 +264,17 @@ const TideChart: React.FC<TideChartProps> = ({
 
   return (
     <ChartContainer
-      className="aspect-auto h-[250px] w-full"
+      className="aspect-auto h-[280px] w-full"
       config={chartConfig}
     >
       <LineChart
         accessibilityLayer
         data={chartData}
         margin={{
+          top: 10,
           left: -30,
           right: 15,
+          bottom: 0,
         }}
       >
         {dayAreas.map((area, idx) => (
@@ -309,15 +293,6 @@ const TideChart: React.FC<TideChartProps> = ({
             x2={area.x2}
             fill="#ccc1ffff"
             fillOpacity={0.2}
-          />
-        ))}
-        {sunMarkers.map((marker, idx) => (
-          <ReferenceLine
-            key={`sun-marker-${idx}`}
-            x={marker}
-            stroke="transparent"
-            ifOverflow="extendDomain"
-            label={{ position: "top", content: renderSunLabel }}
           />
         ))}
         <CartesianGrid
@@ -346,7 +321,7 @@ const TideChart: React.FC<TideChartProps> = ({
           fontSize={11}
           domain={[
             (dataMin: number) => Math.floor(dataMin) - 1,
-            (dataMax: number) => Math.max(Math.ceil(dataMax) + 1, 8),
+            (dataMax: number) => Math.max(Math.ceil(dataMax) + 2, 8),
           ]}
         />
         <ChartTooltip
