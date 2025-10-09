@@ -355,11 +355,14 @@ const DatePicker = ({
             const hasRange = minWithFallback != null && max != null;
             const code = summary?.code ?? null;
             const weather = getWeatherIcon(code);
+
+            // Use rounded max for color to match displayed range
+            const maxRounded = max != null ? Math.round(max) : null;
             const color = !hasRange
               ? "bg-highlight-3"
-              : max >= 6
+              : maxRounded! >= 6
               ? "bg-red-400"
-              : max >= 3
+              : maxRounded! >= 3
               ? "bg-orange-400"
               : "bg-green-400";
             let itemStyle = "bg-highlight-4 rounded-md";
