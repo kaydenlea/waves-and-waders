@@ -36,7 +36,7 @@ const HourSlider = ({
   };
 
   return (
-    <div className="space-y-1 flex flex-col gap-2 relative p-3 bg-highlight-4 shadow-no-top rounded-b-xl">
+    <div className="border border-border space-y-1 flex flex-col gap-2 relative p-3 bg-highlight-4 shadow-no-top rounded-b-xl">
       <h3 className="text-md font-medium">{`${displayValue} ${ampm}`}</h3>
       <Slider
         min={min}

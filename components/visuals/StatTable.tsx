@@ -340,16 +340,16 @@ const StatTable = ({
           return ta - tb;
         });
         const onlyLabel = requestedDate ? fmtDayLabel(requestedDate) : null;
-        const onlyLabels =
-          !requestedDate && selectedDays
-            ? selectedDays.map((day) => fmtDayLabel(day))
-            : null;
-
+        const onlyLabels = selectedDays
+          ? selectedDays.map((day) => fmtDayLabel(day))
+          : null;
         let allowedLabels: Set<string> | null = null;
         const labels = entriesByDay.map(([lbl]) => lbl);
 
         // Prioritize date prop over selectedDays
-        if (onlyLabel) {
+        if (onlyLabels) {
+          allowedLabels = new Set(onlyLabels);
+        } else if (onlyLabel) {
           if (onlyLabel && labels.includes(onlyLabel)) {
             allowedLabels = new Set([onlyLabel]);
           } else {
@@ -364,10 +364,8 @@ const StatTable = ({
               if (cands.length) allowedLabels = new Set([cands[0]]);
             }
           }
-        } else if (onlyLabels) {
-          allowedLabels = new Set(onlyLabels);
         }
-
+        console.log("ALL DAYS", entriesByDay);
         for (const [label, rows] of entriesByDay) {
           if (allowedLabels && !allowedLabels.has(label)) continue;
           rows.sort(

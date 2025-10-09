@@ -154,7 +154,7 @@ const ForecastBridge: React.FC<Props> = ({ beachId }) => {
       {/* --- Date picker area: sticky on all sizes so behavior is identical everywhere --- */}
       <section
         ref={pickerRef}
-        className="sticky top-[var(--nav-height,72px)] z-40"
+        className="sticky top-[var(--nav-height,60px)] z-40"
         aria-label="Date picker region"
       >
         <h2 className="ml-2 text-muted-foreground text-lg">Weekly Forecast</h2>
