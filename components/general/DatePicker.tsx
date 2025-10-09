@@ -43,33 +43,27 @@ type DaySummary = {
 };
 
 const getWeatherIcon = (code: number | null) => {
-  const iconSize = 24;
-  if (code == null) return <CloudIcon size={iconSize} color="#bdbdbdff" />;
+  if (code == null) return <CloudIcon size={20} color="#bdbdbdff" />;
   // WMO code groupings per spec
-  if (code === 0)
-    return <Sun size={iconSize} strokeWidth={3} color="#f79e55ff" />; // Clear
-  if ([1, 2, 3].includes(code))
-    return <CloudSun size={iconSize} color="#bdbdbdff" />; // Partly cloudy/overcast
-  if ([45, 48].includes(code))
-    return <CloudIcon size={iconSize} color="#bdbdbdff" />; // Fog
+  if (code === 0) return <Sun size={20} strokeWidth={3} color="#f79e55ff" />; // Clear
+  if ([1, 2, 3].includes(code)) return <CloudSun size={20} color="#bdbdbdff" />; // Partly cloudy/overcast
+  if ([45, 48].includes(code)) return <CloudIcon size={20} color="#bdbdbdff" />; // Fog
   if ([51, 53, 55].includes(code))
-    return <CloudDrizzle size={iconSize} color="#66a3ffff" />; // Drizzle
+    return <CloudDrizzle size={20} color="#66a3ffff" />; // Drizzle
   if ([56, 57].includes(code))
-    return <CloudDrizzle size={iconSize} color="#66a3ffff" />; // Freezing drizzle
+    return <CloudDrizzle size={20} color="#66a3ffff" />; // Freezing drizzle
   if ([61, 63, 65].includes(code))
-    return <CloudRain size={iconSize} color="#66a3ffff" />; // Rain
-  if ([66, 67].includes(code))
-    return <CloudRain size={iconSize} color="#66a3ffff" />; // Freezing rain
+    return <CloudRain size={20} color="#66a3ffff" />; // Rain
+  if ([66, 67].includes(code)) return <CloudRain size={20} color="#66a3ffff" />; // Freezing rain
   if ([71, 73, 75].includes(code))
-    return <Snowflake size={iconSize} color="#8ecaffff" />; // Snow
-  if (code === 77) return <Snowflake size={iconSize} color="#8ecaffff" />; // Snow grains
+    return <Snowflake size={20} color="#8ecaffff" />; // Snow
+  if (code === 77) return <Snowflake size={20} color="#8ecaffff" />; // Snow grains
   if ([80, 81, 82].includes(code))
-    return <CloudRain size={iconSize} color="#66a3ffff" />; // Showers
-  if ([85, 86].includes(code))
-    return <Snowflake size={iconSize} color="#8ecaffff" />; // Snow showers
+    return <CloudRain size={20} color="#66a3ffff" />; // Showers
+  if ([85, 86].includes(code)) return <Snowflake size={20} color="#8ecaffff" />; // Snow showers
   if ([95, 96, 99].includes(code))
-    return <CloudLightning size={iconSize} color="#ff8d6bff" />; // Thunderstorm/hail
-  return <CloudIcon size={iconSize} color="#bdbdbdff" />;
+    return <CloudLightning size={20} color="#ff8d6bff" />; // Thunderstorm/hail
+  return <CloudIcon size={20} color="#bdbdbdff" />;
 };
 
 const DatePicker = ({
@@ -85,7 +79,9 @@ const DatePicker = ({
   const [orderedKeys, setOrderedKeys] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const { setSelectedDays } = useDateContext();
+  const { setSelectedDays, setSurfRange } = useDateContext();
+  const { setSurfIntensityForDate } =
+    require("@/components/context/MapFilterContext").useMapFilters();
 
   const scrollBy = 3;
 
@@ -148,6 +144,10 @@ const DatePicker = ({
           return s;
         };
 
+        // Track all min and max values per day for averaging
+        const minValues: Record<string, number[]> = {};
+        const maxValues: Record<string, number[]> = {};
+
         for (const row of data) {
           // Normalize timestamp string to ISO-8601 so Date/Dayjs can parse reliably
           const iso = toISO(row.timestamp);
@@ -164,17 +164,35 @@ const DatePicker = ({
               code: null,
             };
             codeCounts[key] = {};
+            minValues[key] = [];
+            maxValues[key] = [];
           }
-          if (typeof minH === "number") {
-            groups[key].min =
-              groups[key].min == null ? minH : Math.min(groups[key].min, minH);
+          if (typeof minH === "number" && !Number.isNaN(minH)) {
+            minValues[key].push(minH);
           }
-          if (typeof maxH === "number") {
-            groups[key].max =
-              groups[key].max == null ? maxH : Math.max(groups[key].max, maxH);
+          if (typeof maxH === "number" && !Number.isNaN(maxH)) {
+            maxValues[key].push(maxH);
           }
           if (code != null) {
             codeCounts[key][code] = (codeCounts[key][code] ?? 0) + 1;
+          }
+        }
+
+        // Calculate average min and max for each day
+        for (const key of Object.keys(groups)) {
+          const mins = minValues[key] || [];
+          const maxs = maxValues[key] || [];
+
+          if (mins.length > 0) {
+            const avgMin =
+              mins.reduce((sum, val) => sum + val, 0) / mins.length;
+            groups[key].min = avgMin;
+          }
+
+          if (maxs.length > 0) {
+            const avgMax =
+              maxs.reduce((sum, val) => sum + val, 0) / maxs.length;
+            groups[key].max = avgMax;
           }
         }
         // Determine dominant code per day
@@ -273,7 +291,35 @@ const DatePicker = ({
       }
     });
     setSelectedDays(daysRange);
-  }, [value, selectedDate]);
+
+    // Update surf intensity and surf range for the selected date
+    if (selectedDate) {
+      const key = selectedDate.format("YYYY-MM-DD");
+      const summary = summaries[key];
+      setSurfIntensityForDate(summary?.max ?? null);
+
+      // Calculate surf range using the same logic as display
+      const max = summary?.max ?? null;
+      const minWithFallback =
+        summary?.min ?? (max != null && max <= 1 ? 0 : null);
+
+      if (minWithFallback != null && max != null) {
+        let minRounded = Math.round(minWithFallback);
+        let maxRounded = Math.round(max);
+        // Ensure min <= max
+        if (minRounded > maxRounded) {
+          [minRounded, maxRounded] = [maxRounded, minRounded];
+        }
+        // If they're equal, subtract 1 from min
+        if (minRounded === maxRounded) {
+          minRounded = Math.max(0, maxRounded - 1);
+        }
+        setSurfRange(`${minRounded}-${maxRounded}`);
+      } else {
+        setSurfRange(null);
+      }
+    }
+  }, [value, selectedDate, summaries]);
 
   return (
     <div
@@ -303,18 +349,19 @@ const DatePicker = ({
             const isSelected =
               controlledSelected ??
               (selectedDate ? selectedDate.isSame(day, "day") : index === 0);
-            const min = summary?.min ?? null;
             const max = summary?.max ?? null;
+            const minWithFallback =
+              summary?.min ?? (max != null && max <= 1 ? 0 : null);
+            const hasRange = minWithFallback != null && max != null;
             const code = summary?.code ?? null;
             const weather = getWeatherIcon(code);
-            const color =
-              min == null || max == null
-                ? "bg-highlight-3"
-                : max >= 6
-                ? "bg-red-400"
-                : max >= 3
-                ? "bg-orange-400"
-                : "bg-green-400";
+            const color = !hasRange
+              ? "bg-highlight-3"
+              : max >= 6
+              ? "bg-red-400"
+              : max >= 3
+              ? "bg-orange-400"
+              : "bg-green-400";
             let itemStyle = "bg-highlight-4 rounded-md";
             if (typeof startIdx === "number" && forecast) {
               if (startIdx === index) {
@@ -358,9 +405,21 @@ const DatePicker = ({
                     )}
                   />
                   <span className="text-md @min-xl:text-lg font-semibold mb-1">
-                    {min != null && max != null ? (
+                    {hasRange ? (
                       <>
-                        {min.toFixed(0)}-{max.toFixed(0)}
+                        {(() => {
+                          let minRounded = Math.round(minWithFallback!);
+                          let maxRounded = Math.round(max!);
+                          // Ensure min <= max
+                          if (minRounded > maxRounded) {
+                            [minRounded, maxRounded] = [maxRounded, minRounded];
+                          }
+                          // If they're equal, subtract 1 from min
+                          if (minRounded === maxRounded) {
+                            minRounded = Math.max(0, maxRounded - 1);
+                          }
+                          return `${minRounded}-${maxRounded}`;
+                        })()}
                         <span className="text-xs font-normal">ft</span>
                       </>
                     ) : (

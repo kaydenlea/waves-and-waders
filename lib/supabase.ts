@@ -1,6 +1,16 @@
 // lib/supabase.ts
 import { createClient } from "@supabase/supabase-js";
 
+// Utility function to generate URL-friendly slug from beach name
+export function generateBeachSlug(beachName: string): string {
+  return beachName
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, "") // Remove special characters
+    .replace(/\s+/g, "-") // Replace spaces with hyphens
+    .replace(/-+/g, "-") // Replace multiple hyphens with single hyphen
+    .trim();
+}
+
 const supabaseUrl =
   process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL!;
 const supabaseKey =
@@ -738,31 +748,36 @@ export async function fetchBeachByIdLoose(id: string): Promise<Beach | null> {
 
   let { data, error } = await q;
 
-  // If not found and you also store uuid/slug columns, try those too:
-  if ((!data && !error) || (error && error.code === "PGRST116")) {
-    const alt = await supabase
+  // If still not found, try matching by generating slug from beach names
+  // Skip the UUID/slug column check and go straight to slug generation for hyphenated inputs
+  if (!data && target.includes("-")) {
+    const allBeaches = await supabase
       .from("beaches")
-      .select("id, Name, LATITUDE, LONGITUDE, COUNTY")
-      .or(`uuid.eq.${target},slug.eq.${target}`) // only if these columns exist
-      .limit(1)
-      .maybeSingle();
+      .select("id, Name, LATITUDE, LONGITUDE, COUNTY");
 
-    data = alt.data ?? null;
+    if (allBeaches.data) {
+      // Convert slug back to match beach name
+      const targetSlug = target.toLowerCase();
+      const match = allBeaches.data.find((beach: Beach) => {
+        const beachSlug = generateBeachSlug(beach.Name);
+        return beachSlug === targetSlug;
+      });
+      if (match) {
+        data = match as any;
+      }
+    }
   }
 
   // Final fallback: fuzzy match by Name if still not found
   if (!data) {
+    const searchTerm = target.replace(/-/g, " "); // Convert slug dashes to spaces
     const byName = await supabase
       .from("beaches")
       .select("id, Name, LATITUDE, LONGITUDE, COUNTY")
-      .ilike("Name", `%${target}%`)
+      .ilike("Name", `%${searchTerm}%`)
       .limit(1)
       .maybeSingle();
     if (byName.data) data = byName.data as any;
-  }
-
-  if (error && error.code !== "PGRST116") {
-    console.error("fetchBeachByIdLoose error:", error);
   }
 
   return data ?? null;
@@ -825,25 +840,134 @@ export async function fetchDailyConditions(
   county: string,
   date?: Date
 ): Promise<DailyConditions | null> {
-  let q = supabase
-    .from("daily_county_conditions")
-    .select("*")
-    .eq("county", county);
-
-  if (date) {
-    const dateStr = date.toISOString().split("T")[0]; // YYYY-MM-DD
-    q = q.eq("date", dateStr);
-  }
-
-  const { data, error } = await q
-    .order("date", { ascending: false })
-    .maybeSingle();
-
-  if (error) {
+  const trimmedCounty = county?.trim();
+  if (!trimmedCounty) {
     return null;
   }
 
-  return (data as DailyConditions) ?? null;
+  const toPacificDate = (value: Date) => {
+    const pacific = new Date(
+      value.toLocaleString("en-US", { timeZone: "America/Los_Angeles" })
+    );
+    const year = pacific.getFullYear();
+    const month = String(pacific.getMonth() + 1).padStart(2, "0");
+    const day = String(pacific.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const targetDate = date ? toPacificDate(date) : null;
+  const toTitleCase = (value: string) =>
+    value
+      .toLowerCase()
+      .split(" ")
+      .filter((part) => part.length > 0)
+      .map((part) => part[0].toUpperCase() + part.slice(1))
+      .join(" ");
+
+  const baseName = trimmedCounty.replace(/\s+County$/i, "").trim();
+  const candidateSet = new Set<string>();
+  const addVariants = (value?: string | null) => {
+    if (!value) return;
+    const normalized = value.trim();
+    if (!normalized) return;
+    candidateSet.add(normalized);
+    candidateSet.add(normalized.toUpperCase());
+    candidateSet.add(toTitleCase(normalized));
+  };
+
+  addVariants(trimmedCounty);
+  addVariants(baseName);
+  if (baseName) addVariants(`${baseName} County`);
+
+  const candidates = Array.from(candidateSet.values());
+  const escapePattern = (value: string) => value.replace(/([%_])/g, "\\$1");
+
+  const runExactQuery = async (
+    countyName: string,
+    matchDate: boolean
+  ): Promise<DailyConditions | null> => {
+    let query = supabase
+      .from("daily_county_conditions")
+      .select("*")
+      .eq("county", countyName)
+      .order("date", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (matchDate && targetDate) {
+      query = query.eq("date", targetDate);
+    }
+    const { data, error } = await query;
+    if (error) {
+      console.warn("fetchDailyConditions error (exact)", {
+        error,
+        county: countyName,
+        matchDate,
+      });
+      return null;
+    }
+    return (data as DailyConditions | null) ?? null;
+  };
+
+  const runPatternQuery = async (
+    pattern: string,
+    matchDate: boolean
+  ): Promise<DailyConditions | null> => {
+    let query = supabase
+      .from("daily_county_conditions")
+      .select("*")
+      .ilike("county", pattern)
+      .order("date", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (matchDate && targetDate) {
+      query = query.eq("date", targetDate);
+    }
+    const { data, error } = await query;
+    if (error) {
+      console.warn("fetchDailyConditions error (pattern)", {
+        error,
+        pattern,
+        matchDate,
+      });
+      return null;
+    }
+    return (data as DailyConditions | null) ?? null;
+  };
+
+  for (const name of candidates) {
+    const exact = await runExactQuery(name, true);
+    if (exact) return exact;
+  }
+  for (const name of candidates) {
+    const latest = await runExactQuery(name, false);
+    if (latest) return latest;
+  }
+
+  const likePatterns = Array.from(
+    new Set(
+      candidates.flatMap((name) => {
+        const escaped = escapePattern(name);
+        const patterns = [escaped, `${escaped}%`, `%${escaped}%`];
+        if (!/\bcounty$/i.test(name.trim())) {
+          patterns.push(`${escaped} County`, `${escaped} County%`);
+        }
+        return patterns;
+      })
+    )
+  );
+
+  for (const pattern of likePatterns) {
+    const exactDateMatch = await runPatternQuery(pattern, true);
+    if (exactDateMatch) return exactDateMatch;
+  }
+  for (const pattern of likePatterns) {
+    const latestMatch = await runPatternQuery(pattern, false);
+    if (latestMatch) return latestMatch;
+  }
+
+  return null;
 }
 
 export async function fetchTodaysForecast(

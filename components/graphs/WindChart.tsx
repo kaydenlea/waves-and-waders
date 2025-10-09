@@ -26,6 +26,7 @@ import {
   fetchBeachByIdLoose,
   fetchBeachDetails,
   fetchDailyConditions,
+  getWindDirection,
 } from "@/lib/supabase";
 
 type Props = { beachId?: string; hours?: number; date?: Date };
@@ -36,10 +37,12 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-const WindChart = ({ beachId, hours = 21, date }: Props) => {
-  const [chartData, setChartData] = useState<{ hour: number; wind: number }[]>(
-    []
-  );
+const WindChart = ({ beachId, hours = 24, date }: Props) => {
+  const [chartData, setChartData] = useState<{ 
+    hour: number; 
+    wind: number;
+    direction?: number;
+  }[]>([]);
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
   const [nightAreas, setNightAreas] = useState<{ x1: number; x2: number }[]>(
     []
@@ -49,16 +52,14 @@ const WindChart = ({ beachId, hours = 21, date }: Props) => {
     const load = async () => {
       try {
         if (!beachId) {
-          // default placeholder 7 hours
-          setChartData([
-            { hour: 0, wind: 2 },
-            { hour: 1, wind: 3 },
-            { hour: 2, wind: 1 },
-            { hour: 3, wind: 1 },
-            { hour: 4, wind: 4 },
-            { hour: 5, wind: 2 },
-            { hour: 6, wind: 2 },
-          ]);
+          // default placeholder 24 hours
+          setChartData(
+            Array.from({ length: 25 }, (_, h) => ({
+              hour: h,
+              wind: Number(Math.max(0, 3 + Math.sin((h / 24) * Math.PI * 2) * 2).toFixed(1)),
+              direction: (h * 15) % 360, // rotating placeholder
+            }))
+          );
           return;
         }
         const resolved = await fetchBeachByIdLoose(beachId);
@@ -76,6 +77,7 @@ const WindChart = ({ beachId, hours = 21, date }: Props) => {
           hour:
             i === rows.length - 1 ? hours : new Date(r.timestamp).getHours(),
           wind: r.conditions.windSpeed ?? 0,
+          direction: r.conditions.windDirection ?? undefined,
         }));
         setChartData(data);
 
@@ -100,20 +102,28 @@ const WindChart = ({ beachId, hours = 21, date }: Props) => {
             };
             const rise = parseHM(cond?.sunrise ?? null);
             const setv = parseHM(cond?.sunset ?? null);
+            const toHour = (value: { h: number; m: number }) =>
+              value.h + value.m / 60;
+            const clampHour = (val: number) =>
+              Math.max(0, Math.min(hours, val));
             if (rise && setv) {
-              const dayStart = Math.min(rise.h, setv.h);
-              const dayEnd = Math.max(rise.h, setv.h);
-              setDayAreas([{ x1: dayStart, x2: dayEnd }]);
-              setNightAreas([
-                { x1: 0, x2: Math.max(0, dayStart - 3) },
-                { x1: Math.min(24, dayEnd + 3), x2: hours },
-              ]);
+              const riseHour = clampHour(toHour(rise));
+              const setHour = clampHour(toHour(setv));
+              const x1 = Math.min(riseHour, setHour);
+              const x2 = Math.max(riseHour, setHour);
+              setDayAreas(x2 > x1 ? [{ x1, x2 }] : []);
+              const nightSegments: { x1: number; x2: number }[] = [];
+              if (x1 > 0) nightSegments.push({ x1: 0, x2: x1 });
+              if (x2 < hours) nightSegments.push({ x1: x2, x2: hours });
+              setNightAreas(nightSegments);
             } else {
               setDayAreas([]);
+              setNightAreas([{ x1: 0, x2: hours }]);
             }
           }
         } catch (_) {
           setDayAreas([]);
+          setNightAreas([{ x1: 0, x2: hours }]);
         }
       } catch (e) {
         console.error("Failed to load wind data", e);
@@ -122,31 +132,71 @@ const WindChart = ({ beachId, hours = 21, date }: Props) => {
     load();
   }, [beachId, hours, date]);
 
-  const domainMax = useMemo(
-    () => (chartData.length ? chartData.length - 1 : 6),
-    [chartData]
-  );
+  const domainStart = 0;
+  const domainEnd = hours;
+
+  const hourTicks = useMemo(() => {
+    const step = 3;
+    const ticks: number[] = [];
+    for (let v = 0; v <= hours; v += step) {
+      ticks.push(v);
+    }
+    if (ticks[ticks.length - 1] !== hours) {
+      ticks.push(hours);
+    }
+    return ticks;
+  }, [hours]);
+
+  const EDGE_GUTTER_PX = 28;
+  const closeTo = (a: number, b: number, tolerance = 0.05) =>
+    Math.abs(a - b) <= tolerance;
+  const makeAreaShape =
+    (color: string, touchesLeft: boolean, touchesRight: boolean) =>
+    (props: any) => {
+      const x = typeof props.x === "number" ? props.x : 0;
+      const y = typeof props.y === "number" ? props.y : 0;
+      const width = typeof props.width === "number" ? props.width : 0;
+      const height = typeof props.height === "number" ? props.height : 0;
+      const leftPad = touchesLeft ? EDGE_GUTTER_PX : 0;
+      const rightPad = touchesRight ? EDGE_GUTTER_PX : 0;
+      return (
+        <rect
+          x={x - leftPad}
+          y={y}
+          width={width + leftPad + rightPad}
+          height={height}
+          fill={color}
+          fillOpacity={0.2}
+          pointerEvents="none"
+        />
+      );
+    };
+
   return (
     <ChartContainer
       config={chartConfig}
-      className="aspect-auto h-[280px] w-full"
+      className="aspect-auto h-[280px] w-full !justify-start"
     >
       <BarChart
-        margin={{
-          right: 10,
-          left: -28,
-        }}
+        margin={{ top: 10, right: 10, left: -24, bottom: 0 }}
         accessibilityLayer
         data={chartData}
         syncId="anyId"
+        barCategoryGap={0}
+        barGap={-4}
+        maxBarSize={44}
       >
         {dayAreas.map((a, idx) => (
           <ReferenceArea
             key={`day-${idx}`}
             x1={a.x1}
             x2={a.x2}
-            fill="#FFE58F"
-            fillOpacity={0.2}
+            ifOverflow="extendDomain"
+            shape={makeAreaShape(
+              "#FFE58F",
+              closeTo(a.x1, domainStart),
+              closeTo(a.x2, domainEnd)
+            )}
           />
         ))}
         {nightAreas.map((a, idx) => (
@@ -154,8 +204,12 @@ const WindChart = ({ beachId, hours = 21, date }: Props) => {
             key={`night-${idx}`}
             x1={a.x1}
             x2={a.x2}
-            fill="#ccc1ffff"
-            fillOpacity={0.2}
+            ifOverflow="extendDomain"
+            shape={makeAreaShape(
+              "#ccc1ffff",
+              closeTo(a.x1, domainStart),
+              closeTo(a.x2, domainEnd)
+            )}
           />
         ))}
         <CartesianGrid
@@ -164,35 +218,71 @@ const WindChart = ({ beachId, hours = 21, date }: Props) => {
           strokeWidth={0.1}
           vertical={false}
         />
+        
         <XAxis
           dataKey="hour"
+          type="number"
           orientation="bottom"
           tickLine={false}
           tickMargin={10}
           axisLine={false}
-          domain={[0, domainMax]}
+          padding={{ left: 28, right: 28 }}
+          domain={[domainStart, domainEnd]}
+          ticks={hourTicks}
           tickFormatter={(value: number) => {
-            if (typeof value !== "number") return "";
-            return value % 3 === 0
-              ? String(value % 12 === 0 ? 12 : value % 12)
-              : "";
+            const num = Number(value);
+            if (!Number.isFinite(num)) return "";
+            const normalized = ((num % 24) + 24) % 24;
+            const labelHour = normalized % 12 === 0 ? 12 : normalized % 12;
+            return String(labelHour);
           }}
+
         />
         <YAxis
           dataKey="wind"
           allowDecimals={false}
-          // tickFormatter={(v: number) =>
-          //   typeof v === "number" ? v.toFixed(1) : String(v)
-          // }
           tickLine={false}
           axisLine={false}
           tickMargin={8}
           domain={[0, (dataMax: number) => Math.ceil(dataMax * 2)]}
         />
-        <ChartTooltip content={<ChartTooltipContent />} />
+        <ChartTooltip 
+          content={({ active, payload }) => {
+            if (!active || !payload || payload.length === 0) return null;
+            
+            const data = payload[0].payload;
+            const windSpeed = data.wind;
+            const direction = data.direction ?? 0;
+            const directionLabel = getWindDirection(direction);
+            
+            return (
+              <div className="rounded-lg border bg-background p-2 shadow-sm">
+                <div className="grid gap-2">
+                  <div className="flex flex-col">
+                    <span className="text-[0.70rem] uppercase text-muted-foreground">
+                      Wind Speed
+                    </span>
+                    <span className="font-bold text-muted-foreground">
+                      {Math.round(windSpeed)} mph
+                    </span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[0.70rem] uppercase text-muted-foreground">
+                      Direction
+                    </span>
+                    <span className="font-bold text-muted-foreground">
+                      {directionLabel} ({Math.round(direction)}°)
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+          }}
+        />
         <ChartLegend content={<ChartLegendContent />} />
         <Bar
           dataKey="wind"
+          barSize={38}
           fill="var(--color-wind)"
           radius={4}
           stroke="#0000006e"
@@ -206,17 +296,35 @@ const WindChart = ({ beachId, hours = 21, date }: Props) => {
               const safeY = typeof props.y === "number" ? props.y : 0;
               const safeWidth =
                 typeof props.width === "number" ? props.width : 0;
+              const safeHeight =
+                typeof props.height === "number" ? props.height : 0;
               const iconSize = Math.min(20, safeWidth * 0.6);
+              
+              // Get wind direction from the data point
+              const dataPoint = chartData[props.index ?? 0];
+              const direction = dataPoint?.direction ?? 0;
+              const directionLabel = getWindDirection(direction);
+              // Arrow points at 315° by default, adjust rotation
+              const rotation = direction - 315;
+              
+              // Calculate center point for rotation - position on top of bar
+              const centerX = safeX + safeWidth / 2;
+              const centerY = safeY - iconSize / 2 - 2; // Position above the bar
+              
               return (
                 <g>
-                  <ArrowIcon
-                    size={iconSize}
-                    x={safeX + (safeWidth - iconSize) / 2}
-                    // y={safeY - iconSize - iconSize}
-                    y={iconSize / 2}
-                    fill="#8bd668ff"
-                    color="#8bd668ff"
-                  />
+                  <title>{`Wind Direction: ${directionLabel} (${Math.round(direction)}°)`}</title>
+                  <g transform={`translate(${centerX}, ${centerY})`}>
+                    <g transform={`rotate(${rotation}, 0, 0)`}>
+                      <ArrowIcon
+                        size={iconSize}
+                        x={-iconSize / 2}
+                        y={-iconSize / 2}
+                        fill="#8bd668ff"
+                        color="#8bd668ff"
+                      />
+                    </g>
+                  </g>
                 </g>
               );
             }}

@@ -13,44 +13,55 @@ import {
   Waves,
   Atom,
   Shell,
+  Cloud as CloudIcon,
+  CloudSun,
+  CloudDrizzle,
+  CloudRain,
+  CloudLightning,
+  Snowflake,
 } from "lucide-react";
 
 const WeatherStat = ({
   temp,
   condition,
   label,
+  weatherCode,
 }: {
   temp: number;
   condition?: string;
   label: string;
+  weatherCode?: number | null;
 }) => {
+  // Function to get weather icon based on WMO code
+  const getWeatherIcon = (code: number | null) => {
+    if (code == null) return <Sun className="w-5 h-5" strokeWidth={3} color="#f79e55ff" />;
+
+    // WMO code groupings
+    if (code === 0) return <Sun className="w-5 h-5" strokeWidth={3} color="#f79e55ff" />; // Clear
+    if ([1, 2, 3].includes(code)) return <CloudSun className="w-5 h-5" color="#bdbdbdff" />; // Partly cloudy/overcast
+    if ([45, 48].includes(code)) return <CloudIcon className="w-5 h-5" color="#bdbdbdff" />; // Fog
+    if ([51, 53, 55].includes(code)) return <CloudDrizzle className="w-5 h-5" color="#66a3ffff" />; // Drizzle
+    if ([56, 57].includes(code)) return <CloudDrizzle className="w-5 h-5" color="#66a3ffff" />; // Freezing drizzle
+    if ([61, 63, 65].includes(code)) return <CloudRain className="w-5 h-5" color="#66a3ffff" />; // Rain
+    if ([66, 67].includes(code)) return <CloudRain className="w-5 h-5" color="#66a3ffff" />; // Freezing rain
+    if ([71, 73, 75].includes(code)) return <Snowflake className="w-5 h-5" color="#8ecaffff" />; // Snow
+    if (code === 77) return <Snowflake className="w-5 h-5" color="#8ecaffff" />; // Snow grains
+    if ([80, 81, 82].includes(code)) return <CloudRain className="w-5 h-5" color="#66a3ffff" />; // Showers
+    if ([85, 86].includes(code)) return <Snowflake className="w-5 h-5" color="#8ecaffff" />; // Snow showers
+    if ([95, 96, 99].includes(code)) return <CloudLightning className="w-5 h-5" color="#ff8d6bff" />; // Thunderstorm/hail
+
+    return <CloudIcon className="w-5 h-5" color="#bdbdbdff" />;
+  };
+
   return (
-    // <div className="flex items-center justify-center gap-0.5">
-    //   {condition && condition === "sun" ? (
-    //     <Sun size={22} color="#fa9847ff" />
-    //   ) : (
-    //     <Droplets size={22} color="#80b7ffff" />
-    //   )}
-    //   <span className="text-2xl font-medium">
-    //     {temp}
-    //     <span className="text-sm font-normal">&deg;F</span>
-    //   </span>
-    // </div>
     <HighlightCard label={label}>
       <div className="flex items-center justify-center gap-0.5">
+        {getWeatherIcon(weatherCode ?? null)}
         <span className="text-2xl font-semibold">
           {temp}
           <span className="text-sm font-normal">&deg;F</span>
         </span>
       </div>
-      {/* <span className="flex gap-1 text-[0.7rem]">
-        <span>
-          <span className="font-semibold">hi</span>: 2.1
-        </span>
-        <span>
-          <span className="font-semibold">lo</span>: 2.9
-        </span>
-      </span> */}
     </HighlightCard>
   );
 };
@@ -63,30 +74,11 @@ const BasicStat = ({
   label: string;
 }) => {
   return (
-    // <span
-    //   className={cn(
-    //     "text-xl font-medium px-3 py-2 border border-border rounded-md",
-    //     typeof data.value === "number" ? "bg-green" : "bg-red"
-    //   )}
-    // >
-    //   {data.value}
-    //   <span className="text-xs font-normal">{data.unit}</span>
-    // </span>
     <HighlightCard label={label}>
       <span className="text-2xl font-semibold rounded-md pb-5">
         {data.value}
         <span className="text-sm font-normal">{data.unit}</span>
       </span>
-      {
-        // <span className="flex gap-1 text-[0.7rem]">
-        //   <span>
-        //     <span className="font-semibold">hi</span>: 2.1
-        //   </span>
-        //   <span>
-        //     <span className="font-semibold">lo</span>: 2.9
-        //   </span>
-        // </span>
-      }
     </HighlightCard>
   );
 };
@@ -157,77 +149,6 @@ function getMoonPhaseInfo(raw: string | number): {
   return { kind, lines: labelMap[kind] };
 }
 
-const MoonIcon = ({ kind, size = 26 }: { kind: MoonKind; size?: number }) => {
-  // Simple crescent rendering using two overlapping circles
-  const r = size / 2;
-  const cx = r;
-  const cy = r;
-  const light = "#f1f1f1";
-  const dark = "#2d2d2d";
-
-  // Offsets to approximate phase shapes
-  let dx = 0; // overlay circle offset (+ right, - left)
-  let fillBase = light;
-  switch (kind) {
-    case "new":
-      fillBase = dark;
-      dx = 0;
-      break;
-    case "waxing_crescent":
-      dx = -r * 0.6; // small lit sliver on right
-      break;
-    case "first_quarter":
-      dx = -r; // half right lit
-      break;
-    case "waxing_gibbous":
-      dx = -r * 1.4; // mostly lit right
-      break;
-    case "full":
-      dx = -r * 2; // overlay fully off
-      break;
-    case "waning_gibbous":
-      dx = r * 1.4; // mostly lit left
-      break;
-    case "last_quarter":
-      dx = r; // half left lit
-      break;
-    case "waning_crescent":
-      dx = r * 0.6; // small lit sliver on left
-      break;
-  }
-
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-      {/* base lit disc */}
-      <circle
-        cx={cx}
-        cy={cy}
-        r={r - 1}
-        fill={light}
-        stroke={dark}
-        strokeWidth={1}
-      />
-      {/* overlay to carve crescent */}
-      {kind !== "full" && kind !== "new" && (
-        <g>
-          <circle cx={cx + dx} cy={cy} r={r} fill={dark} />
-        </g>
-      )}
-      {/* fully dark for new moon */}
-      {kind === "new" && (
-        <circle
-          cx={cx}
-          cy={cy}
-          r={r - 1}
-          fill={dark}
-          stroke={dark}
-          strokeWidth={1}
-        />
-      )}
-    </svg>
-  );
-};
-
 const getMoonEmoji = (kind: MoonKind): string => {
   switch (kind) {
     case "new":
@@ -284,13 +205,6 @@ const WindStat = ({
   label: string;
 }) => {
   return (
-    // <span className="flex gap-1 bg-orange border border-border rounded-md py-2 px-3">
-    //   <span className="text-xl font-medium">{data.speed}</span>
-    //   <span className="flex flex-col -space-y-1">
-    //     <span className="text-[0.6rem]">{data.max}</span>
-    //     <span className="text-xs">mph</span>
-    //   </span>
-    // </span>
     <HighlightCard label={label}>
       <span className="flex gap-1">
         <span className="text-2xl font-semibold">{data.speed}</span>
@@ -299,14 +213,6 @@ const WindStat = ({
           <span className="text-[0.8rem]">mph</span>
         </span>
       </span>
-      {/* <span className="flex gap-1 text-[0.7rem]">
-        <span>
-          <span className="font-semibold">hi</span>: 2.1
-        </span>
-        <span>
-          <span className="font-semibold">lo</span>: 2.9
-        </span>
-      </span> */}
     </HighlightCard>
   );
 };
@@ -381,7 +287,7 @@ import {
 } from "@/lib/supabase";
 
 type Stat =
-  | { label: "weather"; weather: { temp: number; condition?: string } }
+  | { label: "weather"; weather: { temp: number; condition?: string; code?: number | null } }
   | { label: "water"; temp: number }
   | {
       label: "swell";
@@ -391,8 +297,8 @@ type Stat =
         wind: { dir: string; deg: number };
       };
       secondary: [
-        { height: number; period: number; wind: { dir: string; deg?: number } },
-        { height: number; period: number; wind: { dir: string; deg?: number } }
+        { height: number; period: number; wind: { dir: string; deg: number } },
+        { height: number; period: number; wind: { dir: string; deg: number } }
       ];
     }
   | { label: "tide"; tide: { value: number | string; unit: string } }
@@ -495,6 +401,7 @@ const Highlights = ({
           weather: {
             temp: Math.round(base?.conditions.airTemp ?? 0),
             condition: "sun",
+            code: base?.conditions.weather ?? null,
           },
         });
         // water temp
@@ -506,40 +413,30 @@ const Highlights = ({
         if (baseRow) {
           const pDir = baseRow.swell.primary.direction ?? 0;
           const sDir = baseRow.swell.secondary.direction ?? 0;
+          const tDir = baseRow.swell.tertiary?.direction ?? 0;
           nextStats.push({
             label: "swell",
             primary: {
               height: Number((baseRow.swell.primary.height ?? 0).toFixed(1)),
-              period: Number((baseRow.swell.primary.period ?? 0).toFixed(1)),
-              wind: { dir: getWindDirection(pDir) },
+              period: Math.round(baseRow.swell.primary.period ?? 0),
+              wind: { dir: getWindDirection(pDir), deg: pDir },
             },
             secondary: [
               {
                 height: Number(
                   (baseRow.swell.secondary.height ?? 0).toFixed(1)
                 ),
-                period: Number(
-                  (baseRow.swell.secondary.period ?? 0).toFixed(1)
-                ),
-                wind: { dir: getWindDirection(sDir) },
+                period: Math.round(baseRow.swell.secondary.period ?? 0),
+                wind: { dir: getWindDirection(sDir), deg: sDir },
               },
               {
                 height: Number(
                   (baseRow.swell.tertiary?.height ?? 0).toFixed(1)
                 ),
-                period: Number(
-                  (baseRow.swell.tertiary?.period ?? 0).toFixed(1)
-                ),
-                wind: {
-                  dir: getWindDirection(baseRow.swell.tertiary?.direction ?? 0),
-                },
+                period: Math.round(baseRow.swell.tertiary?.period ?? 0),
+                wind: { dir: getWindDirection(tDir), deg: tDir },
               },
             ],
-            // primary: { height: Number((baseRow.swell.primary.height ?? 0).toFixed(1)), period: Number((baseRow.swell.primary.period ?? 0).toFixed(1)), wind: { dir: getWindDirection(pDir), deg: Number((pDir).toFixed(1)) } },
-            // secondary: [
-            //   { height: Number((baseRow.swell.secondary.height ?? 0).toFixed(1)), period: Number((baseRow.swell.secondary.period ?? 0).toFixed(1)), wind: { dir: getWindDirection(sDir), deg: Number((sDir).toFixed(1)) } },
-            //   { height: Number((baseRow.swell.tertiary?.height ?? 0).toFixed(1)), period: Number((baseRow.swell.tertiary?.period ?? 0).toFixed(1)), wind: { dir: getWindDirection(baseRow.swell.tertiary?.direction ?? 0), deg: Number(((baseRow.swell.tertiary?.direction ?? 0)).toFixed(1)) } },
-            // ],
           });
         }
         // tide
@@ -585,14 +482,7 @@ const Highlights = ({
   }, [beachId, date, hour]);
 
   return (
-    // <div className="p-2 border border-border/40 rounded-md shadow-sm bg-highlight-4">
     <div>
-      {/* <header className="ml-2 mb-4 mt-1 flex flex-col gap-1">
-        <h3 className="font-semibold">Current Conditions</h3>
-        <p className="text-muted-foreground text-sm -mt-0.5">
-          Showing the stats for the day
-        </p>
-      </header> */}
       <ul className="grid grid-cols-2 @min-lg:grid-cols-4 @min-5xl:grid-cols-8 gap-1.5">
         {stats.slice(startIdx, endIdx + 1).map((stat) => {
           let content;
@@ -614,12 +504,20 @@ const Highlights = ({
                   temp={stat.weather.temp}
                   condition={stat.weather.condition}
                   label={stat.label}
+                  weatherCode={stat.weather.code}
                 />
               );
               break;
             case "water":
               content = stat.temp && (
-                <WeatherStat temp={stat.temp} label={stat.label} />
+                <HighlightCard label={stat.label}>
+                  <div className="flex items-center justify-center gap-0.5">
+                    <span className="text-2xl font-semibold">
+                      {stat.temp}
+                      <span className="text-sm font-normal">&deg;F</span>
+                    </span>
+                  </div>
+                </HighlightCard>
               );
               break;
             case "tide":
@@ -655,16 +553,6 @@ const Highlights = ({
           }
           if (content) {
             return (
-              // <li key={stat.label} className="highlight-card">
-              //   <h4 className="highlight-title">{stat.label.toUpperCase()}</h4>
-              //   <div
-              //     className={
-              //       "flex-1 flex items-center justify-center gap-1 mt-1"
-              //     }
-              //   >
-              //     {content}
-              //   </div>
-              // </li>
               <li
                 key={stat.label}
                 className="relative highlight-card shadow-even"

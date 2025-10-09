@@ -1,31 +1,32 @@
-import { MousePointer2 as ArrowIcon } from "lucide-react";
+import GradientCircle from "./GradientCircle";
 
 const WindStat = ({
   data,
 }: {
-  data: { direction: string; speed: number; loc: string; gust?: number };
+  data: { speed: number; loc?: string; gust?: number; intensity: number };
 }) => {
-  return (
-    <div className="flex items-center gap-1">
-      <div className="shadow-sm border border-border p-1 rounded-lg text-center">
-        <ArrowIcon
-          size={24}
-          color="#ff6a34ff"
-          fill="#ff6a34ff"
-          className="mx-auto"
-        />
-        <span className="text-[.8rem] font-semibold">{data.direction}</span>
-      </div>
-      <div className="flex flex-col">
-        <span className="text-2xl font-medium">
-          {data.speed}
-          <span className="text-xs font-normal">mph</span>
-        </span>
-        <span className="text-xs p-1 border border-border rounded-xl bg-highlight-1">
-          {data.gust != null ? `Gust ${data.gust} mph` : data.loc}
-        </span>
-      </div>
+  const circleContent = (
+    <div className="flex flex-col items-center leading-tight">
+      <span className="text-lg font-semibold">
+        {data.speed}
+        <span className="text-xs font-normal ml-1">mph</span>
+      </span>
+      <span className="text-[11px] text-muted-foreground">
+        {data.gust != null ? `Gust ${data.gust} mph` : "No gust"}
+      </span>
     </div>
+  );
+
+  return (
+    <GradientCircle
+      condition="wind"
+      data={data.speed}
+      percentage={data.intensity}
+      size={90}
+      strokeWidth={8}
+      showIcon={false}
+      content={circleContent}
+    />
   );
 };
 

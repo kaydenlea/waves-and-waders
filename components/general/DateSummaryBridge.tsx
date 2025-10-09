@@ -20,7 +20,41 @@ type Props = { beachId: string };
 
 const DateSummaryBridge: React.FC<Props> = ({ beachId }) => {
   const [selected, setSelected] = React.useState<Date | null>(null);
-  const [hour, setHour] = React.useState<number>(10);
+  const [hour, setHour] = React.useState<number>(() => {
+    const currentHour = new Date().getHours();
+    return Math.round(Math.max(0, Math.min(21, currentHour)) / 3) * 3;
+  });
+  const [currentTime, setCurrentTime] = React.useState<string>(() => {
+    return new Date().toLocaleTimeString(undefined, {
+      hour: "numeric",
+      minute: "2-digit",
+      timeZoneName: "short",
+    });
+  });
+  const { setSelectedDate, setSelectedHour } =
+    require("@/components/context/MapFilterContext").useMapFilters();
+
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(
+        new Date().toLocaleTimeString(undefined, {
+          hour: "numeric",
+          minute: "2-digit",
+          timeZoneName: "short",
+        })
+      );
+    }, 60000); // Update every minute
+    return () => clearInterval(interval);
+  }, []);
+
+  // Sync selected date with map context
+  React.useEffect(() => {
+    setSelectedDate(selected);
+  }, [selected, setSelectedDate]);
+
+  React.useEffect(() => {
+    setSelectedHour(hour);
+  }, [hour, setSelectedHour]);
 
   return (
     <>
@@ -62,55 +96,6 @@ const DateSummaryBridge: React.FC<Props> = ({ beachId }) => {
             value={selected}
             onSelect={setSelected}
           />
-          <section className="p-4 bg-highlight-4 border-y border-border/60 shadow-even flex justify-center gap-2">
-            <div className="relative p-2 w-50 rounded-lg bg-highlight-7 hidden @min-3xl:block shadow-sm border border-border/50">
-              <h3 className="absolute top-2 left-2 text-xs font-semibold">
-                TIDE
-              </h3>
-              <div className="flex justify-center items-center h-full">
-                <GradientCircle
-                  color="bg-highlight-6"
-                  condition="tide"
-                  size={90}
-                  strokeWidth={9}
-                  percentage={80}
-                  data={"2-3"}
-                />
-              </div>
-            </div>
-            <div className="flex-1 p-3 bg-highlight-7 rounded-lg border border-border/50 shadow-even space-y-4">
-              {/* <div className="w-30 h-30 bg-gray-700 rounded-lg" /> */}
-              <div className="flex gap-2">
-                <div className="w-1 p-1 rounded-full bg-green-400" />
-                <header>
-                  <h3 className="text-xl font-semibold">
-                    Huntington Beach Summary
-                  </h3>
-                  <span className="text-sm">Tues, Sep 3, 1 PM PDT</span>
-                </header>
-              </div>
-              <p className="text-base">
-                The waves are <span className="font-bold">2-3 ft</span> and{" "}
-                <span className="font-bold">calm</span>. Be careful of winds
-                coming in at <span className="font-bold">12 mph SW</span>.
-              </p>
-            </div>
-            <div className="relative p-2 w-50 rounded-lg bg-highlight-7 hidden @min-3xl:block shadow-sm border border-border/50">
-              <h3 className="absolute top-2 left-2 text-xs font-semibold">
-                WIND
-              </h3>
-              <div className="flex justify-center items-center h-full">
-                <GradientCircle
-                  color="bg-highlight-6"
-                  condition="wind"
-                  size={90}
-                  strokeWidth={9}
-                  percentage={20}
-                  data={"12"}
-                />
-              </div>
-            </div>
-          </section>
           <LazyLoadHourSlider
             value={hour}
             onChange={setHour}
@@ -121,18 +106,11 @@ const DateSummaryBridge: React.FC<Props> = ({ beachId }) => {
         </section>
         <section className="flex-1">
           <header className="ml-2 mb-6">
-            {/* <Calendar className="h-7 w-7" /> */}
             <h3 className="leading-none font-semibold text-2xl">
-              {selected
-                ? selected.toLocaleDateString(undefined, {
-                    weekday: "long",
-                    month: "long",
-                    day: "numeric",
-                  })
-                : "Select a day"}
+              Hourly View
             </h3>
             <span className="text-sm text-muted-foreground">
-              Local time: 8:30 PM, PDT
+              Local time: {currentTime}
             </span>
           </header>
           <Highlights
@@ -142,16 +120,16 @@ const DateSummaryBridge: React.FC<Props> = ({ beachId }) => {
             startIdx={0}
             endIdx={7}
           />
-          <div className="py-2">
+          {/* <div className="py-2">
             <BeachCrossSection />
-          </div>
+          </div> */}
         </section>
         <div className="flex flex-col @min-3xl:flex-row gap-3">
-          <VisualWrapper label="Wind" unit="mph">
-            <LazyLoadWind beachId={beachId} date={selected ?? undefined} />
-          </VisualWrapper>
           <VisualWrapper label="Tide" unit="ft">
             <LazyLoadTide beachId={beachId} date={selected ?? undefined} />
+          </VisualWrapper>
+          <VisualWrapper label="Wind" unit="mph">
+            <LazyLoadWind beachId={beachId} date={selected ?? undefined} />
           </VisualWrapper>
         </div>
         <div className="flex flex-col @min-3xl:flex-row gap-3 mt-3">

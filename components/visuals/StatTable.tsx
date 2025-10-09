@@ -9,6 +9,12 @@ import {
   MousePointer2 as ArrowIcon,
   Sun,
   Cloudy,
+  Cloud as CloudIcon,
+  CloudSun,
+  CloudDrizzle,
+  CloudRain,
+  CloudLightning,
+  Snowflake,
 } from "lucide-react";
 import DaySlider from "../general/DaySlider";
 import {
@@ -34,7 +40,11 @@ const SwellStat = ({
   const height = data?.height ?? "—";
   const period = data?.period ?? "—";
   const dir = data?.dir ?? "—";
-  const deg = data?.deg ?? "—";
+  const deg = data?.deg ?? 0;
+
+  // Calculate rotation for arrow (arrow points at 315° by default)
+  const rotation = typeof deg === "number" ? deg - 315 : 0;
+
   return (
     <div
       className={cn(
@@ -68,12 +78,14 @@ const SwellStat = ({
             s
           </span>
         </span>
-        <ArrowIcon
-          size={16}
-          color="#51e72bff"
-          fill="#51e72bff"
-          className="mr-2 @min-md:mr-0"
-        />
+        <div
+          style={{
+            transform: `rotate(${rotation}deg)`,
+            display: "inline-block",
+          }}
+        >
+          <ArrowIcon size={16} color="#51e72bff" fill="#51e72bff" />
+        </div>
         <span className="flex items-baseline gap-[1px] whitespace-nowrap min-w-17 justify-center hidden @min-md:flex">
           <span
             className={cn("font-semibold", primary ? "text-sm" : "text-sm")}
@@ -81,7 +93,7 @@ const SwellStat = ({
             {dir}
           </span>
           <span className={cn(primary ? "text-[.65rem]" : "text-[.65rem]")}>
-            {deg}&deg;
+            {typeof deg === "number" ? Math.round(deg) : deg}&deg;
           </span>
         </span>
       </div>
@@ -92,8 +104,11 @@ const SwellStat = ({
 const WindStat = ({
   data,
 }: {
-  data: { dir: string; speed: number; max: number };
+  data: { dir: string; speed: number; max: number; deg?: number };
 }) => {
+  // Calculate rotation for wind arrow (arrow points at 315° by default)
+  const rotation = typeof data.deg === "number" ? data.deg - 315 : 0;
+
   return (
     <div className="flex items-center gap-1">
       <span className="flex-1 justify-center flex gap-1 bg-highlight-1 rounded-md py-2 px-3">
@@ -103,14 +118,16 @@ const WindStat = ({
           <span className="text-[0.7rem]">mph</span>
         </span>
       </span>
-      <div className="shadow-sm border border-border p-1 rounded-md text-center min-w-9">
-        <ArrowIcon
-          size={16}
-          color="#ff6a34ff"
-          fill="#ff6a34ff"
-          className="mx-auto"
-        />
-        <span className="text-[.6rem]">{data.dir}</span>
+      <div className="shadow-sm border border-border p-1 rounded-md text-center min-w-10 flex flex-col items-center justify-center">
+        <div
+          style={{
+            transform: `rotate(${rotation}deg)`,
+            display: "inline-block",
+          }}
+        >
+          <ArrowIcon size={16} color="#ff6a34ff" fill="#ff6a34ff" />
+        </div>
+        <span className="text-[.6rem] mt-0.5">{data.dir}</span>
       </div>
     </div>
   );
@@ -119,15 +136,44 @@ const WindStat = ({
 const WeatherStat = ({
   data,
 }: {
-  data: { condition?: string; temp: number };
+  data: { condition?: string; temp: number; code?: number | null };
 }) => {
-  const conditionIcon: Record<string, React.ReactNode> = {
-    clear: <Sun className="w-4 h-4" strokeWidth={3} color="#f79e55ff" />,
-    cloudy: <Cloudy className="w-4 h-4" color="#bdbdbdff" />,
+  // Function to get weather icon based on WMO code
+  const getWeatherIcon = (code: number | null) => {
+    if (code == null)
+      return <Sun className="w-4 h-4" strokeWidth={3} color="#f79e55ff" />;
+
+    // WMO code groupings
+    if (code === 0)
+      return <Sun className="w-4 h-4" strokeWidth={3} color="#f79e55ff" />; // Clear
+    if ([1, 2, 3].includes(code))
+      return <CloudSun className="w-4 h-4" color="#bdbdbdff" />; // Partly cloudy/overcast
+    if ([45, 48].includes(code))
+      return <CloudIcon className="w-4 h-4" color="#bdbdbdff" />; // Fog
+    if ([51, 53, 55].includes(code))
+      return <CloudDrizzle className="w-4 h-4" color="#66a3ffff" />; // Drizzle
+    if ([56, 57].includes(code))
+      return <CloudDrizzle className="w-4 h-4" color="#66a3ffff" />; // Freezing drizzle
+    if ([61, 63, 65].includes(code))
+      return <CloudRain className="w-4 h-4" color="#66a3ffff" />; // Rain
+    if ([66, 67].includes(code))
+      return <CloudRain className="w-4 h-4" color="#66a3ffff" />; // Freezing rain
+    if ([71, 73, 75].includes(code))
+      return <Snowflake className="w-4 h-4" color="#8ecaffff" />; // Snow
+    if (code === 77) return <Snowflake className="w-4 h-4" color="#8ecaffff" />; // Snow grains
+    if ([80, 81, 82].includes(code))
+      return <CloudRain className="w-4 h-4" color="#66a3ffff" />; // Showers
+    if ([85, 86].includes(code))
+      return <Snowflake className="w-4 h-4" color="#8ecaffff" />; // Snow showers
+    if ([95, 96, 99].includes(code))
+      return <CloudLightning className="w-4 h-4" color="#ff8d6bff" />; // Thunderstorm/hail
+
+    return <CloudIcon className="w-4 h-4" color="#bdbdbdff" />;
   };
+
   return (
     <div className="w-full flex justify-center items-center gap-0.5">
-      {data.condition && conditionIcon[data.condition]}
+      {getWeatherIcon(data.code ?? null)}
       <span>
         <span className="text-base font-medium">{data.temp}</span>
         <span className="text-xs">&deg;F</span>
@@ -159,9 +205,15 @@ const GeneralStat = ({
 };
 
 type TableEntry = {
-  index: number; // hour in local time (0,3,6,...)
-  time: string; // e.g., "3 PM"
-  wind: { label: string; dir: string; speed: number; max: number };
+  index: number;
+  time: string;
+  wind: {
+    label: string;
+    dir: string;
+    speed: number;
+    max: number;
+    deg?: number;
+  };
   surf: { label: string; height: string };
   swell: {
     label: string;
@@ -169,7 +221,12 @@ type TableEntry = {
     secondary: { height: number; period: number; dir: string; deg: number }[];
   };
   pressure: { label: string; value: number };
-  weather: { label: string; condition: string; temp: number };
+  weather: {
+    label: string;
+    condition: string;
+    temp: number;
+    code?: number | null;
+  };
   water: { label: string; temp: number };
   energy: { label: string; value: number };
 };
@@ -225,29 +282,6 @@ const StatTable = ({
   beachId?: string;
   date?: Date;
 }) => {
-  // const dataDummy = Array.from({ length: numDays }, () => ({
-  //   date: "Monday, July 10",
-  //   vals: Array.from({ length: numHours }, (_, index) => ({
-  //     index: index * 3,
-  //     time: `${(index * 3) % 12 === 0 ? 12 : (index * 3) % 12} ${
-  //       index * 3 >= 12 ? "PM" : "AM"
-  //     }`,
-  //     wind: { label: "wind", dir: "NNE", speed: 12, max: 17 },
-  //     surf: { label: "surf", height: "2-3" },
-  //     swell: {
-  //       label: "swell",
-  //       primary: { height: 2.1, period: 7, dir: "W", deg: 272 },
-  //       secondary: [
-  //         { height: 2.1, period: 7, dir: "W", deg: 272 },
-  //         { height: 2.1, period: 7, dir: "W", deg: 272 },
-  //       ],
-  //     },
-  //     pressure: { label: "pressure", value: 29.94 },
-  //     weather: { label: "weather", condition: "clear", temp: 64 },
-  //     water: { label: "water", temp: 64 },
-  //     energy: { label: "energy", value: 278 },
-  //   })),
-  // }));
   const [data, setData] = React.useState<TableDay[]>([]);
   const { selectedDays } = useDateContext();
 
@@ -275,7 +309,6 @@ const StatTable = ({
           rangeEnd
         );
 
-        // Group by Pacific date (explicit timezone to avoid browser locale shifts)
         const byDay = new Map<string, ForecastData[]>();
         const fmtDayLabel = (d: Date) =>
           d.toLocaleDateString("en-US", {
@@ -292,10 +325,8 @@ const StatTable = ({
           byDay.set(label, arr);
         });
 
-        // Build table structure
         const days: TableDay[] = [];
         const entriesByDay = Array.from(byDay.entries()).sort((a, b) => {
-          // sort days chronologically by first timestamp
           const ta = new Date(a[1][0]?.timestamp ?? 0).getTime();
           const tb = new Date(b[1][0]?.timestamp ?? 0).getTime();
           return ta - tb;
@@ -303,7 +334,6 @@ const StatTable = ({
         const onlyLabel = requestedDate ? fmtDayLabel(requestedDate) : null;
         const onlyLabels = selectedDays?.map((day) => fmtDayLabel(day));
 
-        // Optionally narrow to selected label; if no exact match, try +/- 1 day as fallback
         let allowedLabels: Set<string> | null = null;
         const labels = entriesByDay.map(([lbl]) => lbl);
         if (onlyLabels) {
@@ -327,7 +357,6 @@ const StatTable = ({
 
         for (const [label, rows] of entriesByDay) {
           if (allowedLabels && !allowedLabels.has(label)) continue;
-          // Sort by time ascending
           rows.sort(
             (a, b) =>
               new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
@@ -345,13 +374,11 @@ const StatTable = ({
               return new Date(ts).getUTCHours();
             }
           };
-          // Build a map from Pacific hour -> row
           const hourMap = new Map<number, ForecastData>();
           for (const r of rows) {
             hourMap.set(pacificHour(r.timestamp), r);
           }
 
-          // Choose hour checkpoints: when only a few rows are requested, focus on 6/12/18; otherwise use a 3-hour grid.
           const THREE_HOUR_GRID = [0, 3, 6, 9, 12, 15, 18, 21];
           const SPOT_HOURS = [6, 12, 18];
           const baseHours =
@@ -369,6 +396,7 @@ const StatTable = ({
             const ampm = hour >= 12 ? "PM" : "AM";
 
             const windDir = getWindDirection(r.conditions.windDirection ?? 0);
+            const windDeg = Math.round(r.conditions.windDirection ?? 0);
             const windSpeed = Math.round(r.conditions.windSpeed ?? 0);
             const windGust = Math.round(r.conditions.windGust ?? windSpeed);
 
@@ -428,6 +456,7 @@ const StatTable = ({
                 dir: windDir,
                 speed: windSpeed,
                 max: windGust,
+                deg: windDeg,
               },
               surf: { label: "surf", height: surfHeight },
               swell: {
@@ -441,9 +470,20 @@ const StatTable = ({
                 secondary: secList.slice(0, 2),
               },
               pressure: { label: "pressure", value: pressure },
-              weather: { label: "weather", condition: "clear", temp: 64 },
-              water: { label: "water", temp: 64 },
-              energy: { label: "energy", value: 278 },
+              weather: {
+                label: "weather",
+                condition: "clear",
+                temp: Math.round(r.conditions.airTemp ?? 0),
+                code: r.conditions.weather ?? null,
+              },
+              water: {
+                label: "water",
+                temp: Math.round(r.conditions.waterTemp ?? 0),
+              },
+              energy: {
+                label: "energy",
+                value: Math.round(r.surf.waveEnergy ?? 0),
+              },
             };
           };
 
@@ -453,7 +493,7 @@ const StatTable = ({
             return {
               index: hour,
               time: `${displayHour} ${ampm}`,
-              wind: { label: "wind", dir: "—", speed: 0, max: 0 },
+              wind: { label: "wind", dir: "—", speed: 0, max: 0, deg: 0 },
               surf: { label: "surf", height: "—" },
               swell: {
                 label: "swell",
@@ -472,7 +512,6 @@ const StatTable = ({
             return r ? makeEntryFromRow(r, h) : makePlaceholder(h);
           });
 
-          // Use first row's midnight for stable date range labeling
           const firstTs = rows[0]?.timestamp ?? new Date().toISOString();
           const d0 = new Date(firstTs);
           const midnight = new Date(
@@ -483,7 +522,6 @@ const StatTable = ({
           days.push({ date: label, dateMs: midnight, vals: entries });
         }
 
-        // Keep only requested number of days
         let finalDays = days;
         if (allowedLabels) {
           if (!onlyLabels) finalDays = days.slice(0, 1);
@@ -500,8 +538,8 @@ const StatTable = ({
   const COLUMNS = [
     { id: "surf", label: "Surf" },
     { id: "wind", label: "Wind" },
-    { id: "swellPriamry", label: "Swell" },
-    { id: "swellSecond", label: "Secondary Swell" },
+    { id: "swellPrimary", label: "Primary Swell" },
+    { id: "swellSecondary", label: "Secondary Swell" },
     { id: "swellTertiary", label: "Tertiary Swell" },
     { id: "weather", label: "Weather" },
     { id: "water", label: "Water" },
@@ -528,15 +566,15 @@ const StatTable = ({
         setVisibleCols(3);
         setColumnPages([
           COLUMNS.slice(0, 3),
-          COLUMNS.slice(3, 5),
-          COLUMNS.slice(5, COLUMNS.length),
+          COLUMNS.slice(3, 6),
+          COLUMNS.slice(6, COLUMNS.length),
         ]);
       } else if (width < 1050) {
-        setVisibleCols(3);
-        setColumnPages([COLUMNS.slice(0, 4), COLUMNS.slice(4, COLUMNS.length)]);
+        setVisibleCols(4);
+        setColumnPages([COLUMNS.slice(0, 5), COLUMNS.slice(5, COLUMNS.length)]);
         setCurrentPage(0);
       } else {
-        setVisibleCols(5);
+        setVisibleCols(6);
         setColumnPages([COLUMNS]);
         setCurrentPage(0);
       }
@@ -550,45 +588,6 @@ const StatTable = ({
     return () => observer.disconnect();
   }, []);
 
-  // React.useEffect(() => {
-  //   const handleResize = () => {
-  //     const tableContainer = document.querySelector("#content");
-  //     const width = tableContainer ? tableContainer.clientWidth : 0;
-
-  //     if (width < 750) {
-  //       setVisibleCols(3);
-  //     } else {
-  //       setVisibleCols(5);
-  //       setCurrentPage(0);
-  //     }
-  //   };
-
-  //   handleResize();
-  //   window.addEventListener("resize", handleResize);
-
-  //   return () => window.removeEventListener("resize", handleResize);
-  // }, []);
-
-  // const columnPages =
-  //   visibleCols !== 5
-  //     ? [
-  //         COLUMNS.slice(0, visibleCols),
-  //         COLUMNS.slice(visibleCols, COLUMNS.length),
-  //       ]
-  //     : [COLUMNS];
-
-  // let columnPages = [COLUMNS];
-  // console.log(visibleCols);
-  // if (visibleCols === 3) {
-  //   columnPages = [
-  //     COLUMNS.slice(0, visibleCols),
-  //     COLUMNS.slice(visibleCols, visibleCols + 1),
-  //     COLUMNS.slice(visibleCols + 1, COLUMNS.length),
-  //   ];
-  // } else if (visibleCols === 3) {
-  // }
-
-  // handle visible columns
   const handleNext = () => {
     setCurrentPage((prev) => Math.min(prev + 1, columnPages.length - 1));
   };
@@ -598,9 +597,6 @@ const StatTable = ({
 
   const visibleColumns = columnPages[currentPage];
 
-  // handle visible days
-
-  // show 4 days at a time
   const windowSize = 4;
 
   const handleNextDays = () => {
@@ -616,32 +612,9 @@ const StatTable = ({
   };
 
   const visibleDays = data.slice(startIndex, startIndex + windowSize);
-  console.log(
-    "VISIBLE DAYS",
-    visibleDays,
-    data,
-    startIndex,
-    startIndex + windowSize
-  );
 
   return (
     <div ref={tableRef}>
-      {/* {windowSize < data.length && (
-        <DaySlider
-          handleBack={handleBackDays}
-          handleNext={handleNextDays}
-          windowSize={3}
-          length={data.length}
-          startIndex={startIndex}
-          days={(() => {
-            const s = data[startIndex];
-            const e = data[Math.min(startIndex + windowSize - 1, data.length - 1)];
-            if (!s || !e) return "";
-            const fmt = (ms: number) => new Date(ms).toLocaleDateString("en-US", { weekday: "short", month: "numeric", day: "numeric" });
-            return `${fmt(s.dateMs)} - ${fmt(e.dateMs)}`;
-          })()}
-        />
-      )} */}
       <table className="w-full table-auto border-collapse text-sm">
         <thead>
           <tr>
@@ -683,12 +656,23 @@ const StatTable = ({
                     </span>
                   </th>
                   {visibleColumns.map((col, colIdx) => {
-                    const level =
-                      rowIdx % 3 === 0
-                        ? "bg-green"
-                        : rowIdx % 2 === 0
-                        ? "bg-orange"
-                        : "bg-red";
+                    // Functional color coding for surf ranges (works in both light and dark mode)
+                    const getSurfLevel = (height: string) => {
+                      if (height === "—") return "bg-highlight-2";
+                      const match = height.match(/(\d+)/);
+                      if (!match) return "bg-highlight-2";
+                      const maxHeight = parseInt(match[1]);
+                      if (maxHeight === 0)
+                        return "bg-gray-200 dark:bg-gray-700";
+                      if (maxHeight <= 2)
+                        return "bg-green-200 dark:bg-green-900/40";
+                      if (maxHeight <= 4)
+                        return "bg-yellow-200 dark:bg-yellow-900/40";
+                      if (maxHeight <= 6)
+                        return "bg-orange-200 dark:bg-orange-900/40";
+                      return "bg-red-200 dark:bg-red-900/40";
+                    };
+
                     let content;
                     switch (col.label) {
                       case "Wind":
@@ -702,11 +686,11 @@ const StatTable = ({
                           <GeneralStat
                             val={entry.surf.height}
                             unit="ft"
-                            level={level}
+                            level={getSurfLevel(entry.surf.height)}
                           />
                         );
                         break;
-                      case "Swell":
+                      case "Primary Swell":
                         {
                           content = (
                             <SwellStat
@@ -732,19 +716,28 @@ const StatTable = ({
                           <GeneralStat
                             val={entry.pressure.value}
                             unit="in"
-                            level={level}
+                            level="bg-highlight-2"
                           />
                         );
                         break;
                       case "Water":
-                        content = <WeatherStat data={entry.water} />;
+                        content = (
+                          <div className="w-full flex justify-center items-center gap-0.5">
+                            <span>
+                              <span className="text-base font-medium">
+                                {entry.water.temp}
+                              </span>
+                              <span className="text-xs">&deg;F</span>
+                            </span>
+                          </div>
+                        );
                         break;
                       case "Energy":
                         content = (
                           <GeneralStat
                             val={entry.energy.value}
                             unit="kJ"
-                            level={level}
+                            level="bg-highlight-2"
                           />
                         );
                         break;

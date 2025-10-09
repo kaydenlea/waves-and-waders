@@ -1,32 +1,32 @@
-import { MousePointer2 as ArrowIcon } from "lucide-react";
+import GradientCircle from "./GradientCircle";
 
 const SurfStat = ({
   data,
 }: {
-  data: { direction: string; height: string; period: number };
+  data: { height: string; period: number; intensity: number };
 }) => {
-  return (
-    <div className="flex items-center gap-1">
-      <div className="shadow-sm border border-border p-1 rounded-lg text-center">
-        <ArrowIcon
-          size={26}
-          color="#51e72bff"
-          fill="#51e72bff"
-          className="mx-auto"
-        />
-        <span className="text-[.8rem] font-semibold">{data.direction}</span>
-      </div>
-      <div className="flex flex-col">
-        <span className="text-2xl font-medium">
-          {data.height}
-          <span className="text-xs font-normal">ft</span>
-        </span>
-        <span className="text-2xl font-medium">
-          {data.period}
-          <span className="text-xs font-normal">s</span>
-        </span>
-      </div>
+  const circleContent = (
+    <div className="flex flex-col items-center leading-tight">
+      <span className="text-lg font-semibold">
+        {data.height}
+        <span className="text-xs font-normal ml-1">ft</span>
+      </span>
+      <span className="text-[11px] text-muted-foreground">
+        Period {data.period}s
+      </span>
     </div>
+  );
+
+  return (
+    <GradientCircle
+      condition="surf"
+      data={data.height}
+      percentage={data.intensity}
+      size={90}
+      strokeWidth={8}
+      showIcon={false}
+      content={circleContent}
+    />
   );
 };
 

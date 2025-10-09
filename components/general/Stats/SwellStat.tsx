@@ -18,15 +18,23 @@ const SwellStat = ({
     typeof data.height === "number"
       ? Number(data.height.toFixed(1))
       : (data.height as any);
+  
+  // Keep period as whole number (no decimals)
   const periodVal =
     typeof data.period === "number"
-      ? Number(data.period.toFixed(1))
+      ? Math.round(data.period)
       : (data.period as any);
+  
   const degVal =
     typeof data.wind.deg === "number"
-      ? Number(data.wind.deg.toFixed(1))
-      : (data.wind.deg as any);
-
+      ? data.wind.deg
+      : 0;
+  
+  // Calculate rotation: arrow points at 315° by default, so we need to adjust
+  // If swell is coming from 270° (W), arrow should point at 270°
+  // Rotation needed = degVal - 315
+  const arrowRotation = degVal - 315;
+  
   const stats = [
     { label: "swell height", value: heightVal, unit: "ft" },
     { label: "swell period", value: periodVal, unit: "s" },
@@ -38,9 +46,10 @@ const SwellStat = ({
     {
       label: "swell wind",
       value: data.wind.dir,
-      unit: `${typeof degVal === "number" ? degVal.toFixed(1) : degVal}°`,
+      unit: `${typeof degVal === "number" ? Math.round(degVal) : degVal}°`,
     },
   ];
+  
   return (
     <div
       className={cn(
@@ -58,6 +67,7 @@ const SwellStat = ({
               fill="#51e72bff"
               color="#51e72bff"
               key={stat.label}
+              style={{ transform: `rotate(${arrowRotation}deg)` }}
             />
           );
         }
@@ -72,7 +82,9 @@ const SwellStat = ({
             )}
           >
             {typeof stat.value === "number"
-              ? stat.value.toFixed(1)
+              ? stat.label === "swell period" 
+                ? stat.value // Already rounded, no decimal needed
+                : stat.value.toFixed(1)
               : stat.value}
             <span
               className={cn(

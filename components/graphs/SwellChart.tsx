@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   CartesianGrid,
   XAxis,
@@ -30,7 +30,7 @@ const chartConfig = {
     color: "#48cae4",
   },
   tertiary: {
-    label: "tertiary",
+    label: "Tertiary",
     color: "#adf1ffff",
   },
 } satisfies ChartConfig;
@@ -40,6 +40,7 @@ import {
   fetchBeachByIdLoose,
   fetchBeachDetails,
   fetchDailyConditions,
+  getWindDirection,
 } from "@/lib/supabase";
 
 type Props = { beachId?: string; hours?: number; date?: Date };
@@ -48,28 +49,34 @@ type Row = {
   primary: number;
   secondary: number;
   tertiary: number;
+  primaryDir?: number;
+  secondaryDir?: number;
+  tertiaryDir?: number;
 };
 
-const SwellChart = ({ beachId, hours = 21, date }: Props) => {
+const SwellChart = ({ beachId, hours = 24, date }: Props) => {
   const [data, setData] = useState<Row[]>([]);
-  const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]); // day shading intervals in hours
+  const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
   const [nightAreas, setNightAreas] = useState<{ x1: number; x2?: number }[]>(
     []
   );
+  
   useEffect(() => {
     const load = async () => {
       try {
         if (!beachId) {
-          setData([
-            { time: 0, primary: 2, secondary: 1, tertiary: 0.5 },
-            { time: 3, primary: 2.2, secondary: 1.1, tertiary: 0.6 },
-            { time: 6, primary: 2.5, secondary: 1.3, tertiary: 0.7 },
-            { time: 9, primary: 2.1, secondary: 1.0, tertiary: 0.6 },
-            { time: 12, primary: 1.8, secondary: 0.8, tertiary: 0.5 },
-            { time: 15, primary: 2.4, secondary: 1.2, tertiary: 0.7 },
-            { time: 18, primary: 2.7, secondary: 1.3, tertiary: 0.9 },
-            { time: 21, primary: 2.0, secondary: 0.9, tertiary: 0.6 },
-          ]);
+          setData(Array.from({ length: 9 }, (_, idx) => {
+            const time = idx * 3;
+            return {
+              time,
+              primary: Number((2 + Math.sin((time / 24) * Math.PI)).toFixed(1)),
+              secondary: Number((1 + Math.cos((time / 24) * Math.PI)).toFixed(1)),
+              tertiary: Number((0.5 + Math.sin((time / 12) * Math.PI) * 0.3).toFixed(1)),
+              primaryDir: (time * 15) % 360,
+              secondaryDir: (time * 20) % 360,
+              tertiaryDir: (time * 25) % 360,
+            };
+          }));
           return;
         }
         const resolved = await fetchBeachByIdLoose(beachId);
@@ -86,9 +93,12 @@ const SwellChart = ({ beachId, hours = 21, date }: Props) => {
         const series = rows.map((r, i) => ({
           time:
             i === rows.length - 1 ? hours : new Date(r.timestamp).getHours(),
-          primary: r.swell.primary.height ?? 0,
-          secondary: r.swell.secondary.height ?? 0,
-          tertiary: r.swell.tertiary?.height ?? 0,
+          primary: Number((r.swell.primary.height ?? 0).toFixed(1)),
+          secondary: Number((r.swell.secondary.height ?? 0).toFixed(1)),
+          tertiary: Number((r.swell.tertiary?.height ?? 0).toFixed(1)),
+          primaryDir: r.swell.primary.direction ?? undefined,
+          secondaryDir: r.swell.secondary.direction ?? undefined,
+          tertiaryDir: r.swell.tertiary?.direction ?? undefined,
         }));
         setData(series);
 
@@ -97,7 +107,6 @@ const SwellChart = ({ beachId, hours = 21, date }: Props) => {
           const beach = await fetchBeachDetails(String(id));
           const county = beach?.COUNTY;
           if (county) {
-            // Choose the date basis: if an explicit date given, use that; otherwise use "start"
             const basisDate =
               date instanceof Date ? new Date(date) : new Date(start);
             const cond = await fetchDailyConditions(county, basisDate);
@@ -108,22 +117,32 @@ const SwellChart = ({ beachId, hours = 21, date }: Props) => {
               const h = Number(m[1]);
               const mm = Number(m[2]);
               if (!Number.isFinite(h) || !Number.isFinite(mm)) return null;
-              return h; // chart uses hour buckets
+              return h + mm / 60;
             };
             const riseH = parseHM(cond?.sunrise ?? null);
             const setH = parseHM(cond?.sunset ?? null);
             if (riseH != null && setH != null) {
               const dayStart = Math.min(riseH, setH);
               const dayEnd = Math.max(riseH, setH);
-              setDayAreas([{ x1: dayStart, x2: dayEnd }]);
-              setNightAreas([{ x1: 0, x2: dayStart }, { x1: dayEnd }]);
+              const clampedStart = Math.max(0, Math.min(hours, dayStart));
+              const clampedEnd = Math.max(0, Math.min(hours, dayEnd));
+              setDayAreas([{ x1: clampedStart, x2: clampedEnd }]);
+              const nightSegments: { x1: number; x2: number }[] = [];
+              if (clampedStart > 0) {
+                nightSegments.push({ x1: 0, x2: clampedStart });
+              }
+              if (clampedEnd < hours) {
+                nightSegments.push({ x1: clampedEnd, x2: hours });
+              }
+              setNightAreas(nightSegments);
             } else {
               setDayAreas([]);
+              setNightAreas([{ x1: 0, x2: hours }]);
             }
           }
         } catch (e) {
-          // ignore shading errors
           setDayAreas([]);
+          setNightAreas([{ x1: 0, x2: hours }]);
         }
       } catch (e) {
         console.error("Failed to load swell data", e);
@@ -131,6 +150,18 @@ const SwellChart = ({ beachId, hours = 21, date }: Props) => {
     };
     load();
   }, [beachId, hours, date]);
+
+  const hourTicks = useMemo(() => {
+    const ticks: number[] = [];
+    for (let v = 0; v <= hours; v += 3) {
+      ticks.push(v);
+    }
+    if (ticks[ticks.length - 1] !== hours) {
+      ticks.push(hours);
+    }
+    return ticks;
+  }, [hours]);
+
   return (
     <ChartContainer
       config={chartConfig}
@@ -145,7 +176,6 @@ const SwellChart = ({ beachId, hours = 21, date }: Props) => {
         }}
         syncId="anyId"
       >
-        {/* Daytime shading from sunrise to sunset (hours) */}
         {dayAreas.map((a, idx) => (
           <ReferenceArea
             key={`day-${idx}`}
@@ -172,11 +202,14 @@ const SwellChart = ({ beachId, hours = 21, date }: Props) => {
         />
         <XAxis
           dataKey="time"
+          domain={[0, hours]}
+          type="number"
           tickLine={false}
           axisLine={false}
           tickMargin={8}
           minTickGap={0}
           fontSize={11}
+          ticks={hourTicks}
           tickFormatter={(value) =>
             value % 3 === 0
               ? (value % 12 === 0 ? 12 : value % 12).toString()
@@ -192,7 +225,41 @@ const SwellChart = ({ beachId, hours = 21, date }: Props) => {
           domain={[0, (dataMax: number) => Math.ceil(dataMax + 2)]}
         />
         <ChartLegend content={<ChartLegendContent />} />
-        <ChartTooltip content={<ChartTooltipContent />} />
+        <ChartTooltip 
+          content={({ active, payload }) => {
+            if (!active || !payload || payload.length === 0) return null;
+            
+            const data = payload[0].payload;
+            
+            return (
+              <div className="rounded-lg border bg-background p-2 shadow-sm">
+                <div className="grid gap-2">
+                  {payload.map((entry, index) => {
+                    const dirKey = `${entry.dataKey}Dir` as keyof Row;
+                    const direction = data[dirKey] as number | undefined;
+                    const dirLabel = direction != null ? getWindDirection(direction) : 'N/A';
+                    
+                    return (
+                      <div key={index} className="flex flex-col">
+                        <span className="text-[0.70rem] uppercase text-muted-foreground">
+                          {entry.name}
+                        </span>
+                        <span className="font-bold" style={{ color: entry.color }}>
+                          {typeof entry.value === 'number' ? entry.value.toFixed(1) : entry.value} ft
+                        </span>
+                        {direction != null && (
+                          <span className="text-[0.65rem] text-muted-foreground">
+                            {dirLabel} ({Math.round(direction)}°)
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          }}
+        />
 
         <Area
           type="monotone"
@@ -202,19 +269,25 @@ const SwellChart = ({ beachId, hours = 21, date }: Props) => {
           stroke="#023e8a"
           fill="#0077b6"
           fillOpacity={0.2}
-          dot={({ payload, cx, cy }) => {
+          dot={({ payload, cx, cy, index }) => {
             const iconSize = 15;
+            const direction = payload.primaryDir ?? 0;
+            const rotation = direction - 315; // Arrow points at 315° by default
+            
             return (
-              <ArrowIcon
-                key={`swell-${cx}-${cy}`}
-                size={iconSize}
-                x={cx - iconSize / 2}
-                y={cy - iconSize / 2}
-                // fill="var(--color-primary)"
-                // fill="#37f2ffff"
-                fill="var(--swell-primary)"
-                color="var(--color-highlight-2)"
-              />
+              <g key={`primary-${index}`}>
+                <g transform={`translate(${cx}, ${cy})`}>
+                  <g transform={`rotate(${rotation}, 0, 0)`}>
+                    <ArrowIcon
+                      size={iconSize}
+                      x={-iconSize / 2}
+                      y={-iconSize / 2}
+                      fill="var(--swell-primary)"
+                      color="var(--color-highlight-2)"
+                    />
+                  </g>
+                </g>
+              </g>
             );
           }}
         />
@@ -226,19 +299,25 @@ const SwellChart = ({ beachId, hours = 21, date }: Props) => {
           stroke="#0096c7"
           fill="#48cae4"
           fillOpacity={0.2}
-          dot={({ payload, cx, cy }) => {
+          dot={({ payload, cx, cy, index }) => {
             const iconSize = 15;
+            const direction = payload.secondaryDir ?? 0;
+            const rotation = direction - 315;
+            
             return (
-              <ArrowIcon
-                key={`swell-${cx}-${cy}`}
-                size={iconSize}
-                x={cx - iconSize / 2}
-                y={cy - iconSize / 2}
-                // fill="var(--color-primary)"
-                // fill="#37f2ffff"
-                fill="var(--swell-primary)"
-                color="var(--color-highlight-2)"
-              />
+              <g key={`secondary-${index}`}>
+                <g transform={`translate(${cx}, ${cy})`}>
+                  <g transform={`rotate(${rotation}, 0, 0)`}>
+                    <ArrowIcon
+                      size={iconSize}
+                      x={-iconSize / 2}
+                      y={-iconSize / 2}
+                      fill="var(--swell-primary)"
+                      color="var(--color-highlight-2)"
+                    />
+                  </g>
+                </g>
+              </g>
             );
           }}
         />
@@ -250,19 +329,25 @@ const SwellChart = ({ beachId, hours = 21, date }: Props) => {
           stroke="#70ccebff"
           fill="#adf1ffff"
           fillOpacity={0.2}
-          dot={({ payload, cx, cy }) => {
+          dot={({ payload, cx, cy, index }) => {
             const iconSize = 15;
+            const direction = payload.tertiaryDir ?? 0;
+            const rotation = direction - 315;
+            
             return (
-              <ArrowIcon
-                key={`swell-${cx}-${cy}`}
-                size={iconSize}
-                x={cx - iconSize / 2}
-                y={cy - iconSize / 2}
-                // fill="var(--color-primary)"
-                // fill="#37f2ffff"
-                fill="var(--swell-primary)"
-                color="var(--color-highlight-2)"
-              />
+              <g key={`tertiary-${index}`}>
+                <g transform={`translate(${cx}, ${cy})`}>
+                  <g transform={`rotate(${rotation}, 0, 0)`}>
+                    <ArrowIcon
+                      size={iconSize}
+                      x={-iconSize / 2}
+                      y={-iconSize / 2}
+                      fill="var(--swell-primary)"
+                      color="var(--color-highlight-2)"
+                    />
+                  </g>
+                </g>
+              </g>
             );
           }}
         />

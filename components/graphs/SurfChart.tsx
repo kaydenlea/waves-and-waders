@@ -36,7 +36,7 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-const SurfChart = ({ beachId, hours = 21, date }: Props) => {
+const SurfChart = ({ beachId, hours = 24, date }: Props) => {
   const [chartData, setChartData] = useState<Row[]>([]);
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]); // sunrise-sunset (hours)
   const [nightAreas, setNightAreas] = useState<{ x1: number; x2?: number }[]>(
@@ -47,15 +47,12 @@ const SurfChart = ({ beachId, hours = 21, date }: Props) => {
     const load = async () => {
       try {
         if (!beachId) {
-          setChartData([
-            { hour: 0, actual: 2 },
-            { hour: 1, actual: 2.5 },
-            { hour: 2, actual: 1 },
-            { hour: 3, actual: 1 },
-            { hour: 4, actual: 3.5 },
-            { hour: 5, actual: 1.5 },
-            { hour: 6, actual: 1.5 },
-          ]);
+          setChartData(
+            Array.from({ length: 25 }, (_, h) => ({
+              hour: h,
+              actual: Number((2 + Math.sin((h / 24) * Math.PI * 2)).toFixed(1)),
+            }))
+          );
           return;
         }
         const resolved = await fetchBeachByIdLoose(beachId);
@@ -124,19 +121,31 @@ const SurfChart = ({ beachId, hours = 21, date }: Props) => {
             const rise = parseHM(cond?.sunrise ?? null);
             const setv = parseHM(cond?.sunset ?? null);
             if (rise && setv) {
-              const dayStart = Math.min(rise.h, setv.h);
-              const dayEnd = Math.max(rise.h, setv.h);
-              setDayAreas([{ x1: dayStart, x2: dayEnd }]);
-              setNightAreas([
-                { x1: 0, x2: Math.max(0, dayStart - 3) },
-                { x1: Math.min(hours, dayEnd + 3) },
-              ]);
+              const toHour = (value: { h: number; m: number }) =>
+                value.h + value.m / 60;
+              const clampHour = (val: number) =>
+                Math.max(0, Math.min(hours, val));
+              const riseHour = clampHour(toHour(rise));
+              const setHour = clampHour(toHour(setv));
+              const x1 = Math.min(riseHour, setHour);
+              const x2 = Math.max(riseHour, setHour);
+              setDayAreas(x2 > x1 ? [{ x1, x2 }] : []);
+              const nightSegments: { x1: number; x2: number }[] = [];
+              if (x1 > 0) {
+                nightSegments.push({ x1: 0, x2: x1 });
+              }
+              if (x2 < hours) {
+                nightSegments.push({ x1: x2, x2: hours });
+              }
+              setNightAreas(nightSegments);
             } else {
               setDayAreas([]);
+              setNightAreas([{ x1: 0, x2: hours }]);
             }
           }
         } catch (_) {
           setDayAreas([]);
+          setNightAreas([{ x1: 0, x2: hours }]);
         }
       } catch (e) {
         console.error("Failed to load surf data", e);
@@ -145,31 +154,74 @@ const SurfChart = ({ beachId, hours = 21, date }: Props) => {
     load();
   }, [beachId, hours, date]);
 
-  const domainMax = useMemo(
-    () => (chartData.length ? chartData.length - 1 : 6),
-    [chartData]
-  );
+  const domainStart = 0;
+  const domainEnd = hours;
+
+  const hourTicks = useMemo(() => {
+    const step = 3;
+    const ticks: number[] = [];
+    for (let v = 0; v <= hours; v += step) {
+      ticks.push(v);
+    }
+    if (ticks[ticks.length - 1] !== hours) {
+      ticks.push(hours);
+    }
+    return ticks;
+  }, [hours]);
+
+  const EDGE_GUTTER_PX = 28;
+  const closeTo = (a: number, b: number, tolerance = 0.05) =>
+    Math.abs(a - b) <= tolerance;
+  const makeAreaShape =
+    (color: string, touchesLeft: boolean, touchesRight: boolean) =>
+    (props: any) => {
+      const x = typeof props.x === "number" ? props.x : 0;
+      const y = typeof props.y === "number" ? props.y : 0;
+      const width = typeof props.width === "number" ? props.width : 0;
+      const height = typeof props.height === "number" ? props.height : 0;
+      const leftPad = touchesLeft ? EDGE_GUTTER_PX : 0;
+      const rightPad = touchesRight ? EDGE_GUTTER_PX : 0;
+      return (
+        <rect
+          x={x - leftPad}
+          y={y}
+          width={width + leftPad + rightPad}
+          height={height}
+          fill={color}
+          fillOpacity={0.2}
+          pointerEvents="none"
+        />
+      );
+    };
+
   return (
     <ChartContainer
       config={chartConfig}
-      className="aspect-auto h-[280px] w-full"
+      className="aspect-auto h-[280px] w-full !justify-start"
     >
       <BarChart
         margin={{
-          right: 10,
-          left: -28,
+          right: 12,
+          left: -24,
         }}
         accessibilityLayer
         data={chartData}
         syncId="anyId"
+        barCategoryGap={0}
+        barGap={-4}
+        maxBarSize={44}
       >
         {dayAreas.map((a, idx) => (
           <ReferenceArea
             key={`day-${idx}`}
             x1={a.x1}
             x2={a.x2}
-            fill="#FFE58F"
-            fillOpacity={0.2}
+            ifOverflow="extendDomain"
+            shape={makeAreaShape(
+              "#FFE58F",
+              closeTo(a.x1, domainStart),
+              closeTo(a.x2, domainEnd)
+            )}
           />
         ))}
         {nightAreas.map((a, idx) => (
@@ -177,8 +229,12 @@ const SurfChart = ({ beachId, hours = 21, date }: Props) => {
             key={`night-${idx}`}
             x1={a.x1}
             x2={a.x2}
-            fill="#ccc1ffff"
-            fillOpacity={0.2}
+            ifOverflow="extendDomain"
+            shape={makeAreaShape(
+              "#ccc1ffff",
+              closeTo(a.x1, domainStart),
+              closeTo(a.x2, domainEnd)
+            )}
           />
         ))}
         <CartesianGrid
@@ -189,17 +245,28 @@ const SurfChart = ({ beachId, hours = 21, date }: Props) => {
         />
         <XAxis
           dataKey="hour"
+          type="number"
           orientation="bottom"
           tickLine={false}
           tickMargin={10}
           axisLine={false}
-          domain={[0, domainMax]}
+          padding={{ left: 28, right: 28 }}
+          domain={[domainStart, domainEnd]}
+          ticks={hourTicks}
           tickFormatter={(value: number) => {
-            if (typeof value !== "number") return "";
-            return value % 3 === 0
-              ? String(value % 12 === 0 ? 12 : value % 12)
-              : "";
+
+            const num = Number(value);
+
+            if (!Number.isFinite(num)) return "";
+
+            const normalized = ((num % 24) + 24) % 24;
+
+            const labelHour = normalized % 12 === 0 ? 12 : normalized % 12;
+
+            return String(labelHour);
+
           }}
+
         />
         <YAxis
           dataKey="actual"
@@ -213,6 +280,7 @@ const SurfChart = ({ beachId, hours = 21, date }: Props) => {
         <ChartLegend content={<ChartLegendContent />} />
         <Bar
           dataKey="actual"
+          barSize={38}
           fill="var(--color-surf, var(--color-tide))"
           radius={4}
           stroke="#0000006e"
