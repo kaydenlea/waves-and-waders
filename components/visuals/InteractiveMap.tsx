@@ -11,7 +11,11 @@ import {
   Marker,
 } from "react-map-gl/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { FEATURE_CATEGORIES, getFeatureDisplayName, generateBeachSlug } from "@/lib/supabase";
+import {
+  FEATURE_CATEGORIES,
+  getFeatureDisplayName,
+  generateBeachSlug,
+} from "@/lib/supabase";
 const DEFAULT_MAP_STYLE =
   "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
 const MAP_STYLE_URL =
@@ -67,10 +71,15 @@ const SwellRings: React.FC<{
     const arrowLength = 14;
     const arrowWidth = 12;
     return (
-      <g key={`${color}-${radius}`} transform={`rotate(${normalized} ${center} ${center})`}>
+      <g
+        key={`${color}-${radius}`}
+        transform={`rotate(${normalized} ${center} ${center})`}
+      >
         <g transform={`translate(${center} ${center - radius})`}>
           <polygon
-            points={`0 ${-arrowLength / 2} ${-arrowWidth / 2} ${arrowLength / 2} ${arrowWidth / 2} ${arrowLength / 2}`}
+            points={`0 ${-arrowLength / 2} ${-arrowWidth / 2} ${
+              arrowLength / 2
+            } ${arrowWidth / 2} ${arrowLength / 2}`}
             fill={color}
             opacity={0.9}
           />
@@ -122,7 +131,9 @@ const WindRing: React.FC<{
       <g transform={`rotate(${normalized} ${center} ${center})`}>
         <g transform={`translate(${center} ${center - radius})`}>
           <polygon
-            points={`0 ${-arrowLength / 2} ${-arrowWidth / 2} ${arrowLength / 2} ${arrowWidth / 2} ${arrowLength / 2}`}
+            points={`0 ${-arrowLength / 2} ${-arrowWidth / 2} ${
+              arrowLength / 2
+            } ${arrowWidth / 2} ${arrowLength / 2}`}
             fill={color}
             opacity={0.9}
           />
@@ -162,7 +173,9 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
     require("@/components/context/MapFilterContext").useMapFilters();
   const [located, setLocated] = React.useState<boolean>(false);
   const [showFilters, setShowFilters] = React.useState<boolean>(false);
-  const [surfIntensity, setSurfIntensity] = React.useState<Record<string | number, number>>({});
+  const [surfIntensity, setSurfIntensity] = React.useState<
+    Record<string | number, number>
+  >({});
   const [swellDirections, setSwellDirections] =
     React.useState<SwellDirectionSet | null>(null);
   const [windDirection, setWindDirection] = React.useState<number | null>(null);
@@ -195,8 +208,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
   const [showMap, setShowMap] = React.useState(true);
   const [smallScreen, setSmallScreen] = React.useState<boolean | null>(null);
   const pathName = usePathname() ?? "";
-  const fullMapPage =
-    !pathName.endsWith("/beaches");
+  const fullMapPage = !pathName.endsWith("/beaches");
   const editPage = pathName.includes("edit");
   const forecastPage = pathName.includes("forecast");
 
@@ -325,10 +337,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
           intensityMap = dailyMap;
 
           if (dailyData.length > 0) {
-            console.log(
-              "Loaded daily surf intensity rows:",
-              dailyData.length
-            );
+            console.log("Loaded daily surf intensity rows:", dailyData.length);
             if (!cancelled) {
               setSurfIntensity(intensityMap);
             }
@@ -459,7 +468,9 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
       }
 
       try {
-        const { fetchBeachByIdLoose, fetchBeachForecast } = await import("@/lib/supabase");
+        const { fetchBeachByIdLoose, fetchBeachForecast } = await import(
+          "@/lib/supabase"
+        );
         const beach = await fetchBeachByIdLoose(String(selected.id));
         const resolvedId = beach?.id ? String(beach.id) : String(selected.id);
 
@@ -480,7 +491,11 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
           endWindow = new Date(selectedDateObj.getTime() + 24 * 60 * 60 * 1000);
         }
 
-        const forecast = await fetchBeachForecast(resolvedId, startWindow, endWindow);
+        const forecast = await fetchBeachForecast(
+          resolvedId,
+          startWindow,
+          endWindow
+        );
 
         let baseRow =
           Array.isArray(forecast) && forecast.length ? forecast[0] : null;
@@ -488,7 +503,8 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
         if (Array.isArray(forecast) && forecast.length > 0) {
           const normalizedHour = (h: number) => ((h % 24) + 24) % 24;
           const targetHour = (() => {
-            if (typeof selectedHour === "number") return normalizedHour(selectedHour);
+            if (typeof selectedHour === "number")
+              return normalizedHour(selectedHour);
             if (selectedDateObj) return 12;
             return normalizedHour(now.getHours());
           })();
@@ -575,7 +591,12 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
   );
 
   const filteredBeaches = React.useMemo(() => {
-    console.log("Filtering beaches - total:", beaches.length, "filters:", filters.size);
+    console.log(
+      "Filtering beaches - total:",
+      beaches.length,
+      "filters:",
+      filters.size
+    );
     if (!filters.size) {
       console.log("No filters, returning all beaches:", beaches.length);
       return beaches;
@@ -601,7 +622,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
           id: b.id,
           name: b.name,
           county: b.county,
-          surfIntensity: intensity
+          surfIntensity: intensity,
         },
       };
     });
@@ -671,9 +692,11 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
       const normalizedEffectiveId = effectiveId.toLowerCase();
       const match = beaches.find((b) => {
         const idMatch = String(b.id).toLowerCase() === normalizedEffectiveId;
-        const nameMatch = String(b.name).toLowerCase() === normalizedEffectiveId;
+        const nameMatch =
+          String(b.name).toLowerCase() === normalizedEffectiveId;
         const slugMatch =
-          generateBeachSlug(String(b.name)).toLowerCase() === normalizedEffectiveId;
+          generateBeachSlug(String(b.name)).toLowerCase() ===
+          normalizedEffectiveId;
         return idMatch || nameMatch || slugMatch;
       });
       if (match) {
@@ -736,9 +759,13 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
   return (
     <aside
       className={cn(
-        "relative w-full h-[320px] sm:h-[380px] @min-3xl:flex-1 @min-3xl:sticky @min-3xl:top-[5.5rem] @min-3xl:h-[calc(100vh-5.5rem)] @min-3xl:py-3 @min-3xl:pl-3 transition-all duration-300",
+        "fixed @min-3xl:sticky @min-3xl:top-[5.5rem] @min-3xl:flex-1 @min-3xl:py-3 @min-3xl:pl-3 w-full h-full @min-3xl:h-[calc(100vh-5.5rem)] transition-all",
+        // "relative w-full h-[320px] sm:h-[380px] @min-3xl:flex-1 @min-3xl:sticky @min-3xl:top-[5.5rem] @min-3xl:h-[calc(100vh-5.5rem)] @min-3xl:py-3 @min-3xl:pl-3 transition-all duration-300",
         !smallScreen && fullMapPage && showMap && "@min-3xl:max-w-200",
-        !smallScreen && fullMapPage && !showMap && "@min-3xl:max-w-20 @min-3xl:overflow-hidden"
+        !smallScreen &&
+          fullMapPage &&
+          !showMap &&
+          "@min-3xl:max-w-20 @min-3xl:overflow-hidden"
       )}
     >
       <Map
@@ -750,7 +777,12 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
         maxZoom={16}
         minZoom={3}
         attributionControl={false}
-        interactiveLayerIds={["clusters", "cluster-count", "unclustered-point", "unclustered-point-label"]}
+        interactiveLayerIds={[
+          "clusters",
+          "cluster-count",
+          "unclustered-point",
+          "unclustered-point-label",
+        ]}
         onMouseEnter={(e) => {
           const map = e.target;
           if (e.features?.length) {
@@ -926,9 +958,12 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
                   "step",
                   ["get", "surfIntensity"],
                   "#9ca3af", // gray for no data (bg-highlight-3)
-                  0.1, "#4ade80", // green for small (< 3ft) (bg-green-400)
-                  3, "#fb923c", // orange for moderate (3-6ft) (bg-orange-400)
-                  6, "#f87171" // red for big (>= 6ft) (bg-red-400)
+                  0.1,
+                  "#4ade80", // green for small (< 3ft) (bg-green-400)
+                  3,
+                  "#fb923c", // orange for moderate (3-6ft) (bg-orange-400)
+                  6,
+                  "#f87171", // red for big (>= 6ft) (bg-red-400)
                 ],
                 "circle-stroke-width": 2,
                 "circle-stroke-color": "#ffffff",
@@ -955,9 +990,11 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
 
         {selected &&
           swellDirections &&
-          [swellDirections.primary, swellDirections.secondary, swellDirections.tertiary].some(
-            (d) => typeof d === "number"
-          ) && (
+          [
+            swellDirections.primary,
+            swellDirections.secondary,
+            swellDirections.tertiary,
+          ].some((d) => typeof d === "number") && (
             <Marker
               longitude={selected.longitude}
               latitude={selected.latitude}
@@ -987,7 +1024,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
 
         {/* Filter controls (collapsible) */}
         {showMap && (
-          <div className="absolute top-2 left-2 z-[1]">
+          <div className="absolute top-27 @min-3xl:top-2 left-2 z-[1]">
             <div className="bg-background/90 backdrop-blur rounded border border-border shadow min-w-[220px]">
               <button
                 className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium"
@@ -1065,12 +1102,15 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
           </div>
         )}
 
-        {showMap && selected &&
+        {showMap &&
+          selected &&
           swellDirections &&
-          [swellDirections.primary, swellDirections.secondary, swellDirections.tertiary].some(
-            (d) => typeof d === "number"
-          ) && (
-            <div className="absolute bottom-3 left-3 z-[1] max-w-[200px]">
+          [
+            swellDirections.primary,
+            swellDirections.secondary,
+            swellDirections.tertiary,
+          ].some((d) => typeof d === "number") && (
+            <div className="absolute bottom-15 @min-3xl:bottom-3 left-3 z-[1] max-w-[200px]">
               <div className="rounded-lg border border-border/60 bg-background/90 backdrop-blur px-3 py-2 shadow">
                 <span className="text-[11px] font-semibold uppercase text-muted-foreground">
                   Direction Rings
@@ -1118,6 +1158,12 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
           .maplibregl-popup.plain-popup .maplibregl-popup-content > div:active {
             outline: none;
             background: transparent;
+          }
+
+          @media (max-width: 1023px) {
+            .maplibregl-ctrl-attrib {
+              bottom: 7.5vh;
+            }
           }
         `}</style>
       </Map>

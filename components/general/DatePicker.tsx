@@ -324,7 +324,7 @@ const DatePicker = ({
   return (
     <div
       className={cn(
-        "relative w-full bg-highlight-4 px-2 py-3 rounded-t-xl shadow-even",
+        "relative w-full bg-highlight-4 px-2 py-3 rounded-t-xl shadow-even border border-border",
         className
       )}
     >
