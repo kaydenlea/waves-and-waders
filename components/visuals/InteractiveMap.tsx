@@ -11,7 +11,7 @@ import {
   Marker,
 } from "react-map-gl/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { FEATURE_CATEGORIES, getFeatureDisplayName } from "@/lib/supabase";
+import { FEATURE_CATEGORIES, getFeatureDisplayName, generateBeachSlug } from "@/lib/supabase";
 const DEFAULT_MAP_STYLE =
   "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
 const MAP_STYLE_URL =
@@ -653,11 +653,14 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
 
     // If page context identifies a beach, center and zoom to it
     if (effectiveId != null) {
-      const match = beaches.find(
-        (b) =>
-          String(b.id) === effectiveId ||
-          String(b.name).toLowerCase() === effectiveId.toLowerCase()
-      );
+      const normalizedEffectiveId = effectiveId.toLowerCase();
+      const match = beaches.find((b) => {
+        const idMatch = String(b.id).toLowerCase() === normalizedEffectiveId;
+        const nameMatch = String(b.name).toLowerCase() === normalizedEffectiveId;
+        const slugMatch =
+          generateBeachSlug(String(b.name)).toLowerCase() === normalizedEffectiveId;
+        return idMatch || nameMatch || slugMatch;
+      });
       if (match) {
         suppressMoveRef.current = true;
         map.easeTo({
@@ -816,7 +819,8 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
           };
           setSwellDirections(null);
           setSelected(point);
-          const destination = `/${point.id}/overview`;
+          const slug = generateBeachSlug(point.name);
+          const destination = `/${slug}/overview`;
           router.push(destination);
         }}
       >

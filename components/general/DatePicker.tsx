@@ -79,7 +79,7 @@ const DatePicker = ({
   const [orderedKeys, setOrderedKeys] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const { setSelectedDays } = useDateContext();
+  const { setSelectedDays, setSurfRange } = useDateContext();
   const { setSurfIntensityForDate } = require("@/components/context/MapFilterContext").useMapFilters();
 
   const scrollBy = 3;
@@ -289,11 +289,32 @@ const DatePicker = ({
     });
     setSelectedDays(daysRange);
 
-    // Update surf intensity for the selected date
+    // Update surf intensity and surf range for the selected date
     if (selectedDate) {
       const key = selectedDate.format("YYYY-MM-DD");
       const summary = summaries[key];
       setSurfIntensityForDate(summary?.max ?? null);
+
+      // Calculate surf range using the same logic as display
+      const max = summary?.max ?? null;
+      const minWithFallback =
+        summary?.min ?? (max != null && max <= 1 ? 0 : null);
+
+      if (minWithFallback != null && max != null) {
+        let minRounded = Math.round(minWithFallback);
+        let maxRounded = Math.round(max);
+        // Ensure min <= max
+        if (minRounded > maxRounded) {
+          [minRounded, maxRounded] = [maxRounded, minRounded];
+        }
+        // If they're equal, subtract 1 from min
+        if (minRounded === maxRounded) {
+          minRounded = Math.max(0, maxRounded - 1);
+        }
+        setSurfRange(`${minRounded}-${maxRounded}`);
+      } else {
+        setSurfRange(null);
+      }
     }
   }, [value, selectedDate, summaries]);
 
@@ -384,9 +405,19 @@ const DatePicker = ({
                   <span className="text-md @min-xl:text-lg font-semibold mb-1">
                     {hasRange ? (
                       <>
-                        {Math.max(0, Math.round(max!) === Math.round(minWithFallback!) ? Math.round(minWithFallback!) - 1 : Math.round(minWithFallback!))}
-                        -
-                        {Math.round(max!)}
+                        {(() => {
+                          let minRounded = Math.round(minWithFallback!);
+                          let maxRounded = Math.round(max!);
+                          // Ensure min <= max
+                          if (minRounded > maxRounded) {
+                            [minRounded, maxRounded] = [maxRounded, minRounded];
+                          }
+                          // If they're equal, subtract 1 from min
+                          if (minRounded === maxRounded) {
+                            minRounded = Math.max(0, maxRounded - 1);
+                          }
+                          return `${minRounded}-${maxRounded}`;
+                        })()}
                         <span className="text-xs font-normal">ft</span>
                       </>
                     ) : (

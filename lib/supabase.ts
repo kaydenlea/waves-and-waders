@@ -1,6 +1,16 @@
 // lib/supabase.ts
 import { createClient } from '@supabase/supabase-js'
 
+// Utility function to generate URL-friendly slug from beach name
+export function generateBeachSlug(beachName: string): string {
+  return beachName
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, '') // Remove special characters
+    .replace(/\s+/g, '-')      // Replace spaces with hyphens
+    .replace(/-+/g, '-')       // Replace multiple hyphens with single hyphen
+    .trim();
+}
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL!
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY!
 
@@ -628,31 +638,36 @@ export async function fetchBeachByIdLoose(id: string): Promise<Beach | null> {
 
   let { data, error } = await q;
 
-  // If not found and you also store uuid/slug columns, try those too:
-  if ((!data && !error) || (error && error.code === "PGRST116")) {
-    const alt = await supabase
+  // If still not found, try matching by generating slug from beach names
+  // Skip the UUID/slug column check and go straight to slug generation for hyphenated inputs
+  if (!data && target.includes('-')) {
+    const allBeaches = await supabase
       .from("beaches")
-      .select("id, Name, LATITUDE, LONGITUDE, COUNTY")
-      .or(`uuid.eq.${target},slug.eq.${target}`) // only if these columns exist
-      .limit(1)
-      .maybeSingle();
+      .select("id, Name, LATITUDE, LONGITUDE, COUNTY");
 
-    data = alt.data ?? null;
+    if (allBeaches.data) {
+      // Convert slug back to match beach name
+      const targetSlug = target.toLowerCase();
+      const match = allBeaches.data.find((beach: Beach) => {
+        const beachSlug = generateBeachSlug(beach.Name);
+        return beachSlug === targetSlug;
+      });
+      if (match) {
+        data = match as any;
+      }
+    }
   }
 
   // Final fallback: fuzzy match by Name if still not found
   if (!data) {
+    const searchTerm = target.replace(/-/g, ' '); // Convert slug dashes to spaces
     const byName = await supabase
       .from("beaches")
       .select("id, Name, LATITUDE, LONGITUDE, COUNTY")
-      .ilike("Name", `%${target}%`)
+      .ilike("Name", `%${searchTerm}%`)
       .limit(1)
       .maybeSingle();
     if (byName.data) data = byName.data as any;
-  }
-
-  if (error && error.code !== "PGRST116") {
-    console.error("fetchBeachByIdLoose error:", error);
   }
 
   return data ?? null;

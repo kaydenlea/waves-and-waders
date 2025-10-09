@@ -33,6 +33,7 @@ import {
   fetchBeachTides,
   fetchDailyConditions,
 } from "@/lib/supabase";
+import { useDateContext } from "@/components/context/DateContext";
 // Optionally import the feature registry if exposed
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
@@ -113,6 +114,7 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
   const [showAllFeatures, setShowAllFeatures] = useState(false);
   const featuresContainerRef = useRef<HTMLDivElement | null>(null);
   const [featuresOverflowing, setFeaturesOverflowing] = useState(false);
+  const { surfRange } = useDateContext();
 
   useEffect(() => {
     const load = async () => {
@@ -219,20 +221,28 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
         const avgHeightMax = average(heightMaxes);
         const avgPeriod = average(periods);
 
+        const max = avgHeightMax != null ? avgHeightMax : null;
         const minWithFallback =
           avgHeightMin != null
             ? avgHeightMin
-            : avgHeightMax != null && avgHeightMax <= 1
+            : max != null && max <= 1
             ? 0
             : null;
-        const maxWithFallback = avgHeightMax != null ? avgHeightMax : null;
-        const hasRange =
-          minWithFallback != null && maxWithFallback != null;
+        const hasRange = minWithFallback != null && max != null;
 
+        // Use surf range from DatePicker context when date is selected, otherwise calculate
         let surfHeightLabel: string | null = null;
-        if (hasRange) {
+        if (date && surfRange) {
+          // Use the exact range from DatePicker
+          surfHeightLabel = surfRange;
+        } else if (hasRange) {
           let minRounded = Math.round(minWithFallback!);
-          const maxRounded = Math.round(maxWithFallback!);
+          let maxRounded = Math.round(max!);
+          // Ensure min <= max
+          if (minRounded > maxRounded) {
+            [minRounded, maxRounded] = [maxRounded, minRounded];
+          }
+          // If they're equal, subtract 1 from min
           if (minRounded === maxRounded) {
             minRounded = Math.max(0, maxRounded - 1);
           }
@@ -240,9 +250,9 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
         }
         const surfPeriod = avgPeriod != null ? Math.round(avgPeriod) : null;
 
-        if (hasRange && surfHeightLabel && surfPeriod != null) {
+        if ((surfHeightLabel || hasRange) && surfPeriod != null) {
           const surfIntensity = clampIntensity(
-            maxWithFallback ?? minWithFallback ?? 0,
+            max ?? minWithFallback ?? 0,
             SURF_HEIGHT_CAP
           );
 
@@ -537,7 +547,7 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
       }
     };
     load();
-  }, [beachId, date]);
+  }, [beachId, date, surfRange]);
 
   useEffect(() => {
 

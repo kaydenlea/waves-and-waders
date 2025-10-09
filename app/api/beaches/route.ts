@@ -6,6 +6,15 @@ export async function GET(request: NextRequest) {
   try {
     // Build select with common columns + feature flags
     const baseCols = 'id, Name, COUNTY, LATITUDE, LONGITUDE'
+
+    if (!FEATURE_COLUMNS || !Array.isArray(FEATURE_COLUMNS)) {
+      console.error('FEATURE_COLUMNS is not defined or not an array');
+      return NextResponse.json(
+        { success: false, error: 'Feature columns configuration error' },
+        { status: 500 }
+      )
+    }
+
     const featureCols = FEATURE_COLUMNS.join(', ')
     const selectCols = `${baseCols}, ${featureCols}`
 
@@ -19,7 +28,7 @@ export async function GET(request: NextRequest) {
     if (error) {
       console.error('Supabase error:', error)
       return NextResponse.json(
-        { success: false, error: 'Failed to fetch beaches' },
+        { success: false, error: 'Failed to fetch beaches', details: error.message },
         { status: 500 }
       )
     }
