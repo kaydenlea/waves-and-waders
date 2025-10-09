@@ -83,6 +83,7 @@ const SwellStat = ({
             transform: `rotate(${rotation}deg)`,
             display: "inline-block",
           }}
+          className="mr-2 @min-md:mr-0"
         >
           <ArrowIcon size={16} color="#51e72bff" fill="#51e72bff" />
         </div>

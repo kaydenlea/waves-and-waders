@@ -490,8 +490,8 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
           }}
           syncId="anyId"
         >
-          {visibleData.map((entry) =>
-            entry.hour % 24 === 0 ? (
+          {visibleData.map((entry, idx) =>
+            entry.hour % 24 === 0 && idx !== visibleData.length - 1 ? (
               <ReferenceLine
                 key={entry.hour}
                 x={entry.hour}
