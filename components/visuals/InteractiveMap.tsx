@@ -223,14 +223,29 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
       try {
         console.log("Loading beaches from API...");
         const res = await fetch("/api/beaches");
+
+        // Check if response is ok
+        if (!res.ok) {
+          console.error("Failed to load beaches - HTTP error:", res.status, res.statusText);
+          return;
+        }
+
         const json = await res.json();
         console.log("Beaches API response:", json);
+
         if (!cancelled && json?.success && Array.isArray(json.data)) {
           console.log("InteractiveMap: loaded beaches", json.data.length);
-          console.log("Sample beach:", json.data[0]);
+          if (json.data.length > 0) {
+            console.log("Sample beach:", json.data[0]);
+          }
           setBeaches(json.data as BeachPoint[]);
         } else {
-          console.error("Failed to load beaches - invalid response:", json);
+          // Only log error if response is not empty - empty {} might mean API is still initializing
+          if (Object.keys(json || {}).length > 0) {
+            console.error("Failed to load beaches - invalid response structure:", json);
+          } else {
+            console.warn("Beaches API returned empty response - API may still be initializing");
+          }
         }
       } catch (e) {
         console.error("Failed to load beaches for map", e);
@@ -819,8 +834,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
           };
           setSwellDirections(null);
           setSelected(point);
-          const slug = generateBeachSlug(point.name);
-          const destination = `/${slug}/overview`;
+          const destination = `/${point.id}/overview`;
           router.push(destination);
         }}
       >
