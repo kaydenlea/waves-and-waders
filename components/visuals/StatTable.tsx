@@ -267,11 +267,19 @@ const StatTable = ({
         const anchorStart = pacificStartOfDay(anchor);
         const bufferBefore = requestedDate ? 1 : 0;
         const bufferAfter = requestedDate ? 1 : 0;
-        const rangeStart = selectedDays
+
+        // Prioritize date prop over selectedDays for consistency with other charts
+        const rangeStart = requestedDate
+          ? new Date(anchorStart.getTime() - bufferBefore * DAY_MS)
+          : selectedDays
           ? selectedDays[0]
           : new Date(anchorStart.getTime() - bufferBefore * DAY_MS);
+
         const daysToFetch = Math.max(numDays, 1) + bufferAfter;
-        const rangeEnd = selectedDays
+
+        const rangeEnd = requestedDate
+          ? new Date(anchorStart.getTime() + daysToFetch * DAY_MS)
+          : selectedDays
           ? selectedDays[selectedDays.length - 1]
           : new Date(anchorStart.getTime() + daysToFetch * DAY_MS);
         const weekly = await fetchBeachForecast(
@@ -303,13 +311,13 @@ const StatTable = ({
           return ta - tb;
         });
         const onlyLabel = requestedDate ? fmtDayLabel(requestedDate) : null;
-        const onlyLabels = selectedDays?.map((day) => fmtDayLabel(day));
+        const onlyLabels = !requestedDate && selectedDays ? selectedDays.map((day) => fmtDayLabel(day)) : null;
 
         let allowedLabels: Set<string> | null = null;
         const labels = entriesByDay.map(([lbl]) => lbl);
-        if (onlyLabels) {
-          allowedLabels = new Set(onlyLabels);
-        } else if (onlyLabel) {
+
+        // Prioritize date prop over selectedDays
+        if (onlyLabel) {
           if (onlyLabel && labels.includes(onlyLabel)) {
             allowedLabels = new Set([onlyLabel]);
           } else {
@@ -324,6 +332,8 @@ const StatTable = ({
               if (cands.length) allowedLabels = new Set([cands[0]]);
             }
           }
+        } else if (onlyLabels) {
+          allowedLabels = new Set(onlyLabels);
         }
 
         for (const [label, rows] of entriesByDay) {
@@ -621,17 +631,16 @@ const StatTable = ({
                     </span>
                   </th>
                   {visibleColumns.map((col, colIdx) => {
-                    // Functional color coding for surf ranges (works in both light and dark mode)
+                    // Functional color coding for surf ranges (matches DatePicker)
                     const getSurfLevel = (height: string) => {
-                      if (height === "—") return "bg-highlight-2";
-                      const match = height.match(/(\d+)/);
-                      if (!match) return "bg-highlight-2";
-                      const maxHeight = parseInt(match[1]);
-                      if (maxHeight === 0) return "bg-gray-200 dark:bg-gray-700";
-                      if (maxHeight <= 2) return "bg-green-200 dark:bg-green-900/40";
-                      if (maxHeight <= 4) return "bg-yellow-200 dark:bg-yellow-900/40";
-                      if (maxHeight <= 6) return "bg-orange-200 dark:bg-orange-900/40";
-                      return "bg-red-200 dark:bg-red-900/40";
+                      if (height === "—") return "bg-highlight-3";
+                      const match = height.match(/(\d+)-?(\d+)?/);
+                      if (!match) return "bg-highlight-3";
+                      // Use the max value from the range (e.g., "2-4" -> 4)
+                      const maxHeight = match[2] ? parseInt(match[2]) : parseInt(match[1]);
+                      if (maxHeight >= 6) return "bg-red-400 dark:bg-red-700";
+                      if (maxHeight >= 3) return "bg-orange-400 dark:bg-orange-700";
+                      return "bg-green-400 dark:bg-green-700";
                     };
                     
                     let content;

@@ -11,6 +11,7 @@ import type { Metadata } from "next";
 import { Pencil } from "lucide-react";
 import PageTabs from "@/components/general/PageTabs";
 import { fetchBeachByIdLoose } from "@/lib/supabase";
+import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
   title: "Surf Weekly Forecast | Waves and Waders",
@@ -19,9 +20,17 @@ export const metadata: Metadata = {
 
 const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
   const { beach } = await params;
+
+  // Resolve the beach param (could be UUID, slug, or beach name)
   const resolved = await fetchBeachByIdLoose(beach);
-  const beachId = (resolved?.id ?? beach).toString();
-  const beachName = resolved?.Name ?? beach;
+
+  if (!resolved) {
+    console.error(`Failed to resolve beach: ${beach}`);
+    redirect("/beaches");
+  }
+
+  const beachId = resolved.id.toString();
+  const beachName = resolved.Name;
   return (
     <>
       <div className="block @min-3xl:hidden flex justify-center pt-5 pb-7">

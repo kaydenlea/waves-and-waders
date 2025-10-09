@@ -65,10 +65,17 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
     redirect("/beaches");
   }
 
-  // Resolve the beach param to a concrete ID and name (supports id/uuid/slug)
+  // Resolve the beach param (could be UUID, slug, or beach name)
   const resolved = await fetchBeachByIdLoose(beach);
-  const beachId = (resolved?.id ?? beach).toString();
-  const beachName = resolved?.Name ?? beach;
+
+  if (!resolved) {
+    console.error(`Failed to resolve beach: ${beach}`);
+    // Redirect to beaches page if beach not found
+    redirect("/beaches");
+  }
+
+  const beachId = resolved.id.toString();
+  const beachName = resolved.Name;
   const isFav = false;
   return (
     <>
