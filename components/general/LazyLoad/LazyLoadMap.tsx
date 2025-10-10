@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 
 const Loading = () => {
   const [smallScreen, setSmallScreen] = React.useState<boolean | null>(null);
+  const mobileMapHeight = "calc(100dvh - 6.25rem)";
 
   // 3xl - 768px
 
@@ -30,6 +31,8 @@ const Loading = () => {
   const pathName = usePathname() ?? "";
   if (pathName.endsWith("/edit")) return;
 
+  const isDesktop = smallScreen === false;
+
   return (
     // <div
     //   className={cn(
@@ -51,10 +54,18 @@ const Loading = () => {
     // />
     <div
       className={cn(
-        "relative w-full h-[320px] sm:h-[380px] @min-3xl:flex-1 @min-3xl:sticky @min-3xl:top-[5.5rem] @min-3xl:h-[calc(100vh-5.5rem)] @min-3xl:pl-3 @min-3xl:pt-3 bg-highlight-5 animate-pulse rounded-2xl transition-all duration-300",
+        "relative w-full min-h-[calc(100dvh-5.5rem)] @min-3xl:flex-1 @min-3xl:sticky @min-3xl:top-[5.5rem] @min-3xl:h-[calc(100vh-5.5rem)] @min-3xl:pl-3 @min-3xl:pt-3 bg-highlight-5 animate-pulse rounded-none @min-3xl:rounded-2xl transition-all duration-300",
         !(pathName.endsWith("/beaches") || pathName.endsWith("/overview")) &&
           "@min-3xl:max-w-200"
       )}
+      style={
+        isDesktop
+          ? undefined
+          : {
+              minHeight: mobileMapHeight,
+              height: mobileMapHeight,
+            }
+      }
     />
   );
 };

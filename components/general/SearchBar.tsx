@@ -96,14 +96,14 @@ const SearchBar = ({ className }: { className?: string }) => {
       }
     >
       {/* Search bar - now always visible, smaller on mobile */}
-      <div className="pl-1.5 py-1.5 flex items-center rounded-full h-full shadow-lg ring ring-border/70 gap-2 bg-highlight-4 w-full max-w-[200px] @min-4xl:min-w-40 @min-4xl:max-w-md">
+      <div className="pl-1.5 py-1.5 flex items-center rounded-full h-full shadow-lg ring ring-border/70 gap-2 bg-highlight-4 w-full max-w-[200px] max-[400px]:max-w-[180px] max-[360px]:max-w-[160px] max-[320px]:max-w-[140px] max-[360px]:pl-1 max-[320px]:pl-0.5 max-[360px]:py-1 max-[320px]:py-0.5 @min-4xl:min-w-40 @min-4xl:max-w-md">
         <button
           type="button"
           aria-label="search"
-          className="bg-gradient-to-br from-cyan-300 to-blue-400 p-1.5 text-white rounded-full flex-shrink-0"
+          className="bg-gradient-to-br from-cyan-300 to-blue-400 p-1.5 text-white rounded-full flex-shrink-0 max-[360px]:p-1 max-[320px]:p-0.5"
           onClick={() => query && setOpen((o) => !o)}
         >
-          <Search strokeWidth={3} className="w-4 h-4" />
+          <Search strokeWidth={3} className="w-4 h-4 max-[360px]:w-3.5 max-[360px]:h-3.5 max-[320px]:w-3 max-[320px]:h-3" />
         </button>
         <input
           name="query"
@@ -114,7 +114,7 @@ const SearchBar = ({ className }: { className?: string }) => {
           onFocus={() => hits.length > 0 && setOpen(true)}
           onKeyDown={onKeyDown}
           placeholder="Search beaches"
-          className="placeholder:text-xs @min-4xl:placeholder:text-sm focus:outline-none bg-transparent flex-1 min-w-0"
+          className="placeholder:text-xs @min-4xl:placeholder:text-sm focus:outline-none bg-transparent flex-1 min-w-0 max-[360px]:text-[11px] max-[320px]:text-[10px]"
         />
       </div>
 

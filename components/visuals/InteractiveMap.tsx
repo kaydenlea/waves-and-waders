@@ -201,25 +201,6 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
     }
   }, [pathname]);
 
-  // Auto-scroll to content on mobile when page loads
-  React.useEffect(() => {
-    // Only auto-scroll on mobile (check if we're not in desktop breakpoint)
-    const checkAndScroll = () => {
-      const isDesktop = window.matchMedia('(min-width: 1800px)').matches;
-      if (!isDesktop) {
-        // Small delay to ensure content is rendered
-        setTimeout(() => {
-          const content = document.getElementById('content');
-          if (content) {
-            content.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }
-        }, 300);
-      }
-    };
-
-    checkAndScroll();
-  }, [pathname]);
-
   const resizeMapViewport = React.useCallback(() => {
     const ref = mapRef.current;
     if (!ref) return;
@@ -231,10 +212,13 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
 
   const [showMap, setShowMap] = React.useState(true);
   const [smallScreen, setSmallScreen] = React.useState<boolean | null>(null);
+  const [selectedPointVisible, setSelectedPointVisible] = React.useState(true);
   const pathName = usePathname() ?? "";
   const fullMapPage = !pathName.endsWith("/beaches");
   const editPage = pathName.includes("edit");
   const forecastPage = pathName.includes("forecast");
+  const isDesktop = smallScreen === false;
+  const mobileMapHeight = "calc(100dvh - 6.25rem)";
 
   React.useEffect(() => {
     const handleResize = () => {
@@ -292,6 +276,42 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
       cancelled = true;
     };
   }, []);
+
+  React.useEffect(() => {
+    if (!selected) {
+      setSelectedPointVisible(false);
+      return;
+    }
+
+    const ref = mapRef.current;
+    const mapInstance = ref?.getMap?.() ?? ref;
+    if (
+      !mapInstance ||
+      typeof mapInstance.project !== "function" ||
+      typeof mapInstance.queryRenderedFeatures !== "function"
+    ) {
+      setSelectedPointVisible(true);
+      return;
+    }
+
+    try {
+      const pixelPoint = mapInstance.project([
+        selected.longitude,
+        selected.latitude,
+      ]);
+      if (!pixelPoint) {
+        setSelectedPointVisible(false);
+        return;
+      }
+      const features = mapInstance.queryRenderedFeatures(
+        [pixelPoint.x, pixelPoint.y],
+        { layers: ["unclustered-point"] }
+      );
+      setSelectedPointVisible(features.length > 0);
+    } catch {
+      setSelectedPointVisible(true);
+    }
+  }, [zoom, selected]);
 
   // Fetch surf intensity when date changes
   React.useEffect(() => {
@@ -794,19 +814,33 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
     <aside
       id="map-container"
       className={cn(
-        "relative @min-4xl:sticky @min-4xl:top-[5.5rem] @min-4xl:flex-1 @min-4xl:py-3 @min-4xl:pl-3 w-full h-[60vh] @min-4xl:h-[calc(100vh-5.5rem)] transition-all duration-300",
-        !smallScreen && fullMapPage && showMap && "@min-4xl:max-w-200",
-        !smallScreen &&
+        "relative w-full transition-all duration-300",
+        "@min-4xl:sticky @min-4xl:top-[5.5rem] @min-4xl:flex-1 @min-4xl:py-3 @min-4xl:pl-3 @min-4xl:h-[calc(100vh-5.5rem)]",
+        !isDesktop && "min-h-[calc(100dvh-6.25rem)]",
+        isDesktop && fullMapPage && showMap && "@min-4xl:max-w-200",
+        isDesktop &&
           fullMapPage &&
           !showMap &&
           "@min-4xl:max-w-20 @min-4xl:overflow-hidden"
       )}
+      style={
+        isDesktop
+          ? undefined
+          : {
+              minHeight: "calc(100dvh - 6.25rem)",
+              height: "calc(100dvh - 6.25rem)",
+            }
+      }
     >
       <Map
         ref={mapRef}
         reuseMaps
         initialViewState={initialView}
-        style={{ width: "100%", height: "100%", borderRadius: "12px" }}
+        style={{
+          width: "100%",
+          height: "100%",
+          borderRadius: isDesktop ? "12px" : "0px",
+        }}
         mapStyle={MAP_STYLE_URL}
         maxZoom={16}
         minZoom={3}
@@ -1073,6 +1107,9 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
             if (zoom < 9) {
               return null;
             }
+            if (!selectedPointVisible) {
+              return null;
+            }
 
             const scale = zoom >= 14 ? 1 : zoom / 14;
             const ringSize = 160 * scale;
@@ -1109,10 +1146,10 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
 
         {/* Filter controls (collapsible) */}
         {showMap && (
-          <div className="absolute top-27 @min-4xl:top-2 left-2 z-[1]">
-            <div className="bg-background/90 backdrop-blur rounded border border-border shadow min-w-[220px]">
+          <div className="absolute top-4 left-3 sm:top-6 sm:left-4 @min-4xl:top-2 @min-4xl:left-2 z-[1]">
+            <div className="bg-background/90 backdrop-blur rounded border border-border shadow min-w-[200px] max-w-[calc(100vw-3rem)] max-[360px]:min-w-[180px] max-[320px]:min-w-[160px] sm:min-w-[220px]">
               <button
-                className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium"
+                className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium max-[360px]:px-2 max-[320px]:px-1.5"
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowFilters((s) => !s);
@@ -1256,13 +1293,20 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
       {/* Mobile scroll button - only show on mobile */}
       <button
         onClick={() => {
-          const content = document.getElementById('content');
+          const content = document.getElementById("content");
           if (content) {
-            content.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            const headerOffset = 100;
+            const rect = content.getBoundingClientRect();
+            const absoluteTop = rect.top + window.scrollY;
+            window.scrollTo({
+              top: Math.max(absoluteTop - headerOffset, 0),
+              behavior: "smooth",
+            });
           }
         }}
         className={cn(
-          "absolute bottom-2 left-1/2 -translate-x-1/2 z-10",
+          "absolute left-1/2 -translate-x-1/2 z-10",
+          "bottom-[calc(env(safe-area-inset-bottom,0)+1rem)]",
           "flex items-center gap-2 px-4 py-2 rounded-full",
           "bg-background/95 backdrop-blur border border-border shadow-lg",
           "text-sm font-medium text-foreground",

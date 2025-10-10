@@ -49,18 +49,21 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     // </div>
     <DateProvider>
       <MapFilterProvider>
-        <div className="h-screen @min-4xl:flex @min-4xl:flex-col">
+        <div className="min-h-screen @min-4xl:flex @min-4xl:flex-col">
           <NavBar />
           <main
             id="main-content"
-            className="overflow-y-auto @min-4xl:overflow-visible @min-4xl:flex @min-4xl:flex-1 bg-background-2 @min-4xl:mt-[5.5rem] @min-4xl:pb-4 h-[calc(100vh-4rem)]"
+            className="bg-background-2 min-h-[calc(100vh-4rem)] pt-[5.5rem] @min-4xl:flex @min-4xl:flex-1 @min-4xl:pt-0 @min-4xl:mt-[5.5rem] @min-4xl:pb-4"
           >
             {/* <aside className="fixed @min-4xl:sticky @min-4xl:top-[5.5rem] @min-4xl:flex-1 @min-4xl:py-3 @min-4xl:pl-3 @min-4xl:max-w-200 w-full h-full @min-4xl:h-[calc(100vh-5.5rem)]">
           <LazyLoadMap />
         </aside> */}
             <LazyLoadMap />
             {/* Removed spacer div - map now has dynamic height with collapse button */}
-            <article className="touch-pan-y bg-background-2 w-full px-2 relative @min-4xl:pt-4 @min-4xl:flex-1 z-1 rounded-t-3xl @min-4xl:rounded-t-none border border-border @min-4xl:border-none max-w-350 mx-auto">
+            <article
+              id="content"
+              className="touch-pan-y bg-background-2 w-full px-2 relative @min-4xl:pt-4 @min-4xl:flex-1 z-1 rounded-t-3xl @min-4xl:rounded-t-none border border-border @min-4xl:border-none max-w-350 mx-auto"
+            >
               {children}
               <Footer className="@min-4xl:hidden rounded-md" />
             </article>
