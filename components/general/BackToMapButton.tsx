@@ -6,7 +6,16 @@ export default function BackToMapButton() {
   const scrollToMap = () => {
     const mapContainer = document.getElementById('map-container');
     if (mapContainer) {
-      mapContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const headerOffset = 100;
+      const rect = mapContainer.getBoundingClientRect();
+      const absoluteTop = rect.top + window.scrollY;
+      const targetTop = Math.max(absoluteTop - headerOffset, 0);
+      try {
+        window.scrollTo({ top: targetTop, behavior: 'smooth' });
+      } catch {
+        mapContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        window.scrollBy({ top: -headerOffset, behavior: 'smooth' });
+      }
     }
   };
 
