@@ -91,18 +91,19 @@ const SearchBar = ({ className }: { className?: string }) => {
     <form
       ref={boxRef}
       className={
-        "relative flex items-center gap-2 w-full justify-end @min-4xl:justify-center" +
+        "relative flex items-center gap-2 w-full justify-center" +
         (className ?? "")
       }
     >
-      <div className="pl-1.5 py-1.5 flex min-w-40 items-center rounded-full h-full shadow-lg ring ring-border/70 gap-2 bg-highlight-4 hidden @min-4xl:flex">
+      {/* Search bar - now always visible, smaller on mobile */}
+      <div className="pl-1.5 py-1.5 flex items-center rounded-full h-full shadow-lg ring ring-border/70 gap-2 bg-highlight-4 w-full max-w-[200px] @min-4xl:min-w-40 @min-4xl:max-w-md">
         <button
           type="button"
           aria-label="search"
-          className="bg-gradient-to-br from-cyan-300 to-blue-400 p-1.5 text-white rounded-full"
+          className="bg-gradient-to-br from-cyan-300 to-blue-400 p-1.5 text-white rounded-full flex-shrink-0"
           onClick={() => query && setOpen((o) => !o)}
         >
-          <Search strokeWidth={3} className="icon-md" />
+          <Search strokeWidth={3} className="w-4 h-4" />
         </button>
         <input
           name="query"
@@ -113,11 +114,13 @@ const SearchBar = ({ className }: { className?: string }) => {
           onFocus={() => hits.length > 0 && setOpen(true)}
           onKeyDown={onKeyDown}
           placeholder="Search beaches"
-          className="placeholder:text-sm focus:outline-none bg-transparent"
+          className="placeholder:text-xs @min-4xl:placeholder:text-sm focus:outline-none bg-transparent flex-1 min-w-0"
         />
       </div>
+
+      {/* Search results dropdown */}
       {open && hits.length > 0 && (
-        <ul className="absolute top-full mt-2 left-0 right-0 max-w-xl mx-auto z-50 bg-background border border-border rounded-xl shadow-lg overflow-hidden hidden @min-4xl:block">
+        <ul className="absolute top-full mt-2 left-0 right-0 max-w-xl mx-auto z-50 bg-background border border-border rounded-xl shadow-lg overflow-hidden">
           {hits.map((h, idx) => (
             <li
               key={`${h.id}`}
@@ -131,7 +134,7 @@ const SearchBar = ({ className }: { className?: string }) => {
               }}
             >
               <div className="flex items-center justify-between">
-                <span className="font-medium">{h.name}</span>
+                <span className="font-medium text-sm">{h.name}</span>
                 {h.county && (
                   <span className="text-xs text-muted-foreground">
                     {h.county}
@@ -143,15 +146,7 @@ const SearchBar = ({ className }: { className?: string }) => {
         </ul>
       )}
       <button
-        aria-label="search"
-        className="mr-2 bg-gradient-to-br from-cyan-300 to-blue-400 p-3 ml-2 text-white rounded-full block @min-4xl:hidden shadow-md border border-border/40"
-        onClick={() => {
-          if (hits[0]) onSelect(hits[0]);
-        }}
-      >
-        <Search strokeWidth={3} className="icon-md" />
-      </button>
-      <button
+        type="button"
         aria-label="filters"
         className="icon-button p-3.5 hide-button hover:bg-highlight-3"
       >

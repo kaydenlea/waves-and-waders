@@ -33,6 +33,14 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    if (!data) {
+      console.error('No data returned from Supabase')
+      return NextResponse.json(
+        { success: false, error: 'No data returned from database' },
+        { status: 500 }
+      )
+    }
+
     // Local boolean coercion similar to client utils
     const toBool = (v: any): boolean => {
       if (v === null || v === undefined) return false
@@ -61,16 +69,19 @@ export async function GET(request: NextRequest) {
     })
 
     console.log('Beaches API returning', beaches.length, 'beaches');
-    console.log('Sample beach ID:', beaches[0]?.id, 'type:', typeof beaches[0]?.id);
+    if (beaches.length > 0) {
+      console.log('Sample beach ID:', beaches[0]?.id, 'type:', typeof beaches[0]?.id);
+    }
 
     return NextResponse.json({
       success: true,
       data: beaches
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching beaches:', error)
+    console.error('Error details:', error?.message, error?.stack)
     return NextResponse.json(
-      { success: false, error: 'Internal server error' },
+      { success: false, error: 'Internal server error', details: error?.message || String(error) },
       { status: 500 }
     )
   }

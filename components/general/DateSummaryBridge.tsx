@@ -28,20 +28,26 @@ const DateSummaryBridge: React.FC<Props> = ({ beachId }) => {
     return Math.round(Math.max(0, Math.min(21, currentHour)) / 3) * 3;
   });
 
-  const [currentTime, setCurrentTime] = React.useState<string>(() =>
-    typeof window !== "undefined"
-      ? new Date().toLocaleTimeString(undefined, {
-          hour: "numeric",
-          minute: "2-digit",
-          timeZoneName: "short",
-        })
-      : ""
-  );
+  const [mounted, setMounted] = React.useState(false);
+  const [currentTime, setCurrentTime] = React.useState<string>("");
 
   const { setSelectedDate, setSelectedHour } = useMapFilters();
 
+  // Set mounted and initialize time on client
+  React.useEffect(() => {
+    setMounted(true);
+    setCurrentTime(
+      new Date().toLocaleTimeString(undefined, {
+        hour: "numeric",
+        minute: "2-digit",
+        timeZoneName: "short",
+      })
+    );
+  }, []);
+
   // Update current time every minute
   React.useEffect(() => {
+    if (!mounted) return;
     const interval = setInterval(() => {
       setCurrentTime(
         new Date().toLocaleTimeString(undefined, {
@@ -52,7 +58,7 @@ const DateSummaryBridge: React.FC<Props> = ({ beachId }) => {
       );
     }, 60000);
     return () => clearInterval(interval);
-  }, []);
+  }, [mounted]);
 
   // Sync selected date and hour with context
   React.useEffect(() => setSelectedDate(selected), [selected, setSelectedDate]);
@@ -141,7 +147,7 @@ const DateSummaryBridge: React.FC<Props> = ({ beachId }) => {
         </section>
 
         {/* Visual data blocks */}
-        <div className="flex flex-col @min-3xl:flex-row gap-3">
+        <div className="flex flex-col @min-4xl:flex-row gap-3">
           <VisualWrapper label="Tide" unit="ft">
             <LazyLoadTide beachId={beachId} date={selected ?? undefined} />
           </VisualWrapper>
@@ -150,7 +156,7 @@ const DateSummaryBridge: React.FC<Props> = ({ beachId }) => {
           </VisualWrapper>
         </div>
 
-        <div className="flex flex-col @min-3xl:flex-row gap-3 mt-3">
+        <div className="flex flex-col @min-4xl:flex-row gap-3 mt-3">
           <VisualWrapper label="Swell" unit="ft">
             <LazyLoadSwell beachId={beachId} date={selected ?? undefined} />
           </VisualWrapper>

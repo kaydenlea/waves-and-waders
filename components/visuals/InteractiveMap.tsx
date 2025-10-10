@@ -15,13 +15,21 @@ import {
   FEATURE_CATEGORIES,
   getFeatureDisplayName,
   generateBeachSlug,
+  generateBeachUrl,
+  extractBeachId,
 } from "@/lib/supabase";
 const DEFAULT_MAP_STYLE =
   "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
 const MAP_STYLE_URL =
   process.env.NEXT_PUBLIC_MAP_STYLE_URL ?? DEFAULT_MAP_STYLE;
 import { cn } from "@/lib/utils";
-import { ArrowLeftFromLine, ArrowRightFromLine, X } from "lucide-react";
+import {
+  ArrowLeftFromLine,
+  ArrowRightFromLine,
+  X,
+  ChevronUp,
+  ChevronDown,
+} from "lucide-react";
 import { useMapFilters } from "../context/MapFilterContext";
 
 type BeachPoint = {
@@ -50,17 +58,18 @@ const SwellRings: React.FC<{
     secondary: number | null | undefined;
     tertiary: number | null | undefined;
   };
-}> = ({ directions }) => {
-  const size = 160;
+  scale?: number;
+}> = ({ directions, scale = 1 }) => {
+  const size = 160 * scale;
   const center = size / 2;
   const rings: Array<{
     key: "primary" | "secondary" | "tertiary";
     radius: number;
     color: string;
   }> = [
-    { key: "primary", radius: 36, color: "#2563eb" },
-    { key: "secondary", radius: 56, color: "#16a34a" },
-    { key: "tertiary", radius: 76, color: "#f97316" },
+    { key: "primary", radius: 36 * scale, color: "#2563eb" },
+    { key: "secondary", radius: 56 * scale, color: "#16a34a" },
+    { key: "tertiary", radius: 76 * scale, color: "#f97316" },
   ];
 
   const renderArrow = (
@@ -69,8 +78,8 @@ const SwellRings: React.FC<{
     color: string
   ): React.ReactNode => {
     const normalized = ((direction % 360) + 360) % 360;
-    const arrowLength = 14;
-    const arrowWidth = 12;
+    const arrowLength = 14 * scale;
+    const arrowWidth = 12 * scale;
     return (
       <g
         key={`${color}-${radius}`}
@@ -105,7 +114,7 @@ const SwellRings: React.FC<{
             r={radius}
             fill="none"
             stroke={color}
-            strokeWidth={4}
+            strokeWidth={4 * scale}
             strokeOpacity={0.35}
           />
           {typeof directions[key] === "number" &&
@@ -118,16 +127,17 @@ const SwellRings: React.FC<{
 
 const WindRing: React.FC<{
   direction: number | null | undefined;
-}> = ({ direction }) => {
-  const size = 160;
+  scale?: number;
+}> = ({ direction, scale = 1 }) => {
+  const size = 160 * scale;
   const center = size / 2;
-  const radius = 96;
+  const radius = 96 * scale;
   const color = "#a855f7"; // purple-500
 
   const renderArrow = (dir: number): React.ReactNode => {
     const normalized = ((dir % 360) + 360) % 360;
-    const arrowLength = 14;
-    const arrowWidth = 12;
+    const arrowLength = 14 * scale;
+    const arrowWidth = 12 * scale;
     return (
       <g transform={`rotate(${normalized} ${center} ${center})`}>
         <g transform={`translate(${center} ${center - radius})`}>
@@ -157,7 +167,7 @@ const WindRing: React.FC<{
         r={radius}
         fill="none"
         stroke={color}
-        strokeWidth={4}
+        strokeWidth={4 * scale}
         strokeOpacity={0.35}
       />
       {typeof direction === "number" && renderArrow(direction)}
@@ -179,6 +189,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
   const [swellDirections, setSwellDirections] =
     React.useState<SwellDirectionSet | null>(null);
   const [windDirection, setWindDirection] = React.useState<number | null>(null);
+  const [zoom, setZoom] = React.useState<number>(6);
   const userMovedRef = React.useRef(false);
   const suppressMoveRef = React.useRef(false);
   const prevEffectiveIdRef = React.useRef<string | null>(null);
@@ -194,6 +205,25 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
       setSwellDirections(null);
       setWindDirection(null);
     }
+  }, [pathname]);
+
+  // Auto-scroll to content on mobile when page loads
+  React.useEffect(() => {
+    // Only auto-scroll on mobile (check if we're not in desktop breakpoint)
+    const checkAndScroll = () => {
+      const isDesktop = window.matchMedia("(min-width: 1800px)").matches;
+      if (!isDesktop) {
+        // Small delay to ensure content is rendered
+        setTimeout(() => {
+          const content = document.getElementById("content");
+          if (content) {
+            content.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        }, 300);
+      }
+    };
+
+    checkAndScroll();
   }, [pathname]);
 
   const resizeMapViewport = React.useCallback(() => {
@@ -235,14 +265,38 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
       try {
         console.log("Loading beaches from API...");
         const res = await fetch("/api/beaches");
+
+        // Check if response is ok
+        if (!res.ok) {
+          console.error(
+            "Failed to load beaches - HTTP error:",
+            res.status,
+            res.statusText
+          );
+          return;
+        }
+
         const json = await res.json();
         console.log("Beaches API response:", json);
+
         if (!cancelled && json?.success && Array.isArray(json.data)) {
           console.log("InteractiveMap: loaded beaches", json.data.length);
-          console.log("Sample beach:", json.data[0]);
+          if (json.data.length > 0) {
+            console.log("Sample beach:", json.data[0]);
+          }
           setBeaches(json.data as BeachPoint[]);
         } else {
-          console.error("Failed to load beaches - invalid response:", json);
+          // Only log error if response is not empty - empty {} might mean API is still initializing
+          if (Object.keys(json || {}).length > 0) {
+            console.error(
+              "Failed to load beaches - invalid response structure:",
+              json
+            );
+          } else {
+            console.warn(
+              "Beaches API returned empty response - API may still be initializing"
+            );
+          }
         }
       } catch (e) {
         console.error("Failed to load beaches for map", e);
@@ -638,7 +692,18 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
 
     const beachFromPath = (() => {
       const parts = (pathname || "").split("/").filter(Boolean);
-      return parts.length > 0 ? parts[0] : null;
+      // Extract beach ID from the first URL segment (which could be "beach-name--id" or just "id")
+      if (parts.length > 0) {
+        const extracted = extractBeachId(parts[0]);
+        console.log(
+          "InteractiveMap: Extracted beach ID from URL:",
+          parts[0],
+          "->",
+          extracted
+        );
+        return extracted;
+      }
+      return null;
     })();
     const effectiveId =
       beachId != null
@@ -675,6 +740,10 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
     // If page context identifies a beach, center and zoom to it
     if (effectiveId != null) {
       const normalizedEffectiveId = effectiveId.toLowerCase();
+      console.log(
+        "InteractiveMap: Looking for beach with ID:",
+        normalizedEffectiveId
+      );
       const match = beaches.find((b) => {
         const idMatch = String(b.id).toLowerCase() === normalizedEffectiveId;
         const nameMatch =
@@ -685,6 +754,10 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
         return idMatch || nameMatch || slugMatch;
       });
       if (match) {
+        console.log(
+          "InteractiveMap: Found beach match, zooming to:",
+          match.name
+        );
         suppressMoveRef.current = true;
         map.easeTo({
           center: [match.longitude, match.latitude],
@@ -694,6 +767,11 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
         setSelected(match);
         prevEffectiveIdRef.current = effectiveKey;
         return;
+      } else {
+        console.log(
+          "InteractiveMap: No beach match found for ID:",
+          normalizedEffectiveId
+        );
       }
     }
 
@@ -743,14 +821,14 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
 
   return (
     <aside
+      id="map-container"
       className={cn(
-        "fixed @min-3xl:sticky @min-3xl:top-[5.5rem] @min-3xl:flex-1 @min-3xl:py-3 @min-3xl:pl-3 w-full h-full @min-3xl:h-[calc(100vh-5.5rem)] transition-all",
-        // "relative w-full h-[320px] sm:h-[380px] @min-3xl:flex-1 @min-3xl:sticky @min-3xl:top-[5.5rem] @min-3xl:h-[calc(100vh-5.5rem)] @min-3xl:py-3 @min-3xl:pl-3 transition-all duration-300",
-        !smallScreen && fullMapPage && showMap && "@min-3xl:max-w-200",
+        "relative @min-4xl:sticky @min-4xl:top-[5.5rem] @min-4xl:flex-1 @min-4xl:py-3 @min-4xl:pl-3 w-full h-[60vh] @min-4xl:h-[calc(100vh-5.5rem)] transition-all duration-300",
+        !smallScreen && fullMapPage && showMap && "@min-4xl:max-w-200",
         !smallScreen &&
           fullMapPage &&
           !showMap &&
-          "@min-3xl:max-w-20 @min-3xl:overflow-hidden"
+          "@min-4xl:max-w-20 @min-4xl:overflow-hidden"
       )}
     >
       <Map
@@ -773,7 +851,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
           if (e.features?.length) {
             const f = e.features[0];
             if (
-              // f.layer.id === "clusters" ||
+              f.layer.id === "clusters" ||
               f.layer.id === "unclustered-point"
             ) {
               map.getCanvas().style.cursor = "pointer";
@@ -811,6 +889,12 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
           // map.on("moveend", showCounts);
           map.on("zoomend", showCounts);
 
+          // Track zoom level for ring scaling
+          map.on("zoom", () => {
+            const currentZoom = map.getZoom();
+            setZoom(currentZoom);
+          });
+
           map.on("movestart", () => {
             if (suppressMoveRef.current) {
               suppressMoveRef.current = false;
@@ -818,28 +902,61 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
             }
             userMovedRef.current = true;
           });
-        }}
-        onClick={(e) => {
-          const feature = e.features && e.features[0];
-          if (!feature) return;
-          // If cluster, zoom in
-          if (feature.properties && (feature.properties as any).cluster) {
-            const map = mapRef.current?.getMap?.();
-            const source: any = map?.getSource("beaches");
-            if (source && (feature.properties as any).cluster_id != null) {
+
+          // Handle cluster clicks with direct map event listener for immediate response
+          const handleClusterClick = (e: any) => {
+            const interactiveFeatures =
+              e.features?.filter(
+                (f: any) =>
+                  f?.layer?.id === "clusters" ||
+                  f?.layer?.id === "cluster-count"
+              ) ?? [];
+
+            const features = interactiveFeatures.length
+              ? interactiveFeatures
+              : map.queryRenderedFeatures(e.point, {
+                  layers: ["clusters", "cluster-count"],
+                });
+            if (!features.length) return;
+
+            const clusterFeature =
+              features.find((f: any) => f?.layer?.id === "clusters") ??
+              features[0];
+
+            const clusterId = clusterFeature.properties?.cluster_id;
+            const source: any = map.getSource("beaches");
+
+            if (source && clusterId != null) {
               source.getClusterExpansionZoom(
-                (feature.properties as any).cluster_id,
+                clusterId,
                 (err: any, zoom: number) => {
                   if (err) return;
                   map.easeTo({
-                    center: (feature.geometry as any).coordinates,
+                    center: (clusterFeature.geometry as any).coordinates,
                     zoom,
+                    duration: 500,
                   });
                 }
               );
             }
+          };
+
+          map.on("click", "clusters", handleClusterClick);
+          map.on("click", "cluster-count", handleClusterClick);
+        }}
+        onClick={(e) => {
+          const feature = e.features && e.features[0];
+          if (!feature) return;
+
+          // Cluster clicks are now handled by direct map event listeners in onLoad
+          // Skip cluster clicks here to avoid duplication
+          const isCluster =
+            feature.properties && (feature.properties as any).cluster;
+          const isClusterCount = feature.layer?.id === "cluster-count";
+          if (isCluster || isClusterCount) {
             return;
           }
+
           // Unclustered point: open popup and allow navigation
           const props: any = feature.properties || {};
           const point: BeachPoint = {
@@ -851,8 +968,10 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
           };
           setSwellDirections(null);
           setSelected(point);
-          const slug = generateBeachSlug(point.name);
-          const destination = `/${slug}/overview`;
+          const destination = `${generateBeachUrl(
+            point.name,
+            point.id
+          )}/overview`;
           router.push(destination);
         }}
       >
@@ -980,37 +1099,55 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
             swellDirections.primary,
             swellDirections.secondary,
             swellDirections.tertiary,
-          ].some((d) => typeof d === "number") && (
-            <Marker
-              longitude={selected.longitude}
-              latitude={selected.latitude}
-              anchor="center"
-            >
-              <div className="pointer-events-none relative flex flex-col items-center justify-center overflow-visible">
-                <div className="absolute -top-14 bg-background rounded-lg border border-border px-3 py-1.5 shadow-lg whitespace-nowrap">
-                  <span className="text-sm font-semibold text-foreground antialiased">
-                    {selected.name}
-                  </span>
+          ].some((d) => typeof d === "number") &&
+          (() => {
+            // Calculate scale based on zoom level
+            // Below zoom 9, hide rings completely
+            // At zoom 14 or higher (very close), scale = 1 (full size)
+            // Between zoom 9-14, shrink proportionally
+            if (zoom < 9) {
+              return null;
+            }
+
+            const scale = zoom >= 14 ? 1 : zoom / 14;
+            const ringSize = 160 * scale;
+
+            return (
+              <Marker
+                longitude={selected.longitude}
+                latitude={selected.latitude}
+                anchor="center"
+              >
+                <div className="pointer-events-none relative flex flex-col items-center justify-center overflow-visible">
+                  <div className="absolute -top-14 bg-background rounded-lg border border-border px-3 py-1.5 shadow-lg whitespace-nowrap">
+                    <span className="text-sm font-semibold text-foreground antialiased">
+                      {selected.name}
+                    </span>
+                  </div>
+                  <div
+                    className="relative flex items-center justify-center"
+                    style={{ width: ringSize, height: ringSize }}
+                  >
+                    <SwellRings
+                      directions={{
+                        primary: swellDirections.primary,
+                        secondary: swellDirections.secondary,
+                        tertiary: swellDirections.tertiary,
+                      }}
+                      scale={scale}
+                    />
+                    {typeof windDirection === "number" && (
+                      <WindRing direction={windDirection} scale={scale} />
+                    )}
+                  </div>
                 </div>
-                <div className="relative flex items-center justify-center w-[160px] h-[160px]">
-                  <SwellRings
-                    directions={{
-                      primary: swellDirections.primary,
-                      secondary: swellDirections.secondary,
-                      tertiary: swellDirections.tertiary,
-                    }}
-                  />
-                  {typeof windDirection === "number" && (
-                    <WindRing direction={windDirection} />
-                  )}
-                </div>
-              </div>
-            </Marker>
-          )}
+              </Marker>
+            );
+          })()}
 
         {/* Filter controls (collapsible) */}
         {showMap && (
-          <div className="absolute top-27 @min-3xl:top-2 left-2 z-[1]">
+          <div className="absolute top-27 @min-4xl:top-2 left-2 z-[1]">
             <div className="bg-background/90 backdrop-blur rounded border border-border shadow min-w-[220px]">
               <button
                 className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium"
@@ -1096,7 +1233,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
             swellDirections.secondary,
             swellDirections.tertiary,
           ].some((d) => typeof d === "number") && (
-            <div className="absolute bottom-15 @min-3xl:bottom-3 left-3 z-[1] max-w-[200px]">
+            <div className="absolute bottom-15 @min-4xl:bottom-3 left-3 z-[1] max-w-[200px]">
               <div className="rounded-lg border border-border/60 bg-background/90 backdrop-blur px-3 py-2 shadow">
                 <span className="text-[11px] font-semibold uppercase text-muted-foreground">
                   Direction Rings
@@ -1153,6 +1290,28 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
           }
         `}</style>
       </Map>
+
+      {/* Mobile scroll button - only show on mobile */}
+      <button
+        onClick={() => {
+          const content = document.getElementById("content");
+          if (content) {
+            content.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        }}
+        className={cn(
+          "absolute bottom-2 left-1/2 -translate-x-1/2 z-10",
+          "flex items-center gap-2 px-4 py-2 rounded-full",
+          "bg-background/95 backdrop-blur border border-border shadow-lg",
+          "text-sm font-medium text-foreground",
+          "hover:bg-highlight-5 transition-colors",
+          "@min-4xl:hidden" // Hide on desktop
+        )}
+        aria-label="Scroll to content"
+      >
+        <ChevronDown size={16} />
+        <span>View Stats</span>
+      </button>
     </aside>
   );
 };

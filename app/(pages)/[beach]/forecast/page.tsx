@@ -10,9 +10,10 @@ import ForecastBridge from "@/components/general/ForecastBridge";
 import type { Metadata } from "next";
 import { Pencil } from "lucide-react";
 import PageTabs from "@/components/general/PageTabs";
-import { fetchBeachByIdLoose } from "@/lib/supabase";
+import { fetchBeachByIdLoose, extractBeachId } from "@/lib/supabase";
 import { ForecastChartProvider } from "@/components/context/ForecastChartContext";
 import { redirect } from "next/navigation";
+import BackToMapButton from "@/components/general/BackToMapButton";
 
 export const metadata: Metadata = {
   title: "Surf Weekly Forecast | Waves and Waders",
@@ -22,8 +23,11 @@ export const metadata: Metadata = {
 const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
   const { beach } = await params;
 
+  // Extract beach ID from param (supports "beach-slug/123" or just "123")
+  const beachIdOrSlug = extractBeachId(beach);
+
   // Resolve the beach param (could be UUID, slug, or beach name)
-  const resolved = await fetchBeachByIdLoose(beach);
+  const resolved = await fetchBeachByIdLoose(beachIdOrSlug);
 
   if (!resolved) {
     console.error(`Failed to resolve beach: ${beach}`);
@@ -34,9 +38,7 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
   const beachName = resolved.Name;
   return (
     <>
-      <div className="block @min-3xl:hidden flex justify-center pt-5 pb-7">
-        <div className="bg-gray-300 w-16 h-1.5 rounded-full" />
-      </div>
+      <BackToMapButton />
       <div className="@container p-2">
         <header
           id="content"
@@ -47,7 +49,7 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
             beach={beach}
             tabs={["overview", "forecast"]}
           />
-          <h1 className="font-semibold text-4xl tracking-tight w-full @min-3xl:max-w-3/5">
+          <h1 className="font-semibold text-4xl tracking-tight w-full @min-4xl:max-w-3/5">
             {beachName}
           </h1>
         </header>
