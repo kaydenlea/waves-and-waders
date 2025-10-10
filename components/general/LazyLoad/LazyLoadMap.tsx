@@ -51,11 +51,17 @@ const Loading = () => {
     // />
     <div
       className={cn(
-        "relative w-full h-[320px] sm:h-[380px] @min-3xl:flex-1 @min-3xl:sticky @min-3xl:top-[5.5rem] @min-3xl:h-[calc(100vh-5.5rem)] @min-3xl:pl-3 @min-3xl:pt-3 bg-highlight-5 animate-pulse rounded-2xl transition-all duration-300",
-        !(pathName.endsWith("/beaches") || pathName.endsWith("/overview")) &&
-          "@min-3xl:max-w-200"
+        "fixed @min-3xl:sticky w-full h-full @min-3xl:flex-1 pl-3 pt-3 bg-highlight-5 animate-pulse rounded-tr-2xl rounded-br-2xl",
+        !pathName.endsWith("/beaches") && "max-w-200"
       )}
     />
+    // <div
+    //   className={cn(
+    //     "relative w-full h-[320px] sm:h-[380px] @min-3xl:flex-1 @min-3xl:sticky @min-3xl:top-[5.5rem] @min-3xl:h-[calc(100vh-5.5rem)] @min-3xl:pl-3 @min-3xl:pt-3 bg-highlight-5 animate-pulse rounded-2xl transition-all duration-300",
+    //     !(pathName.endsWith("/beaches") || pathName.endsWith("/overview")) &&
+    //       "@min-3xl:max-w-200"
+    //   )}
+    // />
   );
 };
 

@@ -22,6 +22,7 @@ const MAP_STYLE_URL =
   process.env.NEXT_PUBLIC_MAP_STYLE_URL ?? DEFAULT_MAP_STYLE;
 import { cn } from "@/lib/utils";
 import { ArrowLeftFromLine, ArrowRightFromLine, X } from "lucide-react";
+import { useMapFilters } from "../context/MapFilterContext";
 
 type BeachPoint = {
   id: string | number;
@@ -169,8 +170,7 @@ type Props = { beachId?: string | number };
 const InteractiveMap: React.FC<Props> = ({ beachId }) => {
   const [beaches, setBeaches] = React.useState<BeachPoint[]>([]);
   const [selected, setSelected] = React.useState<BeachPoint | null>(null);
-  const { filters, setFilters, selectedDate, selectedHour } =
-    require("@/components/context/MapFilterContext").useMapFilters();
+  const { filters, setFilters, selectedDate, selectedHour } = useMapFilters();
   const [located, setLocated] = React.useState<boolean>(false);
   const [showFilters, setShowFilters] = React.useState<boolean>(false);
   const [surfIntensity, setSurfIntensity] = React.useState<

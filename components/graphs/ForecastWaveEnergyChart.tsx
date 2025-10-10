@@ -180,7 +180,7 @@ type Props = { beachId?: string; days?: Date[] | null };
 
 const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
   const [startIndex, setStartIndex] = React.useState(0);
-  const [dayWindow, setDayWindow] = React.useState(3);
+  const [dayWindow, setDayWindow] = React.useState(4);
   const [energyData, setEnergyData] = React.useState<WavePoint[]>([]);
   const [baseStartMs, setBaseStartMs] = React.useState<number | null>(null);
 
@@ -288,8 +288,6 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
       timeZone: "America/Los_Angeles",
     })
   );
-  const startDayVal =
-    days && days.length > 0 ? days[0].getTime() : new Date().getTime();
   const startDay = windowDays
     ? windowDays[0]
     : new Date().toLocaleDateString("en-US", {
@@ -300,15 +298,12 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
     weekday: "short",
     timeZone: "America/Los_Angeles",
   });
-  const daysDiff = Math.floor(
-    Math.abs(startDayVal - new Date().getTime()) /
-      (1000 * 60 * 60 * HOURS_PER_DAY)
-  );
   const getIndex = (d: string) =>
     dayjs().day(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(d));
   const getRelativeIndex = (current: string, selected: string) =>
     (getIndex(selected).day() - getIndex(current).day() + 7) % 7;
-  const startDayIdx = daysDiff * (HOURS_PER_DAY / 3);
+  const dayOffset = getRelativeIndex(currentDay, startDay);
+  const startDayIdx = dayOffset * (HOURS_PER_DAY / 3);
   console.log(
     "NUMS",
     windowDays,
@@ -316,7 +311,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
     startDay,
     currentDay,
     getRelativeIndex(currentDay, startDay),
-    daysDiff,
+    dayOffset,
     startDayIdx,
     startDayIdx + windowSize
   );
@@ -378,7 +373,6 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
     },
     [effectiveDayWindow, maxSelectableDays]
   );
-  const [dayOffset, setDayOffset] = useState(0);
   // Prepare day label texts for the *visible 4 days* starting at dayOffset
   const dayLabels = useMemo(() => {
     const base = days instanceof Date ? new Date(days) : new Date();
@@ -400,7 +394,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
       );
     }
     return labels;
-  }, [days, effectiveDayWindow]);
+  }, [dayOffset, days, effectiveDayWindow]);
 
   return (
     <>
