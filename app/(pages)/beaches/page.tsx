@@ -15,7 +15,7 @@ export default async function BeachesPage() {
       <div className="block @min-3xl:hidden flex justify-center pt-5 pb-7">
         <div className="bg-gray-300 w-16 h-1.5 rounded-full" />
       </div>
-      <div className="@container p-2">
+      <div className="@container p-2 touch-pan-y">
         <div className="relative w-full flex flex-col gap-6">
           <PageTabs
             buttons={false}

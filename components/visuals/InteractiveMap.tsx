@@ -23,7 +23,14 @@ const DEFAULT_MAP_STYLE =
 const MAP_STYLE_URL =
   process.env.NEXT_PUBLIC_MAP_STYLE_URL ?? DEFAULT_MAP_STYLE;
 import { cn } from "@/lib/utils";
-import { ArrowLeftFromLine, ArrowRightFromLine, X, ChevronUp, ChevronDown } from "lucide-react";
+import {
+  ArrowLeftFromLine,
+  ArrowRightFromLine,
+  X,
+  ChevronUp,
+  ChevronDown,
+} from "lucide-react";
+import { useMapFilters } from "../context/MapFilterContext";
 
 type BeachPoint = {
   id: string | number;
@@ -173,8 +180,7 @@ type Props = { beachId?: string | number };
 const InteractiveMap: React.FC<Props> = ({ beachId }) => {
   const [beaches, setBeaches] = React.useState<BeachPoint[]>([]);
   const [selected, setSelected] = React.useState<BeachPoint | null>(null);
-  const { filters, setFilters, selectedDate, selectedHour } =
-    require("@/components/context/MapFilterContext").useMapFilters();
+  const { filters, setFilters, selectedDate, selectedHour } = useMapFilters();
   const [located, setLocated] = React.useState<boolean>(false);
   const [showFilters, setShowFilters] = React.useState<boolean>(false);
   const [surfIntensity, setSurfIntensity] = React.useState<
@@ -246,7 +252,11 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
 
         // Check if response is ok
         if (!res.ok) {
-          console.error("Failed to load beaches - HTTP error:", res.status, res.statusText);
+          console.error(
+            "Failed to load beaches - HTTP error:",
+            res.status,
+            res.statusText
+          );
           return;
         }
 
@@ -262,9 +272,14 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
         } else {
           // Only log error if response is not empty - empty {} might mean API is still initializing
           if (Object.keys(json || {}).length > 0) {
-            console.error("Failed to load beaches - invalid response structure:", json);
+            console.error(
+              "Failed to load beaches - invalid response structure:",
+              json
+            );
           } else {
-            console.warn("Beaches API returned empty response - API may still be initializing");
+            console.warn(
+              "Beaches API returned empty response - API may still be initializing"
+            );
           }
         }
       } catch (e) {
@@ -700,7 +715,12 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
       // Extract beach ID from the first URL segment (which could be "beach-name--id" or just "id")
       if (parts.length > 0) {
         const extracted = extractBeachId(parts[0]);
-        console.log("InteractiveMap: Extracted beach ID from URL:", parts[0], "->", extracted);
+        console.log(
+          "InteractiveMap: Extracted beach ID from URL:",
+          parts[0],
+          "->",
+          extracted
+        );
         return extracted;
       }
       return null;
@@ -740,7 +760,10 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
     // If page context identifies a beach, center and zoom to it
     if (effectiveId != null) {
       const normalizedEffectiveId = effectiveId.toLowerCase();
-      console.log("InteractiveMap: Looking for beach with ID:", normalizedEffectiveId);
+      console.log(
+        "InteractiveMap: Looking for beach with ID:",
+        normalizedEffectiveId
+      );
       const match = beaches.find((b) => {
         const idMatch = String(b.id).toLowerCase() === normalizedEffectiveId;
         const nameMatch =
@@ -751,7 +774,10 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
         return idMatch || nameMatch || slugMatch;
       });
       if (match) {
-        console.log("InteractiveMap: Found beach match, zooming to:", match.name);
+        console.log(
+          "InteractiveMap: Found beach match, zooming to:",
+          match.name
+        );
         suppressMoveRef.current = true;
         map.easeTo({
           center: [match.longitude, match.latitude],
@@ -762,7 +788,10 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
         prevEffectiveIdRef.current = effectiveKey;
         return;
       } else {
-        console.log("InteractiveMap: No beach match found for ID:", normalizedEffectiveId);
+        console.log(
+          "InteractiveMap: No beach match found for ID:",
+          normalizedEffectiveId
+        );
       }
     }
 
@@ -913,7 +942,8 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
             const interactiveFeatures =
               e.features?.filter(
                 (f: any) =>
-                  f?.layer?.id === "clusters" || f?.layer?.id === "cluster-count"
+                  f?.layer?.id === "clusters" ||
+                  f?.layer?.id === "cluster-count"
               ) ?? [];
 
             const features = interactiveFeatures.length
@@ -954,7 +984,8 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
 
           // Cluster clicks are now handled by direct map event listeners in onLoad
           // Skip cluster clicks here to avoid duplication
-          const isCluster = feature.properties && (feature.properties as any).cluster;
+          const isCluster =
+            feature.properties && (feature.properties as any).cluster;
           const isClusterCount = feature.layer?.id === "cluster-count";
           if (isCluster || isClusterCount) {
             return;
@@ -971,7 +1002,10 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
           };
           setSwellDirections(null);
           setSelected(point);
-          const destination = `${generateBeachUrl(point.name, point.id)}/overview`;
+          const destination = `${generateBeachUrl(
+            point.name,
+            point.id
+          )}/overview`;
           router.push(destination);
         }}
       >
@@ -1099,7 +1133,8 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
             swellDirections.primary,
             swellDirections.secondary,
             swellDirections.tertiary,
-          ].some((d) => typeof d === "number") && (() => {
+          ].some((d) => typeof d === "number") &&
+          (() => {
             // Calculate scale based on zoom level
             // Below zoom 9, hide rings completely
             // At zoom 14 or higher (very close), scale = 1 (full size)
@@ -1126,7 +1161,10 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
                       {selected.name}
                     </span>
                   </div>
-                  <div className="relative flex items-center justify-center" style={{ width: ringSize, height: ringSize }}>
+                  <div
+                    className="relative flex items-center justify-center"
+                    style={{ width: ringSize, height: ringSize }}
+                  >
                     <SwellRings
                       directions={{
                         primary: swellDirections.primary,
@@ -1298,10 +1336,14 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
             const headerOffset = 100;
             const rect = content.getBoundingClientRect();
             const absoluteTop = rect.top + window.scrollY;
-            window.scrollTo({
-              top: Math.max(absoluteTop - headerOffset, 0),
-              behavior: "smooth",
-            });
+            try {
+              window.scrollTo({
+                top: Math.max(absoluteTop - headerOffset, 0),
+                behavior: "smooth",
+              });
+            } catch {
+              content.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
           }
         }}
         className={cn(
