@@ -284,6 +284,7 @@ import {
   fetchBeachForecast,
   fetchBeachByIdLoose,
   getWindDirection,
+  fetchBeachTides,
 } from "@/lib/supabase";
 
 type Stat =
@@ -358,9 +359,10 @@ const Highlights = ({
           endWindow = new Date(d.getTime() + 24 * 60 * 60 * 1000);
         }
         // data sources
-        const [current, forecast] = await Promise.all([
+        const [current, forecast, tides] = await Promise.all([
           fetchCurrentConditions(resolvedId),
           fetchBeachForecast(resolvedId, startWindow, endWindow),
+          fetchBeachTides(resolvedId, startWindow, endWindow),
         ]);
         const county = beach?.COUNTY ?? null;
         const daily = county
@@ -439,11 +441,33 @@ const Highlights = ({
             ],
           });
         }
-        // tide
+        // tide - find the tide data point closest to the selected time
+        let tideValue = 0;
+        if (tides && tides.length > 0) {
+          // Get the target timestamp from baseRow or use current time
+          const targetTime = baseRow?.timestamp
+            ? new Date(baseRow.timestamp).getTime()
+            : now.getTime();
+
+          // Find the closest tide data point
+          let closestTide = tides[0];
+          let minDiff = Math.abs(new Date(tides[0].timestamp).getTime() - targetTime);
+
+          for (const tide of tides) {
+            const diff = Math.abs(new Date(tide.timestamp).getTime() - targetTime);
+            if (diff < minDiff) {
+              minDiff = diff;
+              closestTide = tide;
+            }
+          }
+
+          tideValue = closestTide.tideLevelFt ?? 0;
+        }
+
         nextStats.push({
           label: "tide",
           tide: {
-            value: Number((base?.conditions.tideLevel ?? 0).toFixed(1)),
+            value: Number(tideValue.toFixed(1)),
             unit: "ft",
           },
         });

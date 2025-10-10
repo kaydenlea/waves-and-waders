@@ -12,6 +12,25 @@ export function generateBeachSlug(beachName: string): string {
     .trim();
 }
 
+// Utility function to generate beach URL in format: /beach-name--id
+// Uses double dash (--) as separator between slug and ID
+export function generateBeachUrl(beachName: string, beachId: string | number): string {
+  const slug = generateBeachSlug(beachName);
+  return `/${slug}--${beachId}`;
+}
+
+// Utility function to extract beach ID from URL params
+// Supports formats: "beach-name--123" (new), "123" (old), or "beach-slug" (old)
+export function extractBeachId(param: string): string {
+  // If param contains double dash, extract the ID after it
+  if (param.includes('--')) {
+    const parts = param.split('--');
+    return parts[parts.length - 1];
+  }
+  // Otherwise, return the param as-is (could be ID or slug for backwards compatibility)
+  return param;
+}
+
 // Cache for beach slug -> ID mapping (server-side only)
 let beachSlugCache: Map<string, string> | null = null;
 let beachCacheTimestamp: number = 0;

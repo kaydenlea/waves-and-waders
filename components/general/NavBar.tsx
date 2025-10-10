@@ -63,7 +63,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 
 const NavBar = () => {
   return (
-    <header className="fixed px-1.5 pt-1.5 @min-3xl:p-0 z-2 w-full @container backdrop-blur-md">
+    <header className="fixed px-1.5 pt-1.5 @min-3xl:p-0 z-50 w-full @container backdrop-blur-md">
       <nav
         aria-label="primary navigation"
         className="h-23 flex items-center justify-between px-6 shadow-md bg-background rounded-md @min-3xl:rounded-t-none w-full border border-border"

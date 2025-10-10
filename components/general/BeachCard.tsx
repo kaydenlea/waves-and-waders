@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { LazyLoadTidePreview } from "./LazyLoad/LazyLoadTidePreview";
+import { generateBeachUrl } from "@/lib/supabase";
 
 import {
   Droplets,
@@ -222,7 +223,7 @@ const BeachCard = ({
               />
             </button>
             <Link
-              href={`/${b.id}/overview`}
+              href={`${generateBeachUrl(b.name, b.id)}/overview`}
               className="text-center rounded-full bg-highlight-5 px-3 py-1.5 text-sm text-foreground/90 transition hover:bg-highlight-3"
             >
               View

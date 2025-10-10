@@ -202,6 +202,7 @@
 import React, { Suspense, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { generateBeachUrl } from "@/lib/supabase";
 // import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import ThemeToggle from "@/components/general/ThemeToggle";
 import VisualFallback from "@/components/visuals/VisualFallback";
@@ -683,7 +684,7 @@ const Home = () => {
                         </p>
                       </div>
                       <Link
-                        href={`/${b.id}/overview`}
+                        href={`${generateBeachUrl(b.name, b.id)}/overview`}
                         className="text-cyan-300 hover:underline"
                       >
                         View

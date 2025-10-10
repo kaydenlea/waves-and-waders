@@ -18,11 +18,12 @@ import BackButton from "@/components/general/BackButton";
 
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { fetchBeachByIdLoose } from "@/lib/supabase";
+import { fetchBeachByIdLoose, extractBeachId } from "@/lib/supabase";
 import { Pencil, ArrowLeft as BackIcon, Heart } from "lucide-react";
 import SaveButton from "@/components/general/SaveButton";
 import GradientCircle from "@/components/general/Stats/GradientCircle";
 import BeachCrossSection from "@/components/visuals/WaveModel";
+import BackToMapButton from "@/components/general/BackToMapButton";
 
 const chartData = [
   { hour: 0, tide: 5, isPeak: 5 },
@@ -65,8 +66,11 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
     redirect("/beaches");
   }
 
+  // Extract beach ID from param (supports "beach-slug/123" or just "123")
+  const beachIdOrSlug = extractBeachId(beach);
+
   // Resolve the beach param (could be UUID, slug, or beach name)
-  const resolved = await fetchBeachByIdLoose(beach);
+  const resolved = await fetchBeachByIdLoose(beachIdOrSlug);
 
   if (!resolved) {
     console.error(`Failed to resolve beach: ${beach}`);
@@ -79,9 +83,7 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
   const isFav = false;
   return (
     <>
-      <div className="block @min-3xl:hidden flex justify-center pt-5 pb-7">
-        <div className="bg-gray-300 w-16 h-1.5 rounded-full" />
-      </div>
+      <BackToMapButton />
       <div className="@container p-2">
         <header
           id="content"
@@ -92,7 +94,7 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
             beach={beach}
             tabs={["overview", "forecast"]}
           />
-          <h1 className="font-semibold text-4xl tracking-tight w-full @min-3xl:max-w-3/5">
+          <h1 className="font-semibold text-4xl tracking-tight w-full @min-4xl:max-w-3/5">
             {beachName}
           </h1>
         </header>
