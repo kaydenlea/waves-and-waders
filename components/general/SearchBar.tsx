@@ -3,7 +3,7 @@
 import React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, SlidersVertical } from "lucide-react";
+import { Map, Search } from "lucide-react";
 
 type BeachHit = {
   id: string | number;
@@ -147,10 +147,11 @@ const SearchBar = ({ className }: { className?: string }) => {
       )}
       <button
         type="button"
-        aria-label="filters"
+        aria-label="open map"
         className="icon-button p-3.5 hide-button hover:bg-highlight-3"
+        onClick={() => router.push("/beaches")}
       >
-        <SlidersVertical className="icon-sm" />
+        <Map className="icon-sm" />
       </button>
     </form>
   );

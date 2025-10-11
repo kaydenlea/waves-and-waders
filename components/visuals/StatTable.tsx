@@ -102,6 +102,17 @@ const SwellStat = ({
   );
 };
 
+const getWindLevel = (
+  speed?: number | null,
+  gust?: number | null
+): string => {
+  const maxVal = Math.max(speed ?? 0, gust ?? 0);
+  if (!Number.isFinite(maxVal) || maxVal <= 0) return "bg-highlight-3";
+  if (maxVal >= 25) return "bg-red-400 dark:bg-red-700";
+  if (maxVal >= 15) return "bg-orange-400 dark:bg-orange-700";
+  return "bg-green-400 dark:bg-green-700";
+};
+
 const WindStat = ({
   data,
 }: {
@@ -109,10 +120,16 @@ const WindStat = ({
 }) => {
   // Calculate rotation for wind arrow (arrow points at 315° by default)
   const rotation = typeof data.deg === "number" ? data.deg - 315 : 0;
+  const windLevel = getWindLevel(data.speed, data.max);
 
   return (
     <div className="flex items-center gap-1">
-      <span className="flex-1 justify-center flex gap-1 bg-highlight-1 rounded-md py-2 px-3">
+      <span
+        className={cn(
+          "flex-1 justify-center flex gap-1 rounded-md py-2 px-3",
+          windLevel
+        )}
+      >
         <span className="text-lg font-medium">{data.speed}</span>
         <span className="flex flex-col -space-y-1">
           <span className="text-[0.6rem]">{data.max}</span>

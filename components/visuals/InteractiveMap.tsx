@@ -31,6 +31,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { useMapFilters } from "../context/MapFilterContext";
+import { MAP_FOCUS_EVENT, type MapFocusEventDetail } from "../general/mapEvents";
 
 type BeachPoint = {
   id: string | number;
@@ -197,6 +198,23 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
   const router = useRouter();
   const pathname = usePathname();
   const mapRef = React.useRef<any>(null);
+
+  const findBeachMatch = React.useCallback(
+    (identifier: string | null | undefined): BeachPoint | null => {
+      if (!identifier) return null;
+      const normalized = identifier.toLowerCase();
+      return (
+        beaches.find((b) => {
+          const idMatch = String(b.id).toLowerCase() === normalized;
+          const nameMatch = String(b.name).toLowerCase() === normalized;
+          const slugMatch =
+            generateBeachSlug(String(b.name)).toLowerCase() === normalized;
+          return idMatch || nameMatch || slugMatch;
+        }) ?? null
+      );
+    },
+    [beaches]
+  );
 
   // Clear selection when navigating to beaches page
   React.useEffect(() => {
@@ -759,20 +777,8 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
 
     // If page context identifies a beach, center and zoom to it
     if (effectiveId != null) {
-      const normalizedEffectiveId = effectiveId.toLowerCase();
-      console.log(
-        "InteractiveMap: Looking for beach with ID:",
-        normalizedEffectiveId
-      );
-      const match = beaches.find((b) => {
-        const idMatch = String(b.id).toLowerCase() === normalizedEffectiveId;
-        const nameMatch =
-          String(b.name).toLowerCase() === normalizedEffectiveId;
-        const slugMatch =
-          generateBeachSlug(String(b.name)).toLowerCase() ===
-          normalizedEffectiveId;
-        return idMatch || nameMatch || slugMatch;
-      });
+      console.log("InteractiveMap: Looking for beach with ID:", effectiveId);
+      const match = findBeachMatch(effectiveId);
       if (match) {
         console.log(
           "InteractiveMap: Found beach match, zooming to:",
@@ -790,7 +796,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
       } else {
         console.log(
           "InteractiveMap: No beach match found for ID:",
-          normalizedEffectiveId
+          effectiveId
         );
       }
     }
@@ -829,7 +835,62 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
       map.easeTo({ center: [centerLon, centerLat], zoom: 6, duration: 500 });
     }
     prevEffectiveIdRef.current = effectiveKey;
-  }, [beaches, filteredBeaches, beachId, pathname, located]);
+  }, [beaches, filteredBeaches, beachId, pathname, located, findBeachMatch]);
+
+  React.useEffect(() => {
+    const handleRefocus = (event: Event) => {
+      const custom = event as CustomEvent<MapFocusEventDetail>;
+      const detail = custom.detail;
+      if (!detail) return;
+
+      const target = detail.beachId;
+      if (target == null) return;
+
+      const match = findBeachMatch(String(target));
+      if (!match) return;
+
+      const ref = mapRef.current;
+      const mapInstance = ref?.getMap?.() ?? ref;
+      if (!mapInstance || typeof mapInstance.easeTo !== "function") return;
+
+      if (fullMapPage && isDesktop) {
+        setShowMap(true);
+      }
+
+      if (detail.scroll) {
+        const mapContainer = document.getElementById("map-container");
+        if (mapContainer) {
+          const headerOffset = 100;
+          const rect = mapContainer.getBoundingClientRect();
+          const absoluteTop = rect.top + window.scrollY;
+          const targetTop = Math.max(absoluteTop - headerOffset, 0);
+          try {
+            window.scrollTo({ top: targetTop, behavior: "smooth" });
+          } catch {
+            mapContainer.scrollIntoView({ behavior: "smooth", block: "start" });
+            window.scrollBy({ top: -headerOffset, behavior: "smooth" });
+          }
+        }
+      }
+
+      suppressMoveRef.current = true;
+      userMovedRef.current = false;
+      mapInstance.easeTo({
+        center: [match.longitude, match.latitude],
+        zoom: 16,
+        duration: 500,
+      });
+      setSelected(match);
+      prevEffectiveIdRef.current = String(match.id);
+    };
+
+    window.addEventListener(MAP_FOCUS_EVENT, handleRefocus as EventListener);
+    return () =>
+      window.removeEventListener(
+        MAP_FOCUS_EVENT,
+        handleRefocus as EventListener
+      );
+  }, [findBeachMatch, fullMapPage, isDesktop]);
 
   // if (editPage || (forecastPage && !smallScreen)) {
   //   return <></>;

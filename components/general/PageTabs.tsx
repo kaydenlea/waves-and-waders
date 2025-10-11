@@ -2,8 +2,8 @@ import Link from "next/link";
 import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
 import SaveButton from "./SaveButton";
 
-import { ArrowLeft as BackIcon, Map, MapPin, MapPinned } from "lucide-react";
 import { cn } from "@/lib/utils";
+import FocusMapButton from "./FocusMapButton";
 
 const PageTabs = ({
   beach,
@@ -20,12 +20,7 @@ const PageTabs = ({
     <div className="mx-auto @min-3xl:absolute @min-3xl:right-0 flex gap-1 @min-sm:gap-2">
       {buttons && (
         <>
-          <Link
-            href={`/beaches#content`}
-            className="bg-highlight-5 hover:bg-highlight-3 my-auto rounded-full p-2"
-          >
-            <Map className="w-5 h-5 @min-sm:w-6 @min-sm:h-6" />
-          </Link>
+          <FocusMapButton beach={beach} />
           <SaveButton className="hidden @min-3xl:block" />
         </>
       )}

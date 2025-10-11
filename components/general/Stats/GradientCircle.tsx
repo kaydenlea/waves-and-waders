@@ -44,28 +44,28 @@ const getIntensityColors = (conditionKey: string, pct: number): string[] | null 
   return sets[2];
 };
 
-const getWeatherIcon = (code: number | null | undefined) => {
-  if (code == null) return <Sun size={18} className="text-[#FF8D0B]" />;
+const getWeatherIcon = (code: number | null | undefined, iconSize: number = 18) => {
+  if (code == null) return <Sun size={iconSize} className="text-[#FF8D0B]" />;
   // WMO code groupings per spec
-  if (code === 0) return <Sun size={18} className="text-[#FF8D0B]" />; // Clear
-  if ([1, 2, 3].includes(code)) return <CloudSun size={18} className="text-[#bdbdbd]" />; // Partly cloudy/overcast
-  if ([45, 48].includes(code)) return <CloudIcon size={18} className="text-[#bdbdbd]" />; // Fog
+  if (code === 0) return <Sun size={iconSize} className="text-[#FF8D0B]" />; // Clear
+  if ([1, 2, 3].includes(code)) return <CloudSun size={iconSize} className="text-[#bdbdbd]" />; // Partly cloudy/overcast
+  if ([45, 48].includes(code)) return <CloudIcon size={iconSize} className="text-[#bdbdbd]" />; // Fog
   if ([51, 53, 55].includes(code))
-    return <CloudDrizzle size={18} className="text-[#66a3ff]" />; // Drizzle
+    return <CloudDrizzle size={iconSize} className="text-[#66a3ff]" />; // Drizzle
   if ([56, 57].includes(code))
-    return <CloudDrizzle size={18} className="text-[#66a3ff]" />; // Freezing drizzle
+    return <CloudDrizzle size={iconSize} className="text-[#66a3ff]" />; // Freezing drizzle
   if ([61, 63, 65].includes(code))
-    return <CloudRain size={18} className="text-[#66a3ff]" />; // Rain
-  if ([66, 67].includes(code)) return <CloudRain size={18} className="text-[#66a3ff]" />; // Freezing rain
+    return <CloudRain size={iconSize} className="text-[#66a3ff]" />; // Rain
+  if ([66, 67].includes(code)) return <CloudRain size={iconSize} className="text-[#66a3ff]" />; // Freezing rain
   if ([71, 73, 75].includes(code))
-    return <Snowflake size={18} className="text-[#8ecaff]" />; // Snow
-  if (code === 77) return <Snowflake size={18} className="text-[#8ecaff]" />; // Snow grains
+    return <Snowflake size={iconSize} className="text-[#8ecaff]" />; // Snow
+  if (code === 77) return <Snowflake size={iconSize} className="text-[#8ecaff]" />; // Snow grains
   if ([80, 81, 82].includes(code))
-    return <CloudRain size={18} className="text-[#66a3ff]" />; // Showers
-  if ([85, 86].includes(code)) return <Snowflake size={18} className="text-[#8ecaff]" />; // Snow showers
+    return <CloudRain size={iconSize} className="text-[#66a3ff]" />; // Showers
+  if ([85, 86].includes(code)) return <Snowflake size={iconSize} className="text-[#8ecaff]" />; // Snow showers
   if ([95, 96, 99].includes(code))
-    return <CloudLightning size={18} className="text-[#ff8d6b]" />; // Thunderstorm/hail
-  return <CloudIcon size={18} className="text-[#bdbdbd]" />;
+    return <CloudLightning size={iconSize} className="text-[#ff8d6b]" />; // Thunderstorm/hail
+  return <CloudIcon size={iconSize} className="text-[#bdbdbd]" />;
 };
 
 const GradientCircle = (
@@ -98,12 +98,14 @@ const GradientCircle = (
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
 
+  const iconSize = size <= 65 ? 14 : 18;
+
   const iconsMap: Record<string, React.ReactNode> = {
-    water: <Droplets size={18} className="text-[#1CACD4]" />,
-    sun: <Sun size={18} className="text-[#FF8D0B]" />,
-    tide: <Waves size={18} className="text-foreground" />,
-    wind: <Wind size={18} className="text-foreground" />,
-    surf: <Waves size={18} className="text-[#2563eb]" />,
+    water: <Droplets size={iconSize} className="text-[#1CACD4]" />,
+    sun: <Sun size={iconSize} className="text-[#FF8D0B]" />,
+    tide: <Waves size={iconSize} className="text-foreground" />,
+    wind: <Wind size={iconSize} className="text-foreground" />,
+    surf: <Waves size={iconSize} className="text-[#2563eb]" />,
   };
 
   const unitsMap: Record<string, string> = {
@@ -119,7 +121,7 @@ const GradientCircle = (
   // Use weather icon if condition is "sun" and weatherCode is provided
   let icon = showIcon ? iconsMap[condition] ?? null : null;
   if (showIcon && condition === "sun" && weatherCode !== undefined) {
-    icon = getWeatherIcon(weatherCode);
+    icon = getWeatherIcon(weatherCode, iconSize);
   }
 
   const unit = unitOverride ?? unitsMap[condition] ?? "";
@@ -190,9 +192,12 @@ const GradientCircle = (
         {content ?? (
           <div className="flex items-center gap-0.5">
             {icon}
-            <span className="flex items-center font-medium whitespace-nowrap">
+            <span className={cn(
+              "flex items-center font-medium whitespace-nowrap",
+              size <= 65 ? "text-sm" : ""
+            )}>
               {data}
-              {unit && <span className="ml-0.5 text-xs font-normal">{unit}</span>}
+              {unit && <span className={cn("ml-0.5 font-normal", size <= 65 ? "text-[10px]" : "text-xs")}>{unit}</span>}
             </span>
           </div>
         )}
