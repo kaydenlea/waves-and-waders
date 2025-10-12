@@ -553,8 +553,14 @@ const Highlights = ({
               {
                 const hasPhase =
                   stat.phase !== null && stat.phase !== undefined;
-                content = hasPhase && (
+                content = hasPhase ? (
                   <MoonStat data={stat.phase as any} label={stat.label} />
+                ) : (
+                  <HighlightCard label={stat.label}>
+                    <div className="flex flex-col items-center text-sm text-muted-foreground">
+                      <span>Moon data unavailable</span>
+                    </div>
+                  </HighlightCard>
                 );
                 break;
               }

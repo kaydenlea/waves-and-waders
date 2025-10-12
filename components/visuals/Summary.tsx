@@ -148,59 +148,8 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
         const base = date ? first : current ?? first;
 
         const s: SummaryStat[] = [];
-        
-        // Calculate average water and air temps for the day
-        const waterTemps = forecast
-          .map((row) => row?.conditions?.waterTemp)
-          .filter((value): value is number =>
-            typeof value === "number" && !Number.isNaN(value)
-          );
-        const airTemps = forecast
-          .map((row) => row?.conditions?.airTemp)
-          .filter((value): value is number =>
-            typeof value === "number" && !Number.isNaN(value)
-          );
-        
-        const avgWaterTemp = average(waterTemps);
-        const avgAirTemp = average(airTemps);
 
-        const waterTemp = avgWaterTemp != null ? Math.round(avgWaterTemp) : undefined;
-        const airTemp = avgAirTemp != null ? Math.round(avgAirTemp) : undefined;
-
-        // Calculate most occurring weather code for the day
-        const weatherCodes = forecast
-          .map((row) => row?.conditions?.weather)
-          .filter((value): value is number =>
-            typeof value === "number" && !Number.isNaN(value)
-          );
-
-        let dominantWeatherCode: number | null = null;
-        if (weatherCodes.length > 0) {
-          const codeCounts: Record<number, number> = {};
-          for (const code of weatherCodes) {
-            codeCounts[code] = (codeCounts[code] ?? 0) + 1;
-          }
-          let bestCount = -1;
-          for (const code of Object.keys(codeCounts)) {
-            const count = codeCounts[Number(code)];
-            if (count > bestCount) {
-              dominantWeatherCode = Number(code);
-              bestCount = count;
-            }
-          }
-        }
-
-        if (waterTemp != null || airTemp != null) {
-          s.push({
-            type: "temperature",
-            waterTemp,
-            airTemp,
-            waterTempPercent: waterTemp != null ? clampIntensity(waterTemp, TEMP_CAP) : undefined,
-            airTempPercent: airTemp != null ? clampIntensity(airTemp, TEMP_CAP) : undefined,
-            weatherCode: dominantWeatherCode,
-          });
-        }
-
+        // 1. SURF (first in order)
         const heightMins = forecast
           .map((row) => row?.surf?.heightMin)
           .filter((value): value is number =>
@@ -266,6 +215,39 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
           });
         }
 
+        // 2. WIND (second in order)
+        const windSpeeds = forecast
+          .map((row) => row?.conditions?.windSpeed)
+          .filter((value): value is number =>
+            typeof value === "number" && !Number.isNaN(value)
+          );
+        const windGusts = forecast
+          .map((row) => row?.conditions?.windGust)
+          .filter((value): value is number =>
+            typeof value === "number" && !Number.isNaN(value)
+          );
+
+        const avgWindSpeed = average(windSpeeds);
+        const avgWindGust = average(windGusts);
+
+        const resolvedWindSpeed = avgWindSpeed != null ? Math.round(avgWindSpeed) : null;
+        const resolvedWindGust = avgWindGust != null ? Math.round(avgWindGust) : undefined;
+
+        if (resolvedWindSpeed != null) {
+          const windIntensity = clampIntensity(resolvedWindSpeed, WIND_SPEED_CAP);
+
+          s.push({
+            type: "wind",
+            wind: {
+              speed: resolvedWindSpeed,
+              gust: resolvedWindGust,
+              loc: resolvedWindGust == null ? "-" : undefined,
+              intensity: windIntensity,
+            },
+          });
+        }
+
+        // 3. TIDE (third in order)
         const tideSeries: TidePointValue[] = (tideRows ?? [])
           .map((row) => {
             const tideFt =
@@ -358,37 +340,57 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
           });
         }
 
-        const windSpeeds = forecast
-          .map((row) => row?.conditions?.windSpeed)
+        // 4. TEMPERATURE (fourth in order)
+        const waterTemps = forecast
+          .map((row) => row?.conditions?.waterTemp)
           .filter((value): value is number =>
             typeof value === "number" && !Number.isNaN(value)
           );
-        const windGusts = forecast
-          .map((row) => row?.conditions?.windGust)
+        const airTemps = forecast
+          .map((row) => row?.conditions?.airTemp)
           .filter((value): value is number =>
             typeof value === "number" && !Number.isNaN(value)
           );
 
-        const avgWindSpeed = average(windSpeeds);
-        const avgWindGust = average(windGusts);
+        const avgWaterTemp = average(waterTemps);
+        const avgAirTemp = average(airTemps);
 
-        const resolvedWindSpeed = avgWindSpeed != null ? Math.round(avgWindSpeed) : null;
-        const resolvedWindGust = avgWindGust != null ? Math.round(avgWindGust) : undefined;
+        const waterTemp = avgWaterTemp != null ? Math.round(avgWaterTemp) : undefined;
+        const airTemp = avgAirTemp != null ? Math.round(avgAirTemp) : undefined;
 
-        if (resolvedWindSpeed != null) {
-          const windIntensity = clampIntensity(resolvedWindSpeed, WIND_SPEED_CAP);
+        // Calculate most occurring weather code for the day
+        const weatherCodes = forecast
+          .map((row) => row?.conditions?.weather)
+          .filter((value): value is number =>
+            typeof value === "number" && !Number.isNaN(value)
+          );
 
-          s.push({
-            type: "wind",
-            wind: {
-              speed: resolvedWindSpeed,
-              gust: resolvedWindGust,
-              loc: resolvedWindGust == null ? "-" : undefined,
-              intensity: windIntensity,
-            },
-          });
+        let dominantWeatherCode: number | null = null;
+        if (weatherCodes.length > 0) {
+          const codeCounts: Record<number, number> = {};
+          for (const code of weatherCodes) {
+            codeCounts[code] = (codeCounts[code] ?? 0) + 1;
+          }
+          let bestCount = -1;
+          for (const code of Object.keys(codeCounts)) {
+            const count = codeCounts[Number(code)];
+            if (count > bestCount) {
+              dominantWeatherCode = Number(code);
+              bestCount = count;
+            }
+          }
         }
 
+        if (waterTemp != null || airTemp != null) {
+          s.push({
+            type: "temperature",
+            waterTemp,
+            airTemp,
+            waterTempPercent: waterTemp != null ? clampIntensity(waterTemp, TEMP_CAP) : undefined,
+            airTempPercent: airTemp != null ? clampIntensity(airTemp, TEMP_CAP) : undefined,
+            weatherCode: dominantWeatherCode,
+          });
+        }
 
         // Build features from beach flags when available
         if (beach) {
@@ -746,25 +748,29 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
         switch (stat.type) {
           case "temperature":
             content = (
-              <div className="flex gap-3 items-center">
+              <div className="flex gap-2 sm:gap-3 items-center justify-center w-full px-1">
                 {stat.waterTemp != null && (
-                  <div className="flex flex-col items-center">
-                    <span className="text-xs text-muted-foreground">WATER</span>
+                  <div className="flex flex-col items-center min-w-0">
+                    <span className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap">WATER</span>
                     <GradientCircle
                       condition="water"
                       data={stat.waterTemp}
                       percent={stat.waterTempPercent}
+                      size={65}
+                      strokeWidth={6}
                     />
                   </div>
                 )}
                 {stat.airTemp != null && (
-                  <div className="flex flex-col items-center">
-                    <span className="text-xs text-muted-foreground">AIR</span>
+                  <div className="flex flex-col items-center min-w-0">
+                    <span className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap">AIR</span>
                     <GradientCircle
                       condition="sun"
                       data={stat.airTemp}
                       percent={stat.airTempPercent}
                       weatherCode={stat.weatherCode}
+                      size={65}
+                      strokeWidth={6}
                     />
                   </div>
                 )}
@@ -773,9 +779,9 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
             break;
           case "tide":
             content = (
-          <div className="flex flex-col w-full gap-2">
+          <div className="flex flex-col w-full gap-2 h-full overflow-hidden">
             {stat.currentHeight != null && (
-              <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center justify-between text-sm flex-shrink-0">
                 <span className="text-xs text-muted-foreground uppercase tracking-wide">
                   Current
                 </span>
@@ -785,17 +791,17 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
                 </span>
               </div>
             )}
-            <div className="flex flex-col gap-1 text-sm">
+            <div className="flex flex-col gap-1.5 overflow-y-auto flex-1 min-h-0 pr-1">
               {stat.peaks.length > 0 ? (
                 stat.peaks.slice(0, 4).map((peak) => (
                   <div
                     key={`${peak.kind}-${peak.time.getTime()}`}
-                        className="flex items-center justify-between"
+                        className="flex items-center justify-between flex-shrink-0 gap-1"
                       >
-                        <span className="font-medium">
+                        <span className="font-medium text-[11px] sm:text-sm">
                           {peak.kind === "high" ? "High tide" : "Low tide"}
                         </span>
-                        <span className="text-muted-foreground">
+                        <span className="text-muted-foreground text-[10px] sm:text-sm text-right">
                           {`${peak.time.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} - ${peak.level} ft`}
                         </span>
                       </div>
