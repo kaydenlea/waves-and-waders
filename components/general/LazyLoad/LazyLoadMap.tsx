@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation";
 
 const Loading = () => {
   const [smallScreen, setSmallScreen] = React.useState<boolean | null>(null);
-  const mobileMapHeight = "calc(100dvh - 6.25rem)";
+  const mobileMapHeight = "calc(100dvh)";
 
   // 3xl - 768px
 

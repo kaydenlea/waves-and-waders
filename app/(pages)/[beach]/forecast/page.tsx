@@ -38,7 +38,6 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
   const beachName = resolved.Name;
   return (
     <>
-      <BackToMapButton />
       <div className="@container p-2">
         <header
           id="content"
@@ -57,6 +56,7 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
           <ForecastBridge beachId={beachId} />
         </ForecastChartProvider>
       </div>
+      <BackToMapButton />
     </>
   );
 };

@@ -222,7 +222,7 @@ export default function NearbyBeaches({ beaches }: { beaches: DbBeach[] }) {
 
     return pages;
   };
-
+  console.log("BEACHES", currentItems);
   return (
     <>
       <div className="flex mb-4 ml-2 items-center justify-between">

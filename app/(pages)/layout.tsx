@@ -53,7 +53,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
           <NavBar />
           <main
             id="main-content"
-            className="bg-background-2 min-h-[calc(100vh-4rem)] pt-[5.5rem] @min-4xl:flex @min-4xl:flex-1 @min-4xl:pt-0 @min-4xl:mt-[5.5rem] @min-4xl:pb-4"
+            className="bg-background-2 min-h-[calc(100vh-4rem)] @min-4xl:flex @min-4xl:flex-1 @min-4xl:mt-[5.5rem] @min-4xl:pb-4"
           >
             {/* <aside className="fixed @min-4xl:sticky @min-4xl:top-[5.5rem] @min-4xl:flex-1 @min-4xl:py-3 @min-4xl:pl-3 @min-4xl:max-w-200 w-full h-full @min-4xl:h-[calc(100vh-5.5rem)]">
           <LazyLoadMap />
@@ -62,7 +62,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
             {/* Removed spacer div - map now has dynamic height with collapse button */}
             <article
               id="content"
-              className="touch-pan-y bg-background-2 w-full px-2 relative @min-4xl:pt-4 @min-4xl:flex-1 z-1 rounded-t-3xl @min-4xl:rounded-t-none border border-border @min-4xl:border-none max-w-350 mx-auto"
+              className="touch-pan-y bg-background-2 w-full px-2 relative pt-10 @min-4xl:pt-4 @min-4xl:flex-1 z-1 rounded-t-none @min-4xl:rounded-t-none border border-border @min-4xl:border-none max-w-325 mx-auto"
             >
               {children}
               <Footer className="@min-4xl:hidden rounded-md" />

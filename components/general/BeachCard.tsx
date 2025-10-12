@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import Tag from "./Tag";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { useMapFilters } from "../context/MapFilterContext";
+import { scrollToMap } from "./BackToMapButton";
 
 export type Beach = {
   id: string;
@@ -87,6 +89,7 @@ const BeachCard = ({
   onToggleFavorite?: (id: string) => void;
   isFav: boolean;
 }) => {
+  const { popupData, setPopupData, popupRef, popupId, map } = useMapFilters();
   const distance =
     b.distanceKm != null
       ? useMiles
@@ -95,8 +98,20 @@ const BeachCard = ({
       : null;
   return (
     <article
+      onClick={() => {
+        if (!map) return;
+        map.easeTo({
+          center: [b.coords[1], b.coords[0]],
+          zoom: 14,
+          duration: 300,
+        });
+        popupId.current = b.id;
+        setPopupData(b.id);
+        scrollToMap();
+        console.log("BEACH REF", popupId.current, popupData);
+      }}
       id={`beach-${b.id}`}
-      className="group flex flex-col overflow-hidden rounded-2xl border border-border/50 bg-highlight-4 shadow-md shadow-black/20 backdrop-blur"
+      className="hover:cursor-pointer hover:duration-300 hover:scale-101 hover:bg-highlight-2 group flex flex-col overflow-hidden rounded-2xl border border-border/50 bg-highlight-4 shadow-md shadow-black/20 backdrop-blur"
     >
       <div className="relative flex-1">
         {/* <img
@@ -193,7 +208,11 @@ const BeachCard = ({
         </div>
         <div className="mt-4 flex items-center justify-between">
           <Popover>
-            <PopoverTrigger>
+            <PopoverTrigger
+              onClick={(e) => {
+                e.stopPropagation();
+              }}
+            >
               <span className="text-sm py-1 px-3 rounded-full bg-highlight-5 hover:bg-highlight-3 flex gap-1 items-center">
                 <TagIcon className="h-4 w-4" />
                 Tags
@@ -210,6 +229,9 @@ const BeachCard = ({
           {/* <Tag data={tags[0]} /> */}
           <div className="flex items-center gap-2">
             <button
+              onClick={(e) => {
+                e.stopPropagation();
+              }}
               // onClick={() => onToggleFavorite(b.id)}
               aria-label={isFav ? "Remove from favorites" : "Add to favorites"}
               className="group/button inline-flex items-center rounded-full bg-highlight-5 p-2 backdrop-blur transition hover:bg-highlight-3"
@@ -223,6 +245,11 @@ const BeachCard = ({
               />
             </button>
             <Link
+              onClick={(e) => {
+                e.stopPropagation();
+                popupId.current = null;
+                setPopupData(null);
+              }}
               href={`${generateBeachUrl(b.name, b.id)}/overview`}
               className="text-center rounded-full bg-highlight-5 px-3 py-1.5 text-sm text-foreground/90 transition hover:bg-highlight-3"
             >

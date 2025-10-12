@@ -83,7 +83,6 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
   const isFav = false;
   return (
     <>
-      <BackToMapButton />
       <div className="@container p-2">
         <header
           id="content"
@@ -100,6 +99,7 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
         </header>
         <DateSummaryBridge beachId={beachId} />
       </div>
+      <BackToMapButton />
     </>
   );
 };

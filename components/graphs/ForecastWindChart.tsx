@@ -22,13 +22,69 @@ import DaySlider from "../general/DaySlider";
 import { MousePointer2 as ArrowIcon } from "lucide-react";
 
 const chartData = [
-  { day: "Mon", wind1: 2, wind2: 4, wind3: 1 },
-  { day: "Tues", wind1: 3, wind2: 3, wind3: 5 },
-  { day: "Wed", wind1: 2, wind2: 2, wind3: 1 },
-  { day: "Thurs", wind1: 2, wind2: 4, wind3: 1 },
-  { day: "Fri", wind1: 3, wind2: 3, wind3: 5 },
-  { day: "Sat", wind1: 2, wind2: 2, wind3: 1 },
-  { day: "Sun", wind1: 2, wind2: 4, wind3: 1 },
+  {
+    day: "Mon",
+    wind1: 2,
+    wind1Dir: (2 * 15) % 360,
+    wind2: 4,
+    wind2Dir: (4 * 15) % 360,
+    wind3: 1,
+    wind3Dir: (1 * 15) % 360,
+  },
+  {
+    day: "Tues",
+    wind1: 2,
+    wind1Dir: (2 * 15) % 360,
+    wind2: 4,
+    wind2Dir: (4 * 15) % 360,
+    wind3: 1,
+    wind3Dir: (1 * 15) % 360,
+  },
+  {
+    day: "Wed",
+    wind1: 2,
+    wind1Dir: (2 * 15) % 360,
+    wind2: 4,
+    wind2Dir: (4 * 15) % 360,
+    wind3: 1,
+    wind3Dir: (1 * 15) % 360,
+  },
+  {
+    day: "Thurs",
+    wind1: 2,
+    wind1Dir: (2 * 15) % 360,
+    wind2: 4,
+    wind2Dir: (4 * 15) % 360,
+    wind3: 1,
+    wind3Dir: (1 * 15) % 360,
+  },
+  {
+    day: "Fri",
+    wind1: 2,
+    wind1Dir: (2 * 15) % 360,
+    wind2: 4,
+    wind2Dir: (4 * 15) % 360,
+    wind3: 1,
+    wind3Dir: (1 * 15) % 360,
+  },
+  {
+    day: "Sat",
+    wind1: 2,
+    wind1Dir: (2 * 15) % 360,
+    wind2: 4,
+    wind2Dir: (4 * 15) % 360,
+    wind3: 1,
+    wind3Dir: (1 * 15) % 360,
+  },
+  {
+    day: "Sun",
+    wind1: 2,
+    wind1Dir: (2 * 15) % 360,
+    wind2: 4,
+    wind2Dir: (4 * 15) % 360,
+    wind3: 1,
+    wind3Dir: (1 * 15) % 360,
+  },
 ];
 const chartConfig = {
   wind1: {
@@ -45,7 +101,11 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-import { fetchWeeklyForecast, type ForecastData } from "@/lib/supabase";
+import {
+  fetchWeeklyForecast,
+  getWindDirection,
+  type ForecastData,
+} from "@/lib/supabase";
 import { useForecastChartContext } from "../context/ForecastChartContext";
 
 type Props = { beachId?: string; days?: Date[] | null };
@@ -64,8 +124,11 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
       day: string;
       dateMs: number;
       wind1: number;
+      wind1Dir: number;
       wind2: number;
+      wind2Dir: number;
       wind3: number;
+      wind3Dir: number;
     }[]
   >([]);
 
@@ -105,6 +168,38 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
 
   // Load weekly forecast and build 3 samples per day (06:00, 12:00, 18:00)
   React.useEffect(() => {
+    // const load = async () => {
+    //       try {
+    //         if (!beachId) {
+    //           // default placeholder 24 hours
+    //           setChartData(
+    //             Array.from({ length: 25 }, (_, h) => ({
+    //               hour: h,
+    //               wind: Number(Math.max(0, 3 + Math.sin((h / 24) * Math.PI * 2) * 2).toFixed(1)),
+    //               direction: (h * 15) % 360, // rotating placeholder
+    //             }))
+    //           );
+    //           return;
+    //         }
+    //         const resolved = await fetchBeachByIdLoose(beachId);
+    //         const id = resolved?.id ?? beachId;
+    //         let start = new Date();
+    //         let end = new Date(start.getTime() + hours * 60 * 60 * 1000);
+    //         if (date instanceof Date) {
+    //           const d = new Date(date);
+    //           d.setHours(0, 0, 0, 0);
+    //           start = d;
+    //           end = new Date(d.getTime() + hours * 60 * 60 * 1000);
+    //         }
+    //         const rows = await fetchBeachForecast(id, start, end);
+    //         const data = rows.map((r, i) => ({
+    //           hour:
+    //             i === rows.length - 1 ? hours : new Date(r.timestamp).getHours(),
+    //           wind: r.conditions.windSpeed ?? 0,
+    //           direction: r.conditions.windDirection ?? undefined,
+    //         }));
+    //         setChartData(data);
+
     const load = async () => {
       try {
         if (!beachId) return;
@@ -120,12 +215,16 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
           arr.push(r);
           byDay.set(key, arr);
         }
+        console.log("BYDAY", byDay);
         const out: {
           day: string;
           dateMs: number;
           wind1: number;
+          wind1Dir: number;
           wind2: number;
+          wind2Dir: number;
           wind3: number;
+          wind3Dir: number;
         }[] = [];
         for (const [day, arr] of byDay.entries()) {
           // sort by hour
@@ -134,22 +233,35 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
               new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
           );
           const firstTs = new Date(arr[0]?.timestamp ?? Date.now()).getTime();
-          const pick = (target: number) => {
+          const pick = (target: number, field: string) => {
             const near = arr.reduce((best, cur) => {
               const h = new Date(cur.timestamp).getHours();
               const dist = Math.abs(h - target);
               if (!best || dist < best.dist)
-                return { dist, v: Math.round(cur.conditions.windSpeed ?? 0) };
+                if (field === "val") {
+                  return {
+                    dist,
+                    v: Math.round(cur.conditions.windSpeed ?? 0),
+                  };
+                } else if (field === "dir") {
+                  return {
+                    dist,
+                    direction: cur.conditions.windDirection ?? undefined,
+                  };
+                }
               return best;
             }, null as any);
-            return near ? near.v : 0;
+            return near ? (field === "val" ? near.v : near.direction) : 0;
           };
           out.push({
             day,
             dateMs: firstTs,
-            wind1: pick(6),
-            wind2: pick(12),
-            wind3: pick(18),
+            wind1: pick(6, "val"),
+            wind1Dir: pick(6, "dir"),
+            wind2: pick(12, "val"),
+            wind2Dir: pick(12, "dir"),
+            wind3: pick(18, "val"),
+            wind3Dir: pick(18, "dir"),
           });
         }
         // Sort chronologically so we can cap the slider range.
@@ -360,16 +472,37 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
                 const safeY = typeof props.y === "number" ? props.y : 0;
                 const safeWidth =
                   typeof props.width === "number" ? props.width : 0;
-                const iconSize = Math.max(16, safeWidth * 0.3);
+                const safeHeight =
+                  typeof props.height === "number" ? props.height : 0;
+                const iconSize = Math.min(20, safeWidth);
+
+                // Get wind direction from the data point
+                const dataPoint = data[props.index ?? 0];
+                const direction = dataPoint?.wind1Dir ?? 0;
+                const directionLabel = getWindDirection(direction);
+                // Arrow points at 315° by default, adjust rotation
+                const rotation = direction - 315;
+
+                // Calculate center point for rotation - position on top of bar
+                const centerX = safeX + safeWidth / 2;
+                const centerY = safeY - iconSize / 2 - 12; // Position above the bar
+
                 return (
                   <g>
-                    <ArrowIcon
-                      size={iconSize}
-                      x={safeX + (safeWidth - iconSize) / 2}
-                      y={safeY - iconSize - iconSize / 2}
-                      fill="#8bd668ff"
-                      color="#8bd668ff"
-                    />
+                    <title>{`Wind Direction: ${directionLabel} (${Math.round(
+                      direction
+                    )}°)`}</title>
+                    <g transform={`translate(${centerX}, ${centerY})`}>
+                      <g transform={`rotate(${rotation}, 0, 0)`}>
+                        <ArrowIcon
+                          size={iconSize}
+                          x={-iconSize / 2}
+                          y={-iconSize / 2}
+                          fill="#8bd668ff"
+                          color="#8bd668ff"
+                        />
+                      </g>
+                    </g>
                   </g>
                 );
               }}
@@ -383,23 +516,44 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
             strokeWidth={0.5}
           >
             <LabelList
-              dataKey="wind2"
+              dataKey="wind1"
               position="top"
               content={(props: LabelProps) => {
                 const safeX = typeof props.x === "number" ? props.x : 0;
                 const safeY = typeof props.y === "number" ? props.y : 0;
                 const safeWidth =
                   typeof props.width === "number" ? props.width : 0;
-                const iconSize = Math.max(16, safeWidth * 0.3);
+                const safeHeight =
+                  typeof props.height === "number" ? props.height : 0;
+                const iconSize = Math.min(20, safeWidth);
+
+                // Get wind direction from the data point
+                const dataPoint = data[props.index ?? 0];
+                const direction = dataPoint?.wind2Dir ?? 0;
+                const directionLabel = getWindDirection(direction);
+                // Arrow points at 315° by default, adjust rotation
+                const rotation = direction - 315;
+
+                // Calculate center point for rotation - position on top of bar
+                const centerX = safeX + safeWidth / 2;
+                const centerY = safeY - iconSize / 2 - 12; // Position above the bar
+
                 return (
                   <g>
-                    <ArrowIcon
-                      size={iconSize}
-                      x={safeX + (safeWidth - iconSize) / 2}
-                      y={safeY - iconSize - iconSize / 2}
-                      fill="#8bd668ff"
-                      color="#8bd668ff"
-                    />
+                    <title>{`Wind Direction: ${directionLabel} (${Math.round(
+                      direction
+                    )}°)`}</title>
+                    <g transform={`translate(${centerX}, ${centerY})`}>
+                      <g transform={`rotate(${rotation}, 0, 0)`}>
+                        <ArrowIcon
+                          size={iconSize}
+                          x={-iconSize / 2}
+                          y={-iconSize / 2}
+                          fill="#8bd668ff"
+                          color="#8bd668ff"
+                        />
+                      </g>
+                    </g>
                   </g>
                 );
               }}
@@ -413,23 +567,44 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
             strokeWidth={0.5}
           >
             <LabelList
-              dataKey="wind3"
+              dataKey="wind1"
               position="top"
               content={(props: LabelProps) => {
                 const safeX = typeof props.x === "number" ? props.x : 0;
                 const safeY = typeof props.y === "number" ? props.y : 0;
                 const safeWidth =
                   typeof props.width === "number" ? props.width : 0;
-                const iconSize = Math.max(16, safeWidth * 0.3);
+                const safeHeight =
+                  typeof props.height === "number" ? props.height : 0;
+                const iconSize = Math.min(20, safeWidth);
+
+                // Get wind direction from the data point
+                const dataPoint = data[props.index ?? 0];
+                const direction = dataPoint?.wind3Dir ?? 0;
+                const directionLabel = getWindDirection(direction);
+                // Arrow points at 315° by default, adjust rotation
+                const rotation = direction - 315;
+
+                // Calculate center point for rotation - position on top of bar
+                const centerX = safeX + safeWidth / 2;
+                const centerY = safeY - iconSize / 2 - 12; // Position above the bar
+
                 return (
                   <g>
-                    <ArrowIcon
-                      size={iconSize}
-                      x={safeX + (safeWidth - iconSize) / 2}
-                      y={safeY - iconSize - iconSize / 2}
-                      fill="#8bd668ff"
-                      color="#8bd668ff"
-                    />
+                    <title>{`Wind Direction: ${directionLabel} (${Math.round(
+                      direction
+                    )}°)`}</title>
+                    <g transform={`translate(${centerX}, ${centerY})`}>
+                      <g transform={`rotate(${rotation}, 0, 0)`}>
+                        <ArrowIcon
+                          size={iconSize}
+                          x={-iconSize / 2}
+                          y={-iconSize / 2}
+                          fill="#8bd668ff"
+                          color="#8bd668ff"
+                        />
+                      </g>
+                    </g>
                   </g>
                 );
               }}

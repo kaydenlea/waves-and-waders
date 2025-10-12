@@ -21,7 +21,7 @@ const PageTabs = ({
       {buttons && (
         <>
           <Link
-            href={`/beaches#content`}
+            href={`/beaches`}
             className="bg-highlight-5 hover:bg-highlight-3 my-auto rounded-full p-2"
           >
             <Map className="w-5 h-5 @min-sm:w-6 @min-sm:h-6" />

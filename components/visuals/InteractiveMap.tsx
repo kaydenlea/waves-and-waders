@@ -10,6 +10,7 @@ import {
   Layer,
   Marker,
 } from "react-map-gl/maplibre";
+import type { MapGeoJSONFeature, MapRef } from "react-map-gl/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
 import {
   FEATURE_CATEGORIES,
@@ -29,6 +30,7 @@ import {
   X,
   ChevronUp,
   ChevronDown,
+  Waves,
 } from "lucide-react";
 import { useMapFilters } from "../context/MapFilterContext";
 
@@ -180,7 +182,18 @@ type Props = { beachId?: string | number };
 const InteractiveMap: React.FC<Props> = ({ beachId }) => {
   const [beaches, setBeaches] = React.useState<BeachPoint[]>([]);
   const [selected, setSelected] = React.useState<BeachPoint | null>(null);
-  const { filters, setFilters, selectedDate, selectedHour } = useMapFilters();
+  const {
+    popupData,
+    setPopupData,
+    popupId,
+    popupRef,
+    map,
+    setMap,
+    filters,
+    setFilters,
+    selectedDate,
+    selectedHour,
+  } = useMapFilters();
   const [located, setLocated] = React.useState<boolean>(false);
   const [showFilters, setShowFilters] = React.useState<boolean>(false);
   const [surfIntensity, setSurfIntensity] = React.useState<
@@ -196,7 +209,18 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
   const prevFilterSignatureRef = React.useRef<string | null>(null);
   const router = useRouter();
   const pathname = usePathname();
-  const mapRef = React.useRef<any>(null);
+  const mapRef = React.useRef<MapRef>(null);
+  const [popupInfo, setPopupInfo] = React.useState<{
+    id: number;
+    longitude: number;
+    latitude: number;
+    properties: any;
+  } | null>(null);
+
+  const mapToId: Record<
+    string,
+    { id: number; longitude: number; latitude: number; properties: any }
+  > = React.useMemo(() => ({}), []);
 
   // Clear selection when navigating to beaches page
   React.useEffect(() => {
@@ -672,10 +696,22 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
   }, [beaches, filters]);
 
   const beachesGeoJSON = React.useMemo(() => {
-    const features = filteredBeaches.map((b) => {
+    const features = filteredBeaches.map((b, idx) => {
       const intensity = surfIntensity[b.id] || 0;
+      mapToId[b.id] = {
+        id: idx,
+        longitude: b.longitude,
+        latitude: b.latitude,
+        properties: {
+          id: b.id,
+          name: b.name,
+          county: b.county,
+          surfIntensity: intensity,
+        },
+      };
       return {
         type: "Feature",
+        id: idx,
         geometry: { type: "Point", coordinates: [b.longitude, b.latitude] },
         properties: {
           id: b.id,
@@ -685,14 +721,14 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
         },
       };
     });
-
+    console.log("BUILD ID MAP", mapToId);
     console.log("Generated GeoJSON with", features.length, "features");
 
     return {
       type: "FeatureCollection",
       features,
     } as any;
-  }, [filteredBeaches, surfIntensity]);
+  }, [filteredBeaches, surfIntensity, mapToId]);
 
   // Helper function to determine marker color based on surf intensity (in feet)
   const getMarkerColor = (intensity: number): string => {
@@ -707,7 +743,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
   // After beaches load, align map to page context (selected beach if provided, otherwise fit to all)
   React.useEffect(() => {
     if (!beaches.length) return;
-    const map = mapRef.current?.getMap?.();
+    setMap(mapRef.current?.getMap?.());
     if (!map) return;
 
     const beachFromPath = (() => {
@@ -776,6 +812,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
       if (match) {
         console.log(
           "InteractiveMap: Found beach match, zooming to:",
+          match,
           match.name
         );
         suppressMoveRef.current = true;
@@ -829,7 +866,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
       map.easeTo({ center: [centerLon, centerLat], zoom: 6, duration: 500 });
     }
     prevEffectiveIdRef.current = effectiveKey;
-  }, [beaches, filteredBeaches, beachId, pathname, located]);
+  }, [beaches, filteredBeaches, beachId, pathname, located, map, setMap]);
 
   // if (editPage || (forecastPage && !smallScreen)) {
   //   return <></>;
@@ -839,6 +876,29 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
   //   return <></>;
   // }
 
+  React.useEffect(() => {
+    if (popupData) {
+      const beach = mapToId[popupData];
+      if (!beach) return;
+      setPopupInfo({
+        id: beach.id,
+        longitude: beach.longitude,
+        latitude: beach.latitude,
+        properties: beach.properties,
+      });
+      popupRef.current = {
+        id: beach.id,
+        longitude: beach.longitude,
+        latitude: beach.latitude,
+        properties: beach.properties,
+      };
+    } else {
+      setPopupInfo(null);
+      popupId.current = null;
+      popupRef.current = null;
+    }
+  }, [popupData]);
+
   return (
     <aside
       id="map-container"
@@ -846,7 +906,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
         "relative w-full transition-all duration-300",
         "@min-4xl:sticky @min-4xl:top-[5.5rem] @min-4xl:flex-1 @min-4xl:py-3 @min-4xl:pl-3 @min-4xl:h-[calc(100vh-5.5rem)]",
         !isDesktop && "min-h-[calc(100dvh-6.25rem)]",
-        isDesktop && fullMapPage && showMap && "@min-4xl:max-w-200",
+        // isDesktop && fullMapPage && showMap && "@min-4xl:max-w-200",
         isDesktop &&
           fullMapPage &&
           !showMap &&
@@ -856,8 +916,8 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
         isDesktop
           ? undefined
           : {
-              minHeight: "calc(100dvh - 6.25rem)",
-              height: "calc(100dvh - 6.25rem)",
+              minHeight: "calc(100dvh)",
+              height: "calc(100dvh)",
             }
       }
     >
@@ -902,8 +962,8 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
 
           // Load the default marker image
           if (!map.hasImage("marker-icon")) {
-            const imageRespone = await map.loadImage("/marker.png");
-            map.addImage("marker-icon", imageRespone.data);
+            const imageResponse = await map.loadImage("/marker.png");
+            map.addImage("marker-icon", imageResponse.data);
           }
 
           // Hide cluster counts while zooming/panning
@@ -918,10 +978,9 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
             }
           };
 
-          // map.on("movestart", hideCounts);
-          map.on("zoomstart", hideCounts);
-          // map.on("moveend", showCounts);
-          map.on("zoomend", showCounts);
+          map.on("movestart", hideCounts);
+
+          map.on("moveend", showCounts);
 
           // Track zoom level for ring scaling
           map.on("zoom", () => {
@@ -977,6 +1036,75 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
 
           map.on("click", "clusters", handleClusterClick);
           map.on("click", "cluster-count", handleClusterClick);
+
+          // Hover for individual points (not clusters)
+          map.on("mouseenter", "unclustered-point", () => {
+            map.getCanvas().style.cursor = "pointer";
+          });
+
+          map.on("mouseleave", "unclustered-point", () => {
+            map.getCanvas().style.cursor = "";
+            console.log("VALS", popupId, popupRef.current);
+            if (popupId.current) {
+              const beach = mapToId[popupId.current];
+              map.setFeatureState(
+                { source: "beaches", id: beach.id },
+                { hover: false }
+              );
+              setPopupInfo(null);
+              popupId.current = null;
+              popupRef.current = null;
+            }
+          });
+
+          map.on("mousemove", "unclustered-point", (event) => {
+            const feature = event.features?.[0];
+            if (!feature) return;
+            const coordinates = (feature.geometry as any).coordinates;
+
+            if (popupId.current) {
+              console.log("ENTER SAME");
+              map.setFeatureState(
+                { source: "beaches", id: mapToId[popupId.current].id },
+                { hover: false }
+              );
+              setPopupData(null);
+              setPopupInfo(null);
+              popupId.current = null;
+              popupRef.current = null;
+            }
+
+            // if (popupId.current && popupId.current !== feature.properties.id) {
+            //   map.setFeatureState(
+            //     { source: "beaches", id: mapToId[popupId.current].id },
+            //     { hover: false }
+            //   );
+            //   setPopupInfo(null);
+            //   popupId.current = null;
+            //   popupRef.current = null;
+            // }
+
+            const beach = mapToId[feature.properties.id];
+            console.log("BEECH", mapToId[feature.properties.id]);
+            popupId.current = feature.properties.id;
+            if (!beach) return;
+            map.setFeatureState(
+              { source: "beaches", id: beach.id },
+              { hover: true }
+            );
+            setPopupInfo({
+              id: beach.id,
+              longitude: beach.longitude,
+              latitude: beach.latitude,
+              properties: beach.properties,
+            });
+            popupRef.current = {
+              id: beach.id,
+              longitude: beach.longitude,
+              latitude: beach.latitude,
+              properties: beach.properties,
+            };
+          });
         }}
         onClick={(e) => {
           const feature = e.features && e.features[0];
@@ -1001,11 +1129,14 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
             latitude: (feature.geometry as any).coordinates[1],
           };
           setSwellDirections(null);
+          popupId.current = null;
+          setPopupData(null);
+          setPopupInfo(null);
           setSelected(point);
           const destination = `${generateBeachUrl(
             point.name,
             point.id
-          )}/overview`;
+          )}/overview#content`;
           router.push(destination);
         }}
       >
@@ -1092,20 +1223,35 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
               type="circle"
               filter={["!has", "point_count"] as any}
               paint={{
-                "circle-radius": 8,
-                "circle-color": [
-                  "step",
-                  ["get", "surfIntensity"],
-                  "#9ca3af", // gray for no data (bg-highlight-3)
-                  0.1,
-                  "#4ade80", // green for small (< 3ft) (bg-green-400)
-                  3,
-                  "#fb923c", // orange for moderate (3-6ft) (bg-orange-400)
-                  6,
-                  "#f87171", // red for big (>= 6ft) (bg-red-400)
+                "circle-radius": [
+                  "case",
+                  ["boolean", ["feature-state", "hover"], false],
+                  9,
+                  8,
                 ],
-                "circle-stroke-width": 2,
-                "circle-stroke-color": "#ffffff",
+                "circle-color": [
+                  "case",
+                  ["boolean", ["feature-state", "hover"], false],
+                  "#176cffff",
+                  [
+                    "step",
+                    ["get", "surfIntensity"],
+                    "#9ca3af", // gray for no data (bg-highlight-3)
+                    0.1,
+                    "#4ade80", // green for small (< 3ft) (bg-green-400)
+                    3,
+                    "#fb923c", // orange for moderate (3-6ft) (bg-orange-400)
+                    6,
+                    "#f87171", // red for big (>= 6ft) (bg-red-400)]
+                  ],
+                ],
+                "circle-stroke-width": [
+                  "case",
+                  ["boolean", ["feature-state", "hover"], false],
+                  3,
+                  2,
+                ],
+                "circle-stroke-color": "#ffffffff",
               }}
             />
             <Layer
@@ -1181,6 +1327,56 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
               </Marker>
             );
           })()}
+
+        {popupInfo && (
+          <Popup
+            longitude={popupInfo.longitude}
+            latitude={popupInfo.latitude}
+            anchor="bottom"
+            onClose={() => setSelected(null)}
+            closeButton={false}
+            closeOnClick={true}
+            className="w-50"
+          >
+            <div className="flex flex-col gap-1">
+              <div className="bg-muted-foreground w-full h-30 p-1 rounded-md" />
+              <header className="p-1 flex gap-1">
+                <div
+                  className={cn(
+                    "p-1 w-2 rounded-full",
+                    !popupInfo.properties.surfIntensity ||
+                      (popupInfo.properties.surfIntensity < 0.1 &&
+                        "bg-[#9ca3af]"),
+                    popupInfo.properties.surfIntensity >= 0.1 &&
+                      popupInfo.properties.surfIntensity < 3 &&
+                      "bg-[#4ade80]",
+                    popupInfo.properties.surfIntensity >= 3 &&
+                      popupInfo.properties.surfIntensity < 6 &&
+                      "bg-[#fb923c]",
+                    popupInfo.properties.surfIntensity >= 6 && "bg-[#f87171]"
+                  )}
+                />
+                <div className="flex flex-col">
+                  <strong className="text-sm text-foreground w-40 truncate">
+                    {popupInfo.properties.name}
+                  </strong>
+                  <span className="text-xs text-muted-foreground w-40 truncate">
+                    {popupInfo.properties.county}
+                  </span>
+                </div>
+              </header>
+              <div className="pl-1 pt-2 flex gap-2 items-center">
+                <div className="p-1 rounded-full bg-blue-100">
+                  <Waves className="w-4 h-4 text-blue-500" />
+                </div>
+                <span className="font-semibold text-[15px]">
+                  {popupInfo.properties.surfIntensity.toFixed(1)}
+                  <span className="font-normal ml-1 text-[14px]">ft</span>
+                </span>
+              </div>
+            </div>
+          </Popup>
+        )}
 
         {/* Filter controls (collapsible) */}
         {showMap && (
@@ -1322,7 +1518,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
 
           @media (max-width: 1023px) {
             .maplibregl-ctrl-attrib {
-              bottom: 7.5vh;
+              bottom: 0vh;
             }
           }
         `}</style>
@@ -1351,14 +1547,14 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
           "bottom-[calc(env(safe-area-inset-bottom,0)+1rem)]",
           "flex items-center gap-2 px-4 py-2 rounded-full",
           "bg-background/95 backdrop-blur border border-border shadow-lg",
-          "text-sm font-medium text-foreground",
+          "text-sm font-medium text-foreground touch-pan-y",
           "hover:bg-highlight-5 transition-colors",
           "@min-4xl:hidden" // Hide on desktop
         )}
         aria-label="Scroll to content"
       >
         <ChevronDown size={16} />
-        <span>View Stats</span>
+        <span>View More</span>
       </button>
     </aside>
   );

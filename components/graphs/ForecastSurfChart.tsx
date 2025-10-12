@@ -354,7 +354,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
             stroke="#5f5f5fff"
             strokeWidth={0.5}
           >
-            <LabelList
+            {/* <LabelList
               dataKey="tide1"
               position="top"
               content={(props: LabelProps) => {
@@ -375,7 +375,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                   </g>
                 );
               }}
-            />
+            /> */}
           </Bar>
           <Bar
             dataKey="tide2"
@@ -384,7 +384,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
             stroke="#5f5f5fff"
             strokeWidth={0.5}
           >
-            <LabelList
+            {/* <LabelList
               dataKey="tide2"
               position="top"
               content={(props: LabelProps) => {
@@ -405,7 +405,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                   </g>
                 );
               }}
-            />
+            /> */}
           </Bar>
           <Bar
             dataKey="tide3"
@@ -414,7 +414,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
             stroke="#5f5f5fff"
             strokeWidth={0.5}
           >
-            <LabelList
+            {/* <LabelList
               dataKey="tide3"
               position="top"
               content={(props: LabelProps) => {
@@ -435,7 +435,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                   </g>
                 );
               }}
-            />
+            /> */}
           </Bar>
         </BarChart>
       </ChartContainer>

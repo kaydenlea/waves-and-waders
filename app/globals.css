@@ -162,8 +162,8 @@
   }
 
   .maplibregl-popup-tip,
-  .maplibregl-popup-anchor-top {
-    border-bottom-color: white !important;
+  .maplibregl-popup-anchor-bottom {
+    border-top-color: white !important;
   }
 }
 
@@ -222,7 +222,7 @@
   }
 
   .maplibregl-popup-tip,
-  .maplibregl-popup-anchor-top {
-    border-bottom-color: oklch(34.893% 0.06737 251.007) !important;
+  .maplibregl-popup-anchor-bottom {
+    border-top-color: oklch(34.893% 0.06737 251.007) !important;
   }
 }

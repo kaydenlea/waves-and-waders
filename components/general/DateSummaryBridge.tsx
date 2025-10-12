@@ -16,8 +16,6 @@ import { Pencil } from "lucide-react";
 import GradientCircle from "./Stats/GradientCircle";
 import BeachCrossSection from "@/components/visuals/WaveModel";
 
-import { useMapFilters } from "@/components/context/MapFilterContext";
-
 type Props = { beachId: string };
 
 const DateSummaryBridge: React.FC<Props> = ({ beachId }) => {
@@ -31,7 +29,8 @@ const DateSummaryBridge: React.FC<Props> = ({ beachId }) => {
   const [mounted, setMounted] = React.useState(false);
   const [currentTime, setCurrentTime] = React.useState<string>("");
 
-  const { setSelectedDate, setSelectedHour } = useMapFilters();
+  const { setSelectedDate, setSelectedHour } =
+    require("@/components/context/MapFilterContext").useMapFilters();
 
   // Set mounted and initialize time on client
   React.useEffect(() => {
@@ -130,7 +129,7 @@ const DateSummaryBridge: React.FC<Props> = ({ beachId }) => {
 
         {/* Rest of the content */}
         <section className="flex-1">
-          <header className="ml-2 mb-6">
+          <header className="ml-2 mb-6 mt-4">
             <h3 className="leading-none font-semibold text-2xl">Hourly View</h3>
             <span className="text-sm text-muted-foreground">
               Local time: {currentTime}
@@ -147,7 +146,7 @@ const DateSummaryBridge: React.FC<Props> = ({ beachId }) => {
         </section>
 
         {/* Visual data blocks */}
-        <div className="flex flex-col @min-4xl:flex-row gap-3">
+        <div className="flex flex-col @min-3xl:flex-row gap-3">
           <VisualWrapper label="Tide" unit="ft">
             <LazyLoadTide beachId={beachId} date={selected ?? undefined} />
           </VisualWrapper>
@@ -156,7 +155,7 @@ const DateSummaryBridge: React.FC<Props> = ({ beachId }) => {
           </VisualWrapper>
         </div>
 
-        <div className="flex flex-col @min-4xl:flex-row gap-3 mt-3">
+        <div className="flex flex-col @min-3xl:flex-row gap-3 mt-3">
           <VisualWrapper label="Swell" unit="ft">
             <LazyLoadSwell beachId={beachId} date={selected ?? undefined} />
           </VisualWrapper>
