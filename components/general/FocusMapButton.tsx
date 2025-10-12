@@ -2,7 +2,7 @@
 
 import { extractBeachId } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
-import { Map } from "lucide-react";
+import { MapPin } from "lucide-react";
 
 import { MAP_FOCUS_EVENT, type MapFocusEventDetail } from "./mapEvents";
 
@@ -38,7 +38,7 @@ const FocusMapButton = ({ beach, className }: FocusMapButtonProps) => {
       onClick={handleClick}
       disabled={!beach}
     >
-      <Map className="w-5 h-5 @min-sm:w-6 @min-sm:h-6" />
+      <MapPin className="w-5 h-5 @min-sm:w-6 @min-sm:h-6" />
     </button>
   );
 };

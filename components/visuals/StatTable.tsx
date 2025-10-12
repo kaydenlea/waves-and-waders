@@ -85,7 +85,10 @@ const SwellStat = ({
           }}
           className="mr-2 @min-md:mr-0"
         >
-          <ArrowIcon size={16} color="#51e72bff" fill="#51e72bff" />
+          <ArrowIcon
+            size={16}
+            className="fill-foreground/50 text-foreground/50"
+          />
         </div>
         <span className="flex items-baseline gap-[1px] whitespace-nowrap min-w-17 justify-center hidden @min-md:flex">
           <span
@@ -102,15 +105,12 @@ const SwellStat = ({
   );
 };
 
-const getWindLevel = (
-  speed?: number | null,
-  gust?: number | null
-): string => {
+const getWindLevel = (speed?: number | null, gust?: number | null): string => {
   const maxVal = Math.max(speed ?? 0, gust ?? 0);
   if (!Number.isFinite(maxVal) || maxVal <= 0) return "bg-highlight-3";
-  if (maxVal >= 25) return "bg-red-400 dark:bg-red-700";
-  if (maxVal >= 15) return "bg-orange-400 dark:bg-orange-700";
-  return "bg-green-400 dark:bg-green-700";
+  if (maxVal >= 25) return "bg-red-300 dark:bg-orange-700";
+  if (maxVal >= 15) return "bg-orange-300 dark:bg-yellow-600";
+  return "bg-green-300 dark:bg-green-700";
 };
 
 const WindStat = ({
@@ -124,6 +124,20 @@ const WindStat = ({
 
   return (
     <div className="flex items-center gap-1">
+      <div className="shadow-sm border border-border p-1 rounded-md text-center min-w-10 flex flex-col items-center justify-center">
+        <div
+          style={{
+            transform: `rotate(${rotation}deg)`,
+            display: "inline-block",
+          }}
+        >
+          <ArrowIcon
+            size={16}
+            className="fill-foreground/50 text-foreground/50"
+          />
+        </div>
+        <span className="text-[.6rem] mt-0.5">{data.dir}</span>
+      </div>
       <span
         className={cn(
           "flex-1 justify-center flex gap-1 rounded-md py-2 px-3",
@@ -136,17 +150,6 @@ const WindStat = ({
           <span className="text-[0.7rem]">mph</span>
         </span>
       </span>
-      <div className="shadow-sm border border-border p-1 rounded-md text-center min-w-10 flex flex-col items-center justify-center">
-        <div
-          style={{
-            transform: `rotate(${rotation}deg)`,
-            display: "inline-block",
-          }}
-        >
-          <ArrowIcon size={16} color="#ff6a34ff" fill="#ff6a34ff" />
-        </div>
-        <span className="text-[.6rem] mt-0.5">{data.dir}</span>
-      </div>
     </div>
   );
 };
@@ -591,12 +594,12 @@ const StatTable = ({
     const adjustData = () => {
       const width = table.clientWidth;
       setWidth(width);
-      if (width < 700) {
+      if (width < 850) {
         setVisibleCols(3);
         setColumnPages([
-          COLUMNS.slice(0, 3),
-          COLUMNS.slice(3, 6),
-          COLUMNS.slice(6, COLUMNS.length),
+          [COLUMNS[0], COLUMNS[2], COLUMNS[1]],
+          COLUMNS.slice(3, 5),
+          COLUMNS.slice(5, COLUMNS.length),
         ]);
       } else if (width < 1050) {
         setVisibleCols(4);
@@ -694,10 +697,11 @@ const StatTable = ({
                       const maxHeight = match[2]
                         ? parseInt(match[2])
                         : parseInt(match[1]);
-                      if (maxHeight >= 6) return "bg-red-400 dark:bg-red-700";
+                      if (maxHeight >= 6)
+                        return "bg-red-300 dark:bg-orange-700";
                       if (maxHeight >= 3)
-                        return "bg-orange-400 dark:bg-orange-700";
-                      return "bg-green-400 dark:bg-green-700";
+                        return "bg-orange-300 dark:bg-yellow-600";
+                      return "bg-green-300 dark:bg-green-700";
                     };
 
                     let content;

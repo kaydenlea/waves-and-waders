@@ -38,11 +38,13 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 const WindChart = ({ beachId, hours = 24, date }: Props) => {
-  const [chartData, setChartData] = useState<{ 
-    hour: number; 
-    wind: number;
-    direction?: number;
-  }[]>([]);
+  const [chartData, setChartData] = useState<
+    {
+      hour: number;
+      wind: number;
+      direction?: number;
+    }[]
+  >([]);
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
   const [nightAreas, setNightAreas] = useState<{ x1: number; x2: number }[]>(
     []
@@ -56,7 +58,9 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
           setChartData(
             Array.from({ length: 25 }, (_, h) => ({
               hour: h,
-              wind: Number(Math.max(0, 3 + Math.sin((h / 24) * Math.PI * 2) * 2).toFixed(1)),
+              wind: Number(
+                Math.max(0, 3 + Math.sin((h / 24) * Math.PI * 2) * 2).toFixed(1)
+              ),
               direction: (h * 15) % 360, // rotating placeholder
             }))
           );
@@ -178,7 +182,7 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
       className="aspect-auto h-[280px] w-full !justify-start"
     >
       <BarChart
-        margin={{ top: 10, right: 10, left: -24, bottom: 0 }}
+        margin={{ top: 10, right: 25, left: 25, bottom: 0 }}
         accessibilityLayer
         data={chartData}
         syncId="anyId"
@@ -218,7 +222,7 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
           strokeWidth={0.1}
           vertical={false}
         />
-        
+
         <XAxis
           dataKey="hour"
           type="number"
@@ -226,7 +230,7 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
           tickLine={false}
           tickMargin={10}
           axisLine={false}
-          padding={{ left: 28, right: 28 }}
+          // padding={{ left: 28, right: 28 }}
           domain={[domainStart, domainEnd]}
           ticks={hourTicks}
           tickFormatter={(value: number) => {
@@ -236,25 +240,25 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
             const labelHour = normalized % 12 === 0 ? 12 : normalized % 12;
             return String(labelHour);
           }}
-
         />
         <YAxis
           dataKey="wind"
+          hide
           allowDecimals={false}
           tickLine={false}
           axisLine={false}
           tickMargin={8}
           domain={[0, (dataMax: number) => Math.ceil(dataMax * 2)]}
         />
-        <ChartTooltip 
+        <ChartTooltip
           content={({ active, payload }) => {
             if (!active || !payload || payload.length === 0) return null;
-            
+
             const data = payload[0].payload;
             const windSpeed = data.wind;
             const direction = data.direction ?? 0;
             const directionLabel = getWindDirection(direction);
-            
+
             return (
               <div className="rounded-lg border bg-background p-2 shadow-sm">
                 <div className="grid gap-2">
@@ -299,21 +303,23 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
               const safeHeight =
                 typeof props.height === "number" ? props.height : 0;
               const iconSize = Math.min(20, safeWidth * 0.6);
-              
+
               // Get wind direction from the data point
               const dataPoint = chartData[props.index ?? 0];
               const direction = dataPoint?.direction ?? 0;
               const directionLabel = getWindDirection(direction);
               // Arrow points at 315° by default, adjust rotation
               const rotation = direction - 315;
-              
+
               // Calculate center point for rotation - position on top of bar
               const centerX = safeX + safeWidth / 2;
               const centerY = safeY - iconSize / 2 - 2; // Position above the bar
-              
+
               return (
                 <g>
-                  <title>{`Wind Direction: ${directionLabel} (${Math.round(direction)}°)`}</title>
+                  <title>{`Wind Direction: ${directionLabel} (${Math.round(
+                    direction
+                  )}°)`}</title>
                   <g transform={`translate(${centerX}, ${centerY})`}>
                     <g transform={`rotate(${rotation}, 0, 0)`}>
                       <ArrowIcon

@@ -60,23 +60,31 @@ const SwellChart = ({ beachId, hours = 24, date }: Props) => {
   const [nightAreas, setNightAreas] = useState<{ x1: number; x2?: number }[]>(
     []
   );
-  
+
   useEffect(() => {
     const load = async () => {
       try {
         if (!beachId) {
-          setData(Array.from({ length: 9 }, (_, idx) => {
-            const time = idx * 3;
-            return {
-              time,
-              primary: Number((2 + Math.sin((time / 24) * Math.PI)).toFixed(1)),
-              secondary: Number((1 + Math.cos((time / 24) * Math.PI)).toFixed(1)),
-              tertiary: Number((0.5 + Math.sin((time / 12) * Math.PI) * 0.3).toFixed(1)),
-              primaryDir: (time * 15) % 360,
-              secondaryDir: (time * 20) % 360,
-              tertiaryDir: (time * 25) % 360,
-            };
-          }));
+          setData(
+            Array.from({ length: 9 }, (_, idx) => {
+              const time = idx * 3;
+              return {
+                time,
+                primary: Number(
+                  (2 + Math.sin((time / 24) * Math.PI)).toFixed(1)
+                ),
+                secondary: Number(
+                  (1 + Math.cos((time / 24) * Math.PI)).toFixed(1)
+                ),
+                tertiary: Number(
+                  (0.5 + Math.sin((time / 12) * Math.PI) * 0.3).toFixed(1)
+                ),
+                primaryDir: (time * 15) % 360,
+                secondaryDir: (time * 20) % 360,
+                tertiaryDir: (time * 25) % 360,
+              };
+            })
+          );
           return;
         }
         const resolved = await fetchBeachByIdLoose(beachId);
@@ -165,7 +173,7 @@ const SwellChart = ({ beachId, hours = 24, date }: Props) => {
   return (
     <ChartContainer
       config={chartConfig}
-      className="aspect-auto h-[290px] w-full"
+      className="aspect-auto h-[280px] w-full"
     >
       <AreaChart
         accessibilityLayer
@@ -225,27 +233,34 @@ const SwellChart = ({ beachId, hours = 24, date }: Props) => {
           domain={[0, (dataMax: number) => Math.ceil(dataMax + 2)]}
         />
         <ChartLegend content={<ChartLegendContent />} />
-        <ChartTooltip 
+        <ChartTooltip
           content={({ active, payload }) => {
             if (!active || !payload || payload.length === 0) return null;
-            
+
             const data = payload[0].payload;
-            
+
             return (
               <div className="rounded-lg border bg-background p-2 shadow-sm">
                 <div className="grid gap-2">
                   {payload.map((entry, index) => {
                     const dirKey = `${entry.dataKey}Dir` as keyof Row;
                     const direction = data[dirKey] as number | undefined;
-                    const dirLabel = direction != null ? getWindDirection(direction) : 'N/A';
-                    
+                    const dirLabel =
+                      direction != null ? getWindDirection(direction) : "N/A";
+
                     return (
                       <div key={index} className="flex flex-col">
                         <span className="text-[0.70rem] uppercase text-muted-foreground">
                           {entry.name}
                         </span>
-                        <span className="font-bold" style={{ color: entry.color }}>
-                          {typeof entry.value === 'number' ? entry.value.toFixed(1) : entry.value} ft
+                        <span
+                          className="font-bold"
+                          style={{ color: entry.color }}
+                        >
+                          {typeof entry.value === "number"
+                            ? entry.value.toFixed(1)
+                            : entry.value}{" "}
+                          ft
                         </span>
                         {direction != null && (
                           <span className="text-[0.65rem] text-muted-foreground">
@@ -273,7 +288,7 @@ const SwellChart = ({ beachId, hours = 24, date }: Props) => {
             const iconSize = 15;
             const direction = payload.primaryDir ?? 0;
             const rotation = direction - 315; // Arrow points at 315° by default
-            
+
             return (
               <g key={`primary-${index}`}>
                 <g transform={`translate(${cx}, ${cy})`}>
@@ -303,7 +318,7 @@ const SwellChart = ({ beachId, hours = 24, date }: Props) => {
             const iconSize = 15;
             const direction = payload.secondaryDir ?? 0;
             const rotation = direction - 315;
-            
+
             return (
               <g key={`secondary-${index}`}>
                 <g transform={`translate(${cx}, ${cy})`}>
@@ -333,7 +348,7 @@ const SwellChart = ({ beachId, hours = 24, date }: Props) => {
             const iconSize = 15;
             const direction = payload.tertiaryDir ?? 0;
             const rotation = direction - 315;
-            
+
             return (
               <g key={`tertiary-${index}`}>
                 <g transform={`translate(${cx}, ${cy})`}>

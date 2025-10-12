@@ -103,7 +103,10 @@ const SearchBar = ({ className }: { className?: string }) => {
           className="bg-gradient-to-br from-cyan-300 to-blue-400 p-1.5 text-white rounded-full flex-shrink-0 max-[360px]:p-1 max-[320px]:p-0.5"
           onClick={() => query && setOpen((o) => !o)}
         >
-          <Search strokeWidth={3} className="w-4 h-4 max-[360px]:w-3.5 max-[360px]:h-3.5 max-[320px]:w-3 max-[320px]:h-3" />
+          <Search
+            strokeWidth={3}
+            className="w-4 h-4 max-[360px]:w-3.5 max-[360px]:h-3.5 max-[320px]:w-3 max-[320px]:h-3"
+          />
         </button>
         <input
           name="query"
@@ -148,10 +151,10 @@ const SearchBar = ({ className }: { className?: string }) => {
       <button
         type="button"
         aria-label="open map"
-        className="icon-button p-3.5 hide-button hover:bg-highlight-3"
+        className="icon-button p-2.5 hide-button hover:bg-highlight-3"
         onClick={() => router.push("/beaches")}
       >
-        <Map className="icon-sm" />
+        <Map className="icon-md" />
       </button>
     </form>
   );

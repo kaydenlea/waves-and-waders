@@ -14,6 +14,8 @@ import {
 import {
   ChartConfig,
   ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
@@ -29,8 +31,8 @@ const HOURS_TO_MS = 60 * 60 * 1000;
 
 const chartConfig: ChartConfig = {
   tide: {
-    label: "Tide",
-    color: "#6e6e6eff",
+    label: "Tide (ft)",
+    color: "#aaaaaaff",
   },
 };
 
@@ -59,7 +61,9 @@ const formatTime = (timestamp: number) =>
 
 const formatHourTick = (value: number) => {
   const normalized = ((value % 24) + 24) % 24;
-  return String(normalized % 12 === 0 ? 12 : normalized % 12);
+  return normalized % 3 === 0
+    ? String(normalized % 12 === 0 ? 12 : normalized % 12)
+    : "";
 };
 
 const parseHourMinute = (value: string | null) => {
@@ -339,6 +343,7 @@ const TideChart: React.FC<TideChartProps> = ({
             return entry ? formatTime(entry.timestamp) : "";
           }}
         />
+        <ChartLegend content={<ChartLegendContent />} />
         <Line
           dataKey="tide"
           type="natural"

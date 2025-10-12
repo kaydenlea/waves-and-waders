@@ -602,7 +602,7 @@ const Home = () => {
               <div className="mt-6 flex flex-wrap items-center gap-3">
                 <div className="flex flex-row flex-wrap items-center justify-center w-full gap-2 whitespace-nowrap">
                   <Link
-                    href="/beaches#content"
+                    href="/beaches"
                     className="group inline-flex items-center gap-2 rounded-full bg-foreground border border-transparent px-4 py-3 font-medium text-background shadow-xl transition hover:shadow-cyan-500/20"
                   >
                     <Compass className="h-4 w-4" /> Explore

@@ -153,7 +153,11 @@ function ChartTooltipContent({
       return null;
     }
     // console.log(item);
-    if (item.name === "tide") {
+    if (
+      item.name === "tide" ||
+      item.name === "surf" ||
+      item.name === "energy"
+    ) {
       const x: unknown = (item as any)?.payload?.x;
       const hourSource: unknown = (item as any)?.payload?.hour;
       let hourNum: number | null = null;
@@ -162,7 +166,8 @@ function ChartTooltipContent({
       } else if (typeof hourSource === "number") {
         hourNum = hourSource;
       }
-      const hour = hourNum !== null ? (hourNum % 12 === 0 ? 12 : hourNum % 12) : null;
+      const hour =
+        hourNum !== null ? (hourNum % 12 === 0 ? 12 : hourNum % 12) : null;
       const amPm = hourNum !== null ? (hourNum >= 12 ? "PM" : "AM") : "";
       return (
         <div className={cn("font-medium", labelClassName)}>
@@ -200,7 +205,7 @@ function ChartTooltipContent({
           const key = `${nameKey || item.name || item.dataKey || "value"}`;
           const itemConfig = getPayloadConfigFromPayload(config, item, key);
           const indicatorColor = color || item.payload.fill || item.color;
-
+          console.log("CHART KEY", key, item.value);
           return (
             <div
               key={item.dataKey}
@@ -251,8 +256,24 @@ function ChartTooltipContent({
                     </div>
                     {item.value && (
                       <span className="text-foreground font-medium tabular-nums">
-                        {`${item.value.toLocaleString()} ${
-                          key === "tide" ? "ft" : ""
+                        {`${
+                          item.value.toString().includes(".")
+                            ? Number(item.value).toFixed(1).toLocaleString()
+                            : item.value.toLocaleString()
+                        } ${
+                          key === "tide" ||
+                          key === "surf" ||
+                          key === "tide1" ||
+                          key === "tide2" ||
+                          key === "tide3"
+                            ? "ft"
+                            : key === "energy"
+                            ? "kJ"
+                            : key === "wind1" ||
+                              key === "wind2" ||
+                              key === "wind3"
+                            ? "mph"
+                            : ""
                         }`}
                       </span>
                     )}

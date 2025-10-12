@@ -275,7 +275,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
     const handleResize = () => {
       const container = document.querySelector("#main-content");
       const width = container ? container.clientWidth : 0;
-      if (width < 768) {
+      if (width < 911) {
         setSmallScreen(true);
       } else {
         setSmallScreen(false);

@@ -12,7 +12,7 @@ const WindStat = ({
         <span className="text-xs font-normal ml-1">mph</span>
       </span>
       <span className="text-[11px] text-muted-foreground">
-        {data.gust != null ? `Gust ${data.gust} mph` : "No gust"}
+        {data.gust != null ? `${data.gust} mph` : "No gust"}
       </span>
     </div>
   );

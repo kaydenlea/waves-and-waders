@@ -27,7 +27,7 @@ import {
 } from "@/lib/supabase";
 
 type Props = { beachId?: string; hours?: number; date?: Date };
-type Row = { hour: number; actual: number };
+type Row = { hour: number; surf: number };
 
 const chartConfig = {
   surf: {
@@ -50,7 +50,7 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
           setChartData(
             Array.from({ length: 25 }, (_, h) => ({
               hour: h,
-              actual: Number((2 + Math.sin((h / 24) * Math.PI * 2)).toFixed(1)),
+              surf: Number((2 + Math.sin((h / 24) * Math.PI * 2)).toFixed(1)),
             }))
           );
           return;
@@ -94,7 +94,7 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
           return {
             hour:
               i === rows.length - 1 ? hours : new Date(r.timestamp).getHours(),
-            actual: Number(effective.toFixed(1)),
+            surf: Number(effective.toFixed(1)),
           };
         });
         setChartData(data);
@@ -201,8 +201,8 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
     >
       <BarChart
         margin={{
-          right: 12,
-          left: -24,
+          right: 25,
+          left: 25,
         }}
         accessibilityLayer
         data={chartData}
@@ -250,11 +250,10 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
           tickLine={false}
           tickMargin={10}
           axisLine={false}
-          padding={{ left: 28, right: 28 }}
+          // padding={{ left: 28, right: 28 }}
           domain={[domainStart, domainEnd]}
           ticks={hourTicks}
           tickFormatter={(value: number) => {
-
             const num = Number(value);
 
             if (!Number.isFinite(num)) return "";
@@ -264,12 +263,11 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
             const labelHour = normalized % 12 === 0 ? 12 : normalized % 12;
 
             return String(labelHour);
-
           }}
-
         />
         <YAxis
-          dataKey="actual"
+          dataKey="surf"
+          hide
           allowDecimals={false}
           tickLine={false}
           axisLine={false}
@@ -279,7 +277,7 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
         <ChartTooltip content={<ChartTooltipContent />} />
         <ChartLegend content={<ChartLegendContent />} />
         <Bar
-          dataKey="actual"
+          dataKey="surf"
           barSize={38}
           fill="var(--color-surf, var(--color-tide))"
           radius={4}
@@ -287,7 +285,7 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
           strokeWidth={0.5}
         >
           <LabelList
-            dataKey="actual"
+            dataKey="surf"
             position="middle"
             content={(props: LabelProps) => {
               const safeX = typeof props.x === "number" ? props.x : 0;

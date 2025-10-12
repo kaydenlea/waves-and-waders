@@ -48,7 +48,7 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
             beach={beach}
             tabs={["overview", "forecast"]}
           />
-          <h1 className="font-semibold text-4xl tracking-tight w-full @min-4xl:max-w-3/5">
+          <h1 className="font-semibold text-4xl tracking-tight w-full @min-3xl:w-[calc(100%-300px)]">
             {beachName}
           </h1>
         </header>

@@ -125,7 +125,7 @@ const chartData = [
 
 const chartConfig = {
   energy: {
-    label: "Energy (kJ)",
+    label: "Energy",
     color: "#616161ff",
   },
 } satisfies ChartConfig;
@@ -509,7 +509,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
             minTickGap={0}
             fontSize={11}
             tickFormatter={(value) =>
-              value % 3 === 0
+              value % 6 === 0
                 ? (value % 12 === 0 ? 12 : value % 12).toString()
                 : ""
             }
