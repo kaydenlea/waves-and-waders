@@ -22,6 +22,7 @@ import Tag from "./Tag";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { useMapFilters } from "../context/MapFilterContext";
 import { scrollToMap } from "./BackToMapButton";
+import { cn } from "@/lib/utils";
 
 export type Beach = {
   id: string;
@@ -36,6 +37,7 @@ export type Beach = {
   };
   image: string;
   coords: [number, number];
+  features: { label: string; icon: React.ReactNode; color: string }[];
 };
 
 function StarRating({ value }: { value: number }) {
@@ -96,6 +98,15 @@ const BeachCard = ({
         ? b.distanceKm * 0.621371
         : b.distanceKm
       : null;
+  const maxRounded =
+    b.conditions.rating != null ? Math.round(b.conditions.rating) : null;
+  const color = !b.conditions.rating
+    ? "bg-highlight-3"
+    : maxRounded! >= 6
+    ? "bg-red-300"
+    : maxRounded! >= 3
+    ? "bg-orange-300"
+    : "bg-green-300";
   return (
     <article
       onClick={() => {
@@ -140,7 +151,7 @@ const BeachCard = ({
         <div className="flex flex-col gap-2">
           <div className="flex items-start justify-between gap-3 w-full">
             <div className="flex gap-1 truncate">
-              <div className="w-1 bg-green-300 p-1 rounded-full" />
+              <div className={cn("w-1 p-1 rounded-full", color)} />
               <div className="min-w-0">
                 <h3 className="truncate text-md font-semibold leading-tight text-foreground">
                   {b.name}
@@ -151,16 +162,11 @@ const BeachCard = ({
               </div>
             </div>
             <div className="text-foreground/70 text-sm whitespace-nowrap">
-              {distance != null ? (
+              {distance != null && (
                 <span>
                   {Math.round(Number(distance.toFixed(1)))}{" "}
                   {useMiles ? "mi" : "km"}
                 </span>
-              ) : (
-                // <span className="italic text-xs">
-                //   Turn on location for distance
-                // </span>
-                <span>5 mi</span>
               )}
             </div>
             {/* <StarRating value={b.conditions.rating} /> */}
@@ -176,7 +182,10 @@ const BeachCard = ({
                   <Waves className="h-4 w-4 text-blue-500" />
                 </div>
                 <span className="flex items-baseline gap-0.5">
-                  <span className="font-semibold text-xl">2-3</span>ft
+                  <span className="font-semibold text-xl">
+                    {b.conditions.surf}
+                  </span>
+                  ft
                 </span>
               </span>
               {/* <span className="inline-flex items-center gap-1">
@@ -195,7 +204,10 @@ const BeachCard = ({
                   <Wind className="h-4 w-4 text-gray-700" />
                 </div>
                 <span className="flex items-baseline gap-0.5">
-                  <span className="font-semibold text-xl">5</span>mph
+                  <span className="font-semibold text-xl">
+                    {b.conditions.wind}
+                  </span>
+                  mph
                 </span>
                 <ArrowIcon
                   className="h-4 w-4"
@@ -218,12 +230,11 @@ const BeachCard = ({
                 Tags
               </span>
             </PopoverTrigger>
-            <PopoverContent className="max-w-70 touch-pan-y">
-              <div className="grid grid-cols-2 gap-1">
-                {tags.map((tag) => (
-                  <Tag key={tag.label} data={tag} />
+            <PopoverContent className="w-80 touch-pan-y">
+              {b.features &&
+                b.features.map((tag) => (
+                  <Tag className="m-1" key={tag.label} data={tag} />
                 ))}
-              </div>
             </PopoverContent>
           </Popover>
           {/* <Tag data={tags[0]} /> */}

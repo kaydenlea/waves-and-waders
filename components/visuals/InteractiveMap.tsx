@@ -316,7 +316,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
           setBeaches(json.data as BeachPoint[]);
         } else {
           // Only log error if response is not empty - empty {} might mean API is still initializing
-          if (Object.keys(json || {}).length > 0) {
+          if (Object.keys(json || {}).length > 0 && json.length > 0) {
             console.error(
               "Failed to load beaches - invalid response structure:",
               json
@@ -951,8 +951,20 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
 
   React.useEffect(() => {
     if (popupData) {
+      if (popupId.current) {
+        console.log("ENTER SAME");
+        if (map)
+          map.setFeatureState(
+            { source: "beaches", id: mapToId[popupId.current].id },
+            { hover: false }
+          );
+        setPopupInfo(null);
+        popupId.current = null;
+        popupRef.current = null;
+      }
       const beach = mapToId[popupData];
       if (!beach) return;
+      popupId.current = popupData;
       setPopupInfo({
         id: beach.id,
         longitude: beach.longitude,

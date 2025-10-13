@@ -463,6 +463,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
             radius={4}
             stroke="#5f5f5fff"
             strokeWidth={0.5}
+            minPointSize={10}
           >
             <LabelList
               dataKey="wind1"
@@ -514,6 +515,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
             radius={4}
             stroke="#5f5f5fff"
             strokeWidth={0.5}
+            minPointSize={10}
           >
             <LabelList
               dataKey="wind1"
@@ -565,6 +567,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
             radius={4}
             stroke="#5f5f5fff"
             strokeWidth={0.5}
+            minPointSize={10}
           >
             <LabelList
               dataKey="wind1"

@@ -23,6 +23,8 @@ import {
   Tent,
   Flame,
   Ship,
+  Sunrise,
+  Sunset,
 } from "lucide-react";
 
 import {
@@ -41,6 +43,7 @@ import { FEATURE_COLUMNS } from "@/lib/supabase";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 import { getFeatureDisplayName } from "@/lib/supabase";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 
 type SummaryStat =
   | {
@@ -122,6 +125,13 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
   const featuresContainerRef = useRef<HTMLDivElement | null>(null);
   const [featuresOverflowing, setFeaturesOverflowing] = useState(false);
   const { surfRange } = useDateContext();
+  const [tags, setTags] = useState<
+    {
+      label: string;
+      icon: React.ReactNode;
+      color: string;
+    }[]
+  >([]);
 
   useEffect(() => {
     const load = async () => {
@@ -150,6 +160,7 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
           fetchBeachDetails(resolvedId),
           fetchBeachTides(resolvedId, startWindow, tideEndWindow),
         ]);
+        console.log("OBSERVE", current, forecast, beach, tideRows);
         const first = forecast[0];
         // If a specific date is selected, use that day's forecast; otherwise prefer current conditions
         const base = date ? first : current ?? first;
@@ -568,7 +579,10 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
               tags.push({ label, icon: def.icon, color: def.color });
             }
           }
-          if (tags.length > 0) s.push({ type: "features", tags });
+          if (tags.length > 0) {
+            s.push({ type: "features", tags });
+            setTags(tags);
+          }
         }
 
         setStats(s);
@@ -706,28 +720,178 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
     return sentence;
   };
 
+  const gapPx = 12;
+  const moreButtonReservePx = 60;
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const measureRef = useRef<HTMLDivElement | null>(null);
+  const rafRef = useRef<number | null>(null);
+
+  // widths for each tag (stable numbers used for layout decisions)
+  const [tagWidths, setTagWidths] = useState<number[]>(() =>
+    Array(tags.length).fill(0)
+  );
+
+  const [visibleCount, setVisibleCount] = useState(() => tags.length);
+
+  // Create measurement nodes once (keys stable)
+  const measurementNodes = React.useMemo(
+    () =>
+      tags.map((t, i) => (
+        <div
+          key={t.label ?? i}
+          data-measure-index={i}
+          style={{ display: "inline-block" }}
+        >
+          <Tag data={t} />
+        </div>
+      )),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [tags.map((t) => t.label ?? Math.random()).join("|")] // keep keyed but stable if tags input stable
+  );
+
+  // Synchronously measure tag widths in the off-screen measurement container
+  const measureTagWidths = () => {
+    const measure = measureRef.current;
+    if (!measure) return;
+    const children = Array.from(measure.children) as HTMLElement[];
+    const widths = children.map((el) => {
+      const w = Math.ceil(el.getBoundingClientRect().width);
+      return w;
+    });
+    if (widths.length === tags.length) {
+      // Only update when changed to avoid extra re-renders
+      let changed = false;
+      if (tagWidths.length !== widths.length) changed = true;
+      else {
+        for (let i = 0; i < widths.length; i++) {
+          if (tagWidths[i] !== widths[i]) {
+            changed = true;
+            break;
+          }
+        }
+      }
+      if (changed) setTagWidths(widths);
+    }
+  };
+
+  // Compute visibleCount from container width and stable tagWidths
+  const computeVisibleCount = () => {
+    const container = containerRef.current;
+    if (!container) return;
+    if (!tagWidths.length) return;
+
+    const available = Math.max(0, container.clientWidth - moreButtonReservePx);
+    let total = 0;
+    let count = 0;
+
+    for (let i = 0; i < tagWidths.length; i++) {
+      const w = tagWidths[i];
+      const gapAdd = count > 0 ? gapPx : 0;
+      // require the full width to be available before counting the tag
+      if (total + gapAdd + w <= available) {
+        total += gapAdd + w;
+        count++;
+      } else {
+        break;
+      }
+    }
+    // update only if different (prevents oscillation)
+    setVisibleCount((prev) => (prev !== count ? count : prev));
+  };
+
+  // Schedule compute with RAF (debounce)
+  const scheduleCompute = () => {
+    if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => {
+      computeVisibleCount();
+      rafRef.current = null;
+    });
+  };
+
+  // initial measurement after mount/update of measurement nodes
+  React.useLayoutEffect(() => {
+    // measure nodes synchronously once they are rendered into measureRef
+    measureTagWidths();
+    // compute visible count once widths are known
+    scheduleCompute();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [/* run when measurement nodes (tags) change */ tags.length]);
+
+  // Recompute when tagWidths change or container size changes
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    // observe container resize
+    const ro = new ResizeObserver(() => {
+      scheduleCompute();
+    });
+    ro.observe(container);
+
+    // also recompute if tagWidths update
+    scheduleCompute();
+
+    return () => {
+      ro.disconnect();
+      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+    };
+  }, [tagWidths, gapPx, moreButtonReservePx]);
+
+  // If DOM fonts or images load might affect widths, also observe the measurement container for mutations
+  useEffect(
+    () => {
+      const measure = measureRef.current;
+      if (!measure) return;
+      const mo = new MutationObserver(() => {
+        measureTagWidths();
+        scheduleCompute();
+      });
+      mo.observe(measure, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+      });
+      return () => mo.disconnect();
+    },
+    [
+      /* tags */
+    ]
+  );
+
+  // Build visible/hidden slices
+  const visibleItems = tags.slice(0, visibleCount);
+  const hiddenItems = tags.slice(visibleCount);
+
   return (
     <ul className="grid grid-cols-2 @min-2xl:grid-cols-3 @min-4xl:grid-cols-6 gap-3">
       {/* Overview card */}
       <li className="highlight-card shadow-even flex flex-col gap-3 xl:gap-0 overflow-hidden col-span-2">
         <div className="flex items-top justify-between">
           <h3 className="highlight-title">OVERVIEW</h3>
-          <div className="text-xs text-muted-foreground text-right uppercase tracking-wide leading-tight space-y-1">
-            <div>
-              Sunrise{" "}
-              <span className="ml-1 text-foreground normal-case">
-                {tideStat?.sunrise ?? "--"}
-              </span>
-            </div>
-            <div>
-              Sunset{" "}
-              <span className="ml-1 text-foreground normal-case">
-                {tideStat?.sunset ?? "--"}
-              </span>
-            </div>
+          <div className="py-1 px-2 rounded-md bg-highlight-6 grid grid-cols-[80px_1fr] grid-rows-2 space-y-0.5 items-center text-xs text-muted-foreground uppercase tracking-wide leading-tight">
+            <span className="flex gap-2 items-center">
+              <Sunrise
+                fill="#ff9f45ff"
+                className="stroke-muted-foreground w-4 h-4"
+              />
+              <span>Sunrise</span>
+            </span>
+            <span className="ml-1 text-foreground normal-case">
+              {tideStat?.sunrise ?? "--"}
+            </span>
+            <span className="flex gap-2 items-center">
+              <Sunset
+                fill="#ff9f45ff"
+                className="stroke-muted-foreground w-4 h-4"
+              />
+              <span className="-mb-0.5">Sunset</span>
+            </span>
+            <span className="ml-1 text-foreground normal-case">
+              {tideStat?.sunset ?? "--"}
+            </span>
           </div>
         </div>
-        <div className="flex-1 flex items-center gap-1 mt-1 justify-center">
+        <div className="flex-1 flex items-center gap-1 mt-2 justify-center">
           <p className="text-center text-base">{getOverviewText()}</p>
         </div>
       </li>
@@ -849,28 +1013,57 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
                 <h3 className="highlight-title mt-0.5">
                   {stat.type.toUpperCase()}
                 </h3>
-                {stat.type === "features" && featuresOverflowing ? (
+                {/* {stat.type === "features" && featuresOverflowing ? (
                   <button
                     className="text-[11px] px-2 py-0.5 rounded border border-border bg-highlight-5 hover:bg-highlight-4"
                     onClick={() => setShowAllFeatures((v) => !v)}
                   >
                     {showAllFeatures ? "Collapse" : "Show all"}
                   </button>
-                ) : null}
+                ) : null} */}
               </div>
               {stat.type === "features" ? (
-                <div
-                  ref={featuresContainerRef}
-                  className={cn(
-                    "flex-1 flex items-center gap-2 mt-2",
-                    showAllFeatures
-                      ? "flex-wrap"
-                      : "flex-nowrap overflow-x-auto pb-1"
-                  )}
-                >
-                  {/* When collapsed, single row scrollable */}
-                  {stat.tags &&
-                    stat.tags.map((tag) => <Tag key={tag.label} data={tag} />)}
+                <div>
+                  {/* Visible container */}
+                  <div
+                    ref={containerRef}
+                    className="flex items-center gap-2 overflow-hidden p-1"
+                    style={{ gap: `${gapPx}px` }}
+                  >
+                    {visibleItems.map((tag) => (
+                      <Tag key={tag.label} data={tag} />
+                    ))}
+
+                    {hiddenItems.length > 0 ? (
+                      <Popover>
+                        <PopoverTrigger className="more-button shrink-0 px-2 py-1 rounded-full bg-highlight-5 hover:bg-highlight-3 border border-border text-[14px] shadow-sm">
+                          +{hiddenItems.length}
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80 touch-pan-y">
+                          {hiddenItems.map((tag) => (
+                            <Tag className="m-1" key={tag.label} data={tag} />
+                          ))}
+                        </PopoverContent>
+                      </Popover>
+                    ) : null}
+                  </div>
+
+                  {/* off-screen measurement area (clones of every tag) */}
+                  <div
+                    ref={measureRef}
+                    aria-hidden
+                    style={{
+                      position: "absolute",
+                      left: -9999,
+                      top: 0,
+                      visibility: "hidden",
+                      whiteSpace: "nowrap",
+                      display: "inline-block",
+                      pointerEvents: "none",
+                    }}
+                  >
+                    {measurementNodes}
+                  </div>
                 </div>
               ) : (
                 <div
