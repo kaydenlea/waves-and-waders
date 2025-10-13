@@ -9,6 +9,7 @@ import {
   Source,
   Layer,
   Marker,
+  NavigationControl,
 } from "react-map-gl/maplibre";
 import type { MapGeoJSONFeature, MapRef } from "react-map-gl/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -186,6 +187,10 @@ type Props = { beachId?: string | number };
 const InteractiveMap: React.FC<Props> = ({ beachId }) => {
   const [beaches, setBeaches] = React.useState<BeachPoint[]>([]);
   const [selected, setSelected] = React.useState<BeachPoint | null>(null);
+  const selectedRef = React.useRef<BeachPoint | null>(null);
+  const [storedSelectionId, setStoredSelectionId] = React.useState<string | null>(
+    null
+  );
   const {
     popupData,
     setPopupData,
@@ -272,6 +277,34 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
   const mobileMapHeight = "calc(100dvh - 6.25rem)";
 
   React.useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const stored = window.localStorage.getItem("ww:last-selected-beach");
+    if (stored) {
+      setStoredSelectionId(stored);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    if (selected?.id == null) {
+      return;
+    }
+    const idString = String(selected.id);
+    window.localStorage.setItem("ww:last-selected-beach", idString);
+    if (storedSelectionId !== idString) {
+      setStoredSelectionId(idString);
+    }
+  }, [selected, storedSelectionId]);
+
+  React.useEffect(() => {
+    selectedRef.current = selected;
+  }, [selected]);
+
+  React.useEffect(() => {
     const handleResize = () => {
       const container = document.querySelector("#main-content");
       const width = container ? container.clientWidth : 0;
@@ -349,6 +382,26 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
       !mapInstance ||
       typeof mapInstance.project !== "function" ||
       typeof mapInstance.queryRenderedFeatures !== "function"
+    ) {
+      setSelectedPointVisible(true);
+      return;
+    }
+
+    if (
+      typeof mapInstance.isStyleLoaded === "function" &&
+      !mapInstance.isStyleLoaded()
+    ) {
+      setSelectedPointVisible(true);
+      return;
+    }
+
+    const beachesSource = mapInstance.getSource("beaches") as
+      | { loaded?: () => boolean }
+      | undefined;
+    if (
+      beachesSource &&
+      typeof beachesSource.loaded === "function" &&
+      !beachesSource.loaded()
     ) {
       setSelectedPointVisible(true);
       return;
@@ -782,12 +835,17 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
       }
       return null;
     })();
+    const allowStoredFallback = pathname !== "/beaches";
+    const storedFallback =
+      allowStoredFallback && storedSelectionId
+        ? String(storedSelectionId)
+        : null;
     const effectiveId =
       beachId != null
         ? String(beachId)
         : beachFromPath
         ? String(beachFromPath)
-        : null;
+        : storedFallback;
 
     const effectiveKey = effectiveId ?? null;
     const effectiveIdChanged = prevEffectiveIdRef.current !== effectiveKey;
@@ -830,7 +888,10 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
           zoom: 16,
           duration: 500,
         });
-        setSelected(match);
+        const currentSelectedId = selectedRef.current?.id;
+        if (String(currentSelectedId ?? "") !== String(match.id)) {
+          setSelected(match);
+        }
         prevEffectiveIdRef.current = effectiveKey;
         return;
       } else {
@@ -884,6 +945,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
     findBeachMatch,
     map,
     setMap,
+    storedSelectionId,
   ]);
 
   React.useEffect(() => {
@@ -1143,6 +1205,30 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
           });
 
           map.on("mousemove", "unclustered-point", (event) => {
+            const originalEvent =
+              event.originalEvent as
+                | MouseEvent
+                | PointerEvent
+                | TouchEvent
+                | undefined;
+            if (originalEvent) {
+              if ("touches" in originalEvent) {
+                return;
+              }
+              if (
+                "pointerType" in originalEvent &&
+                originalEvent.pointerType !== "mouse"
+              ) {
+                return;
+              }
+              if (
+                "buttons" in originalEvent &&
+                typeof originalEvent.buttons === "number" &&
+                originalEvent.buttons !== 0
+              ) {
+                return;
+              }
+            }
             const feature = event.features?.[0];
             if (!feature) return;
             const coordinates = (feature.geometry as any).coordinates;
@@ -1245,6 +1331,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
           </button>
         )}
         <AttributionControl compact={true} />
+        <NavigationControl position="bottom-right" showCompass={false} visualizePitch={false} />
 
         {/* Clustered beach points */}
         {filteredBeaches.length > 0 && (

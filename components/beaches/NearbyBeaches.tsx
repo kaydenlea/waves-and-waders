@@ -148,9 +148,11 @@ const TEMP_CAP = 100; // For temperature circles
 export default function NearbyBeaches({
   beaches,
   date,
+  favoriteIds = [],
 }: {
   beaches: DbBeach[];
   date?: Date;
+  favoriteIds?: string[];
 }) {
   const { filters } = useMapFilters();
   const initialList: UIBeach[] = useMemo(
@@ -174,6 +176,11 @@ export default function NearbyBeaches({
           } satisfies UIBeach)
       ),
     [beaches]
+  );
+
+  const favoriteSet = useMemo(
+    () => new Set((favoriteIds ?? []).map((id) => String(id))),
+    [favoriteIds]
   );
 
   const [sorted, setSorted] = useState<UIBeach[]>(initialList);
@@ -895,7 +902,11 @@ export default function NearbyBeaches({
 
       <section className="grid grid-cols-1 gap-3 @min-md:grid-cols-2 mb-4">
         {currentItems.map((b) => (
-          <BeachCard key={b.id} b={b} isFav={false} />
+          <BeachCard
+            key={b.id}
+            b={b}
+            isFav={favoriteSet.has(String(b.id))}
+          />
         ))}
       </section>
 

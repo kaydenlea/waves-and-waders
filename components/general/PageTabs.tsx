@@ -1,27 +1,50 @@
+'use client';
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
-import SaveButton from "./SaveButton";
 
 import { cn } from "@/lib/utils";
 import FocusMapButton from "./FocusMapButton";
+import SaveButton from "./SaveButton";
 
-const PageTabs = ({
-  beach,
-  defaultPage,
-  tabs,
-  buttons = true,
-}: {
+type PageTabsProps = {
   beach?: string;
+  beachId?: string;
   defaultPage: string;
   tabs: string[];
   buttons?: boolean;
-}) => {
+  isFavorite?: boolean;
+};
+
+const PageTabs = ({
+  beach,
+  beachId,
+  defaultPage,
+  tabs,
+  buttons = true,
+  isFavorite = false,
+}: PageTabsProps) => {
+  const [favorite, setFavorite] = useState(isFavorite);
+
+  useEffect(() => {
+    setFavorite(isFavorite);
+  }, [isFavorite]);
+
+  const showSaveButton = Boolean(buttons && beachId);
+
   return (
     <div className="mx-auto @min-3xl:absolute @min-3xl:right-0 flex gap-1 @min-sm:gap-2">
       {buttons && (
         <>
           <FocusMapButton beach={beach} />
-          <SaveButton className="hidden @min-3xl:block" />
+          {showSaveButton && (
+            <SaveButton
+              beachId={beachId!}
+              isFav={favorite}
+              onChange={setFavorite}
+              className="hidden @min-3xl:block"
+            />
+          )}
         </>
       )}
       <div className="text-sm @min-sm:text-base font-medium p-1.5 flex bg-highlight-3 rounded-full border border-border/20">
@@ -48,23 +71,14 @@ const PageTabs = ({
           {tabs[1]}
         </Link>
       </div>
-      {/* <Tabs defaultValue={defaultPage} className="">
-        <TabsList className="text-sm @min-sm:text-base">
-          <TabsTrigger value="overview">
-            <Link className="p-3" href={`/${beach}/overview#content`}>
-              Overview
-            </Link>
-          </TabsTrigger>
-          <TabsTrigger value="forecast">
-            <Link className="p-3" href={`/${beach}/forecast#content`}>
-              Forecast
-            </Link>
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent value="overview"></TabsContent>
-          <TabsContent value="forecast"></TabsContent>
-      </Tabs> */}
-      {buttons && <SaveButton className="@min-3xl:hidden" />}
+      {showSaveButton && (
+        <SaveButton
+          beachId={beachId!}
+          isFav={favorite}
+          onChange={setFavorite}
+          className="@min-3xl:hidden"
+        />
+      )}
     </div>
   );
 };

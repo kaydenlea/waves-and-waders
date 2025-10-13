@@ -90,10 +90,9 @@ const SearchBar = ({ className }: { className?: string }) => {
   return (
     <form
       ref={boxRef}
-      className={
-        "relative flex items-center gap-2 w-full justify-center" +
-        (className ?? "")
-      }
+      className={`relative flex items-center gap-2 w-full justify-center${
+        className ? ` ${className}` : ""
+      }`}
     >
       {/* Search bar - now always visible, smaller on mobile */}
       <div className="pl-1.5 py-1.5 flex items-center rounded-full h-full shadow-lg ring ring-border/70 gap-2 bg-highlight-4 w-full max-w-[200px] max-[400px]:max-w-[180px] max-[360px]:max-w-[160px] max-[320px]:max-w-[140px] max-[360px]:pl-1 max-[320px]:pl-0.5 max-[360px]:py-1 max-[320px]:py-0.5 @min-4xl:min-w-40 @min-4xl:max-w-md">

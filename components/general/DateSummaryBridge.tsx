@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useSessionContext, useSupabaseClient } from "@supabase/auth-helpers-react";
 import Summary from "@/components/visuals/Summary";
 import Highlights from "@/components/visuals/Highlights";
 import { LazyLoadDatePicker } from "@/components/general/LazyLoad/LazyLoadDatePicker";
@@ -11,10 +12,18 @@ import { LazyLoadSwell } from "@/components/general/LazyLoad/LazyLoadSwell";
 import { LazyLoadSurf } from "@/components/general/LazyLoad/LazyLoadSurf";
 import { LazyLoadHourSlider } from "@/components/general/LazyLoad/LazyLoadHourSlider";
 import { LazyLoadTable } from "@/components/general/LazyLoad/LazyLoadTable";
+import { LazyLoadEnergy } from "@/components/general/LazyLoad/LazyLoadEnergy";
 import Link from "next/link";
 import { Pencil } from "lucide-react";
-import GradientCircle from "./Stats/GradientCircle";
-import BeachCrossSection from "@/components/visuals/WaveModel";
+import {
+  getDashboardStorageKey,
+  getDefaultLayout,
+  normalizeMeta,
+  normalizeRows,
+  type Row,
+  type WidgetId,
+  type WidgetMeta,
+} from "./dashboardLayout";
 
 type Props = { beachId: string };
 
@@ -28,6 +37,27 @@ const DateSummaryBridge: React.FC<Props> = ({ beachId }) => {
 
   const [mounted, setMounted] = React.useState(false);
   const [currentTime, setCurrentTime] = React.useState<string>("");
+  const overviewDefaults = React.useMemo(
+    () => getDefaultLayout("overview"),
+    []
+  );
+  const [layoutMeta, setLayoutMeta] =
+    React.useState<Record<WidgetId, WidgetMeta>>(
+      () => overviewDefaults.meta
+    );
+  const [layoutRows, setLayoutRows] = React.useState<Row[]>(
+    () => overviewDefaults.rows
+  );
+  const storageMetaKey = React.useMemo(
+    () => getDashboardStorageKey("overview", "meta"),
+    []
+  );
+  const storageRowsKey = React.useMemo(
+    () => getDashboardStorageKey("overview", "rows"),
+    []
+  );
+  const supabase = useSupabaseClient();
+  const { session } = useSessionContext();
 
   const { setSelectedDate, setSelectedHour } =
     require("@/components/context/MapFilterContext").useMapFilters();
@@ -59,9 +89,166 @@ const DateSummaryBridge: React.FC<Props> = ({ beachId }) => {
     return () => clearInterval(interval);
   }, [mounted]);
 
+  React.useEffect(() => {
+    let cancelled = false;
+    const fallback = getDefaultLayout("overview");
+
+    const applyLayout = (
+      nextMeta: Record<WidgetId, WidgetMeta>,
+      nextRows: Row[]
+    ) => {
+      if (cancelled) return;
+      setLayoutMeta(nextMeta);
+      setLayoutRows(nextRows);
+    };
+
+    const loadFromLocalStorage = () => {
+      if (typeof window === "undefined") {
+        applyLayout(fallback.meta, fallback.rows);
+        return;
+      }
+      try {
+        const savedMetaRaw = window.localStorage.getItem(storageMetaKey);
+        const nextMeta = savedMetaRaw
+          ? normalizeMeta("overview", JSON.parse(savedMetaRaw))
+          : fallback.meta;
+        const savedRowsRaw = window.localStorage.getItem(storageRowsKey);
+        const nextRows = savedRowsRaw
+          ? normalizeRows("overview", JSON.parse(savedRowsRaw), nextMeta)
+          : fallback.rows;
+        applyLayout(nextMeta, nextRows);
+      } catch (error) {
+        console.warn("Failed to load overview layout", error);
+        applyLayout(fallback.meta, fallback.rows);
+      }
+    };
+
+    const loadFromSupabase = async () => {
+      if (!session) {
+        loadFromLocalStorage();
+        return;
+      }
+      try {
+        const { data, error } = await supabase
+          .from("user_dashboard_settings")
+          .select("overview_meta, overview_rows")
+          .eq("user_id", session.user.id)
+          .maybeSingle();
+
+        if (error) {
+          console.warn("Failed to load overview layout from Supabase", error);
+          loadFromLocalStorage();
+          return;
+        }
+        if (!data) {
+          applyLayout(fallback.meta, fallback.rows);
+          return;
+        }
+        const nextMeta = normalizeMeta("overview", data.overview_meta);
+        const nextRows = normalizeRows(
+          "overview",
+          data.overview_rows,
+          nextMeta
+        );
+        applyLayout(nextMeta, nextRows);
+      } catch (error) {
+        console.warn("Unexpected error loading overview layout", error);
+        loadFromLocalStorage();
+      }
+    };
+
+    void loadFromSupabase();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [storageMetaKey, storageRowsKey, supabase, session]);
+
   // Sync selected date and hour with context
   React.useEffect(() => setSelectedDate(selected), [selected, setSelectedDate]);
   React.useEffect(() => setSelectedHour(hour), [hour, setSelectedHour]);
+
+  const visibleRows = React.useMemo(
+    () =>
+      layoutRows.filter((row) =>
+        row.items.some((id) => layoutMeta[id]?.visible !== false)
+      ),
+    [layoutRows, layoutMeta]
+  );
+
+  const renderWidget = React.useCallback(
+    (id: WidgetId) => {
+      switch (id) {
+        case "stats":
+          return (
+            <section className="flex-1 w-full">
+              <header className="ml-2 mb-6">
+                <h3 className="leading-none font-semibold text-2xl">
+                  Hourly View
+                </h3>
+                <span className="text-sm text-muted-foreground">
+                  Local time: {currentTime || "--"}
+                </span>
+              </header>
+              <Highlights
+                beachId={beachId}
+                date={selected ?? undefined}
+                hour={hour}
+                startIdx={0}
+                endIdx={7}
+              />
+            </section>
+          );
+        case "tide":
+          return (
+            <VisualWrapper label="Tide" unit="ft">
+              <LazyLoadTide beachId={beachId} date={selected ?? undefined} />
+            </VisualWrapper>
+          );
+        case "wind":
+          return (
+            <VisualWrapper label="Wind" unit="mph">
+              <LazyLoadWind beachId={beachId} date={selected ?? undefined} />
+            </VisualWrapper>
+          );
+        case "swell":
+          return (
+            <VisualWrapper label="Swell" unit="ft">
+              <LazyLoadSwell beachId={beachId} date={selected ?? undefined} />
+            </VisualWrapper>
+          );
+        case "surf":
+          return (
+            <VisualWrapper label="Surf" unit="ft">
+              <LazyLoadSurf beachId={beachId} date={selected ?? undefined} />
+            </VisualWrapper>
+          );
+        case "energy":
+          return (
+            <VisualWrapper label="Wave Energy" unit="ft">
+              <LazyLoadEnergy
+                beachId={beachId}
+                date={selected ?? undefined}
+              />
+            </VisualWrapper>
+          );
+        case "table":
+          return (
+            <VisualWrapper label="Hourly Stats">
+              <LazyLoadTable
+                beachId={beachId}
+                numHours={8}
+                numDays={1}
+                date={selected ?? undefined}
+              />
+            </VisualWrapper>
+          );
+        default:
+          return null;
+      }
+    },
+    [beachId, selected, hour, currentTime]
+  );
 
   return (
     <>
@@ -127,53 +314,45 @@ const DateSummaryBridge: React.FC<Props> = ({ beachId }) => {
           />
         </section>
 
-        {/* Rest of the content */}
-        <section className="flex-1">
-          <header className="ml-2 mb-6 mt-4">
-            <h3 className="leading-none font-semibold text-2xl">Hourly View</h3>
-            <span className="text-sm text-muted-foreground">
-              Local time: {currentTime}
-            </span>
-          </header>
+        {visibleRows.length === 0 ? (
+          <p className="mx-2 mt-6 text-sm text-muted-foreground">
+            All widgets are hidden. Use the edit screen to enable widgets.
+          </p>
+        ) : (
+          visibleRows.map((row, index) => {
+            const visibleItems = row.items.filter(
+              (id) => layoutMeta[id]?.visible !== false
+            );
+            if (!visibleItems.length) return null;
+            const spacing = index === 0 ? "mt-4" : "mt-3";
+            const isFull =
+              visibleItems.length === 1 &&
+              (layoutMeta[visibleItems[0]]?.span ?? "half") === "full";
 
-          <Highlights
-            beachId={beachId}
-            date={selected ?? undefined}
-            hour={hour}
-            startIdx={0}
-            endIdx={7}
-          />
-        </section>
+            if (isFull) {
+              const content = renderWidget(visibleItems[0]);
+              if (!content) return null;
+              return (
+                <div key={row.id} className={`${spacing} w-full`}>
+                  {content}
+                </div>
+              );
+            }
 
-        {/* Visual data blocks */}
-        <div className="flex flex-col @min-3xl:flex-row gap-3">
-          <VisualWrapper label="Tide" unit="ft">
-            <LazyLoadTide beachId={beachId} date={selected ?? undefined} />
-          </VisualWrapper>
-          <VisualWrapper label="Wind" unit="mph">
-            <LazyLoadWind beachId={beachId} date={selected ?? undefined} />
-          </VisualWrapper>
-        </div>
-
-        <div className="flex flex-col @min-3xl:flex-row gap-3 mt-3">
-          <VisualWrapper label="Swell" unit="ft">
-            <LazyLoadSwell beachId={beachId} date={selected ?? undefined} />
-          </VisualWrapper>
-          <VisualWrapper label="Surf" unit="ft">
-            <LazyLoadSurf beachId={beachId} date={selected ?? undefined} />
-          </VisualWrapper>
-        </div>
-
-        <div className="mt-3">
-          <VisualWrapper label="Hourly Stats">
-            <LazyLoadTable
-              beachId={beachId}
-              numHours={8}
-              numDays={1}
-              date={selected ?? undefined}
-            />
-          </VisualWrapper>
-        </div>
+            return (
+              <div
+                key={row.id}
+                className={`${spacing} w-full flex flex-col @min-3xl:flex-row gap-3`}
+              >
+                {visibleItems.map((id) => {
+                  const content = renderWidget(id);
+                  if (!content) return null;
+                  return <React.Fragment key={id}>{content}</React.Fragment>;
+                })}
+              </div>
+            );
+          })
+        )}
       </section>
     </>
   );

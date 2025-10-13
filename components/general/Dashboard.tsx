@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { useSessionContext, useSupabaseClient } from "@supabase/auth-helpers-react";
 import {
   DndContext,
   DragEndEvent,
@@ -15,151 +16,20 @@ import {
   TouchSensor,
 } from "@dnd-kit/core";
 import { cn } from "@/lib/utils";
+import {
+  getDashboardStorageKey,
+  getDefaultLayout,
+  normalizeMeta,
+  normalizeRows,
+  rid,
+  type DashboardType,
+  type Row,
+  type Span,
+  type WidgetId,
+  type WidgetMeta,
+} from "./dashboardLayout";
 
 import { Check, X, RotateCcw } from "lucide-react";
-
-/* ---------------------------- Types & Constants ---------------------------- */
-
-type Span = "half" | "full";
-
-type WidgetId =
-  | "stats"
-  | "tide"
-  | "surf"
-  | "swell"
-  | "energy"
-  | "wind"
-  | "table";
-
-type RowId = string;
-
-interface Row {
-  id: RowId;
-  items: WidgetId[]; // 1 (full) or 1–2 (half row)
-}
-
-interface WidgetMeta {
-  id: WidgetId;
-  title?: string;
-  visible?: boolean;
-  span?: Span;
-  immutableFull?: boolean;
-}
-
-const DEFAULT_META_OVERVIEW: Record<WidgetId, WidgetMeta> = {
-  stats: { id: "stats", title: "Key Stats", visible: true, span: "half" },
-  tide: { id: "tide", title: "Tide Chart", visible: true, span: "half" },
-  surf: { id: "surf", title: "Surf Chart", visible: true, span: "half" },
-  swell: { id: "swell", title: "Swell Chart", visible: true, span: "half" },
-  energy: {
-    id: "energy",
-    title: "Wave Energy Chart",
-    visible: true,
-    span: "half",
-  },
-  wind: { id: "wind", title: "Wind Chart", visible: true, span: "half" },
-  table: {
-    id: "table",
-    title: "Stats Table",
-    visible: true,
-    span: "full",
-    immutableFull: true,
-  },
-};
-
-const DEFAULT_META_FORECAST: Record<WidgetId, WidgetMeta> = {
-  stats: { id: "stats" },
-  tide: {
-    id: "tide",
-    title: "Tide Chart",
-    visible: true,
-    span: "full",
-    immutableFull: true,
-  },
-  surf: {
-    id: "surf",
-    title: "Surf Chart",
-    visible: true,
-    span: "full",
-    immutableFull: true,
-  },
-  swell: {
-    id: "swell",
-    title: "Swell Chart",
-    visible: true,
-    span: "full",
-    immutableFull: true,
-  },
-  energy: {
-    id: "energy",
-    title: "Wave Energy Chart",
-    visible: true,
-    span: "full",
-    immutableFull: true,
-  },
-  wind: {
-    id: "wind",
-    title: "Wind Chart",
-    visible: true,
-    span: "full",
-    immutableFull: true,
-  },
-  table: {
-    id: "table",
-    title: "Stats Table",
-    visible: true,
-    span: "full",
-    immutableFull: true,
-  },
-};
-
-const INITIAL_ORDER_OVERVIEW: WidgetId[] = [
-  "stats",
-  "tide",
-  "swell",
-  "surf",
-  "energy",
-  "wind",
-  "table",
-];
-
-const INITIAL_ORDER_FORECAST: WidgetId[] = [
-  "tide",
-  "swell",
-  "surf",
-  "energy",
-  "wind",
-  "table",
-];
-
-function rid() {
-  return `row-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-}
-
-function buildInitialRows(
-  meta: Record<WidgetId, WidgetMeta>,
-  order: WidgetId[]
-): Row[] {
-  const rows: Row[] = [];
-  const halfBuffer: WidgetId[] = [];
-  for (const id of order) {
-    const m = meta[id];
-    if (!m || !m.visible) continue;
-    if (m.span === "full") rows.push({ id: rid(), items: [m.id] });
-    else {
-      halfBuffer.push(m.id);
-      if (halfBuffer.length === 2) {
-        rows.push({
-          id: rid(),
-          items: [halfBuffer[0], halfBuffer[1]],
-        });
-        halfBuffer.length = 0;
-      }
-    }
-  }
-  if (halfBuffer.length) rows.push({ id: rid(), items: [halfBuffer[0]] });
-  return rows;
-}
 
 /* ------------------------------ Widget Content ---------------------------- */
 
@@ -244,9 +114,9 @@ const parseGap = (id: string): number | null => {
   return Number.isFinite(n) ? n : null;
 };
 
-const slotId = (rowId: RowId, pos: 0 | 1) => `slot:${rowId}:${pos}` as const;
+const slotId = (rowId: string, pos: 0 | 1) => `slot:${rowId}:${pos}` as const;
 const isSlotId = (id: string) => id.startsWith("slot:");
-const parseSlot = (id: string): { rowId: RowId; pos: 0 | 1 } | null => {
+const parseSlot = (id: string): { rowId: string; pos: 0 | 1 } | null => {
   if (!isSlotId(id)) return null;
   const [, rowId, p] = id.split(":");
   const pos = Number(p);
@@ -356,7 +226,7 @@ function Slot({
   children,
   className,
 }: {
-  rowId: RowId;
+  rowId: string;
   pos: 0 | 1;
   highlight: boolean;
   children: React.ReactNode;
@@ -385,18 +255,163 @@ function cloneRows(rows: Row[]): Row[] {
 
 /* -------------------------------- Dashboard -------------------------------- */
 
-export default function Dashboard({ type = "overview" }: { type?: string }) {
-  const DEFAULT_META =
-    type === "overview" ? DEFAULT_META_OVERVIEW : DEFAULT_META_FORECAST;
-  const INITIAL_ORDER =
-    type === "overview" ? INITIAL_ORDER_OVERVIEW : INITIAL_ORDER_FORECAST;
-  const [meta, setMeta] = useState<Record<WidgetId, WidgetMeta>>(DEFAULT_META);
-  const [rows, setRows] = useState<Row[]>(() =>
-    buildInitialRows(DEFAULT_META, INITIAL_ORDER)
+export default function Dashboard({
+  type = "overview",
+}: {
+  type?: DashboardType;
+}) {
+  const layoutDefaults = useMemo(() => getDefaultLayout(type), [type]);
+  const [meta, setMeta] = useState<Record<WidgetId, WidgetMeta>>(
+    () => layoutDefaults.meta
   );
-
+  const [rows, setRows] = useState<Row[]>(() => layoutDefaults.rows);
+  const [hydrated, setHydrated] = useState(false);
   const [activeWidget, setActiveWidget] = useState<WidgetId | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
+
+  const storageMetaKey = useMemo(
+    () => getDashboardStorageKey(type, "meta"),
+    [type]
+  );
+  const storageRowsKey = useMemo(
+    () => getDashboardStorageKey(type, "rows"),
+    [type]
+  );
+
+  const supabase = useSupabaseClient();
+  const { session } = useSessionContext();
+
+  useEffect(() => {
+    let cancelled = false;
+    const defaults = getDefaultLayout(type);
+
+    const applyLayout = (
+      nextMeta: Record<WidgetId, WidgetMeta>,
+      nextRows: Row[]
+    ) => {
+      if (cancelled) return;
+      setMeta(nextMeta);
+      setRows(nextRows);
+      setHydrated(true);
+    };
+
+    const loadFromLocalStorage = () => {
+      if (typeof window === "undefined") {
+        applyLayout(defaults.meta, defaults.rows);
+        return;
+      }
+
+      try {
+        const savedMetaRaw = window.localStorage.getItem(storageMetaKey);
+        const nextMeta = savedMetaRaw
+          ? normalizeMeta(type, JSON.parse(savedMetaRaw))
+          : defaults.meta;
+
+        const savedRowsRaw = window.localStorage.getItem(storageRowsKey);
+        const nextRows = savedRowsRaw
+          ? normalizeRows(type, JSON.parse(savedRowsRaw), nextMeta)
+          : defaults.rows;
+
+        applyLayout(nextMeta, nextRows);
+      } catch (error) {
+        console.warn("Failed loading dashboard layout from storage", error);
+        applyLayout(defaults.meta, defaults.rows);
+      }
+    };
+
+    const loadFromSupabase = async () => {
+      if (!session) {
+        loadFromLocalStorage();
+        return;
+      }
+      try {
+        const columnMeta =
+          type === "overview" ? "overview_meta" : "forecast_meta";
+        const columnRows =
+          type === "overview" ? "overview_rows" : "forecast_rows";
+
+        const { data, error } = await supabase
+          .from("user_dashboard_settings")
+          .select(`${columnMeta}, ${columnRows}`)
+          .eq("user_id", session.user.id)
+          .maybeSingle();
+
+        if (error) {
+          console.warn("Failed loading dashboard layout from Supabase", error);
+          loadFromLocalStorage();
+          return;
+        }
+
+        if (!data) {
+          applyLayout(defaults.meta, defaults.rows);
+          return;
+        }
+
+        const nextMeta = normalizeMeta(type, data[columnMeta]);
+        const nextRows = normalizeRows(type, data[columnRows], nextMeta);
+        applyLayout(nextMeta, nextRows);
+      } catch (error) {
+        console.warn("Unexpected error loading layout", error);
+        loadFromLocalStorage();
+      }
+    };
+
+    setHydrated(false);
+    void loadFromSupabase();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    type,
+    storageMetaKey,
+    storageRowsKey,
+    session,
+    supabase,
+  ]);
+
+  useEffect(() => {
+    if (!hydrated || typeof window === "undefined" || session) return;
+    try {
+      window.localStorage.setItem(storageMetaKey, JSON.stringify(meta));
+      window.localStorage.setItem(storageRowsKey, JSON.stringify(rows));
+    } catch (error) {
+      console.warn("Failed to persist dashboard layout", error);
+    }
+  }, [
+    meta,
+    rows,
+    hydrated,
+    storageMetaKey,
+    storageRowsKey,
+    session,
+  ]);
+
+  useEffect(() => {
+    if (!hydrated || !session) return;
+
+    const columnMeta = type === "overview" ? "overview_meta" : "forecast_meta";
+    const columnRows = type === "overview" ? "overview_rows" : "forecast_rows";
+
+    const persist = async () => {
+      const payload = {
+        user_id: session.user.id,
+        [columnMeta]: meta,
+        [columnRows]: rows,
+        updated_at: new Date().toISOString(),
+      };
+
+      const { error } = await supabase
+        .from("user_dashboard_settings")
+        .upsert(payload, { onConflict: "user_id" });
+
+      if (error) {
+        console.warn("Failed saving dashboard layout", error);
+      }
+    };
+
+    void persist();
+  }, [hydrated, session, supabase, meta, rows, type]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 1 } }),
@@ -404,23 +419,6 @@ export default function Dashboard({ type = "overview" }: { type?: string }) {
       activationConstraint: { delay: 100, tolerance: 5 },
     })
   );
-
-  // useEffect(() => {
-  //   try {
-  //     const savedMeta = localStorage.getItem("dash_meta_v4");
-  //     const savedRows = localStorage.getItem("dash_rows_v4");
-  //     if (savedMeta)
-  //       setMeta(JSON.parse(savedMeta) as Record<WidgetId, WidgetMeta>);
-  //     if (savedRows) setRows(JSON.parse(savedRows) as Row[]);
-  //   } catch {}
-  // }, []);
-
-  // useEffect(() => {
-  //   try {
-  //     localStorage.setItem("dash_meta_v4", JSON.stringify(meta));
-  //     localStorage.setItem("dash_rows_v4", JSON.stringify(rows));
-  //   } catch {}
-  // }, [meta, rows]);
 
   const activeSpan: Span | null = activeWidget
     ? meta[activeWidget]?.span ?? null
@@ -646,8 +644,9 @@ export default function Dashboard({ type = "overview" }: { type?: string }) {
   }
 
   function resetAll() {
-    setMeta(DEFAULT_META);
-    setRows(buildInitialRows(DEFAULT_META, INITIAL_ORDER));
+    const defaults = getDefaultLayout(type);
+    setMeta(defaults.meta);
+    setRows(defaults.rows);
   }
 
   /* ---------------------------------- Render --------------------------------- */

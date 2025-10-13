@@ -1,19 +1,12 @@
-import Link from "next/link";
-import VisualWrapper from "@/components/general/VisualWrapper";
-import { LazyLoadForecastSurf } from "@/components/general/LazyLoad/LazyLoadForecastSurf";
-import { LazyLoadForecastTide } from "@/components/general/LazyLoad/LazyLoadForecastTide";
-import { LazyLoadForecastWaveEnergy } from "@/components/general/LazyLoad/LazyLoadForecastWaveEnergy";
-import { LazyLoadForecastWind } from "@/components/general/LazyLoad/LazyLoadForecastWind";
-import { LazyLoadTable } from "@/components/general/LazyLoad/LazyLoadTable";
 import ForecastBridge from "@/components/general/ForecastBridge";
 
 import type { Metadata } from "next";
-import { Pencil } from "lucide-react";
 import PageTabs from "@/components/general/PageTabs";
 import { fetchBeachByIdLoose, extractBeachId } from "@/lib/supabase";
 import { ForecastChartProvider } from "@/components/context/ForecastChartContext";
 import { redirect } from "next/navigation";
 import BackToMapButton from "@/components/general/BackToMapButton";
+import { getServerSupabase } from "@/lib/supabaseServer";
 
 export const metadata: Metadata = {
   title: "Surf Weekly Forecast | Waves and Waders",
@@ -36,6 +29,28 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
 
   const beachId = resolved.id.toString();
   const beachName = resolved.Name;
+
+  const supabase = await getServerSupabase();
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError) {
+    console.error("Failed to load authenticated user", userError);
+  }
+
+  let isFav = false;
+  if (user) {
+    const { data: favorite } = await supabase
+      .from("user_favorite_beaches")
+      .select("beach_id")
+      .eq("user_id", user.id)
+      .eq("beach_id", beachId)
+      .maybeSingle();
+    isFav = Boolean(favorite);
+  }
+
   return (
     <>
       <div className="@container p-2">
@@ -47,6 +62,8 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
             defaultPage="forecast"
             beach={beach}
             tabs={["overview", "forecast"]}
+            beachId={beachId}
+            isFavorite={isFav}
           />
           <h1 className="font-semibold text-4xl tracking-tight w-full @min-3xl:w-[calc(100%-300px)]">
             {beachName}
