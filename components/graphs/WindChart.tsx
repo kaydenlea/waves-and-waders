@@ -151,7 +151,7 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
     return ticks;
   }, [hours]);
 
-  const EDGE_GUTTER_PX = 28;
+  const EDGE_GUTTER_PX = 25;
   const closeTo = (a: number, b: number, tolerance = 0.05) =>
     Math.abs(a - b) <= tolerance;
   const makeAreaShape =
@@ -182,13 +182,12 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
       className="aspect-auto h-[280px] w-full !justify-start"
     >
       <BarChart
-        margin={{ top: 10, right: 25, left: 25, bottom: 0 }}
+        margin={{ top: 10, right: 25, left: -28, bottom: 0 }}
         accessibilityLayer
         data={chartData}
         syncId="anyId"
-        barCategoryGap={0}
-        barGap={-4}
-        maxBarSize={44}
+        barCategoryGap="20%"
+        maxBarSize={80}
       >
         {dayAreas.map((a, idx) => (
           <ReferenceArea
@@ -230,7 +229,7 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
           tickLine={false}
           tickMargin={10}
           axisLine={false}
-          // padding={{ left: 28, right: 28 }}
+          padding={{ left: 25, right: 25 }}
           domain={[domainStart, domainEnd]}
           ticks={hourTicks}
           tickFormatter={(value: number) => {
@@ -243,11 +242,11 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
         />
         <YAxis
           dataKey="wind"
-          hide
           allowDecimals={false}
           tickLine={false}
           axisLine={false}
           tickMargin={8}
+          fontSize={11}
           domain={[0, (dataMax: number) => Math.ceil(dataMax * 2)]}
         />
         <ChartTooltip
@@ -286,7 +285,6 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
         <ChartLegend content={<ChartLegendContent />} />
         <Bar
           dataKey="wind"
-          barSize={38}
           fill="var(--color-wind)"
           radius={4}
           stroke="#0000006e"

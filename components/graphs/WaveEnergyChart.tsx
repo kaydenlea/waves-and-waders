@@ -88,24 +88,28 @@ const WaveEnergyChart = ({ beachId, hours = 24, date }: Props) => {
     []
   );
   useEffect(() => {
+    let cancelled = false;
+
     const load = async () => {
       try {
         if (!beachId) {
-          setSeries([
-            { time: 0, energy: 1 },
-            { time: 3, energy: 2 },
-            { time: 6, energy: 2 },
-            { time: 9, energy: 3 },
-            { time: 12, energy: 2 },
-            { time: 15, energy: 3 },
-            { time: 18, energy: 2 },
-            { time: 21, energy: 1 },
-          ]);
-          setDayAreas([{ x1: 6, x2: 18 }]);
-          setNightAreas([
-            { x1: 0, x2: 6 },
-            { x1: 18, x2: hours },
-          ]);
+          if (!cancelled) {
+            setSeries([
+              { time: 0, energy: 1 },
+              { time: 3, energy: 2 },
+              { time: 6, energy: 2 },
+              { time: 9, energy: 3 },
+              { time: 12, energy: 2 },
+              { time: 15, energy: 3 },
+              { time: 18, energy: 2 },
+              { time: 21, energy: 1 },
+            ]);
+            setDayAreas([{ x1: 6, x2: 18 }]);
+            setNightAreas([
+              { x1: 0, x2: 6 },
+              { x1: 18, x2: hours },
+            ]);
+          }
           return;
         }
 
@@ -122,6 +126,8 @@ const WaveEnergyChart = ({ beachId, hours = 24, date }: Props) => {
         }
 
         const rows = await fetchBeachForecast(id, start, end);
+        if (cancelled) return;
+
         const startMs = start.getTime();
         setSeries(
           rows.map((r) => ({
@@ -137,11 +143,15 @@ const WaveEnergyChart = ({ beachId, hours = 24, date }: Props) => {
         );
 
         const beach = await fetchBeachDetails(String(id));
+        if (cancelled) return;
+
         const county = beach?.COUNTY;
         if (county) {
           const basisDate =
             date instanceof Date ? new Date(date) : new Date(start);
           const cond = await fetchDailyConditions(county, basisDate);
+          if (cancelled) return;
+
           const parseHM = (
             s: string | null
           ): { h: number; m: number } | null => {
@@ -164,26 +174,34 @@ const WaveEnergyChart = ({ beachId, hours = 24, date }: Props) => {
             const setHour = clampHour(toHour(setv));
             const x1 = Math.min(riseHour, setHour);
             const x2 = Math.max(riseHour, setHour);
-            setDayAreas(x2 > x1 ? [{ x1, x2 }] : []);
-            const nights: { x1: number; x2: number }[] = [];
-            if (x1 > 0) nights.push({ x1: 0, x2: x1 });
-            if (x2 < hours) nights.push({ x1: x2, x2: hours });
-            setNightAreas(nights);
-          } else {
+            if (!cancelled) {
+              setDayAreas(x2 > x1 ? [{ x1, x2 }] : []);
+              const nights: { x1: number; x2: number }[] = [];
+              if (x1 > 0) nights.push({ x1: 0, x2: x1 });
+              if (x2 < hours) nights.push({ x1: x2, x2: hours });
+              setNightAreas(nights);
+            }
+          } else if (!cancelled) {
             setDayAreas([]);
             setNightAreas([{ x1: 0, x2: hours }]);
           }
-        } else {
+        } else if (!cancelled) {
           setDayAreas([]);
           setNightAreas([{ x1: 0, x2: hours }]);
         }
       } catch (e) {
         console.error("Failed to load wave energy", e);
-        setDayAreas([]);
-        setNightAreas([{ x1: 0, x2: hours }]);
+        if (!cancelled) {
+          setDayAreas([]);
+          setNightAreas([{ x1: 0, x2: hours }]);
+        }
       }
     };
-    load();
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
   }, [beachId, hours, date]);
 
   const stops = useMemo(

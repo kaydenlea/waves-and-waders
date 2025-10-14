@@ -44,15 +44,19 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
   );
 
   useEffect(() => {
+    let cancelled = false;
+
     const load = async () => {
       try {
         if (!beachId) {
-          setChartData(
-            Array.from({ length: 25 }, (_, h) => ({
-              hour: h,
-              surf: Number((2 + Math.sin((h / 24) * Math.PI * 2)).toFixed(1)),
-            }))
-          );
+          if (!cancelled) {
+            setChartData(
+              Array.from({ length: 25 }, (_, h) => ({
+                hour: h,
+                surf: Number((2 + Math.sin((h / 24) * Math.PI * 2)).toFixed(1)),
+              }))
+            );
+          }
           return;
         }
         const resolved = await fetchBeachByIdLoose(beachId);
@@ -97,7 +101,9 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
             surf: Number(effective.toFixed(1)),
           };
         });
-        setChartData(data);
+        if (!cancelled) {
+          setChartData(data);
+        }
 
         // Build sunrise/sunset shading for the selected day window (hours)
         try {
@@ -129,7 +135,9 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
               const setHour = clampHour(toHour(setv));
               const x1 = Math.min(riseHour, setHour);
               const x2 = Math.max(riseHour, setHour);
-              setDayAreas(x2 > x1 ? [{ x1, x2 }] : []);
+              if (!cancelled) {
+                setDayAreas(x2 > x1 ? [{ x1, x2 }] : []);
+              }
               const nightSegments: { x1: number; x2: number }[] = [];
               if (x1 > 0) {
                 nightSegments.push({ x1: 0, x2: x1 });
@@ -137,21 +145,34 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
               if (x2 < hours) {
                 nightSegments.push({ x1: x2, x2: hours });
               }
-              setNightAreas(nightSegments);
-            } else {
+              if (!cancelled) {
+                setNightAreas(nightSegments);
+              }
+            } else if (!cancelled) {
               setDayAreas([]);
               setNightAreas([{ x1: 0, x2: hours }]);
             }
           }
         } catch (_) {
-          setDayAreas([]);
-          setNightAreas([{ x1: 0, x2: hours }]);
+          if (!cancelled) {
+            setDayAreas([]);
+            setNightAreas([{ x1: 0, x2: hours }]);
+          }
         }
       } catch (e) {
         console.error("Failed to load surf data", e);
+        if (!cancelled) {
+          setChartData([]);
+          setDayAreas([]);
+          setNightAreas([]);
+        }
       }
     };
-    load();
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
   }, [beachId, hours, date]);
 
   const domainStart = 0;
@@ -169,7 +190,7 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
     return ticks;
   }, [hours]);
 
-  const EDGE_GUTTER_PX = 28;
+  const EDGE_GUTTER_PX = 25;
   const closeTo = (a: number, b: number, tolerance = 0.05) =>
     Math.abs(a - b) <= tolerance;
   const makeAreaShape =
@@ -202,14 +223,13 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
       <BarChart
         margin={{
           right: 25,
-          left: 25,
+          left: -28,
         }}
         accessibilityLayer
         data={chartData}
         syncId="anyId"
-        barCategoryGap={0}
-        barGap={-4}
-        maxBarSize={44}
+        barCategoryGap="20%"
+        maxBarSize={80}
       >
         {dayAreas.map((a, idx) => (
           <ReferenceArea
@@ -250,7 +270,7 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
           tickLine={false}
           tickMargin={10}
           axisLine={false}
-          // padding={{ left: 28, right: 28 }}
+          padding={{ left: 25, right: 25 }}
           domain={[domainStart, domainEnd]}
           ticks={hourTicks}
           tickFormatter={(value: number) => {
@@ -267,18 +287,17 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
         />
         <YAxis
           dataKey="surf"
-          hide
           allowDecimals={false}
           tickLine={false}
           axisLine={false}
           tickMargin={8}
+          fontSize={11}
           domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.5)]}
         />
         <ChartTooltip content={<ChartTooltipContent />} />
         <ChartLegend content={<ChartLegendContent />} />
         <Bar
           dataKey="surf"
-          barSize={38}
           fill="var(--color-surf, var(--color-tide))"
           radius={4}
           stroke="#0000006e"
