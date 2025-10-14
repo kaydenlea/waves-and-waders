@@ -3,6 +3,7 @@ import PageTabs from "@/components/general/PageTabs";
 import NearbyBeaches from "@/components/beaches/NearbyBeaches";
 import { fetchAllBeaches } from "@/lib/supabase";
 import BackToMapButton from "@/components/general/BackToMapButton";
+import { getServerSupabase } from "@/lib/supabaseServer";
 
 export const metadata: Metadata = {
   title: "Search surf spots | Waves and Waders",
@@ -11,11 +12,29 @@ export const metadata: Metadata = {
 
 export default async function BeachesPage() {
   const beaches = await fetchAllBeaches();
+
+  const supabase = await getServerSupabase();
+  const {
+    data: sessionData,
+    error: sessionError,
+  } = await supabase.auth.getSession();
+  if (sessionError) {
+    console.error("Failed to load session", sessionError);
+  }
+
+  const user = sessionData.session?.user ?? null;
+  let favoriteIds: string[] = [];
+
+  if (user) {
+    const { data } = await supabase
+      .from("user_favorite_beaches")
+      .select("beach_id")
+      .eq("user_id", user.id);
+    favoriteIds = (data ?? []).map((row) => String(row.beach_id));
+  }
+
   return (
     <>
-      {/* <div className="block @min-3xl:hidden flex justify-center pt-5 pb-7">
-        <div className="bg-gray-300 w-16 h-1.5 rounded-full" />
-      </div> */}
       <div className="@container p-2 touch-pan-y">
         <div className="relative w-full flex flex-col gap-6">
           <PageTabs
@@ -32,7 +51,7 @@ export default async function BeachesPage() {
             </span>
           </header>
         </div>
-        <NearbyBeaches beaches={beaches as any} />
+        <NearbyBeaches beaches={beaches as any} favoriteIds={favoriteIds} />
       </div>
       <BackToMapButton />
     </>

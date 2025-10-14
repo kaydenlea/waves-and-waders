@@ -155,9 +155,11 @@ const TEMP_CAP = 100; // For temperature circles
 export default function NearbyBeaches({
   beaches,
   date = new Date(),
+  favoriteIds = [],
 }: {
   beaches: DbBeach[];
   date?: Date;
+  favoriteIds?: string[];
 }) {
   const { filters } = useMapFilters();
   const initialList: UIBeach[] = useMemo(
@@ -182,6 +184,11 @@ export default function NearbyBeaches({
           } satisfies UIBeach)
       ),
     [beaches]
+  );
+
+  const favoriteSet = useMemo(
+    () => new Set((favoriteIds ?? []).map((id) => String(id))),
+    [favoriteIds]
   );
 
   const [sorted, setSorted] = useState<UIBeach[]>(initialList);
@@ -228,6 +235,7 @@ export default function NearbyBeaches({
 
     const applyFilters = (list: ApiBeach[]) =>
       list.filter((b) => {
+        if (b.features && (b.features as any).INLND_AREA) return false;
         if (!filters.size) return true;
         const feats = (b.features ?? {}) as Record<string, boolean>;
         for (const k of filters) if (!feats[k]) return false;
@@ -711,10 +719,6 @@ export default function NearbyBeaches({
                 icon: <BadgeCheck size={16} />,
                 color: "bg-gray-200",
               },
-              INLND_AREA: {
-                icon: <BadgeCheck size={16} />,
-                color: "bg-emerald-100",
-              },
               STRS_BEACH: {
                 icon: <BadgeCheck size={16} />,
                 color: "bg-slate-100",
@@ -914,7 +918,7 @@ export default function NearbyBeaches({
 
       <section className="grid grid-cols-1 gap-3 @min-md:grid-cols-2 mb-4">
         {currentItems.map((b) => (
-          <BeachCard key={b.id} b={b} isFav={false} />
+          <BeachCard key={b.id} b={b} isFav={favoriteSet.has(String(b.id))} />
         ))}
       </section>
 

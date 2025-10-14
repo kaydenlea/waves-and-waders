@@ -307,6 +307,8 @@ const StatTable = ({
   const { selectedDays } = useDateContext();
 
   React.useEffect(() => {
+    let cancelled = false;
+
     const load = async () => {
       try {
         if (!beachId) return;
@@ -337,6 +339,7 @@ const StatTable = ({
           rangeStart,
           rangeEnd
         );
+        if (cancelled) return;
 
         const byDay = new Map<string, ForecastData[]>();
         const fmtDayLabel = (d: Date) =>
@@ -558,12 +561,20 @@ const StatTable = ({
           if (!onlyLabels) finalDays = days.slice(0, 1);
           else finalDays = days.slice(0, numDays);
         }
-        setData(finalDays);
+        if (!cancelled) {
+          setData(finalDays);
+        }
       } catch (e) {
-        console.error("Failed to load StatTable data", e);
+        if (!cancelled) {
+          console.error("Failed to load StatTable data", e);
+        }
       }
     };
-    load();
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
   }, [selectedDays, beachId, numDays, numHours, date]);
 
   const COLUMNS = [

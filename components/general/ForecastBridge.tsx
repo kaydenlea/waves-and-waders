@@ -1,17 +1,27 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSessionContext, useSupabaseClient } from "@supabase/auth-helpers-react";
 import { LazyLoadDatePicker } from "@/components/general/LazyLoad/LazyLoadDatePicker";
 import VisualWrapper from "@/components/general/VisualWrapper";
 import { LazyLoadForecastTide } from "@/components/general/LazyLoad/LazyLoadForecastTide";
 import { LazyLoadTable } from "@/components/general/LazyLoad/LazyLoadTable";
 import Link from "next/link";
-import { Pencil, Calendar } from "lucide-react";
+import { Pencil } from "lucide-react";
 import { useDateContext } from "../context/DateContext";
 import dayjs from "dayjs";
 import { LazyLoadForecastWaveEnergy } from "./LazyLoad/LazyLoadForecastWaveEnergy";
 import { LazyLoadForecastSurf } from "./LazyLoad/LazyLoadForecastSurf";
 import { LazyLoadForecastWind } from "./LazyLoad/LazyLoadForecastWind";
+import {
+  getDashboardStorageKey,
+  getDefaultLayout,
+  normalizeMeta,
+  normalizeRows,
+  type Row,
+  type WidgetId,
+  type WidgetMeta,
+} from "./dashboardLayout";
 
 // ------------------------------------------------------
 
@@ -37,7 +47,23 @@ const ForecastBridge: React.FC<Props> = ({ beachId }) => {
   const [isMounted, setIsMounted] = useState(false);
 
   // whether the picker is visible in the viewport; default true so compact bar is NOT shown on SSR/initial render.
-  const [isPickerVisible, setIsPickerVisible] = useState<boolean>(true);
+  const [, setIsPickerVisible] = useState<boolean>(true);
+
+  const forecastDefaults = useMemo(() => getDefaultLayout("forecast"), []);
+  const [layoutMeta, setLayoutMeta] = useState<Record<WidgetId, WidgetMeta>>(
+    () => forecastDefaults.meta
+  );
+  const [layoutRows, setLayoutRows] = useState<Row[]>(() => forecastDefaults.rows);
+  const storageMetaKey = useMemo(
+    () => getDashboardStorageKey("forecast", "meta"),
+    []
+  );
+  const storageRowsKey = useMemo(
+    () => getDashboardStorageKey("forecast", "rows"),
+    []
+  );
+  const supabase = useSupabaseClient();
+  const { session } = useSessionContext();
 
   useEffect(() => {
     setIsMounted(true);
@@ -74,6 +100,82 @@ const ForecastBridge: React.FC<Props> = ({ beachId }) => {
     };
   }, [isMounted]);
 
+  useEffect(() => {
+    let cancelled = false;
+    const fallback = getDefaultLayout("forecast");
+
+    const applyLayout = (
+      nextMeta: Record<WidgetId, WidgetMeta>,
+      nextRows: Row[]
+    ) => {
+      if (cancelled) return;
+      setLayoutMeta(nextMeta);
+      setLayoutRows(nextRows);
+    };
+
+    const loadFromLocalStorage = () => {
+      if (typeof window === "undefined") {
+        applyLayout(fallback.meta, fallback.rows);
+        return;
+      }
+      try {
+        const savedMetaRaw = window.localStorage.getItem(storageMetaKey);
+        const nextMeta = savedMetaRaw
+          ? normalizeMeta("forecast", JSON.parse(savedMetaRaw))
+          : fallback.meta;
+        const savedRowsRaw = window.localStorage.getItem(storageRowsKey);
+        const nextRows = savedRowsRaw
+          ? normalizeRows("forecast", JSON.parse(savedRowsRaw), nextMeta)
+          : fallback.rows;
+        applyLayout(nextMeta, nextRows);
+      } catch (error) {
+        console.warn("Failed to load forecast layout", error);
+        applyLayout(fallback.meta, fallback.rows);
+      }
+    };
+
+    const loadFromSupabase = async () => {
+      if (!session) {
+        loadFromLocalStorage();
+        return;
+      }
+      try {
+        const { data, error } = await supabase
+          .from("user_dashboard_settings")
+          .select("forecast_meta, forecast_rows")
+          .eq("user_id", session.user.id)
+          .maybeSingle();
+
+        if (error) {
+          console.warn("Failed to load forecast layout from Supabase", error);
+          loadFromLocalStorage();
+          return;
+        }
+        if (!data) {
+          applyLayout(fallback.meta, fallback.rows);
+          return;
+        }
+
+        const nextMeta = normalizeMeta("forecast", data.forecast_meta);
+        const nextRows = normalizeRows(
+          "forecast",
+          data.forecast_rows,
+          nextMeta
+        );
+        applyLayout(nextMeta, nextRows);
+      } catch (error) {
+        console.warn("Unexpected error loading forecast layout", error);
+        loadFromLocalStorage();
+      }
+    };
+
+    void loadFromSupabase();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [storageMetaKey, storageRowsKey, session, supabase]);
+
   // Build the human readable window string only after mounted and when selectedDays exist.
   const windowString = useMemo(() => {
     if (!isMounted || !selectedDays || selectedDays.length === 0) {
@@ -96,6 +198,86 @@ const ForecastBridge: React.FC<Props> = ({ beachId }) => {
     );
     return `${windowStart} - ${windowEnd}`;
   }, [isMounted, selectedDays]);
+
+  const visibleRows = useMemo(
+    () =>
+      layoutRows.filter((row) =>
+        row.items.some((id) => layoutMeta[id]?.visible !== false)
+      ),
+    [layoutRows, layoutMeta]
+  );
+
+  const renderWidget = useCallback(
+    (id: WidgetId) => {
+      switch (id) {
+        case "stats":
+          return (
+            <VisualWrapper label="Forecast Overview">
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p className="font-medium text-foreground">{windowString}</p>
+                <p>
+                  Adjust the date range above or use the edit mode to
+                  customize which panels show here.
+                </p>
+              </div>
+            </VisualWrapper>
+          );
+        case "tide":
+          return (
+            <VisualWrapper label="Tide" unit="ft">
+              <LazyLoadForecastTide
+                beachId={beachId}
+                date={selectedDays?.[0] ?? undefined}
+              />
+            </VisualWrapper>
+          );
+        case "surf":
+          return (
+            <VisualWrapper label="Surf" unit="ft">
+              <LazyLoadForecastSurf beachId={beachId} days={selectedDays} />
+            </VisualWrapper>
+          );
+        case "wind":
+          return (
+            <VisualWrapper label="Wind" unit="mph">
+              <LazyLoadForecastWind beachId={beachId} days={selectedDays} />
+            </VisualWrapper>
+          );
+        case "energy":
+          return (
+            <VisualWrapper label="Wave Energy" unit="kJ">
+              <LazyLoadForecastWaveEnergy
+                beachId={beachId}
+                days={selectedDays}
+              />
+            </VisualWrapper>
+          );
+        case "table":
+          return (
+            <VisualWrapper label="Hourly Stats">
+              <LazyLoadTable
+                beachId={beachId}
+                numHours={3}
+                numDays={7}
+                header
+                date={selected ?? undefined}
+              />
+            </VisualWrapper>
+          );
+        case "swell":
+          return (
+            <VisualWrapper label="Swell" unit="ft">
+              <div className="py-10 text-center text-sm text-muted-foreground">
+                Swell forecast visualization is coming soon.
+              </div>
+            </VisualWrapper>
+          );
+        default:
+          return null;
+      }
+    },
+    [beachId, selected, selectedDays, windowString]
+  );
 
   return (
     <section className="relative flex flex-col gap-4 mb-2">
@@ -144,36 +326,61 @@ const ForecastBridge: React.FC<Props> = ({ beachId }) => {
         </header>
       </section>
 
-      {/* --- Visuals --- */}
-      <VisualWrapper label="Tide" unit="ft">
-        <LazyLoadForecastTide
-          beachId={beachId}
-          date={selectedDays?.[0] ?? undefined}
-        />
-      </VisualWrapper>
+      <section className="flex flex-col gap-3">
+        {visibleRows.length === 0 ? (
+          <p className="mx-2 mt-4 text-sm text-muted-foreground">
+            All widgets are hidden. Use the edit page to re-enable panels for
+            the forecast view.
+          </p>
+        ) : (
+          visibleRows.map((row, index) => {
+            const visibleItems = row.items.filter(
+              (id) => layoutMeta[id]?.visible !== false
+            );
+            if (!visibleItems.length) return null;
 
-      <div className="flex flex-col @min-2xl:flex-row gap-3">
-        <VisualWrapper label="Surf" unit="ft">
-          <LazyLoadForecastSurf beachId={beachId} days={selectedDays} />
-        </VisualWrapper>
-        <VisualWrapper label="Wind" unit="mph">
-          <LazyLoadForecastWind beachId={beachId} days={selectedDays} />
-        </VisualWrapper>
-      </div>
+            const renderedItems = visibleItems
+              .map((id) => ({
+                id,
+                content: renderWidget(id),
+              }))
+              .filter(
+                (
+                  entry
+                ): entry is { id: WidgetId; content: React.ReactNode } =>
+                  Boolean(entry.content)
+              );
 
-      <VisualWrapper label="Hourly Stats">
-        <LazyLoadTable
-          beachId={beachId}
-          numHours={3}
-          numDays={7}
-          header
-          date={selected ?? undefined}
-        />
-      </VisualWrapper>
+            if (!renderedItems.length) return null;
 
-      <VisualWrapper label="Wave Energy" unit="kJ">
-        <LazyLoadForecastWaveEnergy beachId={beachId} days={selectedDays} />
-      </VisualWrapper>
+            const spacingClass = index === 0 ? "mt-4" : "mt-3";
+            const isFull =
+              renderedItems.length === 1 &&
+              (layoutMeta[renderedItems[0].id]?.span ?? "full") === "full";
+
+            if (isFull) {
+              return (
+                <div key={row.id} className={`${spacingClass} w-full`}>
+                  {renderedItems[0].content}
+                </div>
+              );
+            }
+
+            return (
+              <div
+                key={row.id}
+                className={`${spacingClass} w-full flex flex-col @min-2xl:flex-row gap-3`}
+              >
+                {renderedItems.map((entry) => (
+                  <React.Fragment key={entry.id}>
+                    {entry.content}
+                  </React.Fragment>
+                ))}
+              </div>
+            );
+          })
+        )}
+      </section>
     </section>
   );
 };

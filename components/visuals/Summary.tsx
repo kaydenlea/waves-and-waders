@@ -134,6 +134,8 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
   >([]);
 
   useEffect(() => {
+    let cancelled = false;
+
     const load = async () => {
       try {
         if (!beachId) return;
@@ -160,6 +162,8 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
           fetchBeachDetails(resolvedId),
           fetchBeachTides(resolvedId, startWindow, tideEndWindow),
         ]);
+        if (cancelled) return;
+        console.log("OBSERVE", current, forecast, beach, tideRows);
         const first = forecast[0];
         // If a specific date is selected, use that day's forecast; otherwise prefer current conditions
         const base = date ? first : current ?? first;
@@ -520,10 +524,6 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
               icon: <BadgeCheck size={16} />,
               color: "bg-gray-200",
             },
-            INLND_AREA: {
-              icon: <BadgeCheck size={16} />,
-              color: "bg-emerald-100",
-            },
             STRS_BEACH: {
               icon: <BadgeCheck size={16} />,
               color: "bg-slate-100",
@@ -593,16 +593,24 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
           }
           if (tags.length > 0) {
             s.push({ type: "features", tags });
-            setTags(tags);
+            if (!cancelled) {
+              setTags(tags);
+            }
           }
         }
 
-        setStats(s);
+        if (!cancelled) {
+          setStats(s);
+        }
       } catch (e) {
         console.error("Failed to load summary", e);
       }
     };
-    load();
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
   }, [beachId, date, surfRange]);
 
   useEffect(() => {

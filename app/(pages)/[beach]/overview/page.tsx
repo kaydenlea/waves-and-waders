@@ -1,57 +1,11 @@
-import Link from "next/link";
-
-import Highlights from "@/components/visuals/Highlights";
-import Summary from "@/components/visuals/Summary";
 import DateSummaryBridge from "@/components/general/DateSummaryBridge";
-import { LazyLoadTide } from "@/components/general/LazyLoad/LazyLoadTide";
-import { LazyLoadSwell } from "@/components/general/LazyLoad/LazyLoadSwell";
-import { LazyLoadSurf } from "@/components/general/LazyLoad/LazyLoadSurf";
-import { LazyLoadDatePicker } from "@/components/general/LazyLoad/LazyLoadDatePicker";
-import { LazyLoadHourSlider } from "@/components/general/LazyLoad/LazyLoadHourSlider";
-import { LazyLoadTable } from "@/components/general/LazyLoad/LazyLoadTable";
-import { LazyLoadWind } from "@/components/general/LazyLoad/LazyLoadWind";
-import { LazyLoadMap } from "@/components/general/LazyLoad/LazyLoadMap";
-import { LazyLoadEnergy } from "@/components/general/LazyLoad/LazyLoadEnergy";
-import VisualWrapper from "@/components/general/VisualWrapper";
 import PageTabs from "@/components/general/PageTabs";
-import BackButton from "@/components/general/BackButton";
 
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { fetchBeachByIdLoose, extractBeachId } from "@/lib/supabase";
-import { Pencil, ArrowLeft as BackIcon, Heart } from "lucide-react";
-import SaveButton from "@/components/general/SaveButton";
-import GradientCircle from "@/components/general/Stats/GradientCircle";
-import BeachCrossSection from "@/components/visuals/WaveModel";
+import { getServerSupabase } from "@/lib/supabaseServer";
 import BackToMapButton from "@/components/general/BackToMapButton";
-
-const chartData = [
-  { hour: 0, tide: 5, isPeak: 5 },
-  { hour: 1, tide: 4.5 },
-  { hour: 2, tide: 4.3 },
-  { hour: 3, tide: 4.1 },
-  { hour: 4, tide: 3 },
-  { hour: 5, tide: 2 },
-  { hour: 6, tide: 1, isPeak: 1 },
-  { hour: 7, tide: 2 },
-  { hour: 8, tide: 2.5 },
-  { hour: 9, tide: 2.8 },
-  { hour: 10, tide: 3 },
-  { hour: 11, tide: 4.5 },
-  { hour: 12, tide: 5 },
-  { hour: 13, tide: 5.1 },
-  { hour: 14, tide: 5.2 },
-  { hour: 15, tide: 5.3 },
-  { hour: 16, tide: 5.5 },
-  { hour: 17, tide: 5.3 },
-  { hour: 18, tide: 5.5, isPeak: 5.5 },
-  { hour: 19, tide: 5 },
-  { hour: 20, tide: 4.5 },
-  { hour: 21, tide: 4.3 },
-  { hour: 22, tide: 3 },
-  { hour: 23, tide: 2 },
-  { hour: 24, tide: 1, isPeak: 1 },
-];
 
 export const metadata: Metadata = {
   title: "Surf Daily Forecast | Waves and Waders",
@@ -80,7 +34,28 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
 
   const beachId = resolved.id.toString();
   const beachName = resolved.Name;
-  const isFav = false;
+
+  const supabase = await getServerSupabase();
+  const {
+    data: sessionData,
+    error: sessionError,
+  } = await supabase.auth.getSession();
+  if (sessionError) {
+    console.error("Failed to load session", sessionError);
+  }
+  const user = sessionData.session?.user ?? null;
+
+  let isFav = false;
+  if (user) {
+    const { data: favorite } = await supabase
+      .from("user_favorite_beaches")
+      .select("beach_id")
+      .eq("user_id", user.id)
+      .eq("beach_id", beachId)
+      .maybeSingle();
+    isFav = Boolean(favorite);
+  }
+
   return (
     <>
       <div className="@container p-2">
@@ -92,6 +67,8 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
             defaultPage="overview"
             beach={beach}
             tabs={["overview", "forecast"]}
+            beachId={beachId}
+            isFavorite={isFav}
           />
           <h1 className="font-semibold text-4xl tracking-tight w-full @min-3xl:w-[calc(100%-300px)]">
             {beachName}
@@ -118,35 +95,7 @@ export default Page;
 // import type { Metadata } from "next";
 // import TideSun from "@/components/general/Stats/TideSun";
 
-// const chartData = [
-//   { hour: 0, tide: 5, isPeak: 5 },
-//   { hour: 1, tide: 4.5 },
-//   { hour: 2, tide: 4.3 },
-//   { hour: 3, tide: 4.1 },
-//   { hour: 4, tide: 3 },
-//   { hour: 5, tide: 2 },
-//   { hour: 6, tide: 1, isPeak: 1 },
-//   { hour: 7, tide: 2 },
-//   { hour: 8, tide: 2.5 },
-//   { hour: 9, tide: 2.8 },
-//   { hour: 10, tide: 3 },
-//   { hour: 11, tide: 4.5 },
-//   { hour: 12, tide: 5 },
-//   { hour: 13, tide: 5.1 },
-//   { hour: 14, tide: 5.2 },
-//   { hour: 15, tide: 5.3 },
-//   { hour: 16, tide: 5.5 },
-//   { hour: 17, tide: 5.3 },
-//   { hour: 18, tide: 5.5, isPeak: 5.5 },
-//   { hour: 19, tide: 5 },
-//   { hour: 20, tide: 4.5 },
-//   { hour: 21, tide: 4.3 },
-//   { hour: 22, tide: 3 },
-//   { hour: 23, tide: 2 },
-//   { hour: 24, tide: 1, isPeak: 1 },
-// ];
-
-// export const metadata: Metadata = {
+// // export const metadata: Metadata = {
 //   title: "Surf Daily Forecast | Waves and Waders",
 //   description:
 //     "Check the daily and hourly surf conditions of your local beaches",

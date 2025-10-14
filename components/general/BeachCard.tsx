@@ -1,12 +1,12 @@
+'use client';
+
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { LazyLoadTidePreview } from "./LazyLoad/LazyLoadTidePreview";
 import { generateBeachUrl } from "@/lib/supabase";
 
 import {
-  Droplets,
-  Heart,
   Star,
-  Sun,
   Waves,
   Wind,
   MousePointer2 as ArrowIcon,
@@ -23,6 +23,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { useMapFilters } from "../context/MapFilterContext";
 import { scrollToMap } from "./BackToMapButton";
 import { cn } from "@/lib/utils";
+import SaveButton from "./SaveButton";
 
 export type Beach = {
   id: string;
@@ -38,7 +39,7 @@ export type Beach = {
   };
   image: string;
   coords: [number, number];
-  features: { label: string; icon: React.ReactNode; color: string }[];
+  features: { label: string; icon: ReactNode; color: string }[];
 };
 
 function StarRating({ value }: { value: number }) {
@@ -84,12 +85,10 @@ const tags = [
 const BeachCard = ({
   b,
   useMiles = true,
-  onToggleFavorite,
   isFav,
 }: {
   b: Beach;
   useMiles?: boolean;
-  onToggleFavorite?: (id: string) => void;
   isFav: boolean;
 }) => {
   const { popupData, setPopupData, popupRef, popupId, map } = useMapFilters();
@@ -122,33 +121,18 @@ const BeachCard = ({
         popupId.current = b.id;
         setPopupData(b.id);
         scrollToMap();
-        console.log("BEACH REF", popupId.current, popupData);
       }}
       id={`beach-${b.id}`}
       className="hover:cursor-pointer hover:duration-300 hover:scale-101 hover:bg-highlight-2 group flex flex-col overflow-hidden rounded-2xl border border-border/50 bg-highlight-4 shadow-md shadow-black/20 backdrop-blur"
     >
       <div className="relative flex-1">
-        {/* <img
-          src={b.image}
-          alt={`${b.name} – ${b.region}`}
-          className="h-48 w-full object-cover transition duration-500 group-hover:scale-[1.03]"
-          loading="lazy"
-        /> */}
-        {/* <div className="bg-muted-foreground h-40 w-full object-cover transition duration-500 group-hover:scale-[1.03]" /> */}
-        {/* <button
-          // onClick={() => onToggleFavorite(b.id)}
-          aria-label={isFav ? "Remove from favorites" : "Add to favorites"}
-          className="absolute right-3 top-3 inline-flex items-center rounded-full bg-slate-900/70 p-2 text-white/90 backdrop-blur transition hover:bg-slate-900"
-        >
-          <Heart
-            className={`h-5 w-5 ${
-              isFav ? "fill-rose-500 text-rose-400" : "text-white"
-            }`}
-          />
-        </button>
-        <div className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-slate-900/70 px-2 py-1 text-xs text-white/90 backdrop-blur">
-          <Waves className="h-4 w-4" /> {b.conditions.surf}
-        </div> */}
+        <SaveButton
+          beachId={String(b.id)}
+          initialIsFav={isFav}
+          variant="overlay"
+          className="absolute right-3 top-3"
+          stopPropagation
+        />
       </div>
       <div className="p-4 flex-1 flex flex-col justify-between">
         <div className="flex flex-col gap-2">
@@ -244,22 +228,12 @@ const BeachCard = ({
           </Popover>
           {/* <Tag data={tags[0]} /> */}
           <div className="flex items-center gap-2">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-              }}
-              // onClick={() => onToggleFavorite(b.id)}
-              aria-label={isFav ? "Remove from favorites" : "Add to favorites"}
+            <SaveButton
+              beachId={String(b.id)}
+              initialIsFav={isFav}
               className="group/button inline-flex items-center rounded-full bg-highlight-5 p-2 backdrop-blur transition hover:bg-highlight-3"
-            >
-              <Heart
-                className={`h-4.5 w-4.5 ${
-                  isFav
-                    ? "fill-rose-500 text-rose-400 group-hover/button:fill-none group-hover/button:text-foreground"
-                    : "text-foreground group-hover/button:fill-rose-500 group-hover/button:text-rose-400"
-                }`}
-              />
-            </button>
+              stopPropagation
+            />
             <Link
               onClick={(e) => {
                 e.stopPropagation();
@@ -279,110 +253,3 @@ const BeachCard = ({
 };
 
 export default BeachCard;
-
-// const BeachCard = ({
-//   b,
-//   useMiles,
-//   onToggleFavorite,
-//   isFav,
-// }: {
-//   b: Beach;
-//   useMiles?: boolean;
-//   onToggleFavorite?: (id: string) => void;
-//   isFav: boolean;
-// }) => {
-//   const distance =
-//     b.distanceKm != null
-//       ? useMiles
-//         ? b.distanceKm * 0.621371
-//         : b.distanceKm
-//       : null;
-//   return (
-//     <article
-//       id={`beach-${b.id}`}
-//       className="group flex flex-col overflow-hidden rounded-2xl border border-border/50 bg-highlight-4 shadow-md shadow-black/20 backdrop-blur"
-//     >
-//       <div className="relative flex-1">
-//         {/* <img
-//           src={b.image}
-//           alt={`${b.name} – ${b.region}`}
-//           className="h-48 w-full object-cover transition duration-500 group-hover:scale-[1.03]"
-//           loading="lazy"
-//         /> */}
-//         <div className="bg-muted-foreground h-40 w-full object-cover transition duration-500 group-hover:scale-[1.03]" />
-//         <button
-//           // onClick={() => onToggleFavorite(b.id)}
-//           aria-label={isFav ? "Remove from favorites" : "Add to favorites"}
-//           className="absolute right-3 top-3 inline-flex items-center rounded-full bg-slate-900/70 p-2 text-white/90 backdrop-blur transition hover:bg-slate-900"
-//         >
-//           <Heart
-//             className={`h-5 w-5 ${
-//               isFav ? "fill-rose-500 text-rose-400" : "text-white"
-//             }`}
-//           />
-//         </button>
-//         <div className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-slate-900/70 px-2 py-1 text-xs text-white/90 backdrop-blur">
-//           <Waves className="h-4 w-4" /> {b.conditions.surf}
-//         </div>
-//       </div>
-//       <div className="p-4 flex-1 flex flex-col justify-between">
-//         <div>
-//           <div className="flex items-start justify-between gap-3">
-//             <div className="min-w-0">
-//               <h3 className="truncate text-md font-semibold leading-tight text-foreground">
-//                 {b.name}
-//               </h3>
-//               <p className="truncate text-xs text-foreground/70">{b.region}</p>
-//             </div>
-//             <StarRating value={b.conditions.rating} />
-//           </div>
-//           <div className="mt-3 flex flex-col gap-3 text-sm font-medium text-foreground/70">
-//             <div className="flex gap-3">
-//               {/* <span className="inline-flex items-center gap-1">
-//                 <Waves className="h-4 w-4" /> {b.conditions.surf}
-//               </span> */}
-//               <div className="flex gap-3">
-//                 <span className="inline-flex items-center gap-1">
-//                   <Droplets className="h-4 w-4" /> {b.conditions.temp}°F
-//                 </span>
-//                 {/* <span className="inline-flex items-center gap-1">
-//                   <Sun className="h-4 w-4" /> {b.conditions.temp}°F
-//                 </span> */}
-//               </div>
-//               <span className="inline-flex items-center gap-1">
-//                 <Wind className="h-4 w-4" /> {b.conditions.wind}
-//               </span>
-//             </div>
-//             {/* <div className="flex gap-3">
-//               <span className="inline-flex items-center gap-1">
-//                 <Droplets className="h-4 w-4" /> {b.conditions.temp}°F
-//               </span>
-//               <span className="inline-flex items-center gap-1">
-//                 <Sun className="h-4 w-4" /> {b.conditions.temp}°F
-//               </span>
-//             </div> */}
-//           </div>
-//         </div>
-//         <div className="mt-4 flex items-center justify-between gap-4">
-//           <div className="text-foreground/70 text-sm">
-//             {distance != null ? (
-//               <span>
-//                 {distance.toFixed(1)} {useMiles ? "mi" : "km"} away
-//               </span>
-//             ) : (
-//               <span className="italic text-xs">
-//                 Turn on location for distance
-//               </span>
-//             )}
-//           </div>
-//           <Link
-//             href={`/${b.name}/overview#content`}
-//             className="text-center rounded-full border border-border/50 bg-highlight-2 px-3 py-1.5 text-sm text-foreground/90 transition hover:bg-highlight-2/20"
-//           >
-//             View
-//           </Link>
-//         </div>
-//       </div>
-//     </article>
-//   );
-// };

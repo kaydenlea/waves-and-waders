@@ -62,29 +62,33 @@ const SwellChart = ({ beachId, hours = 24, date }: Props) => {
   );
 
   useEffect(() => {
+    let cancelled = false;
+
     const load = async () => {
       try {
         if (!beachId) {
-          setData(
-            Array.from({ length: 9 }, (_, idx) => {
-              const time = idx * 3;
-              return {
-                time,
-                primary: Number(
-                  (2 + Math.sin((time / 24) * Math.PI)).toFixed(1)
-                ),
-                secondary: Number(
-                  (1 + Math.cos((time / 24) * Math.PI)).toFixed(1)
-                ),
-                tertiary: Number(
-                  (0.5 + Math.sin((time / 12) * Math.PI) * 0.3).toFixed(1)
-                ),
-                primaryDir: (time * 15) % 360,
-                secondaryDir: (time * 20) % 360,
-                tertiaryDir: (time * 25) % 360,
-              };
-            })
-          );
+          if (!cancelled) {
+            setData(
+              Array.from({ length: 9 }, (_, idx) => {
+                const time = idx * 3;
+                return {
+                  time,
+                  primary: Number(
+                    (2 + Math.sin((time / 24) * Math.PI)).toFixed(1)
+                  ),
+                  secondary: Number(
+                    (1 + Math.cos((time / 24) * Math.PI)).toFixed(1)
+                  ),
+                  tertiary: Number(
+                    (0.5 + Math.sin((time / 12) * Math.PI) * 0.3).toFixed(1)
+                  ),
+                  primaryDir: (time * 15) % 360,
+                  secondaryDir: (time * 20) % 360,
+                  tertiaryDir: (time * 25) % 360,
+                };
+              })
+            );
+          }
           return;
         }
         const resolved = await fetchBeachByIdLoose(beachId);
@@ -108,7 +112,9 @@ const SwellChart = ({ beachId, hours = 24, date }: Props) => {
           secondaryDir: r.swell.secondary.direction ?? undefined,
           tertiaryDir: r.swell.tertiary?.direction ?? undefined,
         }));
-        setData(series);
+        if (!cancelled) {
+          setData(series);
+        }
 
         // Compute sunrise/sunset shading for the day in view
         try {
@@ -134,7 +140,9 @@ const SwellChart = ({ beachId, hours = 24, date }: Props) => {
               const dayEnd = Math.max(riseH, setH);
               const clampedStart = Math.max(0, Math.min(hours, dayStart));
               const clampedEnd = Math.max(0, Math.min(hours, dayEnd));
-              setDayAreas([{ x1: clampedStart, x2: clampedEnd }]);
+              if (!cancelled) {
+                setDayAreas([{ x1: clampedStart, x2: clampedEnd }]);
+              }
               const nightSegments: { x1: number; x2: number }[] = [];
               if (clampedStart > 0) {
                 nightSegments.push({ x1: 0, x2: clampedStart });
@@ -142,21 +150,34 @@ const SwellChart = ({ beachId, hours = 24, date }: Props) => {
               if (clampedEnd < hours) {
                 nightSegments.push({ x1: clampedEnd, x2: hours });
               }
-              setNightAreas(nightSegments);
-            } else {
+              if (!cancelled) {
+                setNightAreas(nightSegments);
+              }
+            } else if (!cancelled) {
               setDayAreas([]);
               setNightAreas([{ x1: 0, x2: hours }]);
             }
           }
         } catch (e) {
-          setDayAreas([]);
-          setNightAreas([{ x1: 0, x2: hours }]);
+          if (!cancelled) {
+            setDayAreas([]);
+            setNightAreas([{ x1: 0, x2: hours }]);
+          }
         }
       } catch (e) {
         console.error("Failed to load swell data", e);
+        if (!cancelled) {
+          setData([]);
+          setDayAreas([]);
+          setNightAreas([]);
+        }
       }
     };
-    load();
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
   }, [beachId, hours, date]);
 
   const hourTicks = useMemo(() => {

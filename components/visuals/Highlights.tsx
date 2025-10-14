@@ -358,6 +358,8 @@ const Highlights = ({
   ]);
 
   useEffect(() => {
+    let cancelled = false;
+
     const load = async () => {
       try {
         if (!beachId) return;
@@ -516,17 +518,23 @@ const Highlights = ({
           energy: { value: Math.round(base?.surf.waveEnergy ?? 0), unit: "kJ" },
         });
 
-        setStats(nextStats);
+        if (!cancelled) {
+          setStats(nextStats);
+        }
       } catch (e) {
         console.error("Failed to load highlights", e);
       }
     };
-    load();
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
   }, [beachId, date, hour]);
 
   return (
-    <div>
-      <ul className="grid grid-cols-2 @min-lg:grid-cols-4 @min-5xl:grid-cols-8 gap-1.5">
+    <div className="w-full max-w-6xl mx-auto">
+      <ul className="grid grid-cols-2 @min-2xl:grid-cols-4 gap-3">
         {stats.slice(startIdx, endIdx + 1).map((stat) => {
           let content;
           switch (stat.label) {

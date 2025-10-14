@@ -212,7 +212,14 @@ const DatePicker = ({
         if (active) {
           // Order keys ascending and cap to first seven entries to avoid overcrowding.
           const keys = Object.keys(groups).sort();
-          const limitedKeys = keys.slice(0, 7);
+          // Hide days that are fully in the past once the Pacific day rolls over.
+          const pacificTodayKey = new Intl.DateTimeFormat("en-CA", {
+            timeZone: "America/Los_Angeles",
+          }).format(new Date());
+          const upcomingKeys = keys.filter((key) => key >= pacificTodayKey);
+          const visibleKeys =
+            upcomingKeys.length > 0 ? upcomingKeys : keys.slice(-7);
+          const limitedKeys = visibleKeys.slice(0, 7);
           const limitedGroups: Record<string, DaySummary> = {};
           for (const key of limitedKeys) {
             limitedGroups[key] = groups[key];
