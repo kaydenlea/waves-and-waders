@@ -386,7 +386,6 @@ const StatTable = ({
             }
           }
         }
-        console.log("ALL DAYS", entriesByDay);
         for (const [label, rows] of entriesByDay) {
           if (allowedLabels && !allowedLabels.has(label)) continue;
           rows.sort(

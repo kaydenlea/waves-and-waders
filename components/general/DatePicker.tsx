@@ -297,7 +297,7 @@ const DatePicker = ({
       const key = selectedDate.format("YYYY-MM-DD");
       const summary = summaries[key];
       setSurfIntensityForDate(summary?.max ?? null);
-
+      console.log("OVERVIEW DATA summary", summary);
       // Calculate surf range using the same logic as display
       const max = summary?.max ?? null;
       const minWithFallback =

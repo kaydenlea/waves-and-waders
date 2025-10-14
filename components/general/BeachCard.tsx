@@ -32,6 +32,7 @@ export type Beach = {
   conditions: {
     surf: string;
     wind: string;
+    windDir: number;
     temp: number;
     rating: number;
   };
@@ -103,10 +104,12 @@ const BeachCard = ({
   const color = !b.conditions.rating
     ? "bg-highlight-3"
     : maxRounded! >= 6
-    ? "bg-red-300"
+    ? "bg-red-400"
     : maxRounded! >= 3
     ? "bg-orange-300"
     : "bg-green-300";
+  const rotation =
+    typeof b.conditions.windDir === "number" ? b.conditions.windDir - 315 : 0;
   return (
     <article
       onClick={() => {
@@ -173,9 +176,9 @@ const BeachCard = ({
           </div>
           <div>
             {/* <span className="text-sm font-medium">{b.conditions.surf}</span> */}
-            <LazyLoadTidePreview />
+            {/* <LazyLoadTidePreview /> */}
           </div>
-          <div className="-mt-2 flex flex-col gap-3 text-xs">
+          <div className="flex flex-col gap-3 text-xs">
             <div className="flex gap-3">
               <span className="inline-flex items-center gap-1">
                 <div className="flex items-center justify-center p-1 bg-blue-100 rounded-full border border-border/40">
@@ -210,9 +213,11 @@ const BeachCard = ({
                   mph
                 </span>
                 <ArrowIcon
-                  className="h-4 w-4"
-                  color="#ff6a34ff"
-                  fill="#ff6a34ff"
+                  style={{
+                    transform: `rotate(${rotation}deg)`,
+                    display: "inline-block",
+                  }}
+                  className="ml-1 h-4 w-4 fill-foreground/50 text-foreground/50"
                 />
               </span>
             </div>

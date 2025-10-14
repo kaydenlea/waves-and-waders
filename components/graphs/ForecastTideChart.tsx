@@ -1477,9 +1477,6 @@ export default function ForecastTideChart({ beachId, date }: Props) {
             dayOffset === 0 && "hidden"
           )}
           style={{ backdropFilter: "blur(5px)" }}
-        <LineChart
-          data={visibleData}
-          margin={{ left: -35, right: 15, bottom: 5, top: 50 }}
         >
           ◀
         </button>

@@ -42,6 +42,7 @@ import {
   Waves,
   Wind,
 } from "lucide-react";
+import { useDateContext } from "../context/DateContext";
 
 type DbBeach = {
   id: string | number;
@@ -69,7 +70,13 @@ type SummaryStat =
     }
   | {
       type: "wind";
-      wind: { speed: number; loc?: string; gust?: number; intensity: number };
+      wind: {
+        direction?: number;
+        speed: number;
+        loc?: string;
+        gust?: number;
+        intensity: number;
+      };
     }
   | {
       type: "surf";
@@ -147,7 +154,7 @@ const TEMP_CAP = 100; // For temperature circles
 
 export default function NearbyBeaches({
   beaches,
-  date,
+  date = new Date(),
 }: {
   beaches: DbBeach[];
   date?: Date;
@@ -167,6 +174,7 @@ export default function NearbyBeaches({
             conditions: {
               surf: "-",
               wind: "-",
+              windDir: 0,
               temp: 0,
               rating: 0,
             },
@@ -184,11 +192,8 @@ export default function NearbyBeaches({
 
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
+  const { surfRange } = useDateContext();
   const [stats, setStats] = useState<SummaryStat[]>([]);
-  const [statsByBeach, setStatsByBeach] = useState<Record<
-    string,
-    SummaryStat[]
-  > | null>(null);
 
   // Load richer beach data
   useEffect(() => {
@@ -378,7 +383,10 @@ export default function NearbyBeaches({
 
           // Use surf range from DatePicker context when date is selected, otherwise calculate
           let surfHeightLabel: string | null = null;
-          if (hasRange) {
+          if (date && surfRange) {
+            // Use the exact range from DatePicker
+            surfHeightLabel = surfRange;
+          } else if (hasRange) {
             let minRounded = Math.round(minWithFallback!);
             let maxRounded = Math.round(max!);
             // Ensure min <= max
@@ -421,10 +429,18 @@ export default function NearbyBeaches({
               (value): value is number =>
                 typeof value === "number" && !Number.isNaN(value)
             );
-
+          const windDirections = forecast
+            .map((row) => row?.conditions?.windDirection)
+            .filter(
+              (value): value is number =>
+                typeof value === "number" && !Number.isNaN(value)
+            );
           const avgWindSpeed = average(windSpeeds);
           const avgWindGust = average(windGusts);
+          const avgWindDirection = average(windDirections);
 
+          const resolvedWindDirection =
+            avgWindDirection != null ? Math.round(avgWindDirection) : undefined;
           const resolvedWindSpeed =
             avgWindSpeed != null ? Math.round(avgWindSpeed) : null;
           const resolvedWindGust =
@@ -439,6 +455,7 @@ export default function NearbyBeaches({
             s.push({
               type: "wind",
               wind: {
+                direction: resolvedWindDirection,
                 speed: resolvedWindSpeed,
                 gust: resolvedWindGust,
                 loc: resolvedWindGust == null ? "-" : undefined,
@@ -799,6 +816,7 @@ export default function NearbyBeaches({
   useEffect(() => {
     const loadBeaches = async () => {
       const statsMap = await loadStats(currentItems);
+      console.log("NEARBYBEACHES", statsMap);
       if (!statsMap) return;
       currentItems.forEach((beach) => {
         const beachStats = statsMap[beach.id];
@@ -817,6 +835,7 @@ export default function NearbyBeaches({
         );
         beach.conditions.rating = surfStat?.surf.intensity ?? 0;
         beach.conditions.surf = surfStat?.surf.height ?? "-";
+        beach.conditions.windDir = windStat?.wind.direction ?? 0;
         beach.conditions.wind = windStat?.wind.speed
           ? String(windStat?.wind.speed)
           : "-";
@@ -824,7 +843,7 @@ export default function NearbyBeaches({
       });
     };
     loadBeaches();
-  }, [currentItems]);
+  }, [currentItems, surfRange]);
 
   const handlePrev = () => setPage((p) => Math.max(1, p - 1));
   const handleNext = () => setPage((p) => Math.min(totalPages, p + 1));

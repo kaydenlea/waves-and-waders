@@ -950,6 +950,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
   // }
 
   React.useEffect(() => {
+    console.log("FIXING BUG");
     if (popupData) {
       if (popupId.current) {
         console.log("ENTER SAME");
@@ -1137,6 +1138,21 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
                 { hover: false }
               );
               setPopupInfo(null);
+              popupId.current = null;
+              popupRef.current = null;
+            }
+          });
+
+          map.on("click", () => {
+            // properly clear pop up if it still exists
+            if (popupId.current) {
+              const beach = mapToId[popupId.current];
+              map.setFeatureState(
+                { source: "beaches", id: beach.id },
+                { hover: false }
+              );
+              setPopupInfo(null);
+              setPopupData(null);
               popupId.current = null;
               popupRef.current = null;
             }

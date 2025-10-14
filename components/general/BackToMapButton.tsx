@@ -2,7 +2,9 @@
 
 import { ChevronUp } from "lucide-react";
 
+const wideScreenWidth = 911;
 export const scrollToMap = () => {
+  if (window.innerWidth >= wideScreenWidth) return;
   const mapContainer = document.getElementById("map-container");
   if (mapContainer) {
     const headerOffset = 100;

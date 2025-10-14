@@ -152,7 +152,6 @@ function ChartTooltipContent({
     if (!value) {
       return null;
     }
-    // console.log(item);
     if (
       item.name === "tide" ||
       item.name === "surf" ||
@@ -205,7 +204,6 @@ function ChartTooltipContent({
           const key = `${nameKey || item.name || item.dataKey || "value"}`;
           const itemConfig = getPayloadConfigFromPayload(config, item, key);
           const indicatorColor = color || item.payload.fill || item.color;
-          console.log("CHART KEY", key, item.value);
           return (
             <div
               key={item.dataKey}

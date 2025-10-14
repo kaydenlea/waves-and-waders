@@ -248,7 +248,7 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
           tickLine={false}
           axisLine={false}
           tickMargin={8}
-          domain={[0, (dataMax: number) => Math.ceil(dataMax * 2)]}
+          domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.2)]}
         />
         <ChartTooltip
           content={({ active, payload }) => {

@@ -160,11 +160,17 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
           fetchBeachDetails(resolvedId),
           fetchBeachTides(resolvedId, startWindow, tideEndWindow),
         ]);
-        console.log("OBSERVE", current, forecast, beach, tideRows);
         const first = forecast[0];
         // If a specific date is selected, use that day's forecast; otherwise prefer current conditions
         const base = date ? first : current ?? first;
-
+        console.log(
+          "overview data compare HERE",
+          current,
+          forecast,
+          beach,
+          tideRows,
+          base
+        );
         const s: SummaryStat[] = [];
 
         // 1. SURF (first in order)
@@ -225,7 +231,13 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
             max ?? minWithFallback ?? 0,
             SURF_HEIGHT_CAP
           );
-
+          console.log(
+            "OVERVIEW DATA SURF",
+            surfHeightLabel,
+            surfPeriod,
+            max,
+            surfRange
+          );
           s.push({
             type: "surf",
             surf: {
@@ -876,7 +888,7 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
               />
               <span>Sunrise</span>
             </span>
-            <span className="ml-1 text-foreground normal-case">
+            <span className="ml-1 text-foreground normal-case font-medium">
               {tideStat?.sunrise ?? "--"}
             </span>
             <span className="flex gap-2 items-center">
@@ -886,7 +898,7 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
               />
               <span className="-mb-0.5">Sunset</span>
             </span>
-            <span className="ml-1 text-foreground normal-case">
+            <span className="ml-1 text-foreground normal-case font-medium">
               {tideStat?.sunset ?? "--"}
             </span>
           </div>
@@ -941,7 +953,7 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
                     <span className="text-xs text-muted-foreground uppercase tracking-wide">
                       Current
                     </span>
-                    <span className="text-xl font-medium">
+                    <span className="text-xl font-semibold">
                       {stat.currentHeight}
                       <span className="text-xs ml-1">ft</span>
                     </span>

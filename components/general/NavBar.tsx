@@ -78,12 +78,15 @@ const NavBar = () => {
           <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-cyan-300 to-blue-500 text-foreground shadow-lg shadow-cyan-500/20">
             <Waves className="h-6 w-6" aria-hidden />
           </div>
-          <span className="text-lg font-semibold tracking-tight text-foreground hidden sm:block">
-            Waves<span className="ml-[0.9]">&</span>Waders
+          <span className="text-lg font-semibold tracking-tight text-foreground flex flex-col @min-md:flex-row">
+            <span className="-mb-2 @min-md:mb-0">
+              Waves<span className="ml-[0.9]">&</span>
+            </span>
+            <span>Waders</span>
           </span>
-          <span className="text-lg font-semibold tracking-tight text-foreground sm:hidden">
+          {/* <span className="text-lg font-semibold tracking-tight text-foreground sm:hidden">
             W&W
-          </span>
+          </span> */}
         </Link>
         <SearchBar />
         <div className="flex gap-2">
