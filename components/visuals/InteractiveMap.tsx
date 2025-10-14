@@ -888,6 +888,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
           zoom: 16,
           duration: 500,
         });
+        setZoom(16);
         const currentSelectedId = selectedRef.current?.id;
         if (String(currentSelectedId ?? "") !== String(match.id)) {
           setSelected(match);
@@ -913,6 +914,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
             zoom: 10,
             duration: 600,
           });
+          setZoom(10);
         },
         () => setLocated(true),
         { enableHighAccuracy: true, timeout: 7000 }
@@ -934,6 +936,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
       const centerLat = (minLat + maxLat) / 2;
       suppressMoveRef.current = true;
       map.easeTo({ center: [centerLon, centerLat], zoom: 6, duration: 500 });
+      setZoom(6);
     }
     prevEffectiveIdRef.current = effectiveKey;
   }, [
@@ -991,6 +994,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
         zoom: 16,
         duration: 500,
       });
+      setZoom(16);
       setSelected(match);
       prevEffectiveIdRef.current = String(match.id);
     };
@@ -1176,6 +1180,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
                     zoom,
                     duration: 500,
                   });
+                  setZoom(zoom);
                 }
               );
             }
@@ -1276,6 +1281,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
               properties: beach.properties,
             };
           });
+          setZoom(map.getZoom());
         }}
         onClick={(e) => {
           const feature = e.features && e.features[0];
