@@ -23,13 +23,14 @@ const toNumber = (value: number | string | null): number | null => {
 export default async function FavoritesPage() {
   const supabase = await getServerSupabase();
   const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (userError) {
-    console.error("Failed to load authenticated user", userError);
+    data: sessionData,
+    error: sessionError,
+  } = await supabase.auth.getSession();
+  if (sessionError) {
+    console.error("Failed to load session", sessionError);
   }
+
+  const user = sessionData.session?.user ?? null;
 
   if (!user) {
     redirect(`/login?next=${encodeURIComponent("/favorites")}`);

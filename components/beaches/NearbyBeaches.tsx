@@ -230,6 +230,7 @@ export default function NearbyBeaches({
 
     const applyFilters = (list: ApiBeach[]) =>
       list.filter((b) => {
+        if (b.features && (b.features as any).INLND_AREA) return false;
         if (!filters.size) return true;
         const feats = (b.features ?? {}) as Record<string, boolean>;
         for (const k of filters) if (!feats[k]) return false;
@@ -700,10 +701,6 @@ export default function NearbyBeaches({
               URBN_WFRNT: {
                 icon: <BadgeCheck size={16} />,
                 color: "bg-gray-200",
-              },
-              INLND_AREA: {
-                icon: <BadgeCheck size={16} />,
-                color: "bg-emerald-100",
               },
               STRS_BEACH: {
                 icon: <BadgeCheck size={16} />,

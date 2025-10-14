@@ -37,13 +37,13 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
 
   const supabase = await getServerSupabase();
   const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (userError) {
-    console.error("Failed to load authenticated user", userError);
+    data: sessionData,
+    error: sessionError,
+  } = await supabase.auth.getSession();
+  if (sessionError) {
+    console.error("Failed to load session", sessionError);
   }
+  const user = sessionData.session?.user ?? null;
 
   let isFav = false;
   if (user) {

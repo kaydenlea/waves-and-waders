@@ -754,19 +754,19 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
       "filters:",
       filters.size
     );
-    if (!filters.size) {
-      console.log("No filters, returning all beaches:", beaches.length);
-      return beaches;
-    }
-    const filtered = beaches.filter((b) => {
+    const baseFiltered = beaches.filter((b) => {
+      if (b.features?.INLND_AREA) return false;
+      if (!filters.size) {
+        return true;
+      }
       const f = b.features || {};
       for (const key of filters) {
         if (!f[key]) return false;
       }
       return true;
     });
-    console.log("Filtered beaches:", filtered.length);
-    return filtered;
+    console.log("Filtered beaches:", baseFiltered.length);
+    return baseFiltered;
   }, [beaches, filters]);
 
   const beachesGeoJSON = React.useMemo(() => {

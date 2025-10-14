@@ -8,8 +8,13 @@ export const dynamic = "force-dynamic";
 export default async function LoginPage() {
   const supabase = await getServerSupabase();
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: sessionData,
+    error: sessionError,
+  } = await supabase.auth.getSession();
+  if (sessionError) {
+    console.error("Failed to load session", sessionError);
+  }
+  const user = sessionData.session?.user ?? null;
 
   if (user) {
     redirect("/");

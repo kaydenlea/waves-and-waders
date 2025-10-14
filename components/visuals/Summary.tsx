@@ -508,10 +508,6 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
               icon: <BadgeCheck size={16} />,
               color: "bg-gray-200",
             },
-            INLND_AREA: {
-              icon: <BadgeCheck size={16} />,
-              color: "bg-emerald-100",
-            },
             STRS_BEACH: {
               icon: <BadgeCheck size={16} />,
               color: "bg-slate-100",

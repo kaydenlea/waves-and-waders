@@ -24,19 +24,27 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const supabase = await getServerSupabase();
-  const [
-    {
-      data: { user },
-      error: userError,
-    },
-    {
-      data: { session },
-      error: sessionError,
-    },
-  ] = await Promise.all([
-    supabase.auth.getUser(),
-    supabase.auth.getSession(),
-  ]);
+  const {
+    data: sessionData,
+    error: sessionError,
+  } = await supabase.auth.getSession();
+
+  let session = sessionData.session ?? null;
+  let user = session?.user ?? null;
+  let userError: Error | null = null;
+
+  if (session) {
+    const {
+      data: userData,
+      error,
+    } = await supabase.auth.getUser();
+
+    if (error) {
+      userError = error;
+    } else {
+      user = userData.user;
+    }
+  }
 
   if (userError) {
     console.error("Failed to load authenticated user", userError);
