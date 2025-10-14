@@ -34,7 +34,7 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 type Props = { beachId?: string; hours?: number; date?: Date };
-type EnergyPoint = { time: number; energy: number };
+type EnergyPoint = { hour: number; energy: number };
 
 import {
   fetchBeachForecast,
@@ -95,14 +95,14 @@ const WaveEnergyChart = ({ beachId, hours = 24, date }: Props) => {
         if (!beachId) {
           if (!cancelled) {
             setSeries([
-              { time: 0, energy: 1 },
-              { time: 3, energy: 2 },
-              { time: 6, energy: 2 },
-              { time: 9, energy: 3 },
-              { time: 12, energy: 2 },
-              { time: 15, energy: 3 },
-              { time: 18, energy: 2 },
-              { time: 21, energy: 1 },
+              { hour: 0, energy: 1 },
+              { hour: 3, energy: 2 },
+              { hour: 6, energy: 2 },
+              { hour: 9, energy: 3 },
+              { hour: 12, energy: 2 },
+              { hour: 15, energy: 3 },
+              { hour: 18, energy: 2 },
+              { hour: 21, energy: 1 },
             ]);
             setDayAreas([{ x1: 6, x2: 18 }]);
             setNightAreas([
@@ -131,7 +131,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date }: Props) => {
         const startMs = start.getTime();
         setSeries(
           rows.map((r) => ({
-            time: Math.max(
+            hour: Math.max(
               0,
               Math.min(
                 hours,
@@ -167,8 +167,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date }: Props) => {
           const setv = parseHM(cond?.sunset ?? null);
           const toHour = (value: { h: number; m: number }) =>
             value.h + value.m / 60;
-          const clampHour = (val: number) =>
-            Math.max(0, Math.min(hours, val));
+          const clampHour = (val: number) => Math.max(0, Math.min(hours, val));
           if (rise && setv) {
             const riseHour = clampHour(toHour(rise));
             const setHour = clampHour(toHour(setv));
@@ -211,16 +210,15 @@ const WaveEnergyChart = ({ beachId, hours = 24, date }: Props) => {
   return (
     <ChartContainer
       config={chartConfig}
-      className="@min-lg:aspect-auto @min-lg:h-[300px] w-full"
+      className="aspect-auto h-[280px] w-full"
     >
       <AreaChart
         accessibilityLayer
         data={series}
         margin={{
-          top: 5,
+          top: 10,
           right: 10,
           left: -28,
-          bottom: 5,
         }}
         syncId="anyId"
       >
@@ -249,7 +247,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date }: Props) => {
           vertical={false}
         />
         <XAxis
-          dataKey="time"
+          dataKey="hour"
           type="number"
           domain={[0, hours]}
           tickLine={false}

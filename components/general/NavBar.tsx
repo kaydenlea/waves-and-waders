@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import Link from "next/link";
 import SearchBar from "./SearchBar";
@@ -30,16 +30,14 @@ const NavBar = () => {
             </span>
             <span>Waders</span>
           </span>
-          {/* <span className="text-lg font-semibold tracking-tight text-foreground sm:hidden">
-            W&W
-          </span> */}
         </Link>
-        <SearchBar className="max-w-[12rem] sm:max-w-none" />
+        <SearchBar className="max-w-[12rem] sm:max-w-none hidden @min-4xl:flex" />
         <div className="flex items-center gap-2">
-          <ThemeToggle className="hide-button" />
-          <div className="hidden sm:block">
+          <div className="hidden @min-lg:block">
             <UserMenu />
           </div>
+          <SearchBar className="max-w-[12rem] sm:max-w-none @min-4xl:hidden" />
+          <ThemeToggle className="hide-button" />
           <Popover>
             <PopoverTrigger className="icon-button p-3 hover:bg-highlight-3">
               <AlignJustify className="icon-md" />

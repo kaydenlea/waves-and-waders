@@ -125,7 +125,7 @@ const chartData = [
 
 const chartConfig = {
   energy: {
-    label: "Energy",
+    label: "Energy (kJ)",
     color: "#616161ff",
   },
 } satisfies ChartConfig;
