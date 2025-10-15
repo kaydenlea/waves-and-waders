@@ -27,7 +27,13 @@ import {
 } from "@/lib/supabase";
 
 type Props = { beachId?: string; hours?: number; date?: Date };
-type Row = { hour: number; surf: number };
+type Row = {
+  hour: number;
+  surf: number;
+  min: number | null;
+  max: number | null;
+  rangeLabel: string;
+};
 
 const chartConfig = {
   surf: {
@@ -70,6 +76,57 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
           end = new Date(d.getTime() + hours * 60 * 60 * 1000);
         }
         const rows = await fetchBeachForecast(id, start, end);
+
+        const formatSurfRange = (
+          min: number | null | undefined,
+          max: number | null | undefined
+        ) => {
+          const safeMin =
+            typeof min === "number" && Number.isFinite(min) ? min : null;
+          const safeMax =
+            typeof max === "number" && Number.isFinite(max) ? max : null;
+
+          if (safeMin === null && safeMax === null) {
+            return {
+              min: null,
+              max: null,
+              label: "--",
+              estimate: 0,
+            };
+          }
+
+          let effectiveMin = safeMin ?? safeMax ?? 0;
+          let effectiveMax = safeMax ?? safeMin ?? 0;
+
+          if (effectiveMin > effectiveMax) {
+            [effectiveMin, effectiveMax] = [effectiveMax, effectiveMin];
+          }
+
+          const minRounded = Math.round(Math.max(0, effectiveMin));
+          const maxRounded = Math.round(Math.max(0, effectiveMax));
+
+          let label = "";
+          if (minRounded === 0 && maxRounded === 0) {
+            label = "--";
+          } else if (minRounded === maxRounded) {
+            label = String(maxRounded);
+          } else {
+            label = `${minRounded}-${maxRounded}`;
+          }
+
+          return {
+            min: Math.max(0, effectiveMin),
+            max: Math.max(0, effectiveMax),
+            label,
+            estimate: Math.max(
+              0,
+              safeMin !== null && safeMax !== null
+                ? (effectiveMin + effectiveMax) / 2
+                : effectiveMax
+            ),
+          };
+        };
+
         const data: Row[] = rows.map((r, i) => {
           const h1 = r.swell.primary.height ?? 0;
           const p1 = r.swell.primary.period ?? 10;
@@ -77,28 +134,39 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
           const p2 = r.swell.secondary.period ?? 10;
           const h3 = r.swell.tertiary?.height ?? 0;
           const p3 = r.swell.tertiary?.period ?? 10;
-          // Period influence: longer period swells carry more energy; scale ~ sqrt(P/10)
           const s1 = h1 * Math.sqrt(Math.max(0, p1) / 10);
           const s2 = h2 * Math.sqrt(Math.max(0, p2) / 10);
           const s3 = h3 * Math.sqrt(Math.max(0, p3) / 10);
-          // Component weights: primary dominant, secondary moderate, tertiary light
           const w1 = 1.0,
             w2 = 0.6,
             w3 = 0.3;
-          // Combine components in quadrature (energy-like)
           const combined = Math.sqrt(
             Math.pow(w1 * s1, 2) + Math.pow(w2 * s2, 2) + Math.pow(w3 * s3, 2)
           );
-          // Wind penalty: reduce height for stronger winds
-          const wind = r.conditions.windSpeed ?? 0; // mph
-          // No penalty <= 5 mph; up to 50% reduction by 40+ mph
+          const wind = r.conditions.windSpeed ?? 0;
           const windPenalty = Math.min(0.5, Math.max(0, (wind - 5) / 35));
-          const effective = Math.max(0, combined * (1 - windPenalty));
+          let effective = Math.max(0, combined * (1 - windPenalty));
+
+          const { min, max, label, estimate } = formatSurfRange(
+            r.surf.heightMin,
+            r.surf.heightMax
+          );
+
+          let representative = effective;
+
+          if (!Number.isFinite(representative) || representative <= 0) {
+            representative = estimate > 0 ? estimate : 0;
+          } else if (estimate > 0) {
+            representative = representative * 0.7 + estimate * 0.3;
+          }
 
           return {
             hour:
               i === rows.length - 1 ? hours : new Date(r.timestamp).getHours(),
-            surf: Number(effective.toFixed(1)),
+            surf: Number(Math.max(0, representative).toFixed(1)),
+            min,
+            max,
+            rangeLabel: label,
           };
         });
         if (!cancelled) {
@@ -190,7 +258,7 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
     return ticks;
   }, [hours]);
 
-  const EDGE_GUTTER_PX = 25;
+  const EDGE_GUTTER_PX = 35;
   const closeTo = (a: number, b: number, tolerance = 0.05) =>
     Math.abs(a - b) <= tolerance;
   const makeAreaShape =
@@ -222,14 +290,16 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
     >
       <BarChart
         margin={{
-          right: 25,
+          top: 10,
+          right: 35,
           left: -28,
+          bottom: 0,
         }}
         accessibilityLayer
         data={chartData}
         syncId="anyId"
         barCategoryGap="20%"
-        maxBarSize={80}
+        maxBarSize={60}
       >
         {dayAreas.map((a, idx) => (
           <ReferenceArea
@@ -270,9 +340,10 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
           tickLine={false}
           tickMargin={10}
           axisLine={false}
-          padding={{ left: 25, right: 25 }}
+          padding={{ left: 35, right: 35 }}
           domain={[domainStart, domainEnd]}
           ticks={hourTicks}
+          scale="linear"
           tickFormatter={(value: number) => {
             const num = Number(value);
 
@@ -302,39 +373,44 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
           radius={4}
           stroke="#0000006e"
           strokeWidth={0.5}
-        >
-          <LabelList
-            dataKey="surf"
-            position="middle"
-            content={(props: LabelProps) => {
-              const safeX = typeof props.x === "number" ? props.x : 0;
-              const safeY = typeof props.y === "number" ? props.y : 0;
-              const safeWidth =
-                typeof props.width === "number" ? props.width : 0;
-              const safeHeight =
-                typeof props.height === "number" ? props.height : 0;
-              const fontSize = Math.max(10, safeWidth * 0.15);
-              if (typeof props.value === "number") {
-                return (
-                  <g>
-                    <text
-                      x={safeX + safeWidth / 2}
-                      y={safeY + safeHeight / 2 + fontSize / 3}
-                      fill="#2c2c2cff"
-                      textAnchor="middle"
-                      fontWeight="bold"
-                      fontSize={fontSize}
-                    >
-                      {/* {`${props.value.toFixed(1)} ft`} */}
-                      {`${props.value.toFixed(1)}`}
-                    </text>
-                  </g>
-                );
-              }
-            }}
-            fill="black"
-          />
-        </Bar>
+          >
+            <LabelList
+              dataKey="surf"
+              position="middle"
+              content={(props: LabelProps) => {
+                const safeX = typeof props.x === "number" ? props.x : 0;
+                const safeY = typeof props.y === "number" ? props.y : 0;
+                const safeWidth =
+                  typeof props.width === "number" ? props.width : 0;
+                const safeHeight =
+                  typeof props.height === "number" ? props.height : 0;
+                const fontSize = Math.max(10, safeWidth * 0.15);
+                const label =
+                  typeof props.value === "number"
+                    ? props.value.toFixed(1)
+                    : "";
+
+                if (label) {
+                  return (
+                    <g>
+                      <text
+                        x={safeX + safeWidth / 2}
+                        y={safeY + safeHeight / 2 + fontSize / 3}
+                        fill="#2c2c2cff"
+                        textAnchor="middle"
+                        fontWeight="bold"
+                        fontSize={fontSize}
+                      >
+                        {label}
+                      </text>
+                    </g>
+                  );
+                }
+                return null;
+              }}
+              fill="black"
+            />
+          </Bar>
       </BarChart>
     </ChartContainer>
   );

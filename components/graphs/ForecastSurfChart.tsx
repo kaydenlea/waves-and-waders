@@ -105,6 +105,8 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
 
   // Load weekly forecast and build 3 samples per day (06:00, 12:00, 18:00) using surf height max
   React.useEffect(() => {
+    let cancelled = false;
+
     const load = async () => {
       try {
         if (!beachId) return;
@@ -155,12 +157,21 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
         // Sort chronologically so we can cap the slider range.
         out.sort((a, b) => a.dateMs - b.dateMs);
         const trimmed = out.slice(0, 7);
-        setData(trimmed);
+        if (!cancelled) {
+          setData(trimmed);
+        }
       } catch (e) {
         console.error("Failed to load weekly surf", e);
+        if (!cancelled) {
+          setData([]);
+        }
       }
     };
-    load();
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
   }, [beachId]);
 
   React.useEffect(() => {
