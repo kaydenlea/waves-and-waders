@@ -51,19 +51,23 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
   );
 
   useEffect(() => {
+    let cancelled = false;
+
     const load = async () => {
       try {
         if (!beachId) {
           // default placeholder 24 hours
-          setChartData(
-            Array.from({ length: 25 }, (_, h) => ({
-              hour: h,
-              wind: Number(
-                Math.max(0, 3 + Math.sin((h / 24) * Math.PI * 2) * 2).toFixed(1)
-              ),
-              direction: (h * 15) % 360, // rotating placeholder
-            }))
-          );
+          if (!cancelled) {
+            setChartData(
+              Array.from({ length: 25 }, (_, h) => ({
+                hour: h,
+                wind: Number(
+                  Math.max(0, 3 + Math.sin((h / 24) * Math.PI * 2) * 2).toFixed(1)
+                ),
+                direction: (h * 15) % 360, // rotating placeholder
+              }))
+            );
+          }
           return;
         }
         const resolved = await fetchBeachByIdLoose(beachId);
@@ -77,13 +81,31 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
           end = new Date(d.getTime() + hours * 60 * 60 * 1000);
         }
         const rows = await fetchBeachForecast(id, start, end);
+
+        // Helper to get Pacific timezone hour from timestamp
+        const getPacificHour = (timestamp: string): number => {
+          try {
+            const fmt = new Intl.DateTimeFormat("en-US", {
+              hour: "numeric",
+              hour12: false,
+              timeZone: "America/Los_Angeles",
+            });
+            const h = Number(fmt.format(new Date(timestamp)));
+            return Number.isFinite(h) ? h : new Date(timestamp).getUTCHours();
+          } catch {
+            return new Date(timestamp).getUTCHours();
+          }
+        };
+
         const data = rows.map((r, i) => ({
           hour:
-            i === rows.length - 1 ? hours : new Date(r.timestamp).getHours(),
-          wind: r.conditions.windSpeed ?? 0,
+            i === rows.length - 1 ? hours : getPacificHour(r.timestamp),
+          wind: Math.round(r.conditions.windSpeed ?? 0),
           direction: r.conditions.windDirection ?? undefined,
         }));
-        setChartData(data);
+        if (!cancelled) {
+          setChartData(data);
+        }
 
         // Build sunrise/sunset shading for the day in view (hours)
         try {
@@ -115,25 +137,40 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
               const setHour = clampHour(toHour(setv));
               const x1 = Math.min(riseHour, setHour);
               const x2 = Math.max(riseHour, setHour);
-              setDayAreas(x2 > x1 ? [{ x1, x2 }] : []);
+              if (!cancelled) {
+                setDayAreas(x2 > x1 ? [{ x1, x2 }] : []);
+              }
               const nightSegments: { x1: number; x2: number }[] = [];
               if (x1 > 0) nightSegments.push({ x1: 0, x2: x1 });
               if (x2 < hours) nightSegments.push({ x1: x2, x2: hours });
-              setNightAreas(nightSegments);
-            } else {
+              if (!cancelled) {
+                setNightAreas(nightSegments);
+              }
+            } else if (!cancelled) {
               setDayAreas([]);
               setNightAreas([{ x1: 0, x2: hours }]);
             }
           }
         } catch (_) {
-          setDayAreas([]);
-          setNightAreas([{ x1: 0, x2: hours }]);
+          if (!cancelled) {
+            setDayAreas([]);
+            setNightAreas([{ x1: 0, x2: hours }]);
+          }
         }
       } catch (e) {
         console.error("Failed to load wind data", e);
+        if (!cancelled) {
+          setChartData([]);
+          setDayAreas([]);
+          setNightAreas([]);
+        }
       }
     };
-    load();
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
   }, [beachId, hours, date]);
 
   const domainStart = 0;
@@ -151,7 +188,7 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
     return ticks;
   }, [hours]);
 
-  const EDGE_GUTTER_PX = 25;
+  const EDGE_GUTTER_PX = 35;
   const closeTo = (a: number, b: number, tolerance = 0.05) =>
     Math.abs(a - b) <= tolerance;
   const makeAreaShape =
@@ -182,12 +219,12 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
       className="aspect-auto h-[300px] w-full !justify-start"
     >
       <BarChart
-        margin={{ top: 10, right: 25, left: -28, bottom: 0 }}
+        margin={{ top: 10, right: 35, left: -28, bottom: 0 }}
         accessibilityLayer
         data={chartData}
         syncId="anyId"
         barCategoryGap="20%"
-        maxBarSize={80}
+        maxBarSize={60}
       >
         {dayAreas.map((a, idx) => (
           <ReferenceArea
@@ -229,9 +266,10 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
           tickLine={false}
           tickMargin={10}
           axisLine={false}
-          padding={{ left: 25, right: 25 }}
+          padding={{ left: 35, right: 35 }}
           domain={[domainStart, domainEnd]}
           ticks={hourTicks}
+          scale="linear"
           tickFormatter={(value: number) => {
             const num = Number(value);
             if (!Number.isFinite(num)) return "";

@@ -186,11 +186,15 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
 
   // Build energy series from forecast rows (wave_energy_kj or surf.waveEnergy)
   React.useEffect(() => {
+    let cancelled = false;
+
     const load = async () => {
       try {
         if (!beachId) {
-          setEnergyData([]);
-          setBaseStartMs(null);
+          if (!cancelled) {
+            setEnergyData([]);
+            setBaseStartMs(null);
+          }
           return;
         }
         const resolved = await fetchBeachByIdLoose(beachId);
@@ -198,8 +202,10 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
         const rows = await fetchWeeklyForecast(String(id));
         console.log("RAW ENERGY", rows);
         if (!rows || !rows.length) {
-          setEnergyData([]);
-          setBaseStartMs(null);
+          if (!cancelled) {
+            setEnergyData([]);
+            setBaseStartMs(null);
+          }
           return;
         }
         // Sort rows and determine Pacific midnight of the earliest row without string roundtrip
@@ -219,7 +225,9 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
         const mm = Number(parts.find((p) => p.type === "minute")?.value ?? "0");
         const ss = Number(parts.find((p) => p.type === "second")?.value ?? "0");
         const baseMs = earliest.getTime() - (hh * 3600 + mm * 60 + ss) * 1000;
-        setBaseStartMs(baseMs);
+        if (!cancelled) {
+          setBaseStartMs(baseMs);
+        }
 
         const series: WavePoint[] = [];
         for (const r of rows) {
@@ -231,13 +239,21 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
         }
         // Keep within a reasonable window (e.g., first 96 hours)
         series.sort((a, b) => a.hour - b.hour);
-        setEnergyData(series);
+        if (!cancelled) {
+          setEnergyData(series);
+        }
       } catch (e) {
-        setEnergyData([]);
-        setBaseStartMs(null);
+        if (!cancelled) {
+          setEnergyData([]);
+          setBaseStartMs(null);
+        }
       }
     };
-    load();
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
   }, [beachId]);
 
   const source = energyData.length ? energyData : chartData;

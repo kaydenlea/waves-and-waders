@@ -252,7 +252,7 @@ type TableEntry = {
   energy: { label: string; value: number };
 };
 
-type TableDay = { date: string; dateMs: number; vals: TableEntry[] };
+type TableDay = { key: string; date: string; dateMs: number; vals: TableEntry[] };
 
 type DateLike = Date | undefined | null;
 
@@ -341,20 +341,30 @@ const StatTable = ({
         );
         if (cancelled) return;
 
+        // Group by date using the timestamp's date in local browser timezone
+        // This matches how charts process data
         const byDay = new Map<string, ForecastData[]>();
+        const getDayKey = (timestamp: string) => {
+          const d = new Date(timestamp);
+          // Use ISO date string (YYYY-MM-DD) as the key for grouping
+          const year = d.getFullYear();
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        };
+
         const fmtDayLabel = (d: Date) =>
           d.toLocaleDateString("en-US", {
             weekday: "long",
             month: "long",
             day: "numeric",
-            timeZone: "America/Los_Angeles",
           });
+
         weekly.forEach((row) => {
-          const d = new Date(row.timestamp);
-          const label = fmtDayLabel(d);
-          const arr = byDay.get(label) ?? [];
+          const dayKey = getDayKey(row.timestamp);
+          const arr = byDay.get(dayKey) ?? [];
           arr.push(row);
-          byDay.set(label, arr);
+          byDay.set(dayKey, arr);
         });
 
         const days: TableDay[] = [];
@@ -363,71 +373,79 @@ const StatTable = ({
           const tb = new Date(b[1][0]?.timestamp ?? 0).getTime();
           return ta - tb;
         });
-        const onlyLabel = requestedDate ? fmtDayLabel(requestedDate) : null;
-        const onlyLabels = selectedDays
-          ? selectedDays.map((day) => fmtDayLabel(day))
+
+        // Convert requested dates to day keys for filtering
+        const onlyKey = requestedDate ? getDayKey(requestedDate.toISOString()) : null;
+        const onlyKeys = selectedDays
+          ? selectedDays.map((day) => getDayKey(day.toISOString()))
           : null;
-        let allowedLabels: Set<string> | null = null;
-        const labels = entriesByDay.map(([lbl]) => lbl);
+        let allowedKeys: Set<string> | null = null;
+        const dayKeys = entriesByDay.map(([key]) => key);
 
         // Prioritize date prop over selectedDays
-        if (onlyLabels) {
-          allowedLabels = new Set(onlyLabels);
-        } else if (onlyLabel) {
-          if (onlyLabel && labels.includes(onlyLabel)) {
-            allowedLabels = new Set([onlyLabel]);
+        if (onlyKeys) {
+          allowedKeys = new Set(onlyKeys);
+        } else if (onlyKey) {
+          if (onlyKey && dayKeys.includes(onlyKey)) {
+            allowedKeys = new Set([onlyKey]);
           } else {
             if (requestedDate) {
-              const prev = fmtDayLabel(
-                new Date(requestedDate.getTime() - DAY_MS)
-              );
-              const next = fmtDayLabel(
-                new Date(requestedDate.getTime() + DAY_MS)
-              );
-              const cands = [prev, next].filter((l) => labels.includes(l));
-              if (cands.length) allowedLabels = new Set([cands[0]]);
+              const prev = getDayKey(new Date(requestedDate.getTime() - DAY_MS).toISOString());
+              const next = getDayKey(new Date(requestedDate.getTime() + DAY_MS).toISOString());
+              const cands = [prev, next].filter((k) => dayKeys.includes(k));
+              if (cands.length) allowedKeys = new Set([cands[0]]);
             }
           }
         }
-        for (const [label, rows] of entriesByDay) {
-          if (allowedLabels && !allowedLabels.has(label)) continue;
+        for (const [dayKey, rows] of entriesByDay) {
+          if (allowedKeys && !allowedKeys.has(dayKey)) continue;
           rows.sort(
             (a, b) =>
               new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
           );
-          const pacificHour = (ts: string) => {
-            try {
-              const fmt = new Intl.DateTimeFormat("en-US", {
-                hour: "numeric",
-                hour12: false,
-                timeZone: "America/Los_Angeles",
-              });
-              const h = Number(fmt.format(new Date(ts)));
-              return Number.isFinite(h) ? h : new Date(ts).getUTCHours();
-            } catch {
-              return new Date(ts).getUTCHours();
-            }
-          };
-          const hourMap = new Map<number, ForecastData>();
-          for (const r of rows) {
-            hourMap.set(pacificHour(r.timestamp), r);
-          }
 
-          const THREE_HOUR_GRID = [0, 3, 6, 9, 12, 15, 18, 21];
-          const SPOT_HOURS = [6, 12, 18];
-          const baseHours =
-            numHours <= SPOT_HOURS.length ? SPOT_HOURS : THREE_HOUR_GRID;
-          const targetHours = baseHours.slice(
-            0,
-            Math.min(numHours, baseHours.length)
-          );
+          // Use the EXACT same hour calculation as charts - local browser hours
+          // This matches SwellChart.tsx line 107: new Date(r.timestamp).getHours()
+          const getLocalHour = (timestamp: string): number => {
+            return new Date(timestamp).getHours();
+          };
+
+          // Instead of forcing specific hours, sample evenly from available data
+          // This ensures we show ACTUAL forecast times that exist in the data
+          const numSamples = Math.min(numHours, rows.length);
+          const sampledRows: ForecastData[] = [];
+
+          if (numSamples > 0 && rows.length > 0) {
+            if (rows.length <= numSamples) {
+              // Use all rows if we have fewer than requested
+              sampledRows.push(...rows);
+            } else {
+              // Sample evenly across the day, avoiding duplicates
+              const indices = new Set<number>();
+              const step = (rows.length - 1) / (numSamples - 1);
+
+              for (let i = 0; i < numSamples; i++) {
+                let index = Math.round(i * step);
+                // Ensure we don't exceed array bounds
+                index = Math.min(index, rows.length - 1);
+                indices.add(index);
+              }
+
+              // Convert to sorted array and get rows
+              Array.from(indices)
+                .sort((a, b) => a - b)
+                .forEach(idx => sampledRows.push(rows[idx]));
+            }
+          }
 
           const makeEntryFromRow = (
             r: ForecastData,
             hour: number
           ): TableEntry => {
-            const displayHour = hour % 12 === 0 ? 12 : hour % 12;
-            const ampm = hour >= 12 ? "PM" : "AM";
+            // Use the ACTUAL hour from the data, not the target hour
+            const actualHour = getLocalHour(r.timestamp);
+            const displayHour = actualHour % 12 === 0 ? 12 : actualHour % 12;
+            const ampm = actualHour >= 12 ? "PM" : "AM";
 
             const windDir = getWindDirection(r.conditions.windDirection ?? 0);
             const windDeg = Math.round(r.conditions.windDirection ?? 0);
@@ -483,7 +501,7 @@ const StatTable = ({
                 : 0;
 
             return {
-              index: hour,
+              index: actualHour,
               time: `${displayHour} ${ampm}`,
               wind: {
                 label: "wind",
@@ -541,9 +559,9 @@ const StatTable = ({
             };
           };
 
-          const entries: TableEntry[] = targetHours.map((h) => {
-            const r = hourMap.get(h);
-            return r ? makeEntryFromRow(r, h) : makePlaceholder(h);
+          const entries: TableEntry[] = sampledRows.map((r) => {
+            const actualHour = getLocalHour(r.timestamp);
+            return makeEntryFromRow(r, actualHour);
           });
 
           const firstTs = rows[0]?.timestamp ?? new Date().toISOString();
@@ -553,14 +571,48 @@ const StatTable = ({
             d0.getMonth(),
             d0.getDate()
           ).getTime();
-          days.push({ date: label, dateMs: midnight, vals: entries });
+          const displayLabel = fmtDayLabel(d0);
+          days.push({
+            key: dayKey,
+            date: displayLabel,
+            dateMs: midnight,
+            vals: entries,
+          });
         }
 
-        let finalDays = days;
-        if (allowedLabels) {
-          if (!onlyLabels) finalDays = days.slice(0, 1);
-          else finalDays = days.slice(0, numDays);
+        let finalDays: TableDay[] = [];
+
+        if (days.length) {
+          const dayMap = new Map(days.map((day) => [day.key, day]));
+          const ordered: TableDay[] = [];
+          const seenKeys = new Set<string>();
+
+          const pushByKey = (key: string | null) => {
+            if (!key || seenKeys.has(key)) return;
+            const match = dayMap.get(key);
+            if (!match) return;
+            ordered.push(match);
+            seenKeys.add(key);
+          };
+
+          pushByKey(onlyKey);
+
+          if (onlyKeys) {
+            for (const key of onlyKeys) {
+              pushByKey(key);
+            }
+          }
+
+          for (const day of days) {
+            if (seenKeys.has(day.key)) continue;
+            ordered.push(day);
+            seenKeys.add(day.key);
+          }
+
+          const limit = Math.max(1, numDays);
+          finalDays = ordered.slice(0, limit);
         }
+
         if (!cancelled) {
           setData(finalDays);
         }
