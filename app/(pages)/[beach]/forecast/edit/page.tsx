@@ -42,15 +42,8 @@ const chartData = [
 const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
   const { beach } = await params;
   return (
-    <>
-      <div className="block @min-3xl:hidden flex justify-center pt-5 pb-7">
-        <div className="w-0 h-1.5" />
-      </div>
-      <div
-        id="content"
-        className="@container p-2 -mt-[calc(100vh-6rem)] @min-3xl:-mt-0"
-      >
-        {/* <header className="ml-2">
+    <div id="content" className="@container p-2 mt-[5rem] @min-4xl:mt-0">
+      {/* <header className="ml-2">
         <h1 className="font-semibold text-4xl tracking-tight">
           Huntington Beach
         </h1>
@@ -61,29 +54,28 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
         </h2>
         <Summary />
       </section> */}
-        <section
-          id="forecast-content"
-          className="flex flex-col gap-3 w-full mb-2 scroll-mt-30"
-        >
-          <header className="mx-2 flex justify-between">
-            <div>
-              <h2 className="text-2xl font-semibold">Drag and drop widgets</h2>
-              <p className="text-sm text-muted-foreground">
-                Customize your dashboard
-              </p>
-            </div>
-            <Link
-              href={`/${beach}/forecast#forecast-content`}
-              className="flex justify-center text-sm gap-1 h-10 px-3 items-center border border-border bg-highlight-4 rounded-full drop-shadow-sm hover:bg-highlight-3"
-            >
-              <CircleCheck size={20} />
-              Confirm
-            </Link>
-          </header>
-          <LazyLoadDashboard type="forecast" />
-        </section>
-      </div>
-    </>
+      <section
+        id="forecast-content"
+        className="flex flex-col gap-3 w-full mb-2 scroll-mt-30"
+      >
+        <header className="mx-2 flex justify-between">
+          <div>
+            <h2 className="text-2xl font-semibold">Drag and drop widgets</h2>
+            <p className="text-sm text-muted-foreground">
+              Customize your dashboard
+            </p>
+          </div>
+          <Link
+            href={`/${beach}/forecast#forecast-content`}
+            className="flex justify-center text-sm gap-1 h-10 px-3 items-center border border-border bg-highlight-4 rounded-full drop-shadow-sm hover:bg-highlight-3"
+          >
+            <CircleCheck size={20} />
+            Confirm
+          </Link>
+        </header>
+        <LazyLoadDashboard type="forecast" />
+      </section>
+    </div>
   );
 };
 

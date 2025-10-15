@@ -1,7 +1,16 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSessionContext, useSupabaseClient } from "@supabase/auth-helpers-react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  useSessionContext,
+  useSupabaseClient,
+} from "@supabase/auth-helpers-react";
 import { LazyLoadDatePicker } from "@/components/general/LazyLoad/LazyLoadDatePicker";
 import VisualWrapper from "@/components/general/VisualWrapper";
 import { LazyLoadForecastTide } from "@/components/general/LazyLoad/LazyLoadForecastTide";
@@ -53,7 +62,9 @@ const ForecastBridge: React.FC<Props> = ({ beachId }) => {
   const [layoutMeta, setLayoutMeta] = useState<Record<WidgetId, WidgetMeta>>(
     () => forecastDefaults.meta
   );
-  const [layoutRows, setLayoutRows] = useState<Row[]>(() => forecastDefaults.rows);
+  const [layoutRows, setLayoutRows] = useState<Row[]>(
+    () => forecastDefaults.rows
+  );
   const storageMetaKey = useMemo(
     () => getDashboardStorageKey("forecast", "meta"),
     []
@@ -216,8 +227,8 @@ const ForecastBridge: React.FC<Props> = ({ beachId }) => {
               <div className="space-y-2 text-sm text-muted-foreground">
                 <p className="font-medium text-foreground">{windowString}</p>
                 <p>
-                  Adjust the date range above or use the edit mode to
-                  customize which panels show here.
+                  Adjust the date range above or use the edit mode to customize
+                  which panels show here.
                 </p>
               </div>
             </VisualWrapper>
@@ -284,7 +295,7 @@ const ForecastBridge: React.FC<Props> = ({ beachId }) => {
       {/* --- Date picker area: sticky on all sizes so behavior is identical everywhere --- */}
       <section
         ref={pickerRef}
-        className="sticky top-[var(--nav-height,60px)] z-50"
+        className="sticky top-[var(--nav-height,60px)] z-60"
         aria-label="Date picker region"
       >
         <h2 className="ml-2 text-muted-foreground text-lg">Weekly Forecast</h2>
@@ -345,9 +356,7 @@ const ForecastBridge: React.FC<Props> = ({ beachId }) => {
                 content: renderWidget(id),
               }))
               .filter(
-                (
-                  entry
-                ): entry is { id: WidgetId; content: React.ReactNode } =>
+                (entry): entry is { id: WidgetId; content: React.ReactNode } =>
                   Boolean(entry.content)
               );
 

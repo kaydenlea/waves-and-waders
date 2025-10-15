@@ -10,7 +10,7 @@ const ThemeToggle = ({ className }: { className?: string }) => {
   return (
     <button
       aria-label="theme toggle"
-      className={cn("icon-button p-3 hover:bg-highlight-3", className)}
+      className={cn("icon-button p-3 hover:bg-highlight-5", className)}
       onClick={() => setTheme(theme === "light" ? "dark" : "light")}
     >
       <SunMoon className="icon-md" />

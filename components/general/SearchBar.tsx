@@ -191,7 +191,7 @@ const SearchBar = ({ className }: { className?: string }) => {
       <form
         ref={boxRef}
         className={cn(
-          "relative flex items-center gap-2 w-full mr-2 @min-4xl:mr-0 justify-end @min-4xl:justify-center",
+          "relative flex items-center gap-2 w-full justify-end @min-4xl:justify-center",
           className
         )}
       >
@@ -230,7 +230,7 @@ const SearchBar = ({ className }: { className?: string }) => {
         <button
           type="button"
           aria-label="open map"
-          className="icon-button p-3 hide-button hover:bg-highlight-3"
+          className="icon-button p-3 hide-button hover:bg-highlight-5"
           onClick={() => router.push("/beaches")}
         >
           <Map className="icon-md" />

@@ -21,7 +21,7 @@
   }
 
   .highlight-card {
-    @apply p-3 rounded-2xl bg-highlight-4 border border-border/20;
+    @apply p-3 rounded-2xl bg-highlight-7/50 border border-border/20;
   }
 }
 

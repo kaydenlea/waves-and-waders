@@ -188,9 +188,9 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
   const [beaches, setBeaches] = React.useState<BeachPoint[]>([]);
   const [selected, setSelected] = React.useState<BeachPoint | null>(null);
   const selectedRef = React.useRef<BeachPoint | null>(null);
-  const [storedSelectionId, setStoredSelectionId] = React.useState<string | null>(
-    null
-  );
+  const [storedSelectionId, setStoredSelectionId] = React.useState<
+    string | null
+  >(null);
   const {
     popupData,
     setPopupData,
@@ -1051,6 +1051,10 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
     }
   }, [popupData]);
 
+  if (editPage) {
+    return <></>;
+  }
+
   return (
     <aside
       id="map-container"
@@ -1085,6 +1089,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
         mapStyle={MAP_STYLE_URL}
         maxZoom={16}
         minZoom={3}
+        dragRotate={false}
         attributionControl={false}
         interactiveLayerIds={[
           "clusters",
@@ -1226,12 +1231,11 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
           });
 
           map.on("mousemove", "unclustered-point", (event) => {
-            const originalEvent =
-              event.originalEvent as
-                | MouseEvent
-                | PointerEvent
-                | TouchEvent
-                | undefined;
+            const originalEvent = event.originalEvent as
+              | MouseEvent
+              | PointerEvent
+              | TouchEvent
+              | undefined;
             if (originalEvent) {
               if ("touches" in originalEvent) {
                 return;
@@ -1353,7 +1357,11 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
           </button>
         )}
         <AttributionControl compact={true} />
-        <NavigationControl position="bottom-right" showCompass={false} visualizePitch={false} />
+        <NavigationControl
+          position="bottom-right"
+          showCompass={false}
+          visualizePitch={false}
+        />
 
         {/* Clustered beach points */}
         {filteredBeaches.length > 0 && (
@@ -1574,18 +1582,24 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
 
         {/* Filter controls (collapsible) */}
         {showMap && (
-          <div className="absolute top-4 left-3 sm:top-6 sm:left-4 @min-4xl:top-2 @min-4xl:left-2 z-[1]">
-            <div className="bg-background/90 backdrop-blur rounded border border-border shadow min-w-[200px] max-w-[calc(100vw-3rem)] max-[360px]:min-w-[180px] max-[320px]:min-w-[160px] sm:min-w-[220px]">
+          <div className="absolute left-3 top-28 sm:left-4 @min-4xl:top-2 @min-4xl:left-2 z-[1]">
+            <div className="bg-background/90 backdrop-blur rounded-xl border border-border shadow min-w-[200px] max-w-[calc(100vw-3rem)] max-[360px]:min-w-[180px] max-[320px]:min-w-[160px] sm:min-w-[220px]">
               <button
-                className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium max-[360px]:px-2 max-[320px]:px-1.5"
+                className="hover:bg-highlight-5 rounded-xl w-full flex items-center justify-between px-3 py-1.5 text-xs font-medium max-[360px]:px-2 max-[320px]:px-1.5"
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowFilters((s) => !s);
                 }}
               >
-                <span>Filters {filters.size ? `(${filters.size})` : ""}</span>
+                <span className="text-sm font-semibold tracking-wide">
+                  Filters {filters.size ? `(${filters.size})` : ""}
+                </span>
                 <span className="text-muted-foreground">
-                  {showFilters ? "▴" : "▾"}
+                  {showFilters ? (
+                    <ChevronUp className="w-6 h-6" />
+                  ) : (
+                    <ChevronDown className="w-6 h-6" />
+                  )}
                 </span>
               </button>
               {showFilters && (
@@ -1624,28 +1638,30 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
                       </div>
                     </div>
                   ))}
-                  <div className="flex justify-end gap-2 mt-2 px-1">
-                    {filters.size > 0 && (
-                      <button
-                        className="text-[11px] px-2 py-1 rounded border bg-highlight-5 border border-border hover:bg-highlight-3"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setFilters(new Set());
-                        }}
-                      >
-                        Clear
-                      </button>
-                    )}
+                </div>
+              )}
+              {showFilters && (
+                <div className="flex justify-center gap-2 px-1 py-2 rounded-b-xl">
+                  {filters.size > 0 && (
                     <button
-                      className="text-[11px] px-2 py-1 rounded border border-border bg-highlight-4 border-border text-foreground hover:bg-highlight-5"
+                      className="text-[11px] font-semibold px-2 py-1 rounded-xl border bg-highlight-3 dark:bg-background border border-border/90 hover:bg-highlight-5 dark:hover:bg-highlight-2"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setShowFilters(false);
+                        setFilters(new Set());
                       }}
                     >
-                      Close
+                      Clear
                     </button>
-                  </div>
+                  )}
+                  <button
+                    className="text-[11px] font-semibold px-2 py-1 rounded-xl border border-border/90 bg-background dark:bg-highlight-5 border-border text-foreground hover:bg-highlight-3 dark:hover:bg-highlight-2"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowFilters(false);
+                    }}
+                  >
+                    Close
+                  </button>
                 </div>
               )}
             </div>
@@ -1714,6 +1730,10 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
             .maplibregl-ctrl-attrib {
               bottom: 0vh;
             }
+          }
+
+          .maplibregl-ctrl-attrib {
+            right: 0.25vh;
           }
         `}</style>
       </Map>

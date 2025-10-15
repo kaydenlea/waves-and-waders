@@ -267,8 +267,8 @@ export default function ForecastTideChart({ beachId, date }: Props) {
     setInnerTranslatePx(px, true);
 
     // update right-edge flag once (low frequency)
-    const maxTranslate = Math.max(0, chartInnerWidth - viewportWidth);
-    setIsAtRightEdge(px >= maxTranslate - 1);
+    // const maxTranslate = Math.max(0, chartInnerWidth - viewportWidth);
+    // setIsAtRightEdge(px >= maxTranslate - 1);
   }, [
     dayOffset,
     dayPx,
@@ -295,7 +295,7 @@ export default function ForecastTideChart({ beachId, date }: Props) {
       }
     });
     ro.observe(el);
-    setContainerWidth(Math.floor(el.clientWidth));
+    // setContainerWidth(Math.floor(el.clientWidth));
 
     // also set isAtRightEdge on mount
     const maxTranslateOnMount = Math.max(0, chartInnerWidth - viewportWidth);
@@ -541,7 +541,7 @@ export default function ForecastTideChart({ beachId, date }: Props) {
                   pointerEvents: "none",
                 }}
               >
-                <div className="max-w-20 mx-auto p-1 rounded-sm bg-highlight-7 border border-border">
+                <div className="max-w-25 mx-auto p-1 rounded-sm bg-highlight-7 border border-border">
                   {label}
                 </div>
               </div>

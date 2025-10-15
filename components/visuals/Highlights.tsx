@@ -192,7 +192,7 @@ const MoonStat = ({
   const info = getMoonPhaseInfo(data);
   return (
     <HighlightCard label={label}>
-      <div className="flex items-center justify-center gap-2">
+      <div className="flex items-center justify-center gap-0.5">
         <span
           role="img"
           aria-label={`${info.lines[0]} ${info.lines[1]}`}
@@ -329,12 +329,14 @@ const Highlights = ({
   hour,
   startIdx = 0,
   endIdx = 7,
+  isFull,
 }: {
   beachId?: string;
   date?: Date;
   hour?: number;
   startIdx?: number;
   endIdx?: number;
+  isFull?: boolean;
 }) => {
   const [stats, setStats] = useState<Stat[]>([
     {
@@ -342,6 +344,8 @@ const Highlights = ({
       weather: { temp: 64, condition: "sun" },
     },
     { label: "water", temp: 60 },
+    { label: "tide", tide: { value: "2-3", unit: "ft" } },
+    { label: "wind", wind: { speed: 12, max: 17 } },
     {
       label: "swell",
       primary: { height: 2.1, period: 7, wind: { dir: "W", deg: 272 } },
@@ -350,9 +354,7 @@ const Highlights = ({
         { height: 2.1, period: 7, wind: { dir: "W", deg: 272 } },
       ],
     },
-    { label: "tide", tide: { value: "2-3", unit: "ft" } },
     { label: "moon", phase: "Waning Cresent" },
-    { label: "wind", wind: { speed: 12, max: 17 } },
     { label: "pressure", pressure: { value: 29.9, unit: "in" } },
     { label: "energy", energy: { value: 278, unit: "kJ" } },
   ]);
@@ -428,36 +430,6 @@ const Highlights = ({
           label: "water",
           temp: Math.round(base?.conditions.waterTemp ?? 0),
         });
-        // swell primary/secondary
-        if (baseRow) {
-          const pDir = baseRow.swell.primary.direction ?? 0;
-          const sDir = baseRow.swell.secondary.direction ?? 0;
-          const tDir = baseRow.swell.tertiary?.direction ?? 0;
-          nextStats.push({
-            label: "swell",
-            primary: {
-              height: Number((baseRow.swell.primary.height ?? 0).toFixed(1)),
-              period: Math.round(baseRow.swell.primary.period ?? 0),
-              wind: { dir: getWindDirection(pDir), deg: pDir },
-            },
-            secondary: [
-              {
-                height: Number(
-                  (baseRow.swell.secondary.height ?? 0).toFixed(1)
-                ),
-                period: Math.round(baseRow.swell.secondary.period ?? 0),
-                wind: { dir: getWindDirection(sDir), deg: sDir },
-              },
-              {
-                height: Number(
-                  (baseRow.swell.tertiary?.height ?? 0).toFixed(1)
-                ),
-                period: Math.round(baseRow.swell.tertiary?.period ?? 0),
-                wind: { dir: getWindDirection(tDir), deg: tDir },
-              },
-            ],
-          });
-        }
         // tide - find the tide data point closest to the selected time
         let tideValue = 0;
         if (tides && tides.length > 0) {
@@ -492,10 +464,6 @@ const Highlights = ({
             unit: "ft",
           },
         });
-        // moon
-        if (daily?.moon_phase != null) {
-          nextStats.push({ label: "moon", phase: (daily as any).moon_phase });
-        }
         // wind
         nextStats.push({
           label: "wind",
@@ -504,6 +472,40 @@ const Highlights = ({
             max: Math.round(base?.conditions.windGust ?? 0),
           },
         });
+        // swell primary/secondary
+        if (baseRow) {
+          const pDir = baseRow.swell.primary.direction ?? 0;
+          const sDir = baseRow.swell.secondary.direction ?? 0;
+          const tDir = baseRow.swell.tertiary?.direction ?? 0;
+          nextStats.push({
+            label: "swell",
+            primary: {
+              height: Number((baseRow.swell.primary.height ?? 0).toFixed(1)),
+              period: Math.round(baseRow.swell.primary.period ?? 0),
+              wind: { dir: getWindDirection(pDir), deg: pDir },
+            },
+            secondary: [
+              {
+                height: Number(
+                  (baseRow.swell.secondary.height ?? 0).toFixed(1)
+                ),
+                period: Math.round(baseRow.swell.secondary.period ?? 0),
+                wind: { dir: getWindDirection(sDir), deg: sDir },
+              },
+              {
+                height: Number(
+                  (baseRow.swell.tertiary?.height ?? 0).toFixed(1)
+                ),
+                period: Math.round(baseRow.swell.tertiary?.period ?? 0),
+                wind: { dir: getWindDirection(tDir), deg: tDir },
+              },
+            ],
+          });
+        }
+        // moon
+        if (daily?.moon_phase != null) {
+          nextStats.push({ label: "moon", phase: (daily as any).moon_phase });
+        }
         // pressure
         nextStats.push({
           label: "pressure",
@@ -532,9 +534,106 @@ const Highlights = ({
     };
   }, [beachId, date, hour]);
 
+  // return (
+  //   <div className="w-full max-w-6xl mx-auto">
+  //     <ul className="grid grid-cols-2 @min-2xl:grid-cols-4 gap-3">
+  //       {stats.slice(startIdx, endIdx + 1).map((stat) => {
+  //         let content;
+  //         switch (stat.label) {
+  //           case "swell":
+  //             content = stat.primary && stat.secondary && (
+  //               <HighlightCard label={stat.label}>
+  //                 <div className="flex flex-col items-center">
+  //                   <SwellStat primary data={stat.primary} small />
+  //                   <SwellStat data={stat.secondary[0]} small />
+  //                   <SwellStat data={stat.secondary[1]} small />
+  //                 </div>
+  //               </HighlightCard>
+  //             );
+  //             break;
+  //           case "weather":
+  //             content = stat.weather && (
+  //               <WeatherStat
+  //                 temp={stat.weather.temp}
+  //                 condition={stat.weather.condition}
+  //                 label={stat.label}
+  //                 weatherCode={stat.weather.code}
+  //               />
+  //             );
+  //             break;
+  //           case "water":
+  //             content = stat.temp && (
+  //               <HighlightCard label={stat.label}>
+  //                 <div className="flex items-center justify-center gap-0.5">
+  //                   <span className="text-2xl font-semibold">
+  //                     {stat.temp}
+  //                     <span className="text-sm font-normal">&deg;F</span>
+  //                   </span>
+  //                 </div>
+  //               </HighlightCard>
+  //             );
+  //             break;
+  //           case "tide":
+  //             content = stat.tide && (
+  //               <BasicStat data={stat.tide} label={stat.label} />
+  //             );
+  //             break;
+  //           case "moon":
+  //             {
+  //               const hasPhase =
+  //                 stat.phase !== null && stat.phase !== undefined;
+  //               content = hasPhase ? (
+  //                 <MoonStat data={stat.phase as any} label={stat.label} />
+  //               ) : (
+  //                 <HighlightCard label={stat.label}>
+  //                   <div className="flex flex-col items-center text-sm text-muted-foreground">
+  //                     <span>Moon data unavailable</span>
+  //                   </div>
+  //                 </HighlightCard>
+  //               );
+  //               break;
+  //             }
+  //             break;
+  //           case "wind":
+  //             content = stat.wind && (
+  //               <WindStat data={stat.wind} label={stat.label} />
+  //             );
+  //             break;
+  //           case "pressure":
+  //             content = stat.pressure && (
+  //               <BasicStat data={stat.pressure} label={stat.label} />
+  //             );
+  //             break;
+  //           case "energy":
+  //             content = stat.energy && (
+  //               <BasicStat data={stat.energy} label={stat.label} />
+  //             );
+  //             break;
+  //         }
+  //         if (content) {
+  //           return (
+  //             <li
+  //               key={stat.label}
+  //               className="relative highlight-card shadow-even min-h-25"
+  //             >
+  //               <div className="flex-1 flex items-center justify-center gap-1 mt-1 h-full">
+  //                 {content}
+  //               </div>
+  //             </li>
+  //           );
+  //         }
+  //       })}
+  //     </ul>
+  //   </div>
+  // );
   return (
-    <div className="w-full max-w-6xl mx-auto">
-      <ul className="grid grid-cols-2 @min-2xl:grid-cols-4 gap-3">
+    <div className="w-full max-w-7xl mx-auto">
+      <ul
+        className={cn(
+          "grid grid-cols-2 @min-2xl:grid-cols-4 @min-3xl:grid-cols-3 gap-3",
+          isFull && "@min-4xl:grid-cols-4 @min-6xl:grid-cols-8"
+        )}
+      >
         {stats.slice(startIdx, endIdx + 1).map((stat) => {
           let content;
           switch (stat.label) {
@@ -612,7 +711,12 @@ const Highlights = ({
             return (
               <li
                 key={stat.label}
-                className="relative highlight-card shadow-even min-h-25"
+                className={cn(
+                  "relative highlight-card shadow-even min-h-25",
+                  stat.label === "swell" &&
+                    "col-span-1 @min-2xl:col-span-1 @min-3xl:col-span-2",
+                  stat.label === "swell" && isFull && "@min-4xl:col-span-1"
+                )}
               >
                 <div className="flex-1 flex items-center justify-center gap-1 mt-1 h-full">
                   {content}

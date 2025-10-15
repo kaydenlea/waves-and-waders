@@ -961,9 +961,9 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
                     <span className="text-xs text-muted-foreground uppercase tracking-wide">
                       Current
                     </span>
-                    <span className="text-xl font-semibold">
+                    <span className="text-lg font-semibold">
                       {stat.currentHeight}
-                      <span className="text-xs ml-1">ft</span>
+                      <span className="text-xs ml-0.5">ft</span>
                     </span>
                   </div>
                 )}

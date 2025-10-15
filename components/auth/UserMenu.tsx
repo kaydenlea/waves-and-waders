@@ -22,9 +22,12 @@ export const UserMenu = () => {
 
   if (!user) {
     return (
-      <Button variant="ghost" asChild className="rounded-full px-4">
-        <Link href="/login">Sign in</Link>
-      </Button>
+      <Link
+        className="px-2 flex-1 rounded-md sm:rounded-full hover:bg-highlight-5 py-0.5 sm:py-3 w-full sm:w-20 text-left sm:text-center"
+        href="/login"
+      >
+        <span className="text-base font-normal sm:font-medium">Sign in</span>
+      </Link>
     );
   }
 

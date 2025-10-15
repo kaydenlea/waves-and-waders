@@ -9,10 +9,10 @@ import { UserMenu } from "@/components/auth/UserMenu";
 
 const NavBar = () => {
   return (
-    <header className="fixed px-1.5 pt-1.5 @min-3xl:p-0 z-50 w-full @container backdrop-blur-md">
+    <header className="fixed px-1.5 pt-1.5 @min-4xl:p-0 z-50 w-full @container backdrop-blur-md">
       <nav
         aria-label="primary navigation"
-        className="h-23 flex items-center justify-between px-6 shadow-md bg-background rounded-md @min-3xl:rounded-t-none w-full border border-border"
+        className="h-23 flex items-center justify-between px-6 shadow-md bg-background rounded-md @min-4xl:rounded-t-none w-full border border-border"
       >
         {/* <Link href="/" className="p-3 icon-button">
           Logo
@@ -33,19 +33,29 @@ const NavBar = () => {
         </Link>
         <SearchBar className="max-w-[12rem] sm:max-w-none hidden @min-4xl:flex" />
         <div className="flex items-center gap-2">
-          <div className="hidden @min-lg:block">
+          <div className="hidden sm:flex">
             <UserMenu />
           </div>
           <SearchBar className="max-w-[12rem] sm:max-w-none @min-4xl:hidden" />
           <ThemeToggle className="hide-button" />
           <Popover>
-            <PopoverTrigger className="icon-button p-3 hover:bg-highlight-3">
+            <PopoverTrigger className="icon-button p-3 hover:bg-highlight-5">
               <AlignJustify className="icon-md" />
             </PopoverTrigger>
-            <PopoverContent className="z-3 max-w-30 flex flex-col gap-1">
-              <Link href="/beaches">Browse beaches</Link>
-              <Link href="/favorites">Your favorites</Link>
-              <div className="sm:hidden border-t border-border/40 pt-2 mt-2">
+            <PopoverContent className="z-50 max-w-50 flex flex-col gap-1">
+              <Link
+                className="hover:bg-highlight-5 px-2 py-0.5 rounded-md"
+                href="/beaches"
+              >
+                Browse beaches
+              </Link>
+              <Link
+                className="hover:bg-highlight-5 px-2 py-0.5 rounded-md"
+                href="/favorites"
+              >
+                Your favorites
+              </Link>
+              <div className="sm:hidden border-t border-border/40 pt-1.5 mt-1.5 flex">
                 <UserMenu />
               </div>
             </PopoverContent>

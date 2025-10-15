@@ -62,29 +62,34 @@ const VisualWrapper = ({
   unit?: string;
 }) => {
   const lowerCaseLabel = label.toLowerCase();
-  const iconDef = iconMap[lowerCaseLabel] ?? { icon: <CircleGauge size={16} className="text-gray-600" />, bgColor: "bg-gray-100" };
+  const iconDef = iconMap[lowerCaseLabel] ?? {
+    icon: <CircleGauge size={16} className="text-gray-600" />,
+    bgColor: "bg-gray-100",
+  };
   return (
     <figure className="relative flex-1">
       <div className="bg-highlight-4 border border-border/40 rounded-2xl shadow-sm h-full w-full">
-        <div className="p-4 rounded-t-2xl bg-highlight-6 w-full shadow-sm">
-          <header className="flex justify-between gap-1 items-center">
-            <div className="flex items-center gap-2">
-              <div
-                className={cn(
-                  "rounded-full flex items-center justify-center p-1 border border-border",
-                  iconDef.bgColor
-                )}
-              >
-                {iconDef.icon}
+        <div className="p-2">
+          <div className="p-[17px] rounded-2xl bg-highlight-6 w-full shadow-even">
+            <header className="p-2 flex justify-between gap-1 items-center">
+              <div className="flex items-center gap-2">
+                <div
+                  className={cn(
+                    "rounded-full flex items-center justify-center p-1 border border-border",
+                    iconDef.bgColor
+                  )}
+                >
+                  {iconDef.icon}
+                </div>
+                <h3 className="leading-none font-semibold text-xl">{label}</h3>
               </div>
-              <h3 className="leading-none font-semibold text-xl">{label}</h3>
-            </div>
-            {unit && (
-              <span className="flex items-center px-2 py-1 rounded-md bg-highlight-4 text-xs shadow-sm">
-                {unit}
-              </span>
-            )}
-          </header>
+              {unit && (
+                <span className="flex items-center px-2 py-1 rounded-md bg-highlight-4 text-xs shadow-sm">
+                  {unit}
+                </span>
+              )}
+            </header>
+          </div>
         </div>
         <div className="px-2 pt-6 pb-4 overflow-x-hidden touch-pan-y">
           {children}
