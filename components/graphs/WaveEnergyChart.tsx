@@ -267,6 +267,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date }: Props) => {
           axisLine={false}
           tickMargin={8}
           fontSize={11}
+          domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.5)]}
         />
         <ChartLegend content={<ChartLegendContent />} />
         <ChartTooltip content={<ChartTooltipContent />} />
