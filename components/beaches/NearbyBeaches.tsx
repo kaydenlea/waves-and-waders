@@ -391,10 +391,24 @@ export default function NearbyBeaches({
 
           // Use surf range from DatePicker context when date is selected, otherwise calculate
           let surfHeightLabel: string | null = null;
-          if (date && surfRange) {
-            // Use the exact range from DatePicker
-            surfHeightLabel = surfRange;
-          } else if (hasRange) {
+          // if (date && surfRange) {
+          //   // Use the exact range from DatePicker
+          //   surfHeightLabel = surfRange;
+          // } else if (hasRange) {
+          //   let minRounded = Math.round(minWithFallback!);
+          //   let maxRounded = Math.round(max!);
+          //   // Ensure min <= max
+          //   if (minRounded > maxRounded) {
+          //     [minRounded, maxRounded] = [maxRounded, minRounded];
+          //   }
+          //   // If they're equal, subtract 1 from min
+          //   if (minRounded === maxRounded) {
+          //     minRounded = Math.max(0, maxRounded - 1);
+          //   }
+          //   surfHeightLabel = `${minRounded}-${maxRounded}`;
+          // }
+
+          if (hasRange) {
             let minRounded = Math.round(minWithFallback!);
             let maxRounded = Math.round(max!);
             // Ensure min <= max
@@ -407,6 +421,7 @@ export default function NearbyBeaches({
             }
             surfHeightLabel = `${minRounded}-${maxRounded}`;
           }
+
           const surfPeriod = avgPeriod != null ? Math.round(avgPeriod) : null;
 
           if ((surfHeightLabel || hasRange) && surfPeriod != null) {
@@ -847,7 +862,8 @@ export default function NearbyBeaches({
       });
     };
     loadBeaches();
-  }, [currentItems, surfRange]);
+    console.log("LOAD BEACHES", currentItems);
+  }, [currentItems]);
 
   const handlePrev = () => setPage((p) => Math.max(1, p - 1));
   const handleNext = () => setPage((p) => Math.min(totalPages, p + 1));
@@ -879,6 +895,8 @@ export default function NearbyBeaches({
 
     return pages;
   };
+
+  // console.log("FINAL BEACHES", currentItems);
   return (
     <>
       <div className="flex mb-4 ml-2 items-center justify-between">
