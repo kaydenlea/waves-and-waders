@@ -395,171 +395,24 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
     let cancelled = false;
     const loadSurfIntensity = async () => {
       try {
-        const { supabase } = await import("@/lib/supabase");
-
         // Format date as YYYY-MM-DD to match how DatePicker does it
         const dateStr = selectedDate.toISOString().split("T")[0];
 
-        console.log("Fetching daily surf intensity for date:", dateStr);
+        console.log("Fetching surf intensity for date:", dateStr);
 
-        const PAGE_SIZE = 1000;
+        // Use API route instead of direct Supabase query to reduce egress
+        const res = await fetch(`/api/surf-intensity?date=${dateStr}`);
 
-        const fetchDailyRows = async () => {
-          const rows: any[] = [];
-          let page = 0;
-          while (true) {
-            const from = page * PAGE_SIZE;
-            const to = from + PAGE_SIZE - 1;
-
-            const { data, error } = await supabase
-              .from("daily_beach_surf_intensity")
-              .select("beach_id, avg_surf_max_ft")
-              .eq("date", dateStr)
-              .order("beach_id", { ascending: true })
-              .range(from, to);
-
-            if (error) {
-              return { data: rows, error };
-            }
-
-            if (!data || data.length === 0) {
-              break;
-            }
-
-            rows.push(...data);
-
-            if (data.length < PAGE_SIZE) {
-              break;
-            }
-
-            page += 1;
-          }
-
-          return { data: rows, error: null };
-        };
-
-        const { data: dailyData, error } = await fetchDailyRows();
-
-        let intensityMap: Record<string, number> | null = null;
-
-        if (!error && Array.isArray(dailyData)) {
-          const dailyMap: Record<string, number> = {};
-          dailyData.forEach((row: any) => {
-            const avg = row?.avg_surf_max_ft;
-            if (avg != null && !Number.isNaN(Number(avg))) {
-              dailyMap[String(row.beach_id)] = Number(avg);
-            }
-          });
-          intensityMap = dailyMap;
-
-          if (dailyData.length > 0) {
-            console.log("Loaded daily surf intensity rows:", dailyData.length);
-            if (!cancelled) {
-              setSurfIntensity(intensityMap);
-            }
-            return;
-          }
-        }
-
-        if (error) {
-          console.error(
-            "Failed to load daily surf intensity from table; falling back to forecast data aggregation:",
-            error
-          );
-        } else {
-          console.log(
-            "No daily surf intensity rows found, computing from forecast_data as fallback"
-          );
-        }
-
-        const year = selectedDate.getFullYear();
-        const month = selectedDate.getMonth();
-        const day = selectedDate.getDate();
-        const startWindow = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
-        const endWindow = new Date(Date.UTC(year, month, day, 23, 59, 59, 999));
-
-        const fetchForecastRows = async () => {
-          const rows: any[] = [];
-          let page = 0;
-
-          while (true) {
-            const from = page * PAGE_SIZE;
-            const to = from + PAGE_SIZE - 1;
-
-            const { data, error } = await supabase
-              .from("forecast_data")
-              .select("beach_id, surf_height_max_ft")
-              .gte("timestamp", startWindow.toISOString())
-              .lte("timestamp", endWindow.toISOString())
-              .order("beach_id", { ascending: true })
-              .range(from, to);
-
-            if (error) {
-              return { data: rows, error };
-            }
-
-            if (!data || data.length === 0) {
-              break;
-            }
-
-            rows.push(...data);
-
-            if (data.length < PAGE_SIZE) {
-              break;
-            }
-
-            page += 1;
-          }
-
-          return { data: rows, error: null };
-        };
-
-        const { data: rawData, error: queryError } = await fetchForecastRows();
-
-        if (queryError || !rawData) {
-          console.error(
-            "Unable to calculate fallback surf intensity:",
-            queryError
-          );
-          if (!cancelled) setSurfIntensity(intensityMap ?? {});
+        if (!res.ok) {
+          console.error("Failed to fetch surf intensity:", res.status);
           return;
         }
 
-        console.log("Fetched", rawData.length, "forecast records for fallback");
+        const json = await res.json();
 
-        const beachMaxValues: Record<string, number[]> = {};
-        rawData.forEach((record: any) => {
-          const beachId = String(record.beach_id);
-          const surfHeight = record.surf_height_max_ft;
-          if (surfHeight != null && !Number.isNaN(Number(surfHeight))) {
-            if (!beachMaxValues[beachId]) {
-              beachMaxValues[beachId] = [];
-            }
-            beachMaxValues[beachId].push(Number(surfHeight));
-          }
-        });
-
-        const fallbackIntensity: Record<string, number> = {};
-        Object.keys(beachMaxValues).forEach((beach) => {
-          const maxes = beachMaxValues[beach];
-          if (maxes.length > 0) {
-            fallbackIntensity[beach] =
-              maxes.reduce((sum, val) => sum + val, 0) / maxes.length;
-          }
-        });
-
-        console.log(
-          "Calculated fallback intensity for",
-          Object.keys(fallbackIntensity).length,
-          "beaches"
-        );
-
-        if (!cancelled) {
-          setSurfIntensity(
-            Object.keys(fallbackIntensity).length > 0
-              ? fallbackIntensity
-              : intensityMap ?? {}
-          );
+        if (!cancelled && json?.success && json.data) {
+          console.log("Loaded surf intensity from", json.source);
+          setSurfIntensity(json.data);
         }
       } catch (e) {
         console.error("Failed to load surf intensity", e);
