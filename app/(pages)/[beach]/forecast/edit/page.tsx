@@ -1,9 +1,13 @@
+"use client";
+
 import Link from "next/link";
 import Summary from "@/components/visuals/Summary";
 import { LazyLoadDashboard } from "@/components/general/LazyLoad/LazyLoadDashboard";
+import { MAP_FOCUS_EVENT } from "@/components/general/mapEvents";
 
 import type { Metadata } from "next";
 import { CircleCheck } from "lucide-react";
+import { use } from "react";
 
 const chartData = [
   { hour: 0, tide: 5, isPeak: 5 },
@@ -39,8 +43,19 @@ const chartData = [
 //     "Check the daily and hourly surf conditions of your local beaches",
 // };
 
-const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
-  const { beach } = await params;
+const Page = ({ params }: { params: Promise<{ beach: string }> }) => {
+  const { beach } = use(params);
+
+  const handleConfirm = () => {
+    // Extract beach ID from the URL parameter
+    const beachId = beach.split("--").pop() || beach;
+
+    // Dispatch the map refocus event
+    const event = new CustomEvent(MAP_FOCUS_EVENT, {
+      detail: { beachId, scroll: true },
+    });
+    window.dispatchEvent(event);
+  };
   return (
     <div id="content" className="@container p-2 mt-[5rem] @min-4xl:mt-0">
       {/* <header className="ml-2">
@@ -67,6 +82,7 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
           </div>
           <Link
             href={`/${beach}/forecast#forecast-content`}
+            onClick={handleConfirm}
             className="flex justify-center text-sm gap-1 h-10 px-3 items-center border border-border bg-highlight-4 rounded-full drop-shadow-sm hover:bg-highlight-3"
           >
             <CircleCheck size={20} />

@@ -228,7 +228,7 @@ export const FEATURE_COLUMNS = [
 export const FEATURE_CATEGORIES = {
   access: {
     label: "Access & Fees",
-    features: ["O_PUBLIC", "FEE", "PARKING", "RSTRCTNS", "DSABLDACSS"] as const,
+    features: ["O_PUBLIC", "FEE", "PARKING", "DSABLDACSS"] as const,
   },
   facilities: {
     label: "Facilities & Amenities",
