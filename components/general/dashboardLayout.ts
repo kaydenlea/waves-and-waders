@@ -30,9 +30,9 @@ export const ALL_WIDGET_IDS: readonly WidgetId[] = [
   "tide",
   "swell",
   "surfAndWind",
-  // "surf",
+  "surf",
   "energy",
-  // "wind",
+  "wind",
   "table",
 ] as const;
 
@@ -68,7 +68,7 @@ const BASE_META_FORECAST: Partial<Record<WidgetId, WidgetMeta>> = {
   },
   surfAndWind: {
     id: "surfAndWind",
-    title: "Bar Charts",
+    title: "Surf & Wind Charts",
     visible: true,
     span: "full",
     immutableFull: true,
