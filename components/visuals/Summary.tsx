@@ -887,7 +887,9 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
       {/* Overview card */}
       <li className="highlight-card shadow-even flex flex-col gap-3 xl:gap-0 overflow-hidden col-span-2">
         <div className="flex items-top justify-between">
-          <h3 className="highlight-title">OVERVIEW</h3>
+          <h3 className="highlight-title bg-highlight-5 h-1/2 flex items-center px-2 py-1 rounded-xl">
+            OVERVIEW
+          </h3>
           <div className="py-1 px-2 rounded-md bg-highlight-6 grid grid-cols-[80px_1fr] grid-rows-2 space-y-0.5 items-center text-xs text-muted-foreground uppercase tracking-wide leading-tight">
             <span className="flex gap-2 items-center">
               <Sunrise
@@ -1030,7 +1032,7 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
               )}
             >
               <div className="flex items-start justify-between">
-                <h3 className="highlight-title mt-0.5">
+                <h3 className="highlight-title mt-0.5 bg-highlight-5 px-2 py-1 rounded-xl">
                   {stat.type.toUpperCase()}
                 </h3>
                 {/* {stat.type === "features" && featuresOverflowing ? (
@@ -1047,7 +1049,7 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
                   {/* Visible container */}
                   <div
                     ref={containerRef}
-                    className="flex items-center gap-2 overflow-hidden p-1"
+                    className="flex items-center gap-2 overflow-hidden mt-2 p-1"
                     style={{ gap: `${gapPx}px` }}
                   >
                     {visibleItems.map((tag) => (

@@ -38,7 +38,7 @@ const FocusMapButton = ({ beach, className }: FocusMapButtonProps) => {
       onClick={handleClick}
       disabled={!beach}
     >
-      <MapPin className="w-5 h-5 @min-sm:w-6 @min-sm:h-6" />
+      <MapPin className="w-6 h-6 @min-sm:w-6 @min-sm:h-6" />
     </button>
   );
 };

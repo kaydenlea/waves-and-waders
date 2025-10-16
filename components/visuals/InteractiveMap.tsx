@@ -1338,13 +1338,13 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
         }}
       >
         {!showMap && fullMapPage && !smallScreen && (
-          <div className="absolute bg-black/70 h-full w-full" />
+          <div className="absolute z-2 bg-black/70 backdrop-blur-md h-full w-full" />
         )}
         {fullMapPage && !smallScreen && (
           <button
             aria-label={`${showMap ? "Minimize" : "Maximize"} map`}
             className={cn(
-              "absolute right-2 bg-background rounded-full p-2 shadow-lg border border-border hover:bg-highlight-3",
+              "absolute z-3 right-2 bg-background rounded-full p-2 shadow-lg border border-border hover:bg-highlight-3",
               showMap ? "top-2" : "top-[50%]"
             )}
             onClick={() => setShowMap(!showMap)}

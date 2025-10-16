@@ -84,7 +84,7 @@ const VisualWrapper = ({
                 <h3 className="leading-none font-semibold text-xl">{label}</h3>
               </div>
               {unit && (
-                <span className="flex items-center px-2 py-1 rounded-md bg-highlight-4 text-xs shadow-sm">
+                <span className="flex items-center px-2 py-1 rounded-md bg-highlight-4 text-sm shadow-sm font-medium">
                   {unit}
                 </span>
               )}

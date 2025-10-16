@@ -1,11 +1,7 @@
-'use client';
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
-import {
-  usePathname,
-  useRouter,
-  useSearchParams,
-} from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   useSessionContext,
   useSupabaseClient,
@@ -75,15 +71,13 @@ const SaveButton = ({
 
     try {
       if (nextIsFav) {
-        const { error } = await supabase
-          .from("user_favorite_beaches")
-          .upsert(
-            {
-              user_id: session.user.id,
-              beach_id: beachId,
-            },
-            { onConflict: "user_id, beach_id" }
-          );
+        const { error } = await supabase.from("user_favorite_beaches").upsert(
+          {
+            user_id: session.user.id,
+            beach_id: beachId,
+          },
+          { onConflict: "user_id, beach_id" }
+        );
         if (error) throw error;
       } else {
         const { error } = await supabase
@@ -123,16 +117,14 @@ const SaveButton = ({
   return (
     <button
       type="button"
-      aria-label={
-        effectiveIsFav ? "Remove from favorites" : "Add to favorites"
-      }
+      aria-label={effectiveIsFav ? "Remove from favorites" : "Add to favorites"}
       className={cn(baseClass, className)}
       onClick={handleClick}
       disabled={loading}
     >
       <Heart
         className={cn(
-          "w-5 h-5 @min-sm:w-6 @min-sm:h-6 transition-colors",
+          "w-6 h-6 transition-colors",
           heartClass,
           loading && "opacity-60"
         )}
@@ -142,4 +134,3 @@ const SaveButton = ({
 };
 
 export default SaveButton;
-

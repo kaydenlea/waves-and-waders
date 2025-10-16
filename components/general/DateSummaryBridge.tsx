@@ -183,27 +183,16 @@ const DateSummaryBridge: React.FC<Props> = ({ beachId }) => {
       switch (id) {
         case "stats":
           return (
-            // <section className="flex-1 w-full border border-border/40 rounded-2xl shadow-sm">
-            <section className="flex-1 w-full border border-border/40 rounded-2xl shadow-sm bg-highlight-4">
-              <div className="p-2">
-                <header className="p-3.5 mb-4 bg-highlight-6 rounded-2xl shadow-even">
-                  <h3 className="leading-none font-semibold text-2xl">
-                    Hourly View
-                  </h3>
-                  <span className="text-sm text-muted-foreground">
-                    Local time: {currentTime || "--"}
-                  </span>
-                </header>
-                <Highlights
-                  beachId={beachId}
-                  date={selected ?? undefined}
-                  hour={hour}
-                  startIdx={0}
-                  endIdx={7}
-                  isFull={isFull}
-                />
-              </div>
-            </section>
+            <VisualWrapper label="Current" unit={currentTime || "--"}>
+              <Highlights
+                beachId={beachId}
+                date={selected ?? undefined}
+                hour={hour}
+                startIdx={0}
+                endIdx={7}
+                isFull={isFull}
+              />
+            </VisualWrapper>
           );
         case "tide":
           return (
@@ -237,7 +226,7 @@ const DateSummaryBridge: React.FC<Props> = ({ beachId }) => {
           );
         case "table":
           return (
-            <VisualWrapper label="Hourly Stats">
+            <VisualWrapper label="Hourly Stats" unit="3 hrs">
               <LazyLoadTable
                 beachId={beachId}
                 numHours={8}

@@ -14,10 +14,8 @@ export default async function BeachesPage() {
   const beaches = await fetchAllBeaches();
 
   const supabase = await getServerSupabase();
-  const {
-    data: sessionData,
-    error: sessionError,
-  } = await supabase.auth.getSession();
+  const { data: sessionData, error: sessionError } =
+    await supabase.auth.getSession();
   if (sessionError) {
     console.error("Failed to load session", sessionError);
   }
@@ -41,6 +39,7 @@ export default async function BeachesPage() {
             buttons={false}
             tabs={["nearby", "saved"]}
             defaultPage="nearby"
+            beachPage
           />
           <header id="content" className="ml-2 mb-4 scroll-mt-30">
             <h1 className="font-semibold text-3xl tracking-tight">

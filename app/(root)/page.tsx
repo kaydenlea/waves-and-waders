@@ -491,7 +491,7 @@ const Home = () => {
 
   return (
     <div className="touch-pan-y">
-      <header className="fixed top-0 z-40 w-full border-x border-b border-border bg-background/80 backdrop-blur rounded-b-md">
+      <header className="fixed top-0 z-40 w-full bg-background/80 backdrop-blur rounded-b-md">
         <div className="mx-auto flex items-center justify-between px-4 py-6 sm:px-6">
           <Link
             href="#"

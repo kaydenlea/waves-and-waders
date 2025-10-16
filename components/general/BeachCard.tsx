@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import type { ReactNode } from "react";
 import Link from "next/link";
@@ -123,16 +123,16 @@ const BeachCard = ({
         scrollToMap();
       }}
       id={`beach-${b.id}`}
-      className="hover:cursor-pointer hover:duration-300 hover:scale-101 hover:bg-highlight-2 group flex flex-col overflow-hidden rounded-2xl border border-border/50 bg-highlight-4 shadow-md shadow-black/20 backdrop-blur"
+      className="hover:cursor-pointer transition-transform transform translate-y-0 hover:translate-y-0.5 ease-in-out duration-300 hover:bg-highlight-2 group flex flex-col overflow-hidden rounded-2xl border border-border/50 bg-highlight-4 shadow-md shadow-black/20 backdrop-blur"
     >
       <div className="relative flex-1">
-        <SaveButton
+        {/* <SaveButton
           beachId={String(b.id)}
           initialIsFav={isFav}
           variant="overlay"
           className="absolute right-3 top-3"
           stopPropagation
-        />
+        /> */}
       </div>
       <div className="p-4 flex-1 flex flex-col justify-between">
         <div className="flex flex-col gap-2">
@@ -214,7 +214,7 @@ const BeachCard = ({
                 e.stopPropagation();
               }}
             >
-              <span className="text-sm py-1 px-3 rounded-full bg-highlight-5 hover:bg-highlight-3 flex gap-1 items-center">
+              <span className="font-medium text-sm py-2 px-3 rounded-full bg-highlight-5 hover:bg-highlight-3 flex gap-1 items-center">
                 <TagIcon className="h-4 w-4" />
                 Tags
               </span>
@@ -231,7 +231,7 @@ const BeachCard = ({
             <SaveButton
               beachId={String(b.id)}
               initialIsFav={isFav}
-              className="group/button inline-flex items-center rounded-full bg-highlight-5 p-2 backdrop-blur transition hover:bg-highlight-3"
+              className="group/button inline-flex items-center rounded-full bg-highlight-5 p-1.5 backdrop-blur transition hover:bg-highlight-3"
               stopPropagation
             />
             <Link
@@ -241,7 +241,7 @@ const BeachCard = ({
                 setPopupData(null);
               }}
               href={`${generateBeachUrl(b.name, b.id)}/overview`}
-              className="text-center rounded-full bg-highlight-5 px-3 py-1.5 text-sm text-foreground/90 transition hover:bg-highlight-3"
+              className="text-center rounded-full bg-highlight-5 px-3 py-2 text-sm font-medium text-foreground/90 transition hover:bg-highlight-3"
             >
               View
             </Link>

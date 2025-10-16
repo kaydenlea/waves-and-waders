@@ -916,7 +916,7 @@ export default function NearbyBeaches({
         </div>
       </div>
 
-      <section className="grid grid-cols-1 gap-3 @min-md:grid-cols-2 mb-4">
+      <section className="grid grid-cols-1 gap-3 @min-lg:grid-cols-2 mb-4">
         {currentItems.map((b) => (
           <BeachCard key={b.id} b={b} isFav={favoriteSet.has(String(b.id))} />
         ))}

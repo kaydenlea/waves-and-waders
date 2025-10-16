@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -14,6 +14,7 @@ type PageTabsProps = {
   tabs: string[];
   buttons?: boolean;
   isFavorite?: boolean;
+  beachPage?: boolean;
 };
 
 const PageTabs = ({
@@ -23,6 +24,7 @@ const PageTabs = ({
   tabs,
   buttons = true,
   isFavorite = false,
+  beachPage = false,
 }: PageTabsProps) => {
   const [favorite, setFavorite] = useState(isFavorite);
 
@@ -33,7 +35,14 @@ const PageTabs = ({
   const showSaveButton = Boolean(buttons && beachId);
 
   return (
-    <div className="mx-auto @min-3xl:absolute @min-3xl:right-0 flex gap-1 @min-sm:gap-2">
+    <div
+      className={cn(
+        "mx-auto flex gap-1 @min-sm:gap-2",
+        beachPage
+          ? "@min-xl:absolute @min-xl:right-0"
+          : "@min-3xl:absolute @min-3xl:right-0"
+      )}
+    >
       {buttons && (
         <>
           <FocusMapButton beach={beach} />

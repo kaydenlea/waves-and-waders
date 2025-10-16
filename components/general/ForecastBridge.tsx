@@ -265,7 +265,7 @@ const ForecastBridge: React.FC<Props> = ({ beachId }) => {
           );
         case "table":
           return (
-            <VisualWrapper label="Hourly Stats">
+            <VisualWrapper label="Hourly Stats" unit="12 hrs">
               <LazyLoadTable
                 beachId={beachId}
                 numHours={3}

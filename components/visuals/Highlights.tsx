@@ -343,9 +343,6 @@ const Highlights = ({
       label: "weather",
       weather: { temp: 64, condition: "sun" },
     },
-    { label: "water", temp: 60 },
-    { label: "tide", tide: { value: "2-3", unit: "ft" } },
-    { label: "wind", wind: { speed: 12, max: 17 } },
     {
       label: "swell",
       primary: { height: 2.1, period: 7, wind: { dir: "W", deg: 272 } },
@@ -354,6 +351,9 @@ const Highlights = ({
         { height: 2.1, period: 7, wind: { dir: "W", deg: 272 } },
       ],
     },
+    { label: "water", temp: 60 },
+    { label: "tide", tide: { value: "2-3", unit: "ft" } },
+    { label: "wind", wind: { speed: 12, max: 17 } },
     { label: "moon", phase: "Waning Cresent" },
     { label: "pressure", pressure: { value: 29.9, unit: "in" } },
     { label: "energy", energy: { value: 278, unit: "kJ" } },
@@ -425,6 +425,36 @@ const Highlights = ({
             code: base?.conditions.weather ?? null,
           },
         });
+        // swell primary/secondary
+        if (baseRow) {
+          const pDir = baseRow.swell.primary.direction ?? 0;
+          const sDir = baseRow.swell.secondary.direction ?? 0;
+          const tDir = baseRow.swell.tertiary?.direction ?? 0;
+          nextStats.push({
+            label: "swell",
+            primary: {
+              height: Number((baseRow.swell.primary.height ?? 0).toFixed(1)),
+              period: Math.round(baseRow.swell.primary.period ?? 0),
+              wind: { dir: getWindDirection(pDir), deg: pDir },
+            },
+            secondary: [
+              {
+                height: Number(
+                  (baseRow.swell.secondary.height ?? 0).toFixed(1)
+                ),
+                period: Math.round(baseRow.swell.secondary.period ?? 0),
+                wind: { dir: getWindDirection(sDir), deg: sDir },
+              },
+              {
+                height: Number(
+                  (baseRow.swell.tertiary?.height ?? 0).toFixed(1)
+                ),
+                period: Math.round(baseRow.swell.tertiary?.period ?? 0),
+                wind: { dir: getWindDirection(tDir), deg: tDir },
+              },
+            ],
+          });
+        }
         // water temp
         nextStats.push({
           label: "water",
@@ -472,36 +502,6 @@ const Highlights = ({
             max: Math.round(base?.conditions.windGust ?? 0),
           },
         });
-        // swell primary/secondary
-        if (baseRow) {
-          const pDir = baseRow.swell.primary.direction ?? 0;
-          const sDir = baseRow.swell.secondary.direction ?? 0;
-          const tDir = baseRow.swell.tertiary?.direction ?? 0;
-          nextStats.push({
-            label: "swell",
-            primary: {
-              height: Number((baseRow.swell.primary.height ?? 0).toFixed(1)),
-              period: Math.round(baseRow.swell.primary.period ?? 0),
-              wind: { dir: getWindDirection(pDir), deg: pDir },
-            },
-            secondary: [
-              {
-                height: Number(
-                  (baseRow.swell.secondary.height ?? 0).toFixed(1)
-                ),
-                period: Math.round(baseRow.swell.secondary.period ?? 0),
-                wind: { dir: getWindDirection(sDir), deg: sDir },
-              },
-              {
-                height: Number(
-                  (baseRow.swell.tertiary?.height ?? 0).toFixed(1)
-                ),
-                period: Math.round(baseRow.swell.tertiary?.period ?? 0),
-                wind: { dir: getWindDirection(tDir), deg: tDir },
-              },
-            ],
-          });
-        }
         // moon
         if (daily?.moon_phase != null) {
           nextStats.push({ label: "moon", phase: (daily as any).moon_phase });
@@ -534,98 +534,6 @@ const Highlights = ({
     };
   }, [beachId, date, hour]);
 
-  // return (
-  //   <div className="w-full max-w-6xl mx-auto">
-  //     <ul className="grid grid-cols-2 @min-2xl:grid-cols-4 gap-3">
-  //       {stats.slice(startIdx, endIdx + 1).map((stat) => {
-  //         let content;
-  //         switch (stat.label) {
-  //           case "swell":
-  //             content = stat.primary && stat.secondary && (
-  //               <HighlightCard label={stat.label}>
-  //                 <div className="flex flex-col items-center">
-  //                   <SwellStat primary data={stat.primary} small />
-  //                   <SwellStat data={stat.secondary[0]} small />
-  //                   <SwellStat data={stat.secondary[1]} small />
-  //                 </div>
-  //               </HighlightCard>
-  //             );
-  //             break;
-  //           case "weather":
-  //             content = stat.weather && (
-  //               <WeatherStat
-  //                 temp={stat.weather.temp}
-  //                 condition={stat.weather.condition}
-  //                 label={stat.label}
-  //                 weatherCode={stat.weather.code}
-  //               />
-  //             );
-  //             break;
-  //           case "water":
-  //             content = stat.temp && (
-  //               <HighlightCard label={stat.label}>
-  //                 <div className="flex items-center justify-center gap-0.5">
-  //                   <span className="text-2xl font-semibold">
-  //                     {stat.temp}
-  //                     <span className="text-sm font-normal">&deg;F</span>
-  //                   </span>
-  //                 </div>
-  //               </HighlightCard>
-  //             );
-  //             break;
-  //           case "tide":
-  //             content = stat.tide && (
-  //               <BasicStat data={stat.tide} label={stat.label} />
-  //             );
-  //             break;
-  //           case "moon":
-  //             {
-  //               const hasPhase =
-  //                 stat.phase !== null && stat.phase !== undefined;
-  //               content = hasPhase ? (
-  //                 <MoonStat data={stat.phase as any} label={stat.label} />
-  //               ) : (
-  //                 <HighlightCard label={stat.label}>
-  //                   <div className="flex flex-col items-center text-sm text-muted-foreground">
-  //                     <span>Moon data unavailable</span>
-  //                   </div>
-  //                 </HighlightCard>
-  //               );
-  //               break;
-  //             }
-  //             break;
-  //           case "wind":
-  //             content = stat.wind && (
-  //               <WindStat data={stat.wind} label={stat.label} />
-  //             );
-  //             break;
-  //           case "pressure":
-  //             content = stat.pressure && (
-  //               <BasicStat data={stat.pressure} label={stat.label} />
-  //             );
-  //             break;
-  //           case "energy":
-  //             content = stat.energy && (
-  //               <BasicStat data={stat.energy} label={stat.label} />
-  //             );
-  //             break;
-  //         }
-  //         if (content) {
-  //           return (
-  //             <li
-  //               key={stat.label}
-  //               className="relative highlight-card shadow-even min-h-25"
-  //             >
-  //               <div className="flex-1 flex items-center justify-center gap-1 mt-1 h-full">
-  //                 {content}
-  //               </div>
-  //             </li>
-  //           );
-  //         }
-  //       })}
-  //     </ul>
-  //   </div>
-  // );
   return (
     <div className="w-full max-w-7xl mx-auto">
       <ul
@@ -641,9 +549,14 @@ const Highlights = ({
               content = stat.primary && stat.secondary && (
                 <HighlightCard label={stat.label}>
                   <div className="flex flex-col items-center">
-                    <SwellStat primary data={stat.primary} small />
-                    <SwellStat data={stat.secondary[0]} small />
-                    <SwellStat data={stat.secondary[1]} small />
+                    <SwellStat
+                      primary
+                      data={stat.primary}
+                      small
+                      isFull={isFull}
+                    />
+                    <SwellStat data={stat.secondary[0]} small isFull={isFull} />
+                    <SwellStat data={stat.secondary[1]} small isFull={isFull} />
                   </div>
                 </HighlightCard>
               );
