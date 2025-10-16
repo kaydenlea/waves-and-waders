@@ -370,60 +370,19 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
     };
   }, []);
 
+  // Determine if selected point is visible based on zoom level
+  // Points get clustered when zoom < clusterMaxZoom (12)
   React.useEffect(() => {
     if (!selected) {
       setSelectedPointVisible(false);
       return;
     }
 
-    const ref = mapRef.current;
-    const mapInstance = ref?.getMap?.() ?? ref;
-    if (
-      !mapInstance ||
-      typeof mapInstance.project !== "function" ||
-      typeof mapInstance.queryRenderedFeatures !== "function"
-    ) {
-      setSelectedPointVisible(true);
-      return;
-    }
-
-    if (
-      typeof mapInstance.isStyleLoaded === "function" &&
-      !mapInstance.isStyleLoaded()
-    ) {
-      setSelectedPointVisible(true);
-      return;
-    }
-
-    const beachesSource = mapInstance.getSource("beaches") as
-      | { loaded?: () => boolean }
-      | undefined;
-    if (
-      beachesSource &&
-      typeof beachesSource.loaded === "function" &&
-      !beachesSource.loaded()
-    ) {
-      setSelectedPointVisible(true);
-      return;
-    }
-
-    try {
-      const pixelPoint = mapInstance.project([
-        selected.longitude,
-        selected.latitude,
-      ]);
-      if (!pixelPoint) {
-        setSelectedPointVisible(false);
-        return;
-      }
-      const features = mapInstance.queryRenderedFeatures(
-        [pixelPoint.x, pixelPoint.y],
-        { layers: ["unclustered-point"] }
-      );
-      setSelectedPointVisible(features.length > 0);
-    } catch {
-      setSelectedPointVisible(true);
-    }
+    // Points are unclustered (visible) when zoom > clusterMaxZoom (12)
+    // Add small buffer to account for zoom transitions
+    const CLUSTER_MAX_ZOOM = 12;
+    const isVisible = zoom > CLUSTER_MAX_ZOOM;
+    setSelectedPointVisible(isVisible);
   }, [zoom, selected]);
 
   // Fetch surf intensity when date changes
@@ -872,6 +831,14 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
       return;
     }
 
+    // If we already have a selected beach and nothing changed, don't re-center
+    const hasSelection = selected != null;
+    const selectionMatches = selected && String(selected.id) === effectiveKey;
+    if (hasSelection && selectionMatches && !effectiveIdChanged) {
+      prevEffectiveIdRef.current = effectiveKey;
+      return;
+    }
+
     // If page context identifies a beach, center and zoom to it
     if (effectiveId != null) {
       console.log("InteractiveMap: Looking for beach with ID:", effectiveId);
@@ -1153,47 +1120,8 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
             userMovedRef.current = true;
           });
 
-          // Handle cluster clicks with direct map event listener for immediate response
-          const handleClusterClick = (e: any) => {
-            const interactiveFeatures =
-              e.features?.filter(
-                (f: any) =>
-                  f?.layer?.id === "clusters" ||
-                  f?.layer?.id === "cluster-count"
-              ) ?? [];
-
-            const features = interactiveFeatures.length
-              ? interactiveFeatures
-              : map.queryRenderedFeatures(e.point, {
-                  layers: ["clusters", "cluster-count"],
-                });
-            if (!features.length) return;
-
-            const clusterFeature =
-              features.find((f: any) => f?.layer?.id === "clusters") ??
-              features[0];
-
-            const clusterId = clusterFeature.properties?.cluster_id;
-            const source: any = map.getSource("beaches");
-
-            if (source && clusterId != null) {
-              source.getClusterExpansionZoom(
-                clusterId,
-                (err: any, zoom: number) => {
-                  if (err) return;
-                  map.easeTo({
-                    center: (clusterFeature.geometry as any).coordinates,
-                    zoom,
-                    duration: 500,
-                  });
-                  setZoom(zoom);
-                }
-              );
-            }
-          };
-
-          map.on("click", "clusters", handleClusterClick);
-          map.on("click", "cluster-count", handleClusterClick);
+          // Cluster clicks are now handled in the React onClick handler
+          // No need for direct map event listeners
 
           // Hover for individual points (not clusters)
           map.on("mouseenter", "unclustered-point", () => {
@@ -1307,12 +1235,33 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
           const feature = e.features && e.features[0];
           if (!feature) return;
 
-          // Cluster clicks are now handled by direct map event listeners in onLoad
-          // Skip cluster clicks here to avoid duplication
+          // Handle cluster clicks
           const isCluster =
             feature.properties && (feature.properties as any).cluster;
           const isClusterCount = feature.layer?.id === "cluster-count";
+
           if (isCluster || isClusterCount) {
+            // Handle cluster expansion
+            const clusterId = feature.properties?.cluster_id;
+            const mapInstance = mapRef.current?.getMap?.();
+            const source: any = mapInstance?.getSource("beaches");
+
+            if (source && clusterId != null && mapInstance) {
+              source.getClusterExpansionZoom(
+                clusterId,
+                (err: any, expansionZoom: number) => {
+                  if (err) return;
+                  // Ensure we zoom past clusterMaxZoom (12) to show unclustered points
+                  const targetZoom = Math.max(expansionZoom, 12.5);
+                  mapInstance.easeTo({
+                    center: (feature.geometry as any).coordinates,
+                    zoom: targetZoom,
+                    duration: 500,
+                  });
+                  setZoom(targetZoom);
+                }
+              );
+            }
             return;
           }
 
@@ -1325,7 +1274,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
             longitude: (feature.geometry as any).coordinates[0],
             latitude: (feature.geometry as any).coordinates[1],
           };
-          setSwellDirections(null);
+          // Don't clear swellDirections - let the useEffect update it for the new beach
           popupId.current = null;
           setPopupData(null);
           setPopupInfo(null);
@@ -1438,13 +1387,13 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
                   [
                     "step",
                     ["get", "surfIntensity"],
-                    "#9ca3af", // gray for no data (bg-highlight-3)
+                    "#d1d5db", // gray for no data (bg-gray-300 / highlight-3)
                     0.1,
-                    "#4ade80", // green for small (< 3ft) (bg-green-400)
+                    "#86efac", // green-300 for small (< 3ft)
                     3,
-                    "#fb923c", // orange for moderate (3-6ft) (bg-orange-400)
+                    "#fdba74", // orange-300 for moderate (3-6ft)
                     6,
-                    "#f87171", // red for big (>= 6ft) (bg-red-400)]
+                    "#f87171", // red-400 for big (>= 6ft)
                   ],
                 ],
                 "circle-stroke-width": [
@@ -1484,13 +1433,12 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
           ].some((d) => typeof d === "number") &&
           (() => {
             // Calculate scale based on zoom level
-            // Below zoom 9, hide rings completely
-            // At zoom 14 or higher (very close), scale = 1 (full size)
-            // Between zoom 9-14, shrink proportionally
-            if (zoom < 9) {
+            // Hide rings when the point is not visible (clustered or off-screen)
+            if (!selectedPointVisible) {
               return null;
             }
-            if (!selectedPointVisible) {
+            // Also hide rings below zoom 9 for cleaner view
+            if (zoom < 9) {
               return null;
             }
 
@@ -1548,14 +1496,14 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
                     "p-1 w-2 rounded-full",
                     !popupInfo.properties.surfIntensity ||
                       (popupInfo.properties.surfIntensity < 0.1 &&
-                        "bg-[#9ca3af]"),
+                        "bg-gray-300"),
                     popupInfo.properties.surfIntensity >= 0.1 &&
                       popupInfo.properties.surfIntensity < 3 &&
-                      "bg-[#4ade80]",
+                      "bg-green-300",
                     popupInfo.properties.surfIntensity >= 3 &&
                       popupInfo.properties.surfIntensity < 6 &&
-                      "bg-[#fb923c]",
-                    popupInfo.properties.surfIntensity >= 6 && "bg-[#f87171]"
+                      "bg-orange-300",
+                    popupInfo.properties.surfIntensity >= 6 && "bg-red-400"
                   )}
                 />
                 <div className="flex flex-col">

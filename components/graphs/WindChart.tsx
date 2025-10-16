@@ -327,6 +327,7 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
           radius={4}
           stroke="#0000006e"
           strokeWidth={0.5}
+          minPointSize={10}
         >
           <LabelList
             dataKey="wind"

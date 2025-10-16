@@ -77,29 +77,92 @@ type SummaryStat =
 type TidePointValue = { x: number; tide: number };
 type TidePeak = { kind: "high" | "low"; time: Date; level: number };
 
-const computeTidePeaks = (points: TidePointValue[]): TidePeak[] => {
-  if (!points || points.length < 3) return [];
+const computeTidePeaks = (
+  points: TidePointValue[],
+  isToday: boolean = false,
+  windowStartMs?: number
+): TidePeak[] => {
+  if (!points || points.length < 2) return [];
   const sorted = [...points].sort((a, b) => a.x - b.x);
-  const peaks: TidePeak[] = [];
-  for (let i = 1; i < sorted.length - 1; i += 1) {
-    const prev = sorted[i - 1];
+
+  // First pass: identify all potential peaks
+  const potentialPeaks: number[] = [];
+  for (let i = 0; i < sorted.length; i++) {
+    const prev = i > 0 ? sorted[i - 1] : null;
     const curr = sorted[i];
-    const next = sorted[i + 1];
+    const next = i < sorted.length - 1 ? sorted[i + 1] : null;
+
+    // Special case: For today, don't mark the start edge (12 AM) as a peak
+    // because there's no previous data (it was deleted)
+    if (isToday && windowStartMs != null && curr.x === windowStartMs && !prev) {
+      continue;
+    }
+
+    // Must have at least one neighbor
+    if (!prev && !next) continue;
+
     const tide = curr.tide;
-    if (tide > prev.tide && tide >= next.tide) {
-      peaks.push({
-        kind: "high",
-        time: new Date(curr.x),
-        level: Number(tide.toFixed(1)),
-      });
-    } else if (tide < prev.tide && tide <= next.tide) {
-      peaks.push({
-        kind: "low",
-        time: new Date(curr.x),
-        level: Number(tide.toFixed(1)),
-      });
+
+    // Check if it's a high tide (local maximum)
+    const isHigh =
+      (!prev || tide >= prev.tide) &&
+      (!next || tide >= next.tide) &&
+      ((prev && tide > prev.tide) || (next && tide > next.tide));
+
+    // Check if it's a low tide (local minimum)
+    const isLow =
+      (!prev || tide <= prev.tide) &&
+      (!next || tide <= next.tide) &&
+      ((prev && tide < prev.tide) || (next && tide < next.tide));
+
+    if (isHigh || isLow) {
+      potentialPeaks.push(i);
     }
   }
+
+  // Second pass: remove duplicate peaks (consecutive points with same tide value)
+  const peaks: TidePeak[] = [];
+  for (let i = 0; i < potentialPeaks.length; i++) {
+    const idx = potentialPeaks[i];
+    const curr = sorted[idx];
+
+    // Check if next potential peak has the same tide value
+    if (i + 1 < potentialPeaks.length) {
+      const nextIdx = potentialPeaks[i + 1];
+      const nextPeak = sorted[nextIdx];
+
+      // If same tide value, only keep one (prefer the earlier one)
+      if (Math.abs(curr.tide - nextPeak.tide) < 0.01) {
+        const prev = idx > 0 ? sorted[idx - 1] : null;
+        const next = idx < sorted.length - 1 ? sorted[idx + 1] : null;
+        const isHigh =
+          (!prev || curr.tide >= prev.tide) &&
+          (!next || curr.tide >= next.tide);
+
+        peaks.push({
+          kind: isHigh ? "high" : "low",
+          time: new Date(curr.x),
+          level: Number(curr.tide.toFixed(1)),
+        });
+        i++; // Skip the next one
+        continue;
+      }
+    }
+
+    // Determine if it's a high or low tide
+    const prev = idx > 0 ? sorted[idx - 1] : null;
+    const next = idx < sorted.length - 1 ? sorted[idx + 1] : null;
+    const isHigh =
+      (!prev || curr.tide >= prev.tide) &&
+      (!next || curr.tide >= next.tide);
+
+    peaks.push({
+      kind: isHigh ? "high" : "low",
+      time: new Date(curr.x),
+      level: Number(curr.tide.toFixed(1)),
+    });
+  }
+
   return peaks;
 };
 
@@ -148,19 +211,27 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
         const now = new Date();
         let startWindow = now;
         let endWindow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+        let tideStartWindow = now;
         let tideEndWindow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
         if (date instanceof Date) {
           const d = new Date(date);
           d.setHours(0, 0, 0, 0);
           startWindow = d;
           endWindow = new Date(d.getTime() + 24 * 60 * 60 * 1000);
+          tideStartWindow = startWindow;
           tideEndWindow = endWindow;
         }
+
+        // Fetch extra tide data (6 hours before and after) to detect peaks at window boundaries
+        const BUFFER_HOURS = 6;
+        const tideFetchStart = new Date(tideStartWindow.getTime() - BUFFER_HOURS * 60 * 60 * 1000);
+        const tideFetchEnd = new Date(tideEndWindow.getTime() + BUFFER_HOURS * 60 * 60 * 1000);
+
         const [current, forecast, beach, tideRows] = await Promise.all([
           fetchCurrentConditions(resolvedId),
           fetchBeachForecast(resolvedId, startWindow, endWindow),
           fetchBeachDetails(resolvedId),
-          fetchBeachTides(resolvedId, startWindow, tideEndWindow),
+          fetchBeachTides(resolvedId, tideFetchStart, tideFetchEnd),
         ]);
         if (cancelled) return;
         console.log("OBSERVE", current, forecast, beach, tideRows);
@@ -309,7 +380,18 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
           .filter((point): point is TidePointValue => point !== null)
           .sort((a, b) => a.x - b.x);
 
-        let tidePeaks = computeTidePeaks(tideSeries);
+        // Check if this is today
+        const today = new Date();
+        const isToday =
+          tideStartWindow.getFullYear() === today.getFullYear() &&
+          tideStartWindow.getMonth() === today.getMonth() &&
+          tideStartWindow.getDate() === today.getDate();
+
+        // Filter peaks to only include those within the actual window (not the buffer)
+        const windowStartMs = tideStartWindow.getTime();
+        const windowEndMs = tideEndWindow.getTime();
+
+        let tidePeaks = computeTidePeaks(tideSeries, isToday, windowStartMs);
         if (tidePeaks.length === 0 && forecast.length > 0) {
           const fallbackSeries: TidePointValue[] = forecast
             .map((row) => {
@@ -322,10 +404,14 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
             })
             .filter((point): point is TidePointValue => point !== null)
             .sort((a, b) => a.x - b.x);
-          tidePeaks = computeTidePeaks(fallbackSeries);
+          tidePeaks = computeTidePeaks(fallbackSeries, isToday, windowStartMs);
         }
+        const peaksInWindow = tidePeaks.filter((peak) => {
+          const peakTime = peak.time.getTime();
+          return peakTime >= windowStartMs && peakTime <= windowEndMs;
+        });
 
-        const tideStatPeaks = tidePeaks.slice(0, 4);
+        const tideStatPeaks = peaksInWindow.slice(0, 4);
         const currentTideHeight =
           base?.conditions.tideLevel != null
             ? Number(base.conditions.tideLevel.toFixed(1))

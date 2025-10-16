@@ -465,7 +465,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
             tickLine={false}
             axisLine={false}
             tickMargin={0}
-            domain={[0, (dataMax: number) => Math.ceil(dataMax + 5)]}
+            domain={[0, (dataMax: number) => Math.max(8, Math.ceil(dataMax + 5))]}
           />
           <ChartTooltip content={<ChartTooltipContent />} />
           <Bar

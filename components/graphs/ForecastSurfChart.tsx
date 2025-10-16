@@ -355,7 +355,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
             tickLine={false}
             axisLine={false}
             tickMargin={0}
-            domain={[0, (dataMax: number) => Math.ceil(dataMax + 3)]}
+            domain={[0, (dataMax: number) => Math.max(4, Math.ceil(dataMax + 3))]}
           />
           <ChartTooltip content={<ChartTooltipContent />} />
           <Bar

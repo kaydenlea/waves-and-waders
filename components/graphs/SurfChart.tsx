@@ -363,7 +363,7 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
           axisLine={false}
           tickMargin={8}
           fontSize={11}
-          domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.5)]}
+          domain={[0, (dataMax: number) => Math.max(4, Math.ceil(dataMax * 1.5))]}
         />
         <ChartTooltip content={<ChartTooltipContent />} />
         <ChartLegend content={<ChartLegendContent />} />
@@ -373,6 +373,7 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
           radius={4}
           stroke="#0000006e"
           strokeWidth={0.5}
+          minPointSize={10}
           >
             <LabelList
               dataKey="surf"
