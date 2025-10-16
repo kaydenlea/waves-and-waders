@@ -1,7 +1,10 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { useSessionContext, useSupabaseClient } from "@supabase/auth-helpers-react";
+import {
+  useSessionContext,
+  useSupabaseClient,
+} from "@supabase/auth-helpers-react";
 import {
   DndContext,
   DragEndEvent,
@@ -33,7 +36,7 @@ import { Check, X, RotateCcw } from "lucide-react";
 
 /* ------------------------------ Widget Content ---------------------------- */
 
-const WIDGET: Record<WidgetId, React.ReactNode> = {
+const WIDGET: Partial<Record<WidgetId, React.ReactNode>> = {
   // stats: <Highlights />,
   // tide: <TideChart />,
   // swell: <SwellChart />,
@@ -99,6 +102,16 @@ const WIDGET: Record<WidgetId, React.ReactNode> = {
             ))}
           </tbody>
         </table>
+      </div>
+    </div>
+  ),
+  surfAndWind: (
+    <div className="flex gap-3 h-full">
+      <div className="flex-1 flex h-full items-center justify-center rounded bg-highlight-3 text-gray-400">
+        [Chart]
+      </div>
+      <div className="flex-1 flex h-full items-center justify-center rounded bg-highlight-3 text-gray-400">
+        [Chart]
       </div>
     </div>
   ),
@@ -261,7 +274,7 @@ export default function Dashboard({
   type?: DashboardType;
 }) {
   const layoutDefaults = useMemo(() => getDefaultLayout(type), [type]);
-  const [meta, setMeta] = useState<Record<WidgetId, WidgetMeta>>(
+  const [meta, setMeta] = useState<Partial<Record<WidgetId, WidgetMeta>>>(
     () => layoutDefaults.meta
   );
   const [rows, setRows] = useState<Row[]>(() => layoutDefaults.rows);
@@ -286,7 +299,7 @@ export default function Dashboard({
     const defaults = getDefaultLayout(type);
 
     const applyLayout = (
-      nextMeta: Record<WidgetId, WidgetMeta>,
+      nextMeta: Partial<Record<WidgetId, WidgetMeta>>,
       nextRows: Row[]
     ) => {
       if (cancelled) return;
@@ -362,13 +375,7 @@ export default function Dashboard({
     return () => {
       cancelled = true;
     };
-  }, [
-    type,
-    storageMetaKey,
-    storageRowsKey,
-    session,
-    supabase,
-  ]);
+  }, [type, storageMetaKey, storageRowsKey, session, supabase]);
 
   useEffect(() => {
     if (!hydrated || typeof window === "undefined" || session) return;
@@ -378,14 +385,7 @@ export default function Dashboard({
     } catch (error) {
       console.warn("Failed to persist dashboard layout", error);
     }
-  }, [
-    meta,
-    rows,
-    hydrated,
-    storageMetaKey,
-    storageRowsKey,
-    session,
-  ]);
+  }, [meta, rows, hydrated, storageMetaKey, storageRowsKey, session]);
 
   useEffect(() => {
     if (!hydrated || !session) return;
@@ -605,9 +605,8 @@ export default function Dashboard({
       const m = prev[id];
       if (m.immutableFull) return prev;
       const to: Span = m.span === "half" ? "full" : "half";
-      const nextMeta = { ...prev, [id]: { ...m, span: to } } as Record<
-        WidgetId,
-        WidgetMeta
+      const nextMeta = { ...prev, [id]: { ...m, span: to } } as Partial<
+        Record<WidgetId, WidgetMeta>
       >;
 
       setRows((rows0) => {

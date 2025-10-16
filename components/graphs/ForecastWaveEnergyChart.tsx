@@ -13,6 +13,7 @@ import {
   ReferenceLine,
   Area,
   AreaChart,
+  ReferenceArea,
 } from "recharts";
 import {
   ChartConfig,
@@ -173,7 +174,12 @@ function buildTrendStops(
   return stops;
 }
 
-import { fetchWeeklyForecast, fetchBeachByIdLoose } from "@/lib/supabase";
+import {
+  fetchWeeklyForecast,
+  fetchBeachByIdLoose,
+  fetchBeachDetails,
+  fetchDailyConditions,
+} from "@/lib/supabase";
 import dayjs from "dayjs";
 
 type Props = { beachId?: string; days?: Date[] | null };
@@ -183,6 +189,10 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
   const [dayWindow, setDayWindow] = React.useState(4);
   const [energyData, setEnergyData] = React.useState<WavePoint[]>([]);
   const [baseStartMs, setBaseStartMs] = React.useState<number | null>(null);
+  const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
+  const [nightAreas, setNightAreas] = useState<{ x1: number; x2?: number }[]>(
+    []
+  );
 
   // Build energy series from forecast rows (wave_energy_kj or surf.waveEnergy)
   React.useEffect(() => {
@@ -242,10 +252,76 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
         if (!cancelled) {
           setEnergyData(series);
         }
+        const start = days ? days[0] : new Date();
+        const startLocal = new Date(
+          start.toLocaleString("en-US", {
+            timeZone: "America/Los_Angeles",
+          })
+        );
+        startLocal.setHours(0, 0, 0, 0);
+        const startMs = startLocal.getTime();
+        // day/night/sun markers
+        const beach = await fetchBeachDetails(String(id));
+        const county = beach?.COUNTY;
+        if (county) {
+          const parseHM = (
+            s: string | null
+          ): { h: number; m: number } | null => {
+            if (!s) return null;
+            const m = /^(\d{1,2}):(\d{2})/.exec(s.trim());
+            if (!m) return null;
+            const h = Number(m[1]);
+            const mm = Number(m[2]);
+            if (!Number.isFinite(h) || !Number.isFinite(mm)) return null;
+            return { h, m: mm };
+          };
+
+          const dayAreasBuild: { x1: number; x2: number }[] = [];
+          const nightAreasBuild: { x1: number; x2?: number }[] = [];
+          const markers: number[] = [];
+          let nightStart = 0;
+          for (let di = 0; di < dayWindow; di++) {
+            const cond = await fetchDailyConditions(
+              county,
+              new Date(startMs + di * 24 * 60 * 60 * 1000)
+            );
+            const rise = parseHM(cond?.sunrise ?? null);
+            const setv = parseHM(cond?.sunset ?? null);
+            if (!rise || !setv) {
+              // fallback mark whole day
+              dayAreasBuild.push({ x1: di * 24, x2: di * 24 + 24 });
+              nightAreasBuild.push({ x1: nightStart, x2: di * 24 });
+              nightStart = di * 24 + 24;
+              continue;
+            }
+            const offset = di * 24;
+            const rH = offset + rise.h + Math.floor(rise.m / 60);
+            const sH = offset + setv.h + Math.floor(setv.m / 60);
+            const dayStart = Math.min(rH, sH);
+            const dayEnd = Math.max(rH, sH);
+            dayAreasBuild.push({
+              x1: Math.round(dayStart / 3) * 3,
+              x2: Math.round(dayEnd / 3) * 3,
+            });
+            nightAreasBuild.push({
+              x1: Math.round(nightStart / 3) * 3,
+              x2: Math.round(dayStart / 3) * 3,
+            });
+            nightStart = Math.round(dayEnd / 3) * 3;
+            markers.push(rH, sH);
+          }
+          nightAreasBuild.push({ x1: nightStart });
+          if (!cancelled) {
+            setDayAreas(dayAreasBuild);
+            setNightAreas(nightAreasBuild);
+          }
+        }
       } catch (e) {
         if (!cancelled) {
           setEnergyData([]);
           setBaseStartMs(null);
+          setDayAreas([]);
+          setNightAreas([]);
         }
       }
     };
@@ -254,7 +330,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
     return () => {
       cancelled = true;
     };
-  }, [beachId]);
+  }, [beachId, dayWindow, days]);
 
   const source = energyData.length ? energyData : chartData;
   const pointsPerDay = React.useMemo(() => {
@@ -411,7 +487,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
     }
     return labels;
   }, [dayOffset, days, effectiveDayWindow]);
-
+  console.log("WINDOWS", dayAreas, nightAreas, visibleData);
   return (
     <>
       <div className="mb-4">
@@ -510,6 +586,24 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
               />
             ) : null
           )}
+          {dayAreas.map((a, idx) => (
+            <ReferenceArea
+              key={`day-${idx}`}
+              x1={a.x1}
+              x2={a.x2}
+              fill="#FFE58F"
+              fillOpacity={0.18}
+            />
+          ))}
+          {nightAreas.map((a, idx) => (
+            <ReferenceArea
+              key={`night-${idx}`}
+              x1={idx === 0 ? undefined : a.x1}
+              x2={idx === nightAreas.length - 1 ? undefined : a.x2}
+              fill="#ccc1ffff"
+              fillOpacity={0.12}
+            />
+          ))}
 
           <CartesianGrid
             strokeDasharray="3 3"

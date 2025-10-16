@@ -54,9 +54,9 @@ const SwellStat = ({
       className={cn(
         "flex items-center justify-center",
         primary
-          ? "border border-border shadow-sm rounded-md px-1.5 gap-2"
+          ? "border border-border shadow-sm rounded-md px-1.5 gap-1"
           : "gap-1",
-        primary && !isFull && "-ml-2"
+        primary && !isFull && "-ml-4"
         // primary
         //   ? "border border-border shadow-sm rounded-md px-1.5 gap-1"
         //   : "gap-1"
@@ -79,14 +79,20 @@ const SwellStat = ({
             key={stat.label}
             className={cn(
               stat.label === "swell period" && "min-w-5 text-center",
-              stat.label === "swell wind" && !primary && !isFull && "min-w-15",
-              stat.label === "swell wind" && primary && !isFull && "min-w-8",
+              stat.label === "swell wind" &&
+                !primary &&
+                !isFull &&
+                "min-w-8 @min-md:min-w-15",
+              stat.label === "swell wind" &&
+                primary &&
+                !isFull &&
+                "min-w-5 @min-md:min-w-8",
               stat.label === "swell wind" && !primary && isFull && "min-w-8",
               stat.label === "swell wind" && primary && isFull && "min-w-5",
               !small && !primary && "text-sm font-medium",
               !small && primary && "text-md font-semibold",
               small && !primary && "text-xs font-medium",
-              small && primary && "text-md font-semibold"
+              small && primary && "text-sm font-semibold"
             )}
           >
             {typeof stat.value === "number"
@@ -97,8 +103,10 @@ const SwellStat = ({
             <span
               className={cn(
                 "font-normal",
-                primary ? "text-[0.7rem] font-semibold" : "text-[0.6rem]",
-                stat.label === "swell wind" && !isFull && "ml-0.5"
+                primary ? "text-[0.7rem] font-medium" : "text-[0.6rem]",
+                stat.label === "swell wind" &&
+                  !isFull &&
+                  "ml-0.5 hidden @min-md:inline-flex"
               )}
             >
               {(stat.label !== "swell wind" || !isFull) && stat.unit}

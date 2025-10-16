@@ -167,7 +167,7 @@ function ChartTooltipContent({
       }
       const hour =
         hourNum !== null ? (hourNum % 12 === 0 ? 12 : hourNum % 12) : null;
-      const amPm = hourNum !== null ? (hourNum >= 12 ? "PM" : "AM") : "";
+      const amPm = hourNum !== null ? (hourNum % 24 >= 12 ? "PM" : "AM") : "";
       return (
         <div className={cn("font-medium", labelClassName)}>
           {hour !== null ? `${hour} ${amPm}` : value}

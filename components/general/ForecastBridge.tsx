@@ -254,6 +254,17 @@ const ForecastBridge: React.FC<Props> = ({ beachId }) => {
               <LazyLoadForecastWind beachId={beachId} days={selectedDays} />
             </VisualWrapper>
           );
+        case "surfAndWind":
+          return (
+            <div className="w-full flex flex-col @min-2xl:flex-row gap-3">
+              <VisualWrapper label="Wind" unit="mph">
+                <LazyLoadForecastWind beachId={beachId} days={selectedDays} />
+              </VisualWrapper>
+              <VisualWrapper label="Surf" unit="ft">
+                <LazyLoadForecastSurf beachId={beachId} days={selectedDays} />
+              </VisualWrapper>
+            </div>
+          );
         case "energy":
           return (
             <VisualWrapper label="Wave Energy" unit="kJ">
@@ -317,7 +328,7 @@ const ForecastBridge: React.FC<Props> = ({ beachId }) => {
         id="forecast-content"
         className="scroll-mt-[calc(var(--nav-height,72px)+1rem)]"
       >
-        <header className="mx-2 flex gap-12 justify-between">
+        <header className="-mb-5 mx-2 flex gap-12 justify-between">
           <div>
             <h2 className="leading-none font-semibold text-2xl">
               {windowString}
@@ -349,15 +360,19 @@ const ForecastBridge: React.FC<Props> = ({ beachId }) => {
               (id) => layoutMeta[id]?.visible !== false
             );
             if (!visibleItems.length) return null;
-
+            console.log("FORECAST WIDGETS", visibleItems);
             const renderedItems = visibleItems
               .map((id) => ({
                 id,
                 content: renderWidget(id),
               }))
               .filter(
-                (entry): entry is { id: WidgetId; content: React.ReactNode } =>
-                  Boolean(entry.content)
+                (
+                  entry
+                ): entry is {
+                  id: WidgetId;
+                  content: React.JSX.Element | null;
+                } => Boolean(entry.content)
               );
 
             if (!renderedItems.length) return null;

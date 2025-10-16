@@ -14,6 +14,8 @@ import {
 import {
   ChartConfig,
   ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
@@ -358,6 +360,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
             domain={[0, (dataMax: number) => Math.ceil(dataMax + 3)]}
           />
           <ChartTooltip content={<ChartTooltipContent />} />
+          {/* <ChartLegend content={<ChartLegendContent />} /> */}
           <Bar
             dataKey="tide1"
             fill="var(--color-tide1)"

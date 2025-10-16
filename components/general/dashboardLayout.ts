@@ -9,7 +9,8 @@ export type WidgetId =
   | "swell"
   | "energy"
   | "wind"
-  | "table";
+  | "table"
+  | "surfAndWind";
 
 export interface WidgetMeta {
   id: WidgetId;
@@ -28,13 +29,14 @@ export const ALL_WIDGET_IDS: readonly WidgetId[] = [
   "stats",
   "tide",
   "swell",
-  "surf",
+  "surfAndWind",
+  // "surf",
   "energy",
-  "wind",
+  // "wind",
   "table",
 ] as const;
 
-const BASE_META_OVERVIEW: Record<WidgetId, WidgetMeta> = {
+const BASE_META_OVERVIEW: Partial<Record<WidgetId, WidgetMeta>> = {
   stats: { id: "stats", title: "Key Stats", visible: true, span: "half" },
   tide: { id: "tide", title: "Tide Chart", visible: true, span: "half" },
   surf: { id: "surf", title: "Surf Chart", visible: true, span: "half" },
@@ -55,7 +57,7 @@ const BASE_META_OVERVIEW: Record<WidgetId, WidgetMeta> = {
   },
 };
 
-const BASE_META_FORECAST: Record<WidgetId, WidgetMeta> = {
+const BASE_META_FORECAST: Partial<Record<WidgetId, WidgetMeta>> = {
   stats: { id: "stats" },
   tide: {
     id: "tide",
@@ -64,13 +66,20 @@ const BASE_META_FORECAST: Record<WidgetId, WidgetMeta> = {
     span: "full",
     immutableFull: true,
   },
-  surf: {
-    id: "surf",
-    title: "Surf Chart",
+  surfAndWind: {
+    id: "surfAndWind",
+    title: "Bar Charts",
     visible: true,
     span: "full",
     immutableFull: true,
   },
+  // surf: {
+  //   id: "surf",
+  //   title: "Surf Chart",
+  //   visible: true,
+  //   span: "half",
+  //   immutableFull: true,
+  // },
   swell: {
     id: "swell",
     title: "Swell Chart",
@@ -85,13 +94,13 @@ const BASE_META_FORECAST: Record<WidgetId, WidgetMeta> = {
     span: "full",
     immutableFull: true,
   },
-  wind: {
-    id: "wind",
-    title: "Wind Chart",
-    visible: true,
-    span: "full",
-    immutableFull: true,
-  },
+  // wind: {
+  //   id: "wind",
+  //   title: "Wind Chart",
+  //   visible: true,
+  //   span: "half",
+  //   immutableFull: true,
+  // },
   table: {
     id: "table",
     title: "Stats Table",
@@ -114,9 +123,10 @@ const INITIAL_ORDER_OVERVIEW: WidgetId[] = [
 const INITIAL_ORDER_FORECAST: WidgetId[] = [
   "tide",
   "swell",
-  "surf",
+  "surfAndWind",
+  // "surf",
+  // "wind",
   "energy",
-  "wind",
   "table",
 ];
 
@@ -132,11 +142,10 @@ export const rid = () =>
   `row-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
 export const cloneMeta = (
-  meta: Record<WidgetId, WidgetMeta>
-): Record<WidgetId, WidgetMeta> => {
-  const next: Record<WidgetId, WidgetMeta> = {} as Record<
-    WidgetId,
-    WidgetMeta
+  meta: Partial<Record<WidgetId, WidgetMeta>>
+): Partial<Record<WidgetId, WidgetMeta>> => {
+  const next: Partial<Record<WidgetId, WidgetMeta>> = {} as Partial<
+    Record<WidgetId, WidgetMeta>
   >;
   for (const id of ALL_WIDGET_IDS) {
     const entry = meta[id];
@@ -149,12 +158,12 @@ export const getDefaultMeta = (type: DashboardType) =>
   cloneMeta(type === "overview" ? BASE_META_OVERVIEW : BASE_META_FORECAST);
 
 export const getDefaultOrder = (type: DashboardType) =>
-  [...(type === "overview"
-    ? INITIAL_ORDER_OVERVIEW
-    : INITIAL_ORDER_FORECAST)] as WidgetId[];
+  [
+    ...(type === "overview" ? INITIAL_ORDER_OVERVIEW : INITIAL_ORDER_FORECAST),
+  ] as WidgetId[];
 
 export const buildInitialRows = (
-  meta: Record<WidgetId, WidgetMeta>,
+  meta: Partial<Record<WidgetId, WidgetMeta>>,
   order: WidgetId[]
 ): Row[] => {
   const rows: Row[] = [];
@@ -188,7 +197,7 @@ const isSpan = (value: unknown): value is Span =>
 export const normalizeMeta = (
   type: DashboardType,
   raw: unknown
-): Record<WidgetId, WidgetMeta> => {
+): Partial<Record<WidgetId, WidgetMeta>> => {
   const meta = getDefaultMeta(type);
   if (!raw || typeof raw !== "object") return meta;
 
@@ -217,7 +226,7 @@ export const normalizeMeta = (
 export const normalizeRows = (
   type: DashboardType,
   raw: unknown,
-  meta: Record<WidgetId, WidgetMeta>
+  meta: Partial<Record<WidgetId, WidgetMeta>>
 ): Row[] => {
   const fallback = buildInitialRows(meta, getDefaultOrder(type));
   if (!Array.isArray(raw)) return fallback;

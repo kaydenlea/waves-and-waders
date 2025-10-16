@@ -14,7 +14,10 @@ export function generateBeachSlug(beachName: string): string {
 
 // Utility function to generate beach URL in format: /beach-name--id
 // Uses double dash (--) as separator between slug and ID
-export function generateBeachUrl(beachName: string, beachId: string | number): string {
+export function generateBeachUrl(
+  beachName: string,
+  beachId: string | number
+): string {
   const slug = generateBeachSlug(beachName);
   return `/${slug}--${beachId}`;
 }
@@ -23,8 +26,8 @@ export function generateBeachUrl(beachName: string, beachId: string | number): s
 // Supports formats: "beach-name--123" (new), "123" (old), or "beach-slug" (old)
 export function extractBeachId(param: string): string {
   // If param contains double dash, extract the ID after it
-  if (param.includes('--')) {
-    const parts = param.split('--');
+  if (param.includes("--")) {
+    const parts = param.split("--");
     return parts[parts.length - 1];
   }
   // Otherwise, return the param as-is (could be ID or slug for backwards compatibility)
@@ -40,14 +43,12 @@ async function getBeachSlugCache(): Promise<Map<string, string>> {
   const now = Date.now();
 
   // Return cached data if still valid
-  if (beachSlugCache && (now - beachCacheTimestamp) < CACHE_DURATION_MS) {
+  if (beachSlugCache && now - beachCacheTimestamp < CACHE_DURATION_MS) {
     return beachSlugCache;
   }
 
   // Rebuild cache
-  const { data } = await supabase
-    .from("beaches")
-    .select("id, Name");
+  const { data } = await supabase.from("beaches").select("id, Name");
 
   beachSlugCache = new Map();
 
@@ -805,9 +806,12 @@ export async function fetchBeachByIdLoose(id: string): Promise<Beach | null> {
     const targetSlug = target.toLowerCase();
     const beachId = cache.get(targetSlug);
 
-    console.log('Slug lookup:', targetSlug, 'Found:', beachId ? 'YES' : 'NO');
+    console.log("Slug lookup:", targetSlug, "Found:", beachId ? "YES" : "NO");
     if (!beachId) {
-      console.log('Available slugs sample:', Array.from(cache.keys()).slice(0, 5));
+      console.log(
+        "Available slugs sample:",
+        Array.from(cache.keys()).slice(0, 5)
+      );
     }
 
     if (beachId) {
@@ -827,7 +831,7 @@ export async function fetchBeachByIdLoose(id: string): Promise<Beach | null> {
   // Final fallback: fuzzy match by Name if still not found
   if (!data) {
     const searchTerm = target.replace(/-/g, " "); // Convert slug dashes to spaces
-    console.log('Trying fuzzy search for:', searchTerm);
+    console.log("Trying fuzzy search for:", searchTerm);
 
     const byName = await supabase
       .from("beaches")
@@ -837,13 +841,13 @@ export async function fetchBeachByIdLoose(id: string): Promise<Beach | null> {
       .maybeSingle();
 
     if (byName.data) {
-      console.log('Fuzzy match found:', byName.data.Name);
+      console.log("Fuzzy match found:", byName.data.Name);
       data = byName.data as any;
     } else {
       // Try matching just the first part before parentheses
       const firstPart = searchTerm.split(/[(\[]/)[0].trim();
       if (firstPart !== searchTerm) {
-        console.log('Trying first part only:', firstPart);
+        console.log("Trying first part only:", firstPart);
         const byFirstPart = await supabase
           .from("beaches")
           .select("id, Name, LATITUDE, LONGITUDE, COUNTY")
@@ -851,7 +855,7 @@ export async function fetchBeachByIdLoose(id: string): Promise<Beach | null> {
           .limit(1)
           .maybeSingle();
         if (byFirstPart.data) {
-          console.log('Found by first part:', byFirstPart.data.Name);
+          console.log("Found by first part:", byFirstPart.data.Name);
           data = byFirstPart.data as any;
         }
       }
@@ -1061,6 +1065,7 @@ export async function fetchWeeklyForecast(
 ): Promise<ForecastData[]> {
   const start = pacificMidnightUTC();
   const end = new Date(start.getTime() + 7 * 24 * 60 * 60 * 1000);
+  console.log("RAW ENERGY TIMES", start, end);
   return fetchBeachForecast(beachId, start, end);
 }
 
