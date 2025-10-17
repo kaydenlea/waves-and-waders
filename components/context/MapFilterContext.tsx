@@ -15,6 +15,7 @@ type Ctx = {
   setPopupData: React.Dispatch<React.SetStateAction<string | null>>;
   map: Map | undefined;
   setMap: React.Dispatch<React.SetStateAction<Map | undefined>>;
+  mapRef: React.RefObject<Map | null>;
   filters: Set<string>;
   setFilters: React.Dispatch<React.SetStateAction<Set<string>>>;
   selectedDate: Date | null;
@@ -37,6 +38,7 @@ export function MapFilterProvider({ children }: { children: React.ReactNode }) {
   } | null>(null);
   const [popupData, setPopupData] = React.useState<string | null>(null);
   const [map, setMap] = React.useState<Map | undefined>(undefined);
+  const mapRef = React.useRef<Map | null>(null);
   const [filters, setFilters] = React.useState<Set<string>>(new Set());
   // Default to today's date so the map shows surf data on initial load
   const [selectedDate, setSelectedDate] = React.useState<Date | null>(
@@ -54,6 +56,7 @@ export function MapFilterProvider({ children }: { children: React.ReactNode }) {
       setPopupData,
       map,
       setMap,
+      mapRef,
       filters,
       setFilters,
       selectedDate,

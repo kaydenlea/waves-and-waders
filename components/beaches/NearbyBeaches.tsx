@@ -25,6 +25,7 @@ import {
   fetchDailyConditions,
   getFeatureDisplayName,
 } from "@/lib/supabase";
+import type { ForecastData } from "@/lib/supabase";
 import {
   BadgeCheck,
   CircleParking,
@@ -812,20 +813,32 @@ export default function NearbyBeaches({
             }
           }
           setStats(s);
-          return [beachId, s] as const;
+          return [beachId, s, current] as const;
         } catch (e) {
           console.error("Failed to load summary", e);
         }
       })
     );
-    const statsMap: Record<string, SummaryStat[]> = {};
+    const statsMap: Record<
+      string,
+      { summary: SummaryStat[] | null; current: ForecastData | null }
+    > = {};
     if (!entries) return null;
     if (!entries.some((e) => !e || !e[0] || !e[1])) {
       entries.forEach((e) => {
         if (e) {
+          const val: {
+            summary: SummaryStat[] | null;
+            current: ForecastData | null;
+          } = { summary: null, current: null };
           const id = e[0];
           const stat = e[1];
-          statsMap[id] = stat;
+          val.summary = stat;
+          if (e[2]) {
+            const currentConditions = e[2];
+            val.current = currentConditions;
+          }
+          statsMap[id] = val;
         }
       });
     }
@@ -835,10 +848,9 @@ export default function NearbyBeaches({
   useEffect(() => {
     const loadBeaches = async () => {
       const statsMap = await loadStats(currentItems);
-      console.log("NEARBYBEACHES", statsMap);
       if (!statsMap) return;
       currentItems.forEach((beach) => {
-        const beachStats = statsMap[beach.id];
+        const beachStats = statsMap[beach.id].summary;
         if (!beachStats) return;
         const surfStat = beachStats.find(
           (stat): stat is Extract<SummaryStat, { type: "surf" }> =>
@@ -859,10 +871,13 @@ export default function NearbyBeaches({
           ? String(windStat?.wind.speed)
           : "-";
         beach.features = featuresStat?.tags ?? [];
+
+        const beachConditions = statsMap[beach.id].current;
+        if (!beachConditions) return;
+        beach.current = beachConditions;
       });
     };
     loadBeaches();
-    console.log("LOAD BEACHES", currentItems);
   }, [currentItems]);
 
   const handlePrev = () => setPage((p) => Math.max(1, p - 1));
@@ -899,14 +914,14 @@ export default function NearbyBeaches({
   // console.log("FINAL BEACHES", currentItems);
   return (
     <>
-      <div className="flex mb-4 ml-2 items-center justify-between">
+      <div className="flex mb-4 ml-2 items-center justify-between gap-10">
         {status === "locating" && (
           <div className="text-sm text-foreground/70">
             Finding your location…
           </div>
         )}
         {status === "denied" && (
-          <div className="text-sm text-foreground/70">
+          <div className="hidden @min-lg:flex text-sm text-foreground/70">
             Location denied. Showing unsorted beaches.
           </div>
         )}

@@ -62,7 +62,9 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
               Array.from({ length: 25 }, (_, h) => ({
                 hour: h,
                 wind: Number(
-                  Math.max(0, 3 + Math.sin((h / 24) * Math.PI * 2) * 2).toFixed(1)
+                  Math.max(0, 3 + Math.sin((h / 24) * Math.PI * 2) * 2).toFixed(
+                    1
+                  )
                 ),
                 direction: (h * 15) % 360, // rotating placeholder
               }))
@@ -98,8 +100,7 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
         };
 
         const data = rows.map((r, i) => ({
-          hour:
-            i === rows.length - 1 ? hours : getPacificHour(r.timestamp),
+          hour: i === rows.length - 1 ? hours : getPacificHour(r.timestamp),
           wind: Math.round(r.conditions.windSpeed ?? 0),
           direction: r.conditions.windDirection ?? undefined,
         }));
@@ -216,7 +217,7 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
   return (
     <ChartContainer
       config={chartConfig}
-      className="aspect-auto h-[300px] w-full !justify-start"
+      className="aspect-auto h-[300px] w-full"
     >
       <BarChart
         margin={{ top: 10, right: 35, left: -28, bottom: 0 }}

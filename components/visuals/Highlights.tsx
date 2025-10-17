@@ -538,7 +538,7 @@ const Highlights = ({
     <div className="w-full max-w-7xl mx-auto">
       <ul
         className={cn(
-          "grid grid-cols-2 @min-2xl:grid-cols-4 @min-3xl:grid-cols-3 gap-3",
+          "grid grid-cols-2 @min-2xl:grid-cols-4 @min-3xl:grid-cols-3 gap-2.5",
           isFull && "@min-4xl:grid-cols-4 @min-6xl:grid-cols-8"
         )}
       >
@@ -548,7 +548,7 @@ const Highlights = ({
             case "swell":
               content = stat.primary && stat.secondary && (
                 <HighlightCard label={stat.label}>
-                  <div className="flex flex-col items-center">
+                  <div className="">
                     <SwellStat
                       primary
                       data={stat.primary}

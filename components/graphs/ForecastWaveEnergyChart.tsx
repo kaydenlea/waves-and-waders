@@ -280,7 +280,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
           const nightAreasBuild: { x1: number; x2?: number }[] = [];
           const markers: number[] = [];
           let nightStart = 0;
-          for (let di = 0; di < dayWindow; di++) {
+          for (let di = 0; di < 7; di++) {
             const cond = await fetchDailyConditions(
               county,
               new Date(startMs + di * 24 * 60 * 60 * 1000)
@@ -487,10 +487,29 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
     }
     return labels;
   }, [dayOffset, days, effectiveDayWindow]);
-  console.log("WINDOWS", dayAreas, nightAreas, visibleData);
+  const visibleNightAreas = nightAreas.filter(
+    (a) =>
+      ((a.x2 && a.x2 >= dayOffset * 24) || !a.x2) &&
+      a.x1 <= (dayOffset + dayWindow) * 24
+  );
+  const visibleDayAreas = dayAreas.filter(
+    (a) =>
+      a.x1 >= dayOffset * 24 &&
+      ((a.x2 && a.x2 <= (dayOffset + dayWindow) * 24) || !a.x2)
+  );
+  console.log(
+    "WINDOWS",
+    dayOffset * 24,
+    (dayOffset + dayWindow) * 24,
+    dayAreas,
+    nightAreas,
+    visibleDayAreas,
+    visibleNightAreas,
+    visibleData
+  );
   return (
     <>
-      <div className="mb-4">
+      <div className="mb-4 mx-4">
         <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
           <span>Range</span>
           <span>
@@ -586,7 +605,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
               />
             ) : null
           )}
-          {dayAreas.map((a, idx) => (
+          {visibleDayAreas.map((a, idx) => (
             <ReferenceArea
               key={`day-${idx}`}
               x1={a.x1}
@@ -595,11 +614,11 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
               fillOpacity={0.18}
             />
           ))}
-          {nightAreas.map((a, idx) => (
+          {visibleNightAreas.map((a, idx) => (
             <ReferenceArea
               key={`night-${idx}`}
               x1={idx === 0 ? undefined : a.x1}
-              x2={idx === nightAreas.length - 1 ? undefined : a.x2}
+              x2={idx === visibleNightAreas.length - 1 ? undefined : a.x2}
               fill="#ccc1ffff"
               fillOpacity={0.12}
             />
@@ -632,7 +651,8 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
             fontSize={11}
             domain={[
               0,
-              (dataMax: number) => Math.max(Math.ceil(dataMax) + 5, 8),
+              (dataMax: number) =>
+                Math.max(Math.round(Math.ceil(dataMax) * 1.5), 8),
             ]}
           />
           <ChartTooltip content={<ChartTooltipContent />} />
@@ -645,7 +665,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
                   key={i}
                   offset={s.offset}
                   stopColor={s.color}
-                  stopOpacity={0.7}
+                  stopOpacity={0.8}
                 />
               ))}
             </linearGradient>

@@ -14,7 +14,7 @@ export default function PathStyleWrapper({
 
   const cls = useMemo(() => {
     if (beachPage) {
-      return "w-full @min-4xl:w-100 @min-7xl:w-170";
+      return "w-full @min-4xl:w-105 @min-7xl:w-200";
     }
     return "@min-4xl:flex-1 max-w-320";
   }, [beachPage]);
@@ -23,7 +23,7 @@ export default function PathStyleWrapper({
     <article
       id="content"
       className={cn(
-        "touch-pan-y bg-background-2 w-full px-2 relative pt-10 @min-4xl:pt-4 z-1 rounded-t-none @min-4xl:rounded-t-none border border-border @min-4xl:border-none mx-auto",
+        "touch-pan-y bg-background-2 w-full px-2 relative pt-10 @min-4xl:pt-4 z-1 rounded-t-none @min-4xl:rounded-t-none mx-auto",
         cls
       )}
     >

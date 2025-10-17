@@ -48,15 +48,12 @@ const SwellStat = ({
       unit: `${typeof degVal === "number" ? Math.round(degVal) : degVal}°`,
     },
   ];
-  console.log("isFull", isFull);
   return (
     <div
       className={cn(
-        "flex items-center justify-center",
-        primary
-          ? "border border-border shadow-sm rounded-md px-1.5 gap-1"
-          : "gap-1",
-        primary && !isFull && "-ml-4"
+        "grid grid-cols-[35px_35px_20px_1fr] @min-sm:grid-cols-[45px_35px_20px_1fr] items-center @min-sm:-my-0.5",
+        // primary ? "border border-border shadow-sm rounded-md px-1" : "mx-3",
+        primary && !isFull && ""
         // primary
         //   ? "border border-border shadow-sm rounded-md px-1.5 gap-1"
         //   : "gap-1"
@@ -66,11 +63,12 @@ const SwellStat = ({
         if (stat.label === "swell wind arrow") {
           return (
             <ArrowIcon
-              size={primary ? 16 : 12}
-              fill="#51e72bff"
-              color="#51e72bff"
+              size={primary ? 18 : 12}
               key={stat.label}
               style={{ transform: `rotate(${arrowRotation}deg)` }}
+              className={cn(
+                primary ? "fill-muted-foreground -ml-[7px]" : "-ml-1"
+              )}
             />
           );
         }
@@ -78,21 +76,24 @@ const SwellStat = ({
           <span
             key={stat.label}
             className={cn(
-              stat.label === "swell period" && "min-w-5 text-center",
-              stat.label === "swell wind" &&
-                !primary &&
-                !isFull &&
-                "min-w-8 @min-md:min-w-15",
-              stat.label === "swell wind" &&
-                primary &&
-                !isFull &&
-                "min-w-5 @min-md:min-w-8",
-              stat.label === "swell wind" && !primary && isFull && "min-w-8",
-              stat.label === "swell wind" && primary && isFull && "min-w-5",
+              // stat.label === "swell period" && "min-w-5 text-center",
+              // stat.label === "swell wind" &&
+              //   !primary &&
+              //   !isFull &&
+              //   "min-w-8 @min-md:min-w-15",
+              // stat.label === "swell wind" &&
+              //   primary &&
+              //   !isFull &&
+              //   "min-w-5 @min-md:min-w-8",
+              // stat.label === "swell wind" && !primary && isFull && "min-w-8",
+              // stat.label === "swell wind" && primary && isFull && "min-w-5",
+              // stat.label !== "swell wind" && "text-center",
               !small && !primary && "text-sm font-medium",
               !small && primary && "text-md font-semibold",
-              small && !primary && "text-xs font-medium",
-              small && primary && "text-sm font-semibold"
+              small &&
+                !primary &&
+                "text-[0.7rem] @min-sm:text-sm font-medium text-foreground/80",
+              small && primary && "text-xs @min-sm:text-base font-bold"
             )}
           >
             {typeof stat.value === "number"
@@ -106,10 +107,13 @@ const SwellStat = ({
                 primary ? "text-[0.7rem] font-medium" : "text-[0.6rem]",
                 stat.label === "swell wind" &&
                   !isFull &&
-                  "ml-0.5 hidden @min-md:inline-flex"
+                  "ml-[0.1rem] hidden @min-md:inline-block @min-2xl:hidden @min-3xl:inline-block",
+                stat.label === "swell wind" &&
+                  isFull &&
+                  "ml-[0.1rem] hidden @min-md:inline-block @min-2xl:hidden @min-3xl:inline-block @min-6xl:hidden"
               )}
             >
-              {(stat.label !== "swell wind" || !isFull) && stat.unit}
+              {stat.unit}
             </span>
           </span>
         );

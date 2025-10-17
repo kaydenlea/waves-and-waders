@@ -70,7 +70,7 @@ const VisualWrapper = ({
     <figure className="relative flex-1">
       <div className="bg-highlight-4 border border-border/40 rounded-2xl shadow-sm h-full w-full">
         <div className="p-2">
-          <div className="p-[17px] rounded-2xl bg-highlight-6 w-full shadow-even">
+          <div className="p-2 rounded-2xl bg-highlight-6 w-full shadow-even">
             <header className="p-2 flex justify-between gap-1 items-center">
               <div className="flex items-center gap-2">
                 <div
@@ -91,7 +91,7 @@ const VisualWrapper = ({
             </header>
           </div>
         </div>
-        <div className="px-2 pt-6 pb-4 overflow-x-hidden touch-pan-y">
+        <div className="px-2 py-4 overflow-x-hidden touch-pan-y">
           {children}
         </div>
       </div>

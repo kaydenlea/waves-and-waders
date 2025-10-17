@@ -14,8 +14,7 @@ export default async function BeachesPage() {
   const beaches = await fetchAllBeaches();
 
   const supabase = await getServerSupabase();
-  const { data: userData, error: userError } =
-    await supabase.auth.getUser();
+  const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError) {
     console.error("Failed to load user", userError);
   }

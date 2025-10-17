@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useRouter, usePathname } from "next/navigation";
+import Image from "next/image";
 import {
   AttributionControl,
   Map,
@@ -59,14 +60,15 @@ type WindDirection = {
   direction: number | null;
 };
 
-const SwellRings: React.FC<{
+export const SwellRings: React.FC<{
   directions: {
     primary: number | null | undefined;
     secondary: number | null | undefined;
     tertiary: number | null | undefined;
   };
   scale?: number;
-}> = ({ directions, scale = 1 }) => {
+  className?: string;
+}> = ({ directions, scale = 1, className = "" }) => {
   const size = 160 * scale;
   const center = size / 2;
   const rings: Array<{
@@ -107,7 +109,7 @@ const SwellRings: React.FC<{
 
   return (
     <svg
-      className="pointer-events-none absolute inset-0 overflow-visible"
+      className={cn("pointer-events-none overflow-visible", className)}
       width={size}
       height={size}
       viewBox={`0 0 ${size} ${size}`}
@@ -132,10 +134,11 @@ const SwellRings: React.FC<{
   );
 };
 
-const WindRing: React.FC<{
+export const WindRing: React.FC<{
   direction: number | null | undefined;
   scale?: number;
-}> = ({ direction, scale = 1 }) => {
+  className?: string;
+}> = ({ direction, scale = 1, className = "" }) => {
   const size = 160 * scale;
   const center = size / 2;
   const radius = 96 * scale;
@@ -162,7 +165,7 @@ const WindRing: React.FC<{
 
   return (
     <svg
-      className="pointer-events-none absolute inset-0 overflow-visible"
+      className={cn("pointer-events-none overflow-visible", className)}
       width={size}
       height={size}
       viewBox={`0 0 ${size} ${size}`}
@@ -308,7 +311,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
     const handleResize = () => {
       const container = document.querySelector("#main-content");
       const width = container ? container.clientWidth : 0;
-      if (width < 911) {
+      if (width < 896) {
         setSmallScreen(true);
       } else {
         setSmallScreen(false);
@@ -1321,9 +1324,14 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
                         tertiary: swellDirections.tertiary,
                       }}
                       scale={scale}
+                      className="absolute inset-0"
                     />
                     {typeof windDirection === "number" && (
-                      <WindRing direction={windDirection} scale={scale} />
+                      <WindRing
+                        direction={windDirection}
+                        scale={scale}
+                        className="absolute inset-0"
+                      />
                     )}
                   </div>
                 </div>
@@ -1342,7 +1350,41 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
             className="w-50"
           >
             <div className="flex flex-col gap-1">
-              <div className="bg-muted-foreground w-full h-30 p-1 rounded-md" />
+              {/* <div className="relative w-full mx-auto aspect-auto">
+                <div className="rounded-xl h-30 w-full bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900">
+                  <Image
+                    src={`/beach_pictures/${popupInfo.properties.id}.png`}
+                    alt={`Map view of ${popupInfo.properties.name}`}
+                    fill
+                    className="object-cover rounded-xl"
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    unoptimized // Skip optimization to reduce 404 errors
+                    onError={(e) => {
+                      // Fallback if image doesn't exist - hide silently
+                      e.currentTarget.style.display = "none";
+                    }}
+                  />
+                </div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <SwellRings
+                    directions={{
+                      primary: popupInfo.properties.swell.primary.direction,
+                      secondary: popupInfo.properties.swell.secondary.direction,
+                      tertiary: popupInfo.properties.swell.tertiary.direction,
+                    }}
+                    scale={0.55}
+                  />
+                </div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  {typeof popupInfo.properties.conditions.windDirection ===
+                    "number" && (
+                    <WindRing
+                      direction={popupInfo.properties.conditions.windDirection}
+                      scale={0.55}
+                    />
+                  )}
+                </div>
+              </div> */}
               <header className="p-1 flex gap-1">
                 <div
                   className={cn(
@@ -1531,6 +1573,10 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
             .maplibregl-ctrl-attrib {
               bottom: 0vh;
             }
+          }
+
+          .maplibregl-popup-content {
+            border-radius: 20px;
           }
 
           .maplibregl-ctrl-attrib {

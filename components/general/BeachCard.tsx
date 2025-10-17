@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { LazyLoadTidePreview } from "./LazyLoad/LazyLoadTidePreview";
 import { generateBeachUrl } from "@/lib/supabase";
+import type { ForecastData } from "@/lib/supabase";
 
 import {
   Star,
@@ -25,6 +26,7 @@ import { useMapFilters } from "../context/MapFilterContext";
 import { scrollToMap } from "./BackToMapButton";
 import { cn } from "@/lib/utils";
 import SaveButton from "./SaveButton";
+import { SwellRings, WindRing } from "../visuals/InteractiveMap";
 
 export type Beach = {
   id: string;
@@ -38,6 +40,7 @@ export type Beach = {
     temp: number;
     rating: number;
   };
+  current: ForecastData;
   image: string;
   coords: [number, number];
   features: { label: string; icon: ReactNode; color: string }[];
@@ -124,58 +127,74 @@ const BeachCard = ({
         scrollToMap();
       }}
       id={`beach-${b.id}`}
-      className="hover:cursor-pointer transition-transform transform translate-y-0 hover:translate-y-0.5 ease-in-out duration-300 hover:bg-highlight-2 group flex flex-col overflow-hidden rounded-2xl border border-border/50 bg-highlight-4 shadow-md shadow-black/20 backdrop-blur"
+      className="hover:cursor-pointer transition-transform transform translate-y-0 hover:translate-y-0.5 ease-in-out duration-300 hover:bg-highlight-5/40 group flex flex-col overflow-hidden rounded-4xl border border-border/50 bg-highlight-7/50 shadow-md shadow-black/20 backdrop-blur"
     >
-      <div className="relative w-full h-48 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900">
-        <Image
-          src={`/beach_pictures/${b.id}.png`}
-          alt={`Map view of ${b.name}`}
-          fill
-          className="object-cover"
-          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-          unoptimized // Skip optimization to reduce 404 errors
-          onError={(e) => {
-            // Fallback if image doesn't exist - hide silently
-            e.currentTarget.style.display = 'none';
-          }}
-        />
-        <SaveButton
-          beachId={String(b.id)}
-          initialIsFav={isFav}
-          variant="overlay"
-          className="absolute right-3 top-3 z-10"
-          stopPropagation
-        />
-      </div>
-      <div className="p-4 flex-1 flex flex-col justify-between">
-        <div className="flex flex-col gap-2">
-          <div className="flex items-start justify-between gap-3 w-full">
-            <div className="flex gap-1 truncate">
-              <div className={cn("w-1 p-1 rounded-full", color)} />
-              <div className="min-w-0">
-                <h3 className="truncate text-md font-semibold leading-tight text-foreground">
-                  {b.name}
-                </h3>
-                <p className="truncate text-xs text-foreground/70">
-                  {b.region}
-                </p>
-              </div>
+      <div className="relative w-full p-3 mx-auto aspect-auto">
+        <div className="rounded-4xl h-60 w-full bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900">
+          <Image
+            src={`/beach_pictures/${b.id}.png`}
+            alt={`Map view of ${b.name}`}
+            fill
+            className="object-cover rounded-4xl p-3"
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            unoptimized // Skip optimization to reduce 404 errors
+            onError={(e) => {
+              // Fallback if image doesn't exist - hide silently
+              e.currentTarget.style.display = "none";
+            }}
+          />
+        </div>
+        <div className="absolute bottom-3 left-3 w-[75%] bg-slate-900/0 p-3 text-black backdrop-blur-none transition rounded-4xl">
+          <div className="flex gap-1 truncate">
+            <div className={cn("w-1 p-1 rounded-full", color)} />
+            <div className="min-w-0">
+              <h3 className="truncate text-md font-semibold leading-tight">
+                {b.name}
+              </h3>
+              <p className="truncate text-xs">{b.region}</p>
             </div>
-            <div className="text-foreground/70 text-sm whitespace-nowrap">
-              {distance != null && (
-                <span>
-                  {Math.round(Number(distance.toFixed(1)))}{" "}
-                  {useMiles ? "mi" : "km"}
-                </span>
+          </div>
+          {/* <StarRating value={b.conditions.rating} /> */}
+        </div>
+        {b.current && (
+          <>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <SwellRings
+                directions={{
+                  primary: b.current.swell.primary.direction,
+                  secondary: b.current.swell.secondary.direction,
+                  tertiary: b.current.swell.tertiary.direction,
+                }}
+                scale={0.55}
+              />
+            </div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              {typeof b.current.conditions.windDirection === "number" && (
+                <WindRing
+                  direction={b.current.conditions.windDirection}
+                  scale={0.55}
+                />
               )}
             </div>
-            {/* <StarRating value={b.conditions.rating} /> */}
-          </div>
-          <div>
-            {/* <span className="text-sm font-medium">{b.conditions.surf}</span> */}
-            {/* <LazyLoadTidePreview /> */}
-          </div>
-          <div className="flex flex-col gap-3 text-xs">
+          </>
+        )}
+        <div className="absolute right-5 top-5 z-10 flex items-center gap-2">
+          {distance != null && (
+            <span className="font-semibold text-xs whitespace-nowrap bg-slate-900/70 p-3 text-white/90 backdrop-blur transition rounded-full">
+              {Math.round(Number(distance.toFixed(1)))} {useMiles ? "mi" : "km"}
+            </span>
+          )}
+          <SaveButton
+            beachId={String(b.id)}
+            initialIsFav={isFav}
+            variant="overlay"
+            stopPropagation
+          />
+        </div>
+      </div>
+      <div className="p-2 flex-1 flex flex-col justify-between">
+        <div className="flex flex-col">
+          <div className="pt-2 pb-2 px-2 flex flex-col gap-3 text-xs">
             <div className="flex gap-3">
               <span className="inline-flex items-center gap-1">
                 <div className="flex items-center justify-center p-1 bg-blue-100 rounded-full border border-border/40">
@@ -220,14 +239,14 @@ const BeachCard = ({
             </div>
           </div>
         </div>
-        <div className="mt-4 flex items-center justify-between">
+        <div className="px-2 pb-2 mt-4 flex items-center justify-between">
           <Popover>
             <PopoverTrigger
               onClick={(e) => {
                 e.stopPropagation();
               }}
             >
-              <span className="font-medium text-sm py-2 px-3 rounded-full bg-highlight-5 hover:bg-highlight-3 flex gap-1 items-center">
+              <span className="font-semibold text-sm py-2 px-3 rounded-full shadow-even bg-highlight-5 hover:bg-highlight-3 flex gap-1 items-center">
                 <TagIcon className="h-4 w-4" />
                 Tags
               </span>
@@ -241,12 +260,12 @@ const BeachCard = ({
           </Popover>
           {/* <Tag data={tags[0]} /> */}
           <div className="flex items-center gap-2">
-            <SaveButton
+            {/* <SaveButton
               beachId={String(b.id)}
               initialIsFav={isFav}
               className="group/button inline-flex items-center rounded-full bg-highlight-5 p-1.5 backdrop-blur transition hover:bg-highlight-3"
               stopPropagation
-            />
+            /> */}
             <Link
               onClick={(e) => {
                 e.stopPropagation();
@@ -254,7 +273,7 @@ const BeachCard = ({
                 setPopupData(null);
               }}
               href={`${generateBeachUrl(b.name, b.id)}/overview`}
-              className="text-center rounded-full bg-highlight-5 px-3 py-2 text-sm font-medium text-foreground/90 transition hover:bg-highlight-3"
+              className="text-center rounded-full bg-highlight-5 shadow-even px-3 py-2 text-sm font-semibold text-foreground/90 transition hover:bg-highlight-3"
             >
               View
             </Link>
