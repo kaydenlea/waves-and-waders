@@ -1424,7 +1424,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
         )}
 
         {/* Filter controls (collapsible) */}
-        {showMap && (
+        {(showMap || smallScreen) && (
           <div className="absolute left-3 top-28 sm:left-4 @min-4xl:top-2 @min-4xl:left-2 z-[1]">
             <div className="bg-background/90 backdrop-blur rounded-xl border border-border shadow min-w-[200px] max-w-[calc(100vw-3rem)] max-[360px]:min-w-[180px] max-[320px]:min-w-[160px] sm:min-w-[220px]">
               <button
@@ -1511,7 +1511,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
           </div>
         )}
 
-        {showMap &&
+        {(showMap || smallScreen) &&
           selected &&
           swellDirections &&
           [

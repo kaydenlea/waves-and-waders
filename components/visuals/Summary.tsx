@@ -153,8 +153,7 @@ const computeTidePeaks = (
     const prev = idx > 0 ? sorted[idx - 1] : null;
     const next = idx < sorted.length - 1 ? sorted[idx + 1] : null;
     const isHigh =
-      (!prev || curr.tide >= prev.tide) &&
-      (!next || curr.tide >= next.tide);
+      (!prev || curr.tide >= prev.tide) && (!next || curr.tide >= next.tide);
 
     peaks.push({
       kind: isHigh ? "high" : "low",
@@ -224,8 +223,12 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
 
         // Fetch extra tide data (6 hours before and after) to detect peaks at window boundaries
         const BUFFER_HOURS = 6;
-        const tideFetchStart = new Date(tideStartWindow.getTime() - BUFFER_HOURS * 60 * 60 * 1000);
-        const tideFetchEnd = new Date(tideEndWindow.getTime() + BUFFER_HOURS * 60 * 60 * 1000);
+        const tideFetchStart = new Date(
+          tideStartWindow.getTime() - BUFFER_HOURS * 60 * 60 * 1000
+        );
+        const tideFetchEnd = new Date(
+          tideEndWindow.getTime() + BUFFER_HOURS * 60 * 60 * 1000
+        );
 
         const [current, forecast, beach, tideRows] = await Promise.all([
           fetchCurrentConditions(resolvedId),
@@ -1055,7 +1058,7 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
                     </span>
                   </div>
                 )}
-                <div className="flex flex-col gap-0.5 overflow-y-auto flex-1 min-h-0">
+                <div className="flex flex-col gap-0.5 overflow-y-auto flex-1 min-h-26 justify-center">
                   {stat.peaks.length > 0 ? (
                     stat.peaks.slice(0, 4).map((peak) => (
                       <div
