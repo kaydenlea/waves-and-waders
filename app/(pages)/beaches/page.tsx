@@ -14,13 +14,13 @@ export default async function BeachesPage() {
   const beaches = await fetchAllBeaches();
 
   const supabase = await getServerSupabase();
-  const { data: sessionData, error: sessionError } =
-    await supabase.auth.getSession();
-  if (sessionError) {
-    console.error("Failed to load session", sessionError);
+  const { data: userData, error: userError } =
+    await supabase.auth.getUser();
+  if (userError) {
+    console.error("Failed to load user", userError);
   }
 
-  const user = sessionData.session?.user ?? null;
+  const user = userData.user ?? null;
   let favoriteIds: string[] = [];
 
   if (user) {

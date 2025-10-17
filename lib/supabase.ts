@@ -48,7 +48,7 @@ async function getBeachSlugCache(): Promise<Map<string, string>> {
   }
 
   // Rebuild cache
-  const { data } = await supabase.from("beaches").select("id, Name");
+  const { data } = await supabase.from("beaches").select("id, Name").limit(10000);
 
   beachSlugCache = new Map();
 
@@ -765,7 +765,7 @@ export async function fetchAllBeaches(): Promise<Beach[]> {
     .from("beaches")
     .select("id, Name, LATITUDE, LONGITUDE, COUNTY")
     .order("Name")
-    .range(0, 9999)
+    .limit(10000)
     .returns<Beach[]>();
 
   if (error) {

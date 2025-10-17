@@ -64,6 +64,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
   const [data, setData] = React.useState<
     {
       day: string;
+      dateKey: string;
       dateMs: number;
       tide1: number;
       tide2: number;
@@ -117,27 +118,37 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
         const byDay = new Map<string, ForecastData[]>();
         for (const r of rows) {
           const d = new Date(r.timestamp);
+          // Use ISO date string (YYYY-MM-DD) instead of weekday name to avoid collisions
           const key = d.toLocaleDateString("en-US", {
-            weekday: "short",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
             timeZone: "America/Los_Angeles",
-          });
+          }).split('/').reverse().join('-'); // Convert MM/DD/YYYY to YYYY-MM-DD
           const arr = byDay.get(key) ?? [];
           arr.push(r);
           byDay.set(key, arr);
         }
         const out: {
           day: string;
+          dateKey: string;
           dateMs: number;
           tide1: number;
           tide2: number;
           tide3: number;
         }[] = [];
-        for (const [day, arr] of byDay.entries()) {
+        for (const [dateKey, arr] of byDay.entries()) {
           arr.sort(
             (a, b) =>
               new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
           );
-          const firstTs = new Date(arr[0]?.timestamp ?? Date.now()).getTime();
+          const firstTs = new Date(arr[0]?.timestamp ?? Date.now());
+          const firstTsMs = firstTs.getTime();
+          // Display weekday name for UI
+          const dayName = firstTs.toLocaleDateString("en-US", {
+            weekday: "short",
+            timeZone: "America/Los_Angeles",
+          });
           const pick = (target: number) => {
             const near = arr.reduce((best, cur) => {
               const h = new Date(cur.timestamp).getHours();
@@ -149,8 +160,9 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
             return near ? near.v : 0;
           };
           out.push({
-            day,
-            dateMs: firstTs,
+            day: dayName,
+            dateKey,
+            dateMs: firstTsMs,
             tide1: pick(6),
             tide2: pick(12),
             tide3: pick(18),
@@ -182,19 +194,27 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
   // const totalLength = data.length ? data.length : chartData.length;
 
   const source = data.length ? data : chartData;
-  const windowDays = days?.map((d) =>
-    d.toLocaleDateString("en-US", {
-      weekday: "short",
+
+  // Convert days prop to date keys for accurate matching
+  const windowDateKeys = days?.map((d) => {
+    const dateStr = d.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
       timeZone: "America/Los_Angeles",
-    })
-  );
-  const startDay = windowDays
-    ? windowDays[0]
-    : new Date().toLocaleDateString("en-US", {
-        weekday: "short",
-        timeZone: "America/Los_Angeles",
-      });
-  const startDayIdx = source.findIndex((entry) => entry.day === startDay);
+    });
+    return dateStr.split('/').reverse().join('-'); // MM/DD/YYYY -> YYYY-MM-DD
+  });
+
+  // Find start index using dateKey if available, otherwise use current date
+  let startDayIdx = 0;
+  if (windowDateKeys && windowDateKeys.length > 0 && data.length) {
+    startDayIdx = source.findIndex((entry) =>
+      'dateKey' in entry && entry.dateKey === windowDateKeys[0]
+    );
+    if (startDayIdx === -1) startDayIdx = 0; // Fallback if not found
+  }
+
   const visibleData = source.slice(startDayIdx, startDayIdx + windowSize);
   const fmt = (ms: number) =>
     new Date(ms).toLocaleDateString("en-US", {
@@ -264,7 +284,8 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                 typeof props.payload.offset === "number"
                   ? props.payload.offset
                   : 0;
-              const dayData = data.find((entry) => entry.day === safeDay);
+              // Use visibleData[safeIdx] for accurate lookup instead of searching by weekday name
+              const dayData = visibleData[safeIdx];
               const minSurf = dayData
                 ? Math.min(dayData.tide1, dayData.tide2, dayData.tide3)
                 : 0;

@@ -18,22 +18,40 @@ export async function GET(request: NextRequest) {
     const featureCols = FEATURE_COLUMNS.join(', ')
     const selectCols = `${baseCols}, ${featureCols}`
 
-    const { data, error } = await supabase
-      .from('beaches')
-      .select(selectCols)
-      .not('LATITUDE', 'is', null)
-      .not('LONGITUDE', 'is', null)
-      .order('Name')
+    // Fetch all beaches using pagination to bypass the 1000 row limit
+    const PAGE_SIZE = 1000
+    let allData: any[] = []
+    let page = 0
+    let hasMore = true
 
-    if (error) {
-      console.error('Supabase error:', error)
-      return NextResponse.json(
-        { success: false, error: 'Failed to fetch beaches', details: error.message },
-        { status: 500 }
-      )
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from('beaches')
+        .select(selectCols)
+        .not('LATITUDE', 'is', null)
+        .not('LONGITUDE', 'is', null)
+        .or('INLND_AREA.is.null,INLND_AREA.neq.Yes') // Exclude inland areas
+        .order('Name')
+        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1)
+
+      if (error) {
+        console.error('Supabase error:', error)
+        return NextResponse.json(
+          { success: false, error: 'Failed to fetch beaches', details: error.message },
+          { status: 500 }
+        )
+      }
+
+      if (!data || data.length === 0) {
+        hasMore = false
+      } else {
+        allData = allData.concat(data)
+        hasMore = data.length === PAGE_SIZE
+        page++
+      }
     }
 
-    if (!data) {
+    if (allData.length === 0) {
       console.error('No data returned from Supabase')
       return NextResponse.json(
         { success: false, error: 'No data returned from database' },
@@ -53,7 +71,7 @@ export async function GET(request: NextRequest) {
       return false
     }
 
-    const beaches = data.map((beach: any) => {
+    const beaches = allData.map((beach: any) => {
       const features: Record<string, boolean> = {}
       for (const key of FEATURE_COLUMNS as readonly string[]) {
         features[key] = toBool(beach[key])
@@ -69,6 +87,7 @@ export async function GET(request: NextRequest) {
     })
 
     console.log('Beaches API returning', beaches.length, 'beaches');
+    console.log('Fetched in', page, 'page(s)');
     if (beaches.length > 0) {
       console.log('Sample beach ID:', beaches[0]?.id, 'type:', typeof beaches[0]?.id);
     }

@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { LazyLoadTidePreview } from "./LazyLoad/LazyLoadTidePreview";
 import { generateBeachUrl } from "@/lib/supabase";
 
@@ -125,14 +126,26 @@ const BeachCard = ({
       id={`beach-${b.id}`}
       className="hover:cursor-pointer transition-transform transform translate-y-0 hover:translate-y-0.5 ease-in-out duration-300 hover:bg-highlight-2 group flex flex-col overflow-hidden rounded-2xl border border-border/50 bg-highlight-4 shadow-md shadow-black/20 backdrop-blur"
     >
-      <div className="relative flex-1">
-        {/* <SaveButton
+      <div className="relative w-full h-48 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900">
+        <Image
+          src={`/beach_pictures/${b.id}.png`}
+          alt={`Map view of ${b.name}`}
+          fill
+          className="object-cover"
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          unoptimized // Skip optimization to reduce 404 errors
+          onError={(e) => {
+            // Fallback if image doesn't exist - hide silently
+            e.currentTarget.style.display = 'none';
+          }}
+        />
+        <SaveButton
           beachId={String(b.id)}
           initialIsFav={isFav}
           variant="overlay"
-          className="absolute right-3 top-3"
+          className="absolute right-3 top-3 z-10"
           stopPropagation
-        /> */}
+        />
       </div>
       <div className="p-4 flex-1 flex flex-col justify-between">
         <div className="flex flex-col gap-2">

@@ -24,40 +24,30 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const supabase = await getServerSupabase();
+
+  // Use getUser() instead of getSession() for secure authentication
   const {
-    data: sessionData,
-    error: sessionError,
-  } = await supabase.auth.getSession();
+    data: userData,
+    error: userError,
+  } = await supabase.auth.getUser();
 
-  let session = sessionData.session ?? null;
-  let user = session?.user ?? null;
-  let userError: Error | null = null;
+  const user = userData.user ?? null;
 
-  if (session) {
-    const {
-      data: userData,
-      error,
-    } = await supabase.auth.getUser();
-
-    if (error) {
-      userError = error;
-    } else {
-      user = userData.user;
-    }
+  // Only fetch session if we have an authenticated user
+  let session = null;
+  if (user) {
+    const { data: sessionData } = await supabase.auth.getSession();
+    session = sessionData.session;
   }
 
   if (userError) {
     console.error("Failed to load authenticated user", userError);
   }
 
-  if (sessionError) {
-    console.error("Failed to load session", sessionError);
-  }
-
-  const initialSession = session
+  const initialSession = user && session
     ? {
         ...session,
-        user: user ?? session.user,
+        user: user,
       }
     : null;
 
