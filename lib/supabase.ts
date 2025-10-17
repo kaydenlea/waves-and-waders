@@ -48,7 +48,10 @@ async function getBeachSlugCache(): Promise<Map<string, string>> {
   }
 
   // Rebuild cache
-  const { data } = await supabase.from("beaches").select("id, Name").limit(10000);
+  const { data } = await supabase
+    .from("beaches")
+    .select("id, Name")
+    .limit(10000);
 
   beachSlugCache = new Map();
 
@@ -1061,12 +1064,21 @@ export async function fetchTodaysForecast(
 }
 
 export async function fetchWeeklyForecast(
-  beachId: string
+  beachId: string,
+  beforeOffset?: number
 ): Promise<ForecastData[]> {
   const start = pacificMidnightUTC();
-  const end = new Date(start.getTime() + 7 * 24 * 60 * 60 * 1000);
-  console.log("RAW ENERGY TIMES", start, end);
-  return fetchBeachForecast(beachId, start, end);
+  // for forecast wave energy offset by 3 hours
+  const startWithOffset = beforeOffset
+    ? new Date(start.getTime() - beforeOffset * 60 * 60 * 1000)
+    : start;
+  const endWithOffset = beforeOffset
+    ? new Date(
+        startWithOffset.getTime() + (7 * 24 + beforeOffset) * 60 * 60 * 1000
+      )
+    : new Date(startWithOffset.getTime() + 7 * 24 * 60 * 60 * 1000);
+  console.log("RAW ENERGY TIMES", startWithOffset, endWithOffset);
+  return fetchBeachForecast(beachId, startWithOffset, endWithOffset);
 }
 
 // Helper: compute the UTC Date corresponding to today's 00:00 in America/Los_Angeles

@@ -209,7 +209,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
         }
         const resolved = await fetchBeachByIdLoose(beachId);
         const id = resolved?.id ?? beachId;
-        const rows = await fetchWeeklyForecast(String(id));
+        const rows = await fetchWeeklyForecast(String(id), 3);
         console.log("RAW ENERGY", rows);
         if (!rows || !rows.length) {
           if (!cancelled) {
@@ -249,6 +249,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
         }
         // Keep within a reasonable window (e.g., first 96 hours)
         series.sort((a, b) => a.hour - b.hour);
+        console.log("SORTED ENERGY", series);
         if (!cancelled) {
           setEnergyData(series);
         }
@@ -396,10 +397,12 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
     (getIndex(selected).day() - getIndex(current).day() + 7) % 7;
   const dayOffset = getRelativeIndex(currentDay, startDay);
   const startDayIdx = dayOffset * (HOURS_PER_DAY / 3);
+  const visibleData = source.slice(startDayIdx, startDayIdx + windowSize + 1);
   console.log(
     "NUMS",
     windowDays,
     source,
+    visibleData,
     startDay,
     currentDay,
     getRelativeIndex(currentDay, startDay),
@@ -407,7 +410,6 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
     startDayIdx,
     startDayIdx + windowSize
   );
-  const visibleData = source.slice(startDayIdx, startDayIdx + windowSize);
   // const visibleData = source.slice(startIndex, startIndex + windowSize);
 
   const stops = React.useMemo(
