@@ -538,7 +538,8 @@ const Highlights = ({
     <div className="w-full max-w-7xl mx-auto">
       <ul
         className={cn(
-          "grid grid-cols-2 @min-2xl:grid-cols-4 @min-3xl:grid-cols-3 gap-2.5",
+          "grid grid-cols-2 @min-2xl:grid-cols-4 gap-2.5",
+          !isFull && "@min-3xl:grid-cols-3",
           isFull && "@min-4xl:grid-cols-4 @min-6xl:grid-cols-8"
         )}
       >
@@ -626,8 +627,8 @@ const Highlights = ({
                 key={stat.label}
                 className={cn(
                   "relative highlight-card shadow-even min-h-25",
-                  stat.label === "swell" &&
-                    "col-span-1 @min-2xl:col-span-1 @min-3xl:col-span-2",
+                  stat.label === "swell" && "col-span-1 @min-2xl:col-span-1",
+                  stat.label === "swell" && !isFull && "@min-3xl:col-span-2",
                   stat.label === "swell" && isFull && "@min-4xl:col-span-1"
                 )}
               >

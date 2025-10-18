@@ -315,7 +315,7 @@ export default function NearbyBeaches({
       },
       { enableHighAccuracy: true, timeout: 8000 }
     );
-  }, [initialList, filters, apiBeaches]);
+  }, [filters]);
 
   const totalPages = Math.ceil(sorted.length / perPage);
   const [currentItems, setCurrentItems] = useState<UIBeach[]>([]);

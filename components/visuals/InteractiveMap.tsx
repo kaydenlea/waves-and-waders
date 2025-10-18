@@ -1519,7 +1519,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
             swellDirections.secondary,
             swellDirections.tertiary,
           ].some((d) => typeof d === "number") && (
-            <div className="absolute bottom-15 @min-4xl:bottom-3 left-3 z-[1] max-w-[200px]">
+            <div className="absolute top-28 @min-4xl:top-auto right-3 @min-4xl:right-auto @min-4xl:bottom-3 @min-4xl:left-3 z-[1] max-w-[200px]">
               <div className="rounded-lg border border-border/60 bg-background/90 backdrop-blur px-3 py-2 shadow">
                 <span className="text-[11px] font-semibold uppercase text-muted-foreground">
                   Direction Rings
@@ -1605,7 +1605,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
         }}
         className={cn(
           "absolute left-1/2 -translate-x-1/2 z-10",
-          "bottom-[calc(env(safe-area-inset-bottom,0)+1rem)]",
+          "bottom-[calc(env(safe-area-inset-bottom,0)+3rem)]",
           "flex items-center gap-2 px-4 py-2 rounded-full",
           "bg-background/95 backdrop-blur border border-border shadow-lg",
           "text-sm font-medium text-foreground touch-pan-y",

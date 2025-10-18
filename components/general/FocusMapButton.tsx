@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { MapPin } from "lucide-react";
 
 import { MAP_FOCUS_EVENT, type MapFocusEventDetail } from "./mapEvents";
+import { scrollToMap } from "./BackToMapButton";
 
 type FocusMapButtonProps = {
   beach?: string;
@@ -24,6 +25,7 @@ const FocusMapButton = ({ beach, className }: FocusMapButtonProps) => {
     };
 
     window.dispatchEvent(new CustomEvent(MAP_FOCUS_EVENT, { detail }));
+    scrollToMap();
   };
 
   return (

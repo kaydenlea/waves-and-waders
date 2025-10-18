@@ -42,28 +42,34 @@ type DaySummary = {
   code: number | null;
 };
 
-const getWeatherIcon = (code: number | null) => {
-  if (code == null) return <CloudIcon size={20} color="#bdbdbdff" />;
+const getWeatherIcon = (code: number | null, size?: number) => {
+  const iconSize = size ? size : 24;
+  if (code == null) return <CloudIcon size={iconSize} color="#bdbdbdff" />;
   // WMO code groupings per spec
-  if (code === 0) return <Sun size={20} strokeWidth={3} color="#f79e55ff" />; // Clear
-  if ([1, 2, 3].includes(code)) return <CloudSun size={20} color="#bdbdbdff" />; // Partly cloudy/overcast
-  if ([45, 48].includes(code)) return <CloudIcon size={20} color="#bdbdbdff" />; // Fog
+  if (code === 0)
+    return <Sun size={iconSize} strokeWidth={3} color="#f79e55ff" />; // Clear
+  if ([1, 2, 3].includes(code))
+    return <CloudSun size={iconSize} color="#bdbdbdff" />; // Partly cloudy/overcast
+  if ([45, 48].includes(code))
+    return <CloudIcon size={iconSize} color="#bdbdbdff" />; // Fog
   if ([51, 53, 55].includes(code))
-    return <CloudDrizzle size={20} color="#66a3ffff" />; // Drizzle
+    return <CloudDrizzle size={iconSize} color="#66a3ffff" />; // Drizzle
   if ([56, 57].includes(code))
-    return <CloudDrizzle size={20} color="#66a3ffff" />; // Freezing drizzle
+    return <CloudDrizzle size={iconSize} color="#66a3ffff" />; // Freezing drizzle
   if ([61, 63, 65].includes(code))
-    return <CloudRain size={20} color="#66a3ffff" />; // Rain
-  if ([66, 67].includes(code)) return <CloudRain size={20} color="#66a3ffff" />; // Freezing rain
+    return <CloudRain size={iconSize} color="#66a3ffff" />; // Rain
+  if ([66, 67].includes(code))
+    return <CloudRain size={iconSize} color="#66a3ffff" />; // Freezing rain
   if ([71, 73, 75].includes(code))
-    return <Snowflake size={20} color="#8ecaffff" />; // Snow
-  if (code === 77) return <Snowflake size={20} color="#8ecaffff" />; // Snow grains
+    return <Snowflake size={iconSize} color="#8ecaffff" />; // Snow
+  if (code === 77) return <Snowflake size={iconSize} color="#8ecaffff" />; // Snow grains
   if ([80, 81, 82].includes(code))
-    return <CloudRain size={20} color="#66a3ffff" />; // Showers
-  if ([85, 86].includes(code)) return <Snowflake size={20} color="#8ecaffff" />; // Snow showers
+    return <CloudRain size={iconSize} color="#66a3ffff" />; // Showers
+  if ([85, 86].includes(code))
+    return <Snowflake size={iconSize} color="#8ecaffff" />; // Snow showers
   if ([95, 96, 99].includes(code))
-    return <CloudLightning size={20} color="#ff8d6bff" />; // Thunderstorm/hail
-  return <CloudIcon size={20} color="#bdbdbdff" />;
+    return <CloudLightning size={iconSize} color="#ff8d6bff" />; // Thunderstorm/hail
+  return <CloudIcon size={iconSize} color="#bdbdbdff" />;
 };
 
 const DatePicker = ({
@@ -362,6 +368,7 @@ const DatePicker = ({
             const hasRange = minWithFallback != null && max != null;
             const code = summary?.code ?? null;
             const weather = getWeatherIcon(code);
+            const weatherSmall = getWeatherIcon(code, 20);
 
             // Use rounded max for color to match displayed range
             const maxRounded = max != null ? Math.round(max) : null;
@@ -388,7 +395,7 @@ const DatePicker = ({
               <CarouselItem
                 key={index}
                 className={cn(
-                  "basis-1/3 @min-md:basis-1/5 @min-3xl:basis-1/7 @min-6xl:basis-1/7 flex justify-center"
+                  "basis-1/3 @min-lg:basis-1/4 @min-2xl:basis-1/5 @min-3xl:basis-1/6 @min-4xl:basis-1/7 flex justify-center"
                 )}
               >
                 <button
@@ -405,16 +412,22 @@ const DatePicker = ({
                     forecast && itemStyle
                   )}
                 >
-                  <span className="font-semibold text-[0.65rem] @min-xl:text-xs whitespace-nowrap">
+                  <span className="font-semibold text-[0.65rem] @min-sm:text-xs whitespace-nowrap">
                     {day.format("ddd")}, {day.format("M/D")}
                   </span>
                   <span
                     className={cn(
-                      "inline-block w-12 @min-xl:w-16 h-1 rounded-full",
+                      "inline-block w-12 @min-sm:w-16 h-1 rounded-full",
                       color
                     )}
                   />
-                  <span className="text-md @min-xl:text-lg font-semibold mb-1">
+                  <div className="mt-2 mb-1 hidden @min-sm:block">
+                    {weather}
+                  </div>
+                  <div className="mt-2 mb-1 block @min-sm:hidden">
+                    {weatherSmall}
+                  </div>
+                  <span className="text-md @min-sm:text-lg font-semibold">
                     {hasRange ? (
                       <>
                         {(() => {
@@ -439,7 +452,6 @@ const DatePicker = ({
                       </>
                     )}
                   </span>
-                  {weather}
                 </button>
               </CarouselItem>
             );

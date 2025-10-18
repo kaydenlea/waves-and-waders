@@ -3,21 +3,25 @@
 import { ChevronUp } from "lucide-react";
 
 const wideScreenWidth = 911;
+// export const scrollToMap = () => {
+//   if (window.innerWidth >= wideScreenWidth) return;
+//   const mapContainer = document.getElementById("map-container");
+//   if (mapContainer) {
+//     const headerOffset = 100;
+//     const rect = mapContainer.getBoundingClientRect();
+//     const absoluteTop = rect.top + window.scrollY;
+//     const targetTop = Math.max(absoluteTop - headerOffset, 0);
+//     try {
+//       window.scrollTo({ top: targetTop, behavior: "smooth" });
+//     } catch {
+//       mapContainer.scrollIntoView({ behavior: "smooth", block: "start" });
+//       window.scrollBy({ top: -headerOffset, behavior: "smooth" });
+//     }
+//   }
+// };
 export const scrollToMap = () => {
   if (window.innerWidth >= wideScreenWidth) return;
-  const mapContainer = document.getElementById("map-container");
-  if (mapContainer) {
-    const headerOffset = 100;
-    const rect = mapContainer.getBoundingClientRect();
-    const absoluteTop = rect.top + window.scrollY;
-    const targetTop = Math.max(absoluteTop - headerOffset, 0);
-    try {
-      window.scrollTo({ top: targetTop, behavior: "smooth" });
-    } catch {
-      mapContainer.scrollIntoView({ behavior: "smooth", block: "start" });
-      window.scrollBy({ top: -headerOffset, behavior: "smooth" });
-    }
-  }
+  window.scrollTo({ top: 0, behavior: "smooth" });
 };
 
 export default function BackToMapButton() {

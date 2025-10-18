@@ -51,7 +51,8 @@ const SwellStat = ({
   return (
     <div
       className={cn(
-        "grid grid-cols-[35px_35px_20px_1fr] @min-sm:grid-cols-[45px_35px_20px_1fr] @min-6xl:grid-cols-[35px_35px_20px_1fr] items-center @min-sm:-my-0.5 @min-6xl:my-0",
+        "grid grid-cols-[35px_30px_20px_1fr] @min-sm:grid-cols-[45px_35px_20px_1fr] @min-2xl:grid-cols-[40px_35px_20px_1fr] @min-4xl:grid-cols-[45px_35px_20px_1fr] items-center @min-sm:-my-0.5",
+        isFull && "@min-6xl:grid-cols-[35px_32px_20px_1fr] @min-6xl:my-0",
         // primary ? "border border-border shadow-sm rounded-md px-1" : "mx-3",
         primary && !isFull && ""
         // primary
@@ -63,7 +64,7 @@ const SwellStat = ({
         if (stat.label === "swell wind arrow") {
           return (
             <ArrowIcon
-              size={primary ? 18 : 12}
+              size={primary ? 16 : 12}
               key={stat.label}
               style={{ transform: `rotate(${arrowRotation}deg)` }}
               className={cn(
@@ -92,10 +93,12 @@ const SwellStat = ({
               !small && primary && "text-md font-semibold",
               small &&
                 !primary &&
-                "text-[0.7rem] @min-sm:text-sm @min-6xl:text-xs font-medium text-foreground/80",
+                "text-[0.7rem] @min-sm:text-sm @min-2xl:text-xs @min-4xl:text-sm font-medium text-foreground/80",
+              small && !primary && isFull && "@min-6xl:text-[0.7rem]",
               small &&
                 primary &&
-                "text-xs @min-sm:text-base @min-6xl:text-sm font-bold"
+                "text-xs @min-sm:text-base @min-2xl:text-sm @min-4xl:text-base font-bold",
+              small && primary && isFull && "@min-6xl:text-xs"
             )}
           >
             {typeof stat.value === "number"
@@ -112,7 +115,7 @@ const SwellStat = ({
                   "ml-[0.1rem] hidden @min-md:inline-block @min-2xl:hidden @min-3xl:inline-block",
                 stat.label === "swell wind" &&
                   isFull &&
-                  "ml-[0.1rem] hidden @min-md:inline-block @min-2xl:hidden @min-3xl:inline-block @min-6xl:hidden"
+                  "ml-[0.1rem] hidden @min-md:inline-block @min-2xl:hidden @min-4xl:inline-block @min-6xl:hidden"
               )}
             >
               {stat.unit}

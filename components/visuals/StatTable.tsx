@@ -341,7 +341,7 @@ const StatTable = ({
         const rangeEnd =
           requestedDate && !forecastPage
             ? new Date(anchorStart.getTime() + daysToFetch * DAY_MS)
-            : selectedDays
+            : selectedDays && selectedDays[selectedDays.length - 1]
             ? new Date(
                 selectedDays[selectedDays.length - 1].getTime() +
                   bufferAfter * DAY_MS
