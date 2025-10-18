@@ -127,10 +127,10 @@ const BeachCard = ({
         scrollToMap();
       }}
       id={`beach-${b.id}`}
-      className="hover:cursor-pointer transition-transform transform translate-y-0 hover:translate-y-0.5 ease-in-out duration-300 hover:bg-highlight-5/40 group flex flex-col overflow-hidden rounded-4xl border border-border/50 bg-highlight-7/50 shadow-md shadow-black/20 backdrop-blur"
+      className="hover:cursor-pointer transition-transform transform translate-y-0 hover:translate-y-0.5 ease-in-out duration-300 hover:bg-highlight-5/40 group flex flex-col overflow-hidden rounded-4xl border border-border/50 bg-highlight-7/60 shadow-even backdrop-blur"
     >
       <div className="relative w-full p-3 mx-auto aspect-auto">
-        <div className="rounded-4xl h-60 w-full bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900">
+        <div className="rounded-4xl h-53 w-full bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900">
           <Image
             src={`/beach_pictures/${b.id}.png`}
             alt={`Map view of ${b.name}`}

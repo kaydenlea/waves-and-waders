@@ -24,6 +24,7 @@ import {
   type ForecastData,
 } from "@/lib/supabase";
 import { useDateContext } from "../context/DateContext";
+import { usePathname } from "next/navigation";
 
 const SwellStat = ({
   primary = false,
@@ -252,7 +253,12 @@ type TableEntry = {
   energy: { label: string; value: number };
 };
 
-type TableDay = { key: string; date: string; dateMs: number; vals: TableEntry[] };
+type TableDay = {
+  key: string;
+  date: string;
+  dateMs: number;
+  vals: TableEntry[];
+};
 
 type DateLike = Date | undefined | null;
 
@@ -305,6 +311,8 @@ const StatTable = ({
 }) => {
   const [data, setData] = React.useState<TableDay[]>([]);
   const { selectedDays } = useDateContext();
+  const pathname = usePathname();
+  const forecastPage = pathname.endsWith("/forecast");
 
   React.useEffect(() => {
     let cancelled = false;
@@ -321,19 +329,24 @@ const StatTable = ({
         const bufferAfter = requestedDate ? 1 : 0;
 
         // Prioritize date prop over selectedDays for consistency with other charts
-        const rangeStart = requestedDate
-          ? new Date(anchorStart.getTime() - bufferBefore * DAY_MS)
-          : selectedDays
-          ? selectedDays[0]
-          : new Date(anchorStart.getTime() - bufferBefore * DAY_MS);
+        const rangeStart =
+          requestedDate && !forecastPage
+            ? new Date(anchorStart.getTime() - bufferBefore * DAY_MS)
+            : selectedDays
+            ? selectedDays[0]
+            : new Date(anchorStart.getTime() - bufferBefore * DAY_MS);
 
         const daysToFetch = Math.max(numDays, 1) + bufferAfter;
 
-        const rangeEnd = requestedDate
-          ? new Date(anchorStart.getTime() + daysToFetch * DAY_MS)
-          : selectedDays
-          ? selectedDays[selectedDays.length - 1]
-          : new Date(anchorStart.getTime() + daysToFetch * DAY_MS);
+        const rangeEnd =
+          requestedDate && !forecastPage
+            ? new Date(anchorStart.getTime() + daysToFetch * DAY_MS)
+            : selectedDays
+            ? new Date(
+                selectedDays[selectedDays.length - 1].getTime() +
+                  bufferAfter * DAY_MS
+              )
+            : new Date(anchorStart.getTime() + daysToFetch * DAY_MS);
         const weekly = await fetchBeachForecast(
           resolvedId,
           rangeStart,
@@ -348,8 +361,8 @@ const StatTable = ({
           const d = new Date(timestamp);
           // Use ISO date string (YYYY-MM-DD) as the key for grouping
           const year = d.getFullYear();
-          const month = String(d.getMonth() + 1).padStart(2, '0');
-          const day = String(d.getDate()).padStart(2, '0');
+          const month = String(d.getMonth() + 1).padStart(2, "0");
+          const day = String(d.getDate()).padStart(2, "0");
           return `${year}-${month}-${day}`;
         };
 
@@ -375,7 +388,10 @@ const StatTable = ({
         });
 
         // Convert requested dates to day keys for filtering
-        const onlyKey = requestedDate ? getDayKey(requestedDate.toISOString()) : null;
+        const onlyKey =
+          requestedDate && !forecastPage
+            ? getDayKey(requestedDate.toISOString())
+            : null;
         const onlyKeys = selectedDays
           ? selectedDays.map((day) => getDayKey(day.toISOString()))
           : null;
@@ -390,8 +406,12 @@ const StatTable = ({
             allowedKeys = new Set([onlyKey]);
           } else {
             if (requestedDate) {
-              const prev = getDayKey(new Date(requestedDate.getTime() - DAY_MS).toISOString());
-              const next = getDayKey(new Date(requestedDate.getTime() + DAY_MS).toISOString());
+              const prev = getDayKey(
+                new Date(requestedDate.getTime() - DAY_MS).toISOString()
+              );
+              const next = getDayKey(
+                new Date(requestedDate.getTime() + DAY_MS).toISOString()
+              );
               const cands = [prev, next].filter((k) => dayKeys.includes(k));
               if (cands.length) allowedKeys = new Set([cands[0]]);
             }
@@ -434,7 +454,7 @@ const StatTable = ({
               // Convert to sorted array and get rows
               Array.from(indices)
                 .sort((a, b) => a - b)
-                .forEach(idx => sampledRows.push(rows[idx]));
+                .forEach((idx) => sampledRows.push(rows[idx]));
             }
           }
 

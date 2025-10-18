@@ -57,7 +57,7 @@ const Page = ({ params }: { params: Promise<{ beach: string }> }) => {
     window.dispatchEvent(event);
   };
   return (
-    <div id="content" className="@container p-2 mt-[5rem] @min-4xl:mt-0">
+    <div id="content" className="@container p-2 mt-[4rem] @min-4xl:mt-0">
       {/* <header className="ml-2">
         <h1 className="font-semibold text-4xl tracking-tight">
           Huntington Beach

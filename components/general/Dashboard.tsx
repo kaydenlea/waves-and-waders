@@ -670,7 +670,7 @@ export default function Dashboard({
   return (
     <div className="mt-3 overflow-hidden @container">
       {/* Controls */}
-      <div className="border border-border/40 shadow-sm p-5 rounded-md flex flex-col gap-2 bg-highlight-4">
+      <div className="border border-border/40 shadow-sm p-5 rounded-xl flex flex-col gap-2 bg-highlight-4 mx-1">
         <span className="text-sm font-medium">
           Select widgets to show. Please select at least one.
         </span>

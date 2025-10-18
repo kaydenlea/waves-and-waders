@@ -11,6 +11,7 @@ export default function PathStyleWrapper({
 }) {
   const pathname = usePathname();
   const beachPage = pathname.endsWith("/beaches");
+  const editPage = pathname.endsWith("/edit");
 
   const cls = useMemo(() => {
     if (beachPage) {
@@ -20,14 +21,18 @@ export default function PathStyleWrapper({
   }, [beachPage]);
 
   return (
-    <article
-      id="content"
-      className={cn(
-        "touch-pan-y bg-background-2 w-full px-2 relative pt-10 @min-4xl:pt-4 z-1 rounded-t-none @min-4xl:rounded-t-none mx-auto",
-        cls
-      )}
-    >
-      {children}
-    </article>
+    <>
+      <div className={editPage ? "h-0" : "h-[100vh] @min-4xl:h-0"} />
+      <article
+        id="content"
+        className={cn(
+          "relative touch-pan-y w-full px-2 relative pt-15 @min-4xl:pt-4 z-1 bg-background border-t border-x border-border/70 @min-4xl:border-none rounded-t-4xl @min-4xl:rounded-t-none mx-auto",
+          cls
+        )}
+      >
+        <div className="block @min-4xl:hidden absolute top-5 left-1/2 transform -translate-x-1/2 h-2 w-20 bg-muted-foreground/50 rounded-full" />
+        {children}
+      </article>
+    </>
   );
 }
