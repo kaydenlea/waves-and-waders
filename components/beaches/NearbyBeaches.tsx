@@ -254,9 +254,10 @@ export default function NearbyBeaches({
           Number(b.latitude ?? (b as any).LATITUDE),
           Number(b.longitude ?? (b as any).LONGITUDE),
         ],
+        features: [],
         image:
           "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1600&auto=format&fit=crop",
-        conditions: { surf: "-", wind: "-", temp: 0, rating: 0 },
+        conditions: { surf: "-", wind: "-", windDir: 0, temp: 0, rating: 0 },
       }));
       setSorted(toUi);
       return;
@@ -278,9 +279,10 @@ export default function NearbyBeaches({
             Number(b.latitude ?? (b as any).LATITUDE),
             Number(b.longitude ?? (b as any).LONGITUDE),
           ],
+          features: [],
           image:
             "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1600&auto=format&fit=crop",
-          conditions: { surf: "-", wind: "-", temp: 0, rating: 0 },
+          conditions: { surf: "-", wind: "-", windDir: 0, temp: 0, rating: 0 },
           distanceKm: haversineKm(origin, [
             Number(b.latitude ?? (b as any).LATITUDE),
             Number(b.longitude ?? (b as any).LONGITUDE),
@@ -303,9 +305,10 @@ export default function NearbyBeaches({
             Number(b.latitude ?? (b as any).LATITUDE),
             Number(b.longitude ?? (b as any).LONGITUDE),
           ],
+          features: [],
           image:
             "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1600&auto=format&fit=crop",
-          conditions: { surf: "-", wind: "-", temp: 0, rating: 0 },
+          conditions: { surf: "-", wind: "-", windDir: 0, temp: 0, rating: 0 },
         }));
         setPage(1);
         setSorted(toUi);
@@ -433,7 +436,7 @@ export default function NearbyBeaches({
             s.push({
               type: "surf",
               surf: {
-                height: surfHeightLabel,
+                height: surfHeightLabel ?? "-",
                 period: surfPeriod,
                 intensity: max ?? 0,
               },

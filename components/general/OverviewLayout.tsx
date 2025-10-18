@@ -11,7 +11,7 @@ const OverviewLayout = () => {
   const [edit, setEdit] = React.useState(false);
   return (
     <section className="flex flex-col gap-2 w-full mb-2">
-      <div className="mx-2 flex justify-between">
+      {/* <div className="mx-2 flex justify-between">
         <header>
           <h2 className="text-2xl font-semibold">Daily Forecast</h2>
           <p className="text-sm">An insight into the forecast of any day</p>
@@ -26,7 +26,7 @@ const OverviewLayout = () => {
           <Pencil />
         </Button>
       </div>
-      {edit ? <Dashboard /> : <OverviewContent />}
+      {edit ? <Dashboard /> : <OverviewContent />} */}
     </section>
   );
 };

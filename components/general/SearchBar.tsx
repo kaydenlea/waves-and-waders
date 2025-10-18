@@ -25,7 +25,7 @@ const SearchBar = ({ className }: { className?: string }) => {
   const [isOverlay, setIsOverlay] = useState(false);
   const [wideScreen, setWideScreen] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
-  const boxRef = useRef<HTMLDivElement | null>(null);
+  const boxRef = useRef<HTMLFormElement | null>(null);
 
   // keep a ref to always know the latest query value
   const latestQueryRef = useRef<string>(query);

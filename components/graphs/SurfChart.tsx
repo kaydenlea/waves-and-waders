@@ -56,12 +56,12 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
       try {
         if (!beachId) {
           if (!cancelled) {
-            setChartData(
-              Array.from({ length: 25 }, (_, h) => ({
-                hour: h,
-                surf: Number((2 + Math.sin((h / 24) * Math.PI * 2)).toFixed(1)),
-              }))
-            );
+            // setChartData(
+            //   Array.from({ length: 25 }, (_, h) => ({
+            //     hour: h,
+            //     surf: Number((2 + Math.sin((h / 24) * Math.PI * 2)).toFixed(1)),
+            //   }))
+            // );
           }
           return;
         }
@@ -145,7 +145,7 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
           );
           const wind = r.conditions.windSpeed ?? 0;
           const windPenalty = Math.min(0.5, Math.max(0, (wind - 5) / 35));
-          let effective = Math.max(0, combined * (1 - windPenalty));
+          const effective = Math.max(0, combined * (1 - windPenalty));
 
           const { min, max, label, estimate } = formatSurfRange(
             r.surf.heightMin,
@@ -261,15 +261,19 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
   const EDGE_GUTTER_PX = 35;
   const closeTo = (a: number, b: number, tolerance = 0.05) =>
     Math.abs(a - b) <= tolerance;
-  const makeAreaShape =
-    (color: string, touchesLeft: boolean, touchesRight: boolean) =>
-    (props: any) => {
+  const makeAreaShape = (
+    color: string,
+    touchesLeft: boolean,
+    touchesRight: boolean
+  ) => {
+    const AreaShape = (props: any) => {
       const x = typeof props.x === "number" ? props.x : 0;
       const y = typeof props.y === "number" ? props.y : 0;
       const width = typeof props.width === "number" ? props.width : 0;
       const height = typeof props.height === "number" ? props.height : 0;
       const leftPad = touchesLeft ? EDGE_GUTTER_PX : 0;
       const rightPad = touchesRight ? EDGE_GUTTER_PX : 0;
+
       return (
         <rect
           x={x - leftPad}
@@ -282,6 +286,12 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
         />
       );
     };
+
+    // ✅ Assign a display name for debugging & ESLint
+    AreaShape.displayName = `AreaShape(${color})`;
+
+    return AreaShape;
+  };
 
   return (
     <ChartContainer
@@ -323,7 +333,7 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
             shape={makeAreaShape(
               "#ccc1ffff",
               closeTo(a.x1, domainStart),
-              closeTo(a.x2, domainEnd)
+              a.x2 ? closeTo(a.x2, domainEnd) : true
             )}
           />
         ))}
@@ -363,7 +373,10 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
           axisLine={false}
           tickMargin={8}
           fontSize={11}
-          domain={[0, (dataMax: number) => Math.max(4, Math.ceil(dataMax * 1.5))]}
+          domain={[
+            0,
+            (dataMax: number) => Math.max(4, Math.ceil(dataMax * 1.5)),
+          ]}
         />
         <ChartTooltip content={<ChartTooltipContent />} />
         <ChartLegend content={<ChartLegendContent />} />
@@ -374,44 +387,42 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
           stroke="#0000006e"
           strokeWidth={0.5}
           minPointSize={10}
-          >
-            <LabelList
-              dataKey="surf"
-              position="middle"
-              content={(props: LabelProps) => {
-                const safeX = typeof props.x === "number" ? props.x : 0;
-                const safeY = typeof props.y === "number" ? props.y : 0;
-                const safeWidth =
-                  typeof props.width === "number" ? props.width : 0;
-                const safeHeight =
-                  typeof props.height === "number" ? props.height : 0;
-                const fontSize = Math.max(10, safeWidth * 0.15);
-                const label =
-                  typeof props.value === "number"
-                    ? props.value.toFixed(1)
-                    : "";
+        >
+          <LabelList
+            dataKey="surf"
+            position="middle"
+            content={(props: LabelProps) => {
+              const safeX = typeof props.x === "number" ? props.x : 0;
+              const safeY = typeof props.y === "number" ? props.y : 0;
+              const safeWidth =
+                typeof props.width === "number" ? props.width : 0;
+              const safeHeight =
+                typeof props.height === "number" ? props.height : 0;
+              const fontSize = Math.max(10, safeWidth * 0.15);
+              const label =
+                typeof props.value === "number" ? props.value.toFixed(1) : "";
 
-                if (label) {
-                  return (
-                    <g>
-                      <text
-                        x={safeX + safeWidth / 2}
-                        y={safeY + safeHeight / 2 + fontSize / 3}
-                        fill="#2c2c2cff"
-                        textAnchor="middle"
-                        fontWeight="bold"
-                        fontSize={fontSize}
-                      >
-                        {label}
-                      </text>
-                    </g>
-                  );
-                }
-                return null;
-              }}
-              fill="black"
-            />
-          </Bar>
+              if (label) {
+                return (
+                  <g>
+                    <text
+                      x={safeX + safeWidth / 2}
+                      y={safeY + safeHeight / 2 + fontSize / 3}
+                      fill="#2c2c2cff"
+                      textAnchor="middle"
+                      fontWeight="bold"
+                      fontSize={fontSize}
+                    >
+                      {label}
+                    </text>
+                  </g>
+                );
+              }
+              return null;
+            }}
+            fill="black"
+          />
+        </Bar>
       </BarChart>
     </ChartContainer>
   );

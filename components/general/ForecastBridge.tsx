@@ -59,9 +59,9 @@ const ForecastBridge: React.FC<Props> = ({ beachId }) => {
   const [, setIsPickerVisible] = useState<boolean>(true);
 
   const forecastDefaults = useMemo(() => getDefaultLayout("forecast"), []);
-  const [layoutMeta, setLayoutMeta] = useState<Record<WidgetId, WidgetMeta>>(
-    () => forecastDefaults.meta
-  );
+  const [layoutMeta, setLayoutMeta] = useState<
+    Partial<Record<WidgetId, WidgetMeta>>
+  >(() => forecastDefaults.meta);
   const [layoutRows, setLayoutRows] = useState<Row[]>(
     () => forecastDefaults.rows
   );
@@ -116,7 +116,7 @@ const ForecastBridge: React.FC<Props> = ({ beachId }) => {
     const fallback = getDefaultLayout("forecast");
 
     const applyLayout = (
-      nextMeta: Record<WidgetId, WidgetMeta>,
+      nextMeta: Partial<Record<WidgetId, WidgetMeta>>,
       nextRows: Row[]
     ) => {
       if (cancelled) return;

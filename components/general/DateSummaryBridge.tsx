@@ -27,6 +27,7 @@ import {
   type WidgetId,
   type WidgetMeta,
 } from "./dashboardLayout";
+import { LazyLoadSummary } from "./LazyLoad/LazyLoadSummary";
 
 type Props = { beachId: string };
 
@@ -45,7 +46,7 @@ const DateSummaryBridge: React.FC<Props> = ({ beachId }) => {
     []
   );
   const [layoutMeta, setLayoutMeta] = React.useState<
-    Record<WidgetId, WidgetMeta>
+    Partial<Record<WidgetId, WidgetMeta>>
   >(() => overviewDefaults.meta);
   const [layoutRows, setLayoutRows] = React.useState<Row[]>(
     () => overviewDefaults.rows
@@ -96,7 +97,7 @@ const DateSummaryBridge: React.FC<Props> = ({ beachId }) => {
     const fallback = getDefaultLayout("overview");
 
     const applyLayout = (
-      nextMeta: Record<WidgetId, WidgetMeta>,
+      nextMeta: Partial<Record<WidgetId, WidgetMeta>>,
       nextRows: Row[]
     ) => {
       if (cancelled) return;
@@ -256,6 +257,7 @@ const DateSummaryBridge: React.FC<Props> = ({ beachId }) => {
             : "Select a day"}
         </h2>
         <Summary beachId={beachId} date={selected ?? undefined} />
+        {/* <LazyLoadSummary beachId={beachId} date={selected ?? undefined} /> */}
       </section>
 
       {/* Main overview section */}

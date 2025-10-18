@@ -119,12 +119,16 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
         for (const r of rows) {
           const d = new Date(r.timestamp);
           // Use ISO date string (YYYY-MM-DD) instead of weekday name to avoid collisions
-          const key = d.toLocaleDateString("en-US", {
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-            timeZone: "America/Los_Angeles",
-          }).split('/').reverse().join('-'); // Convert MM/DD/YYYY to YYYY-MM-DD
+          const key = d
+            .toLocaleDateString("en-US", {
+              year: "numeric",
+              month: "2-digit",
+              day: "2-digit",
+              timeZone: "America/Los_Angeles",
+            })
+            .split("/")
+            .reverse()
+            .join("-"); // Convert MM/DD/YYYY to YYYY-MM-DD
           const arr = byDay.get(key) ?? [];
           arr.push(r);
           byDay.set(key, arr);
@@ -203,40 +207,35 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
       day: "2-digit",
       timeZone: "America/Los_Angeles",
     });
-    return dateStr.split('/').reverse().join('-'); // MM/DD/YYYY -> YYYY-MM-DD
+    return dateStr.split("/").reverse().join("-"); // MM/DD/YYYY -> YYYY-MM-DD
   });
 
   // Find start index using dateKey if available, otherwise use current date
   let startDayIdx = 0;
   if (windowDateKeys && windowDateKeys.length > 0 && data.length) {
-    startDayIdx = source.findIndex((entry) =>
-      'dateKey' in entry && entry.dateKey === windowDateKeys[0]
+    startDayIdx = source.findIndex(
+      (entry) => "dateKey" in entry && entry.dateKey === windowDateKeys[0]
     );
     if (startDayIdx === -1) startDayIdx = 0; // Fallback if not found
   }
 
   const visibleData = source.slice(startDayIdx, startDayIdx + windowSize);
-  const fmt = (ms: number) =>
-    new Date(ms).toLocaleDateString("en-US", {
-      weekday: "short",
-      month: "numeric",
-      day: "numeric",
-      timeZone: "America/Los_Angeles",
-    });
-  // const daysLabel = visibleData.length
-  //   ? `${fmt(visibleData[0].dateMs)} - ${fmt(
-  //       visibleData[visibleData.length - 1].dateMs
-  //     )}`
-  //   : "";
-  React.useEffect(() => {
-    setDaysLabel(
-      visibleData.length
-        ? `${fmt(visibleData[0].dateMs)} - ${fmt(
-            visibleData[visibleData.length - 1].dateMs
-          )}`
-        : ""
-    );
-  }, [visibleData, setDaysLabel]);
+  // const fmt = (ms: number) =>
+  //   new Date(ms).toLocaleDateString("en-US", {
+  //     weekday: "short",
+  //     month: "numeric",
+  //     day: "numeric",
+  //     timeZone: "America/Los_Angeles",
+  //   });
+  // React.useEffect(() => {
+  //   setDaysLabel(
+  //     visibleData.length
+  //       ? `${fmt(visibleData[0].dateMs)} - ${fmt(
+  //           visibleData[visibleData.length - 1].dateMs
+  //         )}`
+  //       : ""
+  //   );
+  // }, [visibleData, setDaysLabel]);
 
   const showSlider = windowSize > 0 && windowSize < length;
   console.log("COMPARISON", windowSize, length, visibleData.length);
@@ -378,7 +377,10 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
             tickLine={false}
             axisLine={false}
             tickMargin={0}
-            domain={[0, (dataMax: number) => Math.max(4, Math.ceil(dataMax + 3))]}
+            domain={[
+              0,
+              (dataMax: number) => Math.max(4, Math.ceil(dataMax + 2)),
+            ]}
           />
           <ChartTooltip content={<ChartTooltipContent />} />
           {/* <ChartLegend content={<ChartLegendContent />} /> */}

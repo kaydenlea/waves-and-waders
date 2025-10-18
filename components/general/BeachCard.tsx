@@ -40,7 +40,7 @@ export type Beach = {
     temp: number;
     rating: number;
   };
-  current: ForecastData;
+  current?: ForecastData;
   image: string;
   coords: [number, number];
   features: { label: string; icon: ReactNode; color: string }[];

@@ -206,16 +206,16 @@ export const normalizeMeta = (
     if (!incoming || typeof incoming !== "object") continue;
 
     const candidate = incoming as Partial<WidgetMeta>;
-    if (typeof candidate.title === "string") {
+    if (typeof candidate.title === "string" && meta[id]) {
       meta[id].title = candidate.title;
     }
-    if (typeof candidate.visible !== "undefined") {
+    if (typeof candidate.visible !== "undefined" && meta[id]) {
       meta[id].visible = Boolean(candidate.visible);
     }
-    if (isSpan(candidate.span)) {
+    if (isSpan(candidate.span) && meta[id]) {
       meta[id].span = candidate.span;
     }
-    if (typeof candidate.immutableFull !== "undefined") {
+    if (typeof candidate.immutableFull !== "undefined" && meta[id]) {
       meta[id].immutableFull = Boolean(candidate.immutableFull);
     }
   }
@@ -258,8 +258,8 @@ export const normalizeRows = (
     }
     if (!filtered.length) continue;
 
-    const full = filtered.filter((id) => meta[id].span === "full");
-    const halves = filtered.filter((id) => meta[id].span !== "full");
+    const full = filtered.filter((id) => meta[id]?.span === "full");
+    const halves = filtered.filter((id) => meta[id]?.span !== "full");
 
     full.forEach((id, idx) => pushRow([id], idx === 0 ? baseId : undefined));
 

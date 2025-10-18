@@ -8,7 +8,7 @@ const Tag = ({
   data: { label: string; icon: React.ReactNode; color: string };
   className?: string;
 }) => {
-  const iconNode = React.isValidElement(data.icon)
+  const iconNode = React.isValidElement<{ className?: string }>(data.icon)
     ? React.cloneElement(data.icon, {
         className: cn("h-3.5 w-3.5 text-inherit", data.icon.props.className),
       })

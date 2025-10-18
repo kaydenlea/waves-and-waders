@@ -42,7 +42,7 @@ const chartData = [
 const OverviewContent = () => {
   return (
     <>
-      <div className="mt-2 mb-4">
+      {/* <div className="mt-2 mb-4">
         <LazyLoadDatePicker />
         <LazyLoadHourSlider />
       </div>
@@ -123,7 +123,7 @@ const OverviewContent = () => {
           </span>
         </header>
         <LazyLoadTable numHours={8} numDays={1} />
-      </figure>
+      </figure> */}
     </>
   );
 };

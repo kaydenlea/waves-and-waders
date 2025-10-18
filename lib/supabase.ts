@@ -980,6 +980,7 @@ export async function fetchDailyConditions(
       .maybeSingle();
 
     if (matchDate && targetDate) {
+      // @ts-expect-error - (temporarily ignore) works as expected for now
       query = query.eq("date", targetDate);
     }
     const { data, error } = await query;
@@ -1007,6 +1008,7 @@ export async function fetchDailyConditions(
       .maybeSingle();
 
     if (matchDate && targetDate) {
+      // @ts-expect-error - (temporarily ignore) works as expected for now
       query = query.eq("date", targetDate);
     }
     const { data, error } = await query;

@@ -227,7 +227,6 @@ import {
 } from "lucide-react";
 import Footer from "@/components/general/Footer";
 import { LazyLoadLogoLoop } from "@/components/general/LazyLoad/LazyLoadLogoLoop";
-import { LazyLoadCountNums } from "@/components/general/LazyLoad/LazyLoadCountNums";
 import { LazyLoadCountSection } from "@/components/general/LazyLoad/LazyLoadCountSection";
 import { LazyLoadScrollSection } from "@/components/general/LazyLoad/LazyLoadScrollSection";
 import { LazyLoadCardsSection } from "@/components/general/LazyLoad/LazyLoadCardsSection";
@@ -253,9 +252,11 @@ const BEACHES: Beach[] = [
     conditions: {
       surf: "3–5 ft, clean",
       wind: "NW 7 mph",
+      windDir: 0,
       temp: 57,
       rating: 4.2,
     },
+    features: [],
   },
   {
     id: "2",
@@ -267,9 +268,11 @@ const BEACHES: Beach[] = [
     conditions: {
       surf: "2–3 ft, glassy",
       wind: "NE 3 mph",
+      windDir: 0,
       temp: 66,
       rating: 4.6,
     },
+    features: [],
   },
   {
     id: "3",
@@ -281,9 +284,11 @@ const BEACHES: Beach[] = [
     conditions: {
       surf: "1–2 ft, fair",
       wind: "W 5 mph",
+      windDir: 0,
       temp: 64,
       rating: 4.3,
     },
+    features: [],
   },
   {
     id: "4",
@@ -295,9 +300,11 @@ const BEACHES: Beach[] = [
     conditions: {
       surf: "2–4 ft, clean",
       wind: "SE 4 mph",
+      windDir: 0,
       temp: 68,
       rating: 4.7,
     },
+    features: [],
   },
   {
     id: "5",
@@ -309,9 +316,11 @@ const BEACHES: Beach[] = [
     conditions: {
       surf: "2–4 ft, clean",
       wind: "SE 4 mph",
+      windDir: 0,
       temp: 68,
       rating: 4.7,
     },
+    features: [],
   },
   {
     id: "6",
@@ -323,9 +332,11 @@ const BEACHES: Beach[] = [
     conditions: {
       surf: "1–2 ft, fair",
       wind: "W 5 mph",
+      windDir: 0,
       temp: 64,
       rating: 4.3,
     },
+    features: [],
   },
 ];
 
@@ -963,32 +974,6 @@ const Home = () => {
     </div>
   );
 };
-
-export function SectionHeader({
-  icon: Icon,
-  title,
-  subtitle,
-}: {
-  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
-  title: string;
-  subtitle?: string;
-}) {
-  return (
-    <div className="mt-1 mb-12 flex items-center gap-3">
-      <div className="p-1.5 rounded-xl bg-gradient-to-br from-cyan-300 to-blue-500 text-foreground shadow-lg shadow-cyan-500/20">
-        <Icon className="h-7 w-7" aria-hidden />
-      </div>
-      <div>
-        <h2 className="text-foreground font-semibold tracking-tight text-4xl sm:text-5xl">
-          {title}
-        </h2>
-        {subtitle && (
-          <p className="mt-1 max-w-2xl text-foreground/70">{subtitle}</p>
-        )}
-      </div>
-    </div>
-  );
-}
 
 function EmptyState() {
   return (

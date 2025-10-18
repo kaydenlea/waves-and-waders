@@ -81,7 +81,7 @@ const getWeatherIcon = (
 
 const GradientCircle = ({
   data,
-  percentage = 75,
+  percentage = 5,
   size = 75,
   strokeWidth = 7,
   condition = "sun",

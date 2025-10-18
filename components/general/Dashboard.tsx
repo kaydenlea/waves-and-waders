@@ -34,6 +34,13 @@ import {
 
 import { Check, X, RotateCcw } from "lucide-react";
 
+interface NormalizedData {
+  overview_meta?: any;
+  forecast_meta?: any;
+  overview_rows?: any;
+  forecast_rows?: any;
+}
+
 /* ------------------------------ Widget Content ---------------------------- */
 
 const WIDGET: Partial<Record<WidgetId, React.ReactNode>> = {
@@ -145,7 +152,7 @@ function DraggableCard({
   dim,
 }: {
   id: WidgetId;
-  meta: WidgetMeta;
+  meta: WidgetMeta | undefined;
   dim: boolean;
 }) {
   const { attributes, listeners, setNodeRef, isDragging, transform } =
@@ -158,7 +165,7 @@ function DraggableCard({
         transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
       }
     : undefined;
-
+  if (!meta) return null;
   const spanClass = meta.span === "full" ? "md:col-span-2" : "md:col-span-1";
 
   return (
@@ -360,8 +367,15 @@ export default function Dashboard({
           return;
         }
 
-        const nextMeta = normalizeMeta(type, data[columnMeta]);
-        const nextRows = normalizeRows(type, data[columnRows], nextMeta);
+        const nextMeta = normalizeMeta(
+          type,
+          (data as NormalizedData)[columnMeta]
+        );
+        const nextRows = normalizeRows(
+          type,
+          (data as NormalizedData)[columnRows],
+          nextMeta
+        );
         applyLayout(nextMeta, nextRows);
       } catch (error) {
         console.warn("Unexpected error loading layout", error);
@@ -448,7 +462,7 @@ export default function Dashboard({
     setActiveWidget(null);
     if (!active || !over) return;
 
-    const span = meta[active].span;
+    const span = meta[active]?.span;
     // FULL -> only allow drops on gaps
     if (span === "full") {
       if (!isGapId(over)) return;
@@ -486,7 +500,7 @@ export default function Dashboard({
         const tgtRow = next[tgtIdx];
 
         const tgtIsFull =
-          tgtRow.items.length === 1 && meta[tgtRow.items[0]].span === "full";
+          tgtRow.items.length === 1 && meta[tgtRow.items[0]]?.span === "full";
         if (tgtIsFull) return prev; // cannot drop half into full row
         // if same row, do swap logic
 
@@ -564,19 +578,19 @@ export default function Dashboard({
   /* ---------------------------- Visibility & Span ---------------------------- */
   function toggleVisible(id: WidgetId) {
     if (
-      meta[id].visible &&
+      meta[id]?.visible &&
       visibleRows.length === 1 &&
       !visibleRows[0].items[1]
     )
       return;
     setMeta((prev) => ({
       ...prev,
-      [id]: { ...prev[id], visible: !prev[id].visible },
+      [id]: { ...prev[id], visible: !prev[id]?.visible },
     }));
     setRows((prev) => {
       const next = cloneRows(prev);
       const existsIdx = next.findIndex((r) => r.items.includes(id));
-      const willShow = !meta[id].visible;
+      const willShow = !meta[id]?.visible;
       if (!willShow) {
         if (existsIdx !== -1) {
           const row = next[existsIdx];
@@ -584,13 +598,13 @@ export default function Dashboard({
           if (row.items.length === 0) next.splice(existsIdx, 1);
         }
       } else {
-        const span = meta[id].span;
+        const span = meta[id]?.span;
         if (span === "full") next.push({ id: rid(), items: [id] });
         else {
           const target = next.find(
             (r) =>
               r.items.length < 2 &&
-              (r.items.length === 0 || meta[r.items[0]].span === "half")
+              (r.items.length === 0 || meta[r.items[0]]?.span === "half")
           );
           if (target) target.items.push(id);
           else next.push({ id: rid(), items: [id] });
@@ -603,8 +617,8 @@ export default function Dashboard({
   function toggleSpan(id: WidgetId) {
     setMeta((prev) => {
       const m = prev[id];
-      if (m.immutableFull) return prev;
-      const to: Span = m.span === "half" ? "full" : "half";
+      if (m?.immutableFull) return prev;
+      const to: Span = m?.span === "half" ? "full" : "half";
       const nextMeta = { ...prev, [id]: { ...m, span: to } } as Partial<
         Record<WidgetId, WidgetMeta>
       >;
@@ -626,7 +640,7 @@ export default function Dashboard({
           const tgt = rows1.find(
             (r) =>
               r.items.length < 2 &&
-              (r.items.length === 0 || nextMeta[r.items[0]].span === "half")
+              (r.items.length === 0 || nextMeta[r.items[0]]?.span === "half")
           );
           if (tgt) tgt.items.push(id);
           else
@@ -650,7 +664,7 @@ export default function Dashboard({
 
   /* ---------------------------------- Render --------------------------------- */
   const isDraggingHalf = activeWidget
-    ? meta[activeWidget].span === "half"
+    ? meta[activeWidget]?.span === "half"
     : false;
 
   return (
@@ -724,13 +738,12 @@ export default function Dashboard({
         {/* Render rows and gaps. Nothing reflows during drag; only indicators update */}
         <div className="space-y-2">
           {rows.map((row, idx) => {
-            const visibleItems = row.items.filter((id) => meta[id].visible);
+            const visibleItems = row.items.filter((id) => meta[id]?.visible);
             if (visibleItems.length === 0) return null;
             const isFull =
               visibleItems.length === 1 &&
-              meta[visibleItems[0]].span === "full";
-            const isFixed = meta[visibleItems[0]].immutableFull;
-
+              meta[visibleItems[0]]?.span === "full";
+            const isFixed = meta[visibleItems[0]]?.immutableFull;
             return (
               <React.Fragment key={`frag-${row.id}`}>
                 <div className="w-full">

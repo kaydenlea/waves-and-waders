@@ -515,11 +515,11 @@ export default function ForecastTideChart({ beachId, date }: Props) {
         >
           {/* Day label bar (4 filled boxes) — fixed in viewport and aligned to visible days */}
           <div
-            className="w-[97%] flex justify-between"
+            className="w-[96%] flex justify-between"
             style={{
               position: "absolute",
               zIndex: 40,
-              left: "2%",
+              left: "3%",
               top: -35,
               boxSizing: "border-box",
               pointerEvents: "none",

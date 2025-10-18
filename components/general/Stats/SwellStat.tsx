@@ -51,7 +51,7 @@ const SwellStat = ({
   return (
     <div
       className={cn(
-        "grid grid-cols-[35px_35px_20px_1fr] @min-sm:grid-cols-[45px_35px_20px_1fr] items-center @min-sm:-my-0.5",
+        "grid grid-cols-[35px_35px_20px_1fr] @min-sm:grid-cols-[45px_35px_20px_1fr] @min-6xl:grid-cols-[35px_35px_20px_1fr] items-center @min-sm:-my-0.5 @min-6xl:my-0",
         // primary ? "border border-border shadow-sm rounded-md px-1" : "mx-3",
         primary && !isFull && ""
         // primary
@@ -92,8 +92,10 @@ const SwellStat = ({
               !small && primary && "text-md font-semibold",
               small &&
                 !primary &&
-                "text-[0.7rem] @min-sm:text-sm font-medium text-foreground/80",
-              small && primary && "text-xs @min-sm:text-base font-bold"
+                "text-[0.7rem] @min-sm:text-sm @min-6xl:text-xs font-medium text-foreground/80",
+              small &&
+                primary &&
+                "text-xs @min-sm:text-base @min-6xl:text-sm font-bold"
             )}
           >
             {typeof stat.value === "number"

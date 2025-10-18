@@ -182,7 +182,48 @@ const TEMP_CAP = 100; // For temperature circles
 
 const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
   // Visible immediately while data loads
-  const [stats, setStats] = useState<SummaryStat[]>([]);
+  const placeholderTime = new Date();
+  placeholderTime.setHours(0, 0, 0, 0);
+  const [stats, setStats] = useState<SummaryStat[]>([
+    {
+      type: "surf",
+      surf: {
+        height: "-",
+        period: 0,
+        intensity: 0,
+      },
+    },
+    {
+      type: "wind",
+      wind: {
+        speed: 0,
+        gust: 0,
+        loc: "-",
+        intensity: 0,
+      },
+    },
+    {
+      type: "tide",
+      currentHeight: 0,
+      peaks: [
+        // { kind: "high", time: placeholderTime, level: 0 },
+        // { kind: "low", time: placeholderTime, level: 0 },
+        // { kind: "high", time: placeholderTime, level: 0 },
+        // { kind: "low", time: placeholderTime, level: 0 },
+      ],
+      sunrise: "--:-- AM",
+      sunset: "--:-- PM",
+    },
+    {
+      type: "temperature",
+      waterTemp: 0,
+      airTemp: 0,
+      waterTempPercent: undefined,
+      airTempPercent: undefined,
+      weatherCode: undefined,
+    },
+    { type: "features", tags: [] },
+  ]);
   const [showAllFeatures, setShowAllFeatures] = useState(false);
   const featuresContainerRef = useRef<HTMLDivElement | null>(null);
   const [featuresOverflowing, setFeaturesOverflowing] = useState(false);
@@ -319,7 +360,7 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
           s.push({
             type: "surf",
             surf: {
-              height: surfHeightLabel,
+              height: surfHeightLabel ?? "-",
               period: surfPeriod,
               intensity: surfIntensity,
             },
@@ -1058,7 +1099,7 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
                     </span>
                   </div>
                 )}
-                <div className="flex flex-col gap-0.5 overflow-y-auto flex-1 min-h-26 justify-center">
+                <div className="flex flex-col overflow-y-auto flex-1">
                   {stat.peaks.length > 0 ? (
                     stat.peaks.slice(0, 4).map((peak) => (
                       <div

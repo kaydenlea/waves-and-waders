@@ -1,10 +1,8 @@
-import { useEffect, useState, useRef } from "react";
-import { motion, PanInfo, useMotionValue, useTransform } from "motion/react";
+import { useEffect, useState, useRef, useCallback } from "react";
+import { motion, PanInfo, useMotionValue, type Transition } from "motion/react";
 import React, { JSX } from "react";
-
-// replace icons with your own if needed
 import { File } from "lucide-react";
-import { cn } from "@/lib/utils";
+
 export interface CarouselItem {
   title: string;
   description: string;
@@ -58,7 +56,42 @@ const DEFAULT_ITEMS: CarouselItem[] = [
 const DRAG_BUFFER = 0;
 const VELOCITY_THRESHOLD = 500;
 const GAP = 16;
-const SPRING_OPTIONS = { type: "spring", stiffness: 300, damping: 30 };
+const SPRING_OPTIONS: Transition = {
+  type: "spring",
+  stiffness: 300,
+  damping: 30,
+};
+
+// linear interpolation helper (no clamping)
+function interpolate(
+  x: number,
+  input: [number, number],
+  output: [number, number]
+) {
+  const [a, b] = input;
+  const [oa, ob] = output;
+  if (b === a) return oa;
+  const t = (x - a) / (b - a);
+  return oa + t * (ob - oa);
+}
+
+// piecewise interpolation for 3 points like useTransform(range=[a,b,c], output=[o1,o2,o3])
+function piecewiseInterpolate(
+  x: number,
+  range: [number, number, number],
+  output: [number, number, number]
+) {
+  const [a, b, c] = range;
+  const [o1, o2, o3] = output;
+
+  if (x <= b) {
+    // interpolate between a->b -> o1->o2
+    return interpolate(x, [a, b], [o1, o2]);
+  } else {
+    // interpolate between b->c -> o2->o3
+    return interpolate(x, [b, c], [o2, o3]);
+  }
+}
 
 export default function Carousel({
   items = DEFAULT_ITEMS,
@@ -79,7 +112,7 @@ export default function Carousel({
   const [isHovered, setIsHovered] = useState<boolean>(false);
   const [isResetting, setIsResetting] = useState<boolean>(false);
 
-  const containerRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     if (pauseOnHover && containerRef.current) {
       const container = containerRef.current;
@@ -94,29 +127,18 @@ export default function Carousel({
     }
   }, [pauseOnHover]);
 
-  const carouselRef = useRef<HTMLDivElement>(null);
-  React.useEffect(() => {
+  const carouselRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
     const carousel = carouselRef.current;
     if (!carousel) return;
 
-    // const adjustData = () => {
-    //   const width = chart.clientWidth;
-    //   if (width < 500) {
-    //     setWindowSize(3);
-    //   } else if (width < 750) {
-    //     setWindowSize(5);
-    //   } else {
-    //     setWindowSize(7);
-    //   }
-    // };
-
     const adjustData = () => {
-      const width = carousel.clientWidth;
-      if (width < 410) {
+      const w = carousel.clientWidth;
+      if (w < 410) {
         setWidth(300);
-      } else if (width < 500) {
+      } else if (w < 500) {
         setWidth(400);
-      } else if (width < 600) {
+      } else if (w < 600) {
         setWidth(500);
       } else {
         setWidth(650);
@@ -125,7 +147,6 @@ export default function Carousel({
 
     const observer = new ResizeObserver(adjustData);
     observer.observe(carousel);
-
     adjustData();
 
     return () => observer.disconnect();
@@ -156,7 +177,9 @@ export default function Carousel({
     pauseOnHover,
   ]);
 
-  const effectiveTransition = isResetting ? { duration: 0 } : SPRING_OPTIONS;
+  const effectiveTransition: Transition = isResetting
+    ? { duration: 0 }
+    : SPRING_OPTIONS;
 
   const handleAnimationComplete = () => {
     if (loop && currentIndex === carouselItems.length - 1) {
@@ -197,6 +220,59 @@ export default function Carousel({
         },
       };
 
+  // Refs for item DOM nodes so we can set transforms imperatively
+  const itemRefs = useRef<Array<HTMLDivElement | null>>([]);
+  // Keep a ref to the latest carouselItems length so handler can read stable values
+  const carouselItemsLengthRef = useRef<number>(carouselItems.length);
+  useEffect(() => {
+    carouselItemsLengthRef.current = carouselItems.length;
+  }, [carouselItems.length]);
+
+  // Imperative subscription to x changes
+  useEffect(() => {
+    let rafId: number | null = null;
+    const handle = (val: number) => {
+      // batch updates in rAF
+      if (rafId != null) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        // for every current item, compute rotateY
+        const len = carouselItemsLengthRef.current;
+        for (let index = 0; index < len; index++) {
+          const el = itemRefs.current[index];
+          if (!el) continue;
+
+          const range = [
+            -(index + 1) * trackItemOffset,
+            -index * trackItemOffset,
+            -(index - 1) * trackItemOffset,
+          ];
+          const output: [number, number, number] = [90, 0, -90];
+          const rot = piecewiseInterpolate(
+            val,
+            range as [number, number, number],
+            output
+          );
+          // Apply rotateY - keep other transforms intact by setting transform preserve 3d
+          // To avoid overwriting potential transforms set by motion, set only rotateY and rely on translate on parent.
+          // We'll set transform-style to preserve-3d via style attribute on element.
+          el.style.transform = `rotateY(${rot}deg)`;
+          el.style.transformStyle = "preserve-3d";
+          el.style.willChange = "transform";
+        }
+      });
+    };
+
+    const unsubscribe = x.onChange(handle);
+    // initial set
+    handle(x.get());
+
+    return () => {
+      if (rafId != null) cancelAnimationFrame(rafId);
+      unsubscribe();
+    };
+  }, [trackItemOffset, x]);
+
+  // render
   return (
     <div
       ref={carouselRef}
@@ -232,48 +308,41 @@ export default function Carousel({
           transition={effectiveTransition}
           onAnimationComplete={handleAnimationComplete}
         >
-          {carouselItems.map((item, index) => {
-            const range = [
-              -(index + 1) * trackItemOffset,
-              -index * trackItemOffset,
-              -(index - 1) * trackItemOffset,
-            ];
-            const outputRange = [90, 0, -90];
-            const rotateY = useTransform(x, range, outputRange, {
-              clamp: false,
-            });
-            return (
-              <motion.div
-                key={index}
-                className={`relative shrink-0 flex flex-col ${
-                  round
-                    ? "items-center justify-center text-center bg-[#060010] border-0"
-                    : "items-start justify-between bg-highlight-5 border border-border rounded-[12px]"
-                } overflow-hidden cursor-grab active:cursor-grabbing`}
-                style={{
-                  width: itemWidth,
-                  height: itemWidth * 0.8,
-                  //   height: round ? itemWidth : "100%",
-                  rotateY: rotateY,
-                  ...(round && { borderRadius: "50%" }),
-                }}
-                transition={effectiveTransition}
-              >
-                <div className={`${round ? "p-0 m-0" : "mb-4 p-5"}`}>
-                  <span className="flex h-[28px] w-[28px] items-center justify-center rounded-full bg-highlight-7 border border-border">
-                    {item.icon}
-                  </span>
+          {carouselItems.map((item, index) => (
+            <motion.div
+              key={index}
+              ref={(el) => {
+                itemRefs.current[index] = el;
+              }}
+              className={`relative shrink-0 flex flex-col ${
+                round
+                  ? "items-center justify-center text-center bg-[#060010] border-0"
+                  : "items-start justify-between bg-highlight-5 border border-border rounded-[12px]"
+              } overflow-hidden cursor-grab active:cursor-grabbing`}
+              style={{
+                width: itemWidth,
+                height: itemWidth * 0.8,
+                // don't set rotateY here; it's handled imperatively
+                ...(round && { borderRadius: "50%" }),
+              }}
+              transition={effectiveTransition}
+            >
+              <div className={`${round ? "p-0 m-0" : "mb-4 p-5"}`}>
+                <span className="flex h-[28px] w-[28px] items-center justify-center rounded-full bg-highlight-7 border border-border">
+                  {item.icon}
+                </span>
+              </div>
+              <div className="p-5">
+                <div className="mb-1 font-black text-lg text-foreground">
+                  {item.title}
                 </div>
-                <div className="p-5">
-                  <div className="mb-1 font-black text-lg text-foreground">
-                    {item.title}
-                  </div>
-                  <p className="text-sm text-foreground">{item.description}</p>
-                </div>
-              </motion.div>
-            );
-          })}
+                <p className="text-sm text-foreground">{item.description}</p>
+              </div>
+            </motion.div>
+          ))}
         </motion.div>
+
+        {/* Dots */}
         <div
           className={`flex w-full justify-center ${
             round ? "absolute z-20 bottom-12 left-1/2 -translate-x-1/2" : ""

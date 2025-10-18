@@ -544,12 +544,25 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
         chartDays={fmtRange}
       /> */}
       <div
-        className="w-[86%] @min-sm:w-[90%] @min-md:w-[92%] @min-lg:w-[92%] @min-xl:w-[94%] @min-3xl:w-[96%] flex justify-between"
+        // className="w-[86%] @min-sm:w-[90%] @min-md:w-[92%] @min-lg:w-[92%] @min-xl:w-[94%] @min-3xl:w-[96%] flex justify-between"
+        // style={{
+        //   position: "relative",
+        //   zIndex: 40,
+        //   right: 15,
+        //   left: 25,
+        //   top: 0,
+        //   // gap: 8,
+        //   // paddingLeft: 8,
+        //   // paddingRight: 8,
+        //   boxSizing: "border-box",
+        //   pointerEvents: "none",
+        // }}
+        className="w-[calc(100%-60px)] flex justify-between"
         style={{
           position: "relative",
           zIndex: 40,
-          right: 15,
-          left: 25,
+          // right: 15,
+          left: 40,
           top: 0,
           // gap: 8,
           // paddingLeft: 8,
@@ -578,7 +591,10 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
             }}
           >
             <div className="@min-sm:whitespace-nowrap max-w-20 mx-auto p-1 rounded-sm bg-highlight-7 border border-border">
-              {label}
+              <span className="@min-md:inline-block hidden">{label}</span>
+              <span className="inline-block @min-md:hidden">
+                {label.split(",")[0]}
+              </span>
             </div>
           </div>
         ))}
@@ -598,7 +614,9 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
           syncId="anyId"
         >
           {visibleData.map((entry, idx) =>
-            entry.hour % 24 === 0 && idx !== visibleData.length - 1 ? (
+            entry.hour % 24 === 0 &&
+            idx !== 0 &&
+            idx !== visibleData.length - 1 ? (
               <ReferenceLine
                 key={entry.hour}
                 x={entry.hour}

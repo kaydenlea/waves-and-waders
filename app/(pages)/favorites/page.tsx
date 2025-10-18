@@ -22,10 +22,7 @@ const toNumber = (value: number | string | null): number | null => {
 
 export default async function FavoritesPage() {
   const supabase = await getServerSupabase();
-  const {
-    data: userData,
-    error: userError,
-  } = await supabase.auth.getUser();
+  const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError) {
     console.error("Failed to load user", userError);
   }
@@ -90,17 +87,16 @@ export default async function FavoritesPage() {
                   id: beach.id.toString(),
                   name: beach.Name,
                   region: beach.COUNTY ?? "",
-                  coords: [
-                    lat ?? 0,
-                    lon ?? 0,
-                  ],
+                  coords: [lat ?? 0, lon ?? 0],
                   image: "",
                   conditions: {
                     surf: "-",
                     wind: "-",
+                    windDir: 0,
                     temp: 0,
                     rating: 0,
                   },
+                  features: [],
                 }}
                 isFav
               />

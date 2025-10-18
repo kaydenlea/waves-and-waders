@@ -186,7 +186,7 @@ const TideChart: React.FC<TideChartProps> = ({
     }
 
     // Mark the unique peaks
-    uniquePeaks.forEach(idx => {
+    uniquePeaks.forEach((idx) => {
       annotated[idx].isPeak = Number(annotated[idx].tide.toFixed(1));
     });
 
@@ -249,7 +249,9 @@ const TideChart: React.FC<TideChartProps> = ({
         // Fetch extra data (6 hours before and after) to detect peaks at window boundaries
         const BUFFER_HOURS = 6;
         const fetchStart = new Date(startMs - BUFFER_HOURS * HOURS_TO_MS);
-        const fetchEnd = new Date(startMs + (hours + BUFFER_HOURS) * HOURS_TO_MS);
+        const fetchEnd = new Date(
+          startMs + (hours + BUFFER_HOURS) * HOURS_TO_MS
+        );
 
         const tideRows = await fetchBeachTides(id, fetchStart, fetchEnd);
         let rows: ExternalTidePoint[];
@@ -340,7 +342,12 @@ const TideChart: React.FC<TideChartProps> = ({
             markers.push(closestToRise.hour);
           }
         }
-        if (setHourRaw >= 0 && setHourRaw <= hours && setHourRaw !== riseHourRaw && chartData.length > 0) {
+        if (
+          setHourRaw >= 0 &&
+          setHourRaw <= hours &&
+          setHourRaw !== riseHourRaw &&
+          chartData.length > 0
+        ) {
           // Find the data point closest to sunset
           const closestToSet = chartData.reduce((closest, point) => {
             const currentDiff = Math.abs(point.hour - setHourRaw);
@@ -490,7 +497,7 @@ const TideChart: React.FC<TideChartProps> = ({
                 />
               );
             }
-            return null;
+            return <g key={point.hour} />;
           }}
         >
           <LabelList
@@ -526,7 +533,11 @@ const TideChart: React.FC<TideChartProps> = ({
               // Adjust text anchor based on position to prevent labels bleeding off edges
               const isNearStart = point.hour <= 1;
               const isNearEnd = point.hour >= hours - 1;
-              const textAnchor = isNearStart ? "start" : isNearEnd ? "end" : "middle";
+              const textAnchor = isNearStart
+                ? "start"
+                : isNearEnd
+                ? "end"
+                : "middle";
 
               return (
                 <g>

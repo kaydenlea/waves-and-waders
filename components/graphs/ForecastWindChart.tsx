@@ -306,27 +306,22 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
       });
   const startDayIdx = source.findIndex((entry) => entry.day === startDay);
   const visibleData = source.slice(startDayIdx, startDayIdx + windowSize);
-  const fmt = (ms: number) =>
-    new Date(ms).toLocaleDateString("en-US", {
-      weekday: "short",
-      month: "numeric",
-      day: "numeric",
-      timeZone: "America/Los_Angeles",
-    });
-  // const daysLabel = visibleData.length
-  //   ? `${fmt(visibleData[0].dateMs)} - ${fmt(
-  //       visibleData[visibleData.length - 1].dateMs
-  //     )}`
-  //   : "";
-  React.useEffect(() => {
-    setDaysLabel(
-      visibleData.length
-        ? `${fmt(visibleData[0].dateMs)} - ${fmt(
-            visibleData[visibleData.length - 1].dateMs
-          )}`
-        : ""
-    );
-  }, [visibleData, setDaysLabel]);
+  // const fmt = (ms: number) =>
+  //   new Date(ms).toLocaleDateString("en-US", {
+  //     weekday: "short",
+  //     month: "numeric",
+  //     day: "numeric",
+  //     timeZone: "America/Los_Angeles",
+  //   });
+  // React.useEffect(() => {
+  //   setDaysLabel(
+  //     visibleData.length
+  //       ? `${fmt(visibleData[0].dateMs)} - ${fmt(
+  //           visibleData[visibleData.length - 1].dateMs
+  //         )}`
+  //       : ""
+  //   );
+  // }, [visibleData, setDaysLabel]);
   const showSlider = windowSize > 0 && windowSize < length;
   return (
     <>
@@ -465,7 +460,10 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
             tickLine={false}
             axisLine={false}
             tickMargin={0}
-            domain={[0, (dataMax: number) => Math.max(8, Math.ceil(dataMax + 5))]}
+            domain={[
+              0,
+              (dataMax: number) => Math.max(8, Math.ceil(dataMax + 5)),
+            ]}
           />
           <ChartTooltip content={<ChartTooltipContent />} />
           <Bar

@@ -14,7 +14,7 @@ export default function PathStyleWrapper({
 
   const cls = useMemo(() => {
     if (beachPage) {
-      return "w-full @min-4xl:w-105 @min-7xl:w-200";
+      return "w-full @min-4xl:w-90 @min-[1400px]:min-w-180";
     }
     return "@min-4xl:flex-1 max-w-320";
   }, [beachPage]);
