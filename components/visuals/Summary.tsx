@@ -1130,7 +1130,7 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
                       </div>
                     ))
                   ) : (
-                    <span className="text-sm text-muted-foreground text-center">
+                    <span className="text-sm text-muted-foreground text-center h-16 flex items-center">
                       Tide peaks unavailable
                     </span>
                   )}
@@ -1179,7 +1179,7 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
                   {/* Visible container */}
                   <div
                     ref={containerRef}
-                    className="flex items-center gap-2 overflow-hidden mt-2 p-1 min-h-9"
+                    className="flex items-center gap-2 overflow-hidden mt-2 p-1 min-h-10"
                     style={{ gap: `${gapPx}px` }}
                   >
                     {visibleItems.map((tag) => (

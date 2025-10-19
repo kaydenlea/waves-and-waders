@@ -192,9 +192,12 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
   const EDGE_GUTTER_PX = 35;
   const closeTo = (a: number, b: number, tolerance = 0.05) =>
     Math.abs(a - b) <= tolerance;
-  const makeAreaShape =
-    (color: string, touchesLeft: boolean, touchesRight: boolean) =>
-    (props: any) => {
+  const makeAreaShape = (
+    color: string,
+    touchesLeft: boolean,
+    touchesRight: boolean
+  ) => {
+    const AreaShape = (props: any) => {
       const x = typeof props.x === "number" ? props.x : 0;
       const y = typeof props.y === "number" ? props.y : 0;
       const width = typeof props.width === "number" ? props.width : 0;
@@ -213,6 +216,10 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
         />
       );
     };
+
+    AreaShape.displayName = `AreaShape(${color})`;
+    return AreaShape;
+  };
 
   return (
     <ChartContainer

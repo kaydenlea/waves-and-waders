@@ -70,8 +70,8 @@ const VisualWrapper = ({
     <figure className="relative flex-1">
       <div className="bg-highlight-4 border border-border/40 rounded-2xl shadow-sm h-full w-full">
         <div className="p-2">
-          <div className="p-2 rounded-2xl bg-highlight-6 w-full shadow-even">
-            <header className="p-2 flex justify-between gap-1 items-center">
+          <div className="p-1 rounded-xl bg-highlight-6 w-full shadow-even">
+            <header className="p-1 flex justify-between gap-1 items-center">
               <div className="flex items-center gap-2">
                 <div
                   className={cn(
@@ -81,7 +81,7 @@ const VisualWrapper = ({
                 >
                   {iconDef.icon}
                 </div>
-                <h3 className="leading-none font-semibold text-xl">{label}</h3>
+                <h3 className="leading-none font-semibold text-lg">{label}</h3>
               </div>
               {unit && (
                 <span className="flex items-center px-2 py-1 rounded-md bg-highlight-4 text-sm shadow-sm font-medium">

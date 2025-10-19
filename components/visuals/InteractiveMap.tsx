@@ -1615,7 +1615,10 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
         aria-label="Scroll to content"
       >
         <ChevronDown size={16} />
-        <span>View More</span>
+        <span>
+          View{" "}
+          {fullMapPage ? (forecastPage ? "Forecast" : "Overview") : "Beaches"}
+        </span>
       </button>
     </aside>
   );

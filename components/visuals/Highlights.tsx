@@ -626,7 +626,7 @@ const Highlights = ({
               <li
                 key={stat.label}
                 className={cn(
-                  "relative highlight-card shadow-even min-h-25",
+                  "relative highlight-card shadow-even min-h-22",
                   stat.label === "swell" && "col-span-1 @min-2xl:col-span-1",
                   stat.label === "swell" && !isFull && "@min-3xl:col-span-2",
                   stat.label === "swell" && isFull && "@min-4xl:col-span-1"

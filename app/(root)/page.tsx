@@ -234,6 +234,7 @@ import { LazyLoadSpotlightCard } from "@/components/general/LazyLoad/LazyLoadSpo
 import { Description } from "@/components/visuals/AnimatedCardsSection";
 import AnimatedCountSection from "@/components/visuals/AnimatedCountSection";
 import FaqSection from "@/components/visuals/FaqSection";
+import NavBar from "@/components/general/NavBar";
 
 // const Canvas = dynamic(
 //   () => import("@react-three/fiber").then((m) => m.Canvas),
@@ -503,71 +504,7 @@ const Home = () => {
   return (
     <div className="touch-pan-y">
       <header className="fixed top-0 z-40 w-full bg-background/80 backdrop-blur rounded-b-md">
-        <div className="mx-auto flex items-center justify-between px-4 py-6 sm:px-6">
-          <Link
-            href="#"
-            className="group inline-flex items-center gap-2 outline-none"
-          >
-            <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-cyan-300 to-blue-500 text-foreground shadow-lg shadow-cyan-500/20">
-              <Waves className="h-6 w-6" aria-hidden />
-            </div>
-            <span className="text-lg font-semibold tracking-tight text-foreground hidden sm:block">
-              Waves<span className="ml-[0.9]">&</span>Waders
-            </span>
-            <span className="text-lg font-semibold tracking-tight text-foreground sm:hidden">
-              W&W
-            </span>
-          </Link>
-          <nav className="text-lg hidden items-center gap-6 md:flex">
-            <Link
-              className="text-foreground transition hover:text-foreground"
-              href="#nearby"
-            >
-              Nearby
-            </Link>
-            <Link
-              className="text-foreground transition hover:text-foreground"
-              href="#saved"
-            >
-              Saved
-            </Link>
-            <Link
-              className="text-foreground transition hover:text-foreground"
-              href="#why"
-            >
-              Why Us
-            </Link>
-          </nav>
-          <div className="flex items-center gap-3">
-            {/* <button
-              onClick={() => setUseMiles((p) => !p)}
-              className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/80 hover:bg-white/10"
-              aria-label="Toggle miles/kilometers"
-            >
-              {useMiles ? "mi" : "km"}
-            </button> */}
-            <Link
-              href="/"
-              className="whitespace-nowrap flex items-center font-medium text-foreground hidden md:flex hover:bg-highlight-3 p-2 rounded-full"
-            >
-              Sign in
-            </Link>
-            <Link
-              href="#search"
-              className="inline-flex items-center gap-1 rounded-full bg-gradient-to-br from-cyan-300 to-blue-500 p-3 font-medium text-foreground shadow-lg shadow-cyan-500/30 transition active:scale-[0.98]"
-            >
-              {/* <Search className="h-5 w-5" strokeWidth={3} /> Search */}
-              <Search className="h-5 w-5" strokeWidth={3} />
-            </Link>
-            <ThemeToggle className="p-3 hover:bg-highlight-3 text-foreground hidden md:block" />
-            <button
-              aria-label="more options"
-              className="icon-button p-3 hover:bg-highlight-3 text-foreground md:hidden"
-            >
-              <AlignJustify className="icon-md" />
-            </button>
-          </div>
-        </div>
+        <NavBar landingPage />
       </header>
       <main className="relative min-h-screen bg-background text-foreground selection:bg-cyan-300/40">
         <script
@@ -586,8 +523,12 @@ const Home = () => {
             }),
           }}
         />
-        <div className="relative pb-16">
-          <LazyLoadOceanScene />
+        <div className="relative pb-2 @min-5xl:pb-8">
+          <div className="absolute w-full h-full mx-auto px-5 md:px-10 pt-24">
+            <div className="w-full h-full bg-black/80 dark:bg-blue rounded-3xl">
+              <LazyLoadOceanScene />
+            </div>
+          </div>
           {/* <Image
             className="absolute z-0 rounded-b-2xl"
             src="/surf2.png"
@@ -597,7 +538,7 @@ const Home = () => {
             priority
           /> */}
           <section className="@container relative mx-auto grid max-w-7xl grid-cols-1 items-center gap-10 px-6 py-12 sm:px-6 md:py-20">
-            <div className="mt-[7rem] lg:mt-[9rem]">
+            <div className="mt-[6rem] lg:mt-[7rem]">
               <div className="flex justify-center mb-4">
                 <Badge icon={Sparkles}>All-in-one forecasts</Badge>
               </div>
@@ -607,23 +548,23 @@ const Home = () => {
                   before you go
                 </span>
               </h1>
-              <p className="mx-auto text-center mt-4 text-md md:text-xl text-white">
+              <p className="mx-auto text-center mt-4 text-md md:text-xl max-w-sm lg:max-w-full text-white">
                 Live surf conditions. Ultra-fast search. Personalized forecast.
               </p>
-              <div className="mt-6 flex flex-wrap items-center gap-3">
-                <div className="flex flex-row flex-wrap items-center justify-center w-full gap-2 whitespace-nowrap">
+              <div className="mt-6 @min-4xl:mt-12 flex flex-wrap items-center gap-3">
+                <div className="flex flex-row flex-wrap items-center justify-center w-full gap-5 whitespace-nowrap">
                   <Link
                     href="/beaches"
-                    className="group inline-flex items-center gap-2 rounded-full bg-foreground border border-transparent px-4 py-3 font-medium text-background shadow-xl transition hover:shadow-cyan-500/20"
+                    className="text-base @min-4xl:text-lg group inline-flex items-center gap-2 rounded-full bg-foreground border border-transparent px-4 py-3 @min-4xl:px-5 @min-4xl:py-4 font-medium text-background shadow-xl transition hover:shadow-cyan-500/20"
                   >
-                    <Compass className="h-4 w-4" /> Explore
+                    <Compass className="h-5 w-5" /> Explore
                     <span className="hidden md:block md:-ml-1">nearby</span>
                   </Link>
                   <Link
-                    href="#search"
-                    className="shadow-xl inline-flex items-center gap-2 rounded-full border border-border/40 bg-highlight-1 px-4 py-3 font-medium text-foreground/90 backdrop-blur transition hover:shadow-cyan-500/20"
+                    href="/favorites"
+                    className="text-base @min-4xl:text-lg shadow-xl inline-flex items-center gap-2 rounded-full border border-border/40 bg-highlight-1 px-4 py-3 @min-4xl:px-5 @min-4xl:py-4 font-medium text-foreground/90 backdrop-blur transition hover:shadow-cyan-500/20"
                   >
-                    <Heart className="h-4 w-4" /> Saved
+                    <Heart className="h-5 w-5" /> Saved
                     <span className="hidden md:block md:-ml-1">spots</span>
                   </Link>
                 </div>
@@ -640,9 +581,9 @@ const Home = () => {
             /> */}
           </section>
 
-          <section
+          {/* <section
             id="search"
-            className="mx-auto max-w-70 xs:max-w-80 sm:max-w-140 md:max-w-xl lg:max-w-5xl px-4 sm:px-6"
+            className="mx-auto max-w-70 xs:max-w-80 sm:max-w-140 md:max-w-xl lg:max-w-3xl xl:max-w-5xl px-4 sm:px-6"
           >
             <div className="rounded-3xl border border-border/50 bg-highlight-1/15 dark:bg-highlight-2 p-4 backdrop-blur md:p-6 shadow-md">
               <div className="flex flex-col items-start gap-3 md:flex-row md:items-center">
@@ -656,27 +597,6 @@ const Home = () => {
                     onChange={(e) => setQuery(e.target.value)}
                   />
                 </div>
-                {/* <div className="flex w-full flex-wrap items-center gap-2 md:w-1/3 md:justify-end">
-                  {[
-                    { label: "Sandy", key: "SNDY_BEACH" },
-                    { label: "Bathrooms", key: "RESTROOMS" },
-                    { label: "Fishing", key: "FISHING" },
-                  ].map((chip) => (
-                    <button
-                      key={chip.key}
-                      onClick={() =>
-                        setFeatureFilters((prev) => {
-                          const next = new Set(prev);
-                          next.has(chip.key) ? next.delete(chip.key) : next.add(chip.key);
-                          return next;
-                        })
-                      }
-                      className={`rounded-full border px-3 py-1 text-sm transition ${featureFilters.has(chip.key) ? "border-blue bg-blue text-white" : "border-border/10 bg-muted-foreground/20 text-foreground/80 hover:bg-foreground/10"}`}
-                    >
-                      {chip.label}
-                    </button>
-                  ))}
-                </div> */}
               </div>
 
               {query && (
@@ -705,18 +625,18 @@ const Home = () => {
                 </ul>
               )}
             </div>
-            {/* <div className="flex justify-center">
+          </section> */}
+          {/* <div className="flex justify-center">
               <LazyLoadLogoLoop
                 className="text-white touch-pan-y"
                 width="98%"
               />
             </div> */}
-            {/* <div className="mt-8 flex flex-wrap justify-center gap-2">
+          {/* <div className="mt-8 flex flex-wrap justify-center gap-2">
               <Badge icon={Zap}>Realtime swell + wind</Badge>
               <Badge icon={ShieldCheck}>Verified buoy sources</Badge>
               <Badge icon={Trophy}>Crowd-rated breaks</Badge>
             </div> */}
-          </section>
         </div>
 
         {/* <section
@@ -794,7 +714,7 @@ const Home = () => {
                   <span className="hidden md:block md:-ml-1">nearby</span>
                 </Link>
                 <Link
-                  href="#search"
+                  href="/favorites"
                   className="shadow-xl inline-flex items-center gap-2 rounded-full border border-border/40 bg-highlight-1 px-4 py-3 font-medium text-foreground/90 backdrop-blur transition hover:shadow-cyan-500/20"
                 >
                   <Heart className="h-4 w-4" /> Saved

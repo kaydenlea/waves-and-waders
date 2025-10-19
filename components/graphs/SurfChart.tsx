@@ -287,7 +287,7 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
       );
     };
 
-    // ✅ Assign a display name for debugging & ESLint
+    // Assign a display name for debugging & ESLint
     AreaShape.displayName = `AreaShape(${color})`;
 
     return AreaShape;

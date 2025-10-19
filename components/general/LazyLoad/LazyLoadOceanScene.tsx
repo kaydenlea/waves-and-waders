@@ -8,6 +8,6 @@ export const LazyLoadOceanScene = dynamic(
   {
     ssr: false,
     // loading: () => <VisualFallback />,
-    loading: () => <div className="absolute">Loading...</div>,
+    loading: () => <div />,
   }
 );

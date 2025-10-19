@@ -164,11 +164,9 @@ const WaveBg: React.FC<WaveBgProps> = ({
   );
 
   return (
-    <div className="absolute w-full h-full mx-auto px-5 pt-30">
-      <Canvas dpr={[1, 2]} frameloop="always" className="rounded-2xl">
-        <SilkPlane ref={meshRef} uniforms={uniforms} />
-      </Canvas>
-    </div>
+    <Canvas dpr={[1, 2]} frameloop="always" className="rounded-3xl">
+      <SilkPlane ref={meshRef} uniforms={uniforms} />
+    </Canvas>
   );
 };
 

@@ -200,6 +200,7 @@ const SwellChart = ({ beachId, hours = 24, date }: Props) => {
         accessibilityLayer
         data={data}
         margin={{
+          top: 10,
           right: 10,
           left: -28,
         }}

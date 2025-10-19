@@ -28,7 +28,7 @@ export const Description = ({ className }: { className?: string }) => {
             <span className="hidden md:block md:-ml-1">nearby</span>
           </Link>
           <Link
-            href="#search"
+            href="/favorites"
             className="shadow-xl inline-flex items-center gap-2 rounded-full border border-border/40 bg-highlight-1 px-4 py-3 font-medium text-foreground/90 backdrop-blur transition hover:shadow-cyan-500/20"
           >
             <Heart className="h-4 w-4" /> Saved
