@@ -49,6 +49,33 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
   const [nightAreas, setNightAreas] = useState<{ x1: number; x2: number }[]>(
     []
   );
+  const [buffer, setBuffer] = useState<number>(0);
+  const [width, setWidth] = useState<number>(0);
+  const chartRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+
+    const adjustData = () => {
+      const width = chart.clientWidth;
+      setWidth(width);
+      if (width < 350) {
+        setBuffer(15);
+      } else if (width < 800) {
+        setBuffer(40);
+      } else {
+        setBuffer(65);
+      }
+    };
+
+    const observer = new ResizeObserver(adjustData);
+    observer.observe(chart);
+
+    adjustData();
+
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -189,7 +216,7 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
     return ticks;
   }, [hours]);
 
-  const EDGE_GUTTER_PX = 35;
+  // const EDGE_GUTTER_PX = 35;
   const closeTo = (a: number, b: number, tolerance = 0.05) =>
     Math.abs(a - b) <= tolerance;
   const makeAreaShape = (
@@ -202,8 +229,8 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
       const y = typeof props.y === "number" ? props.y : 0;
       const width = typeof props.width === "number" ? props.width : 0;
       const height = typeof props.height === "number" ? props.height : 0;
-      const leftPad = touchesLeft ? EDGE_GUTTER_PX : 0;
-      const rightPad = touchesRight ? EDGE_GUTTER_PX : 0;
+      const leftPad = touchesLeft ? buffer : 0;
+      const rightPad = touchesRight ? buffer : 0;
       return (
         <rect
           x={x - leftPad}
@@ -223,6 +250,7 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
 
   return (
     <ChartContainer
+      ref={chartRef}
       config={chartConfig}
       className="aspect-auto h-[300px] w-full"
     >
@@ -274,7 +302,7 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
           tickLine={false}
           tickMargin={10}
           axisLine={false}
-          padding={{ left: 35, right: 35 }}
+          padding={{ left: buffer, right: buffer }}
           domain={[domainStart, domainEnd]}
           ticks={hourTicks}
           scale="linear"
@@ -347,7 +375,7 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
                 typeof props.width === "number" ? props.width : 0;
               const safeHeight =
                 typeof props.height === "number" ? props.height : 0;
-              const iconSize = Math.min(20, safeWidth * 0.6);
+              const iconSize = Math.min(20, safeWidth * 0.8);
 
               // Get wind direction from the data point
               const dataPoint = chartData[props.index ?? 0];
@@ -358,7 +386,7 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
 
               // Calculate center point for rotation - position on top of bar
               const centerX = safeX + safeWidth / 2;
-              const centerY = safeY - iconSize / 2 - 2; // Position above the bar
+              const centerY = safeY - iconSize / 2 - 7; // Position above the bar
 
               return (
                 <g>
@@ -406,9 +434,11 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
                       fontWeight="bold"
                       fontSize={fontSize}
                     >
-                      {`${Math.round(props.value)}-${
-                        Math.round(props.value) + 1
-                      }`}
+                      {width < 500
+                        ? `${Math.round(props.value)}`
+                        : `${Math.round(props.value)}-${
+                            Math.round(props.value) + 1
+                          }`}
                     </text>
                   </g>
                 );

@@ -49,6 +49,34 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
     []
   );
 
+  const [buffer, setBuffer] = useState<number>(0);
+  const [width, setWidth] = useState<number>(0);
+  const chartRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+
+    const adjustData = () => {
+      const width = chart.clientWidth;
+      setWidth(width);
+      if (width < 350) {
+        setBuffer(15);
+      } else if (width < 800) {
+        setBuffer(40);
+      } else {
+        setBuffer(65);
+      }
+    };
+
+    const observer = new ResizeObserver(adjustData);
+    observer.observe(chart);
+
+    adjustData();
+
+    return () => observer.disconnect();
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -258,7 +286,7 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
     return ticks;
   }, [hours]);
 
-  const EDGE_GUTTER_PX = 35;
+  // const EDGE_GUTTER_PX = 35;
   const closeTo = (a: number, b: number, tolerance = 0.05) =>
     Math.abs(a - b) <= tolerance;
   const makeAreaShape = (
@@ -271,8 +299,8 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
       const y = typeof props.y === "number" ? props.y : 0;
       const width = typeof props.width === "number" ? props.width : 0;
       const height = typeof props.height === "number" ? props.height : 0;
-      const leftPad = touchesLeft ? EDGE_GUTTER_PX : 0;
-      const rightPad = touchesRight ? EDGE_GUTTER_PX : 0;
+      const leftPad = touchesLeft ? buffer : 0;
+      const rightPad = touchesRight ? buffer : 0;
 
       return (
         <rect
@@ -295,6 +323,7 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
 
   return (
     <ChartContainer
+      ref={chartRef}
       config={chartConfig}
       className="aspect-auto h-[300px] w-full !justify-start"
     >
@@ -350,7 +379,7 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
           tickLine={false}
           tickMargin={10}
           axisLine={false}
-          padding={{ left: 35, right: 35 }}
+          padding={{ left: buffer, right: buffer }}
           domain={[domainStart, domainEnd]}
           ticks={hourTicks}
           scale="linear"
