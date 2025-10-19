@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSupabaseClient, useUser } from "@supabase/auth-helpers-react";
-import { LogOut, UserCircle2 } from "lucide-react";
+import { LogIn, LogOut, User, UserCircle2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -23,9 +23,10 @@ export const UserMenu = () => {
   if (!user) {
     return (
       <Link
-        className="px-2 flex-1 rounded-md sm:rounded-full hover:bg-highlight-5 py-0.5 sm:py-3 w-full sm:w-20 text-left sm:text-center"
+        className="px-2 flex-1 rounded-md sm:rounded-full hover:bg-highlight-5 py-1.5 sm:py-3 w-full sm:w-20 text-left sm:text-center flex items-center gap-2"
         href="/login"
       >
+        <LogIn className="w-5 h-5 -mt-0.5 block sm:hidden" />
         <span className="text-base font-normal sm:font-medium">Sign in</span>
       </Link>
     );

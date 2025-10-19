@@ -1,10 +1,11 @@
 import Link from "next/link";
 import SearchBar from "./SearchBar";
 import ThemeToggle from "./ThemeToggle";
-import { AlignJustify, Waves } from "lucide-react";
+import { AlignJustify, Heart, MapPinned, Waves } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { UserMenu } from "@/components/auth/UserMenu";
 import { cn } from "@/lib/utils";
+import { Switch } from "../ui/switch";
 
 {
   /* <div className="mx-auto flex items-center justify-between px-4 py-5.5 sm:px-6">
@@ -113,19 +114,21 @@ const NavBar = ({ landingPage = false }: { landingPage?: boolean }) => {
             <PopoverTrigger className="icon-button p-3 hover:bg-highlight-5">
               <AlignJustify className="icon-md" />
             </PopoverTrigger>
-            <PopoverContent className="z-50 max-w-50 flex flex-col gap-1">
+            <PopoverContent className="z-50 max-w-50 flex flex-col">
               <Link
-                className="hover:bg-highlight-5 px-2 py-0.5 rounded-md"
+                className="hover:bg-highlight-5 px-2 py-1.5 rounded-md flex items-center gap-2"
                 href="/beaches"
               >
-                Browse beaches
+                <MapPinned className="w-5 h-5 -mt-0.5" /> Browse spots
               </Link>
               <Link
-                className="hover:bg-highlight-5 px-2 py-0.5 rounded-md"
+                className="hover:bg-highlight-5 px-2 py-1.5 rounded-md flex items-center gap-2"
                 href="/favorites"
               >
-                Your favorites
+                <Heart className="w-5 h-5 -mt-0.5" />
+                Saved spots
               </Link>
+              <ThemeToggle switchMode />
               <div className="sm:hidden border-t border-border/40 pt-1.5 mt-1.5 flex">
                 <UserMenu />
               </div>

@@ -917,7 +917,7 @@ export default function NearbyBeaches({
   // console.log("FINAL BEACHES", currentItems);
   return (
     <>
-      <div className="flex mb-4 ml-2 items-center justify-between gap-10">
+      <div className="flex mb-4 ml-2 items-center justify-between gap-10 mx-2">
         {status === "locating" && (
           <div className="text-sm text-foreground/70">
             Finding your location…

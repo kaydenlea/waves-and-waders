@@ -2,11 +2,35 @@
 
 import * as React from "react";
 import { useTheme } from "next-themes";
-import { SunMoon } from "lucide-react";
+import { Moon, Sun, SunMoon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const ThemeToggle = ({ className }: { className?: string }) => {
+const ThemeToggle = ({
+  switchMode = false,
+  className,
+}: {
+  switchMode?: boolean;
+  className?: string;
+}) => {
   const { theme, setTheme } = useTheme();
+  if (switchMode) {
+    return (
+      <button
+        aria-label="theme toggle"
+        onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+        className="block @min-4xl:hidden px-2 py-1.5 rounded-md flex items-center gap-2 hover:bg-highlight-5"
+      >
+        {theme === "light" ? (
+          <Sun className="w-5 h-5 -mt-0.5" />
+        ) : (
+          <Moon className="w-5 h-5 -mt-0.5" />
+        )}
+        <span>
+          <span className="capitalize">{theme}</span> mode
+        </span>
+      </button>
+    );
+  }
   return (
     <button
       aria-label="theme toggle"
