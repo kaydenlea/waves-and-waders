@@ -342,123 +342,128 @@ const DatePicker = ({
       )}
     >
       {orderedKeys.length === 0 && (
-        <div className="w-full py-6 text-center text-sm text-muted-foreground">
+        <div className="w-full py-10 text-center text-sm text-muted-foreground">
           {loading ? "Loading forecast days..." : "No forecast data available."}
         </div>
       )}
-      <Carousel
-        opts={{ align: "start", loop: false, dragFree: true }}
-        setApi={setApi}
-        className="w-full flex items-center gap-1"
-      >
-        <CarouselPrevious onClick={handlePrev} />
-        <CarouselContent className="mx-1">
-          {orderedKeys.map((key, index) => {
-            const summary = summaries[key];
-            const day = summary?.date ?? dayjs(key);
-            const controlledSelected = value
-              ? day.isSame(dayjs(value), "day")
-              : undefined;
-            const isSelected =
-              controlledSelected ??
-              (selectedDate ? selectedDate.isSame(day, "day") : index === 0);
-            const max = summary?.max ?? null;
-            const minWithFallback =
-              summary?.min ?? (max != null && max <= 1 ? 0 : null);
-            const hasRange = minWithFallback != null && max != null;
-            const code = summary?.code ?? null;
-            const weather = getWeatherIcon(code);
-            const weatherSmall = getWeatherIcon(code, 20);
+      {orderedKeys.length > 0 && (
+        <Carousel
+          opts={{ align: "start", loop: false, dragFree: true }}
+          setApi={setApi}
+          className="w-full flex items-center gap-1"
+        >
+          <CarouselPrevious onClick={handlePrev} />
+          <CarouselContent className="mx-1">
+            {orderedKeys.map((key, index) => {
+              const summary = summaries[key];
+              const day = summary?.date ?? dayjs(key);
+              const controlledSelected = value
+                ? day.isSame(dayjs(value), "day")
+                : undefined;
+              const isSelected =
+                controlledSelected ??
+                (selectedDate ? selectedDate.isSame(day, "day") : index === 0);
+              const max = summary?.max ?? null;
+              const minWithFallback =
+                summary?.min ?? (max != null && max <= 1 ? 0 : null);
+              const hasRange = minWithFallback != null && max != null;
+              const code = summary?.code ?? null;
+              const weather = getWeatherIcon(code);
+              const weatherSmall = getWeatherIcon(code, 20);
 
-            // Use rounded max for color to match displayed range
-            const maxRounded = max != null ? Math.round(max) : null;
-            const color = !hasRange
-              ? "bg-highlight-3"
-              : maxRounded! >= 6
-              ? "bg-red-400"
-              : maxRounded! >= 3
-              ? "bg-orange-400"
-              : "bg-green-400";
-            let itemStyle = "bg-highlight-4 rounded-md";
-            if (typeof startIdx === "number" && forecast) {
-              if (startIdx === index) {
-                itemStyle =
-                  "bg-highlight-7 rounded-l-md border-y-border border-y-2 border-l-border border-l-2";
-              } else if (index === endIdx) {
-                itemStyle =
-                  "bg-highlight-7 rounded-r-md border-y-border border-y-2 border-r-border border-r-2";
-              } else if (startIdx <= index && index <= endIdx) {
-                itemStyle = "bg-highlight-7 border-y-border border-y-2";
+              // Use rounded max for color to match displayed range
+              const maxRounded = max != null ? Math.round(max) : null;
+              const color = !hasRange
+                ? "bg-highlight-3"
+                : maxRounded! >= 6
+                ? "bg-red-400"
+                : maxRounded! >= 3
+                ? "bg-orange-400"
+                : "bg-green-400";
+              let itemStyle = "bg-highlight-4 rounded-md";
+              if (typeof startIdx === "number" && forecast) {
+                if (startIdx === index) {
+                  itemStyle =
+                    "bg-highlight-7 rounded-l-md border-y-border border-y-2 border-l-border border-l-2";
+                } else if (index === endIdx) {
+                  itemStyle =
+                    "bg-highlight-7 rounded-r-md border-y-border border-y-2 border-r-border border-r-2";
+                } else if (startIdx <= index && index <= endIdx) {
+                  itemStyle = "bg-highlight-7 border-y-border border-y-2";
+                }
               }
-            }
-            return (
-              <CarouselItem
-                key={index}
-                className={cn(
-                  "basis-1/3 @min-lg:basis-1/4 @min-2xl:basis-1/5 @min-3xl:basis-1/6 @min-4xl:basis-1/7 flex justify-center"
-                )}
-              >
-                <button
-                  onClick={() => {
-                    setSelectedDate(day);
-                    onSelect?.(day.toDate());
-                  }}
+              return (
+                <CarouselItem
+                  key={index}
                   className={cn(
-                    "flex flex-col items-center w-full py-3 text-center text-sm font-medium transition-colors hover:bg-highlight-5/60",
-                    !forecast && "rounded-md",
-                    !forecast &&
-                      isSelected &&
-                      "bg-highlight-7 border-border border-2",
-                    forecast && itemStyle
+                    "basis-1/3 @min-lg:basis-1/4 @min-2xl:basis-1/5 @min-3xl:basis-1/6 @min-4xl:basis-1/7 flex justify-center"
                   )}
                 >
-                  <span className="font-semibold text-[0.65rem] @min-sm:text-xs whitespace-nowrap">
-                    {day.format("ddd")}, {day.format("M/D")}
-                  </span>
-                  <span
+                  <button
+                    onClick={() => {
+                      setSelectedDate(day);
+                      onSelect?.(day.toDate());
+                    }}
                     className={cn(
-                      "inline-block w-12 @min-sm:w-16 h-1 rounded-full",
-                      color
+                      "flex flex-col items-center w-full py-3 text-center text-sm font-medium transition-colors hover:bg-highlight-5/60",
+                      !forecast && "rounded-md",
+                      !forecast &&
+                        isSelected &&
+                        "bg-highlight-7 border-border border-2",
+                      forecast && itemStyle
                     )}
-                  />
-                  <div className="mt-2 mb-1 hidden @min-sm:block">
-                    {weather}
-                  </div>
-                  <div className="mt-2 mb-1 block @min-sm:hidden">
-                    {weatherSmall}
-                  </div>
-                  <span className="text-md @min-sm:text-lg font-semibold">
-                    {hasRange ? (
-                      <>
-                        {(() => {
-                          let minRounded = Math.round(minWithFallback!);
-                          let maxRounded = Math.round(max!);
-                          // Ensure min <= max
-                          if (minRounded > maxRounded) {
-                            [minRounded, maxRounded] = [maxRounded, minRounded];
-                          }
-                          // If they're equal, subtract 1 from min
-                          if (minRounded === maxRounded) {
-                            minRounded = Math.max(0, maxRounded - 1);
-                          }
-                          return `${minRounded}-${maxRounded}`;
-                        })()}
-                        <span className="text-xs font-normal">ft</span>
-                      </>
-                    ) : (
-                      <>
-                        --
-                        <span className="text-xs font-normal">ft</span>
-                      </>
-                    )}
-                  </span>
-                </button>
-              </CarouselItem>
-            );
-          })}
-        </CarouselContent>
-        <CarouselNext onClick={handleNext} />
-      </Carousel>
+                  >
+                    <span className="font-semibold text-[0.65rem] @min-sm:text-xs whitespace-nowrap">
+                      {day.format("ddd")}, {day.format("M/D")}
+                    </span>
+                    <span
+                      className={cn(
+                        "inline-block w-12 @min-sm:w-16 h-1 rounded-full",
+                        color
+                      )}
+                    />
+                    <div className="mt-2 mb-1 hidden @min-sm:block">
+                      {weather}
+                    </div>
+                    <div className="mt-2 mb-1 block @min-sm:hidden">
+                      {weatherSmall}
+                    </div>
+                    <span className="text-md @min-sm:text-lg font-semibold">
+                      {hasRange ? (
+                        <>
+                          {(() => {
+                            let minRounded = Math.round(minWithFallback!);
+                            let maxRounded = Math.round(max!);
+                            // Ensure min <= max
+                            if (minRounded > maxRounded) {
+                              [minRounded, maxRounded] = [
+                                maxRounded,
+                                minRounded,
+                              ];
+                            }
+                            // If they're equal, subtract 1 from min
+                            if (minRounded === maxRounded) {
+                              minRounded = Math.max(0, maxRounded - 1);
+                            }
+                            return `${minRounded}-${maxRounded}`;
+                          })()}
+                          <span className="text-xs font-normal">ft</span>
+                        </>
+                      ) : (
+                        <>
+                          --
+                          <span className="text-xs font-normal">ft</span>
+                        </>
+                      )}
+                    </span>
+                  </button>
+                </CarouselItem>
+              );
+            })}
+          </CarouselContent>
+          <CarouselNext onClick={handleNext} />
+        </Carousel>
+      )}
     </div>
   );
 };

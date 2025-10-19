@@ -28,6 +28,7 @@ import {
   type WidgetMeta,
 } from "./dashboardLayout";
 import { LazyLoadSummary } from "./LazyLoad/LazyLoadSummary";
+import { useMapFilters } from "../context/MapFilterContext";
 
 type Props = { beachId: string };
 
@@ -62,8 +63,7 @@ const DateSummaryBridge: React.FC<Props> = ({ beachId }) => {
   const supabase = useSupabaseClient();
   const { session } = useSessionContext();
 
-  const { setSelectedDate, setSelectedHour } =
-    require("@/components/context/MapFilterContext").useMapFilters();
+  const { setSelectedDate, setSelectedHour } = useMapFilters();
 
   // Set mounted and initialize time on client
   React.useEffect(() => {

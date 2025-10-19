@@ -1179,7 +1179,7 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
                   {/* Visible container */}
                   <div
                     ref={containerRef}
-                    className="flex items-center gap-2 overflow-hidden mt-2 p-1"
+                    className="flex items-center gap-2 overflow-hidden mt-2 p-1 min-h-9"
                     style={{ gap: `${gapPx}px` }}
                   >
                     {visibleItems.map((tag) => (
