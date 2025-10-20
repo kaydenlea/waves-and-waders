@@ -282,7 +282,7 @@ const DateSummaryBridge: React.FC<Props> = ({ beachId }) => {
         </header>
 
         {/* 🧭 Sticky date picker + hour slider */}
-        <section className="sticky top-[100px] z-40 bg-transparent pt-2 pb-8 transition-all duration-300">
+        <section className="sticky top-[100px] z-40 pt-2 pb-8 transition-all duration-300">
           <LazyLoadDatePicker
             beachId={beachId}
             value={selected}

@@ -75,7 +75,7 @@ const NavBar = ({ landingPage = false }: { landingPage?: boolean }) => {
   return (
     <header
       className={cn(
-        "fixed @min-4xl:p-0 z-50 w-full @container backdrop-blur-md",
+        "fixed @min-4xl:p-0 z-50 w-full @container backdrop-blur-md touch-pan-y",
         !landingPage && "px-1.5 pt-1.5"
       )}
     >

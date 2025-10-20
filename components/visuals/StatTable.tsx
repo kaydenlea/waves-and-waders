@@ -146,9 +146,9 @@ const WindStat = ({
         )}
       >
         <span className="text-lg font-medium">{data.speed}</span>
-        <span className="flex flex-col -space-y-1">
+        <span className="hidden @min-xs:flex flex flex-col -space-y-1">
           <span className="text-[0.6rem]">{data.max}</span>
-          <span className="text-[0.7rem]">mph</span>
+          <span className="hidden @min-sm:block text-[0.7rem]">mph</span>
         </span>
       </span>
     </div>
@@ -683,7 +683,7 @@ const StatTable = ({
           COLUMNS.slice(3, 5),
           COLUMNS.slice(5, COLUMNS.length),
         ]);
-      } else if (width < 1050) {
+      } else if (width < 950) {
         setVisibleCols(4);
         setColumnPages([COLUMNS.slice(0, 5), COLUMNS.slice(5, COLUMNS.length)]);
         setCurrentPage(0);

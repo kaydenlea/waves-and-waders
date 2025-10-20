@@ -6,7 +6,7 @@ const Footer = ({ className }: { className?: string }) => {
   return (
     <footer
       className={cn(
-        "absolute w-full @min-4xl:static border-t border-border/10 py-10 bg-highlight-3 rounded-t-none @min-4xl:rounded-t-xl",
+        "touch-pan-y absolute w-full @min-4xl:static border-t border-border/10 py-10 bg-highlight-3 rounded-t-none @min-4xl:rounded-t-xl",
         className
       )}
     >

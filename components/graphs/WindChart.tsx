@@ -259,7 +259,7 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
         accessibilityLayer
         data={chartData}
         syncId="anyId"
-        barCategoryGap="20%"
+        barCategoryGap="15%"
         maxBarSize={60}
       >
         {dayAreas.map((a, idx) => (

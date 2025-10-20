@@ -1092,7 +1092,7 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
             break;
           case "tide":
             content = (
-              <div className="flex flex-col w-full gap-2 h-full overflow-hidden">
+              <div className="touch-pan-y flex flex-col w-full gap-2 h-full overflow-hidden">
                 <div className="flex items-baseline justify-between text-sm flex-shrink-0">
                   <span className="text-xs text-muted-foreground uppercase tracking-wide">
                     Current
@@ -1102,7 +1102,7 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
                     <span className="text-xs ml-0.5">ft</span>
                   </span>
                 </div>
-                <div className="flex flex-col overflow-y-auto flex-1">
+                <div className="touch-pan-y flex flex-col overflow-y-auto flex-1">
                   {stat.peaks.length > 0 ? (
                     stat.peaks.slice(0, 4).map((peak) => (
                       <div
