@@ -302,7 +302,10 @@ const ForecastBridge: React.FC<Props> = ({ beachId }) => {
   );
 
   return (
-    <section className="relative flex flex-col gap-4 mb-2">
+    <section
+      id="forecast-content"
+      className="relative flex flex-col gap-4 mb-2 scroll-mt-40"
+    >
       {/* --- Date picker area: sticky on all sizes so behavior is identical everywhere --- */}
       <section
         ref={pickerRef}
@@ -324,10 +327,7 @@ const ForecastBridge: React.FC<Props> = ({ beachId }) => {
       </section>
 
       {/* --- Main content header --- */}
-      <section
-        id="forecast-content"
-        className="scroll-mt-[calc(var(--nav-height,72px)+1rem)]"
-      >
+      <section className="scroll-mt-[calc(var(--nav-height,72px)+1rem)]">
         <header className="-mb-5 mx-2 flex gap-12 justify-between">
           <div>
             <h2 className="leading-none font-semibold text-2xl">

@@ -4,7 +4,8 @@ import { extractBeachId } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { MapPin } from "lucide-react";
 
-import { MAP_FOCUS_EVENT, type MapFocusEventDetail } from "./mapEvents";
+import { MAP_FOCUS_EVENT } from "./mapEvents";
+import type { MapFocusEventDetail } from "./mapEvents";
 import { scrollToMap } from "./BackToMapButton";
 import { useMapFilters } from "../context/MapFilterContext";
 

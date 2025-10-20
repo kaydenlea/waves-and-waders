@@ -383,7 +383,7 @@ const DatePicker = ({
       )}
     >
       {orderedKeys.length === 0 && (
-        <div className="w-full py-12 text-center text-sm text-muted-foreground">
+        <div className="w-full py-6 @min-sm:py-8 @min-lg:py-10 text-center text-sm text-muted-foreground">
           {loading ? "Loading forecast days..." : "No forecast data available."}
         </div>
       )}

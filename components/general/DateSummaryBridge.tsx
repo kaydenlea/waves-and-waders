@@ -263,7 +263,7 @@ const DateSummaryBridge: React.FC<Props> = ({ beachId }) => {
       {/* Main overview section */}
       <section
         id="overview-content"
-        className="flex flex-col gap-1 w-full mb-2 scroll-mt-25"
+        className="flex flex-col gap-1 w-full mb-2 scroll-mt-30"
       >
         <header className="mx-2 flex gap-5 justify-between">
           <div>

@@ -113,7 +113,7 @@ const WIDGET: Partial<Record<WidgetId, React.ReactNode>> = {
     </div>
   ),
   surfAndWind: (
-    <div className="flex gap-3 h-full">
+    <div className="flex flex-col @min-2xl:flex-row gap-3 h-80 @min-2xl:h-full">
       <div className="flex-1 flex h-full items-center justify-center rounded bg-highlight-3 text-gray-400">
         [Chart]
       </div>

@@ -1093,17 +1093,15 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
           case "tide":
             content = (
               <div className="flex flex-col w-full gap-2 h-full overflow-hidden">
-                {stat.currentHeight != null && (
-                  <div className="flex items-baseline justify-between text-sm flex-shrink-0">
-                    <span className="text-xs text-muted-foreground uppercase tracking-wide">
-                      Current
-                    </span>
-                    <span className="text-lg font-semibold">
-                      {stat.currentHeight}
-                      <span className="text-xs ml-0.5">ft</span>
-                    </span>
-                  </div>
-                )}
+                <div className="flex items-baseline justify-between text-sm flex-shrink-0">
+                  <span className="text-xs text-muted-foreground uppercase tracking-wide">
+                    Current
+                  </span>
+                  <span className="text-lg font-semibold">
+                    {stat.currentHeight != null ? stat.currentHeight : "--"}
+                    <span className="text-xs ml-0.5">ft</span>
+                  </span>
+                </div>
                 <div className="flex flex-col overflow-y-auto flex-1">
                   {stat.peaks.length > 0 ? (
                     stat.peaks.slice(0, 4).map((peak) => (
@@ -1111,7 +1109,7 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
                         key={`${peak.kind}-${peak.time.getTime()}`}
                         className="flex items-center justify-between flex-shrink-0 gap-1 @container"
                       >
-                        <span className="font-medium hidden @min-[145px]:flex">
+                        <span className="text-sm font-medium hidden @min-[145px]:flex">
                           {peak.kind === "high" ? "High" : "Low"}
                         </span>
                         <span className="font-medium text-xs @min-[125px]:text-sm @min-[130px]:text-sm @min-[145px]:hidden">

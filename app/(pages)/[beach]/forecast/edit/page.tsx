@@ -57,7 +57,7 @@ const Page = ({ params }: { params: Promise<{ beach: string }> }) => {
     window.dispatchEvent(event);
   };
   return (
-    <div id="content" className="@container p-2 mt-[4rem] @min-4xl:mt-0">
+    <div id="content" className="@container p-2 mt-[3rem] @min-4xl:mt-0">
       {/* <header className="ml-2">
         <h1 className="font-semibold text-4xl tracking-tight">
           Huntington Beach
@@ -71,9 +71,9 @@ const Page = ({ params }: { params: Promise<{ beach: string }> }) => {
       </section> */}
       <section
         id="forecast-content"
-        className="flex flex-col gap-3 w-full mb-2 scroll-mt-30"
+        className="flex flex-col gap-3 w-full mb-2"
       >
-        <header className="mx-2 flex justify-between">
+        <header className="mx-2 gap-2 flex justify-between">
           <div>
             <h2 className="text-2xl font-semibold">Drag and drop widgets</h2>
             <p className="text-sm text-muted-foreground">
@@ -82,7 +82,7 @@ const Page = ({ params }: { params: Promise<{ beach: string }> }) => {
           </div>
           <Link
             href={`/${beach}/forecast#forecast-content`}
-            onClick={handleConfirm}
+            // onClick={handleConfirm}
             className="flex justify-center text-sm gap-1 h-10 px-3 items-center border border-border bg-highlight-4 rounded-full drop-shadow-sm hover:bg-highlight-3"
           >
             <CircleCheck size={20} />
