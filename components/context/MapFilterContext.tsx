@@ -4,6 +4,8 @@ import React from "react";
 import type { Map } from "maplibre-gl";
 
 type Ctx = {
+  showMap: boolean;
+  setShowMap: React.Dispatch<React.SetStateAction<boolean>>;
   popupId: React.RefObject<string | null>;
   popupRef: React.RefObject<{
     id: number;
@@ -29,6 +31,7 @@ type Ctx = {
 const MapFilterContext = React.createContext<Ctx | null>(null);
 
 export function MapFilterProvider({ children }: { children: React.ReactNode }) {
+  const [showMap, setShowMap] = React.useState(true);
   const popupId = React.useRef<string | null>(null);
   const popupRef = React.useRef<{
     id: number;
@@ -50,6 +53,8 @@ export function MapFilterProvider({ children }: { children: React.ReactNode }) {
   >(null);
   const value = React.useMemo(
     () => ({
+      showMap,
+      setShowMap,
       popupId,
       popupRef,
       popupData,
@@ -67,6 +72,7 @@ export function MapFilterProvider({ children }: { children: React.ReactNode }) {
       setSurfIntensityForDate,
     }),
     [
+      showMap,
       popupId,
       popupData,
       map,

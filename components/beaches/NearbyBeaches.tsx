@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMapFilters } from "@/components/context/MapFilterContext";
 import {
   Pagination,
@@ -35,6 +35,7 @@ import {
   Flame,
   LifeBuoy,
   Lightbulb,
+  SearchX,
   Shell,
   Ship,
   Sun,
@@ -203,6 +204,7 @@ export default function NearbyBeaches({
   const [perPage, setPerPage] = useState(10);
   const { surfRange } = useDateContext();
   const [stats, setStats] = useState<SummaryStat[]>([]);
+  const dataLoaded = useRef<boolean>(false);
 
   // Load richer beach data
   useEffect(() => {
@@ -263,6 +265,7 @@ export default function NearbyBeaches({
         conditions: { surf: "-", wind: "-", windDir: 0, temp: 0, rating: 0 },
       }));
       setSorted(toUi);
+      dataLoaded.current = true;
       return;
     }
 
@@ -295,6 +298,7 @@ export default function NearbyBeaches({
           (a, z) => (a.distanceKm ?? 9e9) - (z.distanceKm ?? 9e9)
         );
         setSorted(withDistance);
+        dataLoaded.current = true;
         setStatus("granted");
       },
       () => {
@@ -315,6 +319,7 @@ export default function NearbyBeaches({
         }));
         setPage(1);
         setSorted(toUi);
+        dataLoaded.current = true;
       },
       { enableHighAccuracy: true, timeout: 8000 }
     );
@@ -955,12 +960,23 @@ export default function NearbyBeaches({
         </div>
       </div>
 
-      {currentItems.length > 0 ? (
-        <section className="grid grid-cols-1 gap-3 @min-lg:grid-cols-2 mb-4">
-          {currentItems.map((b) => (
-            <BeachCard key={b.id} b={b} isFav={favoriteSet.has(String(b.id))} />
-          ))}
-        </section>
+      {dataLoaded.current ? (
+        currentItems.length > 0 ? (
+          <section className="grid grid-cols-1 gap-3 @min-lg:grid-cols-2 mb-4">
+            {currentItems.map((b) => (
+              <BeachCard
+                key={b.id}
+                b={b}
+                isFav={favoriteSet.has(String(b.id))}
+              />
+            ))}
+          </section>
+        ) : (
+          <section className="text-center pt-10 flex flex-col justify-center items-center gap-3">
+            <SearchX className="w-10 h-10" />
+            <span className="text-lg">No beaches found...</span>
+          </section>
+        )
       ) : (
         <section className="text-center pt-10 flex flex-col justify-center items-center gap-3">
           <span className="text-lg">Loading beaches...</span>

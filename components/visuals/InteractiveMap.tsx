@@ -205,6 +205,8 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
     setFilters,
     selectedDate,
     selectedHour,
+    showMap,
+    setShowMap,
   } = useMapFilters();
   const [located, setLocated] = React.useState<boolean>(false);
   const [showFilters, setShowFilters] = React.useState<boolean>(false);
@@ -269,7 +271,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
     }
   }, []);
 
-  const [showMap, setShowMap] = React.useState(true);
+  // const [showMap, setShowMap] = React.useState(true);
   const [smallScreen, setSmallScreen] = React.useState<boolean | null>(null);
   const [selectedPointVisible, setSelectedPointVisible] = React.useState(true);
   const pathName = usePathname() ?? "";
@@ -574,6 +576,8 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
       if (!filters.size) {
         return true;
       }
+      // always make selected beach visible regardless of filters
+      if (selected?.id === b.id) return true;
       const f = b.features || {};
       for (const key of filters) {
         if (!f[key]) return false;
@@ -582,7 +586,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
     });
     console.log("Filtered beaches:", baseFiltered.length);
     return baseFiltered;
-  }, [beaches, filters]);
+  }, [beaches, filters, selected]);
 
   const beachesGeoJSON = React.useMemo(() => {
     const features = filteredBeaches.map((b, idx) => {

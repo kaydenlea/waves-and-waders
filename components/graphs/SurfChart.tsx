@@ -415,7 +415,7 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
           radius={4}
           stroke="#0000006e"
           strokeWidth={0.5}
-          minPointSize={10}
+          minPointSize={15}
         >
           <LabelList
             dataKey="surf"
@@ -442,7 +442,7 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
                       fontWeight="bold"
                       fontSize={fontSize}
                     >
-                      {label}
+                      {label === "0.0" ? "0" : label}
                     </text>
                   </g>
                 );

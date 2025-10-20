@@ -44,33 +44,74 @@ type DaySummary = {
 };
 
 const getWeatherIcon = (code: number | null, size?: number) => {
-  const iconSize = size ? size : 24;
-  if (code == null) return <CloudIcon size={iconSize} color="#bdbdbdff" />;
+  const iconSize = size ? size : 20;
+  const strokeWidth = 2.5;
+  if (code == null)
+    return (
+      <CloudIcon size={iconSize} color="#bdbdbdff" strokeWidth={strokeWidth} />
+    );
   // WMO code groupings per spec
   if (code === 0)
     return <Sun size={iconSize} strokeWidth={3} color="#f79e55ff" />; // Clear
   if ([1, 2, 3].includes(code))
-    return <CloudSun size={iconSize} color="#bdbdbdff" />; // Partly cloudy/overcast
+    return (
+      <CloudSun size={iconSize} color="#bdbdbdff" strokeWidth={strokeWidth} />
+    ); // Partly cloudy/overcast
   if ([45, 48].includes(code))
-    return <CloudIcon size={iconSize} color="#bdbdbdff" />; // Fog
+    return (
+      <CloudIcon size={iconSize} color="#bdbdbdff" strokeWidth={strokeWidth} />
+    ); // Fog
   if ([51, 53, 55].includes(code))
-    return <CloudDrizzle size={iconSize} color="#66a3ffff" />; // Drizzle
+    return (
+      <CloudDrizzle
+        size={iconSize}
+        color="#66a3ffff"
+        strokeWidth={strokeWidth}
+      />
+    ); // Drizzle
   if ([56, 57].includes(code))
-    return <CloudDrizzle size={iconSize} color="#66a3ffff" />; // Freezing drizzle
+    return (
+      <CloudDrizzle
+        size={iconSize}
+        color="#66a3ffff"
+        strokeWidth={strokeWidth}
+      />
+    ); // Freezing drizzle
   if ([61, 63, 65].includes(code))
-    return <CloudRain size={iconSize} color="#66a3ffff" />; // Rain
+    return (
+      <CloudRain size={iconSize} color="#66a3ffff" strokeWidth={strokeWidth} />
+    ); // Rain
   if ([66, 67].includes(code))
-    return <CloudRain size={iconSize} color="#66a3ffff" />; // Freezing rain
+    return (
+      <CloudRain size={iconSize} color="#66a3ffff" strokeWidth={strokeWidth} />
+    ); // Freezing rain
   if ([71, 73, 75].includes(code))
-    return <Snowflake size={iconSize} color="#8ecaffff" />; // Snow
-  if (code === 77) return <Snowflake size={iconSize} color="#8ecaffff" />; // Snow grains
+    return (
+      <Snowflake size={iconSize} color="#8ecaffff" strokeWidth={strokeWidth} />
+    ); // Snow
+  if (code === 77)
+    return (
+      <Snowflake size={iconSize} color="#8ecaffff" strokeWidth={strokeWidth} />
+    ); // Snow grains
   if ([80, 81, 82].includes(code))
-    return <CloudRain size={iconSize} color="#66a3ffff" />; // Showers
+    return (
+      <CloudRain size={iconSize} color="#66a3ffff" strokeWidth={strokeWidth} />
+    ); // Showers
   if ([85, 86].includes(code))
-    return <Snowflake size={iconSize} color="#8ecaffff" />; // Snow showers
+    return (
+      <Snowflake size={iconSize} color="#8ecaffff" strokeWidth={strokeWidth} />
+    ); // Snow showers
   if ([95, 96, 99].includes(code))
-    return <CloudLightning size={iconSize} color="#ff8d6bff" />; // Thunderstorm/hail
-  return <CloudIcon size={iconSize} color="#bdbdbdff" />;
+    return (
+      <CloudLightning
+        size={iconSize}
+        color="#ff8d6bff"
+        strokeWidth={strokeWidth}
+      />
+    ); // Thunderstorm/hail
+  return (
+    <CloudIcon size={iconSize} color="#bdbdbdff" strokeWidth={strokeWidth} />
+  );
 };
 
 const DatePicker = ({
@@ -369,7 +410,7 @@ const DatePicker = ({
               const hasRange = minWithFallback != null && max != null;
               const code = summary?.code ?? null;
               const weather = getWeatherIcon(code);
-              const weatherSmall = getWeatherIcon(code, 20);
+              const weatherSmall = getWeatherIcon(code, 17);
 
               // Use rounded max for color to match displayed range
               const maxRounded = max != null ? Math.round(max) : null;
@@ -405,7 +446,7 @@ const DatePicker = ({
                       onSelect?.(day.toDate());
                     }}
                     className={cn(
-                      "flex flex-col items-center w-full py-3 text-center text-sm font-medium transition-colors hover:bg-highlight-5/60",
+                      "flex flex-col items-center w-full py-2 text-center text-sm font-medium transition-colors hover:bg-highlight-5/60",
                       !forecast && "rounded-md",
                       !forecast &&
                         isSelected &&
@@ -422,13 +463,13 @@ const DatePicker = ({
                         color
                       )}
                     />
-                    <div className="mt-2 mb-1 hidden @min-sm:block">
+                    <div className="mt-2 mb-1 hidden @min-lg:block">
                       {weather}
                     </div>
-                    <div className="mt-2 mb-1 block @min-sm:hidden">
+                    <div className="mt-2 mb-1 hidden @min-sm:block @min-lg:hidden">
                       {weatherSmall}
                     </div>
-                    <span className="text-md @min-sm:text-lg font-semibold">
+                    <span className="text-base @min-lg:text-base font-semibold mt-2 @min-sm:mt-0">
                       {hasRange ? (
                         <>
                           {(() => {

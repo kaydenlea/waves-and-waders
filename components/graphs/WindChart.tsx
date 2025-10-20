@@ -363,7 +363,7 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
           radius={4}
           stroke="#0000006e"
           strokeWidth={0.5}
-          minPointSize={10}
+          minPointSize={15}
         >
           <LabelList
             dataKey="wind"
@@ -424,11 +424,7 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
                   <g>
                     <text
                       x={safeX + safeWidth / 2}
-                      y={
-                        safeY +
-                        safeHeight / 2 +
-                        (props.value < 1 ? 0 : fontSize / 3)
-                      }
+                      y={safeY + safeHeight / 2 + fontSize / 3}
                       fill="#2c2c2cff"
                       textAnchor="middle"
                       fontWeight="bold"
