@@ -26,6 +26,7 @@ import {
   type ForecastData,
 } from "@/lib/supabase";
 import { useDateContext } from "../context/DateContext";
+import { useMapFilters } from "../context/MapFilterContext";
 
 type DatePickerProps = {
   beachId: string;
@@ -86,8 +87,7 @@ const DatePicker = ({
   const [loading, setLoading] = useState(false);
 
   const { setSelectedDays, setSurfRange } = useDateContext();
-  const { setSurfIntensityForDate } =
-    require("@/components/context/MapFilterContext").useMapFilters();
+  const { setSurfIntensityForDate } = useMapFilters();
 
   const scrollBy = 3;
 
@@ -342,7 +342,7 @@ const DatePicker = ({
       )}
     >
       {orderedKeys.length === 0 && (
-        <div className="w-full py-10 text-center text-sm text-muted-foreground">
+        <div className="w-full py-12 text-center text-sm text-muted-foreground">
           {loading ? "Loading forecast days..." : "No forecast data available."}
         </div>
       )}

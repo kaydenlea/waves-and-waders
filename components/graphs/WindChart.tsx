@@ -255,7 +255,7 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
       className="aspect-auto h-[300px] w-full"
     >
       <BarChart
-        margin={{ top: 10, right: 35, left: -28, bottom: 0 }}
+        margin={{ top: 10, right: 10, left: -28, bottom: 0 }}
         accessibilityLayer
         data={chartData}
         syncId="anyId"

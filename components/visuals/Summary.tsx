@@ -1015,7 +1015,12 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
   return (
     <ul className="grid grid-cols-2 @min-2xl:grid-cols-3 @min-4xl:grid-cols-6 gap-3">
       {/* Overview card */}
-      <li className="highlight-card shadow-even flex flex-col gap-3 xl:gap-0 overflow-hidden col-span-2">
+      <li
+        className={cn(
+          "highlight-card shadow-even flex flex-col gap-3 xl:gap-0 overflow-hidden col-span-2",
+          getOverviewText().includes("- ft") && "animate-pulse"
+        )}
+      >
         <div className="flex items-top justify-between">
           <h3 className="highlight-title bg-highlight-5 h-1/2 flex items-center px-2 py-1 rounded-xl">
             OVERVIEW
@@ -1156,6 +1161,21 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
               key={stat.type}
               className={cn(
                 "highlight-card shadow-even flex flex-col overflow-hidden",
+                stat.type === "surf" &&
+                  stat.surf.height === "-" &&
+                  "animate-pulse",
+                stat.type === "wind" &&
+                  stat.wind.loc === "-" &&
+                  "animate-pulse",
+                stat.type === "tide" &&
+                  stat.sunrise?.includes("--:--") &&
+                  "animate-pulse",
+                stat.type === "temperature" &&
+                  !stat.airTempPercent &&
+                  "animate-pulse",
+                stat.type === "features" &&
+                  stat.tags.length === 0 &&
+                  "animate-pulse",
                 stat.type === "features"
                   ? "col-span-2 @min-xl:col-span-3 @min-4xl:col-span-6"
                   : "min-h-35"

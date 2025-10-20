@@ -330,7 +330,7 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
       <BarChart
         margin={{
           top: 10,
-          right: 35,
+          right: 10,
           left: -28,
           bottom: 0,
         }}

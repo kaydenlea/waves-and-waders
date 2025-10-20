@@ -31,10 +31,8 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
   const beachName = resolved.Name;
 
   const supabase = await getServerSupabase();
-  const {
-    data: sessionData,
-    error: sessionError,
-  } = await supabase.auth.getSession();
+  const { data: sessionData, error: sessionError } =
+    await supabase.auth.getSession();
   if (sessionError) {
     console.error("Failed to load session", sessionError);
   }
@@ -56,7 +54,7 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
       <div className="@container p-2">
         <header
           id="content"
-          className="relative w-full flex flex-col gap-6 px-2 scroll-mt-30"
+          className="relative w-full flex flex-col gap-6 p-2 scroll-mt-30"
         >
           <PageTabs
             defaultPage="forecast"
@@ -65,7 +63,7 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
             beachId={beachId}
             isFavorite={isFav}
           />
-          <h1 className="font-semibold text-4xl tracking-tight w-full @min-3xl:w-[calc(100%-300px)]">
+          <h1 className="font-semibold text-4xl tracking-tight w-full @min-3xl:w-[calc(100%-350px)]">
             {beachName}
           </h1>
         </header>

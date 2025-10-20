@@ -1,205 +1,7 @@
-// import type { Metadata } from "next";
-
-// export const metadata: Metadata = {
-//   title: "Home | Waves and Waders",
-//   description: "Check the surf conditions of your local beaches",
-// };
-
-// export default function Home() {
-//   // throw new Error("NOT IMPLEMENTED");
-//   return (
-//     <>
-//       <h1>Landing Page</h1>
-//       <p>content</p>
-//     </>
-//   );
-// }
-
 // "use client";
 
-// import { useState } from "react";
-
-// const beaches = [
-//   {
-//     id: 1,
-//     name: "Laguna Beach",
-//     conditions: "3 ft waves • 72°F water • Light wind",
-//   },
-//   {
-//     id: 2,
-//     name: "Newport Beach",
-//     conditions: "2 ft waves • 70°F water • Calm winds",
-//   },
-//   {
-//     id: 3,
-//     name: "Huntington Beach",
-//     conditions: "5 ft waves • 68°F water • Offshore winds",
-//   },
-//   {
-//     id: 4,
-//     name: "Malibu Beach",
-//     conditions: "4 ft waves • 71°F water • Sunny skies",
-//   },
-// ];
-
-// function BeachCard({ name, conditions }: { name: string; conditions: string }) {
-//   return (
-//     <div className="rounded-2xl shadow-md bg-white hover:shadow-lg transition transform hover:-translate-y-1">
-//       {/* Placeholder Canvas */}
-//       <div className="w-full h-48 bg-gradient-to-r from-blue-200 to-blue-100 flex items-center justify-center text-gray-500 text-sm">
-//         Canvas
-//       </div>
-//       <div className="p-4">
-//         <h3 className="text-lg font-semibold text-gray-800">{name}</h3>
-//         <p className="text-gray-600 text-sm">{conditions}</p>
-//       </div>
-//     </div>
-//   );
-// }
-
-// export default function HomePage() {
-//   const [search, setSearch] = useState("");
-
-//   return (
-//     <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white text-gray-900">
-//       {/* Header */}
-//       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200">
-//         <div className="max-w-6xl mx-auto flex justify-between items-center px-6 py-4">
-//           <h1 className="text-xl font-bold text-blue-600">WaveWatch</h1>
-//           <nav className="space-x-6 font-medium">
-//             <a href="#nearby" className="hover:text-blue-600">
-//               Nearby
-//             </a>
-//             <a href="#favorites" className="hover:text-blue-600">
-//               Favorites
-//             </a>
-//             <a href="#about" className="hover:text-blue-600">
-//               About
-//             </a>
-//           </nav>
-//         </div>
-//       </header>
-
-//       {/* Hero */}
-//       <section className="flex flex-col items-center justify-center text-center px-6 py-24">
-//         <h2 className="text-4xl md:text-6xl font-bold leading-tight">
-//           Discover Beaches & Surf Conditions
-//         </h2>
-//         <p className="mt-4 text-gray-600 max-w-xl">
-//           Find the perfect beach near you, track live ocean conditions, and save
-//           your favorite spots for later.
-//         </p>
-
-//         {/* Search */}
-//         <form
-//           onSubmit={(e) => e.preventDefault()}
-//           className="mt-8 w-full max-w-lg"
-//         >
-//           <input
-//             type="text"
-//             placeholder="Search beaches near you..."
-//             value={search}
-//             onChange={(e) => setSearch(e.target.value)}
-//             className="w-full rounded-full py-4 px-6 bg-white shadow-md border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
-//           />
-//         </form>
-
-//         {/* CTA buttons */}
-//         <div className="mt-6 flex gap-4">
-//           <button className="px-6 py-3 rounded-full bg-blue-600 text-white font-medium hover:bg-blue-700 transition">
-//             Nearby Beaches
-//           </button>
-//           <button className="px-6 py-3 rounded-full bg-gray-200 text-gray-800 font-medium hover:bg-gray-300 transition">
-//             My Favorites
-//           </button>
-//         </div>
-//       </section>
-
-//       {/* Nearby Beaches */}
-//       <main className="flex-1">
-//         <section
-//           id="nearby"
-//           className="max-w-6xl mx-auto px-6 py-16 bg-white rounded-3xl shadow-sm"
-//         >
-//           <h2 className="text-2xl font-bold mb-8">Top Beaches Near You</h2>
-//           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-//             {beaches.map((beach) => (
-//               <BeachCard
-//                 key={beach.id}
-//                 name={beach.name}
-//                 conditions={beach.conditions}
-//               />
-//             ))}
-//           </div>
-//         </section>
-
-//         {/* Favorites Carousel */}
-//         <section id="favorites" className="max-w-6xl mx-auto px-6 py-16">
-//           <h2 className="text-2xl font-bold mb-6">Your Favorites</h2>
-//           <div className="flex gap-6 overflow-x-auto pb-4 scrollbar-hide">
-//             {beaches.map((beach) => (
-//               <div key={beach.id} className="min-w-[250px] flex-shrink-0">
-//                 <BeachCard name={beach.name} conditions={beach.conditions} />
-//               </div>
-//             ))}
-//           </div>
-//         </section>
-//       </main>
-
-//       {/* Footer */}
-//       <footer className="bg-gray-900 text-gray-300 py-10">
-//         <div className="max-w-6xl mx-auto px-6 grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
-//           <div>
-//             <h3 className="text-white font-bold text-lg">WaveWatch</h3>
-//             <p className="mt-2 text-sm">
-//               Track surf and beach conditions with ease. Built for surfers,
-//               swimmers, and explorers.
-//             </p>
-//           </div>
-//           <div>
-//             <h4 className="text-white font-semibold mb-2">Links</h4>
-//             <ul className="space-y-1 text-sm">
-//               <li>
-//                 <a href="#nearby" className="hover:text-white">
-//                   Nearby
-//                 </a>
-//               </li>
-//               <li>
-//                 <a href="#favorites" className="hover:text-white">
-//                   Favorites
-//                 </a>
-//               </li>
-//               <li>
-//                 <a href="#about" className="hover:text-white">
-//                   About
-//                 </a>
-//               </li>
-//             </ul>
-//           </div>
-//           <div>
-//             <h4 className="text-white font-semibold mb-2">Stay Updated</h4>
-//             <form className="flex gap-2">
-//               <input
-//                 type="email"
-//                 placeholder="Your email"
-//                 className="flex-1 rounded-md px-3 py-2 text-gray-800 focus:outline-none"
-//               />
-//               <button className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
-//                 Join
-//               </button>
-//             </form>
-//           </div>
-//         </div>
-//       </footer>
-//     </div>
-//   );
-// }
-
-// "use client";
-
-"use client";
-
-import React, { Suspense, useEffect, useMemo, useState } from "react";
+// import React, { Suspense, useEffect, useMemo, useState } from "react";
+import React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { generateBeachUrl } from "@/lib/supabase";
@@ -391,109 +193,109 @@ function StarRating({ value }: { value: number }) {
 
 const Home = () => {
   // Search + feature chips
-  const [query, setQuery] = useState("");
-  const [featureFilters, setFeatureFilters] = useState<Set<string>>(new Set());
-  // Data from API (/api/beaches includes feature flags)
-  const [apiBeaches, setApiBeaches] = useState<
-    {
-      id: string | number;
-      Name?: string;
-      name?: string;
-      COUNTY?: string;
-      county?: string;
-      LATITUDE?: number;
-      latitude?: number;
-      LONGITUDE?: number;
-      longitude?: number;
-      features?: Record<string, boolean>;
-    }[]
-  >([]);
-  // Location
-  const [location, setLocation] = useState<{ lat: number; lon: number } | null>(
-    null
-  );
-  const favorites = ["2", "4"];
+  // const [query, setQuery] = useState("");
+  // const [featureFilters, setFeatureFilters] = useState<Set<string>>(new Set());
+  // // Data from API (/api/beaches includes feature flags)
+  // const [apiBeaches, setApiBeaches] = useState<
+  //   {
+  //     id: string | number;
+  //     Name?: string;
+  //     name?: string;
+  //     COUNTY?: string;
+  //     county?: string;
+  //     LATITUDE?: number;
+  //     latitude?: number;
+  //     LONGITUDE?: number;
+  //     longitude?: number;
+  //     features?: Record<string, boolean>;
+  //   }[]
+  // >([]);
+  // // Location
+  // const [location, setLocation] = useState<{ lat: number; lon: number } | null>(
+  //   null
+  // );
+  // const favorites = ["2", "4"];
 
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      try {
-        const res = await fetch("/api/beaches");
-        const json = await res.json();
-        if (!cancelled && json?.success && Array.isArray(json.data)) {
-          setApiBeaches(json.data);
-        }
-      } catch (e) {
-        console.error("Home: failed to load beaches", e);
-      }
-    };
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  // useEffect(() => {
+  //   let cancelled = false;
+  //   const load = async () => {
+  //     try {
+  //       const res = await fetch("/api/beaches");
+  //       const json = await res.json();
+  //       if (!cancelled && json?.success && Array.isArray(json.data)) {
+  //         setApiBeaches(json.data);
+  //       }
+  //     } catch (e) {
+  //       console.error("Home: failed to load beaches", e);
+  //     }
+  //   };
+  //   load();
+  //   return () => {
+  //     cancelled = true;
+  //   };
+  // }, []);
 
-  useEffect(() => {
-    if (!navigator?.geolocation) return;
-    const id = setTimeout(() => {
-      navigator.geolocation.getCurrentPosition(
-        (pos) =>
-          setLocation({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
-        () => {},
-        { enableHighAccuracy: true, timeout: 8000 }
-      );
-    }, 0);
-    return () => clearTimeout(id);
-  }, []);
+  // useEffect(() => {
+  //   if (!navigator?.geolocation) return;
+  //   const id = setTimeout(() => {
+  //     navigator.geolocation.getCurrentPosition(
+  //       (pos) =>
+  //         setLocation({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+  //       () => {},
+  //       { enableHighAccuracy: true, timeout: 8000 }
+  //     );
+  //   }, 0);
+  //   return () => clearTimeout(id);
+  // }, []);
 
-  const computedBeaches = useMemo(() => {
-    // Prefer live API data; fall back to demo BEACHES
-    const source = (
-      apiBeaches.length
-        ? apiBeaches.map((b) => ({
-            id: String(b.id),
-            name: b.name ?? (b as any).Name,
-            region: b.county ?? (b as any).COUNTY,
-            coords: [
-              Number(b.latitude ?? (b as any).LATITUDE),
-              Number(b.longitude ?? (b as any).LONGITUDE),
-            ] as [number, number],
-            features: b.features ?? {},
-          }))
-        : BEACHES
-    ) as (Beach & { features?: Record<string, boolean> })[];
+  // const computedBeaches = useMemo(() => {
+  //   // Prefer live API data; fall back to demo BEACHES
+  //   const source = (
+  //     apiBeaches.length
+  //       ? apiBeaches.map((b) => ({
+  //           id: String(b.id),
+  //           name: b.name ?? (b as any).Name,
+  //           region: b.county ?? (b as any).COUNTY,
+  //           coords: [
+  //             Number(b.latitude ?? (b as any).LATITUDE),
+  //             Number(b.longitude ?? (b as any).LONGITUDE),
+  //           ] as [number, number],
+  //           features: b.features ?? {},
+  //         }))
+  //       : BEACHES
+  //   ) as (Beach & { features?: Record<string, boolean> })[];
 
-    const enriched = source.map((b) => {
-      if (!location) return b as Beach;
-      const km = haversineKm([location.lat, location.lon], b.coords);
-      return { ...(b as Beach), distanceKm: km } as Beach;
-    });
+  //   const enriched = source.map((b) => {
+  //     if (!location) return b as Beach;
+  //     const km = haversineKm([location.lat, location.lon], b.coords);
+  //     return { ...(b as Beach), distanceKm: km } as Beach;
+  //   });
 
-    // Apply text search
-    const q = query.trim().toLowerCase();
-    const textFiltered = q
-      ? enriched.filter((b) =>
-          `${b.name} ${b.region}`.toLowerCase().includes(q)
-        )
-      : enriched;
+  //   // Apply text search
+  //   const q = query.trim().toLowerCase();
+  //   const textFiltered = q
+  //     ? enriched.filter((b) =>
+  //         `${b.name} ${b.region}`.toLowerCase().includes(q)
+  //       )
+  //     : enriched;
 
-    // Apply feature filters (all selected must be true)
-    const featureKeys = Array.from(featureFilters);
-    const featureFiltered = featureKeys.length
-      ? textFiltered.filter((b) => {
-          const f = (b as any).features || {};
-          return featureKeys.every((k) => !!f[k]);
-        })
-      : textFiltered;
+  //   // Apply feature filters (all selected must be true)
+  //   const featureKeys = Array.from(featureFilters);
+  //   const featureFiltered = featureKeys.length
+  //     ? textFiltered.filter((b) => {
+  //         const f = (b as any).features || {};
+  //         return featureKeys.every((k) => !!f[k]);
+  //       })
+  //     : textFiltered;
 
-    // Sort by distance when available
-    return featureFiltered.sort(
-      (a, z) => (a.distanceKm ?? 9e9) - (z.distanceKm ?? 9e9)
-    );
-  }, [apiBeaches, location, query, featureFilters]);
+  //   // Sort by distance when available
+  //   return featureFiltered.sort(
+  //     (a, z) => (a.distanceKm ?? 9e9) - (z.distanceKm ?? 9e9)
+  //   );
+  // }, [apiBeaches, location, query, featureFilters]);
 
-  const nearby = computedBeaches.slice(0, 6);
-  const saved = computedBeaches.filter((b) => favorites.includes(b.id));
+  // const nearby = computedBeaches.slice(0, 6);
+  // const saved = computedBeaches.filter((b) => favorites.includes(b.id));
 
   // const toggleFavorite = (id: string) => {
   //   setFavorites((prev) =>
@@ -555,14 +357,14 @@ const Home = () => {
                 <div className="flex flex-row flex-wrap items-center justify-center w-full gap-5 whitespace-nowrap">
                   <Link
                     href="/beaches"
-                    className="text-base @min-4xl:text-lg group inline-flex items-center gap-2 rounded-full bg-foreground border border-transparent px-4 py-3 @min-4xl:px-5 @min-4xl:py-4 font-medium text-background shadow-xl transition hover:shadow-cyan-500/20"
+                    className="text-base @min-4xl:text-lg group inline-flex items-center gap-2 rounded-full bg-foreground border border-transparent px-4 py-3 font-medium text-background shadow-xl transition hover:shadow-cyan-500/20"
                   >
                     <Compass className="h-5 w-5" /> Explore
                     <span className="hidden md:block md:-ml-1">nearby</span>
                   </Link>
                   <Link
                     href="/favorites"
-                    className="text-base @min-4xl:text-lg shadow-xl inline-flex items-center gap-2 rounded-full border border-border/40 bg-highlight-1 px-4 py-3 @min-4xl:px-5 @min-4xl:py-4 font-medium text-foreground/90 backdrop-blur transition hover:shadow-cyan-500/20"
+                    className="text-base @min-4xl:text-lg shadow-xl inline-flex items-center gap-2 rounded-full border border-border/40 bg-highlight-1 px-4 py-3 font-medium text-foreground/90 backdrop-blur transition hover:shadow-cyan-500/20"
                   >
                     <Heart className="h-5 w-5" /> Saved
                     <span className="hidden md:block md:-ml-1">spots</span>

@@ -23,7 +23,7 @@ export const UserMenu = () => {
   if (!user) {
     return (
       <Link
-        className="px-2 flex-1 rounded-md sm:rounded-full hover:bg-highlight-5 py-1.5 sm:py-3 w-full sm:w-20 text-left sm:text-center flex items-center gap-2"
+        className="px-2 flex-1 rounded-md sm:rounded-full hover:bg-highlight-5 py-1.5 sm:py-3 w-full sm:w-18 text-left sm:text-center flex items-center gap-2"
         href="/login"
       >
         <LogIn className="w-5 h-5 -mt-0.5 block sm:hidden" />

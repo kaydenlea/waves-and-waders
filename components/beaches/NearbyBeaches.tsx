@@ -44,6 +44,7 @@ import {
   Wind,
 } from "lucide-react";
 import { useDateContext } from "../context/DateContext";
+import { Spinner } from "../ui/spinner";
 
 type DbBeach = {
   id: string | number;
@@ -192,7 +193,7 @@ export default function NearbyBeaches({
     [favoriteIds]
   );
 
-  const [sorted, setSorted] = useState<UIBeach[]>(initialList);
+  const [sorted, setSorted] = useState<UIBeach[]>([]);
   const [apiBeaches, setApiBeaches] = useState<ApiBeach[] | null>(null);
   const [status, setStatus] = useState<
     "idle" | "locating" | "granted" | "denied" | "unavailable"
@@ -221,18 +222,20 @@ export default function NearbyBeaches({
 
   // Filtering + sorting
   useEffect(() => {
-    const base = (apiBeaches ?? []).length
-      ? apiBeaches!
-      : (beaches || []).map(
-          (b) =>
-            ({
-              id: b.id,
-              name: b.Name,
-              county: b.COUNTY,
-              latitude: b.LATITUDE,
-              longitude: b.LONGITUDE,
-            } as ApiBeach)
-        );
+    if (!apiBeaches) return;
+    const base = apiBeaches;
+    // const base = (apiBeaches ?? []).length
+    //   ? apiBeaches!
+    //   : (beaches || []).map(
+    //       (b) =>
+    //         ({
+    //           id: b.id,
+    //           name: b.Name,
+    //           county: b.COUNTY,
+    //           latitude: b.LATITUDE,
+    //           longitude: b.LONGITUDE,
+    //         } as ApiBeach)
+    //     );
 
     const applyFilters = (list: ApiBeach[]) =>
       list.filter((b) => {
@@ -315,7 +318,7 @@ export default function NearbyBeaches({
       },
       { enableHighAccuracy: true, timeout: 8000 }
     );
-  }, [filters]);
+  }, [filters, apiBeaches]);
 
   const totalPages = Math.ceil(sorted.length / perPage);
   const [currentItems, setCurrentItems] = useState<UIBeach[]>([]);
@@ -952,11 +955,18 @@ export default function NearbyBeaches({
         </div>
       </div>
 
-      <section className="grid grid-cols-1 gap-3 @min-lg:grid-cols-2 mb-4">
-        {currentItems.map((b) => (
-          <BeachCard key={b.id} b={b} isFav={favoriteSet.has(String(b.id))} />
-        ))}
-      </section>
+      {currentItems.length > 0 ? (
+        <section className="grid grid-cols-1 gap-3 @min-lg:grid-cols-2 mb-4">
+          {currentItems.map((b) => (
+            <BeachCard key={b.id} b={b} isFav={favoriteSet.has(String(b.id))} />
+          ))}
+        </section>
+      ) : (
+        <section className="text-center pt-10 flex flex-col justify-center items-center gap-3">
+          <span className="text-lg">Loading beaches...</span>
+          <Spinner />
+        </section>
+      )}
 
       {/* Pagination */}
       {totalPages > 1 && (
