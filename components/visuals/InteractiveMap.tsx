@@ -891,6 +891,20 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
     }
   }, [popupData]);
 
+  // Handle recentering when expanding
+  React.useEffect(() => {
+    if (showMap && map && selected) {
+      // Wait a tick to ensure layout reflow done
+      requestAnimationFrame(() => {
+        map.easeTo({
+          center: [selected.longitude, selected.latitude],
+          zoom: 16,
+          duration: 500,
+        });
+      });
+    }
+  }, [showMap]);
+
   if (editPage || (isDesktop && fullMapPage && !showMap)) {
     return <></>;
   }
