@@ -7,6 +7,11 @@ import { ForecastChartProvider } from "@/components/context/ForecastChartContext
 import { redirect } from "next/navigation";
 import BackToMapButton from "@/components/general/BackToMapButton";
 import { getServerSupabase } from "@/lib/supabaseServer";
+import BottomNav from "@/components/general/BottomNav";
+import Footer from "@/components/general/Footer";
+import PathStyleWrapper from "@/components/general/PathStyleWrapper";
+import { LazyLoadMap } from "@/components/general/LazyLoad/LazyLoadMap";
+import NavBar from "@/components/general/NavBar";
 
 export const metadata: Metadata = {
   title: "Surf Weekly Forecast | Waves and Waders",
@@ -51,27 +56,38 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
 
   return (
     <>
-      <div className="@container p-2">
-        <header
-          id="content"
-          className="relative w-full flex flex-col gap-6 p-2 scroll-mt-30"
-        >
-          <PageTabs
-            defaultPage="forecast"
-            beach={beach}
-            tabs={["overview", "forecast"]}
-            beachId={beachId}
-            isFavorite={isFav}
-          />
-          <h1 className="font-semibold text-4xl tracking-tight w-full @min-3xl:w-[calc(100%-350px)]">
-            {beachName}
-          </h1>
-        </header>
-        <ForecastChartProvider>
-          <ForecastBridge beachId={beachId} />
-        </ForecastChartProvider>
-      </div>
-      <BackToMapButton />
+      <NavBar />
+      <main
+        id="main-content"
+        className="bg-background-2 min-h-[calc(100vh-4rem)] @min-4xl:flex @min-4xl:flex-1 @min-4xl:mt-[5.5rem] @min-4xl:pb-4"
+      >
+        <LazyLoadMap />
+        <PathStyleWrapper>
+          <div className="@container py-5 px-1 @min-md:px-3">
+            <header
+              id="content"
+              className="relative w-full flex flex-col gap-6 p-2 pb-0 scroll-mt-30"
+            >
+              <PageTabs
+                defaultPage="forecast"
+                beach={beach}
+                tabs={["overview", "forecast"]}
+                beachId={beachId}
+                isFavorite={isFav}
+                forecastPage
+              />
+              <h1 className="font-semibold text-4xl tracking-tight w-full @min-3xl:w-[calc(100%-350px)]">
+                {beachName} Forecast
+              </h1>
+            </header>
+            <ForecastChartProvider>
+              <ForecastBridge beachId={beachId} />
+            </ForecastChartProvider>
+          </div>
+        </PathStyleWrapper>
+      </main>
+      <BottomNav />
+      <Footer />
     </>
   );
 };

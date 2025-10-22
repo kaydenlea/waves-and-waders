@@ -531,7 +531,7 @@ const TideChart: React.FC<TideChartProps> = ({
               const safeY = typeof props.y === "number" ? props.y : 0;
 
               // Adjust text anchor based on position to prevent labels bleeding off edges
-              const isNearStart = point.hour <= 1;
+              const isNearStart = point.hour <= 0;
               const isNearEnd = point.hour >= hours - 1;
               const textAnchor = isNearStart
                 ? "start"

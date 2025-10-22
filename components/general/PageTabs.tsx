@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 import { cn } from "@/lib/utils";
 import FocusMapButton from "./FocusMapButton";
 import SaveButton from "./SaveButton";
+import { useMapFilters } from "../context/MapFilterContext";
+import { ArrowLeftFromLine, Map, Pencil } from "lucide-react";
 
 type PageTabsProps = {
   beach?: string;
@@ -15,6 +17,8 @@ type PageTabsProps = {
   buttons?: boolean;
   isFavorite?: boolean;
   beachPage?: boolean;
+  forecastPage?: boolean;
+  overviewPage?: boolean;
 };
 
 const PageTabs = ({
@@ -25,8 +29,31 @@ const PageTabs = ({
   buttons = true,
   isFavorite = false,
   beachPage = false,
+  forecastPage = false,
+  overviewPage = false,
 }: PageTabsProps) => {
   const [favorite, setFavorite] = useState(isFavorite);
+  const [isDesktop, setIsDesktop] = useState(false);
+  const { showMap, setShowMap } = useMapFilters();
+
+  const tabsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const tabs = tabsRef.current;
+    if (!tabs) return;
+
+    const adjustScreenSize = () => {
+      const width = tabs.clientWidth;
+      setIsDesktop(width >= 855);
+    };
+
+    const observer = new ResizeObserver(adjustScreenSize);
+    observer.observe(tabs);
+
+    adjustScreenSize();
+
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     setFavorite(isFavorite);
@@ -36,16 +63,48 @@ const PageTabs = ({
 
   return (
     <div
+      ref={tabsRef}
       className={cn(
-        "mx-auto flex gap-1 @min-sm:gap-2",
+        "mx-auto flex gap-1 @min-sm:gap-2 w-full justify-center",
         beachPage
-          ? "@min-xl:absolute @min-xl:right-0"
-          : "@min-3xl:absolute @min-3xl:right-0"
+          ? "@min-xl:absolute @min-xl:right-0 @min-xl:justify-end"
+          : "@min-3xl:absolute @min-3xl:right-0 @min-3xl:justify-end"
       )}
     >
       {buttons && (
         <>
-          <FocusMapButton beach={beach} />
+          {/* <FocusMapButton beach={beach} /> */}
+          {(forecastPage || overviewPage) && (
+            <Link
+              href={
+                forecastPage
+                  ? `/${beachId}/forecast/edit#forecast-content`
+                  : `/${beachId}/overview/edit#overview-content`
+              }
+              className="bg-highlight-5 hover:bg-highlight-3 my-auto rounded-full p-2.5"
+              aria-label={`Edit ${
+                forecastPage ? "forecast" : "overview"
+              } dashboard`}
+            >
+              <Pencil className="stroke-[2.5px] w-5 h-5 @min-sm:w-5 @min-sm:h-5" />
+            </Link>
+          )}
+          {!showMap && isDesktop && (
+            <button
+              type="button"
+              aria-label="Reopen map"
+              className={cn(
+                "bg-highlight-5 hover:bg-highlight-3 my-auto rounded-full p-2 disabled:opacity-50 disabled:hover:bg-highlight-5"
+              )}
+              onClick={() => setShowMap(!showMap)}
+            >
+              {showMap ? (
+                <ArrowLeftFromLine className="w-6 h-6 @min-sm:w-6 @min-sm:h-6" />
+              ) : (
+                <Map className="w-6 h-6 @min-sm:w-6 @min-sm:h-6" />
+              )}
+            </button>
+          )}
           {showSaveButton && (
             <SaveButton
               beachId={beachId!}

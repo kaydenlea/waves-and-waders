@@ -44,7 +44,7 @@ type DaySummary = {
 };
 
 const getWeatherIcon = (code: number | null, size?: number) => {
-  const iconSize = size ? size : 20;
+  const iconSize = size ? size : 16;
   const strokeWidth = 2.5;
   if (code == null)
     return (
@@ -378,12 +378,12 @@ const DatePicker = ({
   return (
     <div
       className={cn(
-        "relative w-full bg-highlight-4 px-2 py-2 rounded-t-xl shadow-even border border-border",
+        "relative w-full bg-highlight-4 px-2 py-1 rounded-full shadow-even border border-border",
         className
       )}
     >
       {orderedKeys.length === 0 && (
-        <div className="w-full py-6 @min-sm:py-8 @min-lg:py-10 text-center text-sm text-muted-foreground">
+        <div className="w-full py-7 text-center text-sm text-muted-foreground">
           {loading ? "Loading forecast days..." : "No forecast data available."}
         </div>
       )}
@@ -394,7 +394,7 @@ const DatePicker = ({
           className="w-full flex items-center gap-1"
         >
           <CarouselPrevious onClick={handlePrev} />
-          <CarouselContent className="mx-1">
+          <CarouselContent className="mx-0">
             {orderedKeys.map((key, index) => {
               const summary = summaries[key];
               const day = summary?.date ?? dayjs(key);
@@ -410,7 +410,7 @@ const DatePicker = ({
               const hasRange = minWithFallback != null && max != null;
               const code = summary?.code ?? null;
               const weather = getWeatherIcon(code);
-              const weatherSmall = getWeatherIcon(code, 17);
+              const weatherSmall = getWeatherIcon(code, 16);
 
               // Use rounded max for color to match displayed range
               const maxRounded = max != null ? Math.round(max) : null;
@@ -437,7 +437,7 @@ const DatePicker = ({
                 <CarouselItem
                   key={index}
                   className={cn(
-                    "basis-1/3 @min-lg:basis-1/4 @min-2xl:basis-1/5 @min-3xl:basis-1/6 @min-4xl:basis-1/7 flex justify-center"
+                    "basis-1/3 @min-md:basis-1/4 @min-xl:basis-1/5 @min-2xl:basis-1/6 @min-3xl:basis-1/7 flex justify-center"
                   )}
                 >
                   <button
@@ -446,7 +446,7 @@ const DatePicker = ({
                       onSelect?.(day.toDate());
                     }}
                     className={cn(
-                      "flex flex-col items-center w-full py-2 text-center text-sm font-medium transition-colors hover:bg-highlight-5/60",
+                      "flex flex-col items-center w-full py-1 text-center text-sm font-medium transition-colors hover:bg-highlight-5/60",
                       !forecast && "rounded-md",
                       !forecast &&
                         isSelected &&
@@ -454,8 +454,17 @@ const DatePicker = ({
                       forecast && itemStyle
                     )}
                   >
-                    <span className="font-semibold text-[0.65rem] @min-sm:text-xs whitespace-nowrap">
-                      {day.format("ddd")}, {day.format("M/D")}
+                    <span className="font-semibold text-[0.7rem] @min-sm:text-[0.7rem] whitespace-nowrap">
+                      {day.startOf("day").isSame(dayjs().startOf("day")) ? (
+                        "Today"
+                      ) : (
+                        <>
+                          <span className="hidden @min-sm:inline">{`${day.format(
+                            "ddd"
+                          )}, `}</span>
+                          <span>{`${day.format("M/D")}`}</span>
+                        </>
+                      )}
                     </span>
                     <span
                       className={cn(
@@ -463,13 +472,11 @@ const DatePicker = ({
                         color
                       )}
                     />
-                    <div className="mt-2 mb-1 hidden @min-lg:block">
-                      {weather}
-                    </div>
-                    <div className="mt-2 mb-1 hidden @min-sm:block @min-lg:hidden">
+                    <div className="mt-1.5 mb-0.5">{weather}</div>
+                    {/* <div className="mt-2 mb-1 hidden @min-sm:block @min-lg:hidden">
                       {weatherSmall}
-                    </div>
-                    <span className="text-base @min-lg:text-base font-semibold mt-2 @min-sm:mt-0">
+                    </div> */}
+                    <span className="text-sm @min-lg:text-sm font-semibold">
                       {hasRange ? (
                         <>
                           {(() => {

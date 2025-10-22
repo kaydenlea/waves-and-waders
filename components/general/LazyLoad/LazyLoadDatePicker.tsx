@@ -10,8 +10,7 @@ const Loading = () => {
   return (
     <div
       className={cn(
-        "animate-pulse h-34 @min-3xl:h-31 w-full bg-highlight-4 px-2 py-3 rounded-t-xl shadow-even",
-        forecastPage && "rounded-x-xl rounded-b-xl"
+        "animate-pulse w-full bg-highlight-4 px-2 py-10.5 rounded-full shadow-even border border-border"
       )}
     />
   );

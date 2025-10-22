@@ -7,12 +7,31 @@ import { cn } from "@/lib/utils";
 
 const ThemeToggle = ({
   switchMode = false,
+  bottomNavMode = false,
   className,
 }: {
+  bottomNavMode?: boolean;
   switchMode?: boolean;
   className?: string;
 }) => {
   const { theme, setTheme } = useTheme();
+  if (bottomNavMode) {
+    return (
+      <button
+        aria-label="theme toggle"
+        onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+        className="hover:bg-highlight-5 px-2 py-1.5 rounded-md flex flex-col items-center gap-1"
+      >
+        {/* {theme === "light" ? (
+          <Sun className="w-5 h-5 -mt-0.5" />
+        ) : (
+          <Moon className="w-5 h-5 -mt-0.5" />
+        )} */}
+        <SunMoon className="w-5 h-5 -mt-0.5" />
+        <span className="text-xs">Mode</span>
+      </button>
+    );
+  }
   if (switchMode) {
     return (
       <button

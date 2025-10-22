@@ -33,12 +33,18 @@ import {
   ChevronUp,
   ChevronDown,
   Waves,
+  SlidersHorizontal,
+  Info,
+  MapPin,
+  Minimize2,
 } from "lucide-react";
 import { useMapFilters } from "../context/MapFilterContext";
 import {
   MAP_FOCUS_EVENT,
   type MapFocusEventDetail,
 } from "../general/mapEvents";
+import { motion, AnimatePresence } from "framer-motion";
+import FocusMapButton from "../general/FocusMapButton";
 
 type BeachPoint = {
   id: string | number;
@@ -230,6 +236,13 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
     latitude: number;
     properties: any;
   } | null>(null);
+  const [openPanel, setOpenPanel] = React.useState<"filters" | "legend" | null>(
+    null
+  );
+
+  const togglePanel = (panel: "filters" | "legend") => {
+    setOpenPanel((prev) => (prev === panel ? null : panel));
+  };
 
   const mapToId: Record<
     string,
@@ -878,7 +891,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
     }
   }, [popupData]);
 
-  if (editPage) {
+  if (editPage || (isDesktop && fullMapPage && !showMap)) {
     return <></>;
   }
 
@@ -887,13 +900,13 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
       id="map-container"
       className={cn(
         "fixed w-full transition-all duration-300",
-        "@min-4xl:sticky @min-4xl:top-[5.7rem] @min-4xl:flex-1 @min-4xl:py-3 @min-4xl:pl-3 @min-4xl:h-[calc(100vh-5.5rem)]",
-        !isDesktop && "min-h-[calc(100dvh-6.25rem)]",
+        "@min-4xl:sticky @min-4xl:top-[7rem] @min-4xl:flex-1 @min-4xl:py-3 @min-4xl:pl-3 @min-4xl:h-[calc(100vh-7rem)] flex",
+        !isDesktop && "min-h-[calc(100dvh-6.25rem)]"
         // isDesktop && fullMapPage && showMap && "@min-4xl:max-w-200",
-        isDesktop &&
-          fullMapPage &&
-          !showMap &&
-          "@min-4xl:max-w-20 @min-4xl:overflow-hidden"
+        // isDesktop &&
+        //   fullMapPage &&
+        //   !showMap &&
+        //   "@min-4xl:max-w-20 @min-4xl:overflow-hidden"
       )}
       style={
         isDesktop
@@ -1147,23 +1160,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
         }}
       >
         {!showMap && fullMapPage && !smallScreen && (
-          <div className="absolute z-2 bg-black/70 backdrop-blur-md h-full w-full" />
-        )}
-        {fullMapPage && !smallScreen && (
-          <button
-            aria-label={`${showMap ? "Minimize" : "Maximize"} map`}
-            className={cn(
-              "absolute z-3 right-2 bg-background rounded-full p-2 shadow-lg border border-border hover:bg-highlight-3",
-              showMap ? "top-2" : "top-[50%]"
-            )}
-            onClick={() => setShowMap(!showMap)}
-          >
-            {showMap ? (
-              <ArrowLeftFromLine className="w-5 h-5" />
-            ) : (
-              <ArrowRightFromLine className="w-5 h-5" />
-            )}
-          </button>
+          <div className="absolute z-70 bg-black/70 backdrop-blur-md h-full w-full" />
         )}
         <AttributionControl compact={true} />
         <NavigationControl
@@ -1428,7 +1425,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
         )}
 
         {/* Filter controls (collapsible) */}
-        {(showMap || smallScreen) && (
+        {/* {(showMap || smallScreen) && (
           <div className="absolute left-3 top-28 sm:left-4 @min-4xl:top-2 @min-4xl:left-2 z-[1]">
             <div className="bg-background/90 backdrop-blur rounded-xl border border-border shadow min-w-[200px] max-w-[calc(100vw-3rem)] max-[360px]:min-w-[180px] max-[320px]:min-w-[160px] sm:min-w-[220px]">
               <button
@@ -1513,9 +1510,233 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
               )}
             </div>
           </div>
+        )} */}
+        {(showMap || smallScreen) && (
+          <div className="absolute top-32 left-3 @min-4xl:top-3 flex flex-col gap-3 z-40">
+            {selected && (
+              <button
+                type="button"
+                aria-label="Refocus map on beach"
+                onClick={() => {
+                  if (selected)
+                    map?.easeTo({
+                      center: [selected.longitude, selected.latitude],
+                      zoom: 16,
+                      duration: 500,
+                    });
+                }}
+                className="bg-background hover:bg-blue-200 dark:hover:bg-blue-400 rounded-full border border-border shadow-lg p-3 text-sm font-medium flex items-center gap-2 active:scale-95 transition"
+              >
+                <MapPin className="w-5 h-5 mx-auto" />
+              </button>
+            )}
+            <button
+              type="button"
+              aria-label="toggle filters"
+              onClick={() => togglePanel("filters")}
+              className={cn(
+                "bg-background hover:bg-blue-200 dark:hover:bg-blue-400 rounded-full border border-border shadow-lg p-3 text-sm font-medium flex items-center gap-2 active:scale-95 transition",
+                openPanel === "filters" && "bg-blue-300"
+              )}
+            >
+              <SlidersHorizontal className="w-5 h-5 mx-auto" />
+            </button>
+            <button
+              type="button"
+              aria-label="toggle legend"
+              onClick={() => togglePanel("legend")}
+              className={cn(
+                "bg-background hover:bg-blue-200 dark:hover:bg-blue-400 rounded-full border border-border shadow-lg p-3 text-sm font-medium flex items-center gap-2 active:scale-95 transition",
+                openPanel === "legend" && "bg-blue-300"
+              )}
+            >
+              <Info className="w-5 h-5 mx-auto" />
+            </button>
+            {fullMapPage && !smallScreen && (
+              <button
+                aria-label={`${showMap ? "Minimize" : "Maximize"} map`}
+                className={cn(
+                  "z-80 bg-background rounded-full p-3 shadow-lg border border-border hover:bg-blue-200 dark:hover:bg-blue-400"
+                  // showMap ? "top-4" : "top-[50%] transform -translate-y-1/2"
+                )}
+                onClick={() => {
+                  if (openPanel) setOpenPanel(null);
+                  setShowMap(!showMap);
+                }}
+              >
+                {showMap ? (
+                  <Minimize2 className="w-5 h-5" />
+                ) : (
+                  <ArrowRightFromLine className="w-5 h-5" />
+                )}
+              </button>
+            )}
+          </div>
         )}
 
-        {(showMap || smallScreen) &&
+        {/* LEGEND PANEL (small, upper overlay) */}
+        <AnimatePresence>
+          {openPanel === "legend" && (
+            <motion.div
+              key="legend"
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", stiffness: 220, damping: 26 }}
+              drag="x"
+              dragConstraints={{ left: 0, right: 0 }}
+              onDragEnd={(_, info) => {
+                if (info.offset.x > 100) setOpenPanel(null); // swipe right to close
+              }}
+              className="absolute top-0 right-0 h-fit max-h-[60vh] w-[75vw] max-w-sm z-60 flex flex-col"
+              style={{ touchAction: "pan-y" }} // keeps map touch panning working
+            >
+              {(showMap || smallScreen) && (
+                <div
+                  className={cn(
+                    "absolute top-32 right-3 max-w-[200px] @min-4xl:top-3"
+                  )}
+                >
+                  <div className="rounded-lg border border-border/60 bg-background/90 backdrop-blur px-3 py-2 shadow">
+                    <span className="text-[11px] font-semibold uppercase text-muted-foreground">
+                      Direction Rings
+                    </span>
+                    <div className="mt-1.5 flex flex-col gap-1 text-[11px] text-foreground">
+                      <div className="flex items-center gap-2">
+                        <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#2563eb]" />
+                        <span>Primary swell</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#16a34a]" />
+                        <span>Secondary swell</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#f97316]" />
+                        <span>Tertiary swell</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#a855f7]" />
+                        <span>Wind direction</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {openPanel === "filters" && (
+            <motion.div
+              key="filters"
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", stiffness: 220, damping: 26 }}
+              drag="x"
+              dragConstraints={{ left: 0, right: 0 }}
+              onDragEnd={(_, info) => {
+                if (info.offset.x > 100) setOpenPanel(null); // swipe right to close
+              }}
+              className="absolute top-0 right-0 h-fit max-h-[60vh] w-[75vw] max-w-sm z-60 flex flex-col"
+              style={{ touchAction: "pan-y" }} // keeps map touch panning working
+            >
+              <div className={cn("absolute right-3 top-32 @min-4xl:top-3")}>
+                <div className="bg-background/90 backdrop-blur rounded-xl border border-border shadow min-w-[200px] max-w-[calc(100vw-3rem)] max-[360px]:min-w-[180px] max-[320px]:min-w-[160px] sm:min-w-[220px]">
+                  <button
+                    className="hover:bg-highlight-5 rounded-xl w-full flex items-center justify-between px-3 py-1.5 text-xs font-medium max-[360px]:px-2 max-[320px]:px-1.5"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowFilters((s) => !s);
+                    }}
+                  >
+                    <span className="text-sm font-semibold tracking-wide">
+                      Filters {filters.size ? `(${filters.size})` : ""}
+                    </span>
+                    <span className="text-muted-foreground">
+                      {showFilters ? (
+                        <ChevronUp className="w-6 h-6" />
+                      ) : (
+                        <ChevronDown className="w-6 h-6" />
+                      )}
+                    </span>
+                  </button>
+                  {showFilters && (
+                    <div
+                      className="max-h-72 overflow-auto px-2 pb-2"
+                      style={{ touchAction: "pan-y" }}
+                    >
+                      {Object.entries(FEATURE_CATEGORIES).map(
+                        ([catKey, cat]) => (
+                          <div key={catKey} className="mb-2">
+                            <div className="px-1 py-1 text-[11px] uppercase text-muted-foreground font-semibold">
+                              {(cat as any).label}
+                            </div>
+                            <div className="grid grid-cols-1 gap-1 px-1">
+                              {(cat as any).features.map((key: string) => {
+                                const checked = filters.has(key);
+                                const label = getFeatureDisplayName(key) || key;
+                                return (
+                                  <label
+                                    key={key}
+                                    className="flex items-center gap-2 text-[12px]"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={checked}
+                                      onChange={(e) => {
+                                        const che = e.currentTarget.checked;
+                                        setFilters((prev) => {
+                                          const next = new Set(prev);
+                                          if (che) next.add(key);
+                                          else next.delete(key);
+                                          return next;
+                                        });
+                                      }}
+                                    />
+                                    <span>{label}</span>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )
+                      )}
+                    </div>
+                  )}
+                  {showFilters && (
+                    <div className="flex justify-center gap-2 px-1 py-2 rounded-b-xl">
+                      {filters.size > 0 && (
+                        <button
+                          className="text-[11px] font-semibold px-2 py-1 rounded-xl border bg-highlight-3 dark:bg-background border border-border/90 hover:bg-highlight-5 dark:hover:bg-highlight-2"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setFilters(new Set());
+                          }}
+                        >
+                          Clear
+                        </button>
+                      )}
+                      <button
+                        className="text-[11px] font-semibold px-2 py-1 rounded-xl border border-border/90 bg-background dark:bg-highlight-5 border-border text-foreground hover:bg-highlight-3 dark:hover:bg-highlight-2"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowFilters(false);
+                        }}
+                      >
+                        Close
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        {/* FILTER PANEL — slides from bottom */}
+
+        {/* {(showMap || smallScreen) &&
           selected &&
           swellDirections &&
           [
@@ -1550,7 +1771,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
                 </div>
               </div>
             </div>
-          )}
+          )} */}
 
         <style jsx global>{`
           .maplibregl-popup.plain-popup .maplibregl-popup-content {
@@ -1573,9 +1794,13 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
             background: transparent;
           }
 
-          @media (max-width: 1023px) {
+          @media (max-width: 911px) {
             .maplibregl-ctrl-attrib {
-              bottom: 0vh;
+              bottom: 60px;
+            }
+
+            .maplibregl-ctrl.maplibregl-ctrl-group {
+              margin-bottom: 60px;
             }
           }
 
@@ -1584,13 +1809,13 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
           }
 
           .maplibregl-ctrl-attrib {
-            right: 0.25vh;
+            right: 3px;
           }
         `}</style>
       </Map>
 
       {/* Mobile scroll button - only show on mobile */}
-      <button
+      {/* <button
         onClick={() => {
           const content = document.getElementById("content");
           if (content) {
@@ -1623,7 +1848,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
           View{" "}
           {fullMapPage ? (forecastPage ? "Forecast" : "Overview") : "Beaches"}
         </span>
-      </button>
+      </button> */}
     </aside>
   );
 };

@@ -5,6 +5,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Map, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useSearchContext } from "../context/SearchContext";
 
 type BeachHit = {
   id: string | number;
@@ -22,10 +23,12 @@ const SearchBar = ({ className }: { className?: string }) => {
   const [open, setOpen] = useState(false);
   const [hits, setHits] = useState<BeachHit[]>([]);
   const [active, setActive] = useState(0);
-  const [isOverlay, setIsOverlay] = useState(false);
+  // const [isOverlay, setIsOverlay] = useState(false);
   const [wideScreen, setWideScreen] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const boxRef = useRef<HTMLFormElement | null>(null);
+
+  const { isOverlay, setIsOverlay } = useSearchContext();
 
   // keep a ref to always know the latest query value
   const latestQueryRef = useRef<string>(query);
@@ -248,34 +251,48 @@ const SearchBar = ({ className }: { className?: string }) => {
                 setIsOverlay(false);
             }}
           >
-            <div className="relative w-full max-w-lg flex items-center bg-highlight-4 rounded-full shadow-lg ring ring-border/70 px-3 py-2 gap-2">
-              <Search
-                strokeWidth={3}
-                className="w-5 h-5 text-muted-foreground"
-              />
-              <input
-                autoFocus
-                name="overlay-query"
-                type="text"
-                value={query}
-                onChange={(e) => {
-                  setQuery(e.target.value);
-                }}
-                onFocus={() => hits.length > 0 && setOpen(true)}
-                onKeyDown={onKeyDown}
-                placeholder="Search beaches..."
-                className="placeholder:text-sm focus:outline-none bg-transparent flex-1 min-w-0 text-base"
-              />
+            <div className="flex gap-2 w-full justify-center">
+              <div className="relative w-full max-w-lg flex items-center bg-highlight-4 rounded-full shadow-lg ring ring-border/70 px-3 py-2 gap-2">
+                <Search
+                  strokeWidth={3}
+                  className="w-5 h-5 text-muted-foreground"
+                />
+                <input
+                  autoFocus
+                  name="overlay-query"
+                  type="text"
+                  value={query}
+                  onChange={(e) => {
+                    setQuery(e.target.value);
+                  }}
+                  onFocus={() => hits.length > 0 && setOpen(true)}
+                  onKeyDown={onKeyDown}
+                  placeholder="Search beaches..."
+                  className="placeholder:text-sm focus:outline-none bg-transparent flex-1 min-w-0 text-base"
+                />
+                <button
+                  type="button"
+                  aria-label="close search"
+                  onClick={() => {
+                    setQuery("");
+                    setIsOverlay(false);
+                  }}
+                  className="p-1.5 rounded-full hover:bg-highlight-3 transition"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
               <button
                 type="button"
-                aria-label="close search"
+                aria-label="open map"
+                className="icon-button p-3.5 hover:bg-highlight-5"
                 onClick={() => {
                   setQuery("");
                   setIsOverlay(false);
+                  router.push("/beaches");
                 }}
-                className="p-1.5 rounded-full hover:bg-highlight-3 transition"
               >
-                <X className="w-5 h-5" />
+                <Map className="icon-md" />
               </button>
             </div>
 

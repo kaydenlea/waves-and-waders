@@ -6,6 +6,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { UserMenu } from "@/components/auth/UserMenu";
 import { cn } from "@/lib/utils";
 import { Switch } from "../ui/switch";
+import { LazyLoadDatePicker } from "./LazyLoad/LazyLoadDatePicker";
+import { LazyLoadHourSlider } from "./LazyLoad/LazyLoadHourSlider";
+import NavBarActions from "./NavBarActions";
+import { useClientPath } from "../context/PathContext";
 
 {
   /* <div className="mx-auto flex items-center justify-between px-4 py-5.5 sm:px-6">
@@ -71,7 +75,13 @@ import { Switch } from "../ui/switch";
 </div>; */
 }
 
-const NavBar = ({ landingPage = false }: { landingPage?: boolean }) => {
+const NavBar = ({
+  landingPage,
+  beachesPage,
+}: {
+  landingPage?: boolean;
+  beachesPage?: boolean;
+}) => {
   return (
     <header
       className={cn(
@@ -82,8 +92,9 @@ const NavBar = ({ landingPage = false }: { landingPage?: boolean }) => {
       <nav
         aria-label="primary navigation"
         className={cn(
-          "h-23 flex items-center justify-between px-6 bg-background rounded-md @min-4xl:rounded-t-none w-full",
-          !landingPage && "border border-border shadow-md"
+          "py-13.5 h-23 flex items-center justify-between bg-background rounded-md @min-4xl:rounded-t-none w-full",
+          !landingPage && "border border-border shadow-md",
+          !landingPage && !beachesPage ? "px-2 @min-sm:px-6" : "px-6"
         )}
       >
         {/* <Link href="/" className="p-3 icon-button">
@@ -91,22 +102,58 @@ const NavBar = ({ landingPage = false }: { landingPage?: boolean }) => {
         </Link> */}
         <Link
           href="/"
-          className="group inline-flex items-center gap-2 outline-none"
+          className={cn(
+            "group items-center gap-2 outline-none",
+            !landingPage && !beachesPage
+              ? "hidden @min-4xl:inline-flex"
+              : "inline-flex"
+          )}
         >
           <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-cyan-300 to-blue-500 text-foreground shadow-lg shadow-cyan-500/20">
             <Waves className="h-6 w-6" aria-hidden />
           </div>
-          <span className="text-lg font-semibold tracking-tight text-foreground flex flex-col @min-md:flex-row">
-            <span className="-mb-2 @min-md:mb-0">
+          <span className="text-lg font-semibold tracking-tight text-foreground flex flex-col @min-5xl:flex-row">
+            <span className="-mb-2 @min-5xl:mb-0">
               Waves<span className="ml-[0.9]">&</span>
             </span>
             <span>Waders</span>
           </span>
         </Link>
-        <SearchBar className="max-w-[12rem] sm:max-w-none hidden @min-4xl:flex" />
-        <div className="flex items-center gap-2">
-          <div className="hidden sm:flex">
-            <UserMenu />
+        <NavBarActions landingPage />
+        {/* {landingPage && (
+          <div className="gap-10 justify-center mr-8 hidden @min-lg:flex @min-4xl:hidden">
+            <Link
+              className="text-foreground transition hover:text-foreground"
+              href="#"
+            >
+              Features
+            </Link>
+            <Link
+              className="text-foreground transition hover:text-foreground"
+              href="#"
+            >
+              Personalize
+            </Link>
+            <Link
+              className="text-foreground transition hover:text-foreground"
+              href="#"
+            >
+              Why Us
+            </Link>
+          </div>
+        )} */}
+        <div
+          className={cn(
+            "items-center gap-2",
+            landingPage || beachesPage ? "flex" : "hidden @min-4xl:flex"
+          )}
+        >
+          <div
+            className={cn(
+              landingPage ? "hidden @min-md:flex" : "hidden @min-5xl:flex"
+            )}
+          >
+            <UserMenu landingPage />
           </div>
           <SearchBar className="max-w-[12rem] sm:max-w-none @min-4xl:hidden" />
           <ThemeToggle className="hide-button" />
@@ -129,7 +176,12 @@ const NavBar = ({ landingPage = false }: { landingPage?: boolean }) => {
                 Saved spots
               </Link>
               <ThemeToggle switchMode />
-              <div className="sm:hidden border-t border-border/40 pt-1.5 mt-1.5 flex">
+              <div
+                className={cn(
+                  "border-t border-border/40 pt-1.5 mt-1.5 flex",
+                  landingPage ? "@min-md:hidden" : "@min-5xl:hidden"
+                )}
+              >
                 <UserMenu />
               </div>
             </PopoverContent>

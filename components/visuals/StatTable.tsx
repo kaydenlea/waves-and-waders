@@ -216,7 +216,7 @@ const GeneralStat = ({
   return (
     <span
       className={cn(
-        "text-base font-medium flex justify-center items-center text-center gap-1 whitespace-nowrap rounded-sm p-1 h-10",
+        "text-base font-medium flex justify-center items-center text-center gap-1 whitespace-nowrap rounded-sm p-1.5 @min-md:p-3 h-10",
         level
       )}
     >
@@ -676,14 +676,21 @@ const StatTable = ({
     const adjustData = () => {
       const width = table.clientWidth;
       setWidth(width);
-      if (width < 850) {
+      if (width < 550) {
         setVisibleCols(3);
         setColumnPages([
           [COLUMNS[0], COLUMNS[2], COLUMNS[1]],
           COLUMNS.slice(3, 5),
           COLUMNS.slice(5, COLUMNS.length),
         ]);
-      } else if (width < 950) {
+      } else if (width < 800) {
+        setVisibleCols(5);
+        setColumnPages([
+          [COLUMNS[0], COLUMNS[2], COLUMNS[5], COLUMNS[6], COLUMNS[1]],
+          [COLUMNS[3], COLUMNS[4], COLUMNS[7], COLUMNS[8]],
+        ]);
+        setCurrentPage(0);
+      } else if (width < 1050) {
         setVisibleCols(4);
         setColumnPages([COLUMNS.slice(0, 5), COLUMNS.slice(5, COLUMNS.length)]);
         setCurrentPage(0);

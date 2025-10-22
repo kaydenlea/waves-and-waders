@@ -1023,7 +1023,7 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
       >
         <div className="flex items-top justify-between">
           <h3 className="highlight-title bg-highlight-5 h-1/2 flex items-center px-2 py-1 rounded-xl">
-            OVERVIEW
+            SUMMARY
           </h3>
           <div className="py-1 px-2 rounded-md bg-highlight-6 grid grid-cols-[80px_1fr] grid-rows-2 space-y-0.5 items-center text-xs text-muted-foreground uppercase tracking-wide leading-tight">
             <span className="flex gap-2 items-center">

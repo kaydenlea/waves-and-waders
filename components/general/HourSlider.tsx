@@ -1,6 +1,7 @@
 "use client";
 import { useMemo, useState } from "react";
 import { Slider } from "@/components/ui/slider";
+import { cn } from "@/lib/utils";
 
 type Props = {
   value?: number | null;
@@ -8,6 +9,7 @@ type Props = {
   min?: number;
   max?: number;
   step?: number;
+  className?: string;
 };
 
 const HourSlider = ({
@@ -16,6 +18,7 @@ const HourSlider = ({
   min = 0,
   max = 21,
   step = 3,
+  className = "",
 }: Props) => {
   const [internal, setInternal] = useState<number>(() => {
     if (controlled !== undefined && controlled !== null) return controlled;
@@ -36,7 +39,12 @@ const HourSlider = ({
   };
 
   return (
-    <div className="border border-border space-y-1 flex flex-col gap-2 relative p-3 bg-highlight-4 shadow-no-top rounded-b-xl">
+    <div
+      className={cn(
+        "border border-border space-y-1 flex flex-col gap-2 relative py-[15px] px-6 bg-highlight-4 shadow-no-top rounded-full flex-1",
+        className
+      )}
+    >
       <h3 className="text-md font-medium">{`${displayValue} ${ampm}`}</h3>
       <Slider
         min={min}
@@ -49,7 +57,7 @@ const HourSlider = ({
       <div className="w-full flex justify-between pl-1.5 pr-2.5">
         {Array.from({ length: 8 }, (_, i) => (
           <div key={i}>
-            <div className="absolute bottom-6 h-3 w-1 rounded-full bg-gray-300" />
+            <div className="absolute bottom-7 h-3 w-1 rounded-full bg-gray-300" />
           </div>
         ))}
       </div>

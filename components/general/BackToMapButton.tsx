@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronUp } from "lucide-react";
+import { ChevronUp, MapPin } from "lucide-react";
 
 const wideScreenWidth = 911;
 // export const scrollToMap = () => {
@@ -28,11 +28,12 @@ export default function BackToMapButton() {
   return (
     <div className="touch-pan-y block @min-4xl:hidden flex justify-center pt-10 pb-4">
       <button
+        aria-label="back to map"
         onClick={scrollToMap}
-        className="flex items-center gap-2 px-4 py-2 rounded-full bg-background/95 backdrop-blur border border-border shadow-lg text-sm font-medium text-foreground hover:bg-highlight-5 transition-colors"
+        className="flex items-center gap-1 px-4 py-3 rounded-full bg-background backdrop-blur border border-border shadow-lg text-sm font-medium text-foreground hover:bg-highlight-3 transition-colors"
       >
-        <ChevronUp size={16} />
-        <span>Back to Map</span>
+        <span>Map</span>
+        <MapPin className="w-5 h-5" />
       </button>
     </div>
   );

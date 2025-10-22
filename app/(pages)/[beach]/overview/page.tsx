@@ -5,7 +5,11 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { fetchBeachByIdLoose, extractBeachId } from "@/lib/supabase";
 import { getServerSupabase } from "@/lib/supabaseServer";
-import BackToMapButton from "@/components/general/BackToMapButton";
+import BottomNav from "@/components/general/BottomNav";
+import NavBar from "@/components/general/NavBar";
+import { LazyLoadMap } from "@/components/general/LazyLoad/LazyLoadMap";
+import PathStyleWrapper from "@/components/general/PathStyleWrapper";
+import Footer from "@/components/general/Footer";
 
 export const metadata: Metadata = {
   title: "Surf Daily Forecast | Waves and Waders",
@@ -56,25 +60,37 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
 
   return (
     <>
-      <div className="@container p-2">
-        <header
-          id="content"
-          className="relative w-full flex flex-col gap-6 p-2 scroll-mt-30"
-        >
-          <PageTabs
-            defaultPage="overview"
-            beach={beach}
-            tabs={["overview", "forecast"]}
-            beachId={beachId}
-            isFavorite={isFav}
-          />
-          <h1 className="font-semibold text-4xl tracking-tight w-full @min-3xl:w-[calc(100%-350px)]">
-            {beachName}
-          </h1>
-        </header>
-        <DateSummaryBridge beachId={beachId} />
-      </div>
-      <BackToMapButton />
+      <NavBar />
+      <main
+        id="main-content"
+        className="bg-background-2 min-h-[calc(100vh-4rem)] @min-4xl:flex @min-4xl:flex-1 @min-4xl:mt-[5.5rem] @min-4xl:pb-4"
+      >
+        <LazyLoadMap />
+        <PathStyleWrapper>
+          <div className="@container py-5 px-1 @min-md:px-3">
+            <header
+              id="content"
+              className="relative w-full flex flex-col gap-6 p-2 pb-0 scroll-mt-30"
+            >
+              <PageTabs
+                defaultPage="overview"
+                beach={beach}
+                tabs={["overview", "forecast"]}
+                beachId={beachId}
+                isFavorite={isFav}
+                overviewPage
+              />
+              <h1 className="font-semibold text-4xl tracking-tight w-full @min-3xl:w-[calc(100%-350px)]">
+                {beachName} Summary
+              </h1>
+            </header>
+
+            <DateSummaryBridge beachId={beachId} />
+          </div>
+        </PathStyleWrapper>
+      </main>
+      <BottomNav />
+      <Footer />
     </>
   );
 };

@@ -54,7 +54,7 @@ const Loading = () => {
     // />
     <div
       className={cn(
-        "relative w-full min-h-[calc(100dvh-6.25rem)] @min-3xl:flex-1 @min-3xl:sticky @min-3xl:top-[5.5rem] @min-3xl:h-[calc(100vh-5.5rem)] @min-3xl:pl-3 @min-3xl:pt-3 bg-highlight-5 animate-pulse rounded-none @min-3xl:rounded-2xl transition-all duration-300"
+        "relative w-full min-h-[calc(100dvh-6.25rem)] @min-4xl:flex-1 @min-4xl:sticky @min-4xl:top-[5.5rem] @min-4xl:h-[calc(100vh-5.5rem)] @min-4xl:pl-3 @min-4xl:pt-3 bg-highlight-5 animate-pulse rounded-none @min-4xl:rounded-2xl transition-all duration-300"
         // !(pathName.endsWith("/beaches") || pathName.endsWith("/overview")) &&
         //   "@min-3xl:max-w-200"
       )}

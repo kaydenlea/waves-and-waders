@@ -37,6 +37,7 @@ import { Description } from "@/components/visuals/AnimatedCardsSection";
 import AnimatedCountSection from "@/components/visuals/AnimatedCountSection";
 import FaqSection from "@/components/visuals/FaqSection";
 import NavBar from "@/components/general/NavBar";
+import BottomNav from "@/components/general/BottomNav";
 
 // const Canvas = dynamic(
 //   () => import("@react-three/fiber").then((m) => m.Canvas),
@@ -326,7 +327,7 @@ const Home = () => {
           }}
         />
         <div className="relative pb-2 @min-5xl:pb-8">
-          <div className="absolute w-full h-full mx-auto px-5 md:px-10 pt-24">
+          <div className="absolute w-full h-full mx-auto px-5 md:px-10 pt-28">
             <div className="w-full h-full bg-black/80 dark:bg-blue rounded-3xl">
               <LazyLoadOceanScene />
             </div>
@@ -339,12 +340,12 @@ const Home = () => {
             height={1000}
             priority
           /> */}
-          <section className="@container relative mx-auto grid max-w-7xl grid-cols-1 items-center gap-10 px-6 py-12 sm:px-6 md:py-20">
+          <section className="@container relative mx-auto grid max-w-7xl grid-cols-1 items-center gap-10 px-6 py-20 sm:px-6 md:py-35">
             <div className="mt-[6rem] lg:mt-[7rem]">
               <div className="flex justify-center mb-4">
                 <Badge icon={Sparkles}>All-in-one forecasts</Badge>
               </div>
-              <h1 className="flex flex-col text-center text-balance text-[2.5rem] font-semibold leading-[1.05] tracking-tight sm:text-6xl md:text-7xl lg:text-8xl text-white">
+              <h1 className="flex flex-col text-center text-balance text-[2.5rem] font-semibold leading-[1.05] tracking-tight sm:text-6xl md:text-7xl xl:text-8xl text-white">
                 <span>Know the ocean</span>
                 <span className="pb-2 bg-gradient-to-r from-cyan-200 to-cyan-400 bg-clip-text text-transparent">
                   before you go
@@ -692,6 +693,7 @@ const Home = () => {
           </div>
         </section> */}
       </main>
+      <BottomNav />
       <Footer />
     </div>
   );

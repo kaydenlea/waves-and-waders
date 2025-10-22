@@ -14,8 +14,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 
-export const UserMenu = () => {
+export const UserMenu = ({
+  landingPage = false,
+}: {
+  landingPage?: boolean;
+}) => {
   const supabase = useSupabaseClient();
   const user = useUser();
   const router = useRouter();
@@ -23,11 +28,28 @@ export const UserMenu = () => {
   if (!user) {
     return (
       <Link
-        className="px-2 sm:pl-[13px] flex-1 rounded-md sm:rounded-full hover:bg-highlight-5 py-1.5 sm:py-3 w-full sm:w-20 text-left sm:text-center flex items-center gap-2"
+        className={cn(
+          "px-2 flex-1 rounded-md hover:bg-highlight-5 py-1.5 w-full text-left flex items-center gap-2",
+          landingPage
+            ? "@min-md:text-center @min-md:pl-[13px] @min-md:rounded-full @min-md:py-3 @min-md:w-20"
+            : "@min-5xl:text-center @min-5xl:pl-[13px] @min-5xl:rounded-full @min-5xl:py-3 @min-5xl:w-20"
+        )}
         href="/login"
       >
-        <LogIn className="w-5 h-5 -mt-0.5 block sm:hidden" />
-        <span className="text-base font-normal sm:font-medium">Sign in</span>
+        <LogIn
+          className={cn(
+            "w-5 h-5 -mt-0.5 block",
+            landingPage ? "@min-md:hidden" : "@min-5xl:hidden"
+          )}
+        />
+        <span
+          className={cn(
+            "text-base font-normal",
+            landingPage ? "@min-md:font-medium" : "@min-5xl:font-medium"
+          )}
+        >
+          Sign in
+        </span>
       </Link>
     );
   }

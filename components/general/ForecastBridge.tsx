@@ -43,10 +43,11 @@ type Props = { beachId: string };
  */
 const ForecastBridge: React.FC<Props> = ({ beachId }) => {
   // local selected date (kept for the DatePicker's controlled value)
-  const [selected, setSelected] = useState<Date | null>(dayjs().toDate());
+  // const [selected, setSelected] = useState<Date | null>(dayjs().toDate());
 
   // this context may be client-populated; we will only read it after mount to avoid hydration mismatch
-  const { selectedDays } = useDateContext();
+  const { id, selected, selectedDays } = useDateContext();
+  id.current = beachId;
 
   // ref for the in-page date picker
   const pickerRef = useRef<HTMLDivElement | null>(null);
@@ -304,16 +305,18 @@ const ForecastBridge: React.FC<Props> = ({ beachId }) => {
   return (
     <section
       id="forecast-content"
-      className="relative flex flex-col gap-4 mb-2 scroll-mt-40"
+      className="relative flex flex-col gap-4 scroll-mt-45"
     >
       {/* --- Date picker area: sticky on all sizes so behavior is identical everywhere --- */}
       <section
         ref={pickerRef}
-        className="sticky top-[var(--nav-height,60px)] z-60"
-        aria-label="Date picker region"
+        // className="sticky top-[var(--nav-height,60px)] z-60"
+        // aria-label="Date picker region"
       >
-        <h2 className="ml-2 text-muted-foreground text-lg">Weekly Forecast</h2>
-        <div className="mt-4 mb-4">
+        <h2 className="ml-2 mb-0 text-muted-foreground text-lg">
+          {windowString}
+        </h2>
+        {/* <div className="mt-4 mb-4">
           <LazyLoadDatePicker
             forecast
             beachId={beachId}
@@ -323,12 +326,79 @@ const ForecastBridge: React.FC<Props> = ({ beachId }) => {
               setSelected(d);
             }}
           />
+        </div> */}
+        {/* <div className="flex justify-end">
+          <Link
+            href={`/${beachId}/forecast/edit#forecast-content`}
+            className="flex justify-center text-sm gap-1 h-10 px-3 items-center border border-border bg-highlight-4 rounded-full drop-shadow-sm hover:bg-highlight-3"
+            aria-label="Edit forecast"
+          >
+            <Pencil size={16} />
+            Edit
+          </Link>
+        </div> */}
+        <div className="flex flex-col gap-3">
+          {visibleRows.length === 0 ? (
+            <p className="mx-2 mt-4 text-sm text-muted-foreground">
+              All widgets are hidden. Use the edit page to re-enable panels for
+              the forecast view.
+            </p>
+          ) : (
+            visibleRows.map((row, index) => {
+              const visibleItems = row.items.filter(
+                (id) => layoutMeta[id]?.visible !== false
+              );
+              if (!visibleItems.length) return null;
+              console.log("FORECAST WIDGETS", visibleItems);
+              const renderedItems = visibleItems
+                .map((id) => ({
+                  id,
+                  content: renderWidget(id),
+                }))
+                .filter(
+                  (
+                    entry
+                  ): entry is {
+                    id: WidgetId;
+                    content: React.JSX.Element | null;
+                  } => Boolean(entry.content)
+                );
+
+              if (!renderedItems.length) return null;
+
+              const spacingClass = index === 0 ? "mt-4" : "mt-3";
+              const isFull =
+                renderedItems.length === 1 &&
+                (layoutMeta[renderedItems[0].id]?.span ?? "full") === "full";
+
+              if (isFull) {
+                return (
+                  <div key={row.id} className={`${spacingClass} w-full`}>
+                    {renderedItems[0].content}
+                  </div>
+                );
+              }
+
+              return (
+                <div
+                  key={row.id}
+                  className={`${spacingClass} w-full flex flex-col @min-2xl:flex-row gap-3`}
+                >
+                  {renderedItems.map((entry) => (
+                    <React.Fragment key={entry.id}>
+                      {entry.content}
+                    </React.Fragment>
+                  ))}
+                </div>
+              );
+            })
+          )}
         </div>
       </section>
 
       {/* --- Main content header --- */}
-      <section className="scroll-mt-[calc(var(--nav-height,72px)+1rem)]">
-        <header className="-mb-5 mx-2 flex gap-12 justify-between">
+      {/* <section className="scroll-mt-[calc(var(--nav-height,72px)+1rem)]">
+        <header className="-mb-5 mx-2 flex gap-12 justify-between items-center">
           <div>
             <h2 className="leading-none font-semibold text-2xl">
               {windowString}
@@ -346,65 +416,7 @@ const ForecastBridge: React.FC<Props> = ({ beachId }) => {
             Edit
           </Link>
         </header>
-      </section>
-
-      <section className="flex flex-col gap-3">
-        {visibleRows.length === 0 ? (
-          <p className="mx-2 mt-4 text-sm text-muted-foreground">
-            All widgets are hidden. Use the edit page to re-enable panels for
-            the forecast view.
-          </p>
-        ) : (
-          visibleRows.map((row, index) => {
-            const visibleItems = row.items.filter(
-              (id) => layoutMeta[id]?.visible !== false
-            );
-            if (!visibleItems.length) return null;
-            console.log("FORECAST WIDGETS", visibleItems);
-            const renderedItems = visibleItems
-              .map((id) => ({
-                id,
-                content: renderWidget(id),
-              }))
-              .filter(
-                (
-                  entry
-                ): entry is {
-                  id: WidgetId;
-                  content: React.JSX.Element | null;
-                } => Boolean(entry.content)
-              );
-
-            if (!renderedItems.length) return null;
-
-            const spacingClass = index === 0 ? "mt-4" : "mt-3";
-            const isFull =
-              renderedItems.length === 1 &&
-              (layoutMeta[renderedItems[0].id]?.span ?? "full") === "full";
-
-            if (isFull) {
-              return (
-                <div key={row.id} className={`${spacingClass} w-full`}>
-                  {renderedItems[0].content}
-                </div>
-              );
-            }
-
-            return (
-              <div
-                key={row.id}
-                className={`${spacingClass} w-full flex flex-col @min-2xl:flex-row gap-3`}
-              >
-                {renderedItems.map((entry) => (
-                  <React.Fragment key={entry.id}>
-                    {entry.content}
-                  </React.Fragment>
-                ))}
-              </div>
-            );
-          })
-        )}
-      </section>
+      </section> */}
     </section>
   );
 };

@@ -29,16 +29,13 @@ import {
 } from "./dashboardLayout";
 import { LazyLoadSummary } from "./LazyLoad/LazyLoadSummary";
 import { useMapFilters } from "../context/MapFilterContext";
+import { useDateContext } from "../context/DateContext";
 
 type Props = { beachId: string };
 
 const DateSummaryBridge: React.FC<Props> = ({ beachId }) => {
-  const [selected, setSelected] = React.useState<Date | null>(null);
-  const [hour, setHour] = React.useState<number>(() => {
-    if (typeof window === "undefined") return 12; // SSR-safe default
-    const currentHour = new Date().getHours();
-    return Math.round(Math.max(0, Math.min(21, currentHour)) / 3) * 3;
-  });
+  const { id, selected, setSelected, hour, setHour } = useDateContext();
+  id.current = beachId;
 
   const [mounted, setMounted] = React.useState(false);
   const [currentTime, setCurrentTime] = React.useState<string>("");
@@ -263,7 +260,7 @@ const DateSummaryBridge: React.FC<Props> = ({ beachId }) => {
       {/* Main overview section */}
       <section
         id="overview-content"
-        className="flex flex-col gap-1 w-full mb-2 scroll-mt-30"
+        className="flex flex-col gap-1 w-full scroll-mt-35"
       >
         <header className="mx-2 flex gap-5 justify-between">
           <div>
@@ -272,30 +269,14 @@ const DateSummaryBridge: React.FC<Props> = ({ beachId }) => {
               An insight into the forecast of any day
             </p>
           </div>
-          <Link
+          {/* <Link
             href={`/${beachId}/overview/edit#overview-content`}
             className="flex justify-center text-sm gap-1 h-10 px-3 items-center border border-border bg-highlight-4 rounded-full drop-shadow-sm hover:bg-highlight-3"
           >
             <Pencil size={16} />
             Edit
-          </Link>
+          </Link> */}
         </header>
-
-        {/* 🧭 Sticky date picker + hour slider */}
-        <section className="sticky top-[100px] z-40 pt-2 pb-8 transition-all duration-300">
-          <LazyLoadDatePicker
-            beachId={beachId}
-            value={selected}
-            onSelect={setSelected}
-          />
-          <LazyLoadHourSlider
-            value={hour}
-            onChange={setHour}
-            min={0}
-            max={21}
-            step={3}
-          />
-        </section>
 
         {visibleRows.length === 0 ? (
           <p className="mx-2 mt-6 text-sm text-muted-foreground">
