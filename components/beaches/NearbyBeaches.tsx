@@ -28,6 +28,8 @@ import {
 import type { ForecastData } from "@/lib/supabase";
 import {
   BadgeCheck,
+  ChevronDown,
+  ChevronUp,
   CircleParking,
   Dog,
   Droplets,
@@ -46,6 +48,7 @@ import {
 } from "lucide-react";
 import { useDateContext } from "../context/DateContext";
 import { Spinner } from "../ui/spinner";
+import { AnimatePresence, motion } from "motion/react";
 
 type DbBeach = {
   id: string | number;
@@ -922,6 +925,109 @@ export default function NearbyBeaches({
     return pages;
   };
 
+  const [open, setOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node)
+      ) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleSelect = (value: number) => {
+    setPerPage(value);
+    setPage(1);
+    setOpen(false);
+  };
+
+  const PageOptions = () => {
+    return (
+      <div className="flex items-center gap-2">
+        <label
+          htmlFor="perPage"
+          className="text-sm text-muted-foreground font-medium select-none"
+        >
+          Per page:
+        </label>
+
+        <div ref={dropdownRef} className="relative">
+          {/* Dropdown trigger */}
+          <button
+            onClick={() => setOpen((prev) => !prev)}
+            className="
+                flex items-center justify-between gap-2
+                rounded-full border border-border/20
+                bg-highlight-3 px-4 py-1.5
+                text-sm font-medium text-foreground
+                shadow-inner
+                hover:bg-background/60 dark:hover:bg-highlight-5/40
+                transition-all duration-200
+                focus:outline-none
+              "
+          >
+            {perPage}
+            {open ? (
+              <ChevronUp
+                size={16}
+                className="text-muted-foreground transition-transform duration-200"
+              />
+            ) : (
+              <ChevronDown
+                size={16}
+                className="text-muted-foreground transition-transform duration-200"
+              />
+            )}
+          </button>
+
+          {/* Dropdown menu */}
+          <AnimatePresence>
+            {open && (
+              <motion.ul
+                initial={{ opacity: 0, y: -5 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -5 }}
+                transition={{ duration: 0.15 }}
+                className="
+                    absolute right-0 mt-2 w-28
+                    rounded-xl border border-border
+                    bg-background
+                    shadow-lg overflow-hidden
+                    z-50
+                  "
+              >
+                {[10, 20, 50].map((num) => (
+                  <li
+                    key={num}
+                    onClick={() => handleSelect(num)}
+                    className={`
+                        px-4 py-2 text-sm cursor-pointer
+                        transition-colors duration-150
+                        ${
+                          perPage === num
+                            ? "bg-highlight-3 font-semibold"
+                            : "hover:bg-highlight-5"
+                        }
+                      `}
+                  >
+                    {num}
+                  </li>
+                ))}
+              </motion.ul>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+    );
+  };
+
   // console.log("FINAL BEACHES", currentItems);
   return (
     <>
@@ -937,7 +1043,7 @@ export default function NearbyBeaches({
           </div>
         )}
         {/* Per Page Dropdown */}
-        <div className="flex items-center gap-2">
+        {/* <div className="flex items-center gap-2">
           <label htmlFor="perPage" className="text-sm text-gray-600">
             Per page:
           </label>
@@ -957,7 +1063,8 @@ export default function NearbyBeaches({
               20
             </option>
           </select>
-        </div>
+        </div> */}
+        <PageOptions />
       </div>
 
       {dataLoaded.current ? (

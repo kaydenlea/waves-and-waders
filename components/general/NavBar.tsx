@@ -1,7 +1,13 @@
 import Link from "next/link";
 import SearchBar from "./SearchBar";
 import ThemeToggle from "./ThemeToggle";
-import { AlignJustify, Heart, MapPinned, Waves } from "lucide-react";
+import {
+  AlignJustify,
+  Heart,
+  MapPinned,
+  SlidersHorizontal,
+  Waves,
+} from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { UserMenu } from "@/components/auth/UserMenu";
 import { cn } from "@/lib/utils";
@@ -92,7 +98,7 @@ const NavBar = ({
       <nav
         aria-label="primary navigation"
         className={cn(
-          "py-13.5 h-23 flex items-center justify-between bg-background rounded-md @min-4xl:rounded-t-none w-full",
+          "py-13.5 h-23 flex items-center justify-between bg-background rounded-3xl @min-4xl:rounded-2xl @min-4xl:rounded-t-none w-full",
           !landingPage && "border border-border shadow-md",
           !landingPage && !beachesPage ? "px-2 @min-sm:px-6" : "px-6"
         )}
@@ -106,13 +112,22 @@ const NavBar = ({
             "group items-center gap-2 outline-none",
             !landingPage && !beachesPage
               ? "hidden @min-4xl:inline-flex"
+              : beachesPage
+              ? "hidden @min-xl:inline-flex"
               : "inline-flex"
           )}
         >
           <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-cyan-300 to-blue-500 text-foreground shadow-lg shadow-cyan-500/20">
             <Waves className="h-6 w-6" aria-hidden />
           </div>
-          <span className="text-lg font-semibold tracking-tight text-foreground flex flex-col @min-5xl:flex-row">
+          <span
+            className={cn(
+              "text-lg font-semibold tracking-tight text-foreground flex flex-col",
+              beachesPage || landingPage
+                ? "@min-5xl:flex-row"
+                : "@min-5xl:flex-row"
+            )}
+          >
             <span className="-mb-2 @min-5xl:mb-0">
               Waves<span className="ml-[0.9]">&</span>
             </span>
@@ -142,10 +157,20 @@ const NavBar = ({
             </Link>
           </div>
         )} */}
+        {beachesPage && (
+          <button
+            type="button"
+            aria-label="beach filters"
+            className="ml-2 @min-2xl:ml-0 p-4 @min-2xl:py-2.5 @min-2xl:px-4 rounded-full border border-border/30 flex gap-2 items-center @min-4xl:hidden font-medium text-base bg-highlight-5 hover:bg-highlight-3"
+          >
+            <SlidersHorizontal className="w-5 h-5" />
+            <span className="hidden @min-2xl:inline">Filters</span>
+          </button>
+        )}
         <div
           className={cn(
             "items-center gap-2",
-            landingPage || beachesPage ? "flex" : "hidden @min-4xl:flex"
+            landingPage ? "flex" : "hidden @min-4xl:flex"
           )}
         >
           <div
@@ -158,7 +183,7 @@ const NavBar = ({
           <SearchBar className="max-w-[12rem] sm:max-w-none @min-4xl:hidden" />
           <ThemeToggle className="hide-button" />
           <Popover>
-            <PopoverTrigger className="icon-button p-3 hover:bg-highlight-5">
+            <PopoverTrigger className="icon-button p-3 bg-highlight-5 hover:bg-highlight-3">
               <AlignJustify className="icon-md" />
             </PopoverTrigger>
             <PopoverContent className="z-50 max-w-50 flex flex-col">

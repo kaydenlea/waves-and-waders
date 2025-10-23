@@ -21,7 +21,13 @@ const NavBarActions = ({ landingPage = false }: { landingPage?: boolean }) => {
   const { setIsOverlay } = useSearchContext();
   if (homePage || beachesPage)
     return (
-      <SearchBar className="max-w-[12rem] sm:max-w-none hidden @min-4xl:flex" />
+      <SearchBar
+        beachesPage
+        className={cn(
+          "sm:max-w-none",
+          beachesPage ? "flex" : "max-w-[12rem] hidden @min-4xl:flex"
+        )}
+      />
     );
   //   return (
   //     <div

@@ -11,6 +11,7 @@ import {
   Calendar,
   Clock,
   ArrowUp,
+  Waves,
 } from "lucide-react";
 import BackToMapButton from "./BackToMapButton";
 import Link from "next/link";
@@ -223,6 +224,9 @@ export default function BottomNav() {
             strokeWidth={3}
           />
         </button>
+        {/* <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-cyan-300 to-blue-500 text-foreground shadow-lg shadow-cyan-500/20">
+          <Waves className="h-6 w-6" aria-hidden />
+        </div> */}
         <Link
           className="hover:bg-highlight-5 px-2 py-1.5 rounded-md flex flex-col items-center gap-1"
           href="/login"

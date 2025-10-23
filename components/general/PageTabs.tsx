@@ -7,7 +7,8 @@ import { cn } from "@/lib/utils";
 import FocusMapButton from "./FocusMapButton";
 import SaveButton from "./SaveButton";
 import { useMapFilters } from "../context/MapFilterContext";
-import { ArrowLeftFromLine, Map, Pencil } from "lucide-react";
+import { ArrowLeftFromLine, Map, MapPinned, Pencil } from "lucide-react";
+import { motion } from "motion/react";
 
 type PageTabsProps = {
   beach?: string;
@@ -101,7 +102,7 @@ const PageTabs = ({
               {showMap ? (
                 <ArrowLeftFromLine className="w-6 h-6 @min-sm:w-6 @min-sm:h-6" />
               ) : (
-                <Map className="w-6 h-6 @min-sm:w-6 @min-sm:h-6" />
+                <MapPinned className="w-6 h-6 @min-sm:w-6 @min-sm:h-6" />
               )}
             </button>
           )}
@@ -115,7 +116,46 @@ const PageTabs = ({
           )}
         </>
       )}
-      <div className="text-sm @min-sm:text-base font-medium p-1.5 flex bg-highlight-3 rounded-full border border-border/20">
+      <div className="relative flex w-fit rounded-full bg-highlight-3 p-1.5 text-sm @min-sm:text-base font-medium border border-border/20 shadow-inner">
+        {tabs.map((tab) => {
+          const isActive = defaultPage === tab;
+          const href =
+            tab.toLowerCase() === "overview"
+              ? beach
+                ? `/${beach}/overview`
+                : "/beaches"
+              : beach
+              ? `/${beach}/forecast`
+              : "/favorites";
+
+          return (
+            <Link
+              key={tab}
+              href={href}
+              className={cn(
+                "relative z-10 flex-1 rounded-full px-4 py-1 w-27 text-center capitalize transition-colors duration-300",
+                isActive
+                  ? "text-foreground font-semibold"
+                  : "text-muted-foreground hover:text-foreground/80"
+              )}
+            >
+              {isActive && (
+                <motion.div
+                  layoutId="tab-pill"
+                  className="absolute inset-0 z-0 rounded-full bg-background dark:bg-highlight-5 shadow-md"
+                  transition={{
+                    type: "spring",
+                    stiffness: 400,
+                    damping: 30,
+                  }}
+                />
+              )}
+              <span className="relative z-10">{tab}</span>
+            </Link>
+          );
+        })}
+      </div>
+      {/* <div className="text-sm @min-sm:text-base font-medium p-1.5 flex bg-highlight-3 rounded-full border border-border/20">
         <Link
           className={cn(
             "px-3 py-1 rounded-full capitalize",
@@ -138,7 +178,7 @@ const PageTabs = ({
         >
           {tabs[1]}
         </Link>
-      </div>
+      </div> */}
       {showSaveButton && (
         <SaveButton
           beachId={beachId!}

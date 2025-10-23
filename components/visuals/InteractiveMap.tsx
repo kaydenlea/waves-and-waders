@@ -35,8 +35,10 @@ import {
   Waves,
   SlidersHorizontal,
   Info,
+  Map as MapIcon,
   MapPin,
   Minimize2,
+  MapPinned,
 } from "lucide-react";
 import { useMapFilters } from "../context/MapFilterContext";
 import {
@@ -45,6 +47,7 @@ import {
 } from "../general/mapEvents";
 import { motion, AnimatePresence } from "framer-motion";
 import FocusMapButton from "../general/FocusMapButton";
+import { useSearchContext } from "../context/SearchContext";
 
 type BeachPoint = {
   id: string | number;
@@ -239,6 +242,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
   const [openPanel, setOpenPanel] = React.useState<"filters" | "legend" | null>(
     null
   );
+  const { isOverlay, setIsOverlay } = useSearchContext();
 
   const togglePanel = (panel: "filters" | "legend") => {
     setOpenPanel((prev) => (prev === panel ? null : panel));
@@ -1550,7 +1554,8 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
               onClick={() => togglePanel("filters")}
               className={cn(
                 "bg-background hover:bg-blue-200 dark:hover:bg-blue-400 rounded-full border border-border shadow-lg p-3 text-sm font-medium flex items-center gap-2 active:scale-95 transition",
-                openPanel === "filters" && "bg-blue-300"
+                openPanel === "filters" && "bg-blue-300",
+                !fullMapPage && "hidden @min-4xl:block"
               )}
             >
               <SlidersHorizontal className="w-5 h-5 mx-auto" />
@@ -1561,31 +1566,45 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
               onClick={() => togglePanel("legend")}
               className={cn(
                 "bg-background hover:bg-blue-200 dark:hover:bg-blue-400 rounded-full border border-border shadow-lg p-3 text-sm font-medium flex items-center gap-2 active:scale-95 transition",
-                openPanel === "legend" && "bg-blue-300"
+                openPanel === "legend" && "bg-blue-300",
+                !fullMapPage && "hidden @min-4xl:block"
               )}
             >
               <Info className="w-5 h-5 mx-auto" />
             </button>
-            {fullMapPage && !smallScreen && (
+            {fullMapPage && (
               <button
-                aria-label={`${showMap ? "Minimize" : "Maximize"} map`}
-                className={cn(
-                  "z-80 bg-background rounded-full p-3 shadow-lg border border-border hover:bg-blue-200 dark:hover:bg-blue-400"
-                  // showMap ? "top-4" : "top-[50%] transform -translate-y-1/2"
-                )}
+                type="button"
+                aria-label="open map"
+                className="icon-button p-3 hover:bg-blue-200"
                 onClick={() => {
-                  if (openPanel) setOpenPanel(null);
-                  setShowMap(!showMap);
+                  setIsOverlay(false);
+                  router.push("/beaches");
                 }}
               >
-                {showMap ? (
-                  <Minimize2 className="w-5 h-5" />
-                ) : (
-                  <ArrowRightFromLine className="w-5 h-5" />
-                )}
+                <MapIcon className="w-5 h-5 mx-auto" />
               </button>
             )}
           </div>
+        )}
+        {fullMapPage && !smallScreen && (
+          <button
+            aria-label={`${showMap ? "Minimize" : "Maximize"} map`}
+            className={cn(
+              "z-80 bg-background rounded-full p-3 shadow-lg border border-border hover:bg-blue-200 dark:hover:bg-blue-400 absolute left-3 bottom-3"
+              // showMap ? "top-4" : "top-[50%] transform -translate-y-1/2"
+            )}
+            onClick={() => {
+              if (openPanel) setOpenPanel(null);
+              setShowMap(!showMap);
+            }}
+          >
+            {showMap ? (
+              <Minimize2 className="w-5 h-5" />
+            ) : (
+              <ArrowRightFromLine className="w-5 h-5" />
+            )}
+          </button>
         )}
 
         {/* LEGEND PANEL (small, upper overlay) */}

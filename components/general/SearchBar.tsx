@@ -17,7 +17,13 @@ type BeachHit = {
 
 const BREAKPOINT_4XL = 911; // adjust to match your @min-4xl breakpoint
 
-const SearchBar = ({ className }: { className?: string }) => {
+const SearchBar = ({
+  className,
+  beachesPage = false,
+}: {
+  className?: string;
+  beachesPage?: boolean;
+}) => {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -194,38 +200,51 @@ const SearchBar = ({ className }: { className?: string }) => {
       <form
         ref={boxRef}
         className={cn(
-          "relative flex items-center gap-2 w-full justify-end @min-4xl:justify-center",
-          className
+          "relative flex items-center gap-2 w-full justify-end",
+          className,
+          beachesPage ? "@min-2xl:justify-center" : "@min-4xl:justify-center"
         )}
       >
         {/* Search button (mobile) */}
-        <button
-          type="button"
-          aria-label="search"
-          onClick={() => setIsOverlay(true)}
-          className="group/button hover:scale-[1.05] inline-flex @min-4xl:hidden items-center gap-1 rounded-full bg-gradient-to-br from-cyan-300 to-blue-500 p-3 font-medium text-foreground shadow-lg shadow-cyan-500/30 transition active:scale-[0.98]"
-        >
-          <Search
-            className="h-5 w-5 group-hover/button:scale-[1.05]"
-            strokeWidth={3}
-          />
-        </button>
+        {!beachesPage && (
+          <button
+            type="button"
+            aria-label="search"
+            onClick={() => setIsOverlay(true)}
+            className="group/button hover:scale-[1.05] items-center gap-1 inline-flex @min-4xl:hidden rounded-full bg-gradient-to-br from-cyan-300 to-blue-500 p-3 font-medium text-foreground shadow-lg shadow-cyan-500/30 transition active:scale-[0.98]"
+          >
+            <Search
+              className="h-5 w-5 group-hover/button:scale-[1.05]"
+              strokeWidth={3}
+            />
+          </button>
+        )}
 
         {/* Search bar - visible on large screens */}
         <button
           type="button"
           aria-label="search"
           onClick={() => setIsOverlay(true)}
-          className="hover:bg-highlight-5 duration-200 hover:scale-[1.01] pl-1.5 py-1.5 hidden @min-4xl:flex items-center rounded-full h-full shadow-lg ring ring-border/70 gap-2 bg-highlight-4 w-full max-w-50 @min-xl:max-w-75 @min-5xl:max-w-md"
+          className={cn(
+            "hover:bg-highlight-3 duration-200 transition transition-all transform hover:translate-y-[1.5px] pl-1.5 py-2 items-center rounded-full h-full shadow-lg ring ring-border/70 gap-2 bg-highlight-5 w-full",
+            beachesPage
+              ? "flex @min-xl:max-w-75 @min-5xl:max-w-md"
+              : "hidden @min-4xl:flex max-w-50 @min-xl:max-w-75 @min-5xl:max-w-md"
+          )}
         >
-          <div className="bg-gradient-to-br from-cyan-300 to-blue-400 p-1.5 text-white rounded-full flex-shrink-0 max-[360px]:p-1">
+          <div className="hidden @min-sm:block bg-gradient-to-br from-cyan-300 to-blue-400 p-1.5 text-white rounded-full flex-shrink-0 p-1">
             <Search
               strokeWidth={3}
               className="w-5 h-5 group-hover/button:scale-[1.05]"
             />
           </div>
-          <span className="font-medium text-md w-full mr-10">
-            Search beaches
+          <span className="flex flex-col justify-center w-full -ml-[6px] @min-sm:-ml-[44px]">
+            <span className="font-medium text-md w-full mr-10">
+              Search <span className="hidden @min-md:inline">for</span> beaches
+            </span>
+            <span className="text-muted-foreground text-xs">
+              Nearby &middot; Saved &middot; Filters
+            </span>
           </span>
         </button>
 
@@ -233,7 +252,7 @@ const SearchBar = ({ className }: { className?: string }) => {
         <button
           type="button"
           aria-label="open map"
-          className="icon-button p-3 hide-button hover:bg-highlight-5"
+          className="icon-button p-4 hide-button bg-highlight-5 hover:bg-highlight-3"
           onClick={() => router.push("/beaches")}
         >
           <Map className="icon-md" />
