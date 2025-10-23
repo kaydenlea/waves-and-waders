@@ -19,6 +19,7 @@ import {
   Dog,
   Shell,
   LifeBuoy,
+  Info,
 } from "lucide-react";
 import Tag from "./Tag";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
@@ -144,6 +145,46 @@ const BeachCard = ({
             }}
           />
         </div>
+        <Popover>
+          <PopoverTrigger
+            asChild
+            onClick={(e) => {
+              e.stopPropagation();
+            }}
+          >
+            <span className="text-white absolute bottom-5 right-5 z-50 p-1.5 rounded-full bg-black/60 hover:bg-black/90">
+              <Info className="w-4 h-4" />
+            </span>
+          </PopoverTrigger>
+          <PopoverContent
+            side="bottom"
+            align="end"
+            sideOffset={8}
+            className="w-80 touch-pan-y max-w-[150px]"
+          >
+            <span className="text-[11px] font-semibold uppercase text-muted-foreground">
+              Direction Rings
+            </span>
+            <div className="mt-1.5 flex flex-col gap-1 text-[11px] text-foreground">
+              <div className="flex items-center gap-2">
+                <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#2563eb]" />
+                <span>Primary swell</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#16a34a]" />
+                <span>Secondary swell</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#f97316]" />
+                <span>Tertiary swell</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#a855f7]" />
+                <span>Wind direction</span>
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
         <div className="absolute bottom-3 left-3 w-[75%] bg-slate-900/0 p-3 text-black backdrop-blur-none transition rounded-4xl">
           <div className="flex gap-1 truncate">
             <div className={cn("w-1 p-1 rounded-full", color)} />

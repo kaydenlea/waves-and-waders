@@ -54,7 +54,7 @@ const ThemeToggle = ({
     <button
       aria-label="theme toggle"
       className={cn(
-        "icon-button p-3 bg-highlight-5 hover:bg-highlight-3",
+        "icon-button p-3 dark:bg-highlight-5 hover:bg-highlight-3 dark:hover:bg-highlight-3",
         className
       )}
       onClick={() => setTheme(theme === "light" ? "dark" : "light")}

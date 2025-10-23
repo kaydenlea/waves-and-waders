@@ -22,7 +22,7 @@ const NavBarActions = ({ landingPage = false }: { landingPage?: boolean }) => {
   if (homePage || beachesPage)
     return (
       <SearchBar
-        beachesPage
+        beachesPage={beachesPage}
         className={cn(
           "sm:max-w-none",
           beachesPage ? "flex" : "max-w-[12rem] hidden @min-4xl:flex"

@@ -31,7 +31,7 @@ const Page = ({ params }: { params: Promise<{ beach: string }> }) => {
   };
   return (
     <PathStyleWrapper>
-      <div id="content" className="@container p-5 mt-[4rem] @min-4xl:mt-0">
+      <div id="content" className="@container py-0 @min-4xl:py-5 p-5 mt-0">
         <section
           id="overview-content"
           className="flex flex-col gap-3 w-full mb-2"

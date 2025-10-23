@@ -59,7 +59,7 @@ const Page = ({ params }: { params: Promise<{ beach: string }> }) => {
   };
   return (
     <PathStyleWrapper>
-      <div id="content" className="@container p-5 mt-[4rem] @min-4xl:mt-0">
+      <div id="content" className="@container py-0 @min-4xl:py-5 p-5 mt-0">
         {/* <header className="ml-2">
         <h1 className="font-semibold text-4xl tracking-tight">
           Huntington Beach

@@ -53,7 +53,7 @@ export default async function BeachesPage() {
                 beachPage
               />
               <header id="content" className="ml-2 mb-4 scroll-mt-30">
-                <h1 className="font-semibold text-3xl tracking-tight">
+                <h1 className="font-semibold text-4xl tracking-tight">
                   Surf spots
                 </h1>
                 <span className="text-muted-foreground">

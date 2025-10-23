@@ -204,6 +204,9 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
     string | null
   >(null);
   const {
+    openPanel,
+    setOpenPanel,
+    togglePanel,
     popupData,
     setPopupData,
     popupId,
@@ -239,14 +242,13 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
     latitude: number;
     properties: any;
   } | null>(null);
-  const [openPanel, setOpenPanel] = React.useState<"filters" | "legend" | null>(
-    null
-  );
   const { isOverlay, setIsOverlay } = useSearchContext();
-
-  const togglePanel = (panel: "filters" | "legend") => {
-    setOpenPanel((prev) => (prev === panel ? null : panel));
-  };
+  // const [openPanel, setOpenPanel] = React.useState<"filters" | "legend" | null>(
+  //   null
+  // );
+  // const togglePanel = (panel: "filters" | "legend") => {
+  //   setOpenPanel((prev) => (prev === panel ? null : panel));
+  // };
 
   const mapToId: Record<
     string,
@@ -866,6 +868,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
         console.log("ENTER SAME");
         if (map)
           map.setFeatureState(
+            // TO-DO: debug (sometimes causes error)
             { source: "beaches", id: mapToId[popupId.current].id },
             { hover: false }
           );
@@ -908,6 +911,8 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
       });
     }
   }, [showMap]);
+
+  const filterCount = filters?.size ?? 0;
 
   if (editPage || (isDesktop && fullMapPage && !showMap)) {
     return <></>;
@@ -1548,35 +1553,47 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
                 <MapPin className="w-5 h-5 mx-auto" />
               </button>
             )}
-            <button
-              type="button"
-              aria-label="toggle filters"
-              onClick={() => togglePanel("filters")}
-              className={cn(
-                "bg-background hover:bg-blue-200 dark:hover:bg-blue-400 rounded-full border border-border shadow-lg p-3 text-sm font-medium flex items-center gap-2 active:scale-95 transition",
-                openPanel === "filters" && "bg-blue-300",
-                !fullMapPage && "hidden @min-4xl:block"
-              )}
-            >
-              <SlidersHorizontal className="w-5 h-5 mx-auto" />
-            </button>
-            <button
-              type="button"
-              aria-label="toggle legend"
-              onClick={() => togglePanel("legend")}
-              className={cn(
-                "bg-background hover:bg-blue-200 dark:hover:bg-blue-400 rounded-full border border-border shadow-lg p-3 text-sm font-medium flex items-center gap-2 active:scale-95 transition",
-                openPanel === "legend" && "bg-blue-300",
-                !fullMapPage && "hidden @min-4xl:block"
-              )}
-            >
-              <Info className="w-5 h-5 mx-auto" />
-            </button>
+            {fullMapPage && (
+              <button
+                type="button"
+                aria-label="toggle filters"
+                onClick={() => {
+                  togglePanel("filters");
+                  setShowFilters(true);
+                }}
+                className={cn(
+                  "relative bg-background hover:bg-blue-200 dark:hover:bg-blue-400 rounded-full border border-border shadow-lg p-3 text-sm font-medium flex items-center gap-2 active:scale-95 transition",
+                  openPanel === "filters" && "bg-blue-300",
+                  !fullMapPage && "hidden @min-4xl:block"
+                )}
+              >
+                <SlidersHorizontal className="w-5 h-5 mx-auto" />
+                {filterCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 bg-sky-500 text-white text-[10px] font-semibold rounded-full w-5 h-5 flex items-center justify-center shadow-md ring-2 ring-background dark:ring-highlight-5">
+                    {filterCount}
+                  </span>
+                )}
+              </button>
+            )}
+            {fullMapPage && (
+              <button
+                type="button"
+                aria-label="toggle legend"
+                onClick={() => togglePanel("legend")}
+                className={cn(
+                  "bg-background hover:bg-blue-200 dark:hover:bg-blue-400 rounded-full border border-border shadow-lg p-3 text-sm font-medium flex items-center gap-2 active:scale-95 transition",
+                  openPanel === "legend" && "bg-blue-300",
+                  !fullMapPage && "hidden @min-4xl:block"
+                )}
+              >
+                <Info className="w-5 h-5 mx-auto" />
+              </button>
+            )}
             {fullMapPage && (
               <button
                 type="button"
                 aria-label="open map"
-                className="icon-button p-3 hover:bg-blue-200"
+                className="icon-button p-3 hover:bg-blue-200 dark:hover:bg-blue-400"
                 onClick={() => {
                   setIsOverlay(false);
                   router.push("/beaches");
@@ -1609,7 +1626,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
 
         {/* LEGEND PANEL (small, upper overlay) */}
         <AnimatePresence>
-          {openPanel === "legend" && (
+          {fullMapPage && openPanel === "legend" && (
             <motion.div
               key="legend"
               initial={{ x: "100%" }}
@@ -1659,7 +1676,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
           )}
         </AnimatePresence>
 
-        <AnimatePresence>
+        {/* <AnimatePresence>
           {openPanel === "filters" && (
             <motion.div
               key="filters"
@@ -1766,7 +1783,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
               </div>
             </motion.div>
           )}
-        </AnimatePresence>
+        </AnimatePresence> */}
         {/* FILTER PANEL — slides from bottom */}
 
         {/* {(showMap || smallScreen) &&

@@ -4,6 +4,11 @@ import React from "react";
 import type { Map } from "maplibre-gl";
 
 type Ctx = {
+  openPanel: "filters" | "legend" | null;
+  setOpenPanel: React.Dispatch<
+    React.SetStateAction<"filters" | "legend" | null>
+  >;
+  togglePanel: (panel: "filters" | "legend") => void;
   showMap: boolean;
   setShowMap: React.Dispatch<React.SetStateAction<boolean>>;
   popupId: React.RefObject<string | null>;
@@ -31,6 +36,12 @@ type Ctx = {
 const MapFilterContext = React.createContext<Ctx | null>(null);
 
 export function MapFilterProvider({ children }: { children: React.ReactNode }) {
+  const [openPanel, setOpenPanel] = React.useState<"filters" | "legend" | null>(
+    null
+  );
+  const togglePanel = React.useCallback((panel: "filters" | "legend") => {
+    setOpenPanel((prev) => (prev === panel ? null : panel));
+  }, []);
   const [showMap, setShowMap] = React.useState(true);
   const popupId = React.useRef<string | null>(null);
   const popupRef = React.useRef<{
@@ -53,6 +64,9 @@ export function MapFilterProvider({ children }: { children: React.ReactNode }) {
   >(null);
   const value = React.useMemo(
     () => ({
+      openPanel,
+      setOpenPanel,
+      togglePanel,
       showMap,
       setShowMap,
       popupId,
@@ -72,6 +86,8 @@ export function MapFilterProvider({ children }: { children: React.ReactNode }) {
       setSurfIntensityForDate,
     }),
     [
+      openPanel,
+      togglePanel,
       showMap,
       popupId,
       popupData,

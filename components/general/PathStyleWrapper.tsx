@@ -26,11 +26,14 @@ export default function PathStyleWrapper({
       <article
         id="content"
         className={cn(
-          "relative touch-pan-y w-full px-2 relative pt-15 @min-4xl:pt-4 z-1 bg-background border-t border-x border-border/70 @min-4xl:border-none rounded-t-4xl @min-4xl:rounded-t-none mx-auto",
-          cls
+          "relative touch-pan-y w-full px-2 relative pt-15 @min-4xl:pt-4 z-1 bg-background border-t border-x border-border/70 @min-4xl:border-none mx-auto",
+          cls,
+          !editPage && "rounded-t-4xl @min-4xl:rounded-t-none"
         )}
       >
-        <div className="block @min-4xl:hidden absolute top-5 left-1/2 transform -translate-x-1/2 h-2 w-20 bg-muted-foreground/50 rounded-full" />
+        {!editPage && (
+          <div className="block @min-4xl:hidden absolute top-5 left-1/2 transform -translate-x-1/2 h-2 w-20 bg-muted-foreground/50 rounded-full" />
+        )}
         {children}
       </article>
     </>

@@ -16,6 +16,8 @@ import { LazyLoadDatePicker } from "./LazyLoad/LazyLoadDatePicker";
 import { LazyLoadHourSlider } from "./LazyLoad/LazyLoadHourSlider";
 import NavBarActions from "./NavBarActions";
 import { useClientPath } from "../context/PathContext";
+import { useMapFilters } from "../context/MapFilterContext";
+import ToggleFilters from "./ToggleFilters";
 
 {
   /* <div className="mx-auto flex items-center justify-between px-4 py-5.5 sm:px-6">
@@ -124,7 +126,9 @@ const NavBar = ({
             className={cn(
               "text-lg font-semibold tracking-tight text-foreground flex flex-col",
               beachesPage || landingPage
-                ? "@min-5xl:flex-row"
+                ? beachesPage
+                  ? "@min-5xl:flex-row"
+                  : "@min-md:flex-row"
                 : "@min-5xl:flex-row"
             )}
           >
@@ -157,16 +161,7 @@ const NavBar = ({
             </Link>
           </div>
         )} */}
-        {beachesPage && (
-          <button
-            type="button"
-            aria-label="beach filters"
-            className="ml-2 @min-2xl:ml-0 p-4 @min-2xl:py-2.5 @min-2xl:px-4 rounded-full border border-border/30 flex gap-2 items-center @min-4xl:hidden font-medium text-base bg-highlight-5 hover:bg-highlight-3"
-          >
-            <SlidersHorizontal className="w-5 h-5" />
-            <span className="hidden @min-2xl:inline">Filters</span>
-          </button>
-        )}
+        {/* {beachesPage && <ToggleFilters />} */}
         <div
           className={cn(
             "items-center gap-2",
@@ -183,7 +178,7 @@ const NavBar = ({
           <SearchBar className="max-w-[12rem] sm:max-w-none @min-4xl:hidden" />
           <ThemeToggle className="hide-button" />
           <Popover>
-            <PopoverTrigger className="icon-button p-3 bg-highlight-5 hover:bg-highlight-3">
+            <PopoverTrigger className="icon-button p-3 dark:bg-highlight-5 hover:bg-highlight-3 dark:hover:bg-highlight-3">
               <AlignJustify className="icon-md" />
             </PopoverTrigger>
             <PopoverContent className="z-50 max-w-50 flex flex-col">

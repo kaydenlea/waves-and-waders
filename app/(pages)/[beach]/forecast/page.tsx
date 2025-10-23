@@ -76,7 +76,7 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
                 isFavorite={isFav}
                 forecastPage
               />
-              <h1 className="font-semibold text-4xl tracking-tight w-full @min-3xl:w-[calc(100%-350px)]">
+              <h1 className="font-semibold text-4xl tracking-tight w-full @min-3xl:w-[calc(100%-400px)]">
                 {beachName} Forecast
               </h1>
             </header>

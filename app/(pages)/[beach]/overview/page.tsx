@@ -80,7 +80,7 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
                 isFavorite={isFav}
                 overviewPage
               />
-              <h1 className="font-semibold text-4xl tracking-tight w-full @min-3xl:w-[calc(100%-350px)]">
+              <h1 className="font-semibold text-4xl tracking-tight w-full @min-3xl:w-[calc(100%-400px)]">
                 {beachName} Summary
               </h1>
             </header>

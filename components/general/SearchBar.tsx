@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Map, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSearchContext } from "../context/SearchContext";
+import ToggleFilters from "./ToggleFilters";
 
 type BeachHit = {
   id: string | number;
@@ -202,7 +203,7 @@ const SearchBar = ({
         className={cn(
           "relative flex items-center gap-2 w-full justify-end",
           className,
-          beachesPage ? "@min-2xl:justify-center" : "@min-4xl:justify-center"
+          beachesPage ? "@min-4xl:justify-center" : "@min-4xl:justify-center"
         )}
       >
         {/* Search button (mobile) */}
@@ -226,19 +227,19 @@ const SearchBar = ({
           aria-label="search"
           onClick={() => setIsOverlay(true)}
           className={cn(
-            "hover:bg-highlight-3 duration-200 transition transition-all transform hover:translate-y-[1.5px] pl-1.5 py-2 items-center rounded-full h-full shadow-lg ring ring-border/70 gap-2 bg-highlight-5 w-full",
+            "hover:bg-highlight-3 dark:hover:bg-highlight-3 duration-200 transition transition-all transform hover:translate-y-[1px] pl-1.5 py-2 items-center rounded-full h-full shadow-lg ring ring-border/70 gap-2 dark:bg-highlight-5 w-full",
             beachesPage
-              ? "flex @min-xl:max-w-75 @min-5xl:max-w-md"
+              ? "flex @min-xl:max-w-75 @min-3xl:max-w-100 @min-5xl:max-w-md"
               : "hidden @min-4xl:flex max-w-50 @min-xl:max-w-75 @min-5xl:max-w-md"
           )}
         >
-          <div className="hidden @min-sm:block bg-gradient-to-br from-cyan-300 to-blue-400 p-1.5 text-white rounded-full flex-shrink-0 p-1">
+          <div className="hidden @min-sm:block bg-gradient-to-br from-cyan-300 to-blue-400 p-2 text-white rounded-full flex-shrink-0 p-1">
             <Search
               strokeWidth={3}
               className="w-5 h-5 group-hover/button:scale-[1.05]"
             />
           </div>
-          <span className="flex flex-col justify-center w-full -ml-[6px] @min-sm:-ml-[44px]">
+          <span className="flex flex-col justify-center w-full -ml-[6px] @min-sm:-ml-[30px]">
             <span className="font-medium text-md w-full mr-10">
               Search <span className="hidden @min-md:inline">for</span> beaches
             </span>
@@ -248,15 +249,19 @@ const SearchBar = ({
           </span>
         </button>
 
+        {beachesPage && <ToggleFilters />}
+
         {/* Map button */}
-        <button
-          type="button"
-          aria-label="open map"
-          className="icon-button p-4 hide-button bg-highlight-5 hover:bg-highlight-3"
-          onClick={() => router.push("/beaches")}
-        >
-          <Map className="icon-md" />
-        </button>
+        {!beachesPage && (
+          <button
+            type="button"
+            aria-label="open map"
+            className="icon-button p-4 hide-button dark:bg-highlight-5 hover:bg-highlight-3 dark:hover:bg-highlight-3"
+            onClick={() => router.push("/beaches")}
+          >
+            <Map className="icon-md" />
+          </button>
+        )}
       </form>
 
       {/* ---------------- Overlay Mode ---------------- */}
@@ -270,7 +275,7 @@ const SearchBar = ({
                 setIsOverlay(false);
             }}
           >
-            <div className="flex gap-2 w-full justify-center">
+            <div className="flex gap-2 w-full justify-center max-w-60 @min-md:max-w-full">
               <div className="relative w-full max-w-lg flex items-center bg-highlight-4 rounded-full shadow-lg ring ring-border/70 px-3 py-2 gap-2">
                 <Search
                   strokeWidth={3}
