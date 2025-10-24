@@ -465,14 +465,15 @@ export interface ForecastData {
   };
 }
 // ----------------------------
-// Tide types (NEW)
+// Tide types (County-based, 15-minute intervals)
 // ----------------------------
-export interface TideRow {
-  beach_id: string;
+export interface CountyTideRow {
+  county: string;
   timestamp: string; // timestamptz in DB (ISO string here)
   tide_level_ft: number | null;
   tide_level_m: number | null;
-  source: string;
+  station_id: string | null;
+  station_name: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -495,17 +496,18 @@ export interface DailyConditions {
 // ----------------------------
 // Transform helpers
 // ----------------------------
+
+// Helper functions defined once outside the map for better performance
+const toF = (c: number | null) => (c == null ? null : (c * 9) / 5 + 32);
+const mToFt = (m: number | null) => (m == null ? null : m * 3.28084);
+const kphToMph = (kph: number | null) => kph == null ? null : kph * 0.621371;
+const hPaToInHg = (hpa: number | null) => hpa == null ? null : hpa * 0.02953;
+
 export function transformToComponentFormat(
   data: SupabaseForecastData[]
 ): ForecastData[] {
   return data.map((row) => {
     const anyRow: any = row as any;
-    const toF = (c: number | null) => (c == null ? null : (c * 9) / 5 + 32);
-    const mToFt = (m: number | null) => (m == null ? null : m * 3.28084);
-    const kphToMph = (kph: number | null) =>
-      kph == null ? null : kph * 0.621371;
-    const hPaToInHg = (hpa: number | null) =>
-      hpa == null ? null : hpa * 0.02953;
 
     const waterTempF = row.water_temp_f ?? toF(anyRow.water_temp_c ?? null);
     const tideFt = row.tide_level_ft ?? mToFt(anyRow.tide_level_m ?? null);
@@ -563,7 +565,7 @@ export function transformToComponentFormat(
   });
 }
 // ----------------------------
-// Tide queries (NEW)
+// Tide queries (County-based, 15-minute intervals)
 // ----------------------------
 export async function fetchBeachTides(
   beachId: string,
@@ -576,48 +578,81 @@ export async function fetchBeachTides(
     endDate: endDate?.toISOString(),
   });
 
-  // Coerce to numeric id when possible to match DB type
-  const idValue: any = /^\d+$/.test(beachId) ? Number(beachId) : beachId;
+  // First, get the beach to find its county
+  const beach = await fetchBeachByIdLoose(beachId);
+  if (!beach || !beach.COUNTY) {
+    console.error("Beach not found or has no county:", beachId);
+    return [];
+  }
 
+  console.log("Fetching tides for county:", beach.COUNTY);
+
+  // Query county_tides_15min instead of beach_tides_hourly
   let q = supabase
-    .from("beach_tides_hourly")
+    .from("county_tides_15min")
     .select("timestamp,tide_level_ft,tide_level_m")
-    .eq("beach_id", idValue)
+    .eq("county", beach.COUNTY)
     .order("timestamp", { ascending: true });
 
   if (startDate) q = q.gte("timestamp", startDate.toISOString());
   if (endDate) q = q.lte("timestamp", endDate.toISOString());
 
-  const { data, error } = await q.returns<TideRow[]>();
+  const { data, error } = await q.returns<CountyTideRow[]>();
 
-  console.log("Query result:", { data: data?.length, error });
+  console.log("Query result:", {
+    dataCount: data?.length,
+    error,
+    county: beach.COUNTY,
+    startDate: startDate?.toISOString(),
+    endDate: endDate?.toISOString()
+  });
 
   if (error) {
-    console.error("Error fetching beach tides:", error);
+    console.error("Error fetching county tides:", error);
     return [];
   }
 
+  // Apply -2.4 ft correction to all tide levels
+  const TIDE_CORRECTION_FT = -2.4;
+  const TIDE_CORRECTION_M = TIDE_CORRECTION_FT * 0.3048; // Convert to meters
+
   const result = (data ?? []).map((r) => ({
     timestamp: r.timestamp,
-    tideLevelFt: r.tide_level_ft,
-    tideLevelM: r.tide_level_m,
+    tideLevelFt: r.tide_level_ft != null ? r.tide_level_ft + TIDE_CORRECTION_FT : null,
+    tideLevelM: r.tide_level_m != null ? r.tide_level_m + TIDE_CORRECTION_M : null,
   }));
 
-  console.log("Processed tide data:", result.length, "points");
+  console.log("✓ Processed tide data:", result.length, "points from county_tides_15min table (6-min intervals, with -2.4 ft correction)");
+  if (result.length > 0) {
+    console.log("  First timestamp:", result[0].timestamp);
+    console.log("  Last timestamp:", result[result.length - 1].timestamp);
+  }
   return result;
 }
 
 export async function fetchCurrentTide(
   beachId: string
 ): Promise<TidePoint | null> {
+  // First, get the beach to find its county
+  const beach = await fetchBeachByIdLoose(beachId);
+  if (!beach || !beach.COUNTY) {
+    console.error("Beach not found or has no county:", beachId);
+    return null;
+  }
+
+  const now = new Date().toISOString();
+
+  console.log("🕐 Fetching current tide for county:", beach.COUNTY, "at time:", now);
+
+  // Get the most recent tide data up to current time
   const { data, error } = await supabase
-    .from("beach_tides_hourly")
+    .from("county_tides_15min")
     .select("timestamp,tide_level_ft,tide_level_m")
-    .eq("beach_id", beachId)
+    .eq("county", beach.COUNTY)
+    .lte("timestamp", now)
     .order("timestamp", { ascending: false })
     .limit(1)
-    .maybeSingle()
-    .returns<TideRow>();
+    .maybeSingle();
 
   if (error) {
     console.error("Error fetching current tide:", error);
@@ -625,10 +660,19 @@ export async function fetchCurrentTide(
   }
   if (!data) return null;
 
+  // Apply -2.4 ft correction
+  const TIDE_CORRECTION_FT = -2.4;
+  const TIDE_CORRECTION_M = TIDE_CORRECTION_FT * 0.3048;
+
+  const correctedFt = data.tide_level_ft != null ? data.tide_level_ft + TIDE_CORRECTION_FT : null;
+  const correctedM = data.tide_level_m != null ? data.tide_level_m + TIDE_CORRECTION_M : null;
+
+  console.log("✓ Current tide:", correctedFt, "ft (corrected from", data.tide_level_ft, "ft) at", data.timestamp);
+
   return {
     timestamp: data.timestamp,
-    tideLevelFt: data.tide_level_ft,
-    tideLevelM: data.tide_level_m,
+    tideLevelFt: correctedFt,
+    tideLevelM: correctedM,
   };
 }
 
@@ -792,80 +836,33 @@ export async function fetchAllBeaches(): Promise<Beach[]> {
 
 export async function fetchBeachByIdLoose(id: string): Promise<Beach | null> {
   const target = id.trim();
-  const isDigits = /^\d+$/.test(target);
 
-  // Try strict id match first
-  let q = supabase
-    .from("beaches")
-    .select("id, Name, LATITUDE, LONGITUDE, COUNTY")
-    .eq("id", isDigits ? Number(target) : target)
-    .maybeSingle();
+  console.log("Looking up beach:", target);
 
-  let { data, error } = await q;
+  // Use optimized RPC function (reduces 4 queries to 1)
+  const { data, error } = await supabase
+    .rpc('find_beach_smart', { search_term: target })
+    .limit(1)
+    .single();
 
-  // If still not found, try matching by slug using cache
-  if (!data && target.includes("-")) {
-    const cache = await getBeachSlugCache();
-    const targetSlug = target.toLowerCase();
-    const beachId = cache.get(targetSlug);
-
-    console.log("Slug lookup:", targetSlug, "Found:", beachId ? "YES" : "NO");
-    if (!beachId) {
-      console.log(
-        "Available slugs sample:",
-        Array.from(cache.keys()).slice(0, 5)
-      );
-    }
-
-    if (beachId) {
-      // Found in cache, fetch the beach data
-      const { data: cachedBeach } = await supabase
-        .from("beaches")
-        .select("id, Name, LATITUDE, LONGITUDE, COUNTY")
-        .eq("id", beachId)
-        .maybeSingle();
-
-      if (cachedBeach) {
-        data = cachedBeach as any;
-      }
-    }
-  }
-
-  // Final fallback: fuzzy match by Name if still not found
-  if (!data) {
-    const searchTerm = target.replace(/-/g, " "); // Convert slug dashes to spaces
-    console.log("Trying fuzzy search for:", searchTerm);
-
-    const byName = await supabase
+  if (error) {
+    console.error("Error in find_beach_smart:", error);
+    // Fallback to direct query if RPC fails
+    const fallback = await supabase
       .from("beaches")
       .select("id, Name, LATITUDE, LONGITUDE, COUNTY")
-      .ilike("Name", `%${searchTerm}%`)
-      .limit(1)
+      .eq("id", target)
       .maybeSingle();
-
-    if (byName.data) {
-      console.log("Fuzzy match found:", byName.data.Name);
-      data = byName.data as any;
-    } else {
-      // Try matching just the first part before parentheses
-      const firstPart = searchTerm.split(/[(\[]/)[0].trim();
-      if (firstPart !== searchTerm) {
-        console.log("Trying first part only:", firstPart);
-        const byFirstPart = await supabase
-          .from("beaches")
-          .select("id, Name, LATITUDE, LONGITUDE, COUNTY")
-          .ilike("Name", `%${firstPart}%`)
-          .limit(1)
-          .maybeSingle();
-        if (byFirstPart.data) {
-          console.log("Found by first part:", byFirstPart.data.Name);
-          data = byFirstPart.data as any;
-        }
-      }
-    }
+    return (fallback.data as Beach) ?? null;
   }
 
-  return data ?? null;
+  if (data) {
+    console.log("Beach found:", (data as any).Name);
+  } else {
+    console.log("Beach not found for:", target);
+  }
+
+  return (data as Beach) ?? null;
 }
 
 export async function fetchBeachForecast(

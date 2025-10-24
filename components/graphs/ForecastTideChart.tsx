@@ -336,9 +336,8 @@ export default function ForecastTideChart({ beachId, date }: Props) {
           }));
         } else {
           series = points.map((p) => ({
-            hour: Math.round(
-              (new Date(p.timestamp).getTime() - startMs) / (60 * 60 * 1000)
-            ),
+            hour:
+              (new Date(p.timestamp).getTime() - startMs) / (60 * 60 * 1000),
             tide: p.tideLevelFt ?? 0,
           }));
         }
@@ -378,7 +377,7 @@ export default function ForecastTideChart({ beachId, date }: Props) {
 
           const dayAreasBuild: { x1: number; x2: number }[] = [];
           const nightAreasBuild: { x1: number; x2?: number }[] = [];
-          const markers: number[] = [];
+          const markerTargets: number[] = [];
           let nightStart = 0;
           for (let di = 0; di < FETCH_DAYS; di++) {
             const cond = await fetchDailyConditions(
@@ -395,17 +394,39 @@ export default function ForecastTideChart({ beachId, date }: Props) {
               continue;
             }
             const offset = di * 24;
-            const rH = offset + rise.h + Math.floor(rise.m / 60);
-            const sH = offset + setv.h + Math.floor(setv.m / 60);
+            const rH = offset + rise.h + rise.m / 60; // Use fractional hours
+            const sH = offset + setv.h + setv.m / 60; // Use fractional hours
             const dayStart = Math.min(rH, sH);
             const dayEnd = Math.max(rH, sH);
             dayAreasBuild.push({ x1: dayStart, x2: dayEnd });
             nightAreasBuild.push({ x1: nightStart, x2: dayStart });
             nightStart = dayEnd;
-            markers.push(rH, sH);
+            markerTargets.push(rH, sH);
           }
           nightAreasBuild.push({ x1: nightStart });
+
+          // Find the closest data point to each marker target
+          const markers: number[] = [];
+          for (const target of markerTargets) {
+            let closest = series[0];
+            let minDiff = Math.abs(series[0].hour - target);
+            for (const point of series) {
+              const diff = Math.abs(point.hour - target);
+              if (diff < minDiff) {
+                minDiff = diff;
+                closest = point;
+              }
+            }
+            // Only add if within reasonable range (10 minutes = 0.17 hours)
+            if (minDiff < 0.17 && !markers.includes(closest.hour)) {
+              markers.push(closest.hour);
+            }
+          }
+
           if (!cancelled) {
+            console.log("📅 Day areas:", dayAreasBuild);
+            console.log("🌙 Night areas:", nightAreasBuild);
+            console.log("☀️ Sun markers:", markers);
             setDayAreas(dayAreasBuild);
             setNightAreas(nightAreasBuild);
             setSunMarkers(markers);
@@ -458,6 +479,53 @@ export default function ForecastTideChart({ beachId, date }: Props) {
       ),
     [data, visibleHourStart, visibleHourEnd]
   );
+
+  // Compute label positions with collision avoidance
+  const labelPositions = useMemo(() => {
+    const peaks = data
+      .map((d, idx) => ({ ...d, index: idx }))
+      .filter((d) => d.isPeak !== undefined && d.isPeak !== null);
+
+    if (peaks.length === 0) return new Map<number, number>();
+
+    const positions = new Map<number, number>(); // index -> y-offset
+    const LABEL_WIDTH = 70; // Approximate width of label text (increased for better detection)
+
+    // Sort peaks by x-position (hour)
+    const sorted = [...peaks].sort((a, b) => a.hour - b.hour);
+
+    // Calculate chart width scale (pixels per hour)
+    const pxPerHour = chartInnerWidth / (totalFetchedDays * 24);
+
+    for (let i = 0; i < sorted.length; i++) {
+      const current = sorted[i];
+      let baseOffset = -32; // Default offset from point (above)
+
+      // Check for collisions with all previous labels
+      for (let j = i - 1; j >= 0; j--) {
+        const prev = sorted[j];
+        const prevOffset = positions.get(prev.index) ?? -32;
+
+        // Calculate horizontal distance in pixels
+        const xDist = Math.abs(current.hour - prev.hour) * pxPerHour;
+
+        // If labels overlap horizontally, alternate above/below
+        if (xDist < LABEL_WIDTH) {
+          // Alternate: if previous is above (negative), place current below (positive)
+          if (prevOffset < 0) {
+            baseOffset = 25; // Below the curve
+          } else {
+            baseOffset = -32; // Above the curve
+          }
+          break; // Only check the most recent overlapping label
+        }
+      }
+
+      positions.set(current.index, baseOffset);
+    }
+
+    return positions;
+  }, [data, chartInnerWidth, totalFetchedDays]);
 
   // Render
   return (
@@ -559,6 +627,7 @@ export default function ForecastTideChart({ beachId, date }: Props) {
               data={data}
               margin={{ left: -35, right: 15, bottom: 5, top: 6 }}
             >
+              {dayAreas.length > 0 && console.log("🎨 Rendering", dayAreas.length, "day areas")}
               {dayAreas.map((a, idx) => (
                 <ReferenceArea
                   key={`day-${idx}`}
@@ -566,8 +635,10 @@ export default function ForecastTideChart({ beachId, date }: Props) {
                   x2={a.x2}
                   fill="#FFE58F"
                   fillOpacity={0.18}
+                  ifOverflow="extendDomain"
                 />
               ))}
+              {nightAreas.length > 0 && console.log("🎨 Rendering", nightAreas.length, "night areas")}
               {nightAreas.map((a, idx) => (
                 <ReferenceArea
                   key={`night-${idx}`}
@@ -575,6 +646,7 @@ export default function ForecastTideChart({ beachId, date }: Props) {
                   x2={idx === nightAreas.length - 1 ? undefined : a.x2}
                   fill="#ccc1ffff"
                   fillOpacity={0.12}
+                  ifOverflow="extendDomain"
                 />
               ))}
 
@@ -585,7 +657,8 @@ export default function ForecastTideChart({ beachId, date }: Props) {
                     <ReferenceLine
                       key={`boundary-${i}`}
                       x={i * 24}
-                      stroke="#dadadaff"
+                      stroke="var(--foreground)"
+                      strokeOpacity={0.3}
                       strokeWidth={1}
                     />
                   );
@@ -600,12 +673,13 @@ export default function ForecastTideChart({ beachId, date }: Props) {
               />
               <XAxis
                 dataKey="hour"
+                type="number"
                 tickLine={false}
                 axisLine={false}
                 tickMargin={8}
                 minTickGap={0}
                 fontSize={11}
-                domain={[0, totalFetchedDays * 24 - 1]}
+                domain={[0, totalFetchedDays * 24]}
                 tickFormatter={(v: number) =>
                   v % 3 === 0 ? String(v % 12 === 0 ? 12 : v % 12) : ""
                 }
@@ -625,7 +699,33 @@ export default function ForecastTideChart({ beachId, date }: Props) {
                       : 8,
                 ]}
               />
-              <ChartTooltip content={<ChartTooltipContent />} />
+              <ChartTooltip
+                content={({ active, payload }: any) => {
+                  if (!active || !payload || !payload.length) return null;
+
+                  const dataPoint = payload[0].payload;
+                  const h = dataPoint.hour;
+
+                  // Format time
+                  const wholeHour = Math.floor(h);
+                  const minutes = Math.round((h - wholeHour) * 60);
+                  const displayHour = wholeHour % 12 === 0 ? 12 : wholeHour % 12;
+                  const ampm = wholeHour % 24 >= 12 ? "PM" : "AM";
+                  const timeLabel = minutes > 0
+                    ? `${displayHour}:${minutes.toString().padStart(2, '0')} ${ampm}`
+                    : `${displayHour} ${ampm}`;
+
+                  // Format tide value
+                  const tideValue = dataPoint.tide != null ? dataPoint.tide.toFixed(1) : 'N/A';
+
+                  return (
+                    <div className="rounded-lg border bg-background p-2 shadow-sm">
+                      <div className="text-xs font-medium">{timeLabel}</div>
+                      <div className="text-sm font-bold">{tideValue} ft</div>
+                    </div>
+                  );
+                }}
+              />
 
               <Line
                 dataKey="tide"
@@ -634,7 +734,9 @@ export default function ForecastTideChart({ beachId, date }: Props) {
                 strokeWidth={2}
                 dot={({ payload, cx, cy }: any) => {
                   const hour = payload.hour as number;
-                  if (sunMarkers.includes(hour)) {
+                  // Exact match for sun markers (no duplicates)
+                  const isSunMarker = sunMarkers.includes(hour);
+                  if (isSunMarker) {
                     return (
                       <circle
                         key={hour}
@@ -674,9 +776,11 @@ export default function ForecastTideChart({ beachId, date }: Props) {
                   content={(props: any) => {
                     const safeX = typeof props.x === "number" ? props.x : 0;
                     const hour = data[props.index ?? -1]?.hour;
+                    // Exact match for sun markers (no duplicates)
+                    const isSunMarker = hour != null && sunMarkers.includes(hour);
                     return (
                       <g>
-                        {hour != null && sunMarkers.includes(hour) ? (
+                        {isSunMarker ? (
                           <Sun
                             size={18}
                             x={safeX - 9}
@@ -696,13 +800,25 @@ export default function ForecastTideChart({ beachId, date }: Props) {
                     const safeY = typeof props.y === "number" ? props.y : 0;
                     if (props.value && typeof props.index === "number") {
                       const h = data[props.index]?.hour ?? 0;
-                      const safeH = h % 12 === 0 ? 12 : h % 12;
-                      const lbl = `${safeH} ${h % 24 >= 12 ? "PM" : "AM"}`;
+                      const wholeHour = Math.floor(h);
+                      const minutes = Math.round((h - wholeHour) * 60);
+                      const displayHour = wholeHour % 12 === 0 ? 12 : wholeHour % 12;
+                      const ampm = wholeHour % 24 >= 12 ? "PM" : "AM";
+                      // Format time as "8:30 AM" or "8 AM" if no minutes
+                      const lbl = minutes > 0
+                        ? `${displayHour}:${minutes.toString().padStart(2, '0')} ${ampm}`
+                        : `${displayHour} ${ampm}`;
+                      // Round tide value to 1 decimal place
+                      const tideValue = Number(props.value).toFixed(1);
+
+                      // Get collision-adjusted offset
+                      const yOffset = labelPositions.get(props.index) ?? -32;
+
                       return (
                         <g>
                           <text
                             x={safeX}
-                            y={safeY - 32}
+                            y={safeY + yOffset}
                             fill="var(--foreground)"
                             textAnchor="middle"
                             dominantBaseline="middle"
@@ -712,13 +828,13 @@ export default function ForecastTideChart({ beachId, date }: Props) {
                           </text>
                           <text
                             x={safeX}
-                            y={safeY - 17}
+                            y={safeY + yOffset + 15}
                             fill="var(--foreground)"
                             textAnchor="middle"
                             fontWeight="bold"
                             fontSize={12}
                           >
-                            {`${props.value} ft`}
+                            {`${tideValue} ft`}
                           </text>
                         </g>
                       );

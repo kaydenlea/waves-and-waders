@@ -33,6 +33,7 @@ import {
   fetchBeachByIdLoose,
   fetchBeachDetails,
   fetchBeachTides,
+  fetchCurrentTide,
   fetchDailyConditions,
 } from "@/lib/supabase";
 import { useDateContext } from "@/components/context/DateContext";
@@ -456,10 +457,30 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
         });
 
         const tideStatPeaks = peaksInWindow.slice(0, 4);
-        const currentTideHeight =
-          base?.conditions.tideLevel != null
+
+        // Fetch current tide from county_tides_15min table for accurate real-time data
+        let currentTideHeight: number | undefined;
+        try {
+          const currentTide = await fetchCurrentTide(resolvedId);
+          if (currentTide?.tideLevelFt != null) {
+            currentTideHeight = Number(currentTide.tideLevelFt.toFixed(1));
+            console.log("✅ Using county tide data for current height:", currentTideHeight, "ft");
+          } else {
+            console.warn("⚠️ fetchCurrentTide returned null/undefined, falling back to forecast");
+            // Fallback to forecast data if county tide fetch fails
+            currentTideHeight = base?.conditions.tideLevel != null
+              ? Number(base.conditions.tideLevel.toFixed(1))
+              : undefined;
+            console.log("📊 Using forecast data for current height:", currentTideHeight, "ft");
+          }
+        } catch (err) {
+          console.warn("❌ Failed to fetch current tide, falling back to forecast", err);
+          // Fallback to forecast data if county tide fetch fails
+          currentTideHeight = base?.conditions.tideLevel != null
             ? Number(base.conditions.tideLevel.toFixed(1))
             : undefined;
+          console.log("📊 Using forecast data for current height:", currentTideHeight, "ft");
+        }
 
         let sunrise: string | undefined;
         let sunset: string | undefined;

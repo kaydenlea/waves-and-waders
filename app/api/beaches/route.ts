@@ -26,10 +26,8 @@ export async function GET(request: NextRequest) {
 
     while (hasMore) {
       const { data, error } = await supabase
-        .from('beaches')
+        .from('beaches_optimized')
         .select(selectCols)
-        .not('LATITUDE', 'is', null)
-        .not('LONGITUDE', 'is', null)
         .or('INLND_AREA.is.null,INLND_AREA.neq.Yes') // Exclude inland areas
         .order('Name')
         .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1)
@@ -59,22 +57,12 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Local boolean coercion similar to client utils
-    const toBool = (v: any): boolean => {
-      if (v === null || v === undefined) return false
-      if (typeof v === 'boolean') return v
-      if (typeof v === 'number') return v !== 0
-      if (typeof v === 'string') {
-        const s = v.trim().toLowerCase()
-        return ['y','yes','true','t','1'].includes(s)
-      }
-      return false
-    }
-
+    // beaches_optimized view already returns proper booleans, no conversion needed
     const beaches = allData.map((beach: any) => {
       const features: Record<string, boolean> = {}
       for (const key of FEATURE_COLUMNS as readonly string[]) {
-        features[key] = toBool(beach[key])
+        // View already converts to boolean, just assign directly
+        features[key] = beach[key] ?? false
       }
       return {
         id: beach.id,
