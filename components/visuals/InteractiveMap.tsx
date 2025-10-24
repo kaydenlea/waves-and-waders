@@ -862,20 +862,31 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
   // }
 
   React.useEffect(() => {
-    console.log("FIXING BUG");
+    console.log(
+      "FIXING BUG: CLICK CARD",
+      popupData,
+      popupId.current,
+      popupRef,
+      popupInfo,
+      popupId.current ? mapToId[popupId.current].id : null,
+      popupRef?.current?.id
+    );
     if (popupData) {
-      if (popupId.current) {
-        console.log("ENTER SAME");
-        if (map)
-          map.setFeatureState(
-            // TO-DO: debug (sometimes causes error)
-            { source: "beaches", id: mapToId[popupId.current].id },
-            { hover: false }
-          );
-        setPopupInfo(null);
-        popupId.current = null;
-        popupRef.current = null;
-      }
+      // if (
+      //   popupId.current &&
+      //   mapToId[popupId.current].id !== popupRef.current?.id
+      // ) {
+      //   console.log("ENTER SAME");
+      //   if (map)
+      //     map.setFeatureState(
+      //       // TO-DO: debug (sometimes causes error)
+      //       { source: "beaches", id: mapToId[popupId.current].id },
+      //       { hover: false }
+      //     );
+      //   setPopupInfo(null);
+      //   popupId.current = null;
+      //   popupRef.current = null;
+      // }
       const beach = mapToId[popupData];
       if (!beach) return;
       popupId.current = popupData;
@@ -891,11 +902,12 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
         latitude: beach.latitude,
         properties: beach.properties,
       };
-    } else {
+    } else if (!popupInfo) {
       setPopupInfo(null);
       popupId.current = null;
       popupRef.current = null;
     }
+    setPopupData(null);
   }, [popupData]);
 
   // Handle recentering when expanding
@@ -1026,29 +1038,34 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
 
           map.on("mouseleave", "unclustered-point", () => {
             map.getCanvas().style.cursor = "";
-            console.log("VALS", popupId, popupRef.current);
+            console.log(
+              "FIXING BUG: mouse leave",
+              popupId.current,
+              popupRef.current
+            );
             if (popupId.current) {
               const beach = mapToId[popupId.current];
               map.setFeatureState(
                 { source: "beaches", id: beach.id },
                 { hover: false }
               );
-              setPopupInfo(null);
-              popupId.current = null;
-              popupRef.current = null;
             }
+            setPopupInfo(null);
+            popupId.current = null;
+            popupRef.current = null;
           });
 
           map.on("click", () => {
             // properly clear pop up if it still exists
-            if (popupId.current) {
+            console.log("ENTER CLICK ON MAP RANDOM");
+            if (popupId.current && popupRef.current) {
+              console.log("ENTER CLICK ON MAP RANDOM: REMOVING");
               const beach = mapToId[popupId.current];
               map.setFeatureState(
                 { source: "beaches", id: beach.id },
                 { hover: false }
               );
               setPopupInfo(null);
-              setPopupData(null);
               popupId.current = null;
               popupRef.current = null;
             }
@@ -1081,17 +1098,27 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
             const feature = event.features?.[0];
             if (!feature) return;
             const coordinates = (feature.geometry as any).coordinates;
-
-            if (popupId.current) {
+            console.log(
+              "FIXING BUG: MOUSE MOVE",
+              popupData,
+              popupId.current,
+              popupRef,
+              popupInfo,
+              popupId.current ? mapToId[popupId.current].id : null,
+              popupRef?.current?.id
+            );
+            if (popupId.current && popupRef.current) {
               console.log("ENTER SAME");
               map.setFeatureState(
                 { source: "beaches", id: mapToId[popupId.current].id },
                 { hover: false }
               );
-              setPopupData(null);
-              setPopupInfo(null);
-              popupId.current = null;
-              popupRef.current = null;
+              if (mapToId[popupId.current].id !== popupRef?.current?.id) {
+                setPopupData(null);
+                setPopupInfo(null);
+                popupId.current = null;
+                popupRef.current = null;
+              }
             }
 
             // if (popupId.current && popupId.current !== feature.properties.id) {
@@ -1171,9 +1198,22 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
             latitude: (feature.geometry as any).coordinates[1],
           };
           // Don't clear swellDirections - let the useEffect update it for the new beach
-          popupId.current = null;
-          setPopupData(null);
-          setPopupInfo(null);
+          // popupId.current = null;
+          // setPopupData(null);
+          // setPopupInfo(null);
+
+          // if (map && popupId.current && popupRef) {
+          //   console.log("ENTER SAME");
+          //   map.setFeatureState(
+          //     { source: "beaches", id: mapToId[popupId.current].id },
+          //     { hover: false }
+          //   );
+          //   setPopupData(null);
+          //   setPopupInfo(null);
+          //   popupId.current = null;
+          //   popupRef.current = null;
+          // }
+          console.log("ENTER CLICK SELECTED BEACH 1");
           setSelected(point);
           const destination = `${generateBeachUrl(
             point.name,
