@@ -59,11 +59,11 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
       <NavBar />
       <main
         id="main-content"
-        className="bg-background-2 min-h-[calc(100vh-4rem)] @min-4xl:flex @min-4xl:flex-1 @min-4xl:mt-[5.5rem] @min-4xl:pb-4"
+        className="bg-background-2 min-h-[calc(100vh-4rem)] @min-4xl:flex @min-4xl:flex-1 @min-4xl:mt-[5.5rem] @min-4xl:pb-4 @min-4xl:pr-3"
       >
         <LazyLoadMap />
         <PathStyleWrapper>
-          <div className="@container py-5 px-1 @min-md:px-3">
+          <div className="@container pb-3 pt-8 px-1 @min-md:px-3">
             <header
               id="content"
               className="relative w-full flex flex-col gap-6 p-2 pb-0 scroll-mt-30"

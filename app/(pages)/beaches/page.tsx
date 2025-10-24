@@ -40,11 +40,11 @@ export default async function BeachesPage() {
       <NavBar beachesPage />
       <main
         id="main-content"
-        className="bg-background-2 min-h-[calc(100vh-4rem)] @min-4xl:flex @min-4xl:flex-1 @min-4xl:mt-[5.5rem] @min-4xl:pb-4"
+        className="bg-background-2 min-h-[calc(100vh-4rem)] @min-4xl:flex @min-4xl:flex-1 @min-4xl:mt-[5.5rem] @min-4xl:pb-4 @min-4xl:pr-3"
       >
         <LazyLoadMap />
         <PathStyleWrapper>
-          <div className="@container px-2 py-6 touch-pan-y">
+          <div className="@container px-2 pb-3 pt-8 touch-pan-y">
             <div className="relative w-full flex flex-col gap-6">
               <PageTabs
                 buttons={false}

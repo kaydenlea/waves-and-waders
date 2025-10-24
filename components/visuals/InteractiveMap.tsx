@@ -922,9 +922,9 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
     <aside
       id="map-container"
       className={cn(
-        "fixed w-full transition-all duration-300",
-        "@min-4xl:sticky @min-4xl:top-[7rem] @min-4xl:flex-1 @min-4xl:py-3 @min-4xl:pl-3 @min-4xl:h-[calc(100vh-7rem)] flex",
-        !isDesktop && "min-h-[calc(100dvh-6.25rem)]"
+        "fixed w-full mx-auto max-w-screen transition-all duration-300",
+        "@min-4xl:sticky @min-4xl:top-[7.5rem] @min-4xl:flex-1 @min-4xl:py-3 @min-4xl:pl-5 @min-4xl:pr-3 @min-4xl:h-[calc(100vh-8rem)] flex"
+        // !isDesktop && "min-h-[calc(100dvh-6.25rem)]"
         // isDesktop && fullMapPage && showMap && "@min-4xl:max-w-200",
         // isDesktop &&
         //   fullMapPage &&

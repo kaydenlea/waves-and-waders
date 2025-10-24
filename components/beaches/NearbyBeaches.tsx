@@ -168,6 +168,7 @@ export default function NearbyBeaches({
   favoriteIds?: string[];
 }) {
   const { filters } = useMapFilters();
+  const filterCount = filters?.size ?? 0;
   const initialList: UIBeach[] = useMemo(
     () =>
       (beaches || []).map(
@@ -1078,10 +1079,15 @@ export default function NearbyBeaches({
               />
             ))}
           </section>
-        ) : (
+        ) : filterCount > 0 ? (
           <section className="text-center pt-10 flex flex-col justify-center items-center gap-3">
             <SearchX className="w-10 h-10" />
             <span className="text-lg">No beaches found...</span>
+          </section>
+        ) : (
+          <section className="text-center pt-10 flex flex-col justify-center items-center gap-3">
+            <span className="text-lg">Loading beaches...</span>
+            <Spinner />
           </section>
         )
       ) : (

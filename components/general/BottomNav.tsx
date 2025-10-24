@@ -281,7 +281,7 @@ export default function BottomNav() {
               }}
               exit={{ y: "100%", opacity: 0 }}
               transition={{ type: "spring", stiffness: 260, damping: 28 }}
-              drag="y"
+              // drag="y"
               dragConstraints={{ top: 0, bottom: 0 }}
               dragElastic={0.15}
               onDragEnd={(_, info) => {
@@ -391,7 +391,7 @@ export default function BottomNav() {
                     applyFilters(tempFilters);
                     setOpenPanel(null);
                   }}
-                  className="flex items-center gap-2 px-5 py-1.5 rounded-full text-sm font-semibold text-white bg-sky-500 hover:bg-sky-600 dark:bg-sky-400 dark:hover:bg-sky-300 transition"
+                  className="flex items-center gap-2 px-5 py-1.5 rounded-full text-sm font-semibold text-white bg-sky-400 hover:bg-sky-600 dark:bg-sky-400 dark:hover:bg-sky-300 transition"
                 >
                   Apply Filters
                 </button>
