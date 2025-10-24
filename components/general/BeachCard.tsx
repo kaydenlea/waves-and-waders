@@ -123,8 +123,10 @@ const BeachCard = ({
           zoom: 14,
           duration: 300,
         });
+        console.log("FIXING BUG: CLICKED 1", b.id, popupId.current, popupData);
         popupId.current = b.id;
         setPopupData(b.id);
+        console.log("FIXING BUG: CLICKED 2", b.id, popupId.current, popupData);
         scrollToMap();
       }}
       id={`beach-${b.id}`}
