@@ -49,7 +49,6 @@ import {
   MdPublic,
   MdPets,
   MdBabyChangingStation,
-  MdOutlineWaterDrop,
 } from "react-icons/md";
 
 // Font Awesome
