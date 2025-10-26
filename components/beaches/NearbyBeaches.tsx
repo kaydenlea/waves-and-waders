@@ -35,6 +35,7 @@ import { BEACH_FEATURE_ICONS, DEFAULT_FEATURE_ICON } from "@/lib/beachFeatureIco
 import { useDateContext } from "../context/DateContext";
 import { Spinner } from "../ui/spinner";
 import { AnimatePresence, motion } from "motion/react";
+import { useClientPath } from "../context/PathContext";
 
 type DbBeach = {
   id: string | number;
@@ -153,7 +154,12 @@ export default function NearbyBeaches({
   date?: Date;
   favoriteIds?: string[];
 }) {
-  const { filters } = useMapFilters();
+  const {
+    filters,
+    map,
+    beaches: sharedBeaches,
+    setBeaches: setSharedBeaches,
+  } = useMapFilters();
   const filterCount = filters?.size ?? 0;
   const initialList: UIBeach[] = useMemo(
     () =>
@@ -185,6 +191,8 @@ export default function NearbyBeaches({
   );
 
   const [sorted, setSorted] = useState<UIBeach[]>([]);
+  // Subset of beaches currently visible within the map's viewport
+  const [inView, setInView] = useState<UIBeach[]>([]);
   const [apiBeaches, setApiBeaches] = useState<ApiBeach[] | null>(null);
   const [status, setStatus] = useState<
     "idle" | "locating" | "granted" | "denied" | "unavailable"
@@ -192,25 +200,47 @@ export default function NearbyBeaches({
 
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
+  const loadingListRef = useRef<boolean>(false);
   const { surfRange } = useDateContext();
   const [stats, setStats] = useState<SummaryStat[]>([]);
+  const statsLoadingRef = useRef<boolean>(false);
   const dataLoaded = useRef<boolean>(false);
+  const { selectedTab } = useClientPath();
 
+  const [open, setOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        if (!loadingListRef.current && !statsLoadingRef.current) setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
   // Load richer beach data
   useEffect(() => {
     let cancelled = false;
-    const load = async () => {
+    const loadBeachesContextOrFetch = async () => {
       try {
+        if (sharedBeaches && sharedBeaches.length > 0) {
+          if (!cancelled) setApiBeaches(sharedBeaches as ApiBeach[]);
+          return;
+        }
         const res = await fetch("/api/beaches");
+        if (!res.ok) return;
         const json = await res.json();
-        if (!cancelled && json?.success) setApiBeaches(json.data as ApiBeach[]);
+        if (!cancelled && json?.success) {
+          setApiBeaches(json.data as ApiBeach[]);
+          setSharedBeaches(json.data as ApiBeach[]);
+        }
       } catch {}
     };
-    load();
+    loadBeachesContextOrFetch();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [sharedBeaches, setSharedBeaches]);
 
   // Filtering + sorting
   useEffect(() => {
@@ -315,13 +345,118 @@ export default function NearbyBeaches({
     );
   }, [filters, apiBeaches]);
 
-  const totalPages = Math.ceil(sorted.length / perPage);
+  // Compute visible beaches based on map bounds (when map is available)
+  const updateInViewFromMap = useMemo(() => {
+    return () => {
+      // If no map instance yet, show full or favorites-only based on selected tab
+      if (!map) {
+        if (selectedTab === "saved") {
+          const favOnly = sorted.filter((b) => favoriteSet.has(String(b.id)));
+          setInView(favOnly);
+        } else {
+          setInView(sorted);
+        }
+        return;
+      }
+      try {
+        const bounds = map.getBounds?.();
+        if (!bounds) {
+          setInView(sorted);
+          return;
+        }
+        const sw = bounds.getSouthWest();
+        const ne = bounds.getNorthEast();
+        const west = sw.lng;
+        const south = sw.lat;
+        const east = ne.lng;
+        const north = ne.lat;
+        const crossesAntimeridian = west > east;
+
+        const inBounds = (lat: number, lon: number) => {
+          const withinLat = lat >= south && lat <= north;
+          const withinLon = crossesAntimeridian
+            ? lon >= west || lon <= east
+            : lon >= west && lon <= east;
+          return withinLat && withinLon;
+        };
+
+        // Apply tab-specific filter (saved shows favorites only)
+        const idIsFavorite = (id: string | number) =>
+          favoriteSet.has(String(id));
+
+        const filtered = sorted.filter((b) => {
+          const lat = b.coords[0]; // coords: [lat, lon]
+          const lon = b.coords[1];
+          if (!inBounds(lat, lon)) return false;
+          if (selectedTab === "saved") {
+            return idIsFavorite(b.id);
+          }
+          return true;
+        });
+
+        setInView(filtered);
+      } catch (e) {
+        // On any unexpected error, fallback to full list
+        setInView(sorted);
+      }
+    };
+  }, [map, sorted, favoriteSet, selectedTab]);
+
+  // Recompute in-view list when sorted list changes or map becomes available
+  useEffect(() => {
+    updateInViewFromMap();
+  }, [updateInViewFromMap]);
+
+  // When switching tabs, reset pagination and recompute in-view
+  useEffect(() => {
+    setPage(1);
+    updateInViewFromMap();
+  }, [selectedTab, updateInViewFromMap]);
+
+  // Listen for map view changes and update the in-view list on interaction end
+  useEffect(() => {
+    if (!map) return;
+    let t: number | null = null;
+    const debounced = () => {
+      if (t != null) window.clearTimeout(t);
+      t = window.setTimeout(() => {
+        // Reset pagination when the map view changes to avoid empty pages
+        setPage(1);
+        updateInViewFromMap();
+      }, 120);
+    };
+    map.on("move", debounced);
+    map.on("zoom", debounced);
+    // Initial compute
+    debounced();
+    return () => {
+      try {
+        map.off("move", debounced);
+        map.off("zoom", debounced);
+      } catch {}
+      if (t != null) window.clearTimeout(t);
+    };
+  }, [map, updateInViewFromMap]);
+
+  const totalPages = Math.ceil(inView.length / perPage);
   const [currentItems, setCurrentItems] = useState<UIBeach[]>([]);
-  // const currentItems = sorted.slice((page - 1) * perPage, page * perPage);
 
   useEffect(() => {
-    setCurrentItems(sorted.slice((page - 1) * perPage, page * perPage));
-  }, [perPage, sorted, page]);
+    // Clamp page if current page exceeds new total pages after filtering
+    const maxPage = Math.max(1, Math.ceil(inView.length / perPage));
+    if (page > maxPage) {
+      setPage(maxPage);
+    }
+    // Mark as updating to avoid UI flicker on page options
+    loadingListRef.current = true;
+    const next = inView.slice((page - 1) * perPage, page * perPage);
+    setCurrentItems(next);
+    // Let the UI settle this tick
+    const t = setTimeout(() => {
+      loadingListRef.current = false;
+    }, 0);
+    return () => clearTimeout(t);
+  }, [perPage, inView, page]);
 
   const loadStats = async (beaches: UIBeach[]) => {
     const entries = await Promise.all(
@@ -719,11 +854,13 @@ export default function NearbyBeaches({
 
   useEffect(() => {
     const loadBeaches = async () => {
-      const statsMap = await loadStats(currentItems);
-      if (!statsMap) return;
-      currentItems.forEach((beach) => {
-        const beachStats = statsMap[beach.id].summary;
-        if (!beachStats) return;
+      statsLoadingRef.current = true;
+      try {
+        const statsMap = await loadStats(currentItems);
+        if (!statsMap) return;
+        currentItems.forEach((beach) => {
+          const beachStats = statsMap[beach.id].summary;
+          if (!beachStats) return;
         const surfStat = beachStats.find(
           (stat): stat is Extract<SummaryStat, { type: "surf" }> =>
             stat.type === "surf"
@@ -744,10 +881,13 @@ export default function NearbyBeaches({
           : "-";
         beach.features = featuresStat?.tags ?? [];
 
-        const beachConditions = statsMap[beach.id].current;
-        if (!beachConditions) return;
-        beach.current = beachConditions;
-      });
+          const beachConditions = statsMap[beach.id].current;
+          if (!beachConditions) return;
+          beach.current = beachConditions;
+        });
+      } finally {
+        statsLoadingRef.current = false;
+      }
     };
     loadBeaches();
   }, [currentItems]);
@@ -783,101 +923,86 @@ export default function NearbyBeaches({
     return pages;
   };
 
-  const [open, setOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  // Close when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(e.target as Node)
-      ) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
+  // Page size selector – custom popover with disabled state while loading
   const handleSelect = (value: number) => {
     setPerPage(value);
     setPage(1);
-    setOpen(false);
   };
 
   const PageOptions = () => {
-    return (
-      <div className="flex items-center gap-2">
-        <label
-          htmlFor="perPage"
-          className="text-sm text-muted-foreground font-medium select-none"
-        >
-          Per page:
-        </label>
+    const disabled = loadingListRef.current || statsLoadingRef.current;
+    const toggle = () => {
+      if (disabled) return; // Prevent open while loading to avoid flicker
+      setOpen((v) => !v);
+    };
+    const close = () => setOpen(false);
 
-        <div ref={dropdownRef} className="relative">
-          {/* Dropdown trigger */}
+    return (
+      <div className="flex items-center gap-2" ref={dropdownRef}>
+        <span className="text-sm text-muted-foreground font-medium select-none">
+          Per page:
+        </span>
+        <div className="relative">
           <button
-            onClick={() => setOpen((prev) => !prev)}
-            className="
-                flex items-center justify-between gap-2
-                rounded-full border border-border/20
-                bg-highlight-3 px-4 py-1.5
-                text-sm font-medium text-foreground
-                shadow-inner
-                hover:bg-background/60 dark:hover:bg-highlight-5/40
-                transition-all duration-200
-                focus:outline-none
-              "
+            type="button"
+            aria-haspopup="menu"
+            aria-expanded={open}
+            onClick={toggle}
+            disabled={disabled}
+            className={cn(
+              "inline-flex items-center gap-2 rounded-full border border-border/20",
+              "bg-highlight-3 px-3.5 py-1.5 text-sm font-medium text-foreground",
+              "shadow-inner transition-all duration-200",
+              "hover:bg-background/60 dark:hover:bg-highlight-5/40",
+              "focus:outline-none",
+              "disabled:opacity-60 disabled:cursor-not-allowed"
+            )}
           >
-            {perPage}
+            <span>{perPage}</span>
             {open ? (
-              <ChevronUp
-                size={16}
-                className="text-muted-foreground transition-transform duration-200"
-              />
+              <ChevronUp size={16} className="text-muted-foreground" />
             ) : (
-              <ChevronDown
-                size={16}
-                className="text-muted-foreground transition-transform duration-200"
-              />
+              <ChevronDown size={16} className="text-muted-foreground" />
             )}
           </button>
 
-          {/* Dropdown menu */}
           <AnimatePresence>
-            {open && (
+            {open && !disabled && (
               <motion.ul
-                initial={{ opacity: 0, y: -5 }}
+                key="perpage-menu"
+                role="menu"
+                initial={{ opacity: 0, y: -4 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -5 }}
-                transition={{ duration: 0.15 }}
-                className="
-                    absolute right-0 mt-2 w-28
-                    rounded-xl border border-border
-                    bg-background
-                    shadow-lg overflow-hidden
-                    z-50
-                  "
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.12, ease: "easeOut" }}
+                className={cn(
+                  "absolute right-0 z-20 mt-2 min-w-[7rem] overflow-hidden",
+                  "rounded-xl border border-border/30 bg-background shadow-lg"
+                )}
               >
-                {[10, 20, 50].map((num) => (
-                  <li
-                    key={num}
-                    onClick={() => handleSelect(num)}
-                    className={`
-                        px-4 py-2 text-sm cursor-pointer
-                        transition-colors duration-150
-                        ${
-                          perPage === num
-                            ? "bg-highlight-3 font-semibold"
-                            : "hover:bg-highlight-5"
-                        }
-                      `}
-                  >
-                    {num}
-                  </li>
-                ))}
+                {[10, 20, 50].map((num) => {
+                  const active = num === perPage;
+                  return (
+                    <li key={num} role="menuitem">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleSelect(num);
+                          close();
+                        }}
+                        className={cn(
+                          "w-full text-left px-3 py-2 text-sm",
+                          active
+                            ? "bg-highlight-5/60 text-foreground"
+                            : "hover:bg-highlight-3/70",
+                          "transition-colors"
+                        )}
+                      >
+                        {num}
+                      </button>
+                    </li>
+                  );
+                })}
               </motion.ul>
             )}
           </AnimatePresence>
@@ -926,7 +1051,20 @@ export default function NearbyBeaches({
       </div>
 
       {dataLoaded.current ? (
-        currentItems.length > 0 ? (
+        // If we have beaches loaded but none are in view, show a helpful message
+        sorted.length > 0 && inView.length === 0 ? (
+          <section className="text-center pt-10 flex flex-col justify-center items-center gap-3">
+            <SearchX className="w-10 h-10" />
+            <span className="text-lg">
+              {selectedTab === "saved"
+                ? "No saved beaches in the current map view."
+                : "No beaches in the current map view."}
+            </span>
+            <span className="text-sm text-muted-foreground">
+              Pan or zoom the map to see beaches here.
+            </span>
+          </section>
+        ) : currentItems.length > 0 ? (
           <section className="grid grid-cols-1 gap-3 @min-lg:grid-cols-2 mb-4">
             {currentItems.map((b) => (
               <BeachCard

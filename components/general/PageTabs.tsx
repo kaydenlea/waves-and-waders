@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 import { cn } from "@/lib/utils";
@@ -21,6 +22,7 @@ type PageTabsProps = {
   beachPage?: boolean;
   forecastPage?: boolean;
   overviewPage?: boolean;
+  loggedIn?: boolean;
 };
 
 const PageTabs = ({
@@ -33,7 +35,9 @@ const PageTabs = ({
   beachPage = false,
   forecastPage = false,
   overviewPage = false,
+  loggedIn = false,
 }: PageTabsProps) => {
+  const router = useRouter();
   const [favorite, setFavorite] = useState(isFavorite);
   const [isDesktop, setIsDesktop] = useState(false);
   const { selectedTab, setSelectedTab } = useClientPath();
@@ -155,7 +159,14 @@ const PageTabs = ({
               onClick={(e) => {
                 const clicked = (e.target as HTMLElement).innerText;
                 console.log("BEACH TEST CLICK", clicked);
-                if (clicked) setSelectedTab(clicked.toLowerCase());
+                if (!clicked) return;
+                const next = clicked.toLowerCase();
+                if (beachPage && next === "saved" && !loggedIn) {
+                  // Redirect unauthenticated users to login when selecting Saved on beaches page
+                  router.push(`/login?next=${encodeURIComponent("/beaches")}`);
+                  return;
+                }
+                setSelectedTab(next);
               }}
               type="button"
               aria-label={`${selectedTab} tab`}

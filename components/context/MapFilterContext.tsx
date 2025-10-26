@@ -31,6 +31,30 @@ type Ctx = {
   setSelectedHour: React.Dispatch<React.SetStateAction<number | null>>;
   surfIntensityForDate: number | null;
   setSurfIntensityForDate: React.Dispatch<React.SetStateAction<number | null>>;
+  beaches: Array<{
+    id: string | number;
+    name: string;
+    county: string;
+    latitude: number;
+    longitude: number;
+    features?: Record<string, boolean>;
+  }>;
+  setBeaches: React.Dispatch<
+    React.SetStateAction<
+      Array<{
+        id: string | number;
+        name: string;
+        county: string;
+        latitude: number;
+        longitude: number;
+        features?: Record<string, boolean>;
+      }>
+    >
+  >;
+  favoriteIds: Set<string>;
+  setFavoriteIds: React.Dispatch<React.SetStateAction<Set<string>>>;
+  hoverCardId: string | null;
+  setHoverCardId: React.Dispatch<React.SetStateAction<string | null>>;
 };
 
 const MapFilterContext = React.createContext<Ctx | null>(null);
@@ -62,6 +86,20 @@ export function MapFilterProvider({ children }: { children: React.ReactNode }) {
   const [surfIntensityForDate, setSurfIntensityForDate] = React.useState<
     number | null
   >(null);
+  const [beaches, setBeaches] = React.useState<
+    Array<{
+      id: string | number;
+      name: string;
+      county: string;
+      latitude: number;
+      longitude: number;
+      features?: Record<string, boolean>;
+    }>
+  >([]);
+  const [favoriteIds, setFavoriteIds] = React.useState<Set<string>>(
+    () => new Set()
+  );
+  const [hoverCardId, setHoverCardId] = React.useState<string | null>(null);
   const value = React.useMemo(
     () => ({
       openPanel,
@@ -84,6 +122,12 @@ export function MapFilterProvider({ children }: { children: React.ReactNode }) {
       setSelectedHour,
       surfIntensityForDate,
       setSurfIntensityForDate,
+      beaches,
+      setBeaches,
+      favoriteIds,
+      setFavoriteIds,
+      hoverCardId,
+      setHoverCardId,
     }),
     [
       openPanel,
@@ -96,6 +140,9 @@ export function MapFilterProvider({ children }: { children: React.ReactNode }) {
       selectedDate,
       selectedHour,
       surfIntensityForDate,
+      beaches,
+      favoriteIds,
+      hoverCardId,
     ]
   );
   return (

@@ -10,6 +10,7 @@ import { LazyLoadMap } from "@/components/general/LazyLoad/LazyLoadMap";
 import PathStyleWrapper from "@/components/general/PathStyleWrapper";
 import Footer from "@/components/general/Footer";
 import { redirect } from "next/navigation";
+import FavoriteIdsHydrator from "@/components/general/FavoriteIdsHydrator";
 
 export const metadata: Metadata = {
   title: "Search surf spots | Waves and Waders",
@@ -26,9 +27,6 @@ export default async function BeachesPage() {
   }
 
   const user = userData.user ?? null;
-  if (!user) {
-    redirect(`/login?next=${encodeURIComponent("/favorites")}`);
-  }
 
   let favoriteIds: string[] = [];
 
@@ -50,12 +48,14 @@ export default async function BeachesPage() {
         <LazyLoadMap />
         <PathStyleWrapper>
           <div className="@container px-2 pb-3 pt-8 touch-pan-y">
+            <FavoriteIdsHydrator favoriteIds={favoriteIds} />
             <div className="relative w-full flex flex-col gap-6">
               <PageTabs
                 buttons={false}
                 tabs={["nearby", "saved"]}
                 defaultPage="nearby"
                 beachPage
+                loggedIn={Boolean(user)}
               />
               <header id="content" className="ml-2 mb-4 scroll-mt-30">
                 <h1 className="font-semibold text-4xl tracking-tight">

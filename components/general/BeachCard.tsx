@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { type ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { LazyLoadTidePreview } from "./LazyLoad/LazyLoadTidePreview";
@@ -96,7 +96,8 @@ const BeachCard = ({
   useMiles?: boolean;
   isFav: boolean;
 }) => {
-  const { popupData, setPopupData, popupRef, popupId, map } = useMapFilters();
+  const { popupData, setPopupData, popupRef, popupId, map, setHoverCardId } =
+    useMapFilters();
   const distance =
     b.distanceKm != null
       ? useMiles
@@ -116,19 +117,34 @@ const BeachCard = ({
     typeof b.conditions.windDir === "number" ? b.conditions.windDir - 315 : 0;
   return (
     <article
-      onClick={() => {
+      onMouseEnter={() => {
+        setHoverCardId(b.id);
         if (!map) return;
-        map.easeTo({
-          center: [b.coords[1], b.coords[0]],
-          zoom: 14,
-          duration: 300,
-        });
-        console.log("FIXING BUG: CLICKED 1", b.id, popupId.current, popupData);
-        popupId.current = b.id;
-        setPopupData(b.id);
-        console.log("FIXING BUG: CLICKED 2", b.id, popupId.current, popupData);
-        scrollToMap();
+        try {
+          const coord: [number, number] = [b.coords[1], b.coords[0]]; // lon, lat
+          const pt = (map as any).project(coord);
+          const pad = 6;
+          const features: any[] = (map as any).queryRenderedFeatures(
+            [
+              [pt.x - pad, pt.y - pad],
+              [pt.x + pad, pt.y + pad],
+            ],
+            { layers: ["unclustered-point"] }
+          );
+          const unclustered = Array.isArray(features)
+            ? features.some(
+                (f) => String((f.properties as any)?.id) === String(b.id)
+              )
+            : false;
+          // Do not set popup here; InteractiveMap manages popup via hoverCardId.
+          // We intentionally avoid setPopupData here to prevent lifecycle races.
+        } catch {}
       }}
+      onMouseLeave={() => {
+        setHoverCardId(null);
+        // Popup will be closed by InteractiveMap when hoverCardId becomes null.
+      }}
+      // Clicking the card should not zoom the map; keep hover-only behavior
       id={`beach-${b.id}`}
       className="hover:cursor-pointer transition-transform transform translate-y-0 hover:translate-y-0.5 ease-in-out duration-300 hover:bg-highlight-5/40 group flex flex-col overflow-hidden rounded-3xl border border-border/50 bg-highlight-7/60 shadow-even backdrop-blur"
     >
@@ -328,3 +344,4 @@ const BeachCard = ({
 };
 
 export default BeachCard;
+

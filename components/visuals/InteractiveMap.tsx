@@ -48,6 +48,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import FocusMapButton from "../general/FocusMapButton";
 import { useSearchContext } from "../context/SearchContext";
+import { useClientPath } from "../context/PathContext";
 
 type BeachPoint = {
   id: string | number;
@@ -197,7 +198,13 @@ export const WindRing: React.FC<{
 type Props = { beachId?: string | number };
 
 const InteractiveMap: React.FC<Props> = ({ beachId }) => {
-  const [beaches, setBeaches] = React.useState<BeachPoint[]>([]);
+  const {
+    beaches: beaches,
+    setBeaches,
+    favoriteIds,
+    hoverCardId,
+  } = useMapFilters();
+  const { selectedTab } = useClientPath();
   const [selected, setSelected] = React.useState<BeachPoint | null>(null);
   const selectedRef = React.useRef<BeachPoint | null>(null);
   const [storedSelectionId, setStoredSelectionId] = React.useState<
@@ -229,6 +236,14 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
     React.useState<SwellDirectionSet | null>(null);
   const [windDirection, setWindDirection] = React.useState<number | null>(null);
   const [zoom, setZoom] = React.useState<number>(6);
+  const zoomRafRef = React.useRef<number | null>(null);
+  const lastHoverInternalIdRef = React.useRef<number | null>(null);
+  const hoverRafRef = React.useRef<number | null>(null);
+  const lastHoverFeatureIdRef = React.useRef<string | number | null>(null);
+  const suppressCountsRef = React.useRef(0);
+  const [hoverClusterId, setHoverClusterId] = React.useState<number | null>(
+    null
+  );
   const userMovedRef = React.useRef(false);
   const suppressMoveRef = React.useRef(false);
   const prevEffectiveIdRef = React.useRef<string | null>(null);
@@ -243,6 +258,8 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
     properties: any;
   } | null>(null);
   const { isOverlay, setIsOverlay } = useSearchContext();
+  // Ensure we bind cluster layer click handlers once style/layers are ready
+  const clusterHandlersBoundRef = React.useRef(false);
   // const [openPanel, setOpenPanel] = React.useState<"filters" | "legend" | null>(
   //   null
   // );
@@ -350,6 +367,10 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
     const load = async () => {
       try {
         console.log("Loading beaches from API...");
+        // If beaches are already loaded in context, skip fetching
+        if (beaches && beaches.length > 0) {
+          return;
+        }
         const res = await fetch("/api/beaches");
 
         // Check if response is ok
@@ -392,7 +413,136 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [beaches, setBeaches]);
+
+  // Highlight marker or cluster when hovering a beach card (without opening popup)
+  React.useEffect(() => {
+    const ref = mapRef.current;
+    const mapInstance = ref?.getMap?.() ?? ref;
+    if (!mapInstance) return;
+
+    // Clear previous hover state first
+    if (lastHoverInternalIdRef.current != null) {
+      try {
+        mapInstance.setFeatureState(
+          { source: "beaches", id: lastHoverInternalIdRef.current },
+          { hover: false }
+        );
+      } catch {}
+      lastHoverInternalIdRef.current = null;
+    }
+    if ((mapInstance as any).__lastClusterHoverId != null) {
+      try {
+        mapInstance.setFeatureState(
+          { source: "beaches", id: (mapInstance as any).__lastClusterHoverId },
+          { hover: false }
+        );
+      } catch {}
+      (mapInstance as any).__lastClusterHoverId = null;
+    }
+
+    if (!hoverCardId) {
+      // No card hovered -> ensure popup closed and highlights cleared (done above)
+      setPopupInfo(null);
+      popupId.current = null;
+      popupRef.current = null as any;
+      setHoverClusterId(null);
+      return;
+    }
+
+    // Default: close any previous popup. We'll reopen below if unclustered.
+    setPopupInfo(null);
+    popupId.current = null;
+    popupRef.current = null as any;
+
+    // Detect whether the hovered beach is currently unclustered by inspecting rendered features
+    try {
+      const entry = (mapToId as any)[hoverCardId];
+      if (!entry) return;
+      const px = mapInstance.project([entry.longitude, entry.latitude]);
+      const pad = 12;
+      const unclustered = mapInstance
+        .queryRenderedFeatures(
+          [
+            [px.x - pad, px.y - pad],
+            [px.x + pad, px.y + pad],
+          ] as any,
+          { layers: ["unclustered-point"] as any }
+        )
+        .some(
+          (f: any) => String(f?.properties?.id) === String(entry.properties.id)
+        );
+
+      if (unclustered) {
+        // Highlight the specific unclustered circle for visual feedback
+        try {
+          mapInstance.setFeatureState(
+            { source: "beaches", id: entry.id },
+            { hover: true }
+          );
+          lastHoverInternalIdRef.current = entry.id;
+        } catch {}
+        // Clear any cluster highlight and drive the popup lifecycle based on card hover
+        setHoverClusterId(null);
+        setPopupInfo({
+          id: entry.id,
+          longitude: entry.longitude,
+          latitude: entry.latitude,
+          properties: entry.properties,
+        });
+        popupId.current = String(entry.properties.id);
+        popupRef.current = {
+          id: entry.id,
+          longitude: entry.longitude,
+          latitude: entry.latitude,
+          properties: entry.properties,
+        } as any;
+        return;
+      }
+
+      // Otherwise, highlight the nearest cluster bubble around that point (centroid may be offset)
+      {
+        try {
+          const radius = 150; // px search window
+          const clusters = mapInstance.queryRenderedFeatures(
+            [
+              [px.x - radius, px.y - radius],
+              [px.x + radius, px.y + radius],
+            ] as any,
+            { layers: ["clusters"] as any }
+          ) as any[];
+
+          if (Array.isArray(clusters) && clusters.length > 0) {
+            let best: any = null;
+            let bestDist = Number.POSITIVE_INFINITY;
+            for (const c of clusters) {
+              const coords = (c.geometry?.coordinates ?? []) as [
+                number,
+                number
+              ];
+              if (!coords || coords.length !== 2) continue;
+              const p = mapInstance.project(coords as any);
+              const dx = p.x - px.x;
+              const dy = p.y - px.y;
+              const d2 = dx * dx + dy * dy;
+              if (d2 < bestDist) {
+                bestDist = d2;
+                best = c;
+              }
+            }
+            const clusterId: number | undefined = best?.properties?.cluster_id;
+            if (typeof clusterId === "number") {
+              setHoverClusterId(clusterId);
+              // Ensure no popup is visible while clustered
+              setPopupInfo(null);
+              popupId.current = null;
+              popupRef.current = null as any;
+            }
+          }
+        } catch {}
+      }
+    } catch {}
+  }, [hoverCardId, mapToId]);
 
   // Determine if selected point is visible based on zoom level
   // Points get clustered when zoom < clusterMaxZoom (12)
@@ -590,7 +740,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
       "filters:",
       filters.size
     );
-    const baseFiltered = beaches.filter((b) => {
+    let baseFiltered = beaches.filter((b) => {
       if (b.features?.INLND_AREA) return false;
       if (!filters.size) {
         return true;
@@ -603,9 +753,12 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
       }
       return true;
     });
+    if (selectedTab === "saved") {
+      baseFiltered = baseFiltered.filter((b) => favoriteIds.has(String(b.id)));
+    }
     console.log("Filtered beaches:", baseFiltered.length);
     return baseFiltered;
-  }, [beaches, filters, selected]);
+  }, [beaches, filters, selected, selectedTab, favoriteIds]);
 
   const beachesGeoJSON = React.useMemo(() => {
     const features = filteredBeaches.map((b, idx) => {
@@ -902,10 +1055,6 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
         latitude: beach.latitude,
         properties: beach.properties,
       };
-    } else if (!popupInfo) {
-      setPopupInfo(null);
-      popupId.current = null;
-      popupRef.current = null;
     }
     setPopupData(null);
   }, [popupData]);
@@ -969,6 +1118,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
         interactiveLayerIds={[
           "clusters",
           "cluster-count",
+          "clusters-hover",
           "unclustered-point",
           "unclustered-point-label",
         ]}
@@ -978,6 +1128,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
             const f = e.features[0];
             if (
               f.layer.id === "clusters" ||
+              f.layer.id === "clusters-hover" ||
               f.layer.id === "unclustered-point"
             ) {
               map.getCanvas().style.cursor = "pointer";
@@ -1012,12 +1163,17 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
 
           map.on("movestart", hideCounts);
 
-          map.on("moveend", showCounts);
+          map.on("moveend", () => {
+            if ((suppressCountsRef.current ?? 0) === 0) {
+              showCounts();
+            }
+          });
 
           // Track zoom level for ring scaling
           map.on("zoom", () => {
-            const currentZoom = map.getZoom();
-            setZoom(currentZoom);
+            const z = map.getZoom();
+            if (zoomRafRef.current != null) { cancelAnimationFrame(zoomRafRef.current as any); }
+            zoomRafRef.current = requestAnimationFrame(() => { setZoom(z); zoomRafRef.current = null; });
           });
 
           map.on("movestart", () => {
@@ -1028,8 +1184,53 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
             userMovedRef.current = true;
           });
 
-          // Cluster clicks are now handled in the React onClick handler
-          // No need for direct map event listeners
+          // Bind cluster click handlers at the layer level for reliability
+          const bindClusterHandlers = () => {
+            if (clusterHandlersBoundRef.current) return;
+            const hasClusters = !!map.getLayer("clusters");
+            const hasCount = !!map.getLayer("cluster-count");
+            if (!hasClusters || !hasCount) return;
+
+          const onClusterClick = (ev: any) => {
+            const feat = ev?.features && ev.features[0];
+            const coords = (feat?.geometry as any)?.coordinates as [number, number] | undefined;
+            const current = map.getZoom?.() ?? 5;
+            const target = Math.min(current + 2, 16);
+            try {
+              suppressCountsRef.current = (suppressCountsRef.current ?? 0) + 1;
+              if (map.getLayer("cluster-count")) {
+                map.setLayoutProperty("cluster-count", "visibility", "none");
+              }
+            } catch {}
+            try {
+              map.easeTo({ center: (coords as any) ?? ev.lngLat, zoom: target, duration: 300 });
+            } catch {}
+            try { setZoom(target); } catch {}
+            try {
+              map.once("idle", () => {
+                try {
+                  suppressCountsRef.current = Math.max((suppressCountsRef.current ?? 1) - 1, 0);
+                  if ((suppressCountsRef.current ?? 0) === 0 && map.getLayer("cluster-count")) {
+                    map.setLayoutProperty("cluster-count", "visibility", "visible");
+                  }
+                } catch {}
+              });
+            } catch {}
+          };
+
+            map.on("click", "clusters", onClusterClick);
+            map.on("click", "cluster-count", onClusterClick);
+            if (map.getLayer("clusters-hover")) {
+              map.on("click", "clusters-hover", onClusterClick);
+            }
+            clusterHandlersBoundRef.current = true;
+          };
+
+          // Attempt immediate bind; also re-attempt on style/sources ready
+          bindClusterHandlers();
+          map.on("styledata", bindClusterHandlers);
+          map.on("sourcedata", bindClusterHandlers);
+          map.on("idle", bindClusterHandlers);
 
           // Hover for individual points (not clusters)
           map.on("mouseenter", "unclustered-point", () => {
@@ -1055,16 +1256,35 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
             popupRef.current = null;
           });
 
-          map.on("click", () => {
-            // properly clear pop up if it still exists
-            console.log("ENTER CLICK ON MAP RANDOM");
-            if (popupId.current && popupRef.current) {
-              console.log("ENTER CLICK ON MAP RANDOM: REMOVING");
-              const beach = mapToId[popupId.current];
-              map.setFeatureState(
-                { source: "beaches", id: beach.id },
-                { hover: false }
+          map.on("click", (ev: any) => {
+            // If clicking a cluster or point layer, let dedicated handlers manage it
+            try {
+              const p = ev?.point ?? map.project(ev?.lngLat);
+              const hits = map.queryRenderedFeatures(
+                [
+                  [p.x - 20, p.y - 20],
+                  [p.x + 20, p.y + 20],
+                ] as any,
+                {
+                  layers: [
+                    "clusters",
+                    "cluster-count",
+                    "clusters-hover",
+                    "unclustered-point",
+                  ] as any,
+                }
               );
+              if (Array.isArray(hits) && hits.length > 0) return;
+            } catch {}
+            // Otherwise clear popup
+            if (popupId.current && popupRef.current) {
+              try {
+                const beach = mapToId[popupId.current];
+                map.setFeatureState(
+                  { source: "beaches", id: beach.id },
+                  { hover: false }
+                );
+              } catch {}
               setPopupInfo(null);
               popupId.current = null;
               popupRef.current = null;
@@ -1072,115 +1292,73 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
           });
 
           map.on("mousemove", "unclustered-point", (event) => {
-            const originalEvent = event.originalEvent as
-              | MouseEvent
-              | PointerEvent
-              | TouchEvent
-              | undefined;
-            if (originalEvent) {
-              if ("touches" in originalEvent) {
-                return;
-              }
-              if (
-                "pointerType" in originalEvent &&
-                originalEvent.pointerType !== "mouse"
-              ) {
-                return;
-              }
-              if (
-                "buttons" in originalEvent &&
-                typeof originalEvent.buttons === "number" &&
-                originalEvent.buttons !== 0
-              ) {
-                return;
-              }
-            }
             const feature = event.features?.[0];
             if (!feature) return;
-            const coordinates = (feature.geometry as any).coordinates;
-            console.log(
-              "FIXING BUG: MOUSE MOVE",
-              popupData,
-              popupId.current,
-              popupRef,
-              popupInfo,
-              popupId.current ? mapToId[popupId.current].id : null,
-              popupRef?.current?.id
-            );
-            if (popupId.current && popupRef.current) {
-              console.log("ENTER SAME");
-              map.setFeatureState(
-                { source: "beaches", id: mapToId[popupId.current].id },
-                { hover: false }
-              );
-              if (mapToId[popupId.current].id !== popupRef?.current?.id) {
-                setPopupData(null);
-                setPopupInfo(null);
-                popupId.current = null;
-                popupRef.current = null;
-              }
-            }
-
-            // if (popupId.current && popupId.current !== feature.properties.id) {
-            //   map.setFeatureState(
-            //     { source: "beaches", id: mapToId[popupId.current].id },
-            //     { hover: false }
-            //   );
-            //   setPopupInfo(null);
-            //   popupId.current = null;
-            //   popupRef.current = null;
-            // }
-
-            const beach = mapToId[feature.properties.id];
-            console.log("BEECH", mapToId[feature.properties.id]);
-            popupId.current = feature.properties.id;
-            if (!beach) return;
-            map.setFeatureState(
-              { source: "beaches", id: beach.id },
-              { hover: true }
-            );
-            setPopupInfo({
-              id: beach.id,
-              longitude: beach.longitude,
-              latitude: beach.latitude,
-              properties: beach.properties,
+            const fid = feature.properties?.id;
+            if (lastHoverFeatureIdRef.current === fid) return;
+            lastHoverFeatureIdRef.current = fid;
+            if (hoverRafRef.current != null) { cancelAnimationFrame(hoverRafRef.current as any); }
+            hoverRafRef.current = requestAnimationFrame(() => {
+              const beach = mapToId[fid];
+              if (!beach) return;
+              try {
+                const prev = popupId.current ? mapToId[popupId.current] : null;
+                if (prev && prev.id !== beach.id) {
+                  map.setFeatureState({ source: "beaches", id: prev.id }, { hover: false });
+                }
+              } catch {}
+              map.setFeatureState({ source: "beaches", id: beach.id }, { hover: true });
+              setPopupInfo({ id: beach.id, longitude: beach.longitude, latitude: beach.latitude, properties: beach.properties });
+              popupId.current = fid;
+              popupRef.current = { id: beach.id, longitude: beach.longitude, latitude: beach.latitude, properties: beach.properties };
+              hoverRafRef.current = null;
             });
-            popupRef.current = {
-              id: beach.id,
-              longitude: beach.longitude,
-              latitude: beach.latitude,
-              properties: beach.properties,
-            };
           });
           setZoom(map.getZoom());
         }}
         onClick={(e) => {
+          const mapInstance: any = mapRef.current?.getMap?.();
           const feature = e.features && e.features[0];
-          if (!feature) return;
+          if (!mapInstance || !feature) return;
 
-          // Handle cluster clicks
+          // Handle cluster clicks robustly
           const isCluster =
-            feature.properties && (feature.properties as any).cluster;
-          const isClusterCount = feature.layer?.id === "cluster-count";
+            feature &&
+            feature.properties &&
+            (feature.properties as any).cluster;
+          const isClusterCount =
+            feature && feature.layer?.id === "cluster-count";
+          const isClusterHover =
+            feature && feature.layer?.id === "clusters-hover";
 
           if (isCluster || isClusterCount) {
-            // Handle cluster expansion
             const clusterId = feature.properties?.cluster_id;
-            const mapInstance = mapRef.current?.getMap?.();
-            const source: any = mapInstance?.getSource("beaches");
-
-            if (source && clusterId != null && mapInstance) {
-              source.getClusterExpansionZoom(
+            const source: any = mapInstance.getSource("beaches");
+            if (source && clusterId != null) {
+              const coords = (feature.geometry as any).coordinates;
+              try {
+                const current = mapInstance.getZoom?.() ?? 5;
+                mapInstance.easeTo({
+                  center: coords,
+                  zoom: Math.min(current + 2, 16),
+                  duration: 200,
+                });
+              } catch {}
+              try {
+                console.info("cluster click ->", { clusterId, coords });
+              } catch {}
+              (source as any).getClusterExpansionZoom(
                 clusterId,
                 (err: any, expansionZoom: number) => {
                   if (err) return;
-                  // Ensure we zoom past clusterMaxZoom (12) to show unclustered points
                   const targetZoom = Math.max(expansionZoom, 12.5);
-                  mapInstance.easeTo({
-                    center: (feature.geometry as any).coordinates,
-                    zoom: targetZoom,
-                    duration: 500,
-                  });
+                  try {
+                    mapInstance.easeTo({
+                      center: coords,
+                      zoom: targetZoom,
+                      duration: 500,
+                    });
+                  } catch {}
                   setZoom(targetZoom);
                 }
               );
@@ -1248,24 +1426,56 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
               filter={["has", "point_count"] as any}
               paint={{
                 "circle-color": [
-                  "step",
-                  ["get", "point_count"],
-                  "#9ed5ff",
-                  50,
-                  "#69b7ff",
-                  100,
-                  "#3f9bff",
+                  "case",
+                  ["boolean", ["feature-state", "hover"], false],
+                  "#176cff",
+                  [
+                    "step",
+                    ["get", "point_count"],
+                    "#9ed5ff",
+                    50,
+                    "#69b7ff",
+                    100,
+                    "#3f9bff",
+                  ],
                 ],
                 "circle-radius": [
-                  "step",
-                  ["get", "point_count"],
-                  12,
-                  50,
-                  16,
-                  100,
-                  20,
+                  "case",
+                  ["boolean", ["feature-state", "hover"], false],
+                  [
+                    "+",
+                    ["step", ["get", "point_count"], 12, 50, 16, 100, 20],
+                    2,
+                  ],
+                  ["step", ["get", "point_count"], 12, 50, 16, 100, 20],
                 ],
-                "circle-stroke-width": 1,
+                "circle-stroke-width": [
+                  "case",
+                  ["boolean", ["feature-state", "hover"], false],
+                  3,
+                  1,
+                ],
+                "circle-stroke-color": "#ffffff",
+              }}
+            />
+            <Layer
+              id="clusters-hover"
+              type="circle"
+              filter={
+                [
+                  "all",
+                  ["has", "point_count"],
+                  ["==", ["get", "cluster_id"], hoverClusterId ?? -1],
+                ] as any
+              }
+              paint={{
+                "circle-color": "#176cff",
+                "circle-radius": [
+                  "+",
+                  ["step", ["get", "point_count"], 12, 50, 16, 100, 20],
+                  4,
+                ],
+                "circle-stroke-width": 3,
                 "circle-stroke-color": "#ffffff",
               }}
             />
@@ -1277,7 +1487,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
                 // use the raw point_count (exact) and convert to string to avoid layout/abbrev races
                 "text-field": ["to-string", ["get", "point_count"]],
                 "text-size": 12,
-                // critical — allow overlap & ignore placement so the label renders immediately
+                // critical â€” allow overlap & ignore placement so the label renders immediately
                 "text-allow-overlap": true,
                 "text-ignore-placement": true,
                 // optionally specify a bold system font or style available in your style
@@ -1824,7 +2034,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
             </motion.div>
           )}
         </AnimatePresence> */}
-        {/* FILTER PANEL — slides from bottom */}
+        {/* FILTER PANEL â€” slides from bottom */}
 
         {/* {(showMap || smallScreen) &&
           selected &&
@@ -1944,3 +2154,5 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
 };
 
 export default InteractiveMap;
+
+
