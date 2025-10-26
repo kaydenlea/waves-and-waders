@@ -25,6 +25,7 @@ import {
 } from "@/lib/supabase";
 import { useDateContext } from "../context/DateContext";
 import { usePathname } from "next/navigation";
+import { useClientPath } from "../context/PathContext";
 
 const SwellStat = ({
   primary = false,
@@ -312,8 +313,8 @@ const StatTable = ({
   const [data, setData] = React.useState<TableDay[]>([]);
   const { selectedDays } = useDateContext();
   const pathname = usePathname();
-  const forecastPage = pathname.endsWith("/forecast");
-
+  const { selectedTab } = useClientPath();
+  const forecastPage = selectedTab === "forecast";
   React.useEffect(() => {
     let cancelled = false;
 

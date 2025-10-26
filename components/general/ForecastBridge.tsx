@@ -313,9 +313,22 @@ const ForecastBridge: React.FC<Props> = ({ beachId }) => {
         // className="sticky top-[var(--nav-height,60px)] z-60"
         // aria-label="Date picker region"
       >
-        <h2 className="ml-2 mb-0 text-muted-foreground text-lg">
+        <header className="mx-2 flex gap-5 justify-between">
+          <div>
+            <h2 className="text-3xl font-semibold">Weekly Forecast</h2>
+            <p className="text-sm text-muted-foreground">{windowString}</p>
+          </div>
+          {/* <Link
+            href={`/${beachId}/overview/edit#overview-content`}
+            className="flex justify-center text-sm gap-1 h-10 px-3 items-center border border-border bg-highlight-4 rounded-full drop-shadow-sm hover:bg-highlight-3"
+          >
+            <Pencil size={16} />
+            Edit
+          </Link> */}
+        </header>
+        {/* <h2 className="ml-2 mb-0 text-muted-foreground text-lg">
           {windowString}
-        </h2>
+        </h2> */}
         {/* <div className="mt-4 mb-4">
           <LazyLoadDatePicker
             forecast

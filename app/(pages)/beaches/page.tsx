@@ -9,6 +9,7 @@ import NavBar from "@/components/general/NavBar";
 import { LazyLoadMap } from "@/components/general/LazyLoad/LazyLoadMap";
 import PathStyleWrapper from "@/components/general/PathStyleWrapper";
 import Footer from "@/components/general/Footer";
+import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
   title: "Search surf spots | Waves and Waders",
@@ -25,6 +26,10 @@ export default async function BeachesPage() {
   }
 
   const user = userData.user ?? null;
+  if (!user) {
+    redirect(`/login?next=${encodeURIComponent("/favorites")}`);
+  }
+
   let favoriteIds: string[] = [];
 
   if (user) {

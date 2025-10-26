@@ -30,19 +30,21 @@ import { useDateContext } from "../context/DateContext";
 import { AnimatePresence, motion } from "motion/react";
 import { useMapFilters } from "../context/MapFilterContext";
 import { FEATURE_CATEGORIES, getFeatureDisplayName } from "@/lib/supabase";
+import { useClientPath } from "../context/PathContext";
 
 export default function BottomNav() {
   const [showBottomUI, setShowBottomUI] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
   const [atTop, setAtTop] = useState(true);
   const pathname = usePathname();
-  const forecastPage = pathname.endsWith("/forecast");
   const fullMapPage = !pathname.endsWith("/beaches");
   const landingPage = pathname === "/";
   const { mode, setMode } = useDateContext();
   const { setIsOverlay } = useSearchContext();
   const [mobile, setIsMobile] = useState(false);
   const { openPanel, setOpenPanel, filters, setFilters } = useMapFilters();
+  const { selectedTab } = useClientPath();
+  const forecastPage = selectedTab === "forecast";
 
   // Detect screen width and reset nav visibility when switching to mobile
   useEffect(() => {
@@ -402,11 +404,11 @@ export default function BottomNav() {
       </AnimatePresence>
 
       {/* floating day / hour mode button */}
-      {!forecastPage && fullMapPage && !landingPage && (
+      {selectedTab !== "forecast" && fullMapPage && !landingPage && (
         <button
           onClick={() => setMode(mode === "date" ? "hour" : "date")}
           className={cn(
-            "fixed bottom-24 left-3 @min-[460px]:hidden z-50 icon-button py-2 min-w-18 rounded-3xl bg-background hover:bg-highlight-5 flex-col items-center justify-center transition-all duration-300",
+            "fixed bottom-24 left-3 @min-[460px]:hidden z-40 icon-button py-2 min-w-18 rounded-3xl bg-background hover:bg-highlight-5 flex-col items-center justify-center transition-all duration-300",
             showBottomUI
               ? "translate-x-0 opacity-100"
               : "-translate-x-full opacity-0"

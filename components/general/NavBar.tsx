@@ -138,7 +138,7 @@ const NavBar = ({
             <span>Waders</span>
           </span>
         </Link>
-        <NavBarActions landingPage />
+        <NavBarActions />
         {/* {landingPage && (
           <div className="gap-10 justify-center mr-8 hidden @min-lg:flex @min-4xl:hidden">
             <Link

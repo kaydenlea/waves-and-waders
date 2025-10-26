@@ -396,6 +396,8 @@ const DatePicker = ({
           <CarouselPrevious onClick={handlePrev} />
           <CarouselContent className="mx-0">
             {orderedKeys.map((key, index) => {
+              // restrict days for forecast (4 day ranges)
+              // const disabledDay = forecast && index > orderedKeys.length - 4;
               const summary = summaries[key];
               const day = summary?.date ?? dayjs(key);
               const controlledSelected = value
@@ -422,7 +424,18 @@ const DatePicker = ({
                 ? "bg-orange-400"
                 : "bg-green-400";
               let itemStyle = "bg-highlight-4 rounded-md";
-              if (typeof startIdx === "number" && forecast) {
+              // if (typeof startIdx === "number" && forecast) {
+              //   if (startIdx === index) {
+              //     itemStyle =
+              //       "bg-highlight-7 rounded-l-md border-y-border border-y-2 border-l-border border-l-2";
+              //   } else if (index === endIdx) {
+              //     itemStyle =
+              //       "bg-highlight-7 rounded-r-md border-y-border border-y-2 border-r-border border-r-2";
+              //   } else if (startIdx <= index && index <= endIdx) {
+              //     itemStyle = "bg-highlight-7 border-y-border border-y-2";
+              //   }
+              // }
+              if (typeof startIdx === "number") {
                 if (startIdx === index) {
                   itemStyle =
                     "bg-highlight-7 rounded-l-md border-y-border border-y-2 border-l-border border-l-2";
@@ -447,11 +460,16 @@ const DatePicker = ({
                     }}
                     className={cn(
                       "flex flex-col items-center w-full py-1 text-center text-sm font-medium transition-colors hover:bg-highlight-5/60",
-                      !forecast && "rounded-md",
-                      !forecast &&
-                        isSelected &&
-                        "bg-highlight-7 border-border border-2",
-                      forecast && itemStyle
+                      // !forecast && "rounded-md",
+                      // !forecast &&
+                      //   isSelected &&
+                      //   "bg-highlight-7 border-border border-2",
+                      // forecast && itemStyle
+                      "rounded-md",
+                      isSelected && "bg-highlight-7 border-border border-2"
+                      // disabledDay
+                      //   ? "cursor-not-allowed text-muted-foreground opacity-50"
+                      //   : "hover:bg-highlight-5/60"
                     )}
                   >
                     <span className="font-semibold text-[0.7rem] @min-sm:text-[0.7rem] whitespace-nowrap">

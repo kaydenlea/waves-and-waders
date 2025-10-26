@@ -10,6 +10,7 @@ import NavBar from "@/components/general/NavBar";
 import { LazyLoadMap } from "@/components/general/LazyLoad/LazyLoadMap";
 import PathStyleWrapper from "@/components/general/PathStyleWrapper";
 import Footer from "@/components/general/Footer";
+import BeachContent from "@/components/general/BeachContent";
 
 export const metadata: Metadata = {
   title: "Surf Daily Forecast | Waves and Waders",
@@ -73,7 +74,7 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
               className="relative w-full flex flex-col gap-6 p-2 pb-0 scroll-mt-30"
             >
               <PageTabs
-                defaultPage="overview"
+                // defaultPage="overview"
                 beach={beach}
                 tabs={["overview", "forecast"]}
                 beachId={beachId}
@@ -81,10 +82,11 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
                 overviewPage
               />
               <h1 className="font-semibold text-4xl tracking-tight w-full @min-3xl:w-[calc(100%-400px)]">
-                {beachName} Summary
+                {beachName}
               </h1>
             </header>
 
+            {/* <BeachContent beachId={beachId} /> */}
             <DateSummaryBridge beachId={beachId} />
           </div>
         </PathStyleWrapper>

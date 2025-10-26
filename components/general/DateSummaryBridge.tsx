@@ -30,13 +30,16 @@ import {
 import { LazyLoadSummary } from "./LazyLoad/LazyLoadSummary";
 import { useMapFilters } from "../context/MapFilterContext";
 import { useDateContext } from "../context/DateContext";
+import { useClientPath } from "../context/PathContext";
+import { ForecastChartProvider } from "../context/ForecastChartContext";
+import ForecastBridge from "./ForecastBridge";
 
 type Props = { beachId: string };
 
 const DateSummaryBridge: React.FC<Props> = ({ beachId }) => {
   const { id, selected, setSelected, hour, setHour } = useDateContext();
   id.current = beachId;
-
+  const { selectedTab } = useClientPath();
   const [mounted, setMounted] = React.useState(false);
   const [currentTime, setCurrentTime] = React.useState<string>("");
   const overviewDefaults = React.useMemo(
@@ -258,66 +261,72 @@ const DateSummaryBridge: React.FC<Props> = ({ beachId }) => {
       </section>
 
       {/* Main overview section */}
-      <section
-        id="overview-content"
-        className="flex flex-col gap-1 w-full scroll-mt-35"
-      >
-        <header className="mx-2 flex gap-5 justify-between">
-          <div>
-            <h2 className="text-3xl font-semibold">Daily Overview</h2>
-            <p className="text-sm text-muted-foreground">
-              An insight into the forecast of any day
-            </p>
-          </div>
-          {/* <Link
+      {selectedTab === "overview" ? (
+        <section
+          id="overview-content"
+          className="flex flex-col gap-1 w-full scroll-mt-35"
+        >
+          <header className="mx-2 flex gap-5 justify-between">
+            <div>
+              <h2 className="text-3xl font-semibold">Daily Overview</h2>
+              <p className="text-sm text-muted-foreground">
+                An insight into the forecast of any day
+              </p>
+            </div>
+            {/* <Link
             href={`/${beachId}/overview/edit#overview-content`}
             className="flex justify-center text-sm gap-1 h-10 px-3 items-center border border-border bg-highlight-4 rounded-full drop-shadow-sm hover:bg-highlight-3"
           >
             <Pencil size={16} />
             Edit
           </Link> */}
-        </header>
+          </header>
 
-        {visibleRows.length === 0 ? (
-          <p className="mx-2 mt-6 text-sm text-muted-foreground">
-            All widgets are hidden. Use the edit screen to enable widgets.
-          </p>
-        ) : (
-          visibleRows.map((row, index) => {
-            const visibleItems = row.items.filter(
-              (id) => layoutMeta[id]?.visible !== false
-            );
-            if (!visibleItems.length) return null;
-            const spacing = index === 0 ? "mt-4" : "mt-3";
-            // const isFull =
-            //   visibleItems.length === 1 &&
-            //   (layoutMeta[visibleItems[0]]?.span ?? "half") === "full";
-            const isFull = visibleItems.length === 1;
-            if (isFull) {
-              const content = renderWidget(visibleItems[0], isFull);
-              if (!content) return null;
+          {visibleRows.length === 0 ? (
+            <p className="mx-2 mt-6 text-sm text-muted-foreground">
+              All widgets are hidden. Use the edit screen to enable widgets.
+            </p>
+          ) : (
+            visibleRows.map((row, index) => {
+              const visibleItems = row.items.filter(
+                (id) => layoutMeta[id]?.visible !== false
+              );
+              if (!visibleItems.length) return null;
+              const spacing = index === 0 ? "mt-4" : "mt-3";
+              // const isFull =
+              //   visibleItems.length === 1 &&
+              //   (layoutMeta[visibleItems[0]]?.span ?? "half") === "full";
+              const isFull = visibleItems.length === 1;
+              if (isFull) {
+                const content = renderWidget(visibleItems[0], isFull);
+                if (!content) return null;
+                return (
+                  <div key={row.id} className={`${spacing} w-full`}>
+                    {content}
+                  </div>
+                );
+              }
+
               return (
-                <div key={row.id} className={`${spacing} w-full`}>
-                  {content}
+                <div
+                  key={row.id}
+                  className={`${spacing} w-full flex flex-col @min-3xl:flex-row gap-4`}
+                >
+                  {visibleItems.map((id) => {
+                    const content = renderWidget(id, isFull);
+                    if (!content) return null;
+                    return <React.Fragment key={id}>{content}</React.Fragment>;
+                  })}
                 </div>
               );
-            }
-
-            return (
-              <div
-                key={row.id}
-                className={`${spacing} w-full flex flex-col @min-3xl:flex-row gap-4`}
-              >
-                {visibleItems.map((id) => {
-                  const content = renderWidget(id, isFull);
-                  if (!content) return null;
-                  return <React.Fragment key={id}>{content}</React.Fragment>;
-                })}
-              </div>
-            );
-          })
-        )}
-      </section>
+            })
+          )}
+        </section>
+      ) : (
+        <ForecastChartProvider>
+          <ForecastBridge beachId={beachId} />
+        </ForecastChartProvider>
+      )}
     </>
   );
 };

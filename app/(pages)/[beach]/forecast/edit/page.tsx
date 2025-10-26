@@ -9,6 +9,7 @@ import type { Metadata } from "next";
 import { CircleCheck } from "lucide-react";
 import { use } from "react";
 import PathStyleWrapper from "@/components/general/PathStyleWrapper";
+import { useClientPath } from "@/components/context/PathContext";
 
 const chartData = [
   { hour: 0, tide: 5, isPeak: 5 },
@@ -46,6 +47,7 @@ const chartData = [
 
 const Page = ({ params }: { params: Promise<{ beach: string }> }) => {
   const { beach } = use(params);
+  const { setSelectedTab } = useClientPath();
 
   const handleConfirm = () => {
     // Extract beach ID from the URL parameter
@@ -83,7 +85,10 @@ const Page = ({ params }: { params: Promise<{ beach: string }> }) => {
               </p>
             </div>
             <Link
-              href={`/${beach}/forecast#forecast-content`}
+              href={`/${beach}/overview#forecast-content`}
+              onClick={() => {
+                setSelectedTab("forecast");
+              }}
               // onClick={handleConfirm}
               className="flex justify-center text-sm gap-1 h-10 px-3 items-center border border-border bg-highlight-4 rounded-full drop-shadow-sm hover:bg-highlight-3"
             >

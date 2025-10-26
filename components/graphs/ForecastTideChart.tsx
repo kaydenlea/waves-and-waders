@@ -527,6 +527,14 @@ export default function ForecastTideChart({ beachId, date }: Props) {
     return positions;
   }, [data, chartInnerWidth, totalFetchedDays]);
 
+  const hourTicks = useMemo(() => {
+    const ticks: number[] = [];
+    for (let v = 0; v <= 24 * totalFetchedDays; v += 1) {
+      ticks.push(v);
+    }
+    return ticks;
+  }, [totalFetchedDays]);
+
   // Render
   return (
     <div className="w-full">
@@ -627,7 +635,8 @@ export default function ForecastTideChart({ beachId, date }: Props) {
               data={data}
               margin={{ left: -35, right: 15, bottom: 5, top: 6 }}
             >
-              {dayAreas.length > 0 && console.log("🎨 Rendering", dayAreas.length, "day areas")}
+              {dayAreas.length > 0 &&
+                console.log("🎨 Rendering", dayAreas.length, "day areas")}
               {dayAreas.map((a, idx) => (
                 <ReferenceArea
                   key={`day-${idx}`}
@@ -638,7 +647,8 @@ export default function ForecastTideChart({ beachId, date }: Props) {
                   ifOverflow="extendDomain"
                 />
               ))}
-              {nightAreas.length > 0 && console.log("🎨 Rendering", nightAreas.length, "night areas")}
+              {nightAreas.length > 0 &&
+                console.log("🎨 Rendering", nightAreas.length, "night areas")}
               {nightAreas.map((a, idx) => (
                 <ReferenceArea
                   key={`night-${idx}`}
@@ -680,6 +690,7 @@ export default function ForecastTideChart({ beachId, date }: Props) {
                 minTickGap={0}
                 fontSize={11}
                 domain={[0, totalFetchedDays * 24]}
+                ticks={hourTicks}
                 tickFormatter={(v: number) =>
                   v % 3 === 0 ? String(v % 12 === 0 ? 12 : v % 12) : ""
                 }
@@ -709,14 +720,19 @@ export default function ForecastTideChart({ beachId, date }: Props) {
                   // Format time
                   const wholeHour = Math.floor(h);
                   const minutes = Math.round((h - wholeHour) * 60);
-                  const displayHour = wholeHour % 12 === 0 ? 12 : wholeHour % 12;
+                  const displayHour =
+                    wholeHour % 12 === 0 ? 12 : wholeHour % 12;
                   const ampm = wholeHour % 24 >= 12 ? "PM" : "AM";
-                  const timeLabel = minutes > 0
-                    ? `${displayHour}:${minutes.toString().padStart(2, '0')} ${ampm}`
-                    : `${displayHour} ${ampm}`;
+                  const timeLabel =
+                    minutes > 0
+                      ? `${displayHour}:${minutes
+                          .toString()
+                          .padStart(2, "0")} ${ampm}`
+                      : `${displayHour} ${ampm}`;
 
                   // Format tide value
-                  const tideValue = dataPoint.tide != null ? dataPoint.tide.toFixed(1) : 'N/A';
+                  const tideValue =
+                    dataPoint.tide != null ? dataPoint.tide.toFixed(1) : "N/A";
 
                   return (
                     <div className="rounded-lg border bg-background p-2 shadow-sm">
@@ -777,7 +793,8 @@ export default function ForecastTideChart({ beachId, date }: Props) {
                     const safeX = typeof props.x === "number" ? props.x : 0;
                     const hour = data[props.index ?? -1]?.hour;
                     // Exact match for sun markers (no duplicates)
-                    const isSunMarker = hour != null && sunMarkers.includes(hour);
+                    const isSunMarker =
+                      hour != null && sunMarkers.includes(hour);
                     return (
                       <g>
                         {isSunMarker ? (
@@ -802,12 +819,16 @@ export default function ForecastTideChart({ beachId, date }: Props) {
                       const h = data[props.index]?.hour ?? 0;
                       const wholeHour = Math.floor(h);
                       const minutes = Math.round((h - wholeHour) * 60);
-                      const displayHour = wholeHour % 12 === 0 ? 12 : wholeHour % 12;
+                      const displayHour =
+                        wholeHour % 12 === 0 ? 12 : wholeHour % 12;
                       const ampm = wholeHour % 24 >= 12 ? "PM" : "AM";
                       // Format time as "8:30 AM" or "8 AM" if no minutes
-                      const lbl = minutes > 0
-                        ? `${displayHour}:${minutes.toString().padStart(2, '0')} ${ampm}`
-                        : `${displayHour} ${ampm}`;
+                      const lbl =
+                        minutes > 0
+                          ? `${displayHour}:${minutes
+                              .toString()
+                              .padStart(2, "0")} ${ampm}`
+                          : `${displayHour} ${ampm}`;
                       // Round tide value to 1 decimal place
                       const tideValue = Number(props.value).toFixed(1);
 

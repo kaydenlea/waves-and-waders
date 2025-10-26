@@ -9,16 +9,17 @@ import { AlarmClock, Calendar, Clock, Search } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useSearchContext } from "../context/SearchContext";
+import { useClientPath } from "../context/PathContext";
 
-const NavBarActions = ({ landingPage = false }: { landingPage?: boolean }) => {
+const NavBarActions = () => {
   const pathname = usePathname();
   console.log("PATHNAME", pathname);
   const homePage = pathname === "/";
   const beachesPage = pathname.endsWith("/beaches");
-  const forecastPage = pathname.endsWith("/forecast");
   const { id, selected, setSelected, hour, setHour, mode, setMode } =
     useDateContext();
   const { setIsOverlay } = useSearchContext();
+  const { selectedTab } = useClientPath();
   if (homePage || beachesPage)
     return (
       <SearchBar
@@ -89,11 +90,11 @@ const NavBarActions = ({ landingPage = false }: { landingPage?: boolean }) => {
         />
       </button>
       <div className="@container flex-1 min-w-0 w-full">
-        {mode === "date" || forecastPage ? (
+        {mode === "date" || selectedTab === "forecast" ? (
           <LazyLoadDatePicker
             className="w-full"
             beachId={id.current}
-            {...(forecastPage && { forecast: true })}
+            {...(selectedTab === "forecast" && { forecast: true })}
             value={selected}
             onSelect={setSelected}
           />
@@ -109,7 +110,7 @@ const NavBarActions = ({ landingPage = false }: { landingPage?: boolean }) => {
         )}
       </div>
 
-      {!forecastPage && !beachesPage && (
+      {selectedTab === "overview" && !beachesPage && (
         <button
           onClick={() => setMode(mode === "date" ? "hour" : "date")}
           className={cn(

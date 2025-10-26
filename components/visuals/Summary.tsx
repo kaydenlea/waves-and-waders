@@ -76,7 +76,11 @@ type SummaryStat =
     };
 
 type TidePointValue = { x: number; tide: number };
-type TidePeak = { kind: "high" | "low"; time: Date; level: number };
+type TidePeak = {
+  kind: "high" | "low";
+  time: Date | null;
+  level: number | null;
+};
 
 const computeTidePeaks = (
   points: TidePointValue[],
@@ -452,11 +456,21 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
           tidePeaks = computeTidePeaks(fallbackSeries, isToday, windowStartMs);
         }
         const peaksInWindow = tidePeaks.filter((peak) => {
-          const peakTime = peak.time.getTime();
-          return peakTime >= windowStartMs && peakTime <= windowEndMs;
+          if (peak.time) {
+            const peakTime = peak.time.getTime();
+            return peakTime >= windowStartMs && peakTime <= windowEndMs;
+          }
         });
 
         const tideStatPeaks = peaksInWindow.slice(0, 4);
+        if (tideStatPeaks.length < 4) {
+          for (let i = 0; i < 4; i++) {
+            const peakType = i % 2 === 0 ? "high" : "low";
+            if (!tideStatPeaks[i]) {
+              tideStatPeaks.push({ kind: peakType, time: null, level: null });
+            }
+          }
+        }
 
         // Fetch current tide from county_tides_15min table for accurate real-time data
         let currentTideHeight: number | undefined;
@@ -464,22 +478,41 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
           const currentTide = await fetchCurrentTide(resolvedId);
           if (currentTide?.tideLevelFt != null) {
             currentTideHeight = Number(currentTide.tideLevelFt.toFixed(1));
-            console.log("✅ Using county tide data for current height:", currentTideHeight, "ft");
+            console.log(
+              "✅ Using county tide data for current height:",
+              currentTideHeight,
+              "ft"
+            );
           } else {
-            console.warn("⚠️ fetchCurrentTide returned null/undefined, falling back to forecast");
+            console.warn(
+              "⚠️ fetchCurrentTide returned null/undefined, falling back to forecast"
+            );
             // Fallback to forecast data if county tide fetch fails
-            currentTideHeight = base?.conditions.tideLevel != null
-              ? Number(base.conditions.tideLevel.toFixed(1))
-              : undefined;
-            console.log("📊 Using forecast data for current height:", currentTideHeight, "ft");
+            currentTideHeight =
+              base?.conditions.tideLevel != null
+                ? Number(base.conditions.tideLevel.toFixed(1))
+                : undefined;
+            console.log(
+              "📊 Using forecast data for current height:",
+              currentTideHeight,
+              "ft"
+            );
           }
         } catch (err) {
-          console.warn("❌ Failed to fetch current tide, falling back to forecast", err);
+          console.warn(
+            "❌ Failed to fetch current tide, falling back to forecast",
+            err
+          );
           // Fallback to forecast data if county tide fetch fails
-          currentTideHeight = base?.conditions.tideLevel != null
-            ? Number(base.conditions.tideLevel.toFixed(1))
-            : undefined;
-          console.log("📊 Using forecast data for current height:", currentTideHeight, "ft");
+          currentTideHeight =
+            base?.conditions.tideLevel != null
+              ? Number(base.conditions.tideLevel.toFixed(1))
+              : undefined;
+          console.log(
+            "📊 Using forecast data for current height:",
+            currentTideHeight,
+            "ft"
+          );
         }
 
         let sunrise: string | undefined;
@@ -1125,9 +1158,11 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
                 </div>
                 <div className="touch-pan-y flex flex-col overflow-y-auto flex-1">
                   {stat.peaks.length > 0 ? (
-                    stat.peaks.slice(0, 4).map((peak) => (
+                    stat.peaks.slice(0, 4).map((peak, i) => (
                       <div
-                        key={`${peak.kind}-${peak.time.getTime()}`}
+                        key={`${peak.kind}-${
+                          peak.time ? peak.time.getTime() : "undefined"
+                        }-${i}`}
                         className="flex items-center justify-between flex-shrink-0 gap-1 @container"
                       >
                         <span className="text-sm font-medium hidden @min-[145px]:flex">
@@ -1137,15 +1172,16 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
                           {peak.kind === "high" ? "Hi" : "Lo"}
                         </span>
                         <span className="text-muted-foreground text-xs @min-[125px]:text-sm @min-[130px]:text-sm text-right flex justify-between min-w-21 @min-[125px]:min-w-24 @min-[130px]:min-w-25">
-                          <span className="">{`${peak.time.toLocaleTimeString(
-                            [],
-                            {
-                              hour: "numeric",
-                              minute: "2-digit",
-                            }
-                          )}`}</span>
+                          <span className="">
+                            {peak.time
+                              ? `${peak.time.toLocaleTimeString([], {
+                                  hour: "numeric",
+                                  minute: "2-digit",
+                                })}`
+                              : "--:--"}
+                          </span>
                           <span className="font-semibold">
-                            {peak.level}
+                            {peak.level ? peak.level : "--"}
                             <span className="ml-0.5 text-[10px] font-light">
                               ft
                             </span>

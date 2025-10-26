@@ -9,11 +9,12 @@ import SaveButton from "./SaveButton";
 import { useMapFilters } from "../context/MapFilterContext";
 import { ArrowLeftFromLine, Map, MapPinned, Pencil } from "lucide-react";
 import { motion } from "motion/react";
+import { useClientPath } from "../context/PathContext";
 
 type PageTabsProps = {
   beach?: string;
   beachId?: string;
-  defaultPage: string;
+  defaultPage?: string;
   tabs: string[];
   buttons?: boolean;
   isFavorite?: boolean;
@@ -35,6 +36,7 @@ const PageTabs = ({
 }: PageTabsProps) => {
   const [favorite, setFavorite] = useState(isFavorite);
   const [isDesktop, setIsDesktop] = useState(false);
+  const { selectedTab, setSelectedTab } = useClientPath();
   const { showMap, setShowMap } = useMapFilters();
 
   const tabsRef = useRef<HTMLDivElement>(null);
@@ -54,6 +56,26 @@ const PageTabs = ({
     adjustScreenSize();
 
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (selectedTab === "") {
+      console.log("BEACH TEST TAB 1", selectedTab);
+      setSelectedTab(overviewPage ? "overview" : "nearby");
+    } else if (
+      (selectedTab === "overview" || selectedTab === "forecast") &&
+      beachPage
+    ) {
+      console.log("BEACH TEST TAB 2", selectedTab);
+      setSelectedTab("nearby");
+    } else if (
+      (selectedTab === "saved" || selectedTab === "nearby") &&
+      overviewPage
+    ) {
+      console.log("BEACH TEST TAB 3", selectedTab);
+      setSelectedTab("overview");
+    }
+    console.log("BEACH TEST TAB", selectedTab);
   }, []);
 
   useEffect(() => {
@@ -78,7 +100,7 @@ const PageTabs = ({
           {(forecastPage || overviewPage) && (
             <Link
               href={
-                forecastPage
+                selectedTab === "forecast"
                   ? `/${beachId}/forecast/edit#forecast-content`
                   : `/${beachId}/overview/edit#overview-content`
               }
@@ -118,20 +140,26 @@ const PageTabs = ({
       )}
       <div className="relative flex w-fit rounded-full bg-highlight-3 p-1.5 text-sm @min-sm:text-base font-medium border border-border/20 shadow-inner">
         {tabs.map((tab) => {
-          const isActive = defaultPage === tab;
-          const href =
-            tab.toLowerCase() === "overview"
-              ? beach
-                ? `/${beach}/overview`
-                : "/beaches"
-              : beach
-              ? `/${beach}/forecast`
-              : "/favorites";
+          const isActive = selectedTab === tab;
+          // const href =
+          //   tab.toLowerCase() === "overview"
+          //     ? beach
+          //       ? `/${beach}/overview`
+          //       : "/beaches"
+          //     : beach
+          //     ? `/${beach}/forecast`
+          //     : "/favorites";
 
           return (
-            <Link
+            <button
+              onClick={(e) => {
+                const clicked = (e.target as HTMLElement).innerText;
+                console.log("BEACH TEST CLICK", clicked);
+                if (clicked) setSelectedTab(clicked.toLowerCase());
+              }}
+              type="button"
+              aria-label={`${selectedTab} tab`}
               key={tab}
-              href={href}
               className={cn(
                 "relative z-10 flex-1 rounded-full px-4 py-1 w-27 text-center capitalize transition-colors duration-300",
                 isActive
@@ -151,7 +179,7 @@ const PageTabs = ({
                 />
               )}
               <span className="relative z-10">{tab}</span>
-            </Link>
+            </button>
           );
         })}
       </div>

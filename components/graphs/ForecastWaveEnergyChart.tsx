@@ -511,7 +511,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
   );
   return (
     <>
-      <div className="mb-4 mx-4">
+      {/* <div className="mb-4 mx-4">
         <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
           <span>Range</span>
           <span>
@@ -526,7 +526,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
           onValueChange={handleDayWindowChange}
           className="mt-2"
         />
-      </div>
+      </div> */}
       {/* <DaySlider
         chartHandleBack={handleBack}
         chartHandleNext={handleNext}
