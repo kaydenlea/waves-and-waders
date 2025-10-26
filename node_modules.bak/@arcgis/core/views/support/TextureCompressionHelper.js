@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import e from"../../core/Logger.js";import{destroyMaybe as r}from"../../core/maybe.js";import{makeScheduleFunction as o}from"../3d/layers/support/makeScheduleFunction.js";import{TextureCompressionWorkerHandle as s}from"./TextureCompressionWorkerHandle.js";import{Texture as t}from"../webgl/Texture.js";const n=new Set,i=()=>e.getLogger("esri/views/support/TextureCompressionHelper");function m(e,r){return t.compressionWorkerHandle??=new s(o(r)),n.has(e)?i().warn("Repeated texture compression worker initialization by the same view."):n.add(e),t.compressionWorkerHandle}function p(e){t.compressionWorkerHandle&&(n.delete(e)||i().warn("Unknown view attempted to destroy the texture compression worker."),n.size||(r(t.compressionWorkerHandle),t.compressionWorkerHandle=null))}export{p as destroyTextureCompressionWorker,m as initializeTextureCompressionWorker};

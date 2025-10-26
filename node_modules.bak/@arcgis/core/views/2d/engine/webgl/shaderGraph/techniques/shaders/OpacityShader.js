@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{_ as t,a as o}from"../../../../../../../chunks/tslib.es6.js";import{GraphShaderModule as e,FragmentOutput as r,location as s,uniform as p,input as i,VertexInput as n,UniformGroup as a,FragmentInput as l}from"../../GraphShaderModule.js";import{Vec4 as c,Vec2 as u,texture2D as y,Sampler2D as d,Float as m}from"../../graph/glsl.js";class f extends n{}t([s(0,u)],f.prototype,"position",void 0);class g extends l{}class x extends a{}t([p(d)],x.prototype,"layerTexture",void 0),t([p(m)],x.prototype,"opacity",void 0);class h extends e{constructor(){super(...arguments),this.type="OpacityShader"}vertex(t){return{uv:t.position,glPosition:new c(t.position.subtract(new u(.5)).multiply(2),0,1)}}fragment(t){const o=new r;return o.fragColor=y(this.config.layerTexture,t.uv).multiply(this.config.opacity),o}}t([p(x)],h.prototype,"config",void 0),t([o(0,i(f))],h.prototype,"vertex",null),t([o(0,i(g))],h.prototype,"fragment",null);export{h as OpacityShader};

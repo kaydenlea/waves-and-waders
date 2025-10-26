@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{_ as o}from"../../../chunks/tslib.es6.js";import s from"../../../core/Accessor.js";import{destroyHandle as r}from"../../../core/handleUtils.js";import{property as e}from"../../../core/accessorSupport/decorators/property.js";import"../../../core/has.js";import"../../../core/Logger.js";import"../../../core/RandomLCG.js";import{subclass as t}from"../../../core/accessorSupport/decorators/subclass.js";import{B as p,a as i}from"../../../chunks/boundedPlane.js";import{PropertiesPool as c}from"../../support/PropertiesPool.js";let a=class extends s{constructor(){super(),this._propertiesPool=new c({plane:p},this),this.isDecoration=!0,this.addHandles(r(this._propertiesPool))}set plane(o){if(!o)return void this._set("plane",o);const s=this._propertiesPool.get("plane");i(o,s),this._set("plane",s)}};o([e()],a.prototype,"plane",null),o([e()],a.prototype,"isDecoration",void 0),a=o([t("esri.views.3d.support.ViewSlice")],a);export{a as ViewSlice};

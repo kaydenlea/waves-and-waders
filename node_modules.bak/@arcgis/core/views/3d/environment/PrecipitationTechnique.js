@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{P as e}from"../../../chunks/Precipitation.glsl.js";import{ReloadableShaderModule as r}from"../webgl-engine/core/shaderTechnique/ReloadableShaderModule.js";import{ShaderTechnique as i}from"../webgl-engine/core/shaderTechnique/ShaderTechnique.js";import{VertexAttribute as t}from"../webgl-engine/lib/VertexAttribute.js";import{CompareFunction as s}from"../../webgl/enums.js";import{NoParameters as o}from"../../webgl/NoParameters.js";import{makePipelineState as n,defaultColorWrite as l,premultipliedAlpha as a}from"../../webgl/renderState.js";class m extends o{constructor(){super(...arguments),this.time=0,this.radius=1,this.width=500,this.opacity=0}}class c extends i{constructor(i,s){super(i,s,new r(e,(()=>import("./Precipitation.glsl.js"))),new Map([[t.POSITION,0],[t.INSTANCEFEATUREATTRIBUTE,1]]))}initializePipeline(){return n({blending:a,depthTest:{func:s.LEQUAL},colorWrite:l})}}export{m as PrecipitationPassParameters,c as PrecipitationTechnique};

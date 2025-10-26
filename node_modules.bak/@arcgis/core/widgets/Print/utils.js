@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import e from"../../core/Error.js";import{JSONMap as t}from"../../core/jsonMap.js";import{getTaskExecutionMode as r,PrintServiceTask as i}from"../../rest/print.js";import{execute as o}from"../../rest/geoprocessor/execute.js";import{submitJob as a}from"../../rest/geoprocessor/submitJob.js";async function s(t,s,m){if(!t)throw new e("print:invalid-layout-info-task-url","Can't fetch layout template info",{url:t});if("async"===await r(t,i.GetLayoutTemplatesInfo,m)){const e=await a(t,s,void 0,m||void 0);await e.waitForJobCompletion();return(await e.fetchResultData("Output_JSON")).value}return(await o(t,s,null,m)).results[0].value}const m=new t({inch:"inches",foot:"feet",yard:"yards",mile:"miles","nautical-mile":"nautical-miles",millimeter:"millimeters",centimeter:"centimeters",decimeter:"decimeters",meter:"meters",kilometer:"kilometers"});export{s as fetchLayoutTemplateInfos,m as valueUnitKebabDict};

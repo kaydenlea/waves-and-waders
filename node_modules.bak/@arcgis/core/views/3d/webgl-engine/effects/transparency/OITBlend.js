@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{O as e}from"../../../../../chunks/OITBlend.glsl.js";import{OITBlendTechnique as t}from"./OITBlendTechnique.js";import{OITBlendTechniqueConfiguration as i}from"./OITBlendTechniqueConfiguration.js";import{ColorAttachment1 as r,ColorAttachment2 as s}from"../../../../webgl/enums.js";class n{constructor(r){this._techniques=r,this._parameters=new e,this._configuration=new i,r.precompile(t,this._configuration),this._configuration.hasEmission=!0,r.precompile(t,this._configuration)}blend(e,i,n,o,a){this._parameters.colorTexture=i.getTexture(),a&&(this._parameters.emissionTexture=i.getTexture(r),this._parameters.emissionFrontFaceTexture=n.getTexture(r)),this._parameters.alphaTexture=i.getTexture(a?s:r),this._parameters.frontFaceTexture=n.getTexture(),this._configuration.hasEmission=a;const u=this._techniques.get(t,this._configuration);e.bindTechnique(u,o,this._parameters),e.screen.draw()}}export{n as OITBlend};

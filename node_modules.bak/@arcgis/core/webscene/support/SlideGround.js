@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{_ as o}from"../../chunks/tslib.es6.js";import r from"../../Ground.js";import t from"../../core/Clonable.js";import s from"../../core/JSONSupport.js";import{property as e}from"../../core/accessorSupport/decorators/property.js";import{Integer as p}from"../../core/accessorSupport/ensureType.js";import"../../core/has.js";import"../../core/RandomLCG.js";import{subclass as c}from"../../core/accessorSupport/decorators/subclass.js";import{transparencyToOpacity as i,opacityToTransparency as a}from"../../webdoc/support/opacityUtils.js";var n;const m={type:Number,json:{type:p,name:"transparency",read:i,write:(o,r,t)=>{r[t]=a(o)}}};let u=n=class extends(t.ClonableMixin(s)){constructor(){super(...arguments),this.opacity=null}cloneAndApplyTo(o){return null==this.opacity||((o=o?.clone()??new r).opacity=this.opacity),o}static fromGround(o){return new n({opacity:o.opacity})}};o([e(m)],u.prototype,"opacity",void 0),u=n=o([c("esri.webscene.support.SlideGround")],u);const l=u;export{l as default};

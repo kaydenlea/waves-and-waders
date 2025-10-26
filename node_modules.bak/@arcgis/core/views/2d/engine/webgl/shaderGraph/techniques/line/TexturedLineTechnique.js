@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{FeatureSymbologyDrawOrder as e}from"../../../enums.js";import{FeatureTechnique as t}from"../FeatureTechnique.js";import{isHittest as r,getSelectionDefines as s,getFeatureUniforms as i,resolveDynamicUniforms as o,getFeaturePipelineState as n}from"../featureTechniqueUtils.js";import{TechniqueType as a}from"../TechniqueType.js";import{getAntialiasingControls as u}from"./utils.js";import{TexturedLineShader as m}from"../shaders/TexturedLineShader.js";class p extends t{constructor(){super(...arguments),this.type=a.TexturedLine,this.shaders={geometry:new m},this.symbologyPlane=e.LINE}render(e,t){const{context:a,painter:m,pixelRatio:p}=e,f=t.instance.getInput();m.setShader({shader:this.shaders.geometry,uniforms:{...o(e,t.target,f.uniforms),...i(e,t.target),antialiasingControls:u(p),mosaicInfo:m.textureManager.getMosaicInfo(a,t.textureKey)},defines:{...s(e)},optionalAttributes:f.optionalAttributes,useComputeBuffer:r(e)}),m.setPipelineState(n(e)),m.submitDraw(e,t)}}export{p as TexturedLineTechnique};

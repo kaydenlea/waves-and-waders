@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{FeatureSymbologyDrawOrder as e}from"../../../enums.js";import{FeatureTechnique as t}from"../FeatureTechnique.js";import{isHittest as s,getSelectionDefines as r,getFeatureUniforms as i,resolveDynamicUniforms as o,getFeaturePipelineState as n}from"../featureTechniqueUtils.js";import{TechniqueType as a}from"../TechniqueType.js";import{getAntialiasingControls as m}from"./utils.js";import{LineShader as u}from"../shaders/LineShader.js";class p extends t{constructor(){super(...arguments),this.type=a.Line,this.shaders={geometry:new u},this.symbologyPlane=e.LINE}render(e,t){const{painter:a,pixelRatio:u}=e,p=t.instance.getInput();a.setShader({shader:this.shaders.geometry,uniforms:{...o(e,t.target,p.uniforms),...i(e,t.target),antialiasingControls:m(u)},defines:{...r(e)},optionalAttributes:p.optionalAttributes,useComputeBuffer:s(e)}),a.setPipelineState(n(e)),a.submitDraw(e,t)}}export{p as LineTechnique};

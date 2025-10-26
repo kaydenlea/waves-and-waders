@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{ChapmanApproximationParameters as e}from"../../../environment/ChapmanApproximation.glsl.js";import{ReloadableShaderModule as r}from"../../core/shaderTechnique/ReloadableShaderModule.js";import{ShaderTechnique as o}from"../../core/shaderTechnique/ShaderTechnique.js";import{H as s}from"../../../../../chunks/Haze.glsl.js";import{CompareFunction as t,BlendFactor as n}from"../../../../webgl/enums.js";import{makePipelineState as i,defaultColorWrite as l,copySource as a,separateBlendingParams as m}from"../../../../webgl/renderState.js";class c extends e{constructor(){super(...arguments),this.hazeStrength=1}}class p extends o{constructor(e,o){super(e,o,new r(s,(()=>import("./Haze.glsl.js"))))}initializePipeline(e){return e.reduced?i({blending:a,depthTest:{func:t.ALWAYS},colorWrite:l}):i({blending:m(n.ONE,n.ZERO,n.ONE_MINUS_SRC_COLOR,n.ONE),colorWrite:l})}}export{c as HazePassParameters,p as HazeTechnique};

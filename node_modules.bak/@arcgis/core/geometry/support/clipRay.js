@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{ObjectStack as r}from"../../core/ObjectStack.js";import{l as c,f as n,g as t}from"../../chunks/vec32.js";import{copy as o,create as e,fromValues as u}from"./ray.js";function a(r){return r?{ray:e(r.ray),c0:r.c0,c1:r.c1}:{ray:e(),c0:0,c1:Number.MAX_VALUE}}function i(r,c,n){const t=A.get();return t.ray=r,t.c0=c,t.c1=n,t}function f(r,c=a()){return s(r.ray,r.c0,r.c1,c)}function s(r,c,n,t=a()){return o(r,t.ray),t.c0=c,t.c1=n,t}function y(r,c=a()){return o(r,c.ray),c.c0=0,c.c1=Number.MAX_VALUE,c}function m(r,n,t=a()){const o=c(r.vector);return u(r.origin,n,t.ray),t.c0=0,t.c1=o,t}function p(r,c){return j(r,r.c0,c)}function g(r,c){return j(r,r.c1,c)}function j(r,c,o){return n(o,r.ray.origin,t(o,r.ray.direction,c))}const A=new r((()=>a()));export{f as copy,a as create,m as fromLineSegmentAndDirection,y as fromRay,s as fromValues,j as getAt,g as getEnd,p as getStart,i as wrap};

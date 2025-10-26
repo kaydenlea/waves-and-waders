@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{RasterTechniqueType as e}from"../../TechniqueType.js";import{BaseRasterProcessorTechnique as a}from"./BaseRasterProcessorTechnique.js";import{RemapShader as s}from"../../shaders/raster/processor/RemapShader.js";class r extends a{constructor(){super(...arguments),this.name="RasterRemapProcessor",this.type=e.Remap,this.shaders={remap:new s}}_process(e,a){const s=e.rasterFunction.parameters,r={replaceUnmatched:s.allowUnmatched&&null!=s.replacementValue},t={rangeMaps:[...s.rangeMaps],noDataRanges:[...s.noDataRanges],unmatchMask:s.allowUnmatched?1:0,replacementValue:s.replacementValue??0,clampRange:s.clampRange},n=this._getCommonConfig(e,a),o={shader:this.shaders.remap,uniforms:{config:n,remapConfig:t},defines:r,optionalAttributes:null,useComputeBuffer:!1},{painter:m,context:p}=e;m.submitDrawMesh(p,o,m.quadMesh)}}export{r as RemapTechnique};

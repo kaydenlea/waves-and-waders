@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{FeatureSymbologyDrawOrder as e}from"../../../enums.js";import{FeatureTechnique as t}from"../FeatureTechnique.js";import{isHittest as r,getSelectionDefines as s,getFeatureUniforms as i,resolveDynamicUniforms as o,getFeaturePipelineState as n}from"../featureTechniqueUtils.js";import{TechniqueType as a}from"../TechniqueType.js";import{GradientFillShader as m}from"../shaders/GradientFillShader.js";class u extends t{constructor(){super(...arguments),this.type=a.GradientFill,this.shaders={geometry:new m},this.symbologyPlane=e.FILL}render(e,t){const{context:a,painter:m}=e,u=t.instance.getInput();m.setShader({shader:this.shaders.geometry,uniforms:{...o(e,t.target,u.uniforms),...i(e,t.target),mosaicInfo:m.textureManager.getMosaicInfo(a,t.textureKey)},defines:{...s(e)},optionalAttributes:u.optionalAttributes,useComputeBuffer:r(e)}),m.setPipelineState(n(e)),m.submitDraw(e,t)}}export{u as GradientFillTechnique};

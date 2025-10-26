@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{FeatureTechnique as e}from"../FeatureTechnique.js";import{isHittest as t,getSelectionDefines as r,getLocalTileOffset as i,getFeatureUniforms as s,resolveDynamicUniforms as o,getFeaturePipelineState as n}from"../featureTechniqueUtils.js";import{TechniqueType as a}from"../TechniqueType.js";import{getAntialiasingControls as u}from"../line/utils.js";import{PatternOutlineFillShader as l}from"../shaders/PatternOutlineFillShader.js";class m extends e{constructor(){super(...arguments),this.type=a.PatternOutlineFill,this.shaders={geometry:new l}}render(e,a){const{context:l,painter:m,pixelRatio:p}=e,f=a.instance.getInput();m.setShader({shader:this.shaders.geometry,uniforms:{...o(e,a.target,f.uniforms),...s(e,a.target),antialiasingControls:u(p),mosaicInfo:m.textureManager.getMosaicInfo(l,a.textureKey),localTileOffset:i(a.target)},defines:{...r(e)},optionalAttributes:f.optionalAttributes,useComputeBuffer:t(e)}),m.setPipelineState(n(e)),m.submitDraw(e,a)}}export{m as PatternOutlineFillTechnique};

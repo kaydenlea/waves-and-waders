@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{_ as r}from"../../../../../../../../../chunks/tslib.es6.js";import{uniform as e}from"../../../../GraphShaderModule.js";import{clamp as o,Float as s,Vec4 as t,Vec3 as i}from"../../../../graph/glsl.js";import{rgb2hsv as l,hsv2rgb as p}from"../colorConversion.js";import{lookupColor as a,ColormapConfig as m}from"../lut.js";import{HillshadeShader as n}from"./HillshadeShader.js";class d extends n{constructor(){super(...arguments),this.type="ShadedReliefShader"}_process(r){const e=super._process(r),{minValue:m,maxValue:n}=this.hillshadeConfig,d=this._getPixel(r),h=n.subtract(m),u=d.r.subtract(m),c=o(u.divide(h),new s(0),new s(1)),f=a(new t(c,c,c,1),new s(255),this.colormapConfig),x=l(f.xyz),g=p(new i(x.xy,e.x.divide(255))).multiply(255);return new t(g,f.a.multiply(e.a))}}r([e(m)],d.prototype,"colormapConfig",void 0);export{d as ShadedReliefShader};

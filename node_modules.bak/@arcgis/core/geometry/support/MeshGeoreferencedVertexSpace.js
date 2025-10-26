@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{_ as e}from"../../chunks/tslib.es6.js";import r from"../../core/Clonable.js";import o from"../../core/JSONSupport.js";import{property as t}from"../../core/accessorSupport/decorators/property.js";import"../../core/has.js";import"../../core/Logger.js";import"../../core/RandomLCG.js";import{enumeration as s}from"../../core/accessorSupport/decorators/enumeration.js";import{subclass as p}from"../../core/accessorSupport/decorators/subclass.js";var c;let i=class extends(r.ClonableMixin(o)){static{c=this}constructor(e){super(e),this.type="georeferenced",this.origin=null}static{this.absolute=new c}};e([s({georeferenced:"georeferenced"},{readOnly:!0})],i.prototype,"type",void 0),e([t({type:[Number],nonNullable:!1,json:{write:!0}})],i.prototype,"origin",void 0),i=c=e([p("esri.geometry.support.MeshGeoreferencedVertexSpace")],i);export{i as default};

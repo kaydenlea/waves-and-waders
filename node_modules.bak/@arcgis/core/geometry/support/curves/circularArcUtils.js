@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{set as t,determinant as r}from"../../../core/libs/gl-matrix-2/math/mat3.js";import{create as o}from"../../../core/libs/gl-matrix-2/factories/mat3f64.js";import{DerivedCircle as n,interpolateCircle as c}from"./circleUtils.js";import{interpolateSegment as i,wrapAtan2 as s}from"./mathUtils.js";const m=o();function l(o,n,c){const[i,s]=o,[l,e]=n,[a,f]=c,u=i*i+s*s,h=l*l+e*e,p=a*a+f*f;t(m,i,l,a,s,e,f,1,1,1);const j=r(m);if(0===j)return null;t(m,u,h,p,s,e,f,1,1,1);const g=r(m);t(m,u,h,p,i,l,a,1,1,1);return[g/j*.5,r(m)/j*-.5]}function e(t,r){const[o,c]=r.c,m=l(t,c,o),e=null==m,a=m??i([],t,o,.5),[f,u]=t,[h,p]=c,[j,g]=o,[x,M]=a,b=f-x,U=u-M,q=Math.sqrt(b*b+U*U),w=s(u-M,f-x),I=s(p-M,h-x);let P=s(g-M,j-x);return(I-w)*(P-I)<0&&(P+=2*Math.sign(w-P)*Math.PI),new n(x,M,q,w,P,e)}function a(t,r,o){const n=c(t,o/2),i=c(t,o),s=c(t,(o+1)/2);return[{c:[i,n]},{c:[[...r.c[0]],s]}]}export{e as deriveCircleFromCircularArc,a as splitCircularArc};

@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{FeatureTechnique as e}from"../FeatureTechnique.js";import{isHittest as t,getSelectionDefines as r,getLocalTileOffset as s,getFeatureUniforms as i,resolveDynamicUniforms as o,getFeaturePipelineState as a}from"../featureTechniqueUtils.js";import{TechniqueType as n}from"../TechniqueType.js";import{PatternFillShader as u}from"../shaders/PatternFillShader.js";class m extends e{constructor(){super(...arguments),this.type=n.PatternFill,this.shaders={geometry:new u}}render(e,n){const{context:u,painter:m}=e,f=n.instance.getInput();m.setShader({shader:this.shaders.geometry,uniforms:{...o(e,n.target,f.uniforms),...i(e,n.target),mosaicInfo:m.textureManager.getMosaicInfo(u,n.textureKey),localTileOffset:s(n.target)},defines:{...r(e)},optionalAttributes:f.optionalAttributes,useComputeBuffer:t(e)}),m.setPipelineState(a(e)),m.submitDraw(e,n)}}export{m as PatternFillTechnique};

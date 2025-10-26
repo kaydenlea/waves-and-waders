@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{fromValues as e}from"../../../../core/libs/gl-matrix-2/factories/vec3f64.js";import{fromValues as r}from"../../../../core/libs/gl-matrix-2/factories/vec4f64.js";import{zValueInAbsoluteHeightMode as n}from"../../../../support/elevationInfoUtils.js";import{lineStripsToParameters as o,createGeometry as i}from"../engineContent/line.js";import{RibbonLineMaterial as t}from"../../webgl-engine/materials/RibbonLineMaterial.js";import{CapType as s}from"../../webgl-engine/shaders/RibbonLineTechniqueConfiguration.js";function m(r,o,i,t){const{spatialReference:s}=r;return a(i.map((i=>i.map((i=>{const[m,a]=c(i,o),{absoluteZ:f}=n(m,a,0,s,r,t),l=e(m,a,f);return r.renderCoordsHelper.toRenderCoords(l,s,l),l})))))}function a(e){const n=o(e),m=new t({width:2,color:r(.1,.2,1,1),innerWidth:1,innerColor:r(.2,.4,1,1),cap:s.ROUND});return n.map((e=>i(m,e)))}function c({x:e,y:r},n){const{extent:o,size:[i,t]}=n;return[e/i*o.width+o.xmin,(t-r)/t*o.height+o.ymin]}export{m as createFlowGeometry};

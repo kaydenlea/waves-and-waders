@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{RasterTechniqueType as e}from"../../TechniqueType.js";import{BaseRasterProcessorTechnique as s}from"./BaseRasterProcessorTechnique.js";import{LocalShader as t}from"../../shaders/raster/processor/LocalShader.js";class o extends s{constructor(){super(...arguments),this.name="RasterLocalProcessor",this.type=e.Local,this.shaders={local:new t}}_process(e,s){const t=e.rasterFunction.parameters,o={constantCount:this._getConstantCount(t.rasters),imageCount:t.imageCount,operationName:t.operationName,isOutputRounded:t.isOutputRounded},r={domainRange:t.domainRange},a="conditional"===t.operationName?t.rasters:t.rasters?.slice(0,2),n=this._getMultipleInputConfig(s,a),i=this._getCommonConfig(e,s),u={shader:this.shaders.local,uniforms:{config:i,domainRangeConfig:r,...n},defines:o,optionalAttributes:null,useComputeBuffer:!1},{painter:c,context:m}=e;c.submitDrawMesh(m,u,c.quadMesh)}}export{o as LocalTechnique};

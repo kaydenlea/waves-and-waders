@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{_ as o}from"../../chunks/tslib.es6.js";import s from"../../core/Clonable.js";import r from"../../core/JSONSupport.js";import{property as e}from"../../core/accessorSupport/decorators/property.js";import"../../core/has.js";import"../../core/Logger.js";import"../../core/RandomLCG.js";import{subclass as t}from"../../core/accessorSupport/decorators/subclass.js";import p from"../SlideLegendInfo.js";import{WebSceneAnalysesCollection as i,webSceneAnalysisCollectionProperty as n}from"./analysisUtils.js";import l from"./SlidePopupInfo.js";let a=class extends(s.ClonableMixin(r)){constructor(o){super(o),this.analyses=new i,this.legendInfo=null,this.popupInfo=null}};o([e(n("analyses"))],a.prototype,"analyses",void 0),o([e({type:p,json:{write:!0}})],a.prototype,"legendInfo",void 0),o([e({type:l,json:{write:!0}})],a.prototype,"popupInfo",void 0),a=o([t("esri.webscene.support.SlideElements")],a);const m=a;export{m as default};

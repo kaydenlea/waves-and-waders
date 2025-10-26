@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{_ as r}from"../../chunks/tslib.es6.js";import o from"../../core/JSONSupport.js";import{property as e}from"../../core/accessorSupport/decorators/property.js";import"../../core/has.js";import"../../core/Logger.js";import"../../core/RandomLCG.js";import{reader as t}from"../../core/accessorSupport/decorators/reader.js";import{subclass as s}from"../../core/accessorSupport/decorators/subclass.js";let p=class extends o{constructor(r){super(r),this.format=null,this.itemId=null,this.type=null,this.url=null}readType(r){return"ImageService"===r?"image-service":null}};r([e()],p.prototype,"format",void 0),r([e({json:{name:"itemID",write:!0}})],p.prototype,"itemId",void 0),r([e()],p.prototype,"type",void 0),r([t("type")],p.prototype,"readType",null),r([e({json:{write:!0}})],p.prototype,"url",void 0),p=r([s("esri.rest.support.RasterData")],p);export{p as default};

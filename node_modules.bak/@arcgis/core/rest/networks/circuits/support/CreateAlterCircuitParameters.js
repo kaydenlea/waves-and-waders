@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{_ as r}from"../../../../chunks/tslib.es6.js";import o from"../../../../core/JSONSupport.js";import{property as t}from"../../../../core/accessorSupport/decorators/property.js";import{ensureClass as s}from"../../../../core/accessorSupport/ensureType.js";import"../../../../core/has.js";import"../../../../core/RandomLCG.js";import{subclass as e}from"../../../../core/accessorSupport/decorators/subclass.js";var i;let p=i=class extends o{static from(r){return s(i,r)}constructor(r){super(r),this.circuit=null,this.domainNetworkName=null,this.gdbVersion=null,this.sessionId=null}};r([t({json:{write:!0}})],p.prototype,"circuit",void 0),r([t({type:String,json:{write:!0}})],p.prototype,"domainNetworkName",void 0),r([t({type:String,json:{write:!0}})],p.prototype,"gdbVersion",void 0),r([t({type:String,json:{write:!0}})],p.prototype,"sessionId",void 0),p=i=r([e("esri.rest.networks.circuits.support.CreateAlterCircuitParameters")],p);const c=p;export{c as default};

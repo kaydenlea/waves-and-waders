@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{transpose as t,multiply as r,adjoint as s,set as i}from"./libs/gl-matrix-2/math/mat3.js";import{create as o}from"./libs/gl-matrix-2/factories/mat3f64.js";import{set as m}from"./libs/gl-matrix-2/math/vec2.js";import{i as a,o as e}from"../chunks/vec32.js";import{create as c}from"./libs/gl-matrix-2/factories/vec3f64.js";const f=c(),n=o(),l=o(),u=o();function p(r,s,i){return a(f,s[0],s[1],1),e(f,f,t(n,i)),0===f[2]?m(r,f[0],f[1]):m(r,f[0]/f[2],f[1]/f[2])}function j(t,i,o){return x(l,i[0],i[1],i[2],i[3],i[4],i[5],i[6],i[7]),x(u,o[0],o[1],o[2],o[3],o[4],o[5],o[6],o[7]),r(t,s(l,l),u),0!==t[8]&&(t[0]/=t[8],t[1]/=t[8],t[2]/=t[8],t[3]/=t[8],t[4]/=t[8],t[5]/=t[8],t[6]/=t[8],t[7]/=t[8],t[8]/=t[8]),t}function x(o,m,c,l,u,p,j,x,b){i(o,m,l,p,c,u,j,1,1,1),a(f,x,b,1),s(n,o);const[g,h,v]=e(f,f,t(n,n));return i(n,g,0,0,0,h,0,0,0,v),r(o,n,o)}export{j as getProjectiveTransform,p as transformProjective};

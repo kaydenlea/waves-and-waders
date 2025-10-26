@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{_ as o}from"../../chunks/tslib.es6.js";import r from"../../core/JSONSupport.js";import{property as s}from"../../core/accessorSupport/decorators/property.js";import"../../core/has.js";import"../../core/Logger.js";import"../../core/RandomLCG.js";import{subclass as e}from"../../core/accessorSupport/decorators/subclass.js";import{colorAndTransparencyProperty as t}from"./materialUtils.js";import{Symbol3DEmissive as i}from"./Symbol3DEmissive.js";var c;let m=c=class extends r{constructor(o){super(o),this.color=null,this.emissive=new i({source:"emissive"})}clone(){const o={color:this.color?.clone()??null,emissive:this.emissive?.clone()??null};return new c(o)}};o([s(t())],m.prototype,"color",void 0),o([s({type:i,json:{write:!1}})],m.prototype,"emissive",void 0),m=c=o([e("esri.symbols.support.Symbol3DMaterial")],m);export{m as Symbol3DMaterial};

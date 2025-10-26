@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{_ as o,a as t}from"../../../../../../../../../chunks/tslib.es6.js";import{GraphShaderModule as e,FragmentOutput as r,location as s,uniform as i,input as p,VertexInput as n,UniformGroup as l,FragmentInput as a}from"../../../../GraphShaderModule.js";import{Vec4 as m,Vec2 as u,Sampler2D as c}from"../../../../graph/glsl.js";import{uvToClip as g}from"../../utils.js";import{getPixelLocation as d,getPixel as f}from"../projection.js";class x extends n{}o([s(0,u)],x.prototype,"position",void 0);class v extends a{}class y extends l{}o([i(c)],y.prototype,"texture",void 0),o([i(u)],y.prototype,"srcImageSize",void 0);class h extends e{vertex(o){return{uv:o.position,glPosition:new m(g(o.position),0,1)}}fragment(o){const t=new r,e=d(o.uv),s=this._process(e);return t.fragColor=new m(s.rgb,1).multiply(s.a),t}_getPixel(o){return f(o,this.config)}}o([i(y)],h.prototype,"config",void 0),o([t(0,p(x))],h.prototype,"vertex",null),o([t(0,p(v))],h.prototype,"fragment",null);export{h as BaseRasterProcessorShader};

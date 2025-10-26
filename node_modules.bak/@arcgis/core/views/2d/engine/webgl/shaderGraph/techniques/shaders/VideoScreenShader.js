@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{_ as o,a as t}from"../../../../../../../chunks/tslib.es6.js";import{GraphShaderModule as e,FragmentOutput as r,location as s,uniform as p,input as i,VertexInput as n,UniformGroup as c,FragmentInput as d}from"../../GraphShaderModule.js";import{Vec4 as a,texture2D as l,Vec2 as x,Float as y,Sampler2D as u}from"../../graph/glsl.js";class f extends n{}o([s(0,x)],f.prototype,"position",void 0),o([s(1,x)],f.prototype,"texcoord",void 0),o([s(2,y)],f.prototype,"w",void 0);class g extends d{}class m extends c{}o([p(u)],m.prototype,"texture",void 0),o([p(y)],m.prototype,"opacity",void 0);class h extends e{constructor(){super(...arguments),this.type="VideoScreenShader"}vertex(o){const{position:t,texcoord:e,w:r}=o;return{glPosition:new a(t,0,r),texcoord:e}}fragment(o){const t=new r;return t.fragColor=l(this.config.texture,o.texcoord).multiply(this.config.opacity),t}}o([p(m)],h.prototype,"config",void 0),o([t(0,i(f))],h.prototype,"vertex",null),o([t(0,i(g))],h.prototype,"fragment",null);export{h as VideoScreenShader};

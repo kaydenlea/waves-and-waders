@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{o,f as r}from"../../../../chunks/vec32.js";import{create as t}from"../../../../core/libs/gl-matrix-2/factories/vec3f64.js";import{projectBuffer as e}from"../../../../geometry/projection/projectBuffer.js";import{fromBuffer as n,set as a,zero as s,create as m}from"../../../../geometry/support/aaBoundingBox.js";import{newDoubleArray as c}from"../../../../geometry/support/DoubleArray.js";function f(o,r,t){const m=c(24);return c=>{const f=c.meta.featureExtents,p=new Float64Array(f.buffer,6*c.index*Float64Array.BYTES_PER_ELEMENT,6);return p[0]===Number.POSITIVE_INFINITY&&(i(c.index,t,c.meta.objectHandle,m,0),e(m,r,0,m,o,0)?n(m,p):a(p,s)),p}}function i(t,e,n,a,s){const m=e.getComponentAabb(n,t,u),c=e.getObjectTransform(n);for(let f=0;f<8;++f)j[0]=1&f?m[0]:m[3],j[1]=2&f?m[1]:m[4],j[2]=4&f?m[2]:m[5],o(j,j,c.rotationScale),r(j,j,c.position),a[s++]=j[0],a[s++]=j[1],a[s++]=j[2];return a}const p=24,u=m(),j=t();export{i as boundingBoxCornerPoints,p as boundingBoxCornersPointsStride,f as createGetFeatureExtent};

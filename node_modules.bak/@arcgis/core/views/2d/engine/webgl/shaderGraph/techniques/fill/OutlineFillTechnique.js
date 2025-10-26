@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{FeatureTechnique as e}from"../FeatureTechnique.js";import{isHittest as t,getSelectionDefines as r,getFeatureUniforms as i,resolveDynamicUniforms as s,getFeaturePipelineState as o}from"../featureTechniqueUtils.js";import{TechniqueType as n}from"../TechniqueType.js";import{getAntialiasingControls as a}from"../line/utils.js";import{OutlineFillShader as u}from"../shaders/OutlineFillShader.js";class l extends e{constructor(){super(...arguments),this.type=n.OutlineFill,this.shaders={geometry:new u}}render(e,n){const{painter:u,pixelRatio:l}=e,m=n.instance.getInput();u.setShader({shader:this.shaders.geometry,uniforms:{...s(e,n.target,m.uniforms),...i(e,n.target),antialiasingControls:a(l)},defines:{...r(e)},optionalAttributes:m.optionalAttributes,useComputeBuffer:t(e)}),u.setPipelineState(o(e)),u.submitDraw(e,n)}}export{l as OutlineFillTechnique};

@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{ClientDataKeyType as e,FetchResultCase as t,DataValueCase as a}from"./WasmClientDataInterfaces.js";function n(e,n,_,s=!1){const r=new Map;for(let o=0;o<e.get_results_count();o++){const g=e.get_result_at(o);if(g.get_fetch_result_case().value!==t.ClientDataValue||0!==g.error().error_code){const e=g.get_key().key_string;_.has(e)&&n.delete(e);continue}const l=g.get_value(),i=g.get_key().key_string,c=_.get(i);let u;if(l.get_data_case().value===a.NotModified&&c)u=c.value;else{if(l.get_data_case().value!==a.ClientData)continue;{u=l.get_data().client_data_string;const e=g.get_value().get_v_tag().v_tag;s||n.set(i,{key:i,version:e,value:u})}}r.set(i,u)}return r}function _(t){const a=t.get_keys(),n=new Array;for(let _=0;_<a.get_keys_count();_++){const t=a.get_key_at(_);t.get_client_data_key_type().value===e.ClientDataKeyTypeString&&n.push(t.key_string)}return n}export{_ as wasmClientDataAllKeysResponseToClientDataKeys,n as wasmClientDataFetchResponseToClientData};

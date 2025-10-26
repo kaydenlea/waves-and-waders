@@ -7,25 +7,8 @@ import Tag from "../general/Tag";
 import WindStat from "../general/Stats/WindStat";
 import SurfStat from "../general/Stats/SurfStat";
 
-import {
-  Dog,
-  CircleParking,
-  Toilet,
-  LifeBuoy,
-  Fish,
-  Shell,
-  BadgeCheck,
-  Waves,
-  Droplets,
-  Sun,
-  Wind,
-  Lightbulb,
-  Tent,
-  Flame,
-  Ship,
-  Sunrise,
-  Sunset,
-} from "lucide-react";
+import { Sunrise, Sunset } from "lucide-react";
+import { BEACH_FEATURE_ICONS, DEFAULT_FEATURE_ICON } from "@/lib/beachFeatureIcons";
 
 import {
   fetchCurrentConditions,
@@ -72,7 +55,7 @@ type SummaryStat =
     }
   | {
       type: "features";
-      tags: { label: string; icon: React.ReactNode; color: string }[];
+      tags: { label: string; icon: React.ReactNode; color: string; rank?: number }[];
     };
 
 type TidePointValue = { x: number; tide: number };
@@ -234,6 +217,7 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
       label: string;
       icon: React.ReactNode;
       color: string;
+      rank?: number;
     }[]
   >([]);
 
@@ -617,117 +601,6 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
                   "SNDY_BEACH",
                   "LIFEGUARD",
                 ];
-          // Centralized icon/color map (safe icons known to exist in lucide-react)
-          const iconMap: Record<
-            string,
-            { icon: React.ReactNode; color: string }
-          > = {
-            // Access & Fees
-            O_PUBLIC: {
-              icon: <BadgeCheck size={16} />,
-              color: "bg-emerald-100",
-            },
-            FEE: { icon: <BadgeCheck size={16} />, color: "bg-amber-100" },
-            PARKING: {
-              icon: <CircleParking size={16} />,
-              color: "bg-green-100",
-            },
-            RSTRCTNS: { icon: <BadgeCheck size={16} />, color: "bg-slate-200" },
-            DSABLDACSS: {
-              icon: <BadgeCheck size={16} />,
-              color: "bg-indigo-100",
-            },
-
-            // Facilities
-            RESTROOMS: { icon: <Toilet size={16} />, color: "bg-yellow-100" },
-            VISTOR_CTR: { icon: <BadgeCheck size={16} />, color: "bg-sky-100" },
-            DOG_FRIEND: { icon: <Dog size={16} />, color: "bg-pink-100" },
-            EZ4STROLLE: {
-              icon: <BadgeCheck size={16} />,
-              color: "bg-violet-100",
-            },
-            LIFEGUARD: { icon: <LifeBuoy size={16} />, color: "bg-red-100" },
-            SHOWERS: { icon: <Droplets size={16} />, color: "bg-cyan-100" },
-            FOOD: { icon: <BadgeCheck size={16} />, color: "bg-orange-100" },
-            DRINKWTR: { icon: <Droplets size={16} />, color: "bg-blue-100" },
-            PCNC_AREA: { icon: <Sun size={16} />, color: "bg-amber-100" },
-            FIREPITS: { icon: <Flame size={16} />, color: "bg-rose-100" },
-            CAMPGROUND: { icon: <Tent size={16} />, color: "bg-lime-100" },
-            RV_CMP: { icon: <BadgeCheck size={16} />, color: "bg-lime-100" },
-            BT_FACILIT: { icon: <Ship size={16} />, color: "bg-teal-100" },
-            LIGHTHOUSE: {
-              icon: <Lightbulb size={16} />,
-              color: "bg-purple-100",
-            },
-            PIER: { icon: <Ship size={16} />, color: "bg-slate-100" },
-            HAND_LAUNCH: { icon: <Ship size={16} />, color: "bg-teal-100" },
-
-            // Beach Types
-            SNDY_BEACH: { icon: <Shell size={16} />, color: "bg-orange-100" },
-            DUNES: { icon: <Shell size={16} />, color: "bg-amber-100" },
-            RKY_SHORE: { icon: <Shell size={16} />, color: "bg-slate-200" },
-            UPLAND_BCH: { icon: <Shell size={16} />, color: "bg-emerald-100" },
-            STRM_CRDOR: { icon: <Droplets size={16} />, color: "bg-cyan-100" },
-            WETLAND: { icon: <Droplets size={16} />, color: "bg-green-100" },
-            BLUFF: { icon: <BadgeCheck size={16} />, color: "bg-lime-100" },
-            BAY_LGN_LK: { icon: <Droplets size={16} />, color: "bg-sky-100" },
-            URBN_WFRNT: {
-              icon: <BadgeCheck size={16} />,
-              color: "bg-gray-200",
-            },
-            STRS_BEACH: {
-              icon: <BadgeCheck size={16} />,
-              color: "bg-slate-100",
-            },
-            PTH_BEACH: {
-              icon: <BadgeCheck size={16} />,
-              color: "bg-slate-100",
-            },
-            BOARDWLK: { icon: <BadgeCheck size={16} />, color: "bg-slate-100" },
-
-            // Trails & Paths
-            BLFTP_TRLS: {
-              icon: <BadgeCheck size={16} />,
-              color: "bg-emerald-100",
-            },
-            BLFTP_PRK: {
-              icon: <BadgeCheck size={16} />,
-              color: "bg-emerald-100",
-            },
-            TRAIL_OR_P: {
-              icon: <BadgeCheck size={16} />,
-              color: "bg-emerald-100",
-            },
-            BIKE_PATH: { icon: <BadgeCheck size={16} />, color: "bg-teal-100" },
-            EQUEST_TRL: {
-              icon: <BadgeCheck size={16} />,
-              color: "bg-amber-100",
-            },
-            WLDLFE_VWG: {
-              icon: <BadgeCheck size={16} />,
-              color: "bg-green-100",
-            },
-
-            // Activities
-            SWIMMING: { icon: <Droplets size={16} />, color: "bg-cyan-100" },
-            DIVING: { icon: <Droplets size={16} />, color: "bg-cyan-100" },
-            SNORKLNG: { icon: <Droplets size={16} />, color: "bg-cyan-100" },
-            TIDEPOOL: { icon: <Shell size={16} />, color: "bg-amber-100" },
-            PLAYGROUND: { icon: <Sun size={16} />, color: "bg-yellow-100" },
-            SPORT_FLDS: {
-              icon: <BadgeCheck size={16} />,
-              color: "bg-orange-100",
-            },
-            VOLLEYBALL: {
-              icon: <BadgeCheck size={16} />,
-              color: "bg-orange-100",
-            },
-            WNDSRF_KIT: { icon: <Wind size={16} />, color: "bg-sky-100" },
-            KAYAKING: { icon: <Ship size={16} />, color: "bg-teal-100" },
-            SURFING: { icon: <Waves size={16} />, color: "bg-blue-100" },
-            FISHING: { icon: <Fish size={16} />, color: "bg-blue-100" },
-            BOATING: { icon: <Ship size={16} />, color: "bg-teal-100" },
-          };
           for (const key of keys) {
             const val = (beach as any)[key];
             if (val === true) {
@@ -735,13 +608,12 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
                 typeof getFeatureDisplayName === "function"
                   ? getFeatureDisplayName(key)
                   : key;
-              const def = iconMap[key] ?? {
-                icon: <BadgeCheck size={16} />,
-                color: "bg-highlight-2",
-              };
-              tags.push({ label, icon: def.icon, color: def.color });
+              const def = BEACH_FEATURE_ICONS[key] ?? DEFAULT_FEATURE_ICON;
+              tags.push({ label, icon: def.icon, color: def.color, rank: def.rank });
             }
           }
+          // Sort tags by rank (lower rank = higher priority)
+          tags.sort((a, b) => (a.rank ?? 999) - (b.rank ?? 999));
           if (tags.length > 0) {
             s.push({ type: "features", tags });
             if (!cancelled) {

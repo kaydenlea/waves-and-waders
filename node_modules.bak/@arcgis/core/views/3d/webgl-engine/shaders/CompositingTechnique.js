@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{neverReached as e}from"../../../../core/compilerUtils.js";import{ReloadableShaderModule as r}from"../core/shaderTechnique/ReloadableShaderModule.js";import{ShaderTechnique as o}from"../core/shaderTechnique/ShaderTechnique.js";import{a as i}from"../../../../chunks/Compositing.glsl.js";import{BlitMode as t}from"./CompositingTechniqueConfiguration.js";import{makePipelineState as s,defaultColorWrite as l,premultipliedAlpha as n,unpremultipliedAlphaToPremultipliedAlpha as c}from"../../../webgl/renderState.js";class a extends o{constructor(e,o){super(e,o,new r(i,(()=>import("./Compositing.glsl.js"))))}initializePipeline(r){switch(r.blitMode){case t.None:case t.Depth:return s({colorWrite:l});case t.Alpha:return s({blending:c,colorWrite:l});default:e(r.blitMode);case t.PremultipliedAlpha:case t.COUNT:return s({blending:n,colorWrite:l})}}}export{a as CompositingTechnique};

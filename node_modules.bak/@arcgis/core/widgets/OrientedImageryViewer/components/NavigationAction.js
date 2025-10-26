@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{_ as o}from"../../../chunks/tslib.es6.js";import t from"../../../core/Accessor.js";import e from"../../../core/Identifiable.js";import{property as r}from"../../../core/accessorSupport/decorators/property.js";import"../../../core/has.js";import"../../../core/Logger.js";import"../../../core/RandomLCG.js";import{subclass as i}from"../../../core/accessorSupport/decorators/subclass.js";let s=class extends(e.IdentifiableMixin(t)){constructor(o){super(o),this.active=!1,this.disabled=!1,this.text=null,this.icon=null,this.title=null}};o([r()],s.prototype,"active",void 0),o([r()],s.prototype,"disabled",void 0),o([r()],s.prototype,"text",void 0),o([r()],s.prototype,"icon",void 0),o([r()],s.prototype,"title",void 0),o([r()],s.prototype,"onclick",void 0),s=o([i("esri.widgets.OrientedImageryViewer.components.NavigationAction")],s);const c=s;export{c as default};

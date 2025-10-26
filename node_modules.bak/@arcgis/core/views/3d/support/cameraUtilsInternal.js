@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{rad2deg as t,acosClamped as o}from"../../../core/mathUtils.js";import{n as s,e as r,c as e,g as n,d as i,l as a,h as c}from"../../../chunks/vec32.js";import{create as m}from"../../../core/libs/gl-matrix-2/factories/vec3f64.js";import{wrap as l}from"../../../geometry/support/lineSegment.js";import{intersectLineSegment as p}from"../../../geometry/support/plane.js";const f=m(),u=m();function g(){return{direction:m(),up:m()}}function h(m,l,p,g,h){let j=s(f,m),d=r(j,g);const b=d>0;d=Math.abs(d),d>.99&&(d=Math.abs(r(l,g)),d<.99?(e(j,l),b&&n(j,j,-1)):j=null);let v=0;if(j){n(u,g,r(g,j)),i(j,j,u);const s=r(j,h)/(a(j)*a(h));c(u,j,h);v=(r(u,g)>0?1:-1)*t(o(s))}const x=t(o(-r(g,m)/a(m)));return p?(p.heading=v,p.tilt=x,p):{heading:v,tilt:x}}function j(t,o,s,r){i(d,s,o),p(r,l(o,d),t)||t===s||e(t,s)}const d=m();export{j as clampLineSegmentToPlane,g as createDirectionUp,h as directionToHeadingTilt};

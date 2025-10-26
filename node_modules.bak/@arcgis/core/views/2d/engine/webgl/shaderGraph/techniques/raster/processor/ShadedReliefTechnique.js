@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{RasterTechniqueType as e}from"../../TechniqueType.js";import{BaseRasterProcessorTechnique as s}from"./BaseRasterProcessorTechnique.js";import{computeZFactor as r}from"../../shaders/raster/surface.js";import{ShadedReliefShader as o}from"../../shaders/raster/processor/ShadedReliefShader.js";class t extends s{constructor(){super(...arguments),this.name="RasterShadedReliefProcessor",this.type=e.ShadedRelief,this.shaders={shadedRelief:new o}}_process(e,s,o){const t=e.rasterFunction.parameters,a={isMultidirectional:t.hillshadeType>0},i=s.getRasterCellSize(),d=r(t,i),h={...t,factor:d},n={colormapTexture:{texture:o,unit:1},colormapOffset:t.offset,colormapMaxIndex:t.indexedColormap.length/4-1},f=this._getCommonConfig(e,s),l={shader:this.shaders.shadedRelief,uniforms:{config:f,hillshadeConfig:h,colormapConfig:n},defines:a,optionalAttributes:null,useComputeBuffer:!1},{painter:c,context:m}=e;c.submitDrawMesh(m,l,c.quadMesh)}}export{t as ShadedReliefTechnique};

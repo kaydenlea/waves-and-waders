@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+function n(n){return"curveRings"in n&&!!n.curveRings?.length||"curvePaths"in n&&!!n.curvePaths?.length}function r(n){return"curveRings"in n?n.curveRings:n.curvePaths}function t(n){return"b"in n}function u(n){return"c"in n}function e(n){return Array.isArray(n)}function i(n){return"a"in n}function c(n){return 4===n.a.length}function f(n){return 7===n.a.length}function o(n){return t(n)?n.b[0]:u(n)?n.c[0]:i(n)?n.a[0]:n}function a(n){if(t(n)){const[r,t,u]=n.b;return{b:[[...r],[...t],[...u]]}}if(u(n)){const[r,t]=n.c;return{c:[[...r],[...t]]}}if(e(n))return[...n];if(c(n)){const[r,t,u,e]=n.a;return{a:[[...r],[...t],u,e]}}if(f(n)){const[r,t,u,e,i,c,f]=n.a;return{a:[[...r],[...t],u,e,i,c,f]}}return n}export{a as cloneCurve,r as getCurves,o as getEndpoint,t as isBezierCurve,u as isCircularArc,e as isCoordinate,n as isCurvedGeometry,i as isEllipticArc,c as isEllipticArc4,f as isEllipticArc7};

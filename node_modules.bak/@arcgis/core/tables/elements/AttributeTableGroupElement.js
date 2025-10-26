@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import"./AttributeTableAttachmentElement.js";import"./AttributeTableFieldElement.js";import{_ as e}from"../../chunks/tslib.es6.js";import t from"../../core/Clonable.js";import{property as r}from"../../core/accessorSupport/decorators/property.js";import"../../core/has.js";import"../../core/Logger.js";import"../../core/RandomLCG.js";import{subclass as o}from"../../core/accessorSupport/decorators/subclass.js";import s from"./AttributeTableElement.js";import{typesWithoutGroup as l}from"../support/tablesUtils.js";import"./AttributeTableRelationshipElement.js";let p=class extends(t.ClonableMixin(s)){constructor(e){super(e),this.elements=null,this.type="group"}clone(){return super.clone()}};e([r({types:[l],json:{name:"attributeTableElements",write:!0}})],p.prototype,"elements",void 0),e([r({type:["group"],readOnly:!0,json:{read:!1,write:{enabled:!0,isRequired:!0}}})],p.prototype,"type",void 0),p=e([o("esri.tables.elements.AttributeTableGroupElement")],p);const i=p;export{i as default};

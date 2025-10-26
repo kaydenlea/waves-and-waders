@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{S as e,G as r}from"./SimpleGeometryCursor.js";import{d as t,a as s,c as i}from"./Geometry.js";import{k as n,s as o}from"./ProjectionTransformation.js";class m{getOperatorType(){return 10104}accelerateGeometry(e,r,t){return!1}canAccelerateGeometry(e){return!1}supportsCurves(){return!0}isSimple(e,r,t,s,i){return 5===n(e,r,t,s,i)}executeMany(e,r,t,s){return new u(e,r,t,s)}execute(r,s,i,n){const o=new e([r]),m=this.executeMany(o,s,i,n).next();return m||t("null output"),m}}class u extends r{constructor(e,r,t,i){super(),e||s(""),this.m_progressTracker=i,this.m_bForceSimplify=t,this.m_index=-1,this.m_inputGeometryCursor=e,this.m_spatialReference=r}next(){const e=this.m_inputGeometryCursor.next();return e?(i(e),this.m_index=this.m_inputGeometryCursor.getGeometryID(),this.simplify(e)):null}getGeometryID(){return this.m_index}tock(){return!1}getRank(){return 1}simplify(e){e||s("");return o(e,this.m_spatialReference,this.m_bForceSimplify,this.m_progressTracker)}}export{m as O};

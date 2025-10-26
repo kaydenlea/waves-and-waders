@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{_ as o}from"../../chunks/tslib.es6.js";import r from"../../core/Clonable.js";import e from"../../core/JSONSupport.js";import{property as t}from"../../core/accessorSupport/decorators/property.js";import"../../core/has.js";import"../../core/Logger.js";import"../../core/RandomLCG.js";import{subclass as s}from"../../core/accessorSupport/decorators/subclass.js";import i from"../../views/3d/environment/SunnyWeather.js";import{weatherTypes as p}from"../../views/3d/environment/weather.js";import{lightingTypes as n}from"../lightingTypes.js";import m from"../SunLighting.js";let c=class extends(r.ClonableMixin(e)){constructor(){super(...arguments),this.lighting=new m,this.weather=new i}};o([t({types:n,json:{write:!0}})],c.prototype,"lighting",void 0),o([t({types:p,json:{write:!0}})],c.prototype,"weather",void 0),c=o([s("esri.webscene.support.SlideEnvironment")],c);export{c as SlideEnvironment};

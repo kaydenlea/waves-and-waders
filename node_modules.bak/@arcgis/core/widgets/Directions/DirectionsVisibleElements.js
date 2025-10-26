@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{_ as o}from"../../chunks/tslib.es6.js";import t from"../../core/Accessor.js";import{property as e}from"../../core/accessorSupport/decorators/property.js";import"../../core/has.js";import"../../core/Logger.js";import"../../core/RandomLCG.js";import{subclass as s}from"../../core/accessorSupport/decorators/subclass.js";let r=class extends t{constructor(){super(...arguments),this.editRouteButton=!0,this.layerDetails=!0,this.printButton=!0,this.saveAsButton=!0,this.saveButton=!0}};o([e({type:Boolean,nonNullable:!0})],r.prototype,"editRouteButton",void 0),o([e({type:Boolean,nonNullable:!0})],r.prototype,"layerDetails",void 0),o([e({type:Boolean,nonNullable:!0})],r.prototype,"printButton",void 0),o([e({type:Boolean,nonNullable:!0})],r.prototype,"saveAsButton",void 0),o([e({type:Boolean,nonNullable:!0})],r.prototype,"saveButton",void 0),r=o([s("esri.widgets.Directions.DirectionsVisibleElements")],r);const n=r;export{n as default};

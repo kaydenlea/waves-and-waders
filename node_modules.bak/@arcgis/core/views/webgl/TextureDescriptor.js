@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{TextureType as t,PixelFormat as i,PixelType as h,TextureSamplingMode as e,TextureWrapMode as s}from"./enums.js";import{FBOAttachmentType as p}from"./FBOAttachmentType.js";import{getBytesPerElementFormat as r}from"./Util.js";class a{constructor(r=0,a=r){this.width=r,this.height=a,this.type=p.TextureDescriptor,this.target=t.TEXTURE_2D,this.pixelFormat=i.RGBA,this.dataType=h.UNSIGNED_BYTE,this.samplingMode=e.LINEAR,this.wrapMode=s.REPEAT,this.maxAnisotropy=1,this.flipped=!1,this.hasMipmap=!1,this.isOpaque=!1,this.unpackAlignment=4,this.preMultiplyAlpha=!1,this.compareEnabled=!1,this.linearFilterDepth=!1,this.depth=1,this.isImmutable=!1}}function o(i){return i.width<=0||i.height<=0||i.depth<=0?0:Math.round(i.width*i.height*i.depth*(i.hasMipmap?4/3:1)*(null==i.internalFormat?4:r(i.internalFormat))*(i.target===t.TEXTURE_CUBE_MAP?6:1))}export{a as TextureDescriptor,o as estimateMemory};

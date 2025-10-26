@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{_ as e}from"../../chunks/tslib.es6.js";import r from"../../core/Collection.js";import{createAbortError as s}from"../../core/promiseUtils.js";import{property as t}from"../../core/accessorSupport/decorators/property.js";import"../../core/has.js";import"../../core/Logger.js";import"../../core/RandomLCG.js";import{subclass as i}from"../../core/accessorSupport/decorators/subclass.js";const o=o=>{let a=class extends o{constructor(...e){super(...e),this.layer=null}get interactive(){return this.analysisView?.interactive??!1}set interactive(e){null!=this.analysisView&&(this.analysisView.interactive=e)}get results(){return this.analysisView?.results??new r}place(e){if(null!=this.analysisView)return this.analysisView.place(e);throw s()}};return e([t()],a.prototype,"layer",void 0),e([t()],a.prototype,"interactive",null),e([t({readOnly:!0})],a.prototype,"results",null),a=e([i("esri.views.layers.LineOfSightLayerView")],a),a};export{o as default};

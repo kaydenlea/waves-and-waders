@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{_ as o}from"../chunks/tslib.es6.js";import s from"../core/Clonable.js";import r from"../core/Collection.js";import{referenceSetter as e,castForReferenceSetter as t}from"../core/collectionUtils.js";import i from"../core/JSONSupport.js";import{property as c}from"../core/accessorSupport/decorators/property.js";import{cast as l}from"../core/accessorSupport/decorators/cast.js";import"../core/has.js";import"../core/RandomLCG.js";import{subclass as p}from"../core/accessorSupport/decorators/subclass.js";import m from"./Slide.js";const n=r.ofType(m);let a=class extends(s.ClonableMixin(i)){constructor(o){super(o),this.slides=new n}destroy(){this.slides.forEach((o=>o.destroy())),this.slides.removeAll()}set slides(o){o&&(o=o.filter((o=>!!o.viewpoint))),this._set("slides",e(o,this._get("slides"),n))}};o([c({type:n,nonNullable:!0,json:{write:!0}}),l(t)],a.prototype,"slides",null),a=o([p("esri.webscene.Presentation")],a);const d=a;export{d as default};

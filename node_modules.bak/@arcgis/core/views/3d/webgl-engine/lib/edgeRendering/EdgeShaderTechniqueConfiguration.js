@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{_ as e}from"../../../../../chunks/tslib.es6.js";import{NormalType as t}from"../../core/shaderLibrary/attributes/NormalAttribute.glsl.js";import{parameter as o}from"../../core/shaderTechnique/ShaderTechniqueConfiguration.js";import{DefaultTechniqueConfiguration as r}from"../../materials/DefaultTechniqueConfiguration.js";import{EdgeType as s}from"../../shaders/sources/edgeRenderer/EdgeUtil.glsl.js";class i extends r{constructor(){super(...arguments),this.type=s.Solid,this.silhouette=!1,this.legacy=!1,this.terrainDepthTest=!1,this.cullAboveTerrain=!1,this.spherical=!1,this.occlusionPass=!1,this.normalType=t.Compressed}}e([o({count:s.COUNT})],i.prototype,"type",void 0),e([o()],i.prototype,"silhouette",void 0),e([o()],i.prototype,"legacy",void 0),e([o()],i.prototype,"terrainDepthTest",void 0),e([o()],i.prototype,"cullAboveTerrain",void 0),e([o()],i.prototype,"spherical",void 0);export{i as EdgeShaderTechniqueConfiguration};

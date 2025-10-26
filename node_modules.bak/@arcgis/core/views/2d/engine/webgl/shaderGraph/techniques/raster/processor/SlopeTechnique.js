@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{RasterTechniqueType as e}from"../../TechniqueType.js";import{BaseRasterProcessorTechnique as s}from"./BaseRasterProcessorTechnique.js";import{SlopeShader as o}from"../../shaders/raster/processor/SlopeShader.js";class r extends s{constructor(){super(...arguments),this.name="RasterSlopeProcessor",this.type=e.Slope,this.shaders={slope:new o}}_process(e,s){const o=e.rasterFunction.parameters,r={isOutputRounded:o.isOutputRounded,percentRise:"percent-rise"===o.slopeType},t={cellSize:s.getRasterCellSize(),pixelSizePower:"adjusted"===o.slopeType?o.pixelSizePower:0,pixelSizeFactor:"adjusted"===o.slopeType?o.pixelSizeFactor:0,zFactor:o.zFactor},i=this._getCommonConfig(e,s),p={shader:this.shaders.slope,uniforms:{config:i,slopeConfig:t},defines:r,optionalAttributes:null,useComputeBuffer:!1},{painter:a,context:n}=e;a.submitDrawMesh(n,p,a.quadMesh)}}export{r as SlopeTechnique};

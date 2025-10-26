@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{_ as e}from"../../../chunks/tslib.es6.js";import t from"../../../core/Accessor.js";import{property as r}from"../../../core/accessorSupport/decorators/property.js";import"../../../core/has.js";import"../../../core/Logger.js";import"../../../core/RandomLCG.js";import{subclass as o}from"../../../core/accessorSupport/decorators/subclass.js";import{getIconForLayer as s}from"../iconUtils.js";let i=class extends t{constructor(e){super(e),this.layer=null,this.viewModel=null}get iconName(){return s(this.layer)}get key(){return this.layer.id}get layerView(){return this.viewModel.layerViewMap.get(this.layer.id)}get title(){return this.layer.title}get view(){return this.viewModel.view}};e([r()],i.prototype,"iconName",null),e([r()],i.prototype,"key",null),e([r()],i.prototype,"layer",void 0),e([r()],i.prototype,"layerView",null),e([r()],i.prototype,"title",null),e([r()],i.prototype,"view",null),e([r()],i.prototype,"viewModel",void 0),i=e([o("esri.widgets.support.SelectionList.ItemBase")],i);const l=i;export{l as default};

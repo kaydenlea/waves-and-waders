@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{_ as o}from"../../../../chunks/tslib.es6.js";import r from"../../../../core/JSONSupport.js";import{property as s}from"../../../../core/accessorSupport/decorators/property.js";import{ensureClass as t}from"../../../../core/accessorSupport/ensureType.js";import"../../../../core/has.js";import"../../../../core/RandomLCG.js";import{subclass as e}from"../../../../core/accessorSupport/decorators/subclass.js";var i;let p=i=class extends r{static from(o){return t(i,o)}constructor(o){super(o),this.object=null,this.numUnits=null,this.gdbVersion=null,this.sessionId=null}};o([s({json:{write:!0}})],p.prototype,"object",void 0),o([s({type:Number,json:{write:!0}})],p.prototype,"numUnits",void 0),o([s({type:String,json:{write:!0}})],p.prototype,"gdbVersion",void 0),o([s({type:String,json:{write:!0}})],p.prototype,"sessionId",void 0),p=i=o([e("esri.rest.networks.unitIdentifiers.support.ResizeParameters")],p);const n=p;export{n as default};

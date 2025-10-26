@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import e from"../../Color.js";class t{static parse(e,r,n){const l=[],o=[],u=e.split(";");for(let t=0;t<u.length;t++){const e=u[t];if(e)if(e.includes("po:")){const t=e.slice(3).split("|");if(3===t.length){const[e,r,i]=t,n=s(e,r,i);n&&o.push(n)}}else if(e.includes("|")){for(const t of e.split("|"))if(r.has(t)){l.push(t);break}}else if(r.has(e))l.push(e);else if(0===t){l.length=0,l.push(i(n));break}}return new t(l,o)}constructor(e,t){this.partNames=e,this.overrides=t}}function r(t,r){if("DashTemplate"===t)return r.split(" ").map((e=>Number(e)));if("Color"===t){const t=new e(r).toRgba();return[t[0],t[1],t[2],255*t[3]]}return Number(r)}function s(e,t,s){return{primitiveName:e,propertyName:t,value:r(t,s),defaultValue:null}}function i(e){switch(e){case"esriGeometryPolyline":return"Invalid_L";case"esriGeometryPolygon":return"Invalid_A";default:return"Invalid_P"}}export{t as DictionaryControlString};

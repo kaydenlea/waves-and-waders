@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{_ as e}from"../../chunks/tslib.es6.js";import o from"../../core/JSONSupport.js";import{property as t}from"../../core/accessorSupport/decorators/property.js";import"../../core/has.js";import"../../core/Logger.js";import"../../core/RandomLCG.js";import{subclass as s}from"../../core/accessorSupport/decorators/subclass.js";var r;let i=class extends o{constructor(){super(...arguments),this.age=null,this.ageReceived=null,this.displayCount=null,this.maxObservations=1}static{r=this}clone(){return new r({age:this.age,ageReceived:this.ageReceived,displayCount:this.displayCount,maxObservations:this.maxObservations})}};e([t({type:Number,json:{write:!0}})],i.prototype,"age",void 0),e([t({type:Number,json:{write:!0}})],i.prototype,"ageReceived",void 0),e([t({type:Number,json:{write:!0}})],i.prototype,"displayCount",void 0),e([t({type:Number,json:{write:!0}})],i.prototype,"maxObservations",void 0),i=r=e([s("esri.layers.support.PurgeOptions")],i);export{i as default};

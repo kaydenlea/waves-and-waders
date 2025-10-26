@@ -53,7 +53,7 @@ export default async function RootLayout({
 
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${poppins.variable} font-poppins antialiased`}>
+      <body className={`${poppins.variable} font-poppins antialiased`} suppressHydrationWarning>
         <SupabaseProvider initialSession={initialSession}>
           <ThemeProvider
             attribute="class"

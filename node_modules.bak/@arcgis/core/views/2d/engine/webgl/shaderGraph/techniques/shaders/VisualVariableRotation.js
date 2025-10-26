@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{_ as t}from"../../../../../../../chunks/tslib.es6.js";import{uniform as e,UniformGroup as r}from"../../GraphShaderModule.js";import{Float as o,ifElse as i,sin as n,cos as s,Mat4 as l,Mat3 as m,equal as a}from"../../graph/glsl.js";import{cDegToRad as p,RotationType as u}from"./constants.js";import{isNan as g}from"./utils.js";class d extends r{getVVRotationMat4(t){return i(g(t),l.identity(),(()=>{const e=this.getNormalizedAngle(t).multiply(p),r=n(e),i=s(e);return new l(i,r,0,0,r.multiply(new o(-1)),i,0,0,0,0,1,0,0,0,0,1)}))}getVVRotationMat3(t){return i(g(t),m.identity(),(()=>{const e=this.getNormalizedAngle(t).multiply(p),r=n(e),i=s(e);return new m(i,r,0,r.multiply(new o(-1)),i,0,0,0,1)}))}getNormalizedAngle(t){const e=a(this.rotationType,new o(u.Arithmatic));return i(e,new o(90).subtract(t),t)}}t([e(o)],d.prototype,"rotationType",void 0);export{d as VisualVariableRotation};

@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{_ as e}from"../../chunks/tslib.es6.js";import r from"../../core/Clonable.js";import o from"../../core/JSONSupport.js";import{property as s}from"../../core/accessorSupport/decorators/property.js";import"../../core/has.js";import"../../core/Logger.js";import"../../core/RandomLCG.js";import{subclass as t}from"../../core/accessorSupport/decorators/subclass.js";import p from"./FeatureReferenceObjectId.js";import{featureReferenceIdType as i}from"./featureReferenceUtils.js";import c from"./LayerReference.js";let n=class extends(r.ClonableMixin(o)){constructor(e){super(e),this.layerReference=new c,this.id=new p}};e([s({nonNullable:!0,json:{write:{isRequired:!0}},type:c})],n.prototype,"layerReference",void 0),e([s({json:{read:!0,write:{isRequired:!0}},nonNullable:!0,types:i})],n.prototype,"id",void 0),n=e([t("esri.webscene.support.FeatureReference")],n);const a=n;export{a as default};

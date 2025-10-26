@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{_ as o}from"./tslib.es6.js";import r from"../core/Clonable.js";import t from"../core/JSONSupport.js";import{convertTime as e}from"../core/timeUtils.js";import{property as s}from"../core/accessorSupport/decorators/property.js";import"../core/has.js";import"../core/Logger.js";import"../core/RandomLCG.js";import{enumeration as i}from"../core/accessorSupport/decorators/enumeration.js";import{subclass as p}from"../core/accessorSupport/decorators/subclass.js";import{timeUnitKebabDictionary as m}from"../portal/timeUnitKebabDictionary.js";let a=class extends(r.ClonableMixin(t)){constructor(o){super(o),this.unit="milliseconds",this.value=0}toMilliseconds(){return e(this.value,this.unit,"milliseconds")}};o([i(m,{nonNullable:!0})],a.prototype,"unit",void 0),o([s({type:Number,json:{write:!0},nonNullable:!0})],a.prototype,"value",void 0),a=o([p("esri.time.TimeInterval")],a);export{a as T,a};

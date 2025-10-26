@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import r from"../../Color.js";import{toPt as o}from"../../core/screenUtils.js";import{Integer as e}from"../../core/accessorSupport/ensureType.js";import{opacityToTransparency as t,transparencyToOpacity as n}from"../../webdoc/support/opacityUtils.js";function s(o,e){const t=null!=e.transparency?n(e.transparency):1,s=e.color;return s&&Array.isArray(s)?new r([s[0]||0,s[1]||0,s[2]||0,t]):null}function i(r,o){o.color=r.toJSON().slice(0,3);const e=t(r.a);0!==e&&(o.transparency=e)}function c(o){return{type:r,nonNullable:o?.nonNullable,json:{type:[e],default:null,read:{source:["color","transparency"],reader:s},write:{target:{color:{type:[e],isRequired:o?.colorRequiredOnWrite},transparency:{type:e}},writer:i}}}}const l={type:Number,cast:o,json:{write:!0}};var a;function p(r){return"emissive"===r?a.Emissive:a.Color}!function(r){r[r.Emissive=0]="Emissive",r[r.Color=1]="Color"}(a||(a={}));export{a as EmissiveSourceMode,c as colorAndTransparencyProperty,p as getEmissiveMode,l as screenSizeProperty};

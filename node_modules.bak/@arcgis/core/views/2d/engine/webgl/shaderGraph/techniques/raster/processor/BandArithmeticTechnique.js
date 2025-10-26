@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{RasterTechniqueType as e}from"../../TechniqueType.js";import{BaseRasterProcessorTechnique as t}from"./BaseRasterProcessorTechnique.js";import{BandArithmeticShader as s}from"../../shaders/raster/processor/BandArithmeticShader.js";class r extends t{constructor(){super(...arguments),this.name="RasterBandArithmeticProcessor",this.type=e.BandArithmetic,this.shaders={bandArithmetic:new s}}_process(e,t){const s=e.rasterFunction.parameters,r={indexType:s.indexType,isOutputRounded:s.isOutputRounded},i={bandIndexMat3:s.bandIndexMat3},n=s.adjustments?{adjustments:[...s.adjustments]}:void 0,a=this._getCommonConfig(e,t),o={shader:this.shaders.bandArithmetic,uniforms:{config:a,bandArithmeticConfig:i,adjustmentConfig:n},defines:r,optionalAttributes:null,useComputeBuffer:!1},{painter:d,context:m}=e;d.submitDrawMesh(m,o,d.quadMesh)}}export{r as BandArithmeticTechnique};

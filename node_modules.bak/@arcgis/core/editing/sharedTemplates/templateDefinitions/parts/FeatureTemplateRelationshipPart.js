@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{_ as t}from"../../../../chunks/tslib.es6.js";import{property as e}from"../../../../core/accessorSupport/decorators/property.js";import"../../../../core/has.js";import"../../../../core/Logger.js";import"../../../../core/RandomLCG.js";import{subclass as o}from"../../../../core/accessorSupport/decorators/subclass.js";import{TemplatePartBase as s}from"./TemplatePartBase.js";let r=class extends s{constructor(t){super(t),this.relationshipCatalogId="",this.relationshipMetadata=null,this.template=null,this.type="relationship"}assertIsSupportedPart(){}};t([e({json:{name:"relationshipClassID"}})],r.prototype,"relationshipCatalogId",void 0),t([e()],r.prototype,"relationshipMetadata",void 0),t([e()],r.prototype,"template",void 0),t([e()],r.prototype,"type",void 0),r=t([o("esri.editing.sharedTemplates.templateDefinitions.parts.FeatureTemplateRelationshipPart")],r);const a=r;export{a as default};

@@ -1,0 +1,5 @@
+/*
+All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://js.arcgis.com/4.33/esri/copyright.txt for details.
+*/
+import{a as e}from"../../../../chunks/vec32.js";import{create as t}from"../../../../core/libs/gl-matrix-2/factories/vec3f64.js";import{BufferViewVec3f as r}from"../../../../geometry/support/buffer/BufferView.js";import{intersectRenderGeometryTriangles as o}from"../lib/RayIntersections.js";import{VertexAttribute as i}from"../lib/VertexAttribute.js";import{writeDefaultAttributes as s}from"./internal/bufferWriterUtils.js";class f{constructor(e){this.vertexBufferLayout=e}elementCount(e){return e.get(i.POSITION).indices.length}write(e,t,r,o,i,f){return s(r,o,this.vertexBufferLayout,e,t,i,f)}intersect(t,s,f,n,c,m,l){const a=this.vertexBufferLayout.createView(t).getField(i.POSITION,r);if(null==a)return;const p=e(u,m,c),y=0,b=a.count/3,d=n.options.normalRequired,j=(e,t,r)=>{l(e,r,t)};o(c,p,y,b,a.typedBuffer,a.typedBufferStride,d,j)}}const u=t();export{f as DefaultBufferWriter};
