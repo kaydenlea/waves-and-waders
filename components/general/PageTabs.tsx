@@ -50,8 +50,8 @@ const PageTabs = ({
     if (!tabs) return;
 
     const adjustScreenSize = () => {
-      const width = tabs.clientWidth;
-      setIsDesktop(width >= 855);
+      const width = window.innerWidth;
+      setIsDesktop(width >= 911);
     };
 
     const observer = new ResizeObserver(adjustScreenSize);
