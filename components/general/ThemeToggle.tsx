@@ -37,7 +37,7 @@ const ThemeToggle = ({
       <button
         aria-label="theme toggle"
         onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-        className="block @min-4xl:hidden px-2 py-1.5 rounded-md flex items-center gap-2 hover:bg-highlight-5"
+        className="block @min-5xl:hidden px-2 py-1.5 rounded-md flex items-center gap-2 hover:bg-highlight-5"
       >
         {theme === "light" ? (
           <Sun className="w-5 h-5 -mt-0.5" />

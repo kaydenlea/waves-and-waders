@@ -620,6 +620,7 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
             label: string;
             icon: React.ReactNode;
             color: string;
+            rank?: number;
           }[] = [];
           // If FEATURE_COLUMNS/getFeatureDisplayName are exported, iterate them; else, fallback to known ones
           const keys: string[] =

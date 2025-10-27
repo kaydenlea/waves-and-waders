@@ -8,16 +8,16 @@ import {
   SlidersHorizontal,
   Waves,
 } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+// Popover handled inside client subcomponent
 import { UserMenu } from "@/components/auth/UserMenu";
 import { cn } from "@/lib/utils";
-import { Switch } from "../ui/switch";
 import { LazyLoadDatePicker } from "./LazyLoad/LazyLoadDatePicker";
 import { LazyLoadHourSlider } from "./LazyLoad/LazyLoadHourSlider";
 import NavBarActions from "./NavBarActions";
 import { useClientPath } from "../context/PathContext";
 import { useMapFilters } from "../context/MapFilterContext";
 import ToggleFilters from "./ToggleFilters";
+import NavMoreMenu from "./NavMoreMenu";
 
 {
   /* <div className="mx-auto flex items-center justify-between px-4 py-5.5 sm:px-6">
@@ -133,11 +133,15 @@ const NavBar = ({
               beachesPage || landingPage
                 ? beachesPage
                   ? "@min-5xl:flex-row"
-                  : "@min-md:flex-row"
-                : "@min-5xl:flex-row"
+                  : "@min-5xl:flex-row"
+                : "flex-col"
             )}
           >
-            <span className="-mb-2 @min-5xl:mb-0">
+            <span
+              className={cn(
+                beachesPage || landingPage ? "-mb-2 @min-5xl:mb-0" : "-mb-2"
+              )}
+            >
               Waves<span className="ml-[0.9]">&</span>
             </span>
             <span>Waders</span>
@@ -183,35 +187,7 @@ const NavBar = ({
           </div>
           <SearchBar className="max-w-[12rem] sm:max-w-none @min-4xl:hidden" />
           <ThemeToggle className="hidden @min-5xl:flex" />
-          <Popover>
-            <PopoverTrigger className="icon-button p-3 dark:bg-highlight-5 hover:bg-highlight-3 dark:hover:bg-highlight-3">
-              <AlignJustify className="icon-md" />
-            </PopoverTrigger>
-            <PopoverContent className="z-50 max-w-50 flex flex-col">
-              <Link
-                className="hover:bg-highlight-5 px-2 py-1.5 rounded-md flex items-center gap-2"
-                href="/beaches"
-              >
-                <MapPinned className="w-5 h-5 -mt-0.5" /> Browse spots
-              </Link>
-              <Link
-                className="hover:bg-highlight-5 px-2 py-1.5 rounded-md flex items-center gap-2"
-                href="/favorites"
-              >
-                <Heart className="w-5 h-5 -mt-0.5" />
-                Saved spots
-              </Link>
-              <ThemeToggle switchMode />
-              <div
-                className={cn(
-                  "border-t border-border/40 pt-1.5 mt-1.5 flex",
-                  landingPage ? "@min-md:hidden" : "@min-5xl:hidden"
-                )}
-              >
-                <UserMenu />
-              </div>
-            </PopoverContent>
-          </Popover>
+          <NavMoreMenu landingPage={landingPage} />
         </div>
       </nav>
     </header>

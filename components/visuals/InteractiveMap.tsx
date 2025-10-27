@@ -266,10 +266,14 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
       const attempt = () => {
         const ref = mapRef.current as any;
         const mapInstance: any = ref?.getMap?.() ?? ref;
-        const canvas: HTMLCanvasElement | null = mapInstance?.getCanvas?.() ?? null;
+        const canvas: HTMLCanvasElement | null =
+          mapInstance?.getCanvas?.() ?? null;
         const width = canvas?.clientWidth ?? 0;
         const height = canvas?.clientHeight ?? 0;
-        const styleLoaded = typeof mapInstance?.isStyleLoaded === "function" ? mapInstance.isStyleLoaded() : true;
+        const styleLoaded =
+          typeof mapInstance?.isStyleLoaded === "function"
+            ? mapInstance.isStyleLoaded()
+            : true;
         if (!mapInstance || width === 0 || height === 0 || !styleLoaded) {
           readinessRafRef.current = requestAnimationFrame(attempt);
           return;
@@ -310,6 +314,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
   const hoverRafRef = React.useRef<number | null>(null);
   const lastHoverFeatureIdRef = React.useRef<string | number | null>(null);
   const suppressCountsRef = React.useRef(0);
+  const mapLastHoverInternalIdRef = React.useRef<number | null>(null);
   const [hoverClusterId, setHoverClusterId] = React.useState<number | null>(
     null
   );
@@ -953,7 +958,11 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
           match.name
         );
         suppressMoveRef.current = true;
-        easeToWhenReady({ longitude: match.longitude, latitude: match.latitude }, 16, 500);
+        easeToWhenReady(
+          { longitude: match.longitude, latitude: match.latitude },
+          16,
+          500
+        );
         const currentSelectedId = selectedRef.current?.id;
         if (String(currentSelectedId ?? "") !== String(match.id)) {
           setSelected(match);
@@ -1058,7 +1067,11 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
 
       suppressMoveRef.current = true;
       userMovedRef.current = false;
-      easeToWhenReady({ longitude: match.longitude, latitude: match.latitude }, 16, 500);
+      easeToWhenReady(
+        { longitude: match.longitude, latitude: match.latitude },
+        16,
+        500
+      );
       setSelected(match);
       prevEffectiveIdRef.current = String(match.id);
     };
@@ -1130,13 +1143,31 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
     const ref = mapRef.current as any;
     const mapInstance: any = ref?.getMap?.() ?? ref;
     if (!mapInstance || typeof mapInstance.easeTo !== "function") {
-      pendingRefocusRef.current = { beachId: String(selected.id), scroll: false };
+      pendingRefocusRef.current = {
+        beachId: String(selected.id),
+        scroll: false,
+      };
       return;
     }
-    easeToWhenReady({ longitude: selected.longitude, latitude: selected.latitude }, 16, 500) ;
+    easeToWhenReady(
+      { longitude: selected.longitude, latitude: selected.latitude },
+      16,
+      500
+    );
   }, [showMap, selected, easeToWhenReady]);
 
   const filterCount = filters?.size ?? 0;
+
+  // Show legend by default on non-/beaches pages (overview/forecast)
+  React.useEffect(() => {
+    try {
+      if (fullMapPage && !openPanel) {
+        setOpenPanel("legend");
+      }
+    } catch {}
+    // only react to route context changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fullMapPage]);
 
   if (editPage || (isDesktop && fullMapPage && !showMap)) {
     return <></>;
@@ -1335,16 +1366,30 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
               popupId.current,
               popupRef.current
             );
-            if (popupId.current) {
-              const beach = mapToId[popupId.current];
-              map.setFeatureState(
-                { source: "beaches", id: beach.id },
-                { hover: false }
-              );
-            }
+            // Always clear hover state for the last hovered feature, regardless of popup state
+            try {
+              if (mapLastHoverInternalIdRef.current != null) {
+                map.setFeatureState(
+                  { source: "beaches", id: mapLastHoverInternalIdRef.current },
+                  { hover: false }
+                );
+                mapLastHoverInternalIdRef.current = null;
+              } else if (popupId.current) {
+                const beach = mapToId[popupId.current];
+                if (beach) {
+                  map.setFeatureState(
+                    { source: "beaches", id: beach.id },
+                    { hover: false }
+                  );
+                }
+              }
+            } catch {}
             setPopupInfo(null);
             popupId.current = null;
             popupRef.current = null;
+            // Reset refs so the same feature can be re-hovered immediately
+            lastHoverFeatureIdRef.current = null;
+            lastHoverInternalIdRef.current = null;
           });
 
           map.on("click", (ev: any) => {
@@ -1395,10 +1440,10 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
               const beach = mapToId[fid];
               if (!beach) return;
               try {
-                const prev = popupId.current ? mapToId[popupId.current] : null;
-                if (prev && prev.id !== beach.id) {
+                const prevInternal = mapLastHoverInternalIdRef.current;
+                if (prevInternal != null && prevInternal !== beach.id) {
                   map.setFeatureState(
-                    { source: "beaches", id: prev.id },
+                    { source: "beaches", id: prevInternal },
                     { hover: false }
                   );
                 }
@@ -1407,13 +1452,14 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
                 { source: "beaches", id: beach.id },
                 { hover: true }
               );
+              mapLastHoverInternalIdRef.current = beach.id;
               setPopupInfo({
                 id: beach.id,
                 longitude: beach.longitude,
                 latitude: beach.latitude,
                 properties: beach.properties,
               });
-              popupId.current = fid;
+              popupId.current = String(fid);
               popupRef.current = {
                 id: beach.id,
                 longitude: beach.longitude,
@@ -1423,6 +1469,18 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
               hoverRafRef.current = null;
             });
           });
+          // Provide clear hover indication for clusters to communicate interactivity
+          const setHoverClusterFromEvent = (ev: any) => {
+            const f = ev?.features?.[0];
+            const cid = f?.properties?.cluster_id;
+            if (typeof cid === "number") setHoverClusterId(cid);
+          };
+          map.on("mousemove", "clusters", setHoverClusterFromEvent);
+          map.on("mousemove", "cluster-count", setHoverClusterFromEvent);
+          // Reset cluster hover highlight when leaving cluster layers
+          const clearClusterHover = () => setHoverClusterId(null);
+          map.on("mouseleave", "clusters", clearClusterHover);
+          map.on("mouseleave", "cluster-count", clearClusterHover);
           setZoom(map.getZoom());
 
           // If a refocus request was queued before the map was ready, perform it now
@@ -1432,7 +1490,11 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
               const match = findBeachMatch(String(pending.beachId));
               if (match) {
                 suppressMoveRef.current = true;
-                easeToWhenReady({ longitude: match.longitude, latitude: match.latitude }, 16, 500);
+                easeToWhenReady(
+                  { longitude: match.longitude, latitude: match.latitude },
+                  16,
+                  500
+                );
                 setSelected(match);
                 prevEffectiveIdRef.current = String(match.id);
               }
@@ -1920,14 +1982,24 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
                   if (fullMapPage) {
                     setShowMap(true);
                   }
-                  if (selected && mapInstance && typeof mapInstance.easeTo === "function") {
+                  if (
+                    selected &&
+                    mapInstance &&
+                    typeof mapInstance.easeTo === "function"
+                  ) {
                     easeToWhenReady(
-                      { longitude: selected.longitude, latitude: selected.latitude },
+                      {
+                        longitude: selected.longitude,
+                        latitude: selected.latitude,
+                      },
                       16,
                       500
                     );
                   } else if (selected) {
-                    pendingRefocusRef.current = { beachId: String(selected.id), scroll: false };
+                    pendingRefocusRef.current = {
+                      beachId: String(selected.id),
+                      scroll: false,
+                    };
                   }
                 }}
                 className="bg-background hover:bg-blue-200 dark:hover:bg-blue-400 rounded-full border border-border shadow-lg p-3 text-sm font-medium flex items-center gap-2 active:scale-95 transition"
@@ -2026,7 +2098,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
               {(showMap || smallScreen) && (
                 <div
                   className={cn(
-                    "absolute top-32 right-3 max-w-[200px] @min-4xl:top-3"
+                    "absolute top-21 right-3 max-w-[200px] @min-4xl:top-3"
                   )}
                 >
                   <div className="rounded-lg border border-border/60 bg-background/90 backdrop-blur px-3 py-2 shadow">
@@ -2286,5 +2358,3 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
 };
 
 export default InteractiveMap;
-
-

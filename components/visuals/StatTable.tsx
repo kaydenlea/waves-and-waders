@@ -673,37 +673,45 @@ const StatTable = ({
   const tableRef = React.useRef<HTMLDivElement>(null);
   const [pageChangeToken, setPageChangeToken] = React.useState(0);
   const [fadeIn, setFadeIn] = React.useState(true);
+  // Page animation: simple fade only (no spring/bounce)
 
   React.useEffect(() => {
     const table = tableRef.current;
     if (!table) return;
 
     const adjustData = () => {
-      const width = table.clientWidth;
-      setWidth(width);
-      if (width < 550) {
+      const widthNow = table.clientWidth;
+      setWidth(widthNow);
+      let newPages: typeof columnPages;
+      if (widthNow < 550) {
         setVisibleCols(3);
-        setColumnPages([
+        newPages = [
           [COLUMNS[0], COLUMNS[2], COLUMNS[1]],
           COLUMNS.slice(3, 5),
           COLUMNS.slice(5, COLUMNS.length),
-        ]);
-      } else if (width < 800) {
+        ];
+      } else if (widthNow < 800) {
         setVisibleCols(5);
-        setColumnPages([
+        newPages = [
           [COLUMNS[0], COLUMNS[2], COLUMNS[5], COLUMNS[6], COLUMNS[1]],
           [COLUMNS[3], COLUMNS[4], COLUMNS[7], COLUMNS[8]],
-        ]);
-        setCurrentPage(0);
-      } else if (width < 1050) {
+        ];
+      } else if (widthNow < 1100) {
         setVisibleCols(4);
-        setColumnPages([COLUMNS.slice(0, 5), COLUMNS.slice(5, COLUMNS.length)]);
-        setCurrentPage(0);
+        newPages = [COLUMNS.slice(0, 5), COLUMNS.slice(5, COLUMNS.length)];
       } else {
         setVisibleCols(6);
-        setColumnPages([COLUMNS]);
-        setCurrentPage(0);
+        newPages = [COLUMNS];
       }
+      setColumnPages((prev) => {
+        const prevJson = JSON.stringify(prev);
+        const nextJson = JSON.stringify(newPages);
+        if (prevJson !== nextJson) {
+          setCurrentPage((p) => Math.min(p, newPages.length - 1));
+          return newPages;
+        }
+        return prev;
+      });
     };
 
     const observer = new ResizeObserver(adjustData);
@@ -715,30 +723,17 @@ const StatTable = ({
   }, []);
 
   const handleNext = () => {
-    setCurrentPage((prev) => {
-      const next = Math.min(prev + 1, columnPages.length - 1);
-      if (next !== prev) setPageChangeToken((t) => t + 1);
-      return next;
-    });
+    setFadeIn(false);
+    setCurrentPage((prev) => Math.min(prev + 1, columnPages.length - 1));
+    requestAnimationFrame(() => setFadeIn(true));
   };
   const handleBack = () => {
-    setCurrentPage((prev) => {
-      const next = Math.max(prev - 1, 0);
-      if (next !== prev) setPageChangeToken((t) => t + 1);
-      return next;
-    });
+    setFadeIn(false);
+    setCurrentPage((prev) => Math.max(prev - 1, 0));
+    requestAnimationFrame(() => setFadeIn(true));
   };
 
   // Trigger a subtle fade/slide-in animation on page change
-  React.useEffect(() => {
-    setFadeIn(false);
-    const id = requestAnimationFrame(() => {
-      // allow class application in next frame
-      setFadeIn(true);
-    });
-    return () => cancelAnimationFrame(id);
-  }, [pageChangeToken]);
-
   const visibleColumns = columnPages[currentPage];
 
   const windowSize = 4;
@@ -801,6 +796,7 @@ const StatTable = ({
   React.useEffect(() => {
     modeRef.current = dockMode;
   }, [dockMode]);
+  const lastSwitchRef = React.useRef<number>(0);
 
   React.useEffect(() => {
     let rafId: number | null = null;
@@ -826,12 +822,18 @@ const StatTable = ({
       }
       const viewportBottomY = vh - margin - pillH;
       const tableBottomY = c.bottom - margin - pillH;
-      const hysteresis = 10; // px buffer to avoid toggling
-      if (
+      const hysteresis = 40; // px buffer to avoid toggling
+      const now = Date.now();
+      const minInterval = 200; // debounce between mode changes
+      const wantDock =
         tableBottomY <=
         viewportBottomY -
-          (modeRef.current === "dock" ? -hysteresis : hysteresis)
-      ) {
+          (modeRef.current === "dock" ? -hysteresis : hysteresis);
+      if (wantDock) {
+        if (modeRef.current !== "dock") {
+          if (now - lastSwitchRef.current < minInterval) return;
+          lastSwitchRef.current = now;
+        }
         setDockMode("dock");
         setFixedPos(null);
         return;
@@ -840,6 +842,10 @@ const StatTable = ({
       const minLeft = c.left + margin + 1;
       const left = Math.max(minLeft, desiredLeft);
       const top = vh - margin - pillH;
+      if (modeRef.current !== "fixed") {
+        if (now - lastSwitchRef.current < minInterval) return;
+        lastSwitchRef.current = now;
+      }
       setFixedPos({ top, left });
       setDockMode("fixed");
     };
@@ -945,8 +951,8 @@ const StatTable = ({
       )}
       <div
         className={cn(
-          "transition-all duration-200 ease-out",
-          fadeIn ? "opacity-100 translate-x-0" : "opacity-0 translate-x-1"
+          "transition-opacity duration-150 ease-in-out",
+          fadeIn ? "opacity-100" : "opacity-0"
         )}
       >
         <table className="w-full table-auto border-collapse text-sm">
@@ -1110,8 +1116,8 @@ const StatTable = ({
           </tbody>
         </table>
       </div>
-      {/* Spacer to avoid docked pager covering bottom-right stats */}
-      {dockMode === "dock" && <div aria-hidden className="h-14" />}
+      {/* Reserve space for pager to avoid layout jump and coverage */}
+      <div aria-hidden className="h-14" />
     </div>
   );
 };

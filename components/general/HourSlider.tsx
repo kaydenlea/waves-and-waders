@@ -40,7 +40,7 @@ const HourSlider = ({
     const dawn = pct(6); // ~06:00
     const dusk = pct(18); // ~18:00
     const night = "#ebd9ffff"; // slate-800
-    const twilight = "#d0dfffff"; // slate-400
+    const twilight = "#edddffff"; // slate-400
     const day = "#ffefd0ff"; // slate-200
     return `linear-gradient(90deg,
       ${night} 0%,

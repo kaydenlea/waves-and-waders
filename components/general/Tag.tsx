@@ -17,7 +17,7 @@ const Tag = ({
   return (
     <div
       className={cn(
-        "shrink-0 inline-flex flex-none items-center gap-2 rounded-full border border-border/40 px-3 py-1.5 text-xs font-medium text-foreground shadow-sm transition-colors",
+        "shrink-0 inline-flex flex-none items-center gap-2 rounded-full border border-border/40 px-3 py-1.5 text-xs font-medium text-foreground shadow-sm transition-colors whitespace-nowrap",
         "backdrop-blur-sm dark:border-border/30 dark:text-background",
         data.color,
         className
@@ -26,7 +26,7 @@ const Tag = ({
       <span className="flex items-center text-inherit [&>svg]:text-inherit">
         {iconNode}
       </span>
-      <span className="leading-tight text-inherit">{data.label}</span>
+      <span className="leading-tight text-inherit whitespace-nowrap">{data.label}</span>
     </div>
   );
 };

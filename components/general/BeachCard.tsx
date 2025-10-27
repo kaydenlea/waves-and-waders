@@ -1,33 +1,17 @@
 "use client";
 
-import { type ReactNode } from "react";
-import Link from "next/link";
+import React, { type ReactNode } from "react";
 import Image from "next/image";
-import { LazyLoadTidePreview } from "./LazyLoad/LazyLoadTidePreview";
 import { generateBeachUrl } from "@/lib/supabase";
 import type { ForecastData } from "@/lib/supabase";
-
-import {
-  Star,
-  Waves,
-  Wind,
-  MousePointer2 as ArrowIcon,
-  Tag as TagIcon,
-  Fish,
-  Toilet,
-  CircleParking,
-  Dog,
-  Shell,
-  LifeBuoy,
-  Info,
-} from "lucide-react";
-import Tag from "./Tag";
+import { Waves, Wind, MousePointer2 as ArrowIcon, Info } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { useMapFilters } from "../context/MapFilterContext";
-import { scrollToMap } from "./BackToMapButton";
 import { cn } from "@/lib/utils";
 import SaveButton from "./SaveButton";
 import { SwellRings, WindRing } from "../visuals/InteractiveMap";
+import { useRouter } from "next/navigation";
+import Tag from "./Tag";
 
 export type Beach = {
   id: string;
@@ -47,46 +31,6 @@ export type Beach = {
   features: { label: string; icon: ReactNode; color: string }[];
 };
 
-function StarRating({ value }: { value: number }) {
-  const stars = Array.from({ length: 5 }).map((_, i) => (
-    <Star
-      key={i}
-      className={`h-3 w-3 ${
-        i < Math.round(value)
-          ? "fill-yellow-400 text-yellow-400"
-          : "text-foreground/30"
-      }`}
-      aria-hidden="true"
-    />
-  ));
-  return (
-    <div
-      className="flex items-center gap-1 mt-1"
-      role="img"
-      aria-label={`Rating ${stars.length} out of 5`}
-    >
-      {stars}
-    </div>
-  );
-}
-
-const tags = [
-  { label: "Fishing", icon: <Fish size={16} />, color: "bg-blue" },
-  { label: "Bathrooms", icon: <Toilet size={16} />, color: "bg-yellow" },
-  {
-    label: "Parking",
-    icon: <CircleParking size={16} />,
-    color: "bg-green",
-  },
-  { label: "Dogs", icon: <Dog size={16} />, color: "bg-red" },
-  { label: "Sandy", icon: <Shell size={16} />, color: "bg-orange" },
-  {
-    label: "Lifeguard",
-    icon: <LifeBuoy size={16} />,
-    color: "bg-purple",
-  },
-];
-
 const BeachCard = ({
   b,
   useMiles = true,
@@ -96,8 +40,13 @@ const BeachCard = ({
   useMiles?: boolean;
   isFav: boolean;
 }) => {
-  const { popupData, setPopupData, popupRef, popupId, map, setHoverCardId } =
-    useMapFilters();
+  const router = useRouter();
+  const { map, setHoverCardId } = useMapFilters();
+  const tagsRowRef = React.useRef<HTMLDivElement | null>(null);
+  const [fitCount, setFitCount] = React.useState<number>(0);
+  const measureTagRefs = React.useRef<Array<HTMLDivElement | null>>([]);
+  const moreMeasureRef = React.useRef<HTMLDivElement | null>(null);
+
   const distance =
     b.distanceKm != null
       ? useMiles
@@ -115,6 +64,61 @@ const BeachCard = ({
     : "bg-green-300";
   const rotation =
     typeof b.conditions.windDir === "number" ? b.conditions.windDir - 315 : 0;
+
+  const goToOverview = () => {
+    router.push(`${generateBeachUrl(b.name, b.id)}/overview#content`);
+  };
+
+  // Compute how many tags fit in the visible row; others go under a +N popover
+  React.useEffect(() => {
+    if (!Array.isArray(b.features) || b.features.length === 0) {
+      setFitCount(0);
+      return;
+    }
+    const row = tagsRowRef.current;
+    if (!row) return;
+
+    const compute = () => {
+      const containerWidth = row.clientWidth || 0;
+      if (containerWidth <= 0) {
+        setFitCount(0);
+        return;
+      }
+      // Approximate horizontal gap between tags (gap-1 => 0.25rem)
+      const gapPx = 4;
+      const widths = measureTagRefs.current
+        .slice(0, b.features.length)
+        .map((el) => (el ? el.getBoundingClientRect().width : 0));
+      const moreWidth = moreMeasureRef.current
+        ? moreMeasureRef.current.getBoundingClientRect().width
+        : 36; // reasonable default
+      let used = 0;
+      let count = 0;
+      for (let i = 0; i < widths.length; i++) {
+        const w = widths[i] + (i > 0 ? gapPx : 0);
+        // Check if we need to reserve space for the more button
+        const needMore = i < widths.length - 1; // if we can't fit all, reserve
+        const reserve = needMore ? gapPx + moreWidth : 0;
+        if (used + w + reserve <= containerWidth) {
+          used += w;
+          count++;
+        } else {
+          break;
+        }
+      }
+      setFitCount(count);
+    };
+
+    const ro = new ResizeObserver(() => compute());
+    ro.observe(row);
+    // slight delay to ensure measurers mounted
+    const id = requestAnimationFrame(compute);
+    return () => {
+      ro.disconnect();
+      cancelAnimationFrame(id);
+    };
+  }, [b.features]);
+
   return (
     <article
       onMouseEnter={() => {
@@ -124,29 +128,29 @@ const BeachCard = ({
           const coord: [number, number] = [b.coords[1], b.coords[0]]; // lon, lat
           const pt = (map as any).project(coord);
           const pad = 6;
-          const features: any[] = (map as any).queryRenderedFeatures(
+          (map as any).queryRenderedFeatures(
             [
               [pt.x - pad, pt.y - pad],
               [pt.x + pad, pt.y + pad],
             ],
             { layers: ["unclustered-point"] }
           );
-          const unclustered = Array.isArray(features)
-            ? features.some(
-                (f) => String((f.properties as any)?.id) === String(b.id)
-              )
-            : false;
-          // Do not set popup here; InteractiveMap manages popup via hoverCardId.
-          // We intentionally avoid setPopupData here to prevent lifecycle races.
         } catch {}
       }}
       onMouseLeave={() => {
         setHoverCardId(null);
-        // Popup will be closed by InteractiveMap when hoverCardId becomes null.
       }}
-      // Clicking the card should not zoom the map; keep hover-only behavior
+      onClick={goToOverview}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          goToOverview();
+        }
+      }}
+      role="link"
+      tabIndex={0}
       id={`beach-${b.id}`}
-      className="hover:cursor-pointer transition-transform transform translate-y-0 hover:translate-y-0.5 ease-in-out duration-300 hover:bg-highlight-5/40 group flex flex-col overflow-hidden rounded-3xl border border-border/50 bg-highlight-7/60 shadow-even backdrop-blur"
+      className="hover:cursor-pointer transition-colors duration-200 ease-out hover:bg-highlight-5/40 group flex flex-col overflow-hidden rounded-3xl border border-border/50 bg-highlight-7/60 shadow-even hover:shadow-lg backdrop-blur focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-400"
     >
       <div className="relative w-full p-3 mx-auto aspect-auto">
         <div className="rounded-4xl h-53 w-full bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900">
@@ -156,9 +160,8 @@ const BeachCard = ({
             fill
             className="object-cover rounded-4xl p-3"
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            unoptimized // Skip optimization to reduce 404 errors
+            unoptimized
             onError={(e) => {
-              // Fallback if image doesn't exist - hide silently
               e.currentTarget.style.display = "none";
             }}
           />
@@ -203,7 +206,7 @@ const BeachCard = ({
             </div>
           </PopoverContent>
         </Popover>
-        <div className="absolute bottom-3 left-3 w-[75%] bg-slate-900/0 p-3 text-black backdrop-blur-none transition rounded-4xl">
+        <div className="absolute bottom-3 left-3 w-[75%] bg-slate-900/0 p-2 text-black backdrop-blur-none transition rounded-4xl">
           <div className="flex gap-1 truncate">
             <div className={cn("w-1 p-1 rounded-full", color)} />
             <div className="min-w-0">
@@ -213,7 +216,6 @@ const BeachCard = ({
               <p className="truncate text-xs">{b.region}</p>
             </div>
           </div>
-          {/* <StarRating value={b.conditions.rating} /> */}
         </div>
         {b.current && (
           <>
@@ -251,9 +253,67 @@ const BeachCard = ({
           />
         </div>
       </div>
-      <div className="p-2 flex-1 flex flex-col justify-between">
-        <div className="flex flex-col">
-          <div className="pt-2 pb-2 px-2 flex flex-col gap-3 text-xs">
+
+      <div className="px-2 flex-1 flex flex-col justify-between">
+        <div className="flex flex-col gap-2">
+          {Array.isArray(b.features) && b.features.length > 0 && (
+            <>
+              {/* visible row */}
+              <div
+                ref={tagsRowRef}
+                className="px-2 pt-1 pb-1 flex items-center gap-1"
+              >
+                {b.features.slice(0, fitCount).map((t) => (
+                  <Tag
+                    key={t.label}
+                    data={t}
+                    className="px-2 py-1 text-[11px]"
+                  />
+                ))}
+                {fitCount < b.features.length && (
+                  <Popover>
+                    <PopoverTrigger
+                      onClick={(e) => e.stopPropagation()}
+                      className="inline-flex items-center px-2 py-1 rounded-full bg-highlight-5/70 border border-border/50 text-[11px] text-foreground/80"
+                      aria-label="Show all tags"
+                    >
+                      +{b.features.length - fitCount}
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80 touch-pan-y">
+                      <div className="flex flex-wrap gap-2">
+                        {b.features.slice(fitCount).map((t) => (
+                          <Tag key={t.label} data={t} />
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                )}
+              </div>
+              {/* hidden measurer row */}
+              <div className="absolute -z-50 opacity-0 pointer-events-none fixed -top-[9999px] left-0">
+                <div className="flex items-center gap-1">
+                  {b.features.map((t, idx) => (
+                    <div
+                      key={`m-${t.label}`}
+                      ref={(el) => {
+                        measureTagRefs.current[idx] = el;
+                      }}
+                    >
+                      <Tag data={t} className="px-2 py-1 text-[11px]" />
+                    </div>
+                  ))}
+                  <div
+                    ref={moreMeasureRef}
+                    className="inline-flex items-center px-2 py-1 rounded-full bg-highlight-5/70 border border-border/50 text-[11px] text-foreground/80"
+                  >
+                    +99
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          <div className="pt-1 pb-1 px-2 flex flex-col gap-3 text-xs">
             <div className="flex gap-3">
               <span className="inline-flex items-center gap-1">
                 <div className="flex items-center justify-center p-1 bg-blue-100 rounded-full border border-border/40">
@@ -266,17 +326,6 @@ const BeachCard = ({
                   ft
                 </span>
               </span>
-              {/* <span className="inline-flex items-center gap-1">
-                <div className="flex items-center justify-center p-1 bg-blue-100 rounded-full border border-border/40">
-                  <Droplets className="h-3 w-3 text-blue-400" />
-                </div>
-                <span className="flex items-baseline">
-                  <span className="font-semibold text-lg">
-                    {b.conditions.temp}
-                  </span>
-                  °F
-                </span>
-              </span> */}
               <span className="inline-flex items-center gap-1">
                 <div className="flex items-center justify-center p-1 bg-gray-50 rounded-full border border-border/40">
                   <Wind className="h-4 w-4 text-gray-700" />
@@ -298,50 +347,10 @@ const BeachCard = ({
             </div>
           </div>
         </div>
-        <div className="px-2 pb-2 mt-4 flex items-center justify-between">
-          <Popover>
-            <PopoverTrigger
-              onClick={(e) => {
-                e.stopPropagation();
-              }}
-            >
-              <span className="font-semibold text-sm py-2 px-3 rounded-full shadow-even bg-highlight-5 hover:bg-highlight-3 flex gap-1 items-center">
-                <TagIcon className="h-4 w-4" />
-                Tags
-              </span>
-            </PopoverTrigger>
-            <PopoverContent className="w-80 touch-pan-y">
-              {b.features &&
-                b.features.map((tag) => (
-                  <Tag className="m-1" key={tag.label} data={tag} />
-                ))}
-            </PopoverContent>
-          </Popover>
-          {/* <Tag data={tags[0]} /> */}
-          <div className="flex items-center gap-2">
-            {/* <SaveButton
-              beachId={String(b.id)}
-              initialIsFav={isFav}
-              className="group/button inline-flex items-center rounded-full bg-highlight-5 p-1.5 backdrop-blur transition hover:bg-highlight-3"
-              stopPropagation
-            /> */}
-            <Link
-              onClick={(e) => {
-                e.stopPropagation();
-                popupId.current = null;
-                setPopupData(null);
-              }}
-              href={`${generateBeachUrl(b.name, b.id)}/overview`}
-              className="text-center rounded-full bg-highlight-5 shadow-even px-3 py-2 text-sm font-semibold text-foreground/90 transition hover:bg-highlight-3"
-            >
-              View
-            </Link>
-          </div>
-        </div>
+        <div className="px-2 pb-2 mt-2" />
       </div>
     </article>
   );
 };
 
 export default BeachCard;
-

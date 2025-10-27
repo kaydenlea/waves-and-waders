@@ -20,9 +20,13 @@ import {
   CreditCard,
   Bike,
   Filter,
+  LogOut,
 } from "lucide-react";
 import BackToMapButton from "./BackToMapButton";
 import Link from "next/link";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { useRouter } from "next/navigation";
+import { useUser, useSupabaseClient } from "@supabase/auth-helpers-react";
 import ThemeToggle from "./ThemeToggle";
 import { useSearchContext } from "../context/SearchContext";
 import { usePathname } from "next/navigation";
@@ -33,6 +37,10 @@ import { FEATURE_CATEGORIES, getFeatureDisplayName } from "@/lib/supabase";
 import { useClientPath } from "../context/PathContext";
 
 export default function BottomNav() {
+  const router = useRouter();
+  const user = useUser();
+  const displayEmail = user?.email ?? "Account";
+  const supabase = useSupabaseClient();
   const [showBottomUI, setShowBottomUI] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
   const [atTop, setAtTop] = useState(true);
@@ -45,6 +53,12 @@ export default function BottomNav() {
   const { openPanel, setOpenPanel, filters, setFilters } = useMapFilters();
   const { selectedTab } = useClientPath();
   const forecastPage = selectedTab === "forecast";
+  const [profileOpen, setProfileOpen] = useState(false);
+  useEffect(() => {
+    const onResize = () => setProfileOpen(false);
+    window.addEventListener("resize", onResize, { passive: true });
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   // Detect screen width and reset nav visibility when switching to mobile
   useEffect(() => {
@@ -433,20 +447,42 @@ export default function BottomNav() {
           showBottomUI ? "translate-y-0" : "translate-y-full"
         )}
       >
-        <Link
+        <button
+          type="button"
           className="hover:bg-highlight-5 px-2 py-1.5 rounded-md flex flex-col items-center gap-1"
-          href="/beaches"
+          onClick={() => {
+            try {
+              if (typeof window !== "undefined") {
+                window.localStorage.setItem("tab:/beaches", "nearby");
+              }
+            } catch {}
+            router.push("/beaches?tab=nearby");
+          }}
         >
           <MapPinned className="w-5 h-5 -mt-0.5" />
           <span className="text-xs">Browse</span>
-        </Link>
-        <Link
+        </button>
+        <button
+          type="button"
           className="hover:bg-highlight-5 px-2 py-1.5 rounded-md flex flex-col items-center gap-1"
-          href="/favorites"
+          onClick={() => {
+            try {
+              if (!user) {
+                router.push(`/login?next=${encodeURIComponent("/beaches")}`);
+                return;
+              }
+              if (typeof window !== "undefined") {
+                window.localStorage.setItem("tab:/beaches", "saved");
+              }
+              router.push("/beaches?tab=saved");
+            } catch {
+              router.push("/beaches?tab=saved");
+            }
+          }}
         >
           <Heart className="w-5 h-5 -mt-0.5" />
           <span className="text-xs">Saved</span>
-        </Link>
+        </button>
         <button
           type="button"
           aria-label="search"
@@ -461,13 +497,55 @@ export default function BottomNav() {
         {/* <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-cyan-300 to-blue-500 text-foreground shadow-lg shadow-cyan-500/20">
           <Waves className="h-6 w-6" aria-hidden />
         </div> */}
-        <Link
-          className="hover:bg-highlight-5 px-2 py-1.5 rounded-md flex flex-col items-center gap-1"
-          href="/login"
-        >
-          <User className="w-5 h-5 -mt-0.5" />
-          <span className="text-xs">Profile</span>
-        </Link>
+        {user ? (
+          <Popover open={profileOpen} onOpenChange={setProfileOpen}>
+            <PopoverTrigger className="hover:bg-highlight-5 px-2 py-1.5 rounded-md flex flex-col items-center gap-1">
+              <User className="w-5 h-5 -mt-0.5" />
+              <span className="text-xs">Profile</span>
+            </PopoverTrigger>
+            <PopoverContent
+              align="end"
+              className="z-50 w-56 py-2 px-4 flex flex-col gap-1"
+            >
+              <span className="px-2 py-1.5 text-sm text-muted-foreground max-w-[208px] truncate">
+                {displayEmail}
+              </span>
+              <div className="border-t border-border/40 my-1" />
+              <Link
+                className="hover:bg-highlight-5 px-2 py-1.5 rounded-md flex items-center gap-2 whitespace-nowrap"
+                href="/beaches"
+                onClick={() => {
+                  try {
+                    window.localStorage.setItem("tab:/beaches", "saved");
+                  } catch {}
+                  setProfileOpen(false);
+                }}
+              >
+                <Heart className="w-5 h-5 -mt-0.5" /> Saved
+              </Link>
+              <div className="border-t border-border/40 my-1" />
+              <button
+                onClick={async () => {
+                  setProfileOpen(false);
+                  await supabase.auth.signOut();
+                  router.refresh();
+                }}
+                className="hover:bg-highlight-5 px-2 py-1.5 rounded-md flex items-center gap-2 text-destructive"
+              >
+                <LogOut className="h-5 w-5" /> Sign out
+              </button>
+            </PopoverContent>
+          </Popover>
+        ) : (
+          <button
+            type="button"
+            className="hover:bg-highlight-5 px-2 py-1.5 rounded-md flex flex-col items-center gap-1"
+            onClick={() => router.push("/login")}
+          >
+            <User className="w-5 h-5 -mt-0.5" />
+            <span className="text-xs">Profile</span>
+          </button>
+        )}
         <ThemeToggle bottomNavMode />
       </nav>
     </>

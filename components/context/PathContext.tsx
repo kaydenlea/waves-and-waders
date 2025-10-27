@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 type Ctx = {
@@ -13,11 +13,18 @@ const PathContext = createContext<Ctx | null>(null);
 
 export function PathProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [selectedTab, setSelectedTab] = useState("");
   // Restore persisted tab per-path on mount/path change
   useEffect(() => {
     try {
       if (typeof window === "undefined") return;
+      // Query param takes precedence if provided
+      const qp = searchParams?.get("tab");
+      if (qp && qp !== selectedTab) {
+        setSelectedTab(qp);
+        return;
+      }
       const key = `tab:${pathname}`;
       const saved = window.localStorage.getItem(key);
       if (saved && saved !== selectedTab) {
@@ -25,7 +32,7 @@ export function PathProvider({ children }: { children: React.ReactNode }) {
       }
     } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname]);
+  }, [pathname, searchParams]);
 
   // Persist tab selection per-path
   useEffect(() => {

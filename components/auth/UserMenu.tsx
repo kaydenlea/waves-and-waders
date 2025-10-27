@@ -3,18 +3,14 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSupabaseClient, useUser } from "@supabase/auth-helpers-react";
-import { LogIn, LogOut, User, UserCircle2 } from "lucide-react";
-
-import { Button } from "@/components/ui/button";
+import { LogIn, LogOut, User, UserCircle2, Heart } from "lucide-react";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import React from "react";
 
 export const UserMenu = ({
   landingPage = false,
@@ -24,6 +20,14 @@ export const UserMenu = ({
   const supabase = useSupabaseClient();
   const user = useUser();
   const router = useRouter();
+  const [open, setOpen] = React.useState(false);
+  React.useEffect(() => {
+    const onResize = () => setOpen(false);
+    if (typeof window !== "undefined") {
+      window.addEventListener("resize", onResize, { passive: true });
+      return () => window.removeEventListener("resize", onResize);
+    }
+  }, []);
 
   if (!user) {
     return (
@@ -64,29 +68,46 @@ export const UserMenu = ({
     }
   };
 
-  return (
-    <DropdownMenu modal={false}>
-      <DropdownMenuTrigger className="icon-button inline-flex items-center gap-2 rounded-full dark:bg-highlight-5 p-2.5 text-sm font-medium outline-none ring-offset-background transition hover:bg-highlight-3 dark:hover:bg-highlight-3 focus-visible:ring-2 focus-visible:ring-primary/50">
-        <UserCircle2 className="h-6 w-6" />
-        {/* <span className="hidden sm:inline">{displayEmail}</span> */}
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel className="font-normal text-muted-foreground">
-          {displayEmail}
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link href="/favorites">Favorite beaches</Link>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          className="text-destructive focus:text-destructive"
-          onClick={handleSignOut}
+  const UserMenuPopover = () => {
+    return (
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger className="icon-button p-2.5 dark:bg-highlight-5 hover:bg-highlight-3 dark:hover:bg-highlight-3 rounded-full">
+          <UserCircle2 className="h-6 w-6" />
+        </PopoverTrigger>
+        <PopoverContent
+          align="end"
+          className="z-50 w-50 py-2 px-4 flex flex-col gap-1"
         >
-          <LogOut className="mr-2 h-4 w-4" />
-          Sign out
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
+          <span className="px-2 py-1.5 text-sm text-muted-foreground max-w-[208px] truncate">
+            {displayEmail}
+          </span>
+          <div className="border-t border-border/40 my-1" />
+          <Link
+            className="hover:bg-highlight-5 px-2 py-1.5 rounded-md flex items-center gap-2 whitespace-nowrap"
+            href="/beaches"
+            onClick={() => {
+              try {
+                window.localStorage.setItem("tab:/beaches", "saved");
+              } catch {}
+              setOpen(false);
+            }}
+          >
+            <Heart className="w-5 h-5 -mt-0.5" /> Saved spots
+          </Link>
+          <div className="border-t border-border/40 my-1" />
+          <button
+            className="hover:bg-highlight-5 px-2 py-1.5 rounded-md flex items-center gap-2 text-destructive"
+            onClick={() => {
+              setOpen(false);
+              void handleSignOut();
+            }}
+          >
+            <LogOut className="h-5 w-5" /> Sign out
+          </button>
+        </PopoverContent>
+      </Popover>
+    );
+  };
+
+  return <UserMenuPopover />;
 };

@@ -256,7 +256,7 @@ const SearchBar = ({
           <button
             type="button"
             aria-label="open map"
-            className="icon-button p-4 hide-button dark:bg-highlight-5 hover:bg-highlight-3 dark:hover:bg-highlight-3"
+            className="icon-button p-3 hide-button dark:bg-highlight-5 hover:bg-highlight-3 dark:hover:bg-highlight-3"
             onClick={() => router.push("/beaches")}
           >
             <Map className="icon-md" />
