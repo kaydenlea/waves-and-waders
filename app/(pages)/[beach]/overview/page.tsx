@@ -86,6 +86,8 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
               </h1>
             </header>
 
+            {/* Time controls are now in the top NavBar (desktop + mobile). */}
+
             {/* <BeachContent beachId={beachId} /> */}
             <DateSummaryBridge beachId={beachId} />
           </div>

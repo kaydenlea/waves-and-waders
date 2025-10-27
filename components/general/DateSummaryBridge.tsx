@@ -92,6 +92,16 @@ const DateSummaryBridge: React.FC<Props> = ({ beachId }) => {
     return () => clearInterval(interval);
   }, [mounted]);
 
+  // Ensure a default selected date on mount (today) to keep map marker styling correct
+  React.useEffect(() => {
+    if (!selected) {
+      const now = new Date();
+      const dateOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      setSelected(dateOnly);
+      setSelectedDate(dateOnly);
+    }
+  }, []);
+
   React.useEffect(() => {
     let cancelled = false;
     const fallback = getDefaultLayout("overview");
@@ -245,6 +255,7 @@ const DateSummaryBridge: React.FC<Props> = ({ beachId }) => {
 
   return (
     <>
+      
       {/* Summary header */}
       <section className="mb-8">
         <h2 className="mb-4 ml-2 text-muted-foreground text-lg">

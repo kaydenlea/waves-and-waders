@@ -238,6 +238,75 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
   const [zoom, setZoom] = React.useState<number>(6);
   const zoomRafRef = React.useRef<number | null>(null);
   const lastHoverInternalIdRef = React.useRef<number | null>(null);
+  // Map ref must be declared before helpers that depend on it
+  const mapRef = React.useRef<MapRef>(null);
+  // Manage a single smooth camera transition once the map/container are ready
+  const centerRafRef = React.useRef<number | null>(null);
+  const readinessRafRef = React.useRef<number | null>(null);
+  // Removed static offset; compute exact center using symmetric pixel bounds
+
+  const easeToWhenReady = React.useCallback(
+    (
+      target: { longitude: number; latitude: number },
+      zoomLevel: number = 16,
+      duration: number = 500
+    ) => {
+      const cancelPending = () => {
+        if (centerRafRef.current != null) {
+          cancelAnimationFrame(centerRafRef.current as any);
+          centerRafRef.current = null;
+        }
+        if (readinessRafRef.current != null) {
+          cancelAnimationFrame(readinessRafRef.current as any);
+          readinessRafRef.current = null;
+        }
+      };
+      cancelPending();
+
+      const attempt = () => {
+        const ref = mapRef.current as any;
+        const mapInstance: any = ref?.getMap?.() ?? ref;
+        const canvas: HTMLCanvasElement | null = mapInstance?.getCanvas?.() ?? null;
+        const width = canvas?.clientWidth ?? 0;
+        const height = canvas?.clientHeight ?? 0;
+        const styleLoaded = typeof mapInstance?.isStyleLoaded === "function" ? mapInstance.isStyleLoaded() : true;
+        if (!mapInstance || width === 0 || height === 0 || !styleLoaded) {
+          readinessRafRef.current = requestAnimationFrame(attempt);
+          return;
+        }
+        centerRafRef.current = requestAnimationFrame(() => {
+          try {
+            // Use a tiny symmetric bounds around the target so the resulting camera
+            // centers precisely on the target across all screen sizes.
+            const pt = mapInstance.project([target.longitude, target.latitude]);
+            const epsilon = 1; // px box half-size
+            const sw = mapInstance.unproject([pt.x - epsilon, pt.y + epsilon]);
+            const ne = mapInstance.unproject([pt.x + epsilon, pt.y - epsilon]);
+            if (typeof mapInstance.fitBounds === "function") {
+              mapInstance.fitBounds([sw, ne], {
+                duration,
+                linear: true,
+                maxZoom: zoomLevel,
+                padding: 0,
+              });
+            } else {
+              mapInstance.easeTo({
+                center: [target.longitude, target.latitude],
+                zoom: zoomLevel,
+                duration,
+              });
+            }
+            setZoom(zoomLevel);
+          } catch {}
+          centerRafRef.current = null;
+        });
+      };
+
+      attempt();
+      return cancelPending;
+    },
+    [mapRef]
+  );
   const hoverRafRef = React.useRef<number | null>(null);
   const lastHoverFeatureIdRef = React.useRef<string | number | null>(null);
   const suppressCountsRef = React.useRef(0);
@@ -250,7 +319,6 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
   const prevFilterSignatureRef = React.useRef<string | null>(null);
   const router = useRouter();
   const pathname = usePathname();
-  const mapRef = React.useRef<MapRef>(null);
   const [popupInfo, setPopupInfo] = React.useState<{
     id: number;
     longitude: number;
@@ -271,6 +339,9 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
     string,
     { id: number; longitude: number; latitude: number; properties: any }
   > = React.useMemo(() => ({}), []);
+
+  // Queue refocus requests if the map isn't ready yet
+  const pendingRefocusRef = React.useRef<MapFocusEventDetail | null>(null);
 
   const findBeachMatch = React.useCallback(
     (identifier: string | null | undefined): BeachPoint | null => {
@@ -882,12 +953,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
           match.name
         );
         suppressMoveRef.current = true;
-        map.easeTo({
-          center: [match.longitude, match.latitude],
-          zoom: 16,
-          duration: 500,
-        });
-        setZoom(16);
+        easeToWhenReady({ longitude: match.longitude, latitude: match.latitude }, 16, 500);
         const currentSelectedId = selectedRef.current?.id;
         if (String(currentSelectedId ?? "") !== String(match.id)) {
           setSelected(match);
@@ -963,11 +1029,15 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
       if (!match) return;
 
       const ref = mapRef.current;
-      const mapInstance = ref?.getMap?.() ?? ref;
-      if (!mapInstance || typeof mapInstance.easeTo !== "function") return;
-
-      if (fullMapPage && isDesktop) {
+      const mapInstance: any = ref?.getMap?.() ?? ref;
+      // ensure the map is visible when focusing
+      if (fullMapPage) {
         setShowMap(true);
+      }
+      // map not ready yet: queue and exit; onLoad will handle it
+      if (!mapInstance || typeof mapInstance.easeTo !== "function") {
+        pendingRefocusRef.current = detail;
+        return;
       }
 
       if (detail.scroll) {
@@ -988,12 +1058,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
 
       suppressMoveRef.current = true;
       userMovedRef.current = false;
-      mapInstance.easeTo({
-        center: [match.longitude, match.latitude],
-        zoom: 16,
-        duration: 500,
-      });
-      setZoom(16);
+      easeToWhenReady({ longitude: match.longitude, latitude: match.latitude }, 16, 500);
       setSelected(match);
       prevEffectiveIdRef.current = String(match.id);
     };
@@ -1004,7 +1069,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
         MAP_FOCUS_EVENT,
         handleRefocus as EventListener
       );
-  }, [findBeachMatch, fullMapPage, isDesktop]);
+  }, [findBeachMatch, fullMapPage, setShowMap]);
 
   // if (editPage || (forecastPage && !smallScreen)) {
   //   return <></>;
@@ -1059,19 +1124,17 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
     setPopupData(null);
   }, [popupData]);
 
-  // Handle recentering when expanding
+  // Handle recentering when expanding (forecast/overview)
   React.useEffect(() => {
-    if (showMap && map && selected) {
-      // Wait a tick to ensure layout reflow done
-      requestAnimationFrame(() => {
-        map.easeTo({
-          center: [selected.longitude, selected.latitude],
-          zoom: 16,
-          duration: 500,
-        });
-      });
+    if (!showMap || !selected) return;
+    const ref = mapRef.current as any;
+    const mapInstance: any = ref?.getMap?.() ?? ref;
+    if (!mapInstance || typeof mapInstance.easeTo !== "function") {
+      pendingRefocusRef.current = { beachId: String(selected.id), scroll: false };
+      return;
     }
-  }, [showMap]);
+    easeToWhenReady({ longitude: selected.longitude, latitude: selected.latitude }, 16, 500) ;
+  }, [showMap, selected, easeToWhenReady]);
 
   const filterCount = filters?.size ?? 0;
 
@@ -1141,6 +1204,10 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
         }}
         onLoad={async (e) => {
           const map = e.target;
+          // keep context map in sync on every mount
+          try {
+            setMap(map);
+          } catch {}
           resizeMapViewport();
 
           // Load the default marker image
@@ -1172,8 +1239,13 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
           // Track zoom level for ring scaling
           map.on("zoom", () => {
             const z = map.getZoom();
-            if (zoomRafRef.current != null) { cancelAnimationFrame(zoomRafRef.current as any); }
-            zoomRafRef.current = requestAnimationFrame(() => { setZoom(z); zoomRafRef.current = null; });
+            if (zoomRafRef.current != null) {
+              cancelAnimationFrame(zoomRafRef.current as any);
+            }
+            zoomRafRef.current = requestAnimationFrame(() => {
+              setZoom(z);
+              zoomRafRef.current = null;
+            });
           });
 
           map.on("movestart", () => {
@@ -1191,32 +1263,51 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
             const hasCount = !!map.getLayer("cluster-count");
             if (!hasClusters || !hasCount) return;
 
-          const onClusterClick = (ev: any) => {
-            const feat = ev?.features && ev.features[0];
-            const coords = (feat?.geometry as any)?.coordinates as [number, number] | undefined;
-            const current = map.getZoom?.() ?? 5;
-            const target = Math.min(current + 2, 16);
-            try {
-              suppressCountsRef.current = (suppressCountsRef.current ?? 0) + 1;
-              if (map.getLayer("cluster-count")) {
-                map.setLayoutProperty("cluster-count", "visibility", "none");
-              }
-            } catch {}
-            try {
-              map.easeTo({ center: (coords as any) ?? ev.lngLat, zoom: target, duration: 300 });
-            } catch {}
-            try { setZoom(target); } catch {}
-            try {
-              map.once("idle", () => {
-                try {
-                  suppressCountsRef.current = Math.max((suppressCountsRef.current ?? 1) - 1, 0);
-                  if ((suppressCountsRef.current ?? 0) === 0 && map.getLayer("cluster-count")) {
-                    map.setLayoutProperty("cluster-count", "visibility", "visible");
-                  }
-                } catch {}
-              });
-            } catch {}
-          };
+            const onClusterClick = (ev: any) => {
+              const feat = ev?.features && ev.features[0];
+              const coords = (feat?.geometry as any)?.coordinates as
+                | [number, number]
+                | undefined;
+              const current = map.getZoom?.() ?? 5;
+              const target = Math.min(current + 2, 16);
+              try {
+                suppressCountsRef.current =
+                  (suppressCountsRef.current ?? 0) + 1;
+                if (map.getLayer("cluster-count")) {
+                  map.setLayoutProperty("cluster-count", "visibility", "none");
+                }
+              } catch {}
+              try {
+                map.easeTo({
+                  center: (coords as any) ?? ev.lngLat,
+                  zoom: target,
+                  duration: 300,
+                });
+              } catch {}
+              try {
+                setZoom(target);
+              } catch {}
+              try {
+                map.once("idle", () => {
+                  try {
+                    suppressCountsRef.current = Math.max(
+                      (suppressCountsRef.current ?? 1) - 1,
+                      0
+                    );
+                    if (
+                      (suppressCountsRef.current ?? 0) === 0 &&
+                      map.getLayer("cluster-count")
+                    ) {
+                      map.setLayoutProperty(
+                        "cluster-count",
+                        "visibility",
+                        "visible"
+                      );
+                    }
+                  } catch {}
+                });
+              } catch {}
+            };
 
             map.on("click", "clusters", onClusterClick);
             map.on("click", "cluster-count", onClusterClick);
@@ -1297,24 +1388,57 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
             const fid = feature.properties?.id;
             if (lastHoverFeatureIdRef.current === fid) return;
             lastHoverFeatureIdRef.current = fid;
-            if (hoverRafRef.current != null) { cancelAnimationFrame(hoverRafRef.current as any); }
+            if (hoverRafRef.current != null) {
+              cancelAnimationFrame(hoverRafRef.current as any);
+            }
             hoverRafRef.current = requestAnimationFrame(() => {
               const beach = mapToId[fid];
               if (!beach) return;
               try {
                 const prev = popupId.current ? mapToId[popupId.current] : null;
                 if (prev && prev.id !== beach.id) {
-                  map.setFeatureState({ source: "beaches", id: prev.id }, { hover: false });
+                  map.setFeatureState(
+                    { source: "beaches", id: prev.id },
+                    { hover: false }
+                  );
                 }
               } catch {}
-              map.setFeatureState({ source: "beaches", id: beach.id }, { hover: true });
-              setPopupInfo({ id: beach.id, longitude: beach.longitude, latitude: beach.latitude, properties: beach.properties });
+              map.setFeatureState(
+                { source: "beaches", id: beach.id },
+                { hover: true }
+              );
+              setPopupInfo({
+                id: beach.id,
+                longitude: beach.longitude,
+                latitude: beach.latitude,
+                properties: beach.properties,
+              });
               popupId.current = fid;
-              popupRef.current = { id: beach.id, longitude: beach.longitude, latitude: beach.latitude, properties: beach.properties };
+              popupRef.current = {
+                id: beach.id,
+                longitude: beach.longitude,
+                latitude: beach.latitude,
+                properties: beach.properties,
+              };
               hoverRafRef.current = null;
             });
           });
           setZoom(map.getZoom());
+
+          // If a refocus request was queued before the map was ready, perform it now
+          try {
+            const pending = pendingRefocusRef.current;
+            if (pending?.beachId != null) {
+              const match = findBeachMatch(String(pending.beachId));
+              if (match) {
+                suppressMoveRef.current = true;
+                easeToWhenReady({ longitude: match.longitude, latitude: match.latitude }, 16, 500);
+                setSelected(match);
+                prevEffectiveIdRef.current = String(match.id);
+              }
+              pendingRefocusRef.current = null;
+            }
+          } catch {}
         }}
         onClick={(e) => {
           const mapInstance: any = mapRef.current?.getMap?.();
@@ -1785,18 +1909,26 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
           </div>
         )} */}
         {(showMap || smallScreen) && (
-          <div className="absolute top-32 left-3 @min-4xl:top-3 flex flex-col gap-3 z-40">
+          <div className="absolute top-21 left-3 @min-4xl:top-3 flex flex-col gap-3 z-40">
             {selected && (
               <button
                 type="button"
                 aria-label="Refocus map on beach"
                 onClick={() => {
-                  if (selected)
-                    map?.easeTo({
-                      center: [selected.longitude, selected.latitude],
-                      zoom: 16,
-                      duration: 500,
-                    });
+                  const ref = mapRef.current;
+                  const mapInstance: any = ref?.getMap?.() ?? ref;
+                  if (fullMapPage) {
+                    setShowMap(true);
+                  }
+                  if (selected && mapInstance && typeof mapInstance.easeTo === "function") {
+                    easeToWhenReady(
+                      { longitude: selected.longitude, latitude: selected.latitude },
+                      16,
+                      500
+                    );
+                  } else if (selected) {
+                    pendingRefocusRef.current = { beachId: String(selected.id), scroll: false };
+                  }
                 }}
                 className="bg-background hover:bg-blue-200 dark:hover:bg-blue-400 rounded-full border border-border shadow-lg p-3 text-sm font-medium flex items-center gap-2 active:scale-95 transition"
               >

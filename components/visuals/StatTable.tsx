@@ -330,21 +330,22 @@ const StatTable = ({
         const bufferAfter = requestedDate ? 1 : 0;
 
         // Prioritize date prop over selectedDays for consistency with other charts
+        const hasSelectedDays =
+          Array.isArray(selectedDays) && selectedDays.length > 0;
         const rangeStart =
           requestedDate && !forecastPage
             ? new Date(anchorStart.getTime() - bufferBefore * DAY_MS)
-            : selectedDays
-            ? selectedDays[0]
+            : hasSelectedDays
+            ? selectedDays![0]
             : new Date(anchorStart.getTime() - bufferBefore * DAY_MS);
 
         const daysToFetch = Math.max(numDays, 1) + bufferAfter;
-
         const rangeEnd =
           requestedDate && !forecastPage
             ? new Date(anchorStart.getTime() + daysToFetch * DAY_MS)
-            : selectedDays && selectedDays[selectedDays.length - 1]
+            : hasSelectedDays
             ? new Date(
-                selectedDays[selectedDays.length - 1].getTime() +
+                selectedDays![selectedDays!.length - 1].getTime() +
                   bufferAfter * DAY_MS
               )
             : new Date(anchorStart.getTime() + daysToFetch * DAY_MS);
@@ -393,14 +394,15 @@ const StatTable = ({
           requestedDate && !forecastPage
             ? getDayKey(requestedDate.toISOString())
             : null;
-        const onlyKeys = selectedDays
-          ? selectedDays.map((day) => getDayKey(day.toISOString()))
-          : null;
+        const onlyKeys =
+          Array.isArray(selectedDays) && selectedDays.length > 0
+            ? selectedDays.map((day) => getDayKey(day.toISOString()))
+            : null;
         let allowedKeys: Set<string> | null = null;
         const dayKeys = entriesByDay.map(([key]) => key);
 
         // Prioritize date prop over selectedDays
-        if (onlyKeys) {
+        if (onlyKeys && onlyKeys.length > 0) {
           allowedKeys = new Set(onlyKeys);
         } else if (onlyKey) {
           if (onlyKey && dayKeys.includes(onlyKey)) {
@@ -668,7 +670,9 @@ const StatTable = ({
   const [currentPage, setCurrentPage] = React.useState(0);
   const [startIndex, setStartIndex] = React.useState(0);
 
-  const tableRef = React.useRef<HTMLTableElement>(null);
+  const tableRef = React.useRef<HTMLDivElement>(null);
+  const [pageChangeToken, setPageChangeToken] = React.useState(0);
+  const [fadeIn, setFadeIn] = React.useState(true);
 
   React.useEffect(() => {
     const table = tableRef.current;
@@ -711,11 +715,29 @@ const StatTable = ({
   }, []);
 
   const handleNext = () => {
-    setCurrentPage((prev) => Math.min(prev + 1, columnPages.length - 1));
+    setCurrentPage((prev) => {
+      const next = Math.min(prev + 1, columnPages.length - 1);
+      if (next !== prev) setPageChangeToken((t) => t + 1);
+      return next;
+    });
   };
   const handleBack = () => {
-    setCurrentPage((prev) => Math.max(prev - 1, 0));
+    setCurrentPage((prev) => {
+      const next = Math.max(prev - 1, 0);
+      if (next !== prev) setPageChangeToken((t) => t + 1);
+      return next;
+    });
   };
+
+  // Trigger a subtle fade/slide-in animation on page change
+  React.useEffect(() => {
+    setFadeIn(false);
+    const id = requestAnimationFrame(() => {
+      // allow class application in next frame
+      setFadeIn(true);
+    });
+    return () => cancelAnimationFrame(id);
+  }, [pageChangeToken]);
 
   const visibleColumns = columnPages[currentPage];
 
@@ -735,200 +757,361 @@ const StatTable = ({
 
   const visibleDays = data.slice(startIndex, startIndex + windowSize);
 
-  return (
-    <div ref={tableRef}>
-      <table className="w-full table-auto border-collapse text-sm">
-        <thead>
-          <tr>
-            <th className="sticky left-0 z-1 bg-highlight-4" />
-            {visibleColumns.map((col) => {
-              return (
-                <th
-                  key={col.id}
-                  className={cn(
-                    "px-2 pb-3 text-center font-medium text-xs sm:text-sm"
-                  )}
-                >
-                  {col.label}
-                </th>
-              );
-            })}
-          </tr>
-        </thead>
-        <tbody>
-          {visibleDays.map((day, i) => {
-            const content = day.vals.map((entry, rowIdx) => {
-              return (
-                <tr
-                  key={`${i}-${entry.index}`}
-                  className={cn(
-                    rowIdx !== day.vals.length - 1 &&
-                      "border-b border-border/40"
-                  )}
-                >
-                  <th
-                    scope="row"
-                    className="relative w-5 h-14 border-r border-border/40 p-0"
-                  >
-                    <span className="-translate-x-1/2 -translate-y-1/2 transform absolute top-1/2 left-1/2 -rotate-90 text-xs">
-                      {entry.index % 12 === 0 ? 12 : entry.index % 12}
-                      <span className="font-medium text-[0.6rem]">
-                        {entry.index >= 12 ? "PM" : "AM"}
-                      </span>
-                    </span>
-                  </th>
-                  {visibleColumns.map((col, colIdx) => {
-                    // Functional color coding for surf ranges (matches DatePicker)
-                    const getSurfLevel = (height: string) => {
-                      if (height === "—") return "bg-highlight-3";
-                      const match = height.match(/(\d+)-?(\d+)?/);
-                      if (!match) return "bg-highlight-3";
-                      // Use the max value from the range (e.g., "2-4" -> 4)
-                      const maxHeight = match[2]
-                        ? parseInt(match[2])
-                        : parseInt(match[1]);
-                      if (maxHeight >= 6)
-                        return "bg-red-300 dark:bg-orange-700";
-                      if (maxHeight >= 3)
-                        return "bg-orange-300 dark:bg-yellow-600";
-                      return "bg-green-300 dark:bg-green-700";
-                    };
+  // Swipe and horizontal wheel to change column pages
+  const touchStartX = React.useRef<number | null>(null);
+  const touchDeltaX = React.useRef(0);
+  const onTouchStart = (e: React.TouchEvent) => {
+    if (columnPages.length <= 1) return;
+    touchStartX.current = e.touches[0].clientX;
+    touchDeltaX.current = 0;
+  };
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (touchStartX.current == null) return;
+    touchDeltaX.current = e.touches[0].clientX - touchStartX.current;
+  };
+  const onTouchEnd = () => {
+    if (touchStartX.current == null) return;
+    const dx = touchDeltaX.current;
+    touchStartX.current = null;
+    touchDeltaX.current = 0;
+    const threshold = 40;
+    if (Math.abs(dx) < threshold) return;
+    if (dx < 0) handleNext();
+    else handleBack();
+  };
+  const onWheel = (e: React.WheelEvent) => {
+    if (columnPages.length <= 1) return;
+    if (Math.abs(e.deltaX) < Math.abs(e.deltaY)) return;
+    if (e.deltaX > 8) handleNext();
+    if (e.deltaX < -8) handleBack();
+  };
 
-                    let content;
-                    switch (col.label) {
-                      case "Wind":
-                        content = <WindStat data={entry.wind} />;
-                        break;
-                      case "Weather":
-                        content = <WeatherStat data={entry.weather} />;
-                        break;
-                      case "Surf":
-                        content = (
-                          <GeneralStat
-                            val={entry.surf.height}
-                            unit="ft"
-                            level={getSurfLevel(entry.surf.height)}
-                          />
-                        );
-                        break;
-                      case "Primary Swell":
-                        {
+  // Unified floating/docked pager tied to table bounds
+  const pagerRef = React.useRef<HTMLDivElement | null>(null);
+  const [dockMode, setDockMode] = React.useState<"fixed" | "dock" | "hidden">(
+    "hidden"
+  );
+  const [fixedPos, setFixedPos] = React.useState<{
+    top: number;
+    left: number;
+  } | null>(null);
+
+  // Hysteresis + rAF to prevent flicker when docking at bottom
+  const modeRef = React.useRef(dockMode);
+  React.useEffect(() => {
+    modeRef.current = dockMode;
+  }, [dockMode]);
+
+  React.useEffect(() => {
+    let rafId: number | null = null;
+    const updateNow = () => {
+      if (columnPages.length <= 1) {
+        setDockMode("hidden");
+        return;
+      }
+      const container = tableRef.current;
+      const pill = pagerRef.current;
+      if (!container) {
+        setDockMode("hidden");
+        return;
+      }
+      const c = container.getBoundingClientRect();
+      const vh = window.innerHeight;
+      const vw = window.innerWidth;
+      const margin = 12;
+      const pillH = pill?.getBoundingClientRect().height ?? 40;
+      if (c.bottom < 0 || c.top > vh) {
+        setDockMode("hidden");
+        return;
+      }
+      const viewportBottomY = vh - margin - pillH;
+      const tableBottomY = c.bottom - margin - pillH;
+      const hysteresis = 10; // px buffer to avoid toggling
+      if (
+        tableBottomY <=
+        viewportBottomY -
+          (modeRef.current === "dock" ? -hysteresis : hysteresis)
+      ) {
+        setDockMode("dock");
+        setFixedPos(null);
+        return;
+      }
+      const desiredLeft = Math.min(c.right - margin, vw - margin);
+      const minLeft = c.left + margin + 1;
+      const left = Math.max(minLeft, desiredLeft);
+      const top = vh - margin - pillH;
+      setFixedPos({ top, left });
+      setDockMode("fixed");
+    };
+    const schedule = () => {
+      if (rafId != null) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(updateNow);
+    };
+    schedule();
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+    return () => {
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+      if (rafId != null) cancelAnimationFrame(rafId);
+    };
+  }, [columnPages.length]);
+
+  const Pager = () => (
+    <>
+      <Button
+        aria-label="previous columns"
+        size="icon"
+        className="h-7 w-7 border border-gray-100 hover:bg-gray-200 bg-gray-50 rounded-full"
+        onClick={handleBack}
+        disabled={currentPage === 0}
+      >
+        <ArrowLeft color="#494949ff" />
+      </Button>
+      <div className="flex gap-1">
+        {columnPages.map((_, i) => (
+          <span
+            key={`pager-${i}`}
+            className={`h-2 w-2 rounded-full transition-colors ${
+              i === currentPage ? "bg-foreground" : "bg-gray-300"
+            }`}
+          />
+        ))}
+      </div>
+      <Button
+        aria-label="next columns"
+        size="icon"
+        className="h-7 w-7 border border-gray-100 hover:bg-gray-200 bg-gray-50 rounded-full"
+        onClick={handleNext}
+        disabled={currentPage === columnPages.length - 1}
+      >
+        <ArrowRight color="#494949ff" />
+      </Button>
+    </>
+  );
+
+  return (
+    <div
+      ref={tableRef}
+      className="relative"
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      onWheel={onWheel}
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (columnPages.length <= 1) return;
+        if (e.key === "ArrowRight") {
+          e.preventDefault();
+          handleNext();
+        } else if (e.key === "ArrowLeft") {
+          e.preventDefault();
+          handleBack();
+        }
+      }}
+    >
+      {dockMode === "fixed" && fixedPos && (
+        <div
+          ref={pagerRef}
+          className={cn(
+            "fixed z-30 flex items-center gap-2",
+            "bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/70",
+            "border border-border/60 rounded-full px-2 py-1 shadow-md"
+          )}
+          style={{
+            top: fixedPos.top,
+            left: fixedPos.left,
+            transform: "translateX(-100%)",
+          }}
+          data-stat-table-pager="floating"
+        >
+          <Pager />
+        </div>
+      )}
+      {dockMode === "dock" && (
+        <div className="pointer-events-none">
+          <div
+            ref={pagerRef}
+            className={cn(
+              "absolute left-1/2 transform -translate-x-1/2 bottom-3 z-20 flex items-center gap-2 pointer-events-auto",
+              "bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/70",
+              "border border-border/60 rounded-full px-2 py-1 shadow-md"
+            )}
+            data-stat-table-pager="docked"
+          >
+            <Pager />
+          </div>
+        </div>
+      )}
+      <div
+        className={cn(
+          "transition-all duration-200 ease-out",
+          fadeIn ? "opacity-100 translate-x-0" : "opacity-0 translate-x-1"
+        )}
+      >
+        <table className="w-full table-auto border-collapse text-sm">
+          <thead>
+            <tr>
+              <th className="sticky left-0 z-1 bg-highlight-4" />
+              {visibleColumns.map((col) => {
+                return (
+                  <th
+                    key={col.id}
+                    className={cn(
+                      "px-2 pb-3 text-center font-medium text-xs sm:text-sm"
+                    )}
+                  >
+                    {col.label}
+                  </th>
+                );
+              })}
+            </tr>
+          </thead>
+          <tbody>
+            {visibleDays.map((day, i) => {
+              const content = day.vals.map((entry, rowIdx) => {
+                return (
+                  <tr
+                    key={`${i}-${entry.index}`}
+                    className={cn(
+                      rowIdx !== day.vals.length - 1 &&
+                        "border-b border-border/40"
+                    )}
+                  >
+                    <th
+                      scope="row"
+                      className="relative w-5 h-14 border-r border-border/40 p-0"
+                    >
+                      <span className="-translate-x-1/2 -translate-y-1/2 transform absolute top-1/2 left-1/2 -rotate-90 text-xs">
+                        {entry.index % 12 === 0 ? 12 : entry.index % 12}
+                        <span className="font-medium text-[0.6rem]">
+                          {entry.index >= 12 ? "PM" : "AM"}
+                        </span>
+                      </span>
+                    </th>
+                    {visibleColumns.map((col, colIdx) => {
+                      // Functional color coding for surf ranges (matches DatePicker)
+                      const getSurfLevel = (height: string) => {
+                        if (height === "—") return "bg-highlight-3";
+                        const match = height.match(/(\d+)-?(\d+)?/);
+                        if (!match) return "bg-highlight-3";
+                        // Use the max value from the range (e.g., "2-4" -> 4)
+                        const maxHeight = match[2]
+                          ? parseInt(match[2])
+                          : parseInt(match[1]);
+                        if (maxHeight >= 6)
+                          return "bg-red-300 dark:bg-orange-700";
+                        if (maxHeight >= 3)
+                          return "bg-orange-300 dark:bg-yellow-600";
+                        return "bg-green-300 dark:bg-green-700";
+                      };
+
+                      let content;
+                      switch (col.label) {
+                        case "Wind":
+                          content = <WindStat data={entry.wind} />;
+                          break;
+                        case "Weather":
+                          content = <WeatherStat data={entry.weather} />;
+                          break;
+                        case "Surf":
                           content = (
-                            <SwellStat
-                              primary
-                              data={entry.swell?.primary as any}
+                            <GeneralStat
+                              val={entry.surf.height}
+                              unit="ft"
+                              level={getSurfLevel(entry.surf.height)}
                             />
                           );
                           break;
+                        case "Primary Swell":
+                          {
+                            content = (
+                              <SwellStat
+                                primary
+                                data={entry.swell?.primary as any}
+                              />
+                            );
+                            break;
+                          }
+                          break;
+                        case "Secondary Swell": {
+                          const s0 = entry.swell?.secondary?.[0];
+                          content = <SwellStat data={s0 as any} />;
+                          break;
                         }
-                        break;
-                      case "Secondary Swell": {
-                        const s0 = entry.swell?.secondary?.[0];
-                        content = <SwellStat data={s0 as any} />;
-                        break;
-                      }
-                      case "Tertiary Swell": {
-                        const s1 = entry.swell?.secondary?.[1];
-                        content = <SwellStat data={s1 as any} />;
-                        break;
-                      }
-                      case "Pressure":
-                        content = (
-                          <GeneralStat
-                            val={entry.pressure.value}
-                            unit="in"
-                            level="bg-highlight-2"
-                          />
-                        );
-                        break;
-                      case "Water":
-                        content = (
-                          <div className="w-full flex justify-center items-center gap-0.5">
-                            <span>
-                              <span className="text-base font-medium">
-                                {entry.water.temp}
+                        case "Tertiary Swell": {
+                          const s1 = entry.swell?.secondary?.[1];
+                          content = <SwellStat data={s1 as any} />;
+                          break;
+                        }
+                        case "Pressure":
+                          content = (
+                            <GeneralStat
+                              val={entry.pressure.value}
+                              unit="in"
+                              level="bg-highlight-2"
+                            />
+                          );
+                          break;
+                        case "Water":
+                          content = (
+                            <div className="w-full flex justify-center items-center gap-0.5">
+                              <span>
+                                <span className="text-base font-medium">
+                                  {entry.water.temp}
+                                </span>
+                                <span className="text-xs">&deg;F</span>
                               </span>
-                              <span className="text-xs">&deg;F</span>
-                            </span>
-                          </div>
-                        );
-                        break;
-                      case "Energy":
-                        content = (
-                          <GeneralStat
-                            val={entry.energy.value}
-                            unit="kJ"
-                            level="bg-highlight-2"
-                          />
-                        );
-                        break;
-                    }
-                    return (
-                      <td
-                        key={`${col.id}-${entry.index}`}
-                        className={cn(
-                          "px-1",
-                          colIdx !== visibleColumns.length - 1 &&
-                            "border-r border-border/40"
-                        )}
-                      >
-                        {content}
-                      </td>
-                    );
-                  })}
-                </tr>
-              );
-            });
-            return (
-              <React.Fragment key={i}>
-                {header && (
-                  <tr key={`${i}-date`}>
-                    <td
-                      colSpan={10}
-                      className="p-3 bg-highlight-5 font-semibold rounded-sm"
-                    >
-                      {day.date}
-                    </td>
+                            </div>
+                          );
+                          break;
+                        case "Energy":
+                          content = (
+                            <GeneralStat
+                              val={entry.energy.value}
+                              unit="kJ"
+                              level="bg-highlight-2"
+                            />
+                          );
+                          break;
+                      }
+                      return (
+                        <td
+                          key={`${col.id}-${entry.index}`}
+                          className={cn(
+                            "px-1",
+                            colIdx !== visibleColumns.length - 1 &&
+                              "border-r border-border/40"
+                          )}
+                        >
+                          {content}
+                        </td>
+                      );
+                    })}
                   </tr>
-                )}
-                {content}
-              </React.Fragment>
-            );
-          })}
-        </tbody>
-      </table>
-      {columnPages.length > 1 && (
-        <div className="flex gap-2 items-center justify-center mt-2">
-          <Button
-            aria-label="previous columns"
-            size="icon"
-            className="border border-gray-100 hover:bg-gray-200 bg-gray-50 rounded-full"
-            onClick={handleBack}
-            disabled={currentPage === 0}
-          >
-            <ArrowLeft color="#494949ff" />
-          </Button>
-          <div className="flex gap-1">
-            {columnPages.map((_, i) => (
-              <span
-                key={i}
-                className={`h-2 w-2 rounded-full transition-colors ${
-                  i === currentPage ? "bg-foreground" : "bg-gray-300"
-                }`}
-              />
-            ))}
-          </div>
-          <Button
-            aria-label="next columns"
-            size="icon"
-            className="border border-gray-100 hover:bg-gray-200 bg-gray-50 rounded-full"
-            onClick={handleNext}
-            disabled={currentPage === columnPages.length - 1}
-          >
-            <ArrowRight color="#494949ff" />
-          </Button>
-        </div>
-      )}
+                );
+              });
+              return (
+                <React.Fragment key={i}>
+                  {header && (
+                    <tr key={`${i}-date`}>
+                      <td
+                        colSpan={10}
+                        className="p-3 bg-highlight-5 font-semibold rounded-sm"
+                      >
+                        {day.date}
+                      </td>
+                    </tr>
+                  )}
+                  {content}
+                </React.Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {/* Spacer to avoid docked pager covering bottom-right stats */}
+      {dockMode === "dock" && <div aria-hidden className="h-14" />}
     </div>
   );
 };

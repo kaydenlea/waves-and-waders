@@ -404,7 +404,7 @@ export default function BottomNav() {
       </AnimatePresence>
 
       {/* floating day / hour mode button */}
-      {selectedTab !== "forecast" && fullMapPage && !landingPage && (
+      {/* {selectedTab !== "forecast" && fullMapPage && !landingPage && (
         <button
           onClick={() => setMode(mode === "date" ? "hour" : "date")}
           className={cn(
@@ -423,7 +423,7 @@ export default function BottomNav() {
             {mode === "date" ? "Day" : "Hour"}
           </span>
         </button>
-      )}
+      )} */}
 
       {/* Bottom Navigation */}
       <nav

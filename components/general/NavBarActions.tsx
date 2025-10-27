@@ -1,26 +1,27 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { LazyLoadDatePicker } from "./LazyLoad/LazyLoadDatePicker";
 import SearchBar from "./SearchBar";
 import { useDateContext } from "../context/DateContext";
 import { LazyLoadHourSlider } from "./LazyLoad/LazyLoadHourSlider";
-import { AlarmClock, Calendar, Clock, Search } from "lucide-react";
-import { useState } from "react";
+import { Calendar, Clock, MapIcon, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSearchContext } from "../context/SearchContext";
 import { useClientPath } from "../context/PathContext";
+import TimeRail from "./TimeRail";
 
 const NavBarActions = () => {
   const pathname = usePathname();
-  console.log("PATHNAME", pathname);
+  const router = useRouter();
   const homePage = pathname === "/";
   const beachesPage = pathname.endsWith("/beaches");
   const { id, selected, setSelected, hour, setHour, mode, setMode } =
     useDateContext();
   const { setIsOverlay } = useSearchContext();
   const { selectedTab } = useClientPath();
-  if (homePage || beachesPage)
+
+  if (homePage || beachesPage) {
     return (
       <SearchBar
         beachesPage={beachesPage}
@@ -30,50 +31,37 @@ const NavBarActions = () => {
         )}
       />
     );
-  //   return (
-  //     <div
-  //       className={cn(
-  //         "@container ml-0 @min-[1200px]:ml-10 mr-0 @min-[890px]:mr-16 w-full @min-[890px]:w-125 @min-[1200px]:w-250 flex gap-3 items-center",
-  //         mode === "hour" && ""
-  //       )}
-  //     >
-  //       {mode === "date" || forecastPage ? (
-  //         <LazyLoadDatePicker
-  //           beachId={id.current}
-  //           {...(forecastPage && { forecast: true })}
-  //           value={selected}
-  //           onSelect={setSelected}
-  //         />
-  //       ) : (
-  //         <LazyLoadHourSlider
-  //           value={hour}
-  //           onChange={setHour}
-  //           min={0}
-  //           max={21}
-  //           step={3}
-  //         />
-  //       )}
-  //       {!forecastPage && (
-  //         <button
-  //           onClick={() => {
-  //             setMode(mode === "date" ? "hour" : "date");
-  //           }}
-  //           className={cn(
-  //             "icon-button py-2 min-w-18 rounded-3xl hover:bg-highlight-5"
-  //           )}
-  //         >
-  //           {mode === "date" ? (
-  //             <Calendar className="w-6 h-6 mx-auto" />
-  //           ) : (
-  //             <Clock className="w-6 h-6 mx-auto" />
-  //           )}
-  //           <span className="text-sm font-medium text-center">
-  //             {mode === "date" ? "Day" : "Hour"}
-  //           </span>
-  //         </button>
-  //       )}
-  //     </div>
-  //   );
+  }
+
+  // Overview: shared TimeRail + compact search
+  if (pathname?.includes("/overview")) {
+    return (
+      <div
+        className={
+          "w-full flex items-center justify-center flex-1 @min-4xl:mx-8"
+        }
+      >
+        <div className="flex-1 min-w-0 w-full @min-4xl:max-w-[820px] mx-auto flex items-center gap-2">
+          <TimeRail
+            beachId={id.current}
+            size="lg"
+            trailingActions={
+              <button
+                type="button"
+                aria-label="search"
+                onClick={() => setIsOverlay(true)}
+                className="group/button hover:scale-[1.03] inline-flex items-center justify-center rounded-full bg-gradient-to-br from-cyan-300 to-blue-500 px-3 py-2 font-medium text-foreground shadow-md shadow-cyan-500/20 transition active:scale-[0.98]"
+              >
+                <Search className="h-5 w-5" strokeWidth={3} />
+              </button>
+            }
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // Default: search + date/hour control + toggle
   return (
     <div
       className={"w-full flex gap-3 items-center max-w-250 mx-0 @min-4xl:mx-16"}
@@ -109,7 +97,6 @@ const NavBarActions = () => {
           />
         )}
       </div>
-
       {selectedTab === "overview" && !beachesPage && (
         <button
           onClick={() => setMode(mode === "date" ? "hour" : "date")}

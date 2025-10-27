@@ -292,19 +292,14 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
   // const totalLength = data.length ? data.length : chartData.length;
 
   const source = data.length ? data : chartData;
-  const windowDays = days?.map((d) =>
-    d.toLocaleDateString("en-US", {
-      weekday: "short",
-      timeZone: "America/Los_Angeles",
-    })
-  );
-  const startDay = windowDays
+  const windowDays = Array.isArray(days) && days.length > 0
+    ? days.map((d) => d.toLocaleDateString("en-US", { weekday: "short", timeZone: "America/Los_Angeles" }))
+    : null;
+  const startDay = windowDays && windowDays.length > 0
     ? windowDays[0]
-    : new Date().toLocaleDateString("en-US", {
-        weekday: "short",
-        timeZone: "America/Los_Angeles",
-      });
-  const startDayIdx = source.findIndex((entry) => entry.day === startDay);
+    : new Date().toLocaleDateString("en-US", { weekday: "short", timeZone: "America/Los_Angeles" });
+  const startDayIdxRaw = source.findIndex((entry) => entry.day === startDay);
+  const startDayIdx = startDayIdxRaw >= 0 ? startDayIdxRaw : 0;
   const visibleData = source.slice(startDayIdx, startDayIdx + windowSize);
   // const fmt = (ms: number) =>
   //   new Date(ms).toLocaleDateString("en-US", {

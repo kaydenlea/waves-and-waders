@@ -93,16 +93,21 @@ const NavBar = ({
   return (
     <header
       className={cn(
-        "fixed @min-4xl:p-0 z-50 w-full @container backdrop-blur-md touch-pan-y",
-        !landingPage && "px-1.5 pt-1.5"
+        "fixed @min-4xl:p-0 z-50 w-full @container touch-pan-y",
+        beachesPage && "px-1.5 pt-1.5"
       )}
     >
       <nav
         aria-label="primary navigation"
         className={cn(
-          "py-13.5 h-23 flex items-center justify-between bg-background rounded-3xl @min-4xl:rounded-2xl @min-4xl:rounded-t-none w-full",
-          !landingPage && "border border-border shadow-md",
-          !landingPage && !beachesPage ? "px-2 @min-sm:px-6" : "px-6"
+          "@min-4xl:py-11 @min-4xl:h-27.5 flex items-center justify-between @min-4xl:bg-background rounded-3xl @min-4xl:rounded-2xl @min-4xl:rounded-t-none w-full",
+          !landingPage
+            ? "@min-4xl:border @min-4xl:border-border/70 @min-4xl:shadow-none py-3"
+            : "py-8",
+          beachesPage && "shadow-even",
+          !landingPage && !beachesPage
+            ? "px-2 @min-4xl:px-6"
+            : "px-6 bg-background"
         )}
       >
         {/* <Link href="/" className="p-3 icon-button">
@@ -170,13 +175,14 @@ const NavBar = ({
         >
           <div
             className={cn(
-              landingPage ? "hidden @min-md:flex" : "hidden @min-5xl:flex"
+              // landingPage ? "hidden @min-md:flex" : "hidden @min-5xl:flex"
+              "hidden @min-4xl:flex"
             )}
           >
             <UserMenu landingPage />
           </div>
           <SearchBar className="max-w-[12rem] sm:max-w-none @min-4xl:hidden" />
-          <ThemeToggle className="hide-button" />
+          <ThemeToggle className="hidden @min-5xl:flex" />
           <Popover>
             <PopoverTrigger className="icon-button p-3 dark:bg-highlight-5 hover:bg-highlight-3 dark:hover:bg-highlight-3">
               <AlignJustify className="icon-md" />

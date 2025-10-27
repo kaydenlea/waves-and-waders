@@ -12,7 +12,7 @@ type Props = {
 };
 
 const StatTable = dynamic<React.ComponentProps<any>>(
-  () => import("../../visuals/StatTable"),
+  () => import("../../visuals/StatTable").then((m) => m.default),
   {
     ssr: false,
     loading: () => (

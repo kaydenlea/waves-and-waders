@@ -66,7 +66,7 @@ export const UserMenu = ({
 
   return (
     <DropdownMenu modal={false}>
-      <DropdownMenuTrigger className="inline-flex items-center gap-2 rounded-full border border-border dark:bg-highlight-5 p-2.5 text-sm font-medium shadow-sm outline-none ring-offset-background transition hover:bg-highlight-3 dark:hover:bg-highlight-3 focus-visible:ring-2 focus-visible:ring-primary/50">
+      <DropdownMenuTrigger className="icon-button inline-flex items-center gap-2 rounded-full dark:bg-highlight-5 p-2.5 text-sm font-medium outline-none ring-offset-background transition hover:bg-highlight-3 dark:hover:bg-highlight-3 focus-visible:ring-2 focus-visible:ring-primary/50">
         <UserCircle2 className="h-6 w-6" />
         {/* <span className="hidden sm:inline">{displayEmail}</span> */}
       </DropdownMenuTrigger>
