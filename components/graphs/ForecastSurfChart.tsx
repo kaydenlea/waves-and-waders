@@ -151,6 +151,8 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
           // Display weekday name for UI
           const dayName = firstTs.toLocaleDateString("en-US", {
             weekday: "short",
+            month: "numeric",
+            day: "numeric",
             timeZone: "America/Los_Angeles",
           });
           const pick = (target: number) => {
@@ -345,7 +347,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                     fontSize={11}
                     fontWeight={500}
                   >
-                    {props.payload.value}
+                    {props.payload.value.split(",")[1] ?? "N/A"}
                   </text>
                 </g>
               );

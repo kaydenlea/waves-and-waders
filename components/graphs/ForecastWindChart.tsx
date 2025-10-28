@@ -211,6 +211,8 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
           const d = new Date(r.timestamp);
           const key = d.toLocaleDateString("en-US", {
             weekday: "short",
+            month: "numeric",
+            day: "numeric",
             timeZone: "America/Los_Angeles",
           });
           const arr = byDay.get(key) ?? [];
@@ -292,12 +294,26 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
   // const totalLength = data.length ? data.length : chartData.length;
 
   const source = data.length ? data : chartData;
-  const windowDays = Array.isArray(days) && days.length > 0
-    ? days.map((d) => d.toLocaleDateString("en-US", { weekday: "short", timeZone: "America/Los_Angeles" }))
-    : null;
-  const startDay = windowDays && windowDays.length > 0
-    ? windowDays[0]
-    : new Date().toLocaleDateString("en-US", { weekday: "short", timeZone: "America/Los_Angeles" });
+  const windowDays =
+    Array.isArray(days) && days.length > 0
+      ? days.map((d) =>
+          d.toLocaleDateString("en-US", {
+            weekday: "short",
+            month: "numeric",
+            day: "numeric",
+            timeZone: "America/Los_Angeles",
+          })
+        )
+      : null;
+  const startDay =
+    windowDays && windowDays.length > 0
+      ? windowDays[0]
+      : new Date().toLocaleDateString("en-US", {
+          weekday: "short",
+          month: "numeric",
+          day: "numeric",
+          timeZone: "America/Los_Angeles",
+        });
   const startDayIdxRaw = source.findIndex((entry) => entry.day === startDay);
   const startDayIdx = startDayIdxRaw >= 0 ? startDayIdxRaw : 0;
   const visibleData = source.slice(startDayIdx, startDayIdx + windowSize);
@@ -442,7 +458,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
                     fontSize={11}
                     fontWeight={500}
                   >
-                    {props.payload.value}
+                    {props.payload.value.split(",")[1] ?? "N/A"}
                   </text>
                 </g>
               );

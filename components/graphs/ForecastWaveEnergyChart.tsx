@@ -593,7 +593,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
             <div className="@min-sm:whitespace-nowrap max-w-20 mx-auto p-1 rounded-sm bg-highlight-7 border border-border">
               <span className="@min-md:inline-block hidden">{label}</span>
               <span className="inline-block @min-md:hidden">
-                {label.split(",")[0]}
+                {label.split(",")[1]}
               </span>
             </div>
           </div>
