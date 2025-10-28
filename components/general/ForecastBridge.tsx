@@ -395,7 +395,7 @@ const ForecastBridge: React.FC<Props> = ({ beachId }) => {
               return (
                 <div
                   key={row.id}
-                  className={`${spacingClass} w-full flex flex-col @min-2xl:flex-row gap-3`}
+                  className={`${spacingClass} w-full flex flex-col @min-2xl:flex-row gap-6`}
                 >
                   {renderedItems.map((entry) => (
                     <React.Fragment key={entry.id}>
