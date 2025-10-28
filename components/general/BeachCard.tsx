@@ -274,7 +274,7 @@ const BeachCard = ({
                   <Popover>
                     <PopoverTrigger
                       onClick={(e) => e.stopPropagation()}
-                      className="inline-flex items-center px-2 py-1 rounded-full bg-highlight-5/70 border border-border/50 text-[11px] text-foreground/80"
+                      className="inline-flex items-center px-2 py-1 rounded-full bg-highlight-5/70 hover:bg-highlight-3 hover:cursor-pointer border border-border/50 text-[11px] text-foreground/80"
                       aria-label="Show all tags"
                     >
                       +{b.features.length - fitCount}
