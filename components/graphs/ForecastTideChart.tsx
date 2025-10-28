@@ -577,7 +577,7 @@ export default function ForecastTideChart({ beachId, date }: Props) {
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
           style={{
-            marginTop: 30,
+            marginTop: 35,
             position: "absolute",
             left: 0,
             // top: 60, // leave room for label bar
@@ -627,11 +627,11 @@ export default function ForecastTideChart({ beachId, date }: Props) {
             config={
               { tide: { label: "Tide", color: "#6e6e6eff" } } as ChartConfig
             }
-            className="h-full w-full"
+            className="@min-md:aspect-auto @min-md:h-[258px] w-full"
           >
             <LineChart
               width={chartInnerWidth}
-              height={200}
+              // height={200}
               data={data}
               margin={{ left: -35, right: 15, bottom: 5, top: 6 }}
             >
