@@ -52,32 +52,32 @@ const WIDGET: Partial<Record<WidgetId, React.ReactNode>> = {
   stats: (
     <div className="grid grid-cols-2 gap-4 p-2">
       {Array.from({ length: 8 }).map((_, idx) => (
-        <div key={idx} className="h-10 w-full rounded bg-highlight-3" />
+        <div key={idx} className="h-10 w-full rounded-xl bg-highlight-3" />
       ))}
     </div>
   ),
   tide: (
-    <div className="flex h-full items-center justify-center rounded bg-highlight-3 text-gray-400">
+    <div className="flex h-full items-center justify-center rounded-xl bg-highlight-3 text-gray-400">
       [Chart]
     </div>
   ),
   swell: (
-    <div className="flex h-full items-center justify-center rounded bg-highlight-3 text-gray-400">
+    <div className="flex h-full items-center justify-center rounded-xl bg-highlight-3 text-gray-400">
       [Chart]
     </div>
   ),
   surf: (
-    <div className="flex h-full items-center justify-center rounded bg-highlight-3 text-gray-400">
+    <div className="flex h-full items-center justify-center rounded-xl bg-highlight-3 text-gray-400">
       [Chart]
     </div>
   ),
   energy: (
-    <div className="flex h-full items-center justify-center rounded bg-highlight-3 text-gray-400">
+    <div className="flex h-full items-center justify-center rounded-xl bg-highlight-3 text-gray-400">
       [Chart]
     </div>
   ),
   wind: (
-    <div className="flex h-full items-center justify-center rounded bg-highlight-3 text-gray-400">
+    <div className="flex h-full items-center justify-center rounded-xl bg-highlight-3 text-gray-400">
       [Chart]
     </div>
   ),
@@ -98,11 +98,14 @@ const WIDGET: Partial<Record<WidgetId, React.ReactNode>> = {
             </tr>
           </thead>
           <tbody>
-            {Array.from({ length: 3 }).map((_, rowIdx) => (
+            {Array.from({ length: 6 }).map((_, rowIdx) => (
               <tr key={rowIdx}>
                 {Array.from({ length: 3 }).map((_, colIdx) => (
-                  <td key={colIdx} className="p-2">
-                    <div className="h-5 w-full rounded bg-highlight-3" />
+                  <td
+                    key={colIdx}
+                    className={cn("p-2", rowIdx === 0 && "pt-6")}
+                  >
+                    <div className="h-10 w-full rounded-xl bg-highlight-3" />
                   </td>
                 ))}
               </tr>
@@ -113,11 +116,11 @@ const WIDGET: Partial<Record<WidgetId, React.ReactNode>> = {
     </div>
   ),
   surfAndWind: (
-    <div className="flex flex-col @min-2xl:flex-row gap-3 h-80 @min-2xl:h-full">
-      <div className="flex-1 flex h-full items-center justify-center rounded bg-highlight-3 text-gray-400">
+    <div className="flex flex-col @min-2xl:flex-row gap-9 h-80 @min-2xl:h-full">
+      <div className="flex-1 flex h-full items-center justify-center rounded-xl bg-highlight-3 text-gray-400">
         [Chart]
       </div>
-      <div className="flex-1 flex h-full items-center justify-center rounded bg-highlight-3 text-gray-400">
+      <div className="flex-1 flex h-full items-center justify-center rounded-xl bg-highlight-3 text-gray-400">
         [Chart]
       </div>
     </div>

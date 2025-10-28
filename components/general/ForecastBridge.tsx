@@ -257,7 +257,7 @@ const ForecastBridge: React.FC<Props> = ({ beachId }) => {
           );
         case "surfAndWind":
           return (
-            <div className="w-full flex flex-col @min-2xl:flex-row gap-6 @min-2xl:gap-3">
+            <div className="w-full flex flex-col @min-2xl:flex-row gap-6">
               <VisualWrapper label="Wind" unit="mph">
                 <LazyLoadForecastWind beachId={beachId} days={selectedDays} />
               </VisualWrapper>
