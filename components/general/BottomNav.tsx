@@ -516,8 +516,13 @@ export default function BottomNav() {
                 href="/beaches"
                 onClick={() => {
                   try {
-                    window.localStorage.setItem("tab:/beaches", "saved");
-                  } catch {}
+                    if (typeof window !== "undefined") {
+                      window.localStorage.setItem("tab:/beaches", "saved");
+                    }
+                    router.push("/beaches?tab=saved");
+                  } catch {
+                    router.push("/beaches?tab=saved");
+                  }
                   setProfileOpen(false);
                 }}
               >
