@@ -114,39 +114,42 @@ const computeTidePeaks = (
     const idx = potentialPeaks[i];
     const curr = sorted[idx];
 
-    // Check if next potential peak has the same tide value
-    if (i + 1 < potentialPeaks.length) {
-      const nextIdx = potentialPeaks[i + 1];
+    // Look ahead to find all consecutive peaks with the same tide value
+    let j = i + 1;
+    const sameTidePeaks = [idx];
+
+    while (j < potentialPeaks.length) {
+      const nextIdx = potentialPeaks[j];
       const nextPeak = sorted[nextIdx];
 
-      // If same tide value, only keep one (prefer the earlier one)
-      if (Math.abs(curr.tide - nextPeak.tide) < 0.01) {
-        const prev = idx > 0 ? sorted[idx - 1] : null;
-        const next = idx < sorted.length - 1 ? sorted[idx + 1] : null;
-        const isHigh =
-          (!prev || curr.tide >= prev.tide) &&
-          (!next || curr.tide >= next.tide);
-
-        peaks.push({
-          kind: isHigh ? "high" : "low",
-          time: new Date(curr.x),
-          level: Number(curr.tide.toFixed(1)),
-        });
-        i++; // Skip the next one
-        continue;
+      // If same tide value (within 0.1 ft tolerance), add to group
+      if (Math.abs(curr.tide - nextPeak.tide) < 0.1) {
+        sameTidePeaks.push(nextIdx);
+        j++;
+      } else {
+        break;
       }
     }
 
-    // Determine if it's a high or low tide
-    const prev = idx > 0 ? sorted[idx - 1] : null;
-    const next = idx < sorted.length - 1 ? sorted[idx + 1] : null;
+    // If we found multiple peaks with the same tide value, only keep the middle one
+    let selectedIdx = idx;
+    if (sameTidePeaks.length > 1) {
+      const middleIndex = Math.floor(sameTidePeaks.length / 2);
+      selectedIdx = sameTidePeaks[middleIndex];
+      i = j - 1; // Skip all the peaks we just processed
+    }
+
+    const selectedPoint = sorted[selectedIdx];
+    const prev = selectedIdx > 0 ? sorted[selectedIdx - 1] : null;
+    const next = selectedIdx < sorted.length - 1 ? sorted[selectedIdx + 1] : null;
     const isHigh =
-      (!prev || curr.tide >= prev.tide) && (!next || curr.tide >= next.tide);
+      (!prev || selectedPoint.tide >= prev.tide) &&
+      (!next || selectedPoint.tide >= next.tide);
 
     peaks.push({
       kind: isHigh ? "high" : "low",
-      time: new Date(curr.x),
-      level: Number(curr.tide.toFixed(1)),
+      time: new Date(selectedPoint.x),
+      level: Number(selectedPoint.tide.toFixed(1)),
     });
   }
 

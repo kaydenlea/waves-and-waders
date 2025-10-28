@@ -169,20 +169,31 @@ const TideChart: React.FC<TideChartProps> = ({
       const idx = potentialPeaks[i];
       const curr = annotated[idx];
 
-      // Check if next potential peak has the same tide value
-      if (i + 1 < potentialPeaks.length) {
-        const nextIdx = potentialPeaks[i + 1];
+      // Look ahead to find all consecutive peaks with the same tide value
+      let j = i + 1;
+      const sameTidePeaks = [idx];
+
+      while (j < potentialPeaks.length) {
+        const nextIdx = potentialPeaks[j];
         const nextPeak = annotated[nextIdx];
 
-        // If same tide value, only keep one (prefer the earlier one)
-        if (Math.abs(curr.tide - nextPeak.tide) < 0.01) {
-          uniquePeaks.add(idx); // Keep first occurrence
-          i++; // Skip the next one
-          continue;
+        // If same tide value (within 0.1 ft tolerance), add to group
+        if (Math.abs(curr.tide - nextPeak.tide) < 0.1) {
+          sameTidePeaks.push(nextIdx);
+          j++;
+        } else {
+          break;
         }
       }
 
-      uniquePeaks.add(idx);
+      // If we found multiple peaks with the same tide value, only keep the middle one
+      if (sameTidePeaks.length > 1) {
+        const middleIndex = Math.floor(sameTidePeaks.length / 2);
+        uniquePeaks.add(sameTidePeaks[middleIndex]);
+        i = j - 1; // Skip all the peaks we just processed
+      } else {
+        uniquePeaks.add(idx);
+      }
     }
 
     // Mark the unique peaks
@@ -542,11 +553,33 @@ const TideChart: React.FC<TideChartProps> = ({
                 ? "end"
                 : "middle";
 
+              // Check for nearby peaks to avoid overlap
+              // Find all peaks with isPeak != null
+              const peakIndices = chartData
+                .map((p, i) => (p.isPeak != null ? i : -1))
+                .filter((i) => i !== -1);
+
+              const currentPeakIndex = peakIndices.indexOf(index);
+              let placeBelow = false;
+
+              if (currentPeakIndex > 0) {
+                const prevPeakIndex = peakIndices[currentPeakIndex - 1];
+                const prevPeak = chartData[prevPeakIndex];
+
+                // If the previous peak is within 3 hours, alternate position
+                if (prevPeak && Math.abs(point.hour - prevPeak.hour) < 3) {
+                  placeBelow = true;
+                }
+              }
+
+              const timeY = placeBelow ? safeY + 25 : safeY - 32;
+              const heightY = placeBelow ? safeY + 40 : safeY - 17;
+
               return (
                 <g>
                   <text
                     x={safeX}
-                    y={safeY - 32}
+                    y={timeY}
                     fill="var(--foreground)"
                     textAnchor={textAnchor}
                     dominantBaseline="middle"
@@ -556,7 +589,7 @@ const TideChart: React.FC<TideChartProps> = ({
                   </text>
                   <text
                     x={safeX}
-                    y={safeY - 17}
+                    y={heightY}
                     fill="var(--foreground)"
                     textAnchor={textAnchor}
                     fontWeight="bold"
