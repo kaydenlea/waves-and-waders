@@ -1117,7 +1117,7 @@ const StatTable = ({
         </table>
       </div>
       {/* Reserve space for pager to avoid layout jump and coverage */}
-      <div aria-hidden className="h-14" />
+      {columnPages.length > 1 && <div aria-hidden className="h-14" />}
     </div>
   );
 };
