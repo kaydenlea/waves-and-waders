@@ -698,7 +698,10 @@ const StatTable = ({
         ];
       } else if (widthNow < 1100) {
         setVisibleCols(4);
-        newPages = [COLUMNS.slice(0, 5), COLUMNS.slice(5, COLUMNS.length)];
+        newPages = [
+          [COLUMNS[0], COLUMNS[2], COLUMNS[3], COLUMNS[4], COLUMNS[1]],
+          COLUMNS.slice(5, COLUMNS.length),
+        ];
       } else {
         setVisibleCols(6);
         newPages = [COLUMNS];
