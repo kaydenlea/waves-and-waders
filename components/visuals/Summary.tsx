@@ -8,7 +8,10 @@ import WindStat from "../general/Stats/WindStat";
 import SurfStat from "../general/Stats/SurfStat";
 
 import { Sunrise, Sunset } from "lucide-react";
-import { BEACH_FEATURE_ICONS, DEFAULT_FEATURE_ICON } from "@/lib/beachFeatureIcons";
+import {
+  BEACH_FEATURE_ICONS,
+  DEFAULT_FEATURE_ICON,
+} from "@/lib/beachFeatureIcons";
 
 import {
   fetchCurrentConditions,
@@ -55,7 +58,12 @@ type SummaryStat =
     }
   | {
       type: "features";
-      tags: { label: string; icon: React.ReactNode; color: string; rank?: number }[];
+      tags: {
+        label: string;
+        icon: React.ReactNode;
+        color: string;
+        rank?: number;
+      }[];
     };
 
 type TidePointValue = { x: number; tide: number };
@@ -141,7 +149,8 @@ const computeTidePeaks = (
 
     const selectedPoint = sorted[selectedIdx];
     const prev = selectedIdx > 0 ? sorted[selectedIdx - 1] : null;
-    const next = selectedIdx < sorted.length - 1 ? sorted[selectedIdx + 1] : null;
+    const next =
+      selectedIdx < sorted.length - 1 ? sorted[selectedIdx + 1] : null;
     const isHigh =
       (!prev || selectedPoint.tide >= prev.tide) &&
       (!next || selectedPoint.tide >= next.tide);
@@ -450,9 +459,16 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
         });
 
         const tideStatPeaks = peaksInWindow.slice(0, 4);
+
+        // fill with placeholders if less than 4 peaks
         if (tideStatPeaks.length < 4) {
+          let peakHighEvens = true;
+          if (tideStatPeaks[0] && tideStatPeaks[0].kind === "low") {
+            peakHighEvens = false;
+          }
           for (let i = 0; i < 4; i++) {
-            const peakType = i % 2 === 0 ? "high" : "low";
+            const peakCheck = peakHighEvens ? i % 2 === 0 : i % 2 !== 0;
+            const peakType = peakCheck ? "high" : "low";
             if (!tideStatPeaks[i]) {
               tideStatPeaks.push({ kind: peakType, time: null, level: null });
             }
@@ -646,7 +662,12 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
                   ? getFeatureDisplayName(key)
                   : key;
               const def = BEACH_FEATURE_ICONS[key] ?? DEFAULT_FEATURE_ICON;
-              tags.push({ label, icon: def.icon, color: def.color, rank: def.rank });
+              tags.push({
+                label,
+                icon: def.icon,
+                color: def.color,
+                rank: def.rank,
+              });
             }
           }
           // Sort tags by rank (lower rank = higher priority)
