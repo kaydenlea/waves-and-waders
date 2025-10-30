@@ -236,7 +236,7 @@ const ForecastBridge: React.FC<Props> = ({ beachId }) => {
           );
         case "tide":
           return (
-            <VisualWrapper label="Tide" unit="ft">
+            <VisualWrapper label="Tide" extraPadding unit="ft">
               <LazyLoadForecastTide
                 beachId={beachId}
                 date={selectedDays?.[0] ?? undefined}

@@ -56,10 +56,12 @@ const VisualWrapper = ({
   children,
   label,
   unit,
+  extraPadding,
 }: {
   children: React.ReactNode;
   label: string;
   unit?: string;
+  extraPadding?: boolean;
 }) => {
   const lowerCaseLabel = label.toLowerCase();
   const iconDef = iconMap[lowerCaseLabel] ?? {
@@ -91,7 +93,12 @@ const VisualWrapper = ({
             </header>
           </div>
         </div>
-        <div className="px-2 py-4 overflow-x-hidden touch-pan-y">
+        <div
+          className={cn(
+            "px-2 py-4 overflow-x-hidden touch-pan-y",
+            extraPadding && "px-4"
+          )}
+        >
           {children}
         </div>
       </div>
