@@ -601,7 +601,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
       </div>
       <ChartContainer
         config={chartConfig}
-        className="@min-md:aspect-auto @min-md:h-[250px] w-full"
+        className="aspect-auto h-[250px] w-full"
       >
         <AreaChart
           accessibilityLayer

@@ -627,7 +627,7 @@ export default function ForecastTideChart({ beachId, date }: Props) {
             config={
               { tide: { label: "Tide", color: "#6e6e6eff" } } as ChartConfig
             }
-            className="@min-md:aspect-auto @min-md:h-[258px] w-full"
+            className="aspect-auto h-[258px] w-full"
           >
             <LineChart
               width={chartInnerWidth}
