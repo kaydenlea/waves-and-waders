@@ -217,7 +217,7 @@ export default function BottomNav() {
         )}
       >
         {atTop && !landingPage ? (
-          <div className="touch-pan-y block @min-4xl:hidden flex justify-center pt-10 pb-4">
+          <div className="touch-pan-y block @min-4xl:hidden flex justify-center mt-10 mb-4">
             <button
               onClick={() => {
                 const content = document.getElementById("content");
@@ -256,7 +256,7 @@ export default function BottomNav() {
           atTop ? (
             <></>
           ) : (
-            <div className="touch-pan-y block @min-4xl:hidden flex justify-center pt-10 pb-4">
+            <div className="touch-pan-y block @min-4xl:hidden flex justify-center mt-10 mb-4">
               <button
                 aria-label="back to top"
                 onClick={() => {

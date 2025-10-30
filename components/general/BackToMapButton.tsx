@@ -26,7 +26,7 @@ export const scrollToMap = () => {
 
 export default function BackToMapButton() {
   return (
-    <div className="touch-pan-y block @min-4xl:hidden flex justify-center pt-10 pb-4">
+    <div className="touch-pan-y block @min-4xl:hidden flex justify-center mt-10 mb-4">
       <button
         aria-label="back to map"
         onClick={scrollToMap}
