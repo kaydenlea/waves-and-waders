@@ -633,7 +633,7 @@ export default function ForecastTideChart({ beachId, date }: Props) {
               width={chartInnerWidth}
               // height={200}
               data={data}
-              margin={{ left: -35, right: 15, bottom: 5, top: 6 }}
+              margin={{ left: -35, right: 0, bottom: 5, top: 6 }}
             >
               {dayAreas.length > 0 &&
                 console.log("🎨 Rendering", dayAreas.length, "day areas")}
