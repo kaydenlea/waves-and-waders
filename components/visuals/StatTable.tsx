@@ -704,7 +704,15 @@ const StatTable = ({
         ];
       } else {
         setVisibleCols(6);
-        newPages = [COLUMNS];
+        const firstPage = [
+          COLUMNS[0],
+          COLUMNS[2],
+          COLUMNS[3],
+          COLUMNS[4],
+          COLUMNS[1],
+        ];
+        const secondPage = COLUMNS.slice(5, COLUMNS.length);
+        newPages = [firstPage.concat(secondPage)];
       }
       setColumnPages((prev) => {
         const prevJson = JSON.stringify(prev);
