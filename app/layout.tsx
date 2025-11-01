@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/ui/theme-provider";
 import { ScrollToTopOnRouteChange } from "@/lib/utils/scrollTop";
 import { getServerSupabase } from "@/lib/supabaseServer";
 import { SupabaseProvider } from "@/components/providers/SupabaseProvider";
+import { QueryProvider } from "@/components/providers/QueryProvider";
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -55,15 +56,17 @@ export default async function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${poppins.variable} font-poppins antialiased`} suppressHydrationWarning>
         <SupabaseProvider initialSession={initialSession}>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
-            <ScrollToTopOnRouteChange />
-            {children}
-          </ThemeProvider>
+          <QueryProvider>
+            <ThemeProvider
+              attribute="class"
+              defaultTheme="system"
+              enableSystem
+              disableTransitionOnChange
+            >
+              <ScrollToTopOnRouteChange />
+              {children}
+            </ThemeProvider>
+          </QueryProvider>
         </SupabaseProvider>
       </body>
     </html>

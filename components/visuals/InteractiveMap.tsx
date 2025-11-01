@@ -21,6 +21,7 @@ import {
   generateBeachUrl,
   extractBeachId,
 } from "@/lib/supabase";
+import { useSwellDirections } from "@/lib/hooks/useBeachData";
 const DEFAULT_MAP_STYLE =
   "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
 const MAP_STYLE_URL =
@@ -676,105 +677,19 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
     };
   }, [selectedDate]);
 
+  // Use React Query hook for swell directions
+  const { swellDirections: fetchedSwellDirections, windDirection: fetchedWindDirection } =
+    useSwellDirections(
+      selected ? String(selected.id) : null,
+      selectedDate,
+      selectedHour
+    );
+
+  // Sync the fetched data to local state (for compatibility with existing code)
   React.useEffect(() => {
-    let cancelled = false;
-
-    const loadSwellDirections = async () => {
-      if (!selected) {
-        setSwellDirections(null);
-        setWindDirection(null);
-        return;
-      }
-
-      try {
-        const { fetchBeachByIdLoose, fetchBeachForecast } = await import(
-          "@/lib/supabase"
-        );
-        const beach = await fetchBeachByIdLoose(String(selected.id));
-        const resolvedId = beach?.id ? String(beach.id) : String(selected.id);
-
-        const now = new Date();
-        let startWindow = now;
-        let endWindow = new Date(now.getTime() + 6 * 60 * 60 * 1000);
-
-        const selectedDateObj =
-          selectedDate instanceof Date
-            ? new Date(selectedDate.getTime())
-            : selectedDate
-            ? new Date(selectedDate)
-            : null;
-
-        if (selectedDateObj && !Number.isNaN(selectedDateObj.getTime())) {
-          selectedDateObj.setHours(0, 0, 0, 0);
-          startWindow = selectedDateObj;
-          endWindow = new Date(selectedDateObj.getTime() + 24 * 60 * 60 * 1000);
-        }
-
-        const forecast = await fetchBeachForecast(
-          resolvedId,
-          startWindow,
-          endWindow
-        );
-
-        let baseRow =
-          Array.isArray(forecast) && forecast.length ? forecast[0] : null;
-
-        if (Array.isArray(forecast) && forecast.length > 0) {
-          const normalizedHour = (h: number) => ((h % 24) + 24) % 24;
-          const targetHour = (() => {
-            if (typeof selectedHour === "number")
-              return normalizedHour(selectedHour);
-            if (selectedDateObj) return 12;
-            return normalizedHour(now.getHours());
-          })();
-
-          let best = forecast[0];
-          let bestDiff = Number.POSITIVE_INFINITY;
-          for (const row of forecast) {
-            const rowHour = normalizedHour(new Date(row.timestamp).getHours());
-            let diff = Math.abs(rowHour - targetHour);
-            if (diff > 12) diff = 24 - diff;
-            if (diff < bestDiff) {
-              bestDiff = diff;
-              best = row;
-            }
-          }
-          baseRow = best;
-        }
-
-        if (!cancelled) {
-          if (baseRow?.swell) {
-            setSwellDirections({
-              primary: baseRow.swell.primary?.direction ?? null,
-              secondary: baseRow.swell.secondary?.direction ?? null,
-              tertiary: baseRow.swell.tertiary?.direction ?? null,
-            });
-          } else {
-            setSwellDirections(null);
-          }
-
-          // Fetch wind direction
-          if (baseRow?.conditions?.windDirection != null) {
-            setWindDirection(baseRow.conditions.windDirection);
-          } else {
-            setWindDirection(null);
-          }
-        }
-      } catch (err) {
-        console.error("Failed to load swell directions for map", err);
-        if (!cancelled) {
-          setSwellDirections(null);
-          setWindDirection(null);
-        }
-      }
-    };
-
-    loadSwellDirections();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [selected, selectedDate, selectedHour]);
+    setSwellDirections(fetchedSwellDirections);
+    setWindDirection(fetchedWindDirection);
+  }, [fetchedSwellDirections, fetchedWindDirection]);
 
   React.useEffect(() => {
     if (typeof window === "undefined") {

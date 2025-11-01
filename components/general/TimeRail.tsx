@@ -1,11 +1,12 @@
 "use client";
 
-import React from "react";
+import React, { useMemo, startTransition } from "react";
 import { Calendar, Clock } from "lucide-react";
 import { useDateContext } from "../context/DateContext";
 import { useMapFilters } from "../context/MapFilterContext";
 import { LazyLoadDatePicker } from "./LazyLoad/LazyLoadDatePicker";
 import { LazyLoadHourSlider } from "./LazyLoad/LazyLoadHourSlider";
+import { debounce } from "@/lib/utils/debounce";
 
 type Props = {
   beachId: string;
@@ -21,15 +22,36 @@ const TimeRail: React.FC<Props> = ({
   const { selected, setSelected, hour, setHour } = useDateContext();
   const { setSelectedDate, setSelectedHour } = useMapFilters();
 
+  // Debounce only the expensive data-fetching state update
+  const debouncedSetSelectedHour = useMemo(
+    () =>
+      debounce((newHour: number) => {
+        startTransition(() => {
+          setSelectedHour(newHour);
+        });
+      }, 150),
+    [setSelectedHour]
+  );
+
+  // Handler that updates UI immediately but debounces data fetching
+  const handleHourChange = (newHour: number) => {
+    // Immediate UI update (no lag)
+    setHour(newHour);
+    // Debounced data fetching
+    debouncedSetSelectedHour(newHour);
+  };
+
   const onNow = () => {
     const now = new Date();
     const dateOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const currentHour = now.getHours();
     const rounded = Math.max(0, Math.min(21, Math.round(currentHour / 3) * 3));
-    setSelected(dateOnly);
-    setSelectedDate(dateOnly);
-    setHour(rounded);
-    setSelectedHour(rounded);
+    startTransition(() => {
+      setSelected(dateOnly);
+      setSelectedDate(dateOnly);
+      setHour(rounded);
+      setSelectedHour(rounded);
+    });
   };
 
   const railPad = size === "lg" ? "py-3 @min-4xl:py-3" : "py-2";
@@ -90,7 +112,7 @@ const TimeRail: React.FC<Props> = ({
 
       <LazyLoadHourSlider
         value={hour}
-        onChange={setHour}
+        onChange={handleHourChange}
         min={0}
         max={21}
         step={3}

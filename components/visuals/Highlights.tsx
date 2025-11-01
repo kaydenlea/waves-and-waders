@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import SwellStat from "../general/Stats/SwellStat";
 
@@ -291,13 +291,16 @@ const HighlightCard = ({
 };
 
 import {
-  fetchCurrentConditions,
-  fetchDailyConditions,
-  fetchBeachForecast,
-  fetchBeachByIdLoose,
   getWindDirection,
-  fetchBeachTides,
 } from "@/lib/supabase";
+import {
+  useBeachForecast,
+  useCurrentConditions,
+  useBeachTides,
+  useDailyConditions,
+  useBeachById,
+  usePrefetchAdjacentHours,
+} from "@/lib/hooks/useBeachData";
 
 type Stat =
   | {
@@ -338,201 +341,197 @@ const Highlights = ({
   endIdx?: number;
   isFull?: boolean;
 }) => {
-  const [stats, setStats] = useState<Stat[]>([
-    {
+  // Calculate time windows
+  const { startWindow, endWindow } = useMemo(() => {
+    const now = new Date();
+    let start = now;
+    let end = new Date(now.getTime() + 6 * 60 * 60 * 1000);
+    if (date instanceof Date) {
+      const d = new Date(date);
+      d.setHours(0, 0, 0, 0);
+      start = d;
+      end = new Date(d.getTime() + 24 * 60 * 60 * 1000);
+    }
+    return { startWindow: start, endWindow: end };
+  }, [date]);
+
+  // Fetch beach data
+  const { data: beach } = useBeachById(beachId ?? null);
+  const resolvedId = beach?.id ?? beachId;
+
+  // Fetch all data with React Query
+  const { data: current } = useCurrentConditions(resolvedId ?? null);
+  const { data: forecast = [] } = useBeachForecast(
+    resolvedId ?? null,
+    startWindow,
+    endWindow
+  );
+  const { data: tides = [] } = useBeachTides(
+    resolvedId ?? null,
+    startWindow,
+    endWindow
+  );
+
+  const county = beach?.COUNTY ?? null;
+  const { data: daily } = useDailyConditions(
+    county,
+    date instanceof Date ? date : undefined
+  );
+
+  // Prefetch adjacent hours
+  usePrefetchAdjacentHours(resolvedId ?? null, date ?? null, hour ?? 0);
+
+  // Memoize expensive calculations
+  const baseRow = useMemo(() => {
+    if (!Array.isArray(forecast) || !forecast.length) return forecast[0];
+
+    if (typeof hour === "number") {
+      // Snap to nearest 3-hour slot and find the closest row
+      const targetHour = (((Math.round(hour / 3) * 3) % 24) + 24) % 24;
+      return forecast.reduce((best, r) => {
+        const h = new Date(r.timestamp).getHours();
+        const diff = Math.abs(h - targetHour);
+        const bestH = new Date(best.timestamp).getHours();
+        const bestDiff = Math.abs(bestH - targetHour);
+        return diff < bestDiff ? r : best;
+      }, forecast[0]);
+    } else if (date) {
+      // if date selected but no hour, prefer midday-ish row
+      return forecast[Math.min(12, forecast.length - 1)];
+    }
+
+    return forecast[0];
+  }, [forecast, hour, date]);
+
+  const stats = useMemo(() => {
+    if (!forecast.length) {
+      // Return default stats if no data
+      return [
+        {
+          label: "weather" as const,
+          weather: { temp: 64, condition: "sun" },
+        },
+        {
+          label: "swell" as const,
+          primary: { height: 2.1, period: 7, wind: { dir: "W", deg: 272 } },
+          secondary: [
+            { height: 2.1, period: 7, wind: { dir: "W", deg: 272 } },
+            { height: 2.1, period: 7, wind: { dir: "W", deg: 272 } },
+          ] as [{ height: number; period: number; wind: { dir: string; deg: number } }, { height: number; period: number; wind: { dir: string; deg: number } }],
+        },
+        { label: "water" as const, temp: 60 },
+        { label: "tide" as const, tide: { value: "2-3", unit: "ft" } },
+        { label: "wind" as const, wind: { speed: 12, max: 17 } },
+        { label: "moon" as const, phase: "Waning Crescent" },
+        { label: "pressure" as const, pressure: { value: 29.9, unit: "in" } },
+        { label: "energy" as const, energy: { value: 278, unit: "kJ" } },
+      ];
+    }
+
+    const nextStats: Stat[] = [];
+    // weather air temp: if a date is selected, prefer forecast row; else use current
+    const base = date ? baseRow : current ?? baseRow;
+    nextStats.push({
       label: "weather",
-      weather: { temp: 64, condition: "sun" },
-    },
-    {
-      label: "swell",
-      primary: { height: 2.1, period: 7, wind: { dir: "W", deg: 272 } },
-      secondary: [
-        { height: 2.1, period: 7, wind: { dir: "W", deg: 272 } },
-        { height: 2.1, period: 7, wind: { dir: "W", deg: 272 } },
-      ],
-    },
-    { label: "water", temp: 60 },
-    { label: "tide", tide: { value: "2-3", unit: "ft" } },
-    { label: "wind", wind: { speed: 12, max: 17 } },
-    { label: "moon", phase: "Waning Cresent" },
-    { label: "pressure", pressure: { value: 29.9, unit: "in" } },
-    { label: "energy", energy: { value: 278, unit: "kJ" } },
-  ]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const load = async () => {
-      try {
-        if (!beachId) return;
-        const beach = await fetchBeachByIdLoose(beachId);
-        const resolvedId = beach?.id ?? beachId;
-        // window: if date chosen, use that whole local day; else next 6 hours
-        const now = new Date();
-        let startWindow = now;
-        let endWindow = new Date(now.getTime() + 6 * 60 * 60 * 1000);
-        if (date instanceof Date) {
-          const d = new Date(date);
-          d.setHours(0, 0, 0, 0);
-          startWindow = d;
-          endWindow = new Date(d.getTime() + 24 * 60 * 60 * 1000);
-        }
-        // data sources
-        const [current, forecast, tides] = await Promise.all([
-          fetchCurrentConditions(resolvedId),
-          fetchBeachForecast(resolvedId, startWindow, endWindow),
-          fetchBeachTides(resolvedId, startWindow, endWindow),
-        ]);
-        const county = beach?.COUNTY ?? null;
-        const daily = county
-          ? await fetchDailyConditions(
-              county,
-              date instanceof Date ? date : undefined
-            )
-          : null;
-        const first = forecast[0];
-        // Choose a base row aligned to selected hour when provided
-        let baseRow = first;
-        if (Array.isArray(forecast) && forecast.length) {
-          if (typeof hour === "number") {
-            // Snap to nearest 3-hour slot and find the closest row
-            const targetHour = (((Math.round(hour / 3) * 3) % 24) + 24) % 24;
-            let best = forecast[0];
-            let bestDiff = 1e9;
-            for (const r of forecast) {
-              const h = new Date(r.timestamp).getHours();
-              const diff = Math.abs(h - targetHour);
-              if (diff < bestDiff) {
-                bestDiff = diff;
-                best = r;
-              }
-            }
-            baseRow = best;
-          } else if (date) {
-            // if date selected but no hour, prefer midday-ish row
-            baseRow = forecast[Math.min(12, forecast.length - 1)];
-          }
-        }
-
-        const nextStats: Stat[] = [];
-        // weather air temp: if a date is selected, prefer forecast row; else use current
-        const base = date ? baseRow : current ?? baseRow;
-        nextStats.push({
-          label: "weather",
-          weather: {
-            temp: Math.round(base?.conditions.airTemp ?? 0),
-            condition: "sun",
-            code: base?.conditions.weather ?? null,
+      weather: {
+        temp: Math.round(base?.conditions.airTemp ?? 0),
+        condition: "sun",
+        code: base?.conditions.weather ?? null,
+      },
+    });
+    // swell primary/secondary
+    if (baseRow) {
+      const pDir = baseRow.swell.primary.direction ?? 0;
+      const sDir = baseRow.swell.secondary.direction ?? 0;
+      const tDir = baseRow.swell.tertiary?.direction ?? 0;
+      nextStats.push({
+        label: "swell",
+        primary: {
+          height: Number((baseRow.swell.primary.height ?? 0).toFixed(1)),
+          period: Math.round(baseRow.swell.primary.period ?? 0),
+          wind: { dir: getWindDirection(pDir), deg: pDir },
+        },
+        secondary: [
+          {
+            height: Number(
+              (baseRow.swell.secondary.height ?? 0).toFixed(1)
+            ),
+            period: Math.round(baseRow.swell.secondary.period ?? 0),
+            wind: { dir: getWindDirection(sDir), deg: sDir },
           },
-        });
-        // swell primary/secondary
-        if (baseRow) {
-          const pDir = baseRow.swell.primary.direction ?? 0;
-          const sDir = baseRow.swell.secondary.direction ?? 0;
-          const tDir = baseRow.swell.tertiary?.direction ?? 0;
-          nextStats.push({
-            label: "swell",
-            primary: {
-              height: Number((baseRow.swell.primary.height ?? 0).toFixed(1)),
-              period: Math.round(baseRow.swell.primary.period ?? 0),
-              wind: { dir: getWindDirection(pDir), deg: pDir },
-            },
-            secondary: [
-              {
-                height: Number(
-                  (baseRow.swell.secondary.height ?? 0).toFixed(1)
-                ),
-                period: Math.round(baseRow.swell.secondary.period ?? 0),
-                wind: { dir: getWindDirection(sDir), deg: sDir },
-              },
-              {
-                height: Number(
-                  (baseRow.swell.tertiary?.height ?? 0).toFixed(1)
-                ),
-                period: Math.round(baseRow.swell.tertiary?.period ?? 0),
-                wind: { dir: getWindDirection(tDir), deg: tDir },
-              },
-            ],
-          });
-        }
-        // water temp
-        nextStats.push({
-          label: "water",
-          temp: Math.round(base?.conditions.waterTemp ?? 0),
-        });
-        // tide - find the tide data point closest to the selected time
-        let tideValue = 0;
-        if (tides && tides.length > 0) {
-          // Get the target timestamp from baseRow or use current time
-          const targetTime = baseRow?.timestamp
-            ? new Date(baseRow.timestamp).getTime()
-            : now.getTime();
-
-          // Find the closest tide data point
-          let closestTide = tides[0];
-          let minDiff = Math.abs(
-            new Date(tides[0].timestamp).getTime() - targetTime
-          );
-
-          for (const tide of tides) {
-            const diff = Math.abs(
-              new Date(tide.timestamp).getTime() - targetTime
-            );
-            if (diff < minDiff) {
-              minDiff = diff;
-              closestTide = tide;
-            }
-          }
-
-          tideValue = closestTide.tideLevelFt ?? 0;
-        }
-
-        nextStats.push({
-          label: "tide",
-          tide: {
-            value: Number(tideValue.toFixed(1)),
-            unit: "ft",
+          {
+            height: Number(
+              (baseRow.swell.tertiary?.height ?? 0).toFixed(1)
+            ),
+            period: Math.round(baseRow.swell.tertiary?.period ?? 0),
+            wind: { dir: getWindDirection(tDir), deg: tDir },
           },
-        });
-        // wind
-        nextStats.push({
-          label: "wind",
-          wind: {
-            speed: Math.round(base?.conditions.windSpeed ?? 0),
-            max: Math.round(base?.conditions.windGust ?? 0),
-          },
-        });
-        // moon
-        if (daily?.moon_phase != null) {
-          nextStats.push({ label: "moon", phase: (daily as any).moon_phase });
-        }
-        // pressure
-        nextStats.push({
-          label: "pressure",
-          pressure: {
-            value: Number((base?.conditions.pressure ?? 0).toFixed(2)),
-            unit: "in",
-          },
-        });
-        // energy
-        nextStats.push({
-          label: "energy",
-          energy: { value: Math.round(base?.surf.waveEnergy ?? 0), unit: "kJ" },
-        });
+        ],
+      });
+    }
+    // water temp
+    nextStats.push({
+      label: "water",
+      temp: Math.round(base?.conditions.waterTemp ?? 0),
+    });
+    // tide - find the tide data point closest to the selected time
+    let tideValue = 0;
+    if (tides && tides.length > 0) {
+      // Get the target timestamp from baseRow or use current time
+      const now = new Date();
+      const targetTime = baseRow?.timestamp
+        ? new Date(baseRow.timestamp).getTime()
+        : now.getTime();
 
-        if (!cancelled) {
-          setStats(nextStats);
-        }
-      } catch (e) {
-        console.error("Failed to load highlights", e);
-      }
-    };
-    void load();
+      // Find the closest tide data point
+      const closestTide = tides.reduce((closest, tide) => {
+        const diff = Math.abs(
+          new Date(tide.timestamp).getTime() - targetTime
+        );
+        const closestDiff = Math.abs(
+          new Date(closest.timestamp).getTime() - targetTime
+        );
+        return diff < closestDiff ? tide : closest;
+      }, tides[0]);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [beachId, date, hour]);
+      tideValue = closestTide.tideLevelFt ?? 0;
+    }
+
+    nextStats.push({
+      label: "tide",
+      tide: {
+        value: Number(tideValue.toFixed(1)),
+        unit: "ft",
+      },
+    });
+    // wind
+    nextStats.push({
+      label: "wind",
+      wind: {
+        speed: Math.round(base?.conditions.windSpeed ?? 0),
+        max: Math.round(base?.conditions.windGust ?? 0),
+      },
+    });
+    // moon
+    if (daily?.moon_phase != null) {
+      nextStats.push({ label: "moon", phase: (daily as any).moon_phase });
+    }
+    // pressure
+    nextStats.push({
+      label: "pressure",
+      pressure: {
+        value: Number((base?.conditions.pressure ?? 0).toFixed(2)),
+        unit: "in",
+      },
+    });
+    // energy
+    nextStats.push({
+      label: "energy",
+      energy: { value: Math.round(base?.surf.waveEnergy ?? 0), unit: "kJ" },
+    });
+
+    return nextStats;
+  }, [forecast, baseRow, current, date, tides, daily]);
 
   return (
     <div className="w-full max-w-7xl mx-auto">
