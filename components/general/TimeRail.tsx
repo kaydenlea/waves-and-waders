@@ -1,11 +1,13 @@
 "use client";
 
-import React from "react";
+import React, { useMemo, startTransition, useState, useEffect } from "react";
 import { Calendar, Clock } from "lucide-react";
 import { useDateContext } from "../context/DateContext";
 import { useMapFilters } from "../context/MapFilterContext";
 import { LazyLoadDatePicker } from "./LazyLoad/LazyLoadDatePicker";
 import { LazyLoadHourSlider } from "./LazyLoad/LazyLoadHourSlider";
+import { debounce } from "@/lib/utils/debounce";
+import { cn } from "@/lib/utils";
 
 type Props = {
   beachId: string;
@@ -20,16 +22,48 @@ const TimeRail: React.FC<Props> = ({
 }) => {
   const { selected, setSelected, hour, setHour } = useDateContext();
   const { setSelectedDate, setSelectedHour } = useMapFilters();
+  const [hourChanged, setHourChanged] = useState(false);
+
+  // Debounce only the expensive data-fetching state update
+  const debouncedSetSelectedHour = useMemo(
+    () =>
+      debounce((newHour: number) => {
+        startTransition(() => {
+          setSelectedHour(newHour);
+        });
+      }, 150),
+    [setSelectedHour]
+  );
+
+  // Handler that updates UI immediately but debounces data fetching
+  const handleHourChange = (newHour: number) => {
+    // Immediate UI update (no lag)
+    setHour(newHour);
+    // Trigger visual feedback
+    setHourChanged(true);
+    // Debounced data fetching
+    debouncedSetSelectedHour(newHour);
+  };
+
+  // Reset animation after it completes
+  useEffect(() => {
+    if (hourChanged) {
+      const timeout = setTimeout(() => setHourChanged(false), 600);
+      return () => clearTimeout(timeout);
+    }
+  }, [hourChanged]);
 
   const onNow = () => {
     const now = new Date();
     const dateOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const currentHour = now.getHours();
     const rounded = Math.max(0, Math.min(21, Math.round(currentHour / 3) * 3));
-    setSelected(dateOnly);
-    setSelectedDate(dateOnly);
-    setHour(rounded);
-    setSelectedHour(rounded);
+    startTransition(() => {
+      setSelected(dateOnly);
+      setSelectedDate(dateOnly);
+      setHour(rounded);
+      setSelectedHour(rounded);
+    });
   };
 
   const railPad = size === "lg" ? "py-3 @min-4xl:py-3" : "py-2";
@@ -77,7 +111,13 @@ const TimeRail: React.FC<Props> = ({
           <span className="hidden @min-md:inline-block">Now</span>
         </button>
         <span
-          className={`text-xs @min-lg:text-sm font-medium dark:text-foreground text-muted-foreground text-center ${labelWidth} inline-block`}
+          className={cn(
+            "text-xs @min-lg:text-sm font-medium text-center inline-block transition-all duration-300",
+            labelWidth,
+            hourChanged
+              ? "scale-110 text-blue-500 dark:text-blue-400 font-semibold"
+              : "dark:text-foreground text-muted-foreground scale-100"
+          )}
         >
           {(() => {
             const v = hour;
@@ -90,7 +130,7 @@ const TimeRail: React.FC<Props> = ({
 
       <LazyLoadHourSlider
         value={hour}
-        onChange={setHour}
+        onChange={handleHourChange}
         min={0}
         max={21}
         step={3}

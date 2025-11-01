@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef } from "react";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 
@@ -27,6 +27,7 @@ const HourSlider = ({
     return Math.round(constrainedHour / step) * step;
   });
 
+  const [isSliding, setIsSliding] = useState(false);
   const hour = controlled ?? internal;
   const displayValue = hour % 12 === 0 ? 12 : hour % 12;
   const ampm = hour >= 12 && hour < 24 ? "PM" : "AM";
@@ -88,9 +89,14 @@ const HourSlider = ({
         step={step}
         value={sliderValue}
         onValueChange={handleChange}
+        onPointerDown={() => setIsSliding(true)}
+        onPointerUp={() => setIsSliding(false)}
         className="z-1"
         trackClassName="h-2 border border-border/50"
-        rangeClassName="transition-colors duration-300"
+        rangeClassName={cn(
+          "transition-colors",
+          isSliding ? "duration-0" : "duration-300"
+        )}
         thumbClassName="size-5 bg-white dark:bg-slate-900 border-2 border-slate-800 dark:border-white shadow-md"
         trackStyle={{ background: trackGradient }}
         rangeStyle={{ background: rangeTint }}

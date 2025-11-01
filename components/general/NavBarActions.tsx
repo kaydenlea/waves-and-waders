@@ -21,6 +21,11 @@ const NavBarActions = () => {
   const { setIsOverlay } = useSearchContext();
   const { selectedTab } = useClientPath();
 
+  // Note: In NavBarActions, we only update the DateContext hour
+  // The MapFilterContext syncing happens elsewhere (e.g., DateSummaryBridge)
+  // So we can just update setHour immediately without debouncing here
+  // since the expensive operations are already handled by React Query caching
+
   if (homePage || beachesPage) {
     return (
       <SearchBar

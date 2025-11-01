@@ -37,6 +37,8 @@ type SummaryStat =
       type: "temperature";
       waterTemp?: number;
       airTemp?: number;
+      airTempHigh?: number;
+      airTempLow?: number;
       waterTempPercent?: number;
       airTempPercent?: number;
       weatherCode?: number | null;
@@ -218,6 +220,8 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
       type: "temperature",
       waterTemp: 0,
       airTemp: 0,
+      airTempHigh: undefined,
+      airTempLow: undefined,
       waterTempPercent: undefined,
       airTempPercent: undefined,
       weatherCode: undefined,
@@ -594,6 +598,10 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
           avgWaterTemp != null ? Math.round(avgWaterTemp) : undefined;
         const airTemp = avgAirTemp != null ? Math.round(avgAirTemp) : undefined;
 
+        // Calculate high and low temperatures for the day
+        const airTempHigh = airTemps.length > 0 ? Math.round(Math.max(...airTemps)) : undefined;
+        const airTempLow = airTemps.length > 0 ? Math.round(Math.min(...airTemps)) : undefined;
+
         // Calculate most occurring weather code for the day
         const weatherCodes = forecast
           .map((row) => row?.conditions?.weather)
@@ -623,6 +631,8 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
             type: "temperature",
             waterTemp,
             airTemp,
+            airTempHigh,
+            airTempLow,
             waterTempPercent:
               waterTemp != null
                 ? clampIntensity(waterTemp, TEMP_CAP)
@@ -770,11 +780,17 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
     (stat): stat is Extract<SummaryStat, { type: "tide" }> =>
       stat.type === "tide"
   );
+  const tempStat = stats.find(
+    (stat): stat is Extract<SummaryStat, { type: "temperature" }> =>
+      stat.type === "temperature"
+  );
 
   // Generate dynamic overview text based on conditions
   const getOverviewText = () => {
     const surfHeight = surfStat?.surf?.height || "N/A";
     const windSpeed = windStat?.wind?.speed;
+    const airTempHigh = tempStat?.airTempHigh;
+    const airTempLow = tempStat?.airTempLow;
 
     // Determine surf condition
     let surfCondition = "calm";
@@ -816,6 +832,13 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
       }
     } else {
       sentence += ` Wind conditions unavailable.`;
+    }
+
+    // Add temperature information
+    if (airTempHigh != null && airTempLow != null) {
+      sentence += ` Temperatures will range from ${airTempLow}°F to ${airTempHigh}°F.`;
+    } else if (airTempHigh != null) {
+      sentence += ` Expect highs around ${airTempHigh}°F.`;
     }
 
     return sentence;
@@ -968,11 +991,11 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
       {/* Overview card */}
       <li
         className={cn(
-          "highlight-card shadow-even flex flex-col gap-3 xl:gap-0 overflow-hidden col-span-2",
+          "highlight-card shadow-even flex flex-col gap-3 xl:gap-0 overflow-hidden col-span-2 min-h-35",
           getOverviewText().includes("- ft") && "animate-pulse"
         )}
       >
-        <div className="flex items-top justify-between">
+        <div className="flex items-top justify-between flex-shrink-0">
           <h3 className="highlight-title bg-highlight-5 h-1/2 flex items-center px-2 py-1 rounded-xl">
             SUMMARY
           </h3>
@@ -999,8 +1022,8 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
             </span>
           </div>
         </div>
-        <div className="flex-1 flex items-center gap-1 mt-2 justify-center">
-          <p className="text-center text-base">{getOverviewText()}</p>
+        <div className="flex-1 flex items-center gap-1 mt-2 justify-center min-h-0">
+          <p className="text-center text-sm leading-snug">{getOverviewText()}</p>
         </div>
       </li>
       {stats.map((stat) => {

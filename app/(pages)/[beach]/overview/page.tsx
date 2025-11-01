@@ -1,6 +1,5 @@
 import DateSummaryBridge from "@/components/general/DateSummaryBridge";
-import PageTabs from "@/components/general/PageTabs";
-
+import SaveButton from "@/components/general/SaveButton";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { fetchBeachByIdLoose, extractBeachId } from "@/lib/supabase";
@@ -10,7 +9,6 @@ import NavBar from "@/components/general/NavBar";
 import { LazyLoadMap } from "@/components/general/LazyLoad/LazyLoadMap";
 import PathStyleWrapper from "@/components/general/PathStyleWrapper";
 import Footer from "@/components/general/Footer";
-import BeachContent from "@/components/general/BeachContent";
 
 export const metadata: Metadata = {
   title: "Surf Daily Forecast | Waves and Waders",
@@ -73,23 +71,26 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
               id="content"
               className="relative w-full flex flex-col gap-6 p-2 pb-0 scroll-mt-30"
             >
-              <PageTabs
-                // defaultPage="overview"
-                beach={beach}
-                tabs={["overview", "forecast"]}
-                beachId={beachId}
-                isFavorite={isFav}
-                overviewPage
-              />
-              <h1 className="font-semibold text-4xl tracking-tight w-full @min-3xl:w-[calc(100%-400px)]">
-                {beachName}
-              </h1>
+              <div className="flex items-center gap-3">
+                <h1 className="font-semibold text-4xl tracking-tight w-full">
+                  {beachName}
+                </h1>
+                <SaveButton
+                  beachId={beachId}
+                  initialIsFav={isFav}
+                  className="ml-auto shrink-0"
+                />
+              </div>
             </header>
 
             {/* Time controls are now in the top NavBar (desktop + mobile). */}
 
             {/* <BeachContent beachId={beachId} /> */}
-            <DateSummaryBridge beachId={beachId} />
+            <DateSummaryBridge
+              beachId={beachId}
+              beachParam={beach}
+              isFavorite={isFav}
+            />
           </div>
         </PathStyleWrapper>
       </main>
