@@ -703,10 +703,10 @@ export default function ForecastTideChart({ beachId, date }: Props) {
                 fontSize={11}
                 domain={[
                   (dataMin: number) =>
-                    Number.isFinite(dataMin) ? Math.floor(dataMin) - 1 : 0,
+                    Number.isFinite(dataMin) ? Math.floor(dataMin) - 4 : 0,
                   (dataMax: number) =>
                     Number.isFinite(dataMax)
-                      ? Math.max(Math.ceil(dataMax) + 2, 8)
+                      ? Math.max(Math.ceil(dataMax) + 4, 8)
                       : 8,
                 ]}
               />

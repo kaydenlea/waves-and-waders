@@ -51,7 +51,7 @@ const SwellStat = ({
   return (
     <div
       className={cn(
-        "grid grid-cols-[35px_30px_20px_1fr] @min-sm:grid-cols-[45px_35px_20px_1fr] @min-2xl:grid-cols-[40px_35px_20px_1fr] @min-4xl:grid-cols-[45px_35px_20px_1fr] items-center @min-sm:-my-0.5",
+        "grid grid-cols-[35px_30px_20px_1fr] @min-sm:grid-cols-[45px_35px_20px_1fr] @min-2xl:grid-cols-[40px_35px_20px_1fr] @min-4xl:grid-cols-[45px_38px_20px_1fr] items-center @min-sm:-my-0.5",
         isFull && "@min-6xl:grid-cols-[35px_32px_20px_1fr] @min-6xl:my-0",
         // primary ? "border border-border shadow-sm rounded-md px-1" : "mx-3",
         primary && !isFull && ""
@@ -68,7 +68,7 @@ const SwellStat = ({
               key={stat.label}
               style={{ transform: `rotate(${arrowRotation}deg)` }}
               className={cn(
-                primary ? "fill-muted-foreground -ml-[7px]" : "-ml-1"
+                primary ? "fill-muted-foreground -ml-[5px]" : "-ml-1"
               )}
             />
           );
