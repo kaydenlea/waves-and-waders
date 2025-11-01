@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import FocusMapButton from "./FocusMapButton";
 import SaveButton from "./SaveButton";
 import { useMapFilters } from "../context/MapFilterContext";
-import { ArrowLeftFromLine, Map, MapPinned, Pencil } from "lucide-react";
+import { ArrowLeftFromLine, MapPinned, Pencil } from "lucide-react";
 import { motion } from "motion/react";
 import { useClientPath } from "../context/PathContext";
 
@@ -23,6 +23,8 @@ type PageTabsProps = {
   forecastPage?: boolean;
   overviewPage?: boolean;
   loggedIn?: boolean;
+  className?: string;
+  placement?: "default" | "inline";
 };
 
 const PageTabs = ({
@@ -36,6 +38,8 @@ const PageTabs = ({
   forecastPage = false,
   overviewPage = false,
   loggedIn = false,
+  className,
+  placement = "default",
 }: PageTabsProps) => {
   const router = useRouter();
   const [favorite, setFavorite] = useState(isFavorite);
@@ -86,16 +90,20 @@ const PageTabs = ({
     setFavorite(isFavorite);
   }, [isFavorite]);
 
-  const showSaveButton = Boolean(buttons && beachId);
+  const showSaveButton = Boolean(buttons && beachId && placement === "default");
 
   return (
     <div
       ref={tabsRef}
       className={cn(
-        "mx-auto flex gap-1 @min-sm:gap-2 w-full justify-center",
-        beachPage
-          ? "@min-xl:absolute @min-xl:right-0 @min-xl:justify-end"
-          : "@min-3xl:absolute @min-3xl:right-0 @min-3xl:justify-end"
+        placement === "inline"
+          ? "flex w-full flex-wrap items-center gap-1 @min-sm:gap-2 justify-start @min-lg:ml-auto @min-lg:justify-end @min-lg:w-auto"
+          : "mx-auto flex gap-1 @min-sm:gap-2 w-full justify-center",
+        placement === "default" &&
+          (beachPage
+            ? "@min-xl:absolute @min-xl:right-0 @min-xl:justify-end"
+            : "@min-3xl:absolute @min-3xl:right-0 @min-3xl:justify-end"),
+        className
       )}
     >
       {buttons && (

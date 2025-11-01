@@ -40,6 +40,7 @@ import {
   MapPin,
   Minimize2,
   MapPinned,
+  Compass,
 } from "lucide-react";
 import { useMapFilters } from "../context/MapFilterContext";
 import {
@@ -230,6 +231,8 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
   } = useMapFilters();
   const [located, setLocated] = React.useState<boolean>(false);
   const [showFilters, setShowFilters] = React.useState<boolean>(false);
+  const [showCardinalLabels, setShowCardinalLabels] =
+    React.useState<boolean>(false);
   const [surfIntensity, setSurfIntensity] = React.useState<
     Record<string | number, number>
   >({});
@@ -281,26 +284,14 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
         }
         centerRafRef.current = requestAnimationFrame(() => {
           try {
-            // Use a tiny symmetric bounds around the target so the resulting camera
-            // centers precisely on the target across all screen sizes.
-            const pt = mapInstance.project([target.longitude, target.latitude]);
-            const epsilon = 1; // px box half-size
-            const sw = mapInstance.unproject([pt.x - epsilon, pt.y + epsilon]);
-            const ne = mapInstance.unproject([pt.x + epsilon, pt.y - epsilon]);
-            if (typeof mapInstance.fitBounds === "function") {
-              mapInstance.fitBounds([sw, ne], {
-                duration,
-                linear: true,
-                maxZoom: zoomLevel,
-                padding: 0,
-              });
-            } else {
-              mapInstance.easeTo({
-                center: [target.longitude, target.latitude],
-                zoom: zoomLevel,
-                duration,
-              });
-            }
+            // Always use easeTo for smooth, direct transitions
+            // This pans and zooms smoothly from current position to target
+            // without any intermediate zoom-out effects
+            mapInstance.easeTo({
+              center: [target.longitude, target.latitude],
+              zoom: zoomLevel,
+              duration,
+            });
             setZoom(zoomLevel);
           } catch {}
           centerRafRef.current = null;
@@ -1476,24 +1467,11 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
             longitude: (feature.geometry as any).coordinates[0],
             latitude: (feature.geometry as any).coordinates[1],
           };
-          // Don't clear swellDirections - let the useEffect update it for the new beach
-          // popupId.current = null;
-          // setPopupData(null);
-          // setPopupInfo(null);
 
-          // if (map && popupId.current && popupRef) {
-          //   console.log("ENTER SAME");
-          //   map.setFeatureState(
-          //     { source: "beaches", id: mapToId[popupId.current].id },
-          //     { hover: false }
-          //   );
-          //   setPopupData(null);
-          //   setPopupInfo(null);
-          //   popupId.current = null;
-          //   popupRef.current = null;
-          // }
           console.log("ENTER CLICK SELECTED BEACH 1");
           setSelected(point);
+
+          // Always navigate to the clicked beach
           const destination = `${generateBeachUrl(
             point.name,
             point.id
@@ -1642,7 +1620,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
               filter={["!has", "point_count"] as any}
               layout={{
                 "text-field": ["get", "name"],
-                "text-offset": [0, 1.5],
+                "text-offset": [0, 1.8],
                 "text-size": 10,
                 "text-anchor": "top",
               }}
@@ -1675,6 +1653,44 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
 
             const scale = zoom >= 14 ? 1 : zoom / 14;
             const ringSize = 160 * scale;
+            const outerRadius =
+              (typeof windDirection === "number" ? 96 : 76) * scale;
+            const labelDistance = outerRadius + 18 * scale;
+            const centerOffset = ringSize / 2;
+            const cardinalLabels = [
+              {
+                id: "N" as const,
+                style: {
+                  top: `${centerOffset - labelDistance}px`,
+                  left: `${centerOffset}px`,
+                  transform: "translate(-50%, -50%)",
+                },
+              },
+              {
+                id: "S" as const,
+                style: {
+                  top: `${centerOffset + labelDistance}px`,
+                  left: `${centerOffset}px`,
+                  transform: "translate(-50%, -50%)",
+                },
+              },
+              {
+                id: "E" as const,
+                style: {
+                  top: `${centerOffset}px`,
+                  left: `${centerOffset + labelDistance}px`,
+                  transform: "translate(-50%, -50%)",
+                },
+              },
+              {
+                id: "W" as const,
+                style: {
+                  top: `${centerOffset}px`,
+                  left: `${centerOffset - labelDistance}px`,
+                  transform: "translate(-50%, -50%)",
+                },
+              },
+            ];
 
             return (
               <Marker
@@ -1683,7 +1699,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
                 anchor="center"
               >
                 <div className="pointer-events-none relative flex flex-col items-center justify-center overflow-visible">
-                  <div className="absolute -top-14 bg-background rounded-lg border border-border px-3 py-1.5 shadow-lg whitespace-nowrap">
+                  <div className="absolute -top-20 bg-background rounded-lg border border-border px-3 py-1.5 shadow-lg whitespace-nowrap z-10">
                     <span className="text-sm font-semibold text-foreground antialiased">
                       {selected.name}
                     </span>
@@ -1692,6 +1708,19 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
                     className="relative flex items-center justify-center"
                     style={{ width: ringSize, height: ringSize }}
                   >
+                    {showCardinalLabels && (
+                      <div className="pointer-events-none absolute inset-0">
+                        {cardinalLabels.map(({ id, style }) => (
+                          <span
+                            key={id}
+                            className="absolute rounded-sm px-1.5 py-[1px] text-[10px] font-semibold uppercase tracking-wide text-slate-800 dark:text-slate-100 bg-white/85 dark:bg-slate-900/80 shadow-sm select-none"
+                            style={style}
+                          >
+                            {id}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                     <SwellRings
                       directions={{
                         primary: swellDirections.primary,
@@ -1922,6 +1951,17 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
                 <MapPin className="w-5 h-5 mx-auto" />
               </button>
             )}
+            <button
+              type="button"
+              aria-label={`${showCardinalLabels ? "Hide" : "Show"} compass labels`}
+              onClick={() => setShowCardinalLabels((prev) => !prev)}
+              className={cn(
+                "bg-background hover:bg-blue-200 dark:hover:bg-blue-400 rounded-full border border-border shadow-lg p-3 text-sm font-medium flex items-center gap-2 active:scale-95 transition",
+                showCardinalLabels && "bg-blue-300 dark:bg-blue-500/80"
+              )}
+            >
+              <Compass className="w-5 h-5 mx-auto" />
+            </button>
             {fullMapPage && (
               <button
                 type="button"

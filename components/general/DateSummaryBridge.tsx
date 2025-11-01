@@ -16,8 +16,6 @@ import { LazyLoadSurf } from "@/components/general/LazyLoad/LazyLoadSurf";
 import { LazyLoadHourSlider } from "@/components/general/LazyLoad/LazyLoadHourSlider";
 import { LazyLoadTable } from "@/components/general/LazyLoad/LazyLoadTable";
 import { LazyLoadEnergy } from "@/components/general/LazyLoad/LazyLoadEnergy";
-import Link from "next/link";
-import { Pencil } from "lucide-react";
 import {
   getDashboardStorageKey,
   getDefaultLayout,
@@ -33,13 +31,24 @@ import { useDateContext } from "../context/DateContext";
 import { useClientPath } from "../context/PathContext";
 import { ForecastChartProvider } from "../context/ForecastChartContext";
 import ForecastBridge from "./ForecastBridge";
+import PageTabs from "./PageTabs";
 
-type Props = { beachId: string };
+type Props = {
+  beachId: string;
+  beachParam?: string;
+  isFavorite?: boolean;
+};
 
-const DateSummaryBridge: React.FC<Props> = ({ beachId }) => {
+const DateSummaryBridge: React.FC<Props> = ({
+  beachId,
+  beachParam,
+  isFavorite = false,
+}) => {
   const { id, selected, setSelected, hour, setHour } = useDateContext();
   id.current = beachId;
   const { selectedTab } = useClientPath();
+  const isOverview =
+    selectedTab === "overview" || selectedTab === "" || selectedTab == null;
   const [mounted, setMounted] = React.useState(false);
   const [currentTime, setCurrentTime] = React.useState<string>("");
   const overviewDefaults = React.useMemo(
@@ -52,6 +61,7 @@ const DateSummaryBridge: React.FC<Props> = ({ beachId }) => {
   const [layoutRows, setLayoutRows] = React.useState<Row[]>(
     () => overviewDefaults.rows
   );
+  const [forecastWindow, setForecastWindow] = React.useState("Select range");
   const storageMetaKey = React.useMemo(
     () => getDashboardStorageKey("overview", "meta"),
     []
@@ -91,6 +101,54 @@ const DateSummaryBridge: React.FC<Props> = ({ beachId }) => {
     }, 60000);
     return () => clearInterval(interval);
   }, [mounted]);
+
+  // Format the data hour label and determine if showing current, past, or forecast data
+  const { label, timeDisplay } = React.useMemo(() => {
+    if (!currentTime) return { label: "Stats", timeDisplay: "--" };
+
+    const now = new Date();
+
+    // Get the nearest 3-hour interval for the selected hour
+    const dataHour = hour ?? now.getHours();
+    const nearestHour = Math.round(dataHour / 3) * 3;
+
+    // Format data hour as 12-hour time
+    const displayHour = nearestHour % 12 === 0 ? 12 : nearestHour % 12;
+    const ampm = nearestHour >= 12 ? "PM" : "AM";
+
+    // Check if we're showing current, past, or future data
+    const currentNearestHour = Math.round(now.getHours() / 3) * 3;
+
+    // Check if selected date is today
+    const isToday = selected &&
+      selected.getDate() === now.getDate() &&
+      selected.getMonth() === now.getMonth() &&
+      selected.getFullYear() === now.getFullYear();
+
+    // Create date objects for comparison
+    const selectedDateTime = selected ? new Date(selected) : now;
+    selectedDateTime.setHours(nearestHour, 0, 0, 0);
+
+    const currentDateTime = new Date(now);
+    currentDateTime.setHours(currentNearestHour, 0, 0, 0);
+
+    // Determine label based on time relationship
+    let labelText = "Stats";
+    if (isToday && nearestHour === currentNearestHour) {
+      labelText = "Current Conditions";
+    } else if (selectedDateTime < currentDateTime) {
+      labelText = "Historical Data";
+    } else {
+      labelText = "Forecast";
+    }
+
+    // Always show current time + data hour
+    // Use compact format to prevent wrapping on mobile
+    return {
+      label: labelText,
+      timeDisplay: `${currentTime} • ${displayHour} ${ampm}`,
+    };
+  }, [currentTime, hour, selected]);
 
   // Ensure a default selected date on mount (today) to keep map marker styling correct
   React.useEffect(() => {
@@ -194,7 +252,7 @@ const DateSummaryBridge: React.FC<Props> = ({ beachId }) => {
       switch (id) {
         case "stats":
           return (
-            <VisualWrapper label="Current" unit={currentTime || "--"}>
+            <VisualWrapper label={label} unit={timeDisplay}>
               <Highlights
                 beachId={beachId}
                 date={selected ?? undefined}
@@ -250,8 +308,15 @@ const DateSummaryBridge: React.FC<Props> = ({ beachId }) => {
           return null;
       }
     },
-    [beachId, selected, hour, currentTime]
+    [beachId, selected, hour, label, timeDisplay]
   );
+
+  const sectionId = isOverview ? "overview-content" : "forecast-content";
+  const showOverviewCopy = isOverview;
+  const headerTitle = isOverview ? "Daily Overview" : "Weekly Forecast";
+  const headerSubtitle = isOverview
+    ? "An insight into the forecast of any day"
+    : forecastWindow;
 
   return (
     <>
@@ -271,29 +336,25 @@ const DateSummaryBridge: React.FC<Props> = ({ beachId }) => {
         {/* <LazyLoadSummary beachId={beachId} date={selected ?? undefined} /> */}
       </section>
 
-      {/* Main overview section */}
-      {selectedTab === "overview" ? (
-        <section
-          id="overview-content"
-          className="flex flex-col gap-1 w-full scroll-mt-35"
-        >
-          <header className="mx-2 flex gap-5 justify-between">
-            <div>
-              <h2 className="text-3xl font-semibold">Daily Overview</h2>
-              <p className="text-sm text-muted-foreground">
-                An insight into the forecast of any day
-              </p>
-            </div>
-            {/* <Link
-            href={`/${beachId}/overview/edit#overview-content`}
-            className="flex justify-center text-sm gap-1 h-10 px-3 items-center border border-border bg-highlight-4 rounded-full drop-shadow-sm hover:bg-highlight-3"
-          >
-            <Pencil size={16} />
-            Edit
-          </Link> */}
-          </header>
+      <section id={sectionId} className="flex flex-col gap-1 w-full scroll-mt-35">
+        <header className="mx-2 flex flex-col gap-3 @min-lg:flex-row @min-lg:items-end @min-lg:justify-between">
+          <div className="space-y-1">
+            <h2 className="text-3xl font-semibold">{headerTitle}</h2>
+            <p className="text-sm text-muted-foreground">{headerSubtitle}</p>
+          </div>
+          <PageTabs
+            beach={beachParam}
+            beachId={beachId}
+            tabs={["overview", "forecast"]}
+            isFavorite={isFavorite}
+            overviewPage
+            forecastPage={selectedTab === "forecast"}
+            placement="inline"
+          />
+        </header>
 
-          {visibleRows.length === 0 ? (
+        {isOverview ? (
+          visibleRows.length === 0 ? (
             <p className="mx-2 mt-6 text-sm text-muted-foreground">
               All widgets are hidden. Use the edit screen to enable widgets.
             </p>
@@ -304,9 +365,6 @@ const DateSummaryBridge: React.FC<Props> = ({ beachId }) => {
               );
               if (!visibleItems.length) return null;
               const spacing = index === 0 ? "mt-4" : "mt-3";
-              // const isFull =
-              //   visibleItems.length === 1 &&
-              //   (layoutMeta[visibleItems[0]]?.span ?? "half") === "full";
               const isFull = visibleItems.length === 1;
               if (isFull) {
                 const content = renderWidget(visibleItems[0], isFull);
@@ -331,13 +389,19 @@ const DateSummaryBridge: React.FC<Props> = ({ beachId }) => {
                 </div>
               );
             })
-          )}
-        </section>
-      ) : (
-        <ForecastChartProvider>
-          <ForecastBridge beachId={beachId} />
-        </ForecastChartProvider>
-      )}
+          )
+        ) : (
+          <div className="mt-4">
+            <ForecastChartProvider>
+              <ForecastBridge
+                beachId={beachId}
+                hideHeader
+                onWindowStringChange={setForecastWindow}
+              />
+            </ForecastChartProvider>
+          </div>
+        )}
+      </section>
     </>
   );
 };

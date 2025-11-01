@@ -34,14 +34,22 @@ import {
 
 // ------------------------------------------------------
 
-type Props = { beachId: string };
+type Props = {
+  beachId: string;
+  hideHeader?: boolean;
+  onWindowStringChange?: (value: string) => void;
+};
 
 /**
  * Note: This component intentionally avoids reading any client-only API
  * or client-only context during the server render, to prevent hydration mismatches.
  * It uses `isMounted` and initializes visible state in useEffect (client-only).
  */
-const ForecastBridge: React.FC<Props> = ({ beachId }) => {
+const ForecastBridge: React.FC<Props> = ({
+  beachId,
+  hideHeader = false,
+  onWindowStringChange,
+}) => {
   // local selected date (kept for the DatePicker's controlled value)
   // const [selected, setSelected] = useState<Date | null>(dayjs().toDate());
 
@@ -208,8 +216,12 @@ const ForecastBridge: React.FC<Props> = ({ beachId }) => {
         timeZone: "America/Los_Angeles",
       }
     );
-    return `${windowStart} - ${windowEnd}`;
+    return `${windowStart} – ${windowEnd}`;
   }, [isMounted, selectedDays]);
+
+  useEffect(() => {
+    onWindowStringChange?.(windowString);
+  }, [windowString, onWindowStringChange]);
 
   const visibleRows = useMemo(
     () =>
@@ -313,19 +325,21 @@ const ForecastBridge: React.FC<Props> = ({ beachId }) => {
         // className="sticky top-[var(--nav-height,60px)] z-60"
         // aria-label="Date picker region"
       >
-        <header className="mx-2 flex gap-5 justify-between">
-          <div>
-            <h2 className="text-3xl font-semibold">Weekly Forecast</h2>
-            <p className="text-sm text-muted-foreground">{windowString}</p>
-          </div>
-          {/* <Link
+        {!hideHeader && (
+          <header className="mx-2 flex gap-5 justify-between">
+            <div>
+              <h2 className="text-3xl font-semibold">Weekly Forecast</h2>
+              <p className="text-sm text-muted-foreground">{windowString}</p>
+            </div>
+            {/* <Link
             href={`/${beachId}/overview/edit#overview-content`}
             className="flex justify-center text-sm gap-1 h-10 px-3 items-center border border-border bg-highlight-4 rounded-full drop-shadow-sm hover:bg-highlight-3"
           >
             <Pencil size={16} />
             Edit
           </Link> */}
-        </header>
+          </header>
+        )}
         {/* <h2 className="ml-2 mb-0 text-muted-foreground text-lg">
           {windowString}
         </h2> */}
