@@ -9,6 +9,7 @@ import {
   AreaChart,
   Area,
 } from "recharts";
+import { getPacificMidnightUTC, getPacificHour } from "@/lib/utils";
 import {
   ChartConfig,
   ChartContainer,
@@ -96,15 +97,13 @@ const SwellChart = ({ beachId, hours = 24, date }: Props) => {
         let start = new Date();
         let end = new Date(start.getTime() + hours * 60 * 60 * 1000);
         if (date instanceof Date) {
-          const d = new Date(date);
-          d.setHours(0, 0, 0, 0);
-          start = d;
-          end = new Date(d.getTime() + hours * 60 * 60 * 1000);
+          start = getPacificMidnightUTC(date);
+          end = new Date(start.getTime() + hours * 60 * 60 * 1000);
         }
         const rows = await fetchBeachForecast(id, start, end);
         const series = rows.map((r, i) => ({
           time:
-            i === rows.length - 1 ? hours : new Date(r.timestamp).getHours(),
+            i === rows.length - 1 ? hours : getPacificHour(r.timestamp),
           primary: Number((r.swell.primary.height ?? 0).toFixed(1)),
           secondary: Number((r.swell.secondary.height ?? 0).toFixed(1)),
           tertiary: Number((r.swell.tertiary?.height ?? 0).toFixed(1)),

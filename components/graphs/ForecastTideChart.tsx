@@ -314,13 +314,31 @@ export default function ForecastTideChart({ beachId, date }: Props) {
         const id = resolved?.id ?? beachId;
 
         const startInput = date instanceof Date ? new Date(date) : new Date();
-        const startLocal = new Date(
-          startInput.toLocaleString("en-US", {
-            timeZone: "America/Los_Angeles",
-          })
-        );
-        startLocal.setHours(0, 0, 0, 0);
-        const startMs = startLocal.getTime();
+
+        // Get midnight in Pacific timezone (DST-aware)
+        const formatter = new Intl.DateTimeFormat("en-US", {
+          timeZone: "America/Los_Angeles",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        });
+        const parts = formatter.formatToParts(startInput);
+        const year = parseInt(parts.find((p) => p.type === "year")?.value || "0");
+        const month = parseInt(parts.find((p) => p.type === "month")?.value || "1") - 1;
+        const day = parseInt(parts.find((p) => p.type === "day")?.value || "1");
+
+        // Calculate UTC timestamp for Pacific midnight using offset at noon (avoids DST edge cases)
+        const noonUTC = Date.UTC(year, month, day, 12, 0, 0, 0);
+        const noonDate = new Date(noonUTC);
+        const noonFormatter = new Intl.DateTimeFormat("en-US", {
+          timeZone: "America/Los_Angeles",
+          hour: "2-digit",
+          hour12: false,
+        });
+        const pacificNoonHour = parseInt(noonFormatter.format(noonDate));
+        const offsetHours = pacificNoonHour - 12;
+
+        const startMs = Date.UTC(year, month, day, -offsetHours, 0, 0, 0);
         const fetchHours = FETCH_DAYS * HOURS_PER_DAY;
         const end = new Date(startMs + fetchHours * 60 * 60 * 1000);
         console.log("WINDOW WINDOW WINDOW", new Date(startMs), end);
