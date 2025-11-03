@@ -50,20 +50,32 @@ const PageTabs = ({
   const tabsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const tabs = tabsRef.current;
-    if (!tabs) return;
-
     const adjustScreenSize = () => {
-      const width = window.innerWidth;
-      setIsDesktop(width >= 911);
+      if (typeof window === "undefined") return;
+      setIsDesktop(window.innerWidth >= 911);
     };
-
-    const observer = new ResizeObserver(adjustScreenSize);
-    observer.observe(tabs);
 
     adjustScreenSize();
 
-    return () => observer.disconnect();
+    const handleWindowResize = () => adjustScreenSize();
+    window.addEventListener("resize", handleWindowResize);
+
+    const tabs = tabsRef.current;
+    const observer =
+      tabs != null
+        ? new ResizeObserver(() => {
+            adjustScreenSize();
+          })
+        : null;
+
+    if (tabs && observer) {
+      observer.observe(tabs);
+    }
+
+    return () => {
+      window.removeEventListener("resize", handleWindowResize);
+      observer?.disconnect();
+    };
   }, []);
 
   useEffect(() => {
@@ -97,7 +109,7 @@ const PageTabs = ({
       ref={tabsRef}
       className={cn(
         placement === "inline"
-          ? "flex w-full flex-wrap items-center gap-1 @min-sm:gap-2 justify-start @min-lg:ml-auto @min-lg:justify-end @min-lg:w-auto"
+          ? "flex w-full flex-wrap items-center gap-1 @min-sm:gap-2 justify-center @min-xl:ml-auto @min-xl:justify-end @min-xl:w-auto"
           : "mx-auto flex gap-1 @min-sm:gap-2 w-full justify-center",
         placement === "default" &&
           (beachPage

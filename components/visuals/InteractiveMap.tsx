@@ -669,12 +669,14 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
   }, [selectedDate]);
 
   // Use React Query hook for swell directions
-  const { swellDirections: fetchedSwellDirections, windDirection: fetchedWindDirection } =
-    useSwellDirections(
-      selected ? String(selected.id) : null,
-      selectedDate,
-      selectedHour
-    );
+  const {
+    swellDirections: fetchedSwellDirections,
+    windDirection: fetchedWindDirection,
+  } = useSwellDirections(
+    selected ? String(selected.id) : null,
+    selectedDate,
+    selectedHour
+  );
 
   // Sync the fetched data to local state (for compatibility with existing code)
   React.useEffect(() => {
@@ -1699,7 +1701,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
                 anchor="center"
               >
                 <div className="pointer-events-none relative flex flex-col items-center justify-center overflow-visible">
-                  <div className="absolute -top-20 bg-background rounded-lg border border-border px-3 py-1.5 shadow-lg whitespace-nowrap z-10">
+                  <div className="absolute -top-22 bg-background rounded-lg border border-border px-3 py-1.5 shadow-lg whitespace-nowrap z-10">
                     <span className="text-sm font-semibold text-foreground antialiased">
                       {selected.name}
                     </span>
@@ -1713,7 +1715,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
                         {cardinalLabels.map(({ id, style }) => (
                           <span
                             key={id}
-                            className="absolute rounded-sm px-1.5 py-[1px] text-[10px] font-semibold uppercase tracking-wide text-slate-800 dark:text-slate-100 bg-white/85 dark:bg-slate-900/80 shadow-sm select-none"
+                            className="absolute rounded-sm px-1.5 py-[1px] text-[11px] font-extrabold uppercase tracking-wide text-slate-800 dark:text-slate-100 bg-white/85 dark:bg-slate-900/80 shadow-even select-none"
                             style={style}
                           >
                             {id}
@@ -1951,17 +1953,21 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
                 <MapPin className="w-5 h-5 mx-auto" />
               </button>
             )}
-            <button
-              type="button"
-              aria-label={`${showCardinalLabels ? "Hide" : "Show"} compass labels`}
-              onClick={() => setShowCardinalLabels((prev) => !prev)}
-              className={cn(
-                "bg-background hover:bg-blue-200 dark:hover:bg-blue-400 rounded-full border border-border shadow-lg p-3 text-sm font-medium flex items-center gap-2 active:scale-95 transition",
-                showCardinalLabels && "bg-blue-300 dark:bg-blue-500/80"
-              )}
-            >
-              <Compass className="w-5 h-5 mx-auto" />
-            </button>
+            {fullMapPage && (
+              <button
+                type="button"
+                aria-label={`${
+                  showCardinalLabels ? "Hide" : "Show"
+                } compass labels`}
+                onClick={() => setShowCardinalLabels((prev) => !prev)}
+                className={cn(
+                  "bg-background hover:bg-blue-200 dark:hover:bg-blue-400 rounded-full border border-border shadow-lg p-3 text-sm font-medium flex items-center gap-2 active:scale-95 transition",
+                  showCardinalLabels && "bg-blue-300"
+                )}
+              >
+                <Compass className="w-5 h-5 mx-auto" />
+              </button>
+            )}
             {fullMapPage && (
               <button
                 type="button"
@@ -2253,7 +2259,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
             background: transparent;
           }
 
-          @media (max-width: 911px) {
+          @media (max-width: 910px) {
             .maplibregl-ctrl-attrib {
               bottom: 60px;
             }

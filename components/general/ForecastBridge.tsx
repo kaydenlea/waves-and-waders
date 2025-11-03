@@ -252,6 +252,7 @@ const ForecastBridge: React.FC<Props> = ({
               <LazyLoadForecastTide
                 beachId={beachId}
                 date={selectedDays?.[0] ?? undefined}
+                days={selectedDays}
               />
             </VisualWrapper>
           );

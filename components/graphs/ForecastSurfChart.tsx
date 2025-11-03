@@ -10,6 +10,7 @@ import {
   YAxis,
   LabelProps,
   ReferenceArea,
+  ReferenceLine,
 } from "recharts";
 import {
   ChartConfig,
@@ -221,7 +222,37 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
     if (startDayIdx === -1) startDayIdx = 0; // Fallback if not found
   }
 
-  const visibleData = source.slice(startDayIdx, startDayIdx + windowSize);
+  const visibleData = React.useMemo(
+    () => source.slice(startDayIdx, startDayIdx + windowSize),
+    [source, startDayIdx, windowSize]
+  );
+  const indexedData = React.useMemo(
+    () =>
+      visibleData.map((entry, idx) => ({
+        ...entry,
+        __index: idx,
+      })),
+    [visibleData]
+  );
+  const daySeparators = React.useMemo(() => {
+    if (indexedData.length < 2) return [];
+    return indexedData.slice(1).map((entry) => entry.__index - 0.5);
+  }, [indexedData]);
+  const separatorDomain = React.useMemo<[number, number]>(() => {
+    if (!indexedData.length) return [0, 1];
+    return [-0.5, indexedData.length - 0.5];
+  }, [indexedData.length]);
+  const windowDays =
+    Array.isArray(days) && days.length > 0
+      ? days.map((d) =>
+          d.toLocaleDateString("en-US", {
+            weekday: "short",
+            month: "numeric",
+            day: "numeric",
+            timeZone: "America/Los_Angeles",
+          })
+        )
+      : null;
   // const fmt = (ms: number) =>
   //   new Date(ms).toLocaleDateString("en-US", {
   //     weekday: "short",
@@ -240,35 +271,79 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
   // }, [visibleData, setDaysLabel]);
 
   const showSlider = windowSize > 0 && windowSize < length;
-  console.log("COMPARISON", windowSize, length, visibleData.length);
   return (
     <>
       {/* {showSlider && <DaySlider />} */}
+      <div
+        className="w-[calc(100%-30px)] flex justify-between"
+        style={{
+          position: "relative",
+          zIndex: 40,
+          // right: 15,
+          left: 25,
+          top: 0,
+          // gap: 8,
+          // paddingLeft: 8,
+          // paddingRight: 8,
+          boxSizing: "border-box",
+          pointerEvents: "none",
+        }}
+      >
+        {windowDays?.map((label, idx) => (
+          <div
+            key={idx}
+            className=""
+            style={{
+              flex: 1,
+              minWidth: 0,
+              textAlign: "center",
+              // background: "linear-gradient(180deg,#f8fafc,#eef2ff)",
+              borderRadius: 8,
+              padding: "6px 6px",
+              // boxShadow: "0 1px 0 rgba(0,0,0,0.04)",
+              // border: "1px solid rgba(0,0,0,0.06)",
+              fontWeight: 700,
+              fontSize: 13,
+              color: "var(--foreground)",
+              pointerEvents: "none",
+            }}
+          >
+            {/* <div className="flex flex-col @min-sm:whitespace-nowrap max-w-15 mx-auto p-1 pt-1.5 rounded-xl bg-highlight-5">
+              <span className="text-xs font-medium">{label.split(",")[1]}</span>
+              <span className="text-sm font-bold">{label.split(",")[0]}</span>
+            </div> */}
+            <div className="flex flex-col @min-sm:whitespace-nowrap mx-auto p-1 pt-1.5 rounded-lg bg-highlight-5">
+              <span className="text-xs font-medium">{label.split(",")[1]}</span>
+              <span className="text-sm font-bold">{label.split(",")[0]}</span>
+            </div>
+          </div>
+        ))}
+      </div>
       <ChartContainer
         ref={chartRef}
         config={chartConfig}
-        className="aspect-auto h-[250px] w-full"
+        className="aspect-auto h-[235px] w-full"
       >
         <BarChart
           margin={{
             top: 5,
             right: 0,
             left: -38,
-            bottom: 50,
+            bottom: 10,
           }}
           syncId="barId"
           accessibilityLayer
-          data={visibleData}
+          data={indexedData}
         >
-          <ReferenceArea x1={0} x2={1} fill="#ccc1ffff" fillOpacity={0.2} />
+          {/* <ReferenceArea x1={0} x2={1} fill="#ccc1ffff" fillOpacity={0.2} />
           <ReferenceArea x1={2} x2={5} fill="#FFE58F" fillOpacity={0.2} />
-          <ReferenceArea x1={6} x2={6} fill="#ccc1ffff" fillOpacity={0.2} />
-          <CartesianGrid
+          <ReferenceArea x1={6} x2={6} fill="#ccc1ffff" fillOpacity={0.2} /> */}
+          {/* <CartesianGrid
             strokeDasharray="3 3"
             stroke="var(--foreground)"
             strokeWidth={0.1}
             vertical={false}
-          />
+          /> */}
           <XAxis
             dataKey="day"
             orientation="bottom"
@@ -285,8 +360,8 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                 typeof props.payload.offset === "number"
                   ? props.payload.offset
                   : 0;
-              // Use visibleData[safeIdx] for accurate lookup instead of searching by weekday name
-              const dayData = visibleData[safeIdx];
+              // Use indexedData[safeIdx] for accurate lookup instead of searching by weekday name
+              const dayData = indexedData[safeIdx];
               const minSurf = dayData
                 ? Math.min(dayData.tide1, dayData.tide2, dayData.tide3)
                 : 0;
@@ -304,11 +379,11 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                     x={safeX - safeOffset + 4}
                     y={safeY - 15}
                     width={safeOffset * 2 - 10}
-                    height={24}
+                    height={26}
                     fill="var(--blue)"
-                    stroke="#cacacaff"
-                    strokeWidth={0.3}
-                    rx={4}
+                    // stroke="#cacacaff"
+                    // strokeWidth={0.3}
+                    rx={6}
                   />
                   <text
                     x={safeX}
@@ -320,7 +395,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                   >
                     {`${surfVal} ft`}
                   </text>
-                  <rect
+                  {/* <rect
                     x={safeX - safeOffset + 4}
                     y={safeY - 15 + 25}
                     width={safeOffset * 2 - 10}
@@ -329,7 +404,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                     stroke="#cacacaff"
                     strokeWidth={0.3}
                     rx={4}
-                  />
+                  /> */}
                   {/* <text
                     x={safeX}
                     y={safeY + 25}
@@ -339,7 +414,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                   >
                     8/10
                   </text> */}
-                  <text
+                  {/* <text
                     x={safeX}
                     y={safeY + 25}
                     textAnchor="middle"
@@ -348,7 +423,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                     fontWeight={500}
                   >
                     {props.payload.value.split(",")[1] ?? "N/A"}
-                  </text>
+                  </text> */}
                 </g>
               );
             }}
@@ -374,6 +449,25 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
             tickMargin={10}
             axisLine={false}
           />
+          <XAxis
+            xAxisId="separator"
+            type="number"
+            dataKey="__index"
+            hide
+            domain={separatorDomain}
+            allowDecimals={false}
+          />
+          {daySeparators.map((position, idx) => (
+            <ReferenceLine
+              key={`day-divider-${idx}`}
+              xAxisId="separator"
+              x={position}
+              stroke="var(--muted-foreground)"
+              strokeWidth={0.25}
+              // strokeDasharray="4 3"
+              ifOverflow="extendDomain"
+            />
+          ))}
           <YAxis
             allowDecimals={false}
             tickLine={false}

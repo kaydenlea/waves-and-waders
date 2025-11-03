@@ -120,7 +120,8 @@ const DateSummaryBridge: React.FC<Props> = ({
     const currentNearestHour = Math.round(now.getHours() / 3) * 3;
 
     // Check if selected date is today
-    const isToday = selected &&
+    const isToday =
+      selected &&
       selected.getDate() === now.getDate() &&
       selected.getMonth() === now.getMonth() &&
       selected.getFullYear() === now.getFullYear();
@@ -135,9 +136,9 @@ const DateSummaryBridge: React.FC<Props> = ({
     // Determine label based on time relationship
     let labelText = "Stats";
     if (isToday && nearestHour === currentNearestHour) {
-      labelText = "Current Conditions";
+      labelText = "Current";
     } else if (selectedDateTime < currentDateTime) {
-      labelText = "Historical Data";
+      labelText = "Historical";
     } else {
       labelText = "Forecast";
     }
@@ -154,7 +155,11 @@ const DateSummaryBridge: React.FC<Props> = ({
   React.useEffect(() => {
     if (!selected) {
       const now = new Date();
-      const dateOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const dateOnly = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate()
+      );
       setSelected(dateOnly);
       setSelectedDate(dateOnly);
     }
@@ -314,13 +319,10 @@ const DateSummaryBridge: React.FC<Props> = ({
   const sectionId = isOverview ? "overview-content" : "forecast-content";
   const showOverviewCopy = isOverview;
   const headerTitle = isOverview ? "Daily Overview" : "Weekly Forecast";
-  const headerSubtitle = isOverview
-    ? "An insight into the forecast of any day"
-    : forecastWindow;
+  const headerSubtitle = isOverview ? "Today's surf insights" : forecastWindow;
 
   return (
     <>
-      
       {/* Summary header */}
       <section className="mb-8">
         <h2 className="mb-4 ml-2 text-muted-foreground text-lg">
@@ -336,11 +338,14 @@ const DateSummaryBridge: React.FC<Props> = ({
         {/* <LazyLoadSummary beachId={beachId} date={selected ?? undefined} /> */}
       </section>
 
-      <section id={sectionId} className="flex flex-col gap-1 w-full scroll-mt-35">
-        <header className="mx-2 flex flex-col gap-3 @min-lg:flex-row @min-lg:items-end @min-lg:justify-between">
-          <div className="space-y-1">
+      <section
+        id={sectionId}
+        className="mt-15 flex flex-col gap-1 w-full scroll-mt-35"
+      >
+        <header className="mx-2 flex flex-col gap-3 @min-xl:flex-row @min-xl:items-start @min-xl:justify-between">
+          <div className="space-y-0">
             <h2 className="text-3xl font-semibold">{headerTitle}</h2>
-            <p className="text-sm text-muted-foreground">{headerSubtitle}</p>
+            <p className="text-base text-muted-foreground">{headerSubtitle}</p>
           </div>
           <PageTabs
             beach={beachParam}
@@ -391,7 +396,7 @@ const DateSummaryBridge: React.FC<Props> = ({
             })
           )
         ) : (
-          <div className="mt-4">
+          <div>
             <ForecastChartProvider>
               <ForecastBridge
                 beachId={beachId}

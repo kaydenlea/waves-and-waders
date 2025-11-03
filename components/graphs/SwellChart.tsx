@@ -224,12 +224,12 @@ const SwellChart = ({ beachId, hours = 24, date }: Props) => {
             fillOpacity={0.2}
           />
         ))}
-        <CartesianGrid
+        {/* <CartesianGrid
           strokeDasharray="3 3"
           stroke="var(--foreground)"
           strokeWidth={0.1}
           vertical={false}
-        />
+        /> */}
         <XAxis
           dataKey="time"
           domain={[0, hours]}

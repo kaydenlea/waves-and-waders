@@ -9,7 +9,7 @@ import {
   LabelList,
   YAxis,
   LabelProps,
-  ReferenceArea,
+  ReferenceLine,
 } from "recharts";
 import {
   ChartConfig,
@@ -21,71 +21,36 @@ import DaySlider from "../general/DaySlider";
 
 import { MousePointer2 as ArrowIcon } from "lucide-react";
 
-const chartData = [
-  {
-    day: "Mon",
-    wind1: 2,
-    wind1Dir: (2 * 15) % 360,
-    wind2: 4,
-    wind2Dir: (4 * 15) % 360,
-    wind3: 1,
-    wind3Dir: (1 * 15) % 360,
-  },
-  {
-    day: "Tues",
-    wind1: 2,
-    wind1Dir: (2 * 15) % 360,
-    wind2: 4,
-    wind2Dir: (4 * 15) % 360,
-    wind3: 1,
-    wind3Dir: (1 * 15) % 360,
-  },
-  {
-    day: "Wed",
-    wind1: 2,
-    wind1Dir: (2 * 15) % 360,
-    wind2: 4,
-    wind2Dir: (4 * 15) % 360,
-    wind3: 1,
-    wind3Dir: (1 * 15) % 360,
-  },
-  {
-    day: "Thurs",
-    wind1: 2,
-    wind1Dir: (2 * 15) % 360,
-    wind2: 4,
-    wind2Dir: (4 * 15) % 360,
-    wind3: 1,
-    wind3Dir: (1 * 15) % 360,
-  },
-  {
-    day: "Fri",
-    wind1: 2,
-    wind1Dir: (2 * 15) % 360,
-    wind2: 4,
-    wind2Dir: (4 * 15) % 360,
-    wind3: 1,
-    wind3Dir: (1 * 15) % 360,
-  },
-  {
-    day: "Sat",
-    wind1: 2,
-    wind1Dir: (2 * 15) % 360,
-    wind2: 4,
-    wind2Dir: (4 * 15) % 360,
-    wind3: 1,
-    wind3Dir: (1 * 15) % 360,
-  },
-  {
-    day: "Sun",
-    wind1: 2,
-    wind1Dir: (2 * 15) % 360,
-    wind2: 4,
-    wind2Dir: (4 * 15) % 360,
-    wind3: 1,
-    wind3Dir: (1 * 15) % 360,
-  },
-];
+type WindDay = {
+  day: string;
+  dateMs: number;
+  wind1: number;
+  wind1Dir: number;
+  wind2: number;
+  wind2Dir: number;
+  wind3: number;
+  wind3Dir: number;
+};
+
+type IndexedWindDay = WindDay & { __index: number };
+
+const fallbackStart = new Date();
+fallbackStart.setHours(0, 0, 0, 0);
+const fallbackDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const chartData: WindDay[] = fallbackDays.map((label, idx) => {
+  const dateMs = fallbackStart.getTime() + idx * 24 * 60 * 60 * 1000;
+  const base = (idx % 3) + 2;
+  return {
+    day: label,
+    dateMs,
+    wind1: base,
+    wind1Dir: (base * 40) % 360,
+    wind2: base + 2,
+    wind2Dir: ((base + 2) * 35) % 360,
+    wind3: base - 1,
+    wind3Dir: ((base - 1) * 45) % 360,
+  };
+});
 const chartConfig = {
   wind1: {
     label: "6 AM",
@@ -119,18 +84,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
     setLength,
     setDaysLabel,
   } = useForecastChartContext();
-  const [data, setData] = React.useState<
-    {
-      day: string;
-      dateMs: number;
-      wind1: number;
-      wind1Dir: number;
-      wind2: number;
-      wind2Dir: number;
-      wind3: number;
-      wind3Dir: number;
-    }[]
-  >([]);
+  const [data, setData] = React.useState<WindDay[]>([]);
 
   const chartRef = React.useRef<HTMLDivElement>(null);
 
@@ -219,17 +173,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
           arr.push(r);
           byDay.set(key, arr);
         }
-        console.log("BYDAY", byDay);
-        const out: {
-          day: string;
-          dateMs: number;
-          wind1: number;
-          wind1Dir: number;
-          wind2: number;
-          wind2Dir: number;
-          wind3: number;
-          wind3Dir: number;
-        }[] = [];
+        const out: WindDay[] = [];
         for (const [day, arr] of byDay.entries()) {
           // sort by hour
           arr.sort(
@@ -316,7 +260,70 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
         });
   const startDayIdxRaw = source.findIndex((entry) => entry.day === startDay);
   const startDayIdx = startDayIdxRaw >= 0 ? startDayIdxRaw : 0;
-  const visibleData = source.slice(startDayIdx, startDayIdx + windowSize);
+  const visibleData = React.useMemo(
+    () => source.slice(startDayIdx, startDayIdx + windowSize),
+    [source, startDayIdx, windowSize]
+  );
+  const indexedData = React.useMemo<IndexedWindDay[]>(
+    () =>
+      visibleData.map((entry, idx) => ({
+        ...entry,
+        __index: idx,
+      })),
+    [visibleData]
+  );
+  const daySeparators = React.useMemo(() => {
+    if (indexedData.length < 2) return [];
+    return indexedData.slice(1).map((entry) => entry.__index - 0.5);
+  }, [indexedData]);
+  const xAxisDomain = React.useMemo<[number, number]>(() => {
+    if (!indexedData.length) return [0, 1];
+    return [-0.5, indexedData.length - 0.5];
+  }, [indexedData.length]);
+  const renderTick = React.useCallback(
+    (props: any): React.ReactElement<SVGElement> => {
+      const safeX = typeof props.x === "number" ? props.x : 0;
+      const safeY = typeof props.y === "number" ? props.y : 0;
+      const safeIdx = typeof props.index === "number" ? props.index : 0;
+      const safeOffset =
+        typeof props.payload?.offset === "number" ? props.payload.offset : 0;
+      const dayData = indexedData[safeIdx];
+      if (!dayData) {
+        return <g />;
+      }
+      const minWind = Math.min(dayData.wind1, dayData.wind2, dayData.wind3);
+      const maxWind = Math.max(dayData.wind1, dayData.wind2, dayData.wind3);
+      const windVal =
+        minWind === maxWind ? `${minWind}` : `${minWind}-${maxWind}`;
+      const badgeWidth = Math.max(60, safeOffset * 2 - 10);
+      const rectX =
+        safeOffset > 0 ? safeX - safeOffset + 4 : safeX - badgeWidth / 2;
+
+      return (
+        <g>
+          <rect
+            x={rectX}
+            y={safeY - 16}
+            width={badgeWidth}
+            height={26}
+            fill="var(--blue)"
+            rx={6}
+          />
+          <text
+            x={safeX}
+            y={safeY + 2}
+            textAnchor="middle"
+            fill="var(--foreground)"
+            fontSize={13}
+            fontWeight={600}
+          >
+            {`${windVal}`}
+          </text>
+        </g>
+      );
+    },
+    [indexedData]
+  );
   // const fmt = (ms: number) =>
   //   new Date(ms).toLocaleDateString("en-US", {
   //     weekday: "short",
@@ -337,135 +344,108 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
   return (
     <>
       {/* {showSlider && <DaySlider />} */}
+      <div
+        className="w-[calc(100%-30px)] flex justify-between"
+        style={{
+          position: "relative",
+          zIndex: 40,
+          // right: 15,
+          left: 25,
+          top: 0,
+          // gap: 8,
+          // paddingLeft: 8,
+          // paddingRight: 8,
+          boxSizing: "border-box",
+          pointerEvents: "none",
+        }}
+      >
+        {windowDays?.map((label, idx) => {
+          const parts = label.split(",").map((part) => part.trim());
+          const primary = parts[0] ?? "";
+          const secondary = parts[1] ?? "";
+          return (
+            <div
+              key={idx}
+              className=""
+              style={{
+                flex: 1,
+                minWidth: 0,
+                textAlign: "center",
+                // background: "linear-gradient(180deg,#f8fafc,#eef2ff)",
+                borderRadius: 8,
+                padding: "6px 6px",
+                // boxShadow: "0 1px 0 rgba(0,0,0,0.04)",
+                // border: "1px solid rgba(0,0,0,0.06)",
+                fontWeight: 700,
+                fontSize: 13,
+                color: "var(--foreground)",
+                pointerEvents: "none",
+              }}
+            >
+              {/* <div className="flex flex-col @min-sm:whitespace-nowrap max-w-15 mx-auto p-1 pt-1.5 rounded-xl bg-highlight-5">
+                <span className="text-xs font-medium">{secondary}</span>
+                <span className="text-sm font-bold">{primary}</span>
+              </div> */}
+              <div className="flex flex-col @min-sm:whitespace-nowrap mx-auto p-1 pt-1.5 rounded-lg bg-highlight-5">
+                <span className="text-xs font-medium">{secondary}</span>
+                <span className="text-sm font-bold">{primary}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
       <ChartContainer
         ref={chartRef}
         config={chartConfig}
-        className="aspect-auto h-[250px] w-full"
+        className="aspect-auto h-[235px] w-full"
       >
         <BarChart
           margin={{
             top: 5,
             right: 0,
             left: -38,
-            bottom: 50,
+            bottom: 10,
           }}
           syncId="barId"
           accessibilityLayer
-          data={visibleData}
+          data={indexedData}
         >
-          <ReferenceArea x1={0} x2={1} fill="#ccc1ffff" fillOpacity={0.2} />
+          {/* <ReferenceArea x1={0} x2={1} fill="#ccc1ffff" fillOpacity={0.2} />
           <ReferenceArea x1={2} x2={5} fill="#FFE58F" fillOpacity={0.2} />
-          <ReferenceArea x1={6} x2={6} fill="#ccc1ffff" fillOpacity={0.2} />
-          <CartesianGrid
+          <ReferenceArea x1={6} x2={6} fill="#ccc1ffff" fillOpacity={0.2} /> */}
+          {/* <CartesianGrid
             strokeDasharray="3 3"
             stroke="var(--foreground)"
             strokeWidth={0.1}
             vertical={false}
-          />
+          /> */}
           <XAxis
             dataKey="day"
             orientation="bottom"
             tickLine={false}
-            // tick={(props) => {
-            //   const safeX = typeof props.x === "number" ? props.x : 0;
-            //   const safeY = typeof props.y === "number" ? props.y : 0;
-            //   const label = String(props.payload?.value ?? "");
-            //   return (
-            //     <g>
-            //       <text
-            //         x={safeX}
-            //         y={safeY + 5}
-            //         textAnchor="middle"
-            //         fill="var(--foreground)"
-            //         fontSize={13}
-            //         fontWeight={600}
-            //       >
-            //         {label}
-            //       </text>
-            //     </g>
-            //   );
-            // }}
-            tick={(props) => {
-              const safeX = typeof props.x === "number" ? props.x : 0;
-              const safeY = typeof props.y === "number" ? props.y : 0;
-              const safeIdx = typeof props.index === "number" ? props.index : 0;
-              const safeDay =
-                typeof props.payload.value === "string"
-                  ? props.payload.value
-                  : "";
-              const safeOffset =
-                typeof props.payload.offset === "number"
-                  ? props.payload.offset
-                  : 0;
-              const dayData = data.find((entry) => entry.day === safeDay);
-              const minWind = dayData
-                ? Math.min(dayData.wind1, dayData.wind2, dayData.wind3)
-                : 0;
-              const maxWind = dayData
-                ? Math.max(dayData.wind1, dayData.wind2, dayData.wind3)
-                : 0;
-              const windVal = dayData
-                ? minWind === maxWind
-                  ? `${minWind}`
-                  : `${minWind}-${maxWind}`
-                : "";
-              return (
-                <g>
-                  <rect
-                    x={safeX - safeOffset + 4}
-                    y={safeY - 15}
-                    width={safeOffset * 2 - 10}
-                    height={24}
-                    fill="var(--blue)"
-                    stroke="#cacacaff"
-                    strokeWidth={0.3}
-                    rx={4}
-                  />
-                  <text
-                    x={safeX}
-                    y={safeY + 2}
-                    textAnchor="middle"
-                    fill="var(--foreground)"
-                    fontSize={13}
-                    fontWeight={600}
-                  >
-                    {`${windVal}`}
-                  </text>
-                  <rect
-                    x={safeX - safeOffset + 4}
-                    y={safeY - 15 + 25}
-                    width={safeOffset * 2 - 10}
-                    height={24}
-                    fill="var(--highlight-2)"
-                    stroke="#cacacaff"
-                    strokeWidth={0.3}
-                    rx={4}
-                  />
-                  {/* <text
-                    x={safeX}
-                    y={safeY + 25}
-                    textAnchor="middle"
-                    fill="var(--foreground)"
-                    fontSize={11}
-                  >
-                    8/10
-                  </text> */}
-                  <text
-                    x={safeX}
-                    y={safeY + 25}
-                    textAnchor="middle"
-                    fill="var(--foreground)"
-                    fontSize={11}
-                    fontWeight={500}
-                  >
-                    {props.payload.value.split(",")[1] ?? "N/A"}
-                  </text>
-                </g>
-              );
-            }}
+            tick={renderTick}
             tickMargin={10}
             axisLine={false}
           />
+          <XAxis
+            xAxisId="separator"
+            type="number"
+            dataKey="__index"
+            hide
+            domain={xAxisDomain}
+            allowDecimals={false}
+          />
+          {daySeparators.map((position, idx) => (
+            <ReferenceLine
+              key={`day-divider-${idx}`}
+              xAxisId="separator"
+              x={position}
+              stroke="var(--muted-foreground)"
+              strokeWidth={0.25}
+              // strokeDasharray="4 3"
+              ifOverflow="extendDomain"
+            />
+          ))}
           <YAxis
             allowDecimals={false}
             tickLine={false}
@@ -493,12 +473,11 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
                 const safeY = typeof props.y === "number" ? props.y : 0;
                 const safeWidth =
                   typeof props.width === "number" ? props.width : 0;
-                const safeHeight =
-                  typeof props.height === "number" ? props.height : 0;
                 const iconSize = Math.min(20, safeWidth);
 
                 // Get wind direction from the data point
-                const dataPoint = data[props.index ?? 0];
+                const dataPoint = indexedData[props.index ?? 0];
+                if (!dataPoint) return null;
                 const direction = dataPoint?.wind1Dir ?? 0;
                 const directionLabel = getWindDirection(direction);
                 // Arrow points at 315° by default, adjust rotation
@@ -519,8 +498,9 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
                           size={iconSize}
                           x={-iconSize / 2}
                           y={-iconSize / 2}
-                          fill="#8bd668ff"
-                          color="#8bd668ff"
+                          fill="#b3b3b3ff"
+                          // color="#b3b3b3ff"
+                          strokeWidth={0.7}
                         />
                       </g>
                     </g>
@@ -545,12 +525,11 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
                 const safeY = typeof props.y === "number" ? props.y : 0;
                 const safeWidth =
                   typeof props.width === "number" ? props.width : 0;
-                const safeHeight =
-                  typeof props.height === "number" ? props.height : 0;
                 const iconSize = Math.min(20, safeWidth);
 
                 // Get wind direction from the data point
-                const dataPoint = data[props.index ?? 0];
+                const dataPoint = indexedData[props.index ?? 0];
+                if (!dataPoint) return null;
                 const direction = dataPoint?.wind2Dir ?? 0;
                 const directionLabel = getWindDirection(direction);
                 // Arrow points at 315° by default, adjust rotation
@@ -571,8 +550,8 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
                           size={iconSize}
                           x={-iconSize / 2}
                           y={-iconSize / 2}
-                          fill="#8bd668ff"
-                          color="#8bd668ff"
+                          fill="#b3b3b3ff"
+                          strokeWidth={0.7}
                         />
                       </g>
                     </g>
@@ -597,12 +576,11 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
                 const safeY = typeof props.y === "number" ? props.y : 0;
                 const safeWidth =
                   typeof props.width === "number" ? props.width : 0;
-                const safeHeight =
-                  typeof props.height === "number" ? props.height : 0;
                 const iconSize = Math.min(20, safeWidth);
 
                 // Get wind direction from the data point
-                const dataPoint = data[props.index ?? 0];
+                const dataPoint = indexedData[props.index ?? 0];
+                if (!dataPoint) return null;
                 const direction = dataPoint?.wind3Dir ?? 0;
                 const directionLabel = getWindDirection(direction);
                 // Arrow points at 315° by default, adjust rotation
@@ -623,8 +601,8 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
                           size={iconSize}
                           x={-iconSize / 2}
                           y={-iconSize / 2}
-                          fill="#8bd668ff"
-                          color="#8bd668ff"
+                          fill="#b3b3b3ff"
+                          strokeWidth={0.7}
                         />
                       </g>
                     </g>

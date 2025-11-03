@@ -290,9 +290,7 @@ const HighlightCard = ({
   );
 };
 
-import {
-  getWindDirection,
-} from "@/lib/supabase";
+import { getWindDirection } from "@/lib/supabase";
 import {
   useBeachForecast,
   useCurrentConditions,
@@ -417,7 +415,18 @@ const Highlights = ({
           secondary: [
             { height: 2.1, period: 7, wind: { dir: "W", deg: 272 } },
             { height: 2.1, period: 7, wind: { dir: "W", deg: 272 } },
-          ] as [{ height: number; period: number; wind: { dir: string; deg: number } }, { height: number; period: number; wind: { dir: string; deg: number } }],
+          ] as [
+            {
+              height: number;
+              period: number;
+              wind: { dir: string; deg: number };
+            },
+            {
+              height: number;
+              period: number;
+              wind: { dir: string; deg: number };
+            }
+          ],
         },
         { label: "water" as const, temp: 60 },
         { label: "tide" as const, tide: { value: "2-3", unit: "ft" } },
@@ -453,16 +462,12 @@ const Highlights = ({
         },
         secondary: [
           {
-            height: Number(
-              (baseRow.swell.secondary.height ?? 0).toFixed(1)
-            ),
+            height: Number((baseRow.swell.secondary.height ?? 0).toFixed(1)),
             period: Math.round(baseRow.swell.secondary.period ?? 0),
             wind: { dir: getWindDirection(sDir), deg: sDir },
           },
           {
-            height: Number(
-              (baseRow.swell.tertiary?.height ?? 0).toFixed(1)
-            ),
+            height: Number((baseRow.swell.tertiary?.height ?? 0).toFixed(1)),
             period: Math.round(baseRow.swell.tertiary?.period ?? 0),
             wind: { dir: getWindDirection(tDir), deg: tDir },
           },
@@ -485,9 +490,7 @@ const Highlights = ({
 
       // Find the closest tide data point
       const closestTide = tides.reduce((closest, tide) => {
-        const diff = Math.abs(
-          new Date(tide.timestamp).getTime() - targetTime
-        );
+        const diff = Math.abs(new Date(tide.timestamp).getTime() - targetTime);
         const closestDiff = Math.abs(
           new Date(closest.timestamp).getTime() - targetTime
         );
@@ -537,7 +540,7 @@ const Highlights = ({
     <div className="w-full max-w-7xl mx-auto">
       <ul
         className={cn(
-          "grid grid-cols-2 @min-2xl:grid-cols-4 gap-2.5",
+          "grid grid-cols-2 @min-md:grid-cols-3 @min-2xl:grid-cols-4 gap-2.5",
           !isFull && "@min-3xl:grid-cols-3",
           isFull && "@min-4xl:grid-cols-4 @min-6xl:grid-cols-8"
         )}
@@ -626,9 +629,11 @@ const Highlights = ({
                 key={stat.label}
                 className={cn(
                   "relative highlight-card shadow-even min-h-22",
-                  stat.label === "swell" && "col-span-1 @min-2xl:col-span-1",
+                  isFull && "@min-4xl:min-h-25",
+                  stat.label === "swell" &&
+                    "col-span-1 @min-md:col-span-2 @min-2xl:col-span-1",
                   stat.label === "swell" && !isFull && "@min-3xl:col-span-2",
-                  stat.label === "swell" && isFull && "@min-4xl:col-span-1"
+                  stat.label === "swell" && isFull && "@min-md:col-span-2"
                 )}
               >
                 <div className="flex-1 flex items-center justify-center gap-1 mt-1 h-full">

@@ -181,6 +181,7 @@ import {
   fetchDailyConditions,
 } from "@/lib/supabase";
 import dayjs from "dayjs";
+import { TrendingDown, TrendingUp } from "lucide-react";
 
 type Props = { beachId?: string; days?: Date[] | null };
 
@@ -468,27 +469,38 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
     [effectiveDayWindow, maxSelectableDays]
   );
   // Prepare day label texts for the *visible 4 days* starting at dayOffset
-  const dayLabels = useMemo(() => {
-    const base = days instanceof Date ? new Date(days) : new Date();
-    const startLocal = new Date(
-      base.toLocaleString("en-US", { timeZone: "America/Los_Angeles" })
-    );
-    startLocal.setHours(0, 0, 0, 0);
-    const labels = [];
-    for (let i = 0; i < effectiveDayWindow; i++) {
-      const d = new Date(
-        startLocal.getTime() + (dayOffset + i) * 24 * 60 * 60 * 1000
-      );
-      labels.push(
-        d.toLocaleDateString(undefined, {
-          weekday: "short",
-          month: "numeric",
-          day: "numeric",
-        })
-      );
-    }
-    return labels;
-  }, [dayOffset, days, effectiveDayWindow]);
+  // const dayLabels = useMemo(() => {
+  //   const base = days instanceof Date ? new Date(days) : new Date();
+  //   const startLocal = new Date(
+  //     base.toLocaleString("en-US", { timeZone: "America/Los_Angeles" })
+  //   );
+  //   startLocal.setHours(0, 0, 0, 0);
+  //   const labels = [];
+  //   for (let i = 0; i < effectiveDayWindow; i++) {
+  //     const d = new Date(
+  //       startLocal.getTime() + (dayOffset + i) * 24 * 60 * 60 * 1000
+  //     );
+  //     labels.push(
+  //       d.toLocaleDateString(undefined, {
+  //         weekday: "short",
+  //         month: "numeric",
+  //         day: "numeric",
+  //       })
+  //     );
+  //   }
+  //   return labels;
+  // }, [dayOffset, days, effectiveDayWindow]);
+  const dayLabels =
+    Array.isArray(days) && days.length > 0
+      ? days.map((d) =>
+          d.toLocaleDateString("en-US", {
+            weekday: "short",
+            month: "short",
+            day: "numeric",
+            timeZone: "America/Los_Angeles",
+          })
+        )
+      : null;
   const visibleNightAreas = nightAreas.filter(
     (a) =>
       ((a.x2 && a.x2 >= dayOffset * 24) || !a.x2) &&
@@ -501,6 +513,8 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
   );
   console.log(
     "WINDOWS",
+    days,
+    dayLabels,
     dayOffset * 24,
     (dayOffset + dayWindow) * 24,
     dayAreas,
@@ -557,7 +571,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
         //   boxSizing: "border-box",
         //   pointerEvents: "none",
         // }}
-        className="w-[calc(100%-60px)] flex justify-between"
+        className="@container w-[calc(100%-60px)] flex justify-between"
         style={{
           position: "relative",
           zIndex: 40,
@@ -571,7 +585,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
           pointerEvents: "none",
         }}
       >
-        {dayLabels.map((label, idx) => (
+        {dayLabels?.map((label, idx) => (
           <div
             key={idx}
             className=""
@@ -590,18 +604,50 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
               pointerEvents: "none",
             }}
           >
-            <div className="@min-sm:whitespace-nowrap max-w-20 mx-auto p-1 rounded-sm bg-highlight-7 border border-border">
-              <span className="@min-md:inline-block hidden">{label}</span>
-              <span className="inline-block @min-md:hidden">
-                {label.split(",")[1]}
+            {/* <div className="flex flex-col @min-sm:whitespace-nowrap max-w-15 mx-auto p-1 pt-1.5 rounded-xl bg-highlight-5">
+              <span className="text-xs font-medium">{label.split(",")[1]}</span>
+              <span className="text-sm font-bold">{label.split(",")[0]}</span>
+            </div> */}
+            <div className="flex justify-center @min-lg:justify-between whitespace-nowrap px-3 py-2 rounded-lg bg-highlight-5">
+              <span className="flex flex-col @min-lg:items-start">
+                <span className="text-xs font-medium">
+                  {label.split(",")[1]}
+                </span>
+                <span className="text-sm font-bold">{label.split(",")[0]}</span>
               </span>
+              <div className="hidden @min-lg:grid rounded-md bg-highlight-6 grid-cols-[auto_1fr] @min-3xl:grid-cols-[60px_1fr] grid-rows-2 space-y-0.5 items-center text-xs text-muted-foreground uppercase tracking-wide leading-tight">
+                <span className="flex gap-2 items-center">
+                  <TrendingUp
+                    fill="#353535ff"
+                    className="stroke-muted-foreground w-4 h-4"
+                  />
+                  <span className="hidden @min-3xl:block font-medium">
+                    High
+                  </span>
+                </span>
+                <span className="ml-1 text-foreground normal-case font-medium">
+                  100 <span className="hidden @min-xl:inline-block">kJ</span>
+                </span>
+                <span className="flex gap-2 items-center">
+                  <TrendingDown
+                    fill="#353535ff"
+                    className="stroke-muted-foreground w-4 h-4"
+                  />
+                  <span className="hidden @min-3xl:block -mb-0.5 font-medium">
+                    Low
+                  </span>
+                </span>
+                <span className="ml-1 text-foreground normal-case font-medium">
+                  20 <span className="hidden @min-xl:inline-block">kJ</span>
+                </span>
+              </div>
             </div>
           </div>
         ))}
       </div>
       <ChartContainer
         config={chartConfig}
-        className="aspect-auto h-[250px] w-full"
+        className="aspect-auto h-[235px] w-full"
       >
         <AreaChart
           accessibilityLayer
@@ -644,12 +690,12 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
             />
           ))}
 
-          <CartesianGrid
+          {/* <CartesianGrid
             strokeDasharray="3 3"
             stroke="var(--foreground)"
             strokeWidth={0.1}
             vertical={false}
-          />
+          /> */}
           <XAxis
             dataKey="hour"
             tickLine={false}

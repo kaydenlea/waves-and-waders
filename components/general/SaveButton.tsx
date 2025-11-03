@@ -34,6 +34,7 @@ const SaveButton = ({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const overviewPage = pathname.endsWith("/overview");
 
   const [localIsFav, setLocalIsFav] = useState(initialIsFav);
   const [loading, setLoading] = useState(false);
@@ -118,10 +119,17 @@ const SaveButton = ({
     <button
       type="button"
       aria-label={effectiveIsFav ? "Remove from favorites" : "Add to favorites"}
-      className={cn(baseClass, className)}
+      className={cn(
+        baseClass,
+        className,
+        overviewPage && "flex gap-2 @min-xl:px-4 @min-xl:py-2"
+      )}
       onClick={handleClick}
       disabled={loading}
     >
+      {overviewPage && (
+        <span className="font-semibold hidden @min-xl:inline-block">Save</span>
+      )}
       <Heart
         className={cn(
           "w-6 h-6 transition-colors",

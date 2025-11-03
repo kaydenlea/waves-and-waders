@@ -5,7 +5,7 @@ import React from "react";
 
 type Props = { beachId?: string; days?: Date[] | null };
 
-const ForecastWindChart = dynamic<React.ComponentProps<any>>(
+const ForecastWindChart = dynamic<Props>(
   () => import("../../graphs/ForecastWindChart"),
   {
     ssr: false,

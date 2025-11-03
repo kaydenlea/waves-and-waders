@@ -267,19 +267,29 @@ const TideChart: React.FC<TideChartProps> = ({
         const tideRows = await fetchBeachTides(id, fetchStart, fetchEnd);
         let rows: ExternalTidePoint[];
         if (!tideRows || tideRows.length === 0) {
-          console.warn("⚠️ No tide data from county_tides_15min, falling back to forecast_data");
+          console.warn(
+            "⚠️ No tide data from county_tides_15min, falling back to forecast_data"
+          );
           const fallback = await fetchBeachForecast(id, fetchStart, fetchEnd);
           rows = fallback.map((r) => ({
             x: new Date(r.timestamp).getTime(),
             tide: r.conditions.tideLevel ?? 0,
           }));
-          console.log("📊 Using forecast data:", rows.length, "points (3-hour intervals)");
+          console.log(
+            "📊 Using forecast data:",
+            rows.length,
+            "points (3-hour intervals)"
+          );
         } else {
           rows = tideRows.map((p) => ({
             x: new Date(p.timestamp).getTime(),
             tide: p.tideLevelFt ?? 0,
           }));
-          console.log("📊 Using county tide data:", rows.length, "points (6-min intervals)");
+          console.log(
+            "📊 Using county tide data:",
+            rows.length,
+            "points (6-min intervals)"
+          );
         }
         const built = buildPoints(rows, startMs, hours, isToday);
         if (!cancelled) {
@@ -436,12 +446,12 @@ const TideChart: React.FC<TideChartProps> = ({
             fillOpacity={0.2}
           />
         ))}
-        <CartesianGrid
+        {/* <CartesianGrid
           strokeDasharray="3 3"
           stroke="var(--foreground)"
           strokeWidth={0.1}
           vertical={false}
-        />
+        /> */}
         <XAxis
           dataKey="hour"
           type="number"

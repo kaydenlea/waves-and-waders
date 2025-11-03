@@ -17,7 +17,7 @@ import {
   ReferenceLine,
   LabelList,
 } from "recharts";
-import { Sun } from "lucide-react";
+import { ChevronLeft, ChevronRight, Sun, Sunrise, Sunset } from "lucide-react";
 import {
   fetchBeachByIdLoose,
   fetchBeachDetails,
@@ -38,12 +38,12 @@ const VISIBLE_DAYS = 4;
 const HOURS_PER_DAY = 24;
 const VISIBLE_HOURS = VISIBLE_DAYS * HOURS_PER_DAY;
 const FETCH_DAYS = VISIBLE_DAYS; // fetch one extra day to allow forward pan
-const MIN_DAY_PX = 250; // minimum pixels per day to keep UI usable on tiny screens
+const MIN_DAY_PX = 275; // minimum pixels per day to keep UI usable on tiny screens
 
-type Props = { beachId?: string; date?: Date };
+type Props = { beachId?: string; date?: Date; days?: Date[] };
 type TidePoint = { hour: number; tide: number; isPeak?: number };
 
-export default function ForecastTideChart({ beachId, date }: Props) {
+export default function ForecastTideChart({ beachId, date, days }: Props) {
   // data loaded for FETCH_DAYS days (hours)
   const [data, setData] = useState<TidePoint[]>([]);
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
@@ -449,25 +449,37 @@ export default function ForecastTideChart({ beachId, date }: Props) {
   }, [beachId, date]);
 
   // Prepare day label texts for the *visible 4 days* starting at dayOffset
-  const dayLabels = useMemo(() => {
-    const base = date instanceof Date ? new Date(date) : new Date();
-    const startLocal = new Date(
-      base.toLocaleString("en-US", { timeZone: "America/Los_Angeles" })
-    );
-    startLocal.setHours(0, 0, 0, 0);
-    const labels = [];
-    for (let i = 0; i < VISIBLE_DAYS; i++) {
-      const d = new Date(startLocal.getTime() + i * 24 * 60 * 60 * 1000);
-      labels.push(
-        d.toLocaleDateString(undefined, {
-          weekday: "short",
-          month: "numeric",
-          day: "numeric",
-        })
-      );
-    }
-    return labels;
-  }, [date]);
+  // const dayLabels = useMemo(() => {
+  //   const base = date instanceof Date ? new Date(date) : new Date();
+  //   const startLocal = new Date(
+  //     base.toLocaleString("en-US", { timeZone: "America/Los_Angeles" })
+  //   );
+  //   startLocal.setHours(0, 0, 0, 0);
+  //   const labels = [];
+  //   for (let i = 0; i < VISIBLE_DAYS; i++) {
+  //     const d = new Date(startLocal.getTime() + i * 24 * 60 * 60 * 1000);
+  //     labels.push(
+  //       d.toLocaleDateString(undefined, {
+  //         weekday: "short",
+  //         month: "numeric",
+  //         day: "numeric",
+  //         timeZone: "America/Los_Angeles",
+  //       })
+  //     );
+  //   }
+  //   return labels;
+  // }, [date]);
+  const dayLabels =
+    Array.isArray(days) && days.length > 0
+      ? days.map((d) =>
+          d.toLocaleDateString("en-US", {
+            weekday: "short",
+            month: "short",
+            day: "numeric",
+            timeZone: "America/Los_Angeles",
+          })
+        )
+      : null;
 
   // computed visible data (for tooltip & potential optimization)
   const visibleHourStart = dayOffset * HOURS_PER_DAY;
@@ -542,7 +554,7 @@ export default function ForecastTideChart({ beachId, date }: Props) {
         ref={containerRef}
         className="relative w-full"
         style={{
-          height: 290,
+          height: 300,
           overflow: "hidden",
           background: "transparent",
         }}
@@ -552,21 +564,21 @@ export default function ForecastTideChart({ beachId, date }: Props) {
           aria-label="Back one day"
           onClick={handleBack}
           className={cn(
-            "absolute left-4 top-1/2 -translate-y-1/2 z-50 rounded-full bg-highlight-7/90 p-2 shadow border border-border/30 shadow-even backdrop-blur-xl",
+            "absolute left-4 top-[55%] -translate-y-1/2 z-50 rounded-full bg-highlight-7/90 p-1 shadow border border-border/30 shadow-even backdrop-blur-xl",
             dayOffset === 0 && "hidden"
           )}
         >
-          ◀
+          <ChevronLeft className="w-5 h-5" />
         </button>
         <button
           aria-label="Next one day"
           onClick={handleNext}
           className={cn(
-            "absolute right-4 top-1/2 -translate-y-1/2 z-50 rounded-full bg-highlight-7/90 p-2 shadow border border-border/30 shadow-even backdrop-blur-xl",
+            "absolute right-4 top-[55%] -translate-y-1/2 z-50 rounded-full bg-highlight-7/90 p-1 shadow border border-border/30 shadow-even backdrop-blur-xl",
             isAtRightEdge && "hidden"
           )}
         >
-          ▶
+          <ChevronRight className="w-5 h-5" />
         </button>
 
         {/* moving inner (chart + day separators) */}
@@ -577,7 +589,7 @@ export default function ForecastTideChart({ beachId, date }: Props) {
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
           style={{
-            marginTop: 35,
+            marginTop: 65,
             position: "absolute",
             left: 0,
             // top: 60, // leave room for label bar
@@ -591,17 +603,17 @@ export default function ForecastTideChart({ beachId, date }: Props) {
         >
           {/* Day label bar (4 filled boxes) — fixed in viewport and aligned to visible days */}
           <div
-            className="w-[96%] flex justify-between"
+            className="w-[97%] flex justify-between"
             style={{
               position: "absolute",
               zIndex: 40,
-              left: "3%",
-              top: -35,
+              left: "1.9%",
+              top: -65,
               boxSizing: "border-box",
               pointerEvents: "none",
             }}
           >
-            {dayLabels.map((label, idx) => (
+            {dayLabels?.map((label, idx) => (
               <div
                 key={idx}
                 className=""
@@ -617,8 +629,45 @@ export default function ForecastTideChart({ beachId, date }: Props) {
                   pointerEvents: "none",
                 }}
               >
-                <div className="max-w-25 mx-auto p-1 rounded-sm bg-highlight-7 border border-border">
-                  {label}
+                {/* <div className="flex flex-col @min-sm:whitespace-nowrap max-w-15 mx-auto p-1 pt-1.5 rounded-xl bg-highlight-5">
+                  <span className="text-xs font-medium">
+                    {label.split(",")[1]}
+                  </span>
+                  <span className="text-sm font-bold">
+                    {label.split(",")[0]}
+                  </span>
+                </div> */}
+                <div className="flex justify-between @min-sm:whitespace-nowrap px-3 py-2 rounded-lg bg-highlight-5">
+                  <span className="flex flex-col items-start">
+                    <span className="text-xs font-medium">
+                      {label.split(",")[1]}
+                    </span>
+                    <span className="text-sm font-bold">
+                      {label.split(",")[0]}
+                    </span>
+                  </span>
+                  <div className="rounded-md bg-highlight-6 grid grid-cols-[80px_1fr] grid-rows-2 space-y-0.5 items-center text-xs text-muted-foreground uppercase tracking-wide leading-tight">
+                    <span className="flex gap-2 items-center">
+                      <Sunrise
+                        fill="#ff9f45ff"
+                        className="stroke-muted-foreground w-4 h-4"
+                      />
+                      <span className="font-medium">Sunrise</span>
+                    </span>
+                    <span className="ml-1 text-foreground normal-case font-medium">
+                      {"6:00 AM"}
+                    </span>
+                    <span className="flex gap-2 items-center">
+                      <Sunset
+                        fill="#ff9f45ff"
+                        className="stroke-muted-foreground w-4 h-4"
+                      />
+                      <span className="-mb-0.5 font-medium">Sunset</span>
+                    </span>
+                    <span className="ml-1 text-foreground normal-case font-medium">
+                      {"5:00 PM"}
+                    </span>
+                  </div>
                 </div>
               </div>
             ))}
@@ -627,13 +676,13 @@ export default function ForecastTideChart({ beachId, date }: Props) {
             config={
               { tide: { label: "Tide", color: "#6e6e6eff" } } as ChartConfig
             }
-            className="aspect-auto h-[258px] w-full"
+            className="aspect-auto h-[235px] w-full"
           >
             <LineChart
               width={chartInnerWidth}
               // height={200}
               data={data}
-              margin={{ left: -35, right: 0, bottom: 5, top: 6 }}
+              margin={{ left: -35, right: 15, bottom: 5, top: 0 }}
             >
               {dayAreas.length > 0 &&
                 console.log("🎨 Rendering", dayAreas.length, "day areas")}
@@ -668,19 +717,19 @@ export default function ForecastTideChart({ beachId, date }: Props) {
                       key={`boundary-${i}`}
                       x={i * 24}
                       stroke="var(--foreground)"
-                      strokeOpacity={0.3}
-                      strokeWidth={1}
+                      strokeOpacity={0.25}
+                      strokeWidth={0.5}
                     />
                   );
                 }
               })}
 
-              <CartesianGrid
+              {/* <CartesianGrid
                 strokeDasharray="3 3"
                 stroke="var(--foreground)"
                 strokeWidth={0.08}
                 vertical={false}
-              />
+              /> */}
               <XAxis
                 dataKey="hour"
                 type="number"
