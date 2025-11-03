@@ -22,6 +22,7 @@ import dayjs from "dayjs";
 import { LazyLoadForecastWaveEnergy } from "./LazyLoad/LazyLoadForecastWaveEnergy";
 import { LazyLoadForecastSurf } from "./LazyLoad/LazyLoadForecastSurf";
 import { LazyLoadForecastWind } from "./LazyLoad/LazyLoadForecastWind";
+import { LazyLoadForecastSwell } from "./LazyLoad/LazyLoadForecastSwell";
 import {
   getDashboardStorageKey,
   getDefaultLayout,
@@ -303,9 +304,7 @@ const ForecastBridge: React.FC<Props> = ({
         case "swell":
           return (
             <VisualWrapper label="Swell" unit="ft">
-              <div className="py-10 text-center text-sm text-muted-foreground">
-                Swell forecast visualization is coming soon.
-              </div>
+              <LazyLoadForecastSwell beachId={beachId} days={selectedDays} />
             </VisualWrapper>
           );
         default:

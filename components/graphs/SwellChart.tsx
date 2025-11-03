@@ -300,7 +300,6 @@ const SwellChart = ({ beachId, hours = 24, date }: Props) => {
         <Area
           type="monotone"
           dataKey="primary"
-          stackId="1"
           activeDot={false}
           stroke="#023e8a"
           fill="#0077b6"
@@ -330,7 +329,6 @@ const SwellChart = ({ beachId, hours = 24, date }: Props) => {
         <Area
           type="monotone"
           dataKey="secondary"
-          stackId="1"
           activeDot={false}
           stroke="#0096c7"
           fill="#48cae4"
@@ -360,7 +358,6 @@ const SwellChart = ({ beachId, hours = 24, date }: Props) => {
         <Area
           type="monotone"
           dataKey="tertiary"
-          stackId="1"
           activeDot={false}
           stroke="#70ccebff"
           fill="#adf1ffff"

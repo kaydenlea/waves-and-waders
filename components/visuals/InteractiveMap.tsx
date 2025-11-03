@@ -231,8 +231,6 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
   } = useMapFilters();
   const [located, setLocated] = React.useState<boolean>(false);
   const [showFilters, setShowFilters] = React.useState<boolean>(false);
-  const [showCardinalLabels, setShowCardinalLabels] =
-    React.useState<boolean>(false);
   const [surfIntensity, setSurfIntensity] = React.useState<
     Record<string | number, number>
   >({});
@@ -1710,7 +1708,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
                     className="relative flex items-center justify-center"
                     style={{ width: ringSize, height: ringSize }}
                   >
-                    {showCardinalLabels && (
+                    {openPanel === "legend" && (
                       <div className="pointer-events-none absolute inset-0">
                         {cardinalLabels.map(({ id, style }) => (
                           <span
@@ -1951,21 +1949,6 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
                 className="bg-background hover:bg-blue-200 dark:hover:bg-blue-400 rounded-full border border-border shadow-lg p-3 text-sm font-medium flex items-center gap-2 active:scale-95 transition"
               >
                 <MapPin className="w-5 h-5 mx-auto" />
-              </button>
-            )}
-            {fullMapPage && (
-              <button
-                type="button"
-                aria-label={`${
-                  showCardinalLabels ? "Hide" : "Show"
-                } compass labels`}
-                onClick={() => setShowCardinalLabels((prev) => !prev)}
-                className={cn(
-                  "bg-background hover:bg-blue-200 dark:hover:bg-blue-400 rounded-full border border-border shadow-lg p-3 text-sm font-medium flex items-center gap-2 active:scale-95 transition",
-                  showCardinalLabels && "bg-blue-300"
-                )}
-              >
-                <Compass className="w-5 h-5 mx-auto" />
               </button>
             )}
             {fullMapPage && (
