@@ -11,6 +11,7 @@ import {
   LabelProps,
   ReferenceArea,
 } from "recharts";
+import { getPacificMidnightUTC, getPacificHour } from "@/lib/utils";
 import {
   ChartConfig,
   ChartContainer,
@@ -98,10 +99,8 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
         let start = new Date();
         let end = new Date(start.getTime() + hours * 60 * 60 * 1000);
         if (date instanceof Date) {
-          const d = new Date(date);
-          d.setHours(0, 0, 0, 0);
-          start = d;
-          end = new Date(d.getTime() + hours * 60 * 60 * 1000);
+          start = getPacificMidnightUTC(date);
+          end = new Date(start.getTime() + hours * 60 * 60 * 1000);
         }
         const rows = await fetchBeachForecast(id, start, end);
 
@@ -190,7 +189,7 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
 
           return {
             hour:
-              i === rows.length - 1 ? hours : new Date(r.timestamp).getHours(),
+              i === rows.length - 1 ? hours : getPacificHour(r.timestamp),
             surf: Number(Math.max(0, representative).toFixed(1)),
             min,
             max,

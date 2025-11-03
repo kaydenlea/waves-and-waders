@@ -50,6 +50,7 @@ const chartConfig = {
 
 import { fetchWeeklyForecast, type ForecastData } from "@/lib/supabase";
 import { useForecastChartContext } from "../context/ForecastChartContext";
+import { getPacificHour } from "@/lib/utils";
 
 type Props = { beachId?: string; days: Date[] | null };
 
@@ -158,7 +159,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
           });
           const pick = (target: number) => {
             const near = arr.reduce((best, cur) => {
-              const h = new Date(cur.timestamp).getHours();
+              const h = getPacificHour(cur.timestamp);
               const dist = Math.abs(h - target);
               const val = Math.round(cur.surf.heightMax ?? 0);
               if (!best || dist < best.dist) return { dist, v: val };

@@ -206,13 +206,30 @@ const TideChart: React.FC<TideChartProps> = ({
   };
 
   const resolveStartMs = (basis: Date) => {
-    const pacific = new Date(
-      basis.toLocaleString("en-US", {
-        timeZone: "America/Los_Angeles",
-      })
-    );
-    pacific.setHours(0, 0, 0, 0);
-    return pacific.getTime();
+    // Get midnight in Pacific timezone (DST-aware)
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/Los_Angeles",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+    const parts = formatter.formatToParts(basis);
+    const year = parseInt(parts.find((p) => p.type === "year")?.value || "0");
+    const month = parseInt(parts.find((p) => p.type === "month")?.value || "1") - 1;
+    const day = parseInt(parts.find((p) => p.type === "day")?.value || "1");
+
+    // Calculate UTC timestamp for Pacific midnight using offset at noon
+    const noonUTC = Date.UTC(year, month, day, 12, 0, 0, 0);
+    const noonDate = new Date(noonUTC);
+    const noonFormatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/Los_Angeles",
+      hour: "2-digit",
+      hour12: false,
+    });
+    const pacificNoonHour = parseInt(noonFormatter.format(noonDate));
+    const offsetHours = pacificNoonHour - 12;
+
+    return Date.UTC(year, month, day, -offsetHours, 0, 0, 0);
   };
 
   useEffect(() => {

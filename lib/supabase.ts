@@ -928,12 +928,17 @@ export async function fetchDailyConditions(
   }
 
   const toPacificDate = (value: Date) => {
-    const pacific = new Date(
-      value.toLocaleString("en-US", { timeZone: "America/Los_Angeles" })
-    );
-    const year = pacific.getFullYear();
-    const month = String(pacific.getMonth() + 1).padStart(2, "0");
-    const day = String(pacific.getDate()).padStart(2, "0");
+    // Use Intl.DateTimeFormat to get Pacific timezone date components safely
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/Los_Angeles",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+    const parts = formatter.formatToParts(value);
+    const year = parts.find((p) => p.type === "year")?.value;
+    const month = parts.find((p) => p.type === "month")?.value;
+    const day = parts.find((p) => p.type === "day")?.value;
     return `${year}-${month}-${day}`;
   };
 
@@ -1081,24 +1086,59 @@ export async function fetchWeeklyForecast(
 }
 
 // Helper: compute the UTC Date corresponding to today's 00:00 in America/Los_Angeles
+// This properly handles DST transitions using Intl.DateTimeFormat
 function pacificMidnightUTC(base: Date = new Date()): Date {
-  // Derive a Date for what the local clock in LA says now
-  const laNow = new Date(
-    base.toLocaleString("en-US", { timeZone: "America/Los_Angeles" })
-  );
-  // Midnight in LA for that calendar day (interpreted in runner's tz)
-  const laMidnightLocal = new Date(
-    laNow.getFullYear(),
-    laNow.getMonth(),
-    laNow.getDate(),
-    0,
-    0,
-    0
-  );
-  // Difference between runner clock (UTC on Actions) and LA representation above
-  const offsetMs = base.getTime() - laNow.getTime();
-  // Convert the LA-local midnight to an absolute UTC instant
-  return new Date(laMidnightLocal.getTime() + offsetMs);
+  const timeZone = "America/Los_Angeles";
+
+  // Get Pacific timezone date components using Intl API (DST-aware)
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+
+  const parts = formatter.formatToParts(base);
+  const year = parseInt(parts.find((p) => p.type === "year")?.value || "0");
+  const month = parseInt(parts.find((p) => p.type === "month")?.value || "1") - 1;
+  const day = parseInt(parts.find((p) => p.type === "day")?.value || "1");
+
+  // Create a date string for midnight in Pacific time
+  // Format: YYYY-MM-DDTHH:MM:SS (we want midnight)
+  const yearStr = String(year);
+  const monthStr = String(month + 1).padStart(2, "0");
+  const dayStr = String(day).padStart(2, "0");
+  const pacificMidnightStr = `${yearStr}-${monthStr}-${dayStr}T00:00:00`;
+
+  // Parse this as if it were in Pacific timezone to get the correct UTC timestamp
+  // We'll use the offset at noon of that day to avoid DST transition edge cases
+  const noonThatDay = new Date(`${yearStr}-${monthStr}-${dayStr}T12:00:00`);
+  const noonFormatter = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+
+  const noonParts = noonFormatter.formatToParts(noonThatDay);
+  const noonHour = parseInt(noonParts.find((p) => p.type === "hour")?.value || "12");
+
+  // Calculate the offset: if Pacific noon is showing as 12:00 but UTC shows 20:00, offset is -8 hours
+  const utcNoonHour = noonThatDay.getUTCHours();
+  const offsetHours = noonHour - utcNoonHour;
+
+  // Create midnight in UTC by adding the offset
+  const midnightUTC = new Date(Date.UTC(year, month, day, -offsetHours, 0, 0, 0));
+
+  return midnightUTC;
 }
 
 // Returns the earliest and latest timestamps available for a beach's forecast data

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { cn } from "@/lib/utils";
+import { cn, getPacificMidnightUTC } from "@/lib/utils";
 import { Button } from "../ui/button";
 import {
   ArrowLeft,
@@ -266,35 +266,6 @@ type DateLike = Date | undefined | null;
 const isValidDate = (value: DateLike): value is Date =>
   value instanceof Date && !Number.isNaN(value.getTime());
 
-const pacificStartOfDay = (input: Date) => {
-  const formatter = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Los_Angeles",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    timeZoneName: "short",
-  });
-  const parts = formatter.formatToParts(input);
-  const partValue = (type: Intl.DateTimeFormatPart["type"]) =>
-    parts.find((p) => p.type === type)?.value ?? "";
-  const year = Number(partValue("year"));
-  const month = Number(partValue("month")) - 1;
-  const day = Number(partValue("day"));
-  const tzName = partValue("timeZoneName") || "";
-  let offsetMinutes = 0;
-  const match = tzName.match(/GMT([+-]\d{1,2})(?::(\d{2}))?/);
-  if (match) {
-    const rawHours = match[1] ?? "+0";
-    const sign = rawHours.startsWith("-") ? -1 : 1;
-    const hours = Math.abs(Number(rawHours));
-    const minutes = match[2] ? Number(match[2]) : 0;
-    offsetMinutes = sign * (hours * 60 + minutes);
-  }
-  const utcMillis =
-    Date.UTC(year, month, day, 0, 0, 0) - offsetMinutes * 60 * 1000;
-  return new Date(utcMillis);
-};
-
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const StatTable = ({
@@ -325,7 +296,7 @@ const StatTable = ({
         const resolvedId = resolved?.id ?? beachId;
         const requestedDate = isValidDate(date) ? date : undefined;
         const anchor = requestedDate ?? new Date();
-        const anchorStart = pacificStartOfDay(anchor);
+        const anchorStart = getPacificMidnightUTC(anchor);
         const bufferBefore = requestedDate ? 1 : 0;
         const bufferAfter = requestedDate ? 1 : 0;
 
@@ -356,15 +327,21 @@ const StatTable = ({
         );
         if (cancelled) return;
 
-        // Group by date using the timestamp's date in local browser timezone
-        // This matches how charts process data
+        // Group by date using Pacific timezone (matches chart processing)
         const byDay = new Map<string, ForecastData[]>();
         const getDayKey = (timestamp: string) => {
           const d = new Date(timestamp);
-          // Use ISO date string (YYYY-MM-DD) as the key for grouping
-          const year = d.getFullYear();
-          const month = String(d.getMonth() + 1).padStart(2, "0");
-          const day = String(d.getDate()).padStart(2, "0");
+          // Use Pacific timezone for grouping to match charts (DST-aware)
+          const formatter = new Intl.DateTimeFormat("en-US", {
+            timeZone: "America/Los_Angeles",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+          });
+          const parts = formatter.formatToParts(d);
+          const year = parts.find((p) => p.type === "year")?.value;
+          const month = parts.find((p) => p.type === "month")?.value;
+          const day = parts.find((p) => p.type === "day")?.value;
           return `${year}-${month}-${day}`;
         };
 

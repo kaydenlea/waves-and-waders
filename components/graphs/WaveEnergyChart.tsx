@@ -9,6 +9,7 @@ import {
   AreaChart,
   Area,
 } from "recharts";
+import { getPacificMidnightUTC } from "@/lib/utils";
 import {
   ChartConfig,
   ChartContainer,
@@ -119,10 +120,8 @@ const WaveEnergyChart = ({ beachId, hours = 24, date }: Props) => {
         let start = new Date();
         let end = new Date(start.getTime() + hours * HOURS_TO_MS);
         if (date instanceof Date) {
-          const d = new Date(date);
-          d.setHours(0, 0, 0, 0);
-          start = d;
-          end = new Date(d.getTime() + hours * HOURS_TO_MS);
+          start = getPacificMidnightUTC(date);
+          end = new Date(start.getTime() + hours * HOURS_TO_MS);
         }
 
         const rows = await fetchBeachForecast(id, start, end);

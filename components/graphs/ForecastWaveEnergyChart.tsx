@@ -219,23 +219,37 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
           }
           return;
         }
-        // Sort rows and determine Pacific midnight of the earliest row without string roundtrip
+        // Sort rows and determine Pacific midnight of the earliest row (DST-aware)
         rows.sort(
           (a: any, b: any) =>
             new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
         );
         const earliest = new Date(rows[0].timestamp);
-        const parts = new Intl.DateTimeFormat("en-US", {
+
+        // Get midnight in Pacific timezone for the earliest row's date
+        const dateFormatter = new Intl.DateTimeFormat("en-US", {
+          timeZone: "America/Los_Angeles",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        });
+        const dateParts = dateFormatter.formatToParts(earliest);
+        const year = parseInt(dateParts.find((p) => p.type === "year")?.value || "0");
+        const month = parseInt(dateParts.find((p) => p.type === "month")?.value || "1") - 1;
+        const day = parseInt(dateParts.find((p) => p.type === "day")?.value || "1");
+
+        // Calculate UTC timestamp for Pacific midnight using offset at noon
+        const noonUTC = Date.UTC(year, month, day, 12, 0, 0, 0);
+        const noonDate = new Date(noonUTC);
+        const noonFormatter = new Intl.DateTimeFormat("en-US", {
           timeZone: "America/Los_Angeles",
           hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-          hourCycle: "h23",
-        }).formatToParts(earliest);
-        const hh = Number(parts.find((p) => p.type === "hour")?.value ?? "0");
-        const mm = Number(parts.find((p) => p.type === "minute")?.value ?? "0");
-        const ss = Number(parts.find((p) => p.type === "second")?.value ?? "0");
-        const baseMs = earliest.getTime() - (hh * 3600 + mm * 60 + ss) * 1000;
+          hour12: false,
+        });
+        const pacificNoonHour = parseInt(noonFormatter.format(noonDate));
+        const offsetHours = pacificNoonHour - 12;
+
+        const baseMs = Date.UTC(year, month, day, -offsetHours, 0, 0, 0);
         if (!cancelled) {
           setBaseStartMs(baseMs);
         }
@@ -255,13 +269,30 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
           setEnergyData(series);
         }
         const start = days ? days[0] : new Date();
-        const startLocal = new Date(
-          start.toLocaleString("en-US", {
-            timeZone: "America/Los_Angeles",
-          })
-        );
-        startLocal.setHours(0, 0, 0, 0);
-        const startMs = startLocal.getTime();
+
+        // Get midnight in Pacific timezone (DST-aware) - same logic as above
+        const startFormatter = new Intl.DateTimeFormat("en-US", {
+          timeZone: "America/Los_Angeles",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        });
+        const startParts = startFormatter.formatToParts(start);
+        const startYear = parseInt(startParts.find((p) => p.type === "year")?.value || "0");
+        const startMonth = parseInt(startParts.find((p) => p.type === "month")?.value || "1") - 1;
+        const startDay = parseInt(startParts.find((p) => p.type === "day")?.value || "1");
+
+        const startNoonUTC = Date.UTC(startYear, startMonth, startDay, 12, 0, 0, 0);
+        const startNoonDate = new Date(startNoonUTC);
+        const startNoonFormatter = new Intl.DateTimeFormat("en-US", {
+          timeZone: "America/Los_Angeles",
+          hour: "2-digit",
+          hour12: false,
+        });
+        const startPacificNoonHour = parseInt(startNoonFormatter.format(startNoonDate));
+        const startOffsetHours = startPacificNoonHour - 12;
+
+        const startMs = Date.UTC(startYear, startMonth, startDay, -startOffsetHours, 0, 0, 0);
         // day/night/sun markers
         const beach = await fetchBeachDetails(String(id));
         const county = beach?.COUNTY;

@@ -72,6 +72,7 @@ import {
   type ForecastData,
 } from "@/lib/supabase";
 import { useForecastChartContext } from "../context/ForecastChartContext";
+import { getPacificHour } from "@/lib/utils";
 
 type Props = { beachId?: string; days?: Date[] | null };
 
@@ -183,7 +184,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
           const firstTs = new Date(arr[0]?.timestamp ?? Date.now()).getTime();
           const pick = (target: number, field: string) => {
             const near = arr.reduce((best, cur) => {
-              const h = new Date(cur.timestamp).getHours();
+              const h = getPacificHour(cur.timestamp);
               const dist = Math.abs(h - target);
               if (!best || dist < best.dist)
                 if (field === "val") {

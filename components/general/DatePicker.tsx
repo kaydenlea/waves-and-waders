@@ -198,14 +198,43 @@ const DatePicker = ({
         for (const row of data) {
           // Normalize timestamp string to ISO-8601 so Date/Dayjs can parse reliably
           const iso = toISO(row.timestamp);
-          const d = dayjs(iso);
-          const key = d.format("YYYY-MM-DD");
+          const d = new Date(iso);
+
+          // Get Pacific timezone date for grouping (DST-aware)
+          const formatter = new Intl.DateTimeFormat("en-US", {
+            timeZone: "America/Los_Angeles",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+          });
+          const parts = formatter.formatToParts(d);
+          const year = parts.find((p) => p.type === "year")?.value;
+          const month = parts.find((p) => p.type === "month")?.value;
+          const day = parts.find((p) => p.type === "day")?.value;
+          const key = `${year}-${month}-${day}`;
           const minH = row.surf.heightMin;
           const maxH = row.surf.heightMax;
           const code = row.conditions.weather ?? null;
           if (!groups[key]) {
+            // Create a dayjs date from the Pacific timezone date components
+            const yearNum = parseInt(year || "0");
+            const monthNum = parseInt(month || "1") - 1;
+            const dayNum = parseInt(day || "1");
+
+            // Create a Date for midnight in Pacific timezone
+            const noonUTC = Date.UTC(yearNum, monthNum, dayNum, 12, 0, 0, 0);
+            const noonDate = new Date(noonUTC);
+            const noonFormatter = new Intl.DateTimeFormat("en-US", {
+              timeZone: "America/Los_Angeles",
+              hour: "2-digit",
+              hour12: false,
+            });
+            const pacificNoonHour = parseInt(noonFormatter.format(noonDate));
+            const offsetHours = pacificNoonHour - 12;
+            const midnightUTC = new Date(Date.UTC(yearNum, monthNum, dayNum, -offsetHours, 0, 0, 0));
+
             groups[key] = {
-              date: d.startOf("day"),
+              date: dayjs(midnightUTC),
               min: null,
               max: null,
               code: null,
