@@ -354,7 +354,8 @@ const Highlights = ({
       });
       const parts = formatter.formatToParts(date);
       const year = parseInt(parts.find((p) => p.type === "year")?.value || "0");
-      const month = parseInt(parts.find((p) => p.type === "month")?.value || "1") - 1;
+      const month =
+        parseInt(parts.find((p) => p.type === "month")?.value || "1") - 1;
       const day = parseInt(parts.find((p) => p.type === "day")?.value || "1");
 
       // Calculate UTC timestamp for Pacific midnight using offset at noon
@@ -459,16 +460,38 @@ const Highlights = ({
     }
 
     const nextStats: Stat[] = [];
-    // weather air temp: if a date is selected, prefer forecast row; else use current
-    const base = date ? baseRow : current ?? baseRow;
+
+    // tide - find the tide data point closest to the selected time
+    let tideValue = 0;
+    if (tides && tides.length > 0) {
+      // Get the target timestamp from baseRow or use current time
+      const now = new Date();
+      const targetTime = baseRow?.timestamp
+        ? new Date(baseRow.timestamp).getTime()
+        : now.getTime();
+
+      // Find the closest tide data point
+      const closestTide = tides.reduce((closest, tide) => {
+        const diff = Math.abs(new Date(tide.timestamp).getTime() - targetTime);
+        const closestDiff = Math.abs(
+          new Date(closest.timestamp).getTime() - targetTime
+        );
+        return diff < closestDiff ? tide : closest;
+      }, tides[0]);
+
+      tideValue = closestTide.tideLevelFt ?? 0;
+    }
+
     nextStats.push({
-      label: "weather",
-      weather: {
-        temp: Math.round(base?.conditions.airTemp ?? 0),
-        condition: "sun",
-        code: base?.conditions.weather ?? null,
+      label: "tide",
+      tide: {
+        value: Number(tideValue.toFixed(1)),
+        unit: "ft",
       },
     });
+
+    const base = date ? baseRow : current ?? baseRow;
+
     // swell primary/secondary
     if (baseRow) {
       const pDir = baseRow.swell.primary.direction ?? 0;
@@ -500,34 +523,17 @@ const Highlights = ({
       label: "water",
       temp: Math.round(base?.conditions.waterTemp ?? 0),
     });
-    // tide - find the tide data point closest to the selected time
-    let tideValue = 0;
-    if (tides && tides.length > 0) {
-      // Get the target timestamp from baseRow or use current time
-      const now = new Date();
-      const targetTime = baseRow?.timestamp
-        ? new Date(baseRow.timestamp).getTime()
-        : now.getTime();
 
-      // Find the closest tide data point
-      const closestTide = tides.reduce((closest, tide) => {
-        const diff = Math.abs(new Date(tide.timestamp).getTime() - targetTime);
-        const closestDiff = Math.abs(
-          new Date(closest.timestamp).getTime() - targetTime
-        );
-        return diff < closestDiff ? tide : closest;
-      }, tides[0]);
-
-      tideValue = closestTide.tideLevelFt ?? 0;
-    }
-
+    // weather air temp: if a date is selected, prefer forecast row; else use current
     nextStats.push({
-      label: "tide",
-      tide: {
-        value: Number(tideValue.toFixed(1)),
-        unit: "ft",
+      label: "weather",
+      weather: {
+        temp: Math.round(base?.conditions.airTemp ?? 0),
+        condition: "sun",
+        code: base?.conditions.weather ?? null,
       },
     });
+
     // wind
     nextStats.push({
       label: "wind",

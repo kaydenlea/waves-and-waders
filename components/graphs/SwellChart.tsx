@@ -105,8 +105,7 @@ const SwellChart = ({ beachId, hours = 24, date }: Props) => {
         }
         const rows = await fetchBeachForecast(id, start, end);
         const series = rows.map((r, i) => ({
-          time:
-            i === rows.length - 1 ? hours : getPacificHour(r.timestamp),
+          time: i === rows.length - 1 ? hours : getPacificHour(r.timestamp),
           primary: Number((r.swell.primary.height ?? 0).toFixed(1)),
           secondary: Number((r.swell.secondary.height ?? 0).toFixed(1)),
           tertiary: Number((r.swell.tertiary?.height ?? 0).toFixed(1)),
@@ -196,7 +195,7 @@ const SwellChart = ({ beachId, hours = 24, date }: Props) => {
   return (
     <ChartContainer
       config={chartConfig}
-      className="aspect-auto h-[300px] w-full"
+      className="aspect-auto h-[275px] @min-3xl:h-[295px] w-full"
     >
       <AreaChart
         accessibilityLayer

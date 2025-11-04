@@ -218,7 +218,8 @@ const TideChart: React.FC<TideChartProps> = ({
     });
     const parts = formatter.formatToParts(basis);
     const year = parseInt(parts.find((p) => p.type === "year")?.value || "0");
-    const month = parseInt(parts.find((p) => p.type === "month")?.value || "1") - 1;
+    const month =
+      parseInt(parts.find((p) => p.type === "month")?.value || "1") - 1;
     const day = parseInt(parts.find((p) => p.type === "day")?.value || "1");
 
     // Calculate UTC timestamp for Pacific midnight using offset at noon
@@ -435,7 +436,7 @@ const TideChart: React.FC<TideChartProps> = ({
 
   return (
     <ChartContainer
-      className="aspect-auto h-[300px] w-full"
+      className="aspect-auto h-[275px] @min-3xl:h-[295px] w-full"
       config={chartConfig}
     >
       <LineChart

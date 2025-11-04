@@ -71,8 +71,8 @@ const VisualWrapper = ({
   return (
     <figure className="relative flex-1">
       <div className="bg-highlight-4 border border-border/40 rounded-2xl shadow-sm h-full w-full">
-        <div className="p-2">
-          <div className="p-1 rounded-xl bg-highlight-6 w-full shadow-even">
+        <div className="p-1.5">
+          <div className="p-2 rounded-xl bg-highlight-6 w-full shadow-even">
             <header className="p-1 flex justify-between gap-1 items-center">
               <div className="flex items-center gap-2">
                 <div

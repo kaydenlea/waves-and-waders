@@ -1,16 +1,80 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { ArrowLeft, Undo2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-import { ArrowLeft as BackIcon } from "lucide-react";
-
-const BackButton = () => {
-  const router = useRouter();
-  return (
-    <button aria-label="go back" onClick={() => router.back()} className="">
-      <BackIcon />
-    </button>
-  );
+type BackButtonProps = {
+  className?: string;
+  label?: string;
+  loggedIn?: boolean;
 };
 
-export default BackButton;
+export default function BackButton({
+  className,
+  label = "Back",
+  loggedIn,
+}: BackButtonProps) {
+  const router = useRouter();
+
+  const handleClick = () => {
+    try {
+      if (typeof window !== "undefined" && window.history.length > 1) {
+        router.back();
+        return;
+      }
+    } catch {
+      // no-op; fall through to push below
+    }
+    // Fallback: return to previously selected beaches tab if available
+    let tab: string | null = null;
+    let target = "/beaches";
+    try {
+      if (typeof window !== "undefined") {
+        // 1) Prefer referrer query if it was the beaches page
+        const ref = document.referrer;
+        if (ref) {
+          try {
+            const url = new URL(ref);
+            if (url.pathname === "/beaches") {
+              const qp = url.searchParams.get("tab");
+              if (qp === "saved" || qp === "nearby") tab = qp;
+            }
+          } catch {}
+        }
+        // 2) Fallback to persisted tab
+        if (!tab) {
+          const savedTab = window.localStorage.getItem("tab:/beaches");
+          if (savedTab === "saved" || savedTab === "nearby") tab = savedTab;
+        }
+        if (tab) target = `/beaches?tab=${tab}`;
+      }
+    } catch {
+      // ignore storage errors and use default
+    }
+    // If Saved is requested but user is not logged in, forward to login
+    if (tab === "saved" && loggedIn === false) {
+      router.push(`/login?next=${encodeURIComponent(target)}`);
+      return;
+    }
+    router.push(target);
+  };
+
+  return (
+    <button
+      type="button"
+      aria-label="Go back"
+      onClick={handleClick}
+      className={cn(
+        // Match SaveButton default styling on overview for visual harmony
+        "group/button self-center rounded-full bg-highlight-5 backdrop-blur p-2 transition hover:bg-highlight-3",
+        // On overview we show icon + label with slightly larger padding
+        "flex items-center gap-2 @min-2xl:px-4 @min-2xl:py-2",
+        className
+      )}
+    >
+      <Undo2 className="w-6 h-6 text-foreground" />
+      <span className="font-medium hidden @min-2xl:inline-block">{label}</span>
+    </button>
+  );
+}
