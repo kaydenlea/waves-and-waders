@@ -10,6 +10,7 @@ import {
   YAxis,
   LabelProps,
   ReferenceArea,
+  ReferenceLine,
 } from "recharts";
 import { MousePointer2 as ArrowIcon } from "lucide-react";
 import {
@@ -28,6 +29,7 @@ import {
   fetchDailyConditions,
   getWindDirection,
 } from "@/lib/supabase";
+import { useDateContext } from "@/components/context/DateContext";
 
 type Props = { beachId?: string; hours?: number; date?: Date };
 const chartConfig = {
@@ -38,6 +40,7 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 const WindChart = ({ beachId, hours = 24, date }: Props) => {
+  const { hour: selectedHour } = useDateContext();
   const [chartData, setChartData] = useState<
     {
       hour: number;
@@ -283,6 +286,13 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
         barCategoryGap="15%"
         maxBarSize={60}
       >
+        {/* Hour indicator line */}
+        <ReferenceLine
+          x={selectedHour}
+          stroke="var(--foreground)"
+          strokeWidth={2}
+          strokeDasharray="3 3"
+        />
         {dayAreas.map((a, idx) => (
           <ReferenceArea
             key={`day-${idx}`}

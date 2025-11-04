@@ -6,6 +6,7 @@ import {
   XAxis,
   YAxis,
   ReferenceArea,
+  ReferenceLine,
   AreaChart,
   Area,
 } from "recharts";
@@ -43,6 +44,7 @@ import {
   fetchDailyConditions,
   getWindDirection,
 } from "@/lib/supabase";
+import { useDateContext } from "@/components/context/DateContext";
 
 type Props = { beachId?: string; hours?: number; date?: Date };
 type Row = {
@@ -56,6 +58,7 @@ type Row = {
 };
 
 const SwellChart = ({ beachId, hours = 24, date }: Props) => {
+  const { hour: selectedHour } = useDateContext();
   const [data, setData] = useState<Row[]>([]);
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
   const [nightAreas, setNightAreas] = useState<{ x1: number; x2?: number }[]>(
@@ -223,6 +226,13 @@ const SwellChart = ({ beachId, hours = 24, date }: Props) => {
             fillOpacity={0.2}
           />
         ))}
+        {/* Hour indicator line */}
+        <ReferenceLine
+          x={selectedHour}
+          stroke="var(--foreground)"
+          strokeWidth={2}
+          strokeDasharray="3 3"
+        />
         {/* <CartesianGrid
           strokeDasharray="3 3"
           stroke="var(--foreground)"

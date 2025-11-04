@@ -10,6 +10,7 @@ import {
   YAxis,
   LabelProps,
   ReferenceArea,
+  ReferenceLine,
 } from "recharts";
 import { getPacificMidnightUTC, getPacificHour } from "@/lib/utils";
 import {
@@ -26,6 +27,7 @@ import {
   fetchBeachDetails,
   fetchDailyConditions,
 } from "@/lib/supabase";
+import { useDateContext } from "@/components/context/DateContext";
 
 type Props = { beachId?: string; hours?: number; date?: Date };
 type Row = {
@@ -44,6 +46,7 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 const SurfChart = ({ beachId, hours = 24, date }: Props) => {
+  const { hour: selectedHour } = useDateContext();
   const [chartData, setChartData] = useState<Row[]>([]);
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]); // sunrise-sunset (hours)
   const [nightAreas, setNightAreas] = useState<{ x1: number; x2?: number }[]>(
@@ -339,6 +342,13 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
         barCategoryGap="15%"
         maxBarSize={60}
       >
+        {/* Hour indicator line */}
+        <ReferenceLine
+          x={selectedHour}
+          stroke="var(--foreground)"
+          strokeWidth={2}
+          strokeDasharray="3 3"
+        />
         {dayAreas.map((a, idx) => (
           <ReferenceArea
             key={`day-${idx}`}

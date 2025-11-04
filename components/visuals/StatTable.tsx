@@ -282,7 +282,7 @@ const StatTable = ({
   date?: Date;
 }) => {
   const [data, setData] = React.useState<TableDay[]>([]);
-  const { selectedDays } = useDateContext();
+  const { selectedDays, hour: selectedHour } = useDateContext();
   const pathname = usePathname();
   const { selectedTab } = useClientPath();
   const forecastPage = selectedTab === "forecast";
@@ -964,12 +964,14 @@ const StatTable = ({
           <tbody>
             {visibleDays.map((day, i) => {
               const content = day.vals.map((entry, rowIdx) => {
+                const isSelectedHour = entry.index === selectedHour;
                 return (
                   <tr
                     key={`${i}-${entry.index}`}
                     className={cn(
                       rowIdx !== day.vals.length - 1 &&
-                        "border-b border-border/40"
+                        "border-b border-border/40",
+                      isSelectedHour && "bg-blue-100 dark:bg-blue-900/30"
                     )}
                   >
                     <th

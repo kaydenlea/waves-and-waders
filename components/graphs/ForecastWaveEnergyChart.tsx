@@ -219,21 +219,23 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
           }
           return;
         }
-        // Sort rows and determine Pacific midnight of the earliest row (DST-aware)
+        // Sort rows
         rows.sort(
           (a: any, b: any) =>
             new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
         );
-        const earliest = new Date(rows[0].timestamp);
 
-        // Get midnight in Pacific timezone for the earliest row's date
+        // Use today's date (or the first selected day) as the base, not the earliest data point
+        const baseDate = days && days.length > 0 ? days[0] : new Date();
+
+        // Get midnight in Pacific timezone for the base date (DST-aware)
         const dateFormatter = new Intl.DateTimeFormat("en-US", {
           timeZone: "America/Los_Angeles",
           year: "numeric",
           month: "2-digit",
           day: "2-digit",
         });
-        const dateParts = dateFormatter.formatToParts(earliest);
+        const dateParts = dateFormatter.formatToParts(baseDate);
         const year = parseInt(dateParts.find((p) => p.type === "year")?.value || "0");
         const month = parseInt(dateParts.find((p) => p.type === "month")?.value || "1") - 1;
         const day = parseInt(dateParts.find((p) => p.type === "day")?.value || "1");
@@ -258,9 +260,12 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
         for (const r of rows) {
           const ts = new Date(r.timestamp).getTime();
           const hour = Math.round((ts - baseMs) / 3600000);
-          const v =
-            (r as any)?.surf?.waveEnergy ?? (r as any)?.wave_energy_kj ?? 0;
-          series.push({ hour, energy: Number(v) || 0 });
+          // Only include data points from midnight onwards (hour >= 0)
+          if (hour >= 0) {
+            const v =
+              (r as any)?.surf?.waveEnergy ?? (r as any)?.wave_energy_kj ?? 0;
+            series.push({ hour, energy: Number(v) || 0 });
+          }
         }
         // Keep within a reasonable window (e.g., first 96 hours)
         series.sort((a, b) => a.hour - b.hour);
@@ -430,6 +435,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
   const dayOffset = getRelativeIndex(currentDay, startDay);
   const startDayIdx = dayOffset * (HOURS_PER_DAY / 3);
   const visibleData = source.slice(startDayIdx, startDayIdx + windowSize + 1);
+
   console.log(
     "NUMS",
     windowDays,
@@ -532,6 +538,34 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
           })
         )
       : null;
+
+  // Calculate high/low energy per day
+  const dayStats = React.useMemo(() => {
+    if (!visibleData.length) return [];
+
+    const stats: { high: number; low: number }[] = [];
+    const hoursPerDay = 24;
+
+    for (let dayIdx = 0; dayIdx < effectiveDayWindow; dayIdx++) {
+      const dayStartHour = (dayOffset + dayIdx) * hoursPerDay;
+      const dayEndHour = dayStartHour + hoursPerDay;
+
+      const dayData = visibleData.filter(
+        (point) => point.hour >= dayStartHour && point.hour < dayEndHour
+      );
+
+      if (dayData.length > 0) {
+        const energyValues = dayData.map((p) => p.energy);
+        const high = Math.max(...energyValues);
+        const low = Math.min(...energyValues);
+        stats.push({ high: Math.round(high), low: Math.round(low) });
+      } else {
+        stats.push({ high: 0, low: 0 });
+      }
+    }
+
+    return stats;
+  }, [visibleData, effectiveDayWindow, dayOffset]);
   const visibleNightAreas = nightAreas.filter(
     (a) =>
       ((a.x2 && a.x2 >= dayOffset * 24) || !a.x2) &&
@@ -657,7 +691,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
                   </span>
                 </span>
                 <span className="ml-1 text-foreground normal-case font-medium">
-                  100 <span className="hidden @min-xl:inline-block">kJ</span>
+                  {dayStats[idx]?.high ?? 0} <span className="hidden @min-xl:inline-block">kJ</span>
                 </span>
                 <span className="flex gap-2 items-center">
                   <TrendingDown
@@ -669,7 +703,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
                   </span>
                 </span>
                 <span className="ml-1 text-foreground normal-case font-medium">
-                  20 <span className="hidden @min-xl:inline-block">kJ</span>
+                  {dayStats[idx]?.low ?? 0} <span className="hidden @min-xl:inline-block">kJ</span>
                 </span>
               </div>
             </div>

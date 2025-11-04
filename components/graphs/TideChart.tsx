@@ -8,6 +8,7 @@ import {
   XAxis,
   YAxis,
   ReferenceArea,
+  ReferenceLine,
   LabelList,
   LabelProps,
 } from "recharts";
@@ -27,6 +28,7 @@ import {
   fetchBeachDetails,
   fetchDailyConditions,
 } from "@/lib/supabase";
+import { useDateContext } from "@/components/context/DateContext";
 
 const HOURS_TO_MS = 60 * 60 * 1000;
 
@@ -85,6 +87,7 @@ const TideChart: React.FC<TideChartProps> = ({
   chartData: chartDataProp,
   date,
 }) => {
+  const { hour: selectedHour } = useDateContext();
   const [chartData, setChartData] = useState<TidePoint[]>([]);
   const [windowStart, setWindowStart] = useState<number | null>(null);
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
@@ -445,6 +448,13 @@ const TideChart: React.FC<TideChartProps> = ({
           bottom: 0,
         }}
       >
+        {/* Hour indicator line */}
+        <ReferenceLine
+          x={selectedHour}
+          stroke="var(--foreground)"
+          strokeWidth={2}
+          strokeDasharray="3 3"
+        />
         {dayAreas.map((area, idx) => (
           <ReferenceArea
             key={`day-${idx}`}

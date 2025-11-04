@@ -6,6 +6,7 @@ import {
   XAxis,
   YAxis,
   ReferenceArea,
+  ReferenceLine,
   AreaChart,
   Area,
 } from "recharts";
@@ -43,6 +44,7 @@ import {
   fetchBeachDetails,
   fetchDailyConditions,
 } from "@/lib/supabase";
+import { useDateContext } from "@/components/context/DateContext";
 
 const HOURS_TO_MS = 60 * 60 * 1000;
 
@@ -83,6 +85,7 @@ function buildTrendStops(
 }
 
 const WaveEnergyChart = ({ beachId, hours = 24, date }: Props) => {
+  const { hour: selectedHour } = useDateContext();
   const [series, setSeries] = useState<EnergyPoint[]>([]);
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
   const [nightAreas, setNightAreas] = useState<{ x1: number; x2: number }[]>(
@@ -202,6 +205,17 @@ const WaveEnergyChart = ({ beachId, hours = 24, date }: Props) => {
     };
   }, [beachId, hours, date]);
 
+  const hourTicks = useMemo(() => {
+    const ticks: number[] = [];
+    for (let v = 0; v <= hours; v += 3) {
+      ticks.push(v);
+    }
+    if (ticks[ticks.length - 1] !== hours) {
+      ticks.push(hours);
+    }
+    return ticks;
+  }, [hours]);
+
   const stops = useMemo(
     () => buildTrendStops(series, "var(--green)", "var(--red)"),
     [series]
@@ -254,6 +268,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date }: Props) => {
           tickMargin={8}
           minTickGap={0}
           fontSize={11}
+          ticks={hourTicks}
           tickFormatter={(value) =>
             value % 3 === 0
               ? (value % 12 === 0 ? 12 : value % 12).toString()
@@ -292,6 +307,13 @@ const WaveEnergyChart = ({ beachId, hours = 24, date }: Props) => {
           //   fill="#adf1ffff"
           fill="url(#splitColor)"
           fillOpacity={1}
+        />
+        {/* Hour indicator line - rendered last so it appears on top */}
+        <ReferenceLine
+          x={selectedHour}
+          stroke="var(--foreground)"
+          strokeWidth={2}
+          strokeDasharray="3 3"
         />
       </AreaChart>
     </ChartContainer>

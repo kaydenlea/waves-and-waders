@@ -6,9 +6,9 @@ import {
   XAxis,
   YAxis,
   ReferenceArea,
+  ReferenceLine,
   AreaChart,
   Area,
-  ReferenceLine,
 } from "recharts";
 import {
   ChartConfig,
@@ -90,21 +90,23 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
           return;
         }
 
-        // Sort rows and determine Pacific midnight of the earliest row (DST-aware)
+        // Sort rows
         rows.sort(
           (a: any, b: any) =>
             new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
         );
-        const earliest = new Date(rows[0].timestamp);
 
-        // Get midnight in Pacific timezone for the earliest row's date
+        // Use today's date (or the first selected day) as the base, not the earliest data point
+        const baseDate = days && days.length > 0 ? days[0] : new Date();
+
+        // Get midnight in Pacific timezone for the base date (DST-aware)
         const dateFormatter = new Intl.DateTimeFormat("en-US", {
           timeZone: "America/Los_Angeles",
           year: "numeric",
           month: "2-digit",
           day: "2-digit",
         });
-        const dateParts = dateFormatter.formatToParts(earliest);
+        const dateParts = dateFormatter.formatToParts(baseDate);
         const year = parseInt(
           dateParts.find((p) => p.type === "year")?.value || "0"
         );
@@ -135,15 +137,18 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
         for (const r of rows) {
           const ts = new Date(r.timestamp).getTime();
           const hour = Math.round((ts - baseMs) / 3600000);
-          series.push({
-            hour,
-            primary: Number((r.swell.primary.height ?? 0).toFixed(1)),
-            secondary: Number((r.swell.secondary.height ?? 0).toFixed(1)),
-            tertiary: Number((r.swell.tertiary?.height ?? 0).toFixed(1)),
-            primaryDir: r.swell.primary.direction ?? undefined,
-            secondaryDir: r.swell.secondary.direction ?? undefined,
-            tertiaryDir: r.swell.tertiary?.direction ?? undefined,
-          });
+          // Only include data points from midnight onwards (hour >= 0)
+          if (hour >= 0) {
+            series.push({
+              hour,
+              primary: Number((r.swell.primary.height ?? 0).toFixed(1)),
+              secondary: Number((r.swell.secondary.height ?? 0).toFixed(1)),
+              tertiary: Number((r.swell.tertiary?.height ?? 0).toFixed(1)),
+              primaryDir: r.swell.primary.direction ?? undefined,
+              secondaryDir: r.swell.secondary.direction ?? undefined,
+              tertiaryDir: r.swell.tertiary?.direction ?? undefined,
+            });
+          }
         }
 
         series.sort((a, b) => a.hour - b.hour);

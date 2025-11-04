@@ -71,6 +71,8 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
       tide1: number;
       tide2: number;
       tide3: number;
+      avgMin: number;
+      avgMax: number;
     }[]
   >([]);
 
@@ -161,12 +163,55 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
             const near = arr.reduce((best, cur) => {
               const h = getPacificHour(cur.timestamp);
               const dist = Math.abs(h - target);
-              const val = Math.round(cur.surf.heightMax ?? 0);
+
+              // Calculate surf height using swell data (like SurfChart does)
+              const h1 = cur.swell.primary.height ?? 0;
+              const p1 = cur.swell.primary.period ?? 10;
+              const h2 = cur.swell.secondary.height ?? 0;
+              const p2 = cur.swell.secondary.period ?? 10;
+              const h3 = cur.swell.tertiary?.height ?? 0;
+              const p3 = cur.swell.tertiary?.period ?? 10;
+              const s1 = h1 * Math.sqrt(Math.max(0, p1) / 10);
+              const s2 = h2 * Math.sqrt(Math.max(0, p2) / 10);
+              const s3 = h3 * Math.sqrt(Math.max(0, p3) / 10);
+              const w1 = 1.0, w2 = 0.6, w3 = 0.3;
+              const combined = Math.sqrt(
+                Math.pow(w1 * s1, 2) + Math.pow(w2 * s2, 2) + Math.pow(w3 * s3, 2)
+              );
+              const wind = cur.conditions.windSpeed ?? 0;
+              const windPenalty = Math.min(0.5, Math.max(0, (wind - 5) / 35));
+              const effective = Math.max(0, combined * (1 - windPenalty));
+
+              const heightMax = cur.surf.heightMax ?? 0;
+              let representative = effective;
+
+              if (!Number.isFinite(representative) || representative <= 0) {
+                representative = heightMax > 0 ? heightMax : 0;
+              } else if (heightMax > 0) {
+                representative = representative * 0.7 + heightMax * 0.3;
+              }
+
+              const val = Number(Math.max(0, representative).toFixed(1));
               if (!best || dist < best.dist) return { dist, v: val };
               return best;
             }, null as any);
             return near ? near.v : 0;
           };
+          // Calculate average heightMin and heightMax for the day (like Summary does)
+          const heightMins = arr
+            .map((r) => r.surf?.heightMin)
+            .filter((v): v is number => typeof v === "number" && !isNaN(v));
+          const heightMaxes = arr
+            .map((r) => r.surf?.heightMax)
+            .filter((v): v is number => typeof v === "number" && !isNaN(v));
+
+          const avgMin = heightMins.length > 0
+            ? heightMins.reduce((sum, v) => sum + v, 0) / heightMins.length
+            : 0;
+          const avgMax = heightMaxes.length > 0
+            ? heightMaxes.reduce((sum, v) => sum + v, 0) / heightMaxes.length
+            : 0;
+
           out.push({
             day: dayName,
             dateKey,
@@ -174,6 +219,8 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
             tide1: pick(6),
             tide2: pick(12),
             tide3: pick(18),
+            avgMin,
+            avgMax,
           });
         }
         // Sort chronologically so we can cap the slider range.
@@ -353,27 +400,32 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
               const safeX = typeof props.x === "number" ? props.x : 0;
               const safeY = typeof props.y === "number" ? props.y : 0;
               const safeIdx = typeof props.index === "number" ? props.index : 0;
-              const safeDay =
-                typeof props.payload.value === "string"
-                  ? props.payload.value
-                  : "";
               const safeOffset =
                 typeof props.payload.offset === "number"
                   ? props.payload.offset
                   : 0;
-              // Use indexedData[safeIdx] for accurate lookup instead of searching by weekday name
+              // Use indexedData[safeIdx] for accurate lookup
               const dayData = indexedData[safeIdx];
-              const minSurf = dayData
-                ? Math.min(dayData.tide1, dayData.tide2, dayData.tide3)
-                : 0;
-              const maxSurf = dayData
-                ? Math.max(dayData.tide1, dayData.tide2, dayData.tide3)
-                : 0;
-              const surfVal = dayData
-                ? minSurf === maxSurf
-                  ? `${minSurf}`
-                  : `${minSurf}-${maxSurf}`
-                : "";
+
+              // Use average min/max for the day (same as Summary.tsx)
+              const avgMin = dayData?.avgMin ?? 0;
+              const avgMax = dayData?.avgMax ?? 0;
+
+              // Calculate surf range using the same logic as Summary.tsx
+              let surfVal = "";
+              if (dayData) {
+                let minRounded = Math.round(avgMin);
+                let maxRounded = Math.round(avgMax);
+                // Ensure min <= max
+                if (minRounded > maxRounded) {
+                  [minRounded, maxRounded] = [maxRounded, minRounded];
+                }
+                // If they're equal, subtract 1 from min
+                if (minRounded === maxRounded) {
+                  minRounded = Math.max(0, maxRounded - 1);
+                }
+                surfVal = `${minRounded}-${maxRounded}`;
+              }
               return (
                 <g>
                   <rect
@@ -382,8 +434,6 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                     width={safeOffset * 2 - 10}
                     height={26}
                     fill="var(--blue)"
-                    // stroke="#cacacaff"
-                    // strokeWidth={0.3}
                     rx={6}
                   />
                   <text
@@ -396,57 +446,9 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                   >
                     {`${surfVal} ft`}
                   </text>
-                  {/* <rect
-                    x={safeX - safeOffset + 4}
-                    y={safeY - 15 + 25}
-                    width={safeOffset * 2 - 10}
-                    height={24}
-                    fill="var(--highlight-2)"
-                    stroke="#cacacaff"
-                    strokeWidth={0.3}
-                    rx={4}
-                  /> */}
-                  {/* <text
-                    x={safeX}
-                    y={safeY + 25}
-                    textAnchor="middle"
-                    fill="var(--foreground)"
-                    fontSize={11}
-                  >
-                    8/10
-                  </text> */}
-                  {/* <text
-                    x={safeX}
-                    y={safeY + 25}
-                    textAnchor="middle"
-                    fill="var(--foreground)"
-                    fontSize={11}
-                    fontWeight={500}
-                  >
-                    {props.payload.value.split(",")[1] ?? "N/A"}
-                  </text> */}
                 </g>
               );
             }}
-            // tick={(props) => {
-            //   const safeX = typeof props.x === "number" ? props.x : 0;
-            //   const safeY = typeof props.y === "number" ? props.y : 0;
-            //   const label = String(props.payload?.value ?? "");
-            //   return (
-            //     <g>
-            //       <text
-            //         x={safeX}
-            //         y={safeY + 5}
-            //         textAnchor="middle"
-            //         fill="var(--foreground)"
-            //         fontSize={13}
-            //         fontWeight={600}
-            //       >
-            //         {label}
-            //       </text>
-            //     </g>
-            //   );
-            // }}
             tickMargin={10}
             axisLine={false}
           />
@@ -489,28 +491,40 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
             strokeWidth={0.5}
             minPointSize={10}
           >
-            {/* <LabelList
+            <LabelList
               dataKey="tide1"
-              position="top"
+              position="middle"
               content={(props: LabelProps) => {
                 const safeX = typeof props.x === "number" ? props.x : 0;
                 const safeY = typeof props.y === "number" ? props.y : 0;
                 const safeWidth =
                   typeof props.width === "number" ? props.width : 0;
-                const iconSize = Math.max(16, safeWidth * 0.3);
-                return (
-                  <g>
-                    <ArrowIcon
-                      size={iconSize}
-                      x={safeX + (safeWidth - iconSize) / 2}
-                      y={safeY - iconSize - iconSize / 2}
-                      fill="#8bd668ff"
-                      color="#8bd668ff"
-                    />
-                  </g>
-                );
+                const safeHeight =
+                  typeof props.height === "number" ? props.height : 0;
+                const fontSize = Math.max(10, safeWidth * 0.15);
+                const label =
+                  typeof props.value === "number" ? props.value.toFixed(1) : "";
+
+                if (label) {
+                  return (
+                    <g>
+                      <text
+                        x={safeX + safeWidth / 2}
+                        y={safeY + safeHeight / 2 + fontSize / 3}
+                        fill="#2c2c2cff"
+                        textAnchor="middle"
+                        fontWeight="bold"
+                        fontSize={fontSize}
+                      >
+                        {label === "0.0" ? "0" : label}
+                      </text>
+                    </g>
+                  );
+                }
+                return null;
               }}
-            /> */}
+              fill="black"
+            />
           </Bar>
           <Bar
             dataKey="tide2"
@@ -520,28 +534,40 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
             strokeWidth={0.5}
             minPointSize={10}
           >
-            {/* <LabelList
+            <LabelList
               dataKey="tide2"
-              position="top"
+              position="middle"
               content={(props: LabelProps) => {
                 const safeX = typeof props.x === "number" ? props.x : 0;
                 const safeY = typeof props.y === "number" ? props.y : 0;
                 const safeWidth =
                   typeof props.width === "number" ? props.width : 0;
-                const iconSize = Math.max(16, safeWidth * 0.3);
-                return (
-                  <g>
-                    <ArrowIcon
-                      size={iconSize}
-                      x={safeX + (safeWidth - iconSize) / 2}
-                      y={safeY - iconSize - iconSize / 2}
-                      fill="#8bd668ff"
-                      color="#8bd668ff"
-                    />
-                  </g>
-                );
+                const safeHeight =
+                  typeof props.height === "number" ? props.height : 0;
+                const fontSize = Math.max(10, safeWidth * 0.15);
+                const label =
+                  typeof props.value === "number" ? props.value.toFixed(1) : "";
+
+                if (label) {
+                  return (
+                    <g>
+                      <text
+                        x={safeX + safeWidth / 2}
+                        y={safeY + safeHeight / 2 + fontSize / 3}
+                        fill="#2c2c2cff"
+                        textAnchor="middle"
+                        fontWeight="bold"
+                        fontSize={fontSize}
+                      >
+                        {label === "0.0" ? "0" : label}
+                      </text>
+                    </g>
+                  );
+                }
+                return null;
               }}
-            /> */}
+              fill="black"
+            />
           </Bar>
           <Bar
             dataKey="tide3"
@@ -551,28 +577,40 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
             strokeWidth={0.5}
             minPointSize={10}
           >
-            {/* <LabelList
+            <LabelList
               dataKey="tide3"
-              position="top"
+              position="middle"
               content={(props: LabelProps) => {
                 const safeX = typeof props.x === "number" ? props.x : 0;
                 const safeY = typeof props.y === "number" ? props.y : 0;
                 const safeWidth =
                   typeof props.width === "number" ? props.width : 0;
-                const iconSize = Math.max(16, safeWidth * 0.3);
-                return (
-                  <g>
-                    <ArrowIcon
-                      size={iconSize}
-                      x={safeX + (safeWidth - iconSize) / 2}
-                      y={safeY - iconSize - iconSize / 2}
-                      fill="#8bd668ff"
-                      color="#8bd668ff"
-                    />
-                  </g>
-                );
+                const safeHeight =
+                  typeof props.height === "number" ? props.height : 0;
+                const fontSize = Math.max(10, safeWidth * 0.15);
+                const label =
+                  typeof props.value === "number" ? props.value.toFixed(1) : "";
+
+                if (label) {
+                  return (
+                    <g>
+                      <text
+                        x={safeX + safeWidth / 2}
+                        y={safeY + safeHeight / 2 + fontSize / 3}
+                        fill="#2c2c2cff"
+                        textAnchor="middle"
+                        fontWeight="bold"
+                        fontSize={fontSize}
+                      >
+                        {label === "0.0" ? "0" : label}
+                      </text>
+                    </g>
+                  );
+                }
+                return null;
               }}
-            /> */}
+              fill="black"
+            />
           </Bar>
         </BarChart>
       </ChartContainer>
