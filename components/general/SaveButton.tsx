@@ -122,14 +122,11 @@ const SaveButton = ({
       className={cn(
         baseClass,
         className,
-        overviewPage && "flex gap-2 @min-xl:px-4 @min-xl:py-2"
+        overviewPage && "flex gap-2 @min-2xl:px-4 @min-2xl:py-2"
       )}
       onClick={handleClick}
       disabled={loading}
     >
-      {overviewPage && (
-        <span className="font-semibold hidden @min-xl:inline-block">Save</span>
-      )}
       <Heart
         className={cn(
           "w-6 h-6 transition-colors",
@@ -137,6 +134,11 @@ const SaveButton = ({
           loading && "opacity-60"
         )}
       />
+      {overviewPage && (
+        <span className="font-medium hidden @min-2xl:inline-block">
+          Save <span className="hidden @min-4xl:inline-block">spot</span>
+        </span>
+      )}
     </button>
   );
 };

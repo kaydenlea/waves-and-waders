@@ -25,6 +25,8 @@ type PageTabsProps = {
   loggedIn?: boolean;
   className?: string;
   placement?: "default" | "inline";
+  fullWidth?: boolean;
+  responsiveFull?: boolean;
 };
 
 const PageTabs = ({
@@ -40,6 +42,8 @@ const PageTabs = ({
   loggedIn = false,
   className,
   placement = "default",
+  fullWidth = false,
+  responsiveFull = false,
 }: PageTabsProps) => {
   const router = useRouter();
   const [favorite, setFavorite] = useState(isFavorite);
@@ -78,25 +82,19 @@ const PageTabs = ({
     };
   }, []);
 
+  // Set a default only if no tab has been selected/restored yet.
   useEffect(() => {
-    if (selectedTab === "") {
-      console.log("BEACH TEST TAB 1", selectedTab);
-      setSelectedTab(overviewPage ? "overview" : "nearby");
-    } else if (
-      (selectedTab === "overview" || selectedTab === "forecast") &&
-      beachPage
-    ) {
-      console.log("BEACH TEST TAB 2", selectedTab);
-      setSelectedTab("nearby");
-    } else if (
-      (selectedTab === "saved" || selectedTab === "nearby") &&
-      overviewPage
-    ) {
-      console.log("BEACH TEST TAB 3", selectedTab);
-      setSelectedTab("overview");
-    }
-    console.log("BEACH TEST TAB", selectedTab);
-  }, []);
+    if (selectedTab !== "") return;
+    setSelectedTab(overviewPage ? "overview" : "nearby");
+  }, [selectedTab, overviewPage, setSelectedTab]);
+
+  // If user is not logged in and Saved is active on the beaches page, redirect to login.
+  useEffect(() => {
+    if (!beachPage) return;
+    if (loggedIn) return;
+    if (selectedTab !== "saved") return;
+    router.push(`/login?next=${encodeURIComponent("/beaches?tab=saved")}`);
+  }, [beachPage, loggedIn, selectedTab, router]);
 
   useEffect(() => {
     setFavorite(isFavorite);
@@ -120,28 +118,13 @@ const PageTabs = ({
     >
       {buttons && (
         <>
-          {/* <FocusMapButton beach={beach} /> */}
-          {(forecastPage || overviewPage) && (
-            <Link
-              href={
-                selectedTab === "forecast"
-                  ? `/${beachId}/forecast/edit#forecast-content`
-                  : `/${beachId}/overview/edit#overview-content`
-              }
-              className="bg-highlight-5 hover:bg-highlight-3 my-auto rounded-full p-2.5"
-              aria-label={`Edit ${
-                forecastPage ? "forecast" : "overview"
-              } dashboard`}
-            >
-              <Pencil className="stroke-[2.5px] w-5 h-5 @min-sm:w-5 @min-sm:h-5" />
-            </Link>
-          )}
+          {/* Reopen map button (left-most when visible) */}
           {!showMap && isDesktop && (
             <button
               type="button"
               aria-label="Reopen map"
               className={cn(
-                "bg-highlight-5 hover:bg-highlight-3 my-auto rounded-full p-2 disabled:opacity-50 disabled:hover:bg-highlight-5"
+                "bg-highlight-5 hover:bg-highlight-3 my-auto rounded-full py-2 px-4 disabled:opacity-50 disabled:hover:bg-highlight-5 flex gap-2"
               )}
               onClick={() => setShowMap(!showMap)}
             >
@@ -150,7 +133,26 @@ const PageTabs = ({
               ) : (
                 <MapPinned className="w-6 h-6 @min-sm:w-6 @min-sm:h-6" />
               )}
+              <span className="font-medium">Zoom</span>
             </button>
+          )}
+          {(forecastPage || overviewPage) && (
+            <Link
+              href={
+                selectedTab === "forecast"
+                  ? `/${beachId}/forecast/edit#forecast-content`
+                  : `/${beachId}/overview/edit#overview-content`
+              }
+              className="hidden @min-xl:inline-flex bg-highlight-5 hover:bg-highlight-3 my-auto rounded-full p-3 @min-2xl:py-2 @min-2xl:px-4 gap-2"
+              aria-label={`Edit ${
+                forecastPage ? "forecast" : "overview"
+              } dashboard`}
+            >
+              <Pencil className="stroke-[2.5px] w-5 h-5 @min-sm:w-5 @min-sm:h-5" />
+              <span className="font-medium hidden @min-2xl:inline-block">
+                Edit
+              </span>
+            </Link>
           )}
           {showSaveButton && (
             <SaveButton
@@ -162,7 +164,16 @@ const PageTabs = ({
           )}
         </>
       )}
-      <div className="relative flex w-fit rounded-full bg-highlight-3 p-1.5 text-sm @min-sm:text-base font-medium border border-border/20 shadow-inner">
+      <div
+        className={cn(
+          "relative flex rounded-full bg-highlight-3 p-1.5 text-sm @min-sm:text-base font-medium border border-border/20 shadow-inner",
+          responsiveFull
+            ? "w-full @min-xl:w-fit"
+            : fullWidth
+            ? "w-full"
+            : "w-fit"
+        )}
+      >
         {tabs.map((tab) => {
           const isActive = selectedTab === tab;
           // const href =
@@ -192,7 +203,9 @@ const PageTabs = ({
               aria-label={`${selectedTab} tab`}
               key={tab}
               className={cn(
-                "relative z-10 flex-1 rounded-full px-4 py-1 w-27 text-center capitalize transition-colors duration-300",
+                "relative z-10 flex-1 rounded-full px-4 py-1 text-center capitalize transition-colors duration-300",
+                responsiveFull && "py-2",
+                fullWidth ? "py-1.5 min-w-0" : "w-27",
                 isActive
                   ? "text-foreground font-semibold"
                   : "text-muted-foreground hover:text-foreground/80"

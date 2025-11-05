@@ -1,5 +1,6 @@
 import DateSummaryBridge from "@/components/general/DateSummaryBridge";
 import SaveButton from "@/components/general/SaveButton";
+import BackButton from "@/components/general/BackButton";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { fetchBeachByIdLoose, extractBeachId } from "@/lib/supabase";
@@ -72,14 +73,13 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
               className="relative w-full flex flex-col gap-6 p-2 pb-0 scroll-mt-30"
             >
               <div className="flex items-center gap-3">
-                <h1 className="font-semibold text-4xl tracking-tight w-full whitespace-nowrap truncate">
+                <h1 className="pb-0.5 font-semibold text-4xl tracking-tight w-full whitespace-nowrap truncate">
                   {beachName}
                 </h1>
-                <SaveButton
-                  beachId={beachId}
-                  initialIsFav={isFav}
-                  className="ml-auto shrink-0"
-                />
+                <div className="ml-auto flex items-center gap-2 shrink-0">
+                  <BackButton loggedIn={Boolean(user)} />
+                  <SaveButton beachId={beachId} initialIsFav={isFav} />
+                </div>
               </div>
             </header>
 

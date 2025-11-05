@@ -115,9 +115,14 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
             day: "2-digit",
           });
           const parts = formatter.formatToParts(date);
-          const year = parseInt(parts.find((p) => p.type === "year")?.value || "0");
-          const month = parseInt(parts.find((p) => p.type === "month")?.value || "1") - 1;
-          const day = parseInt(parts.find((p) => p.type === "day")?.value || "1");
+          const year = parseInt(
+            parts.find((p) => p.type === "year")?.value || "0"
+          );
+          const month =
+            parseInt(parts.find((p) => p.type === "month")?.value || "1") - 1;
+          const day = parseInt(
+            parts.find((p) => p.type === "day")?.value || "1"
+          );
 
           // Calculate UTC timestamp for Pacific midnight using offset at noon
           const noonUTC = Date.UTC(year, month, day, 12, 0, 0, 0);
@@ -276,7 +281,7 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
     <ChartContainer
       ref={chartRef}
       config={chartConfig}
-      className="aspect-auto h-[300px] w-full"
+      className="aspect-auto h-[275px] @min-3xl:h-[295px] w-full"
     >
       <BarChart
         margin={{ top: 10, right: 10, left: -28, bottom: 0 }}

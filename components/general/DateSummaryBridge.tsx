@@ -32,6 +32,8 @@ import { useClientPath } from "../context/PathContext";
 import { ForecastChartProvider } from "../context/ForecastChartContext";
 import ForecastBridge from "./ForecastBridge";
 import PageTabs from "./PageTabs";
+import Link from "next/link";
+import { Pencil } from "lucide-react";
 
 type Props = {
   beachId: string;
@@ -340,23 +342,49 @@ const DateSummaryBridge: React.FC<Props> = ({
 
       <section
         id={sectionId}
-        className="mt-15 flex flex-col gap-1 w-full scroll-mt-35"
+        className="mt-10 flex flex-col gap-1 w-full scroll-mt-35"
       >
         <header className="mx-2 flex flex-col gap-3 @min-xl:flex-row @min-xl:items-start @min-xl:justify-between">
-          <div className="space-y-0">
-            <h2 className="text-3xl font-semibold">{headerTitle}</h2>
-            <p className="text-base text-muted-foreground">{headerSubtitle}</p>
+          <div className="flex items-start justify-between gap-2 w-full">
+            <div className="space-y-0 min-w-0">
+              <h2 className="text-3xl font-semibold truncate">{headerTitle}</h2>
+              <p className="text-base text-muted-foreground truncate">
+                {headerSubtitle}
+              </p>
+            </div>
+            {/* Mobile edit button (hidden on wide screens) */}
+            <Link
+              href={
+                selectedTab === "forecast"
+                  ? `/${beachId}/forecast/edit#forecast-content`
+                  : `/${beachId}/overview/edit#overview-content`
+              }
+              className="@min-xl:hidden inline-flex bg-highlight-5 hover:bg-highlight-3 rounded-full p-3 @min-sm:py-2.5 gap-2 @min-sm:px-4 shrink-0"
+              aria-label={`Edit ${
+                selectedTab === "forecast" ? "forecast" : "overview"
+              } dashboard`}
+            >
+              <Pencil className="stroke-[2.5px] w-5 h-5 @min-sm:w-5 @min-sm:h-5" />
+              <span className="font-medium hidden @min-sm:inline-block">
+                Edit
+              </span>
+            </Link>
           </div>
-          <PageTabs
-            beach={beachParam}
-            beachId={beachId}
-            tabs={["overview", "forecast"]}
-            isFavorite={isFavorite}
-            overviewPage
-            forecastPage={selectedTab === "forecast"}
-            placement="inline"
-          />
+          <div className="shrink-0 @min-xl:ml-auto w-full @min-xl:w-auto">
+            <PageTabs
+              beach={beachParam}
+              beachId={beachId}
+              tabs={["overview", "forecast"]}
+              isFavorite={isFavorite}
+              overviewPage
+              forecastPage={selectedTab === "forecast"}
+              placement="inline"
+              buttons
+              responsiveFull
+            />
+          </div>
         </header>
+        {/* Tabs now live inside header for all breakpoints */}
 
         {isOverview ? (
           visibleRows.length === 0 ? (

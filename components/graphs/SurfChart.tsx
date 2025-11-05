@@ -191,8 +191,7 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
           }
 
           return {
-            hour:
-              i === rows.length - 1 ? hours : getPacificHour(r.timestamp),
+            hour: i === rows.length - 1 ? hours : getPacificHour(r.timestamp),
             surf: Number(Math.max(0, representative).toFixed(1)),
             min,
             max,
@@ -327,7 +326,7 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
     <ChartContainer
       ref={chartRef}
       config={chartConfig}
-      className="aspect-auto h-[300px] w-full !justify-start"
+      className="aspect-auto h-[275px] @min-3xl:h-[295px] w-full !justify-start"
     >
       <BarChart
         margin={{

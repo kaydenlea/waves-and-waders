@@ -147,7 +147,7 @@ const WindStat = ({
         )}
       >
         <span className="text-lg font-medium">{data.speed}</span>
-        <span className="hidden @min-xs:flex flex flex-col -space-y-1">
+        <span className="hidden @min-[310px]:flex flex flex-col -space-y-1">
           <span className="text-[0.6rem]">{data.max}</span>
           <span className="hidden @min-sm:block text-[0.7rem]">mph</span>
         </span>
@@ -927,7 +927,7 @@ const StatTable = ({
           <div
             ref={pagerRef}
             className={cn(
-              "absolute left-1/2 transform -translate-x-1/2 bottom-3 z-20 flex items-center gap-2 pointer-events-auto",
+              "absolute left-1/2 transform -translate-x-1/2 -bottom-2 z-20 flex items-center gap-2 pointer-events-auto",
               "bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/70",
               "border border-border/60 rounded-full px-2 py-1 shadow-md"
             )}
@@ -1107,7 +1107,7 @@ const StatTable = ({
         </table>
       </div>
       {/* Reserve space for pager to avoid layout jump and coverage */}
-      {columnPages.length > 1 && <div aria-hidden className="h-14" />}
+      {columnPages.length > 1 && <div aria-hidden className="h-10" />}
     </div>
   );
 };

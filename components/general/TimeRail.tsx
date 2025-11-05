@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo, startTransition, useState, useEffect } from "react";
-import { Calendar, Clock } from "lucide-react";
+import { Calendar, Clock, TimerReset } from "lucide-react";
 import { useDateContext } from "../context/DateContext";
 import { useMapFilters } from "../context/MapFilterContext";
 import { LazyLoadDatePicker } from "./LazyLoad/LazyLoadDatePicker";
@@ -107,7 +107,7 @@ const TimeRail: React.FC<Props> = ({
           onClick={onNow}
           className="inline-flex items-center gap-1 rounded-full border border-border bg-highlight-5/50 hover:bg-highlight-3 px-2.5 @min-lg:px-3 py-2 @min-lg:py-2 text-xs font-medium"
         >
-          <Clock size={16} />{" "}
+          <TimerReset size={16} />{" "}
           <span className="hidden @min-md:inline-block">Now</span>
         </button>
         <span

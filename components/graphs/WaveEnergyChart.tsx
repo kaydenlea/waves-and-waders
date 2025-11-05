@@ -223,7 +223,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date }: Props) => {
   return (
     <ChartContainer
       config={chartConfig}
-      className="aspect-auto h-[300px] w-full"
+      className="aspect-auto h-[275px] @min-3xl:h-[295px] w-full"
     >
       <AreaChart
         accessibilityLayer
