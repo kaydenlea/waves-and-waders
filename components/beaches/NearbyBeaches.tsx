@@ -860,29 +860,33 @@ export default function NearbyBeaches({
         const statsMap = await loadStats(currentItems);
         if (!statsMap) return;
         currentItems.forEach((beach) => {
-          const beachStats = statsMap[beach.id].summary;
+          const statsEntry = statsMap[beach.id];
+          if (!statsEntry) {
+            return;
+          }
+          const beachStats = statsEntry.summary;
           if (!beachStats) return;
-        const surfStat = beachStats.find(
-          (stat): stat is Extract<SummaryStat, { type: "surf" }> =>
-            stat.type === "surf"
-        );
-        const windStat = beachStats.find(
-          (stat): stat is Extract<SummaryStat, { type: "wind" }> =>
-            stat.type === "wind"
-        );
-        const featuresStat = beachStats.find(
-          (stat): stat is Extract<SummaryStat, { type: "features" }> =>
-            stat.type === "features"
-        );
-        beach.conditions.rating = surfStat?.surf.intensity ?? 0;
-        beach.conditions.surf = surfStat?.surf.height ?? "-";
-        beach.conditions.windDir = windStat?.wind.direction ?? 0;
-        beach.conditions.wind = windStat?.wind.speed
-          ? String(windStat?.wind.speed)
-          : "-";
-        beach.features = featuresStat?.tags ?? [];
+          const surfStat = beachStats.find(
+            (stat): stat is Extract<SummaryStat, { type: "surf" }> =>
+              stat.type === "surf"
+          );
+          const windStat = beachStats.find(
+            (stat): stat is Extract<SummaryStat, { type: "wind" }> =>
+              stat.type === "wind"
+          );
+          const featuresStat = beachStats.find(
+            (stat): stat is Extract<SummaryStat, { type: "features" }> =>
+              stat.type === "features"
+          );
+          beach.conditions.rating = surfStat?.surf.intensity ?? 0;
+          beach.conditions.surf = surfStat?.surf.height ?? "-";
+          beach.conditions.windDir = windStat?.wind.direction ?? 0;
+          beach.conditions.wind = windStat?.wind.speed
+            ? String(windStat?.wind.speed)
+            : "-";
+          beach.features = featuresStat?.tags ?? [];
 
-          const beachConditions = statsMap[beach.id].current;
+          const beachConditions = statsEntry.current;
           if (!beachConditions) return;
           beach.current = beachConditions;
         });

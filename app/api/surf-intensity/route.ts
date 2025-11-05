@@ -2,6 +2,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
+type GridIntensityRow = {
+  grid_id: number
+  avg_surf_max_ft: number | null
+}
+
+type GridForecastRow = {
+  grid_id: number
+  surf_height_max_ft: number | null
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
@@ -14,148 +24,45 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const PAGE_SIZE = 1000
+    const beachMap = await loadBeachGridMap()
 
-    // Fetch from daily_beach_surf_intensity table
-    const fetchDailyRows = async () => {
-      const rows: any[] = []
-      let page = 0
-
-      while (true) {
-        const from = page * PAGE_SIZE
-        const to = from + PAGE_SIZE - 1
-
-        const { data, error } = await supabase
-          .from('daily_beach_surf_intensity')
-          .select('beach_id, avg_surf_max_ft')
-          .eq('date', dateParam)
-          .order('beach_id', { ascending: true })
-          .range(from, to)
-
-        if (error) {
-          return { data: rows, error }
-        }
-
-        if (!data || data.length === 0) {
-          break
-        }
-
-        rows.push(...data)
-
-        if (data.length < PAGE_SIZE) {
-          break
-        }
-
-        page += 1
-      }
-
-      return { data: rows, error: null }
-    }
-
-    const { data: dailyData, error } = await fetchDailyRows()
-
-    if (!error && Array.isArray(dailyData) && dailyData.length > 0) {
-      // Convert to map format
-      const intensityMap: Record<string, number> = {}
-      dailyData.forEach((row: any) => {
-        const avg = row?.avg_surf_max_ft
-        if (avg != null && !Number.isNaN(Number(avg))) {
-          intensityMap[String(row.beach_id)] = Number(avg)
-        }
-      })
-
+    const dailyRows = await fetchDailyGridIntensity(dateParam)
+    if (dailyRows && dailyRows.length > 0) {
+      const intensityMap = mapGridValuesToBeaches(dailyRows, beachMap)
       const response = NextResponse.json({
         success: true,
         data: intensityMap,
-        source: 'daily_table'
+        source: 'daily_grid_table'
       })
-
-      // Cache for 1 hour (surf data doesn't change that frequently)
-      response.headers.set('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=7200')
-
+      response.headers.set(
+        'Cache-Control',
+        'public, s-maxage=3600, stale-while-revalidate=7200'
+      )
       return response
     }
 
-    // Fallback to forecast_data if daily table has no data
     const date = new Date(dateParam)
     const startWindow = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0))
     const endWindow = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999))
 
-    const fetchForecastRows = async () => {
-      const rows: any[] = []
-      let page = 0
+    const forecastRows = await fetchGridForecastRows(
+      startWindow.toISOString(),
+      endWindow.toISOString()
+    )
 
-      while (true) {
-        const from = page * PAGE_SIZE
-        const to = from + PAGE_SIZE - 1
-
-        const { data, error } = await supabase
-          .from('forecast_data')
-          .select('beach_id, surf_height_max_ft')
-          .gte('timestamp', startWindow.toISOString())
-          .lte('timestamp', endWindow.toISOString())
-          .order('beach_id', { ascending: true })
-          .range(from, to)
-
-        if (error) {
-          return { data: rows, error }
-        }
-
-        if (!data || data.length === 0) {
-          break
-        }
-
-        rows.push(...data)
-
-        if (data.length < PAGE_SIZE) {
-          break
-        }
-
-        page += 1
-      }
-
-      return { data: rows, error: null }
-    }
-
-    const { data: rawData, error: queryError } = await fetchForecastRows()
-
-    if (queryError || !rawData) {
-      return NextResponse.json(
-        { success: false, error: 'Failed to fetch surf intensity data' },
-        { status: 500 }
-      )
-    }
-
-    // Aggregate forecast data by beach
-    const beachMaxValues: Record<string, number[]> = {}
-    rawData.forEach((record: any) => {
-      const beachId = String(record.beach_id)
-      const surfHeight = record.surf_height_max_ft
-      if (surfHeight != null && !Number.isNaN(Number(surfHeight))) {
-        if (!beachMaxValues[beachId]) {
-          beachMaxValues[beachId] = []
-        }
-        beachMaxValues[beachId].push(Number(surfHeight))
-      }
-    })
-
-    const fallbackIntensity: Record<string, number> = {}
-    Object.keys(beachMaxValues).forEach((beach) => {
-      const maxes = beachMaxValues[beach]
-      if (maxes.length > 0) {
-        fallbackIntensity[beach] =
-          maxes.reduce((sum, val) => sum + val, 0) / maxes.length
-      }
-    })
+    const aggregated = aggregateForecastRows(forecastRows)
+    const fallbackIntensity = mapGridValuesToBeaches(aggregated, beachMap)
 
     const response = NextResponse.json({
       success: true,
       data: fallbackIntensity,
-      source: 'forecast_fallback'
+      source: 'grid_forecast_fallback'
     })
 
-    // Cache for 1 hour
-    response.headers.set('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=7200')
+    response.headers.set(
+      'Cache-Control',
+      'public, s-maxage=3600, stale-while-revalidate=7200'
+    )
 
     return response
   } catch (error) {
@@ -165,4 +72,108 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     )
   }
+}
+
+async function loadBeachGridMap(): Promise<Map<number, string[]>> {
+  const map = new Map<number, string[]>()
+
+  const { data, error } = await supabase
+    .from('beaches')
+    .select('id, grid_id')
+    .not('grid_id', 'is', null)
+
+  if (error) {
+    console.error('Failed to load beaches for grid mapping:', error)
+    return map
+  }
+
+  for (const row of data ?? []) {
+    if (row.grid_id == null) continue
+    if (!map.has(row.grid_id)) {
+      map.set(row.grid_id, [])
+    }
+    map.get(row.grid_id)!.push(String(row.id))
+  }
+
+  return map
+}
+
+async function fetchDailyGridIntensity(date: string) {
+  const { data, error } = await supabase
+    .from('daily_grid_surf_intensity')
+    .select('grid_id, avg_surf_max_ft')
+    .eq('date', date)
+    .order('grid_id', { ascending: true })
+
+  if (error) {
+    console.warn('Failed to fetch daily grid intensity, will fallback', error)
+    return null
+  }
+
+  return data as GridIntensityRow[] | null
+}
+
+async function fetchGridForecastRows(startIso: string, endIso: string) {
+  const { data, error } = await supabase
+    .from('grid_forecast_data')
+    .select('grid_id, surf_height_max_ft')
+    .gte('timestamp', startIso)
+    .lte('timestamp', endIso)
+
+  if (error) {
+    console.error('Failed to fetch grid forecast rows:', error)
+    return []
+  }
+
+  return data as GridForecastRow[]
+}
+
+function aggregateForecastRows(
+  rows: GridForecastRow[]
+): GridIntensityRow[] {
+  const totals = new Map<number, { sum: number; count: number }>()
+
+  for (const row of rows) {
+    if (row.grid_id == null) continue
+    const value =
+      row.surf_height_max_ft != null
+        ? Number(row.surf_height_max_ft)
+        : null
+    if (value == null || Number.isNaN(value)) continue
+
+    if (!totals.has(row.grid_id)) {
+      totals.set(row.grid_id, { sum: 0, count: 0 })
+    }
+    const bucket = totals.get(row.grid_id)!
+    bucket.sum += value
+    bucket.count += 1
+  }
+
+  return Array.from(totals.entries()).map(([grid_id, bucket]) => ({
+    grid_id,
+    avg_surf_max_ft:
+      bucket.count > 0 ? bucket.sum / bucket.count : null
+  }))
+}
+
+function mapGridValuesToBeaches(
+  rows: GridIntensityRow[] | null,
+  beachMap: Map<number, string[]>
+): Record<string, number> {
+  const result: Record<string, number> = {}
+  if (!rows) return result
+
+  for (const row of rows) {
+    if (row.grid_id == null) continue
+    if (row.avg_surf_max_ft == null) continue
+
+    const beaches = beachMap.get(row.grid_id)
+    if (!beaches || beaches.length === 0) continue
+
+    for (const beachId of beaches) {
+      result[beachId] = Number(row.avg_surf_max_ft)
+    }
+  }
+
+  return result
 }

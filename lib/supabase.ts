@@ -77,6 +77,44 @@ if (!supabaseUrl || !supabaseKey) {
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
+// Cache grid lookups to avoid repeated Supabase calls during a single request burst
+const beachGridCache = new Map<string, number | null>();
+
+export async function fetchBeachGridId(
+  beachId: string | number
+): Promise<number | null> {
+  const cacheKey = String(beachId ?? "").trim();
+  if (!cacheKey) {
+    return null;
+  }
+
+  if (beachGridCache.has(cacheKey)) {
+    return beachGridCache.get(cacheKey) ?? null;
+  }
+
+  const isNumeric = /^\d+$/.test(cacheKey);
+  const eqValue = isNumeric ? Number(cacheKey) : cacheKey;
+
+  const { data, error } = await supabase
+    .from("beaches")
+    .select("grid_id")
+    .eq("id", eqValue)
+    .maybeSingle();
+
+  if (error) {
+    console.warn("Failed to resolve grid_id for beach", {
+      beachId,
+      error,
+    });
+    beachGridCache.set(cacheKey, null);
+    return null;
+  }
+
+  const gridId = (data as { grid_id?: number | null } | null)?.grid_id ?? null;
+  beachGridCache.set(cacheKey, gridId);
+  return gridId;
+}
+
 // ----------------------------
 // Beach types
 // ----------------------------
@@ -86,6 +124,7 @@ export interface Beach {
   COUNTY: string;
   LATITUDE: number;
   LONGITUDE: number;
+  grid_id?: number | null;
 
   // RESTORED: Optional feature flags that can be populated by fetchBeachDetails
   // Access & Fees
@@ -399,7 +438,8 @@ export const getFeatureDisplayName = (featureKey: string): string => {
 // ----------------------------
 export interface SupabaseForecastData {
   id?: number;
-  beach_id: string;
+  beach_id?: string;
+  grid_id?: number;
   timestamp: string;
   // Swell data (feet/seconds) - NOW INCLUDING TERTIARY
   primary_swell_height_ft: number | null;
@@ -427,6 +467,10 @@ export interface SupabaseForecastData {
   weather: number | null; // Weather code
   pressure_inhg: number | null;
 }
+
+type SupabaseGridForecastRow = Omit<SupabaseForecastData, "beach_id"> & {
+  grid_id: number;
+};
 
 export interface ForecastData {
   timestamp: string;
@@ -850,7 +894,7 @@ export async function fetchBeachByIdLoose(id: string): Promise<Beach | null> {
     // Fallback to direct query if RPC fails
     const fallback = await supabase
       .from("beaches")
-      .select("id, Name, LATITUDE, LONGITUDE, COUNTY")
+      .select("id, Name, LATITUDE, LONGITUDE, COUNTY, grid_id")
       .eq("id", target)
       .maybeSingle();
     return (fallback.data as Beach) ?? null;
@@ -862,7 +906,19 @@ export async function fetchBeachByIdLoose(id: string): Promise<Beach | null> {
     console.log("Beach not found for:", target);
   }
 
-  return (data as Beach) ?? null;
+  const beachRecord = (data as Beach | null) ?? null;
+  if (beachRecord && beachRecord.grid_id == null) {
+    const { data: directGrid } = await supabase
+      .from("beaches")
+      .select("grid_id")
+      .eq("id", beachRecord.id)
+      .maybeSingle();
+    if (directGrid?.grid_id != null) {
+      return { ...beachRecord, grid_id: directGrid.grid_id };
+    }
+  }
+
+  return beachRecord;
 }
 
 export async function fetchBeachForecast(
@@ -870,11 +926,65 @@ export async function fetchBeachForecast(
   startDate?: Date,
   endDate?: Date
 ): Promise<ForecastData[]> {
-  const idValue: any = /^\d+$/.test(beachId) ? Number(beachId) : beachId;
+  const { resolvedId, gridId } = await resolveBeachAndGrid(beachId);
+
+  if (resolvedId == null) {
+    throw new Error(`Unable to resolve beach ID for "${beachId}"`);
+  }
+
+  if (gridId == null) {
+    console.warn("No grid_id for beach; returning empty forecast dataset", {
+      beachId: resolvedId,
+    });
+    return [];
+  }
+
+  const data = await fetchGridForecastRecords(
+    resolvedId,
+    gridId,
+    startDate,
+    endDate
+  );
+
+  return transformToComponentFormat(data);
+}
+
+async function resolveBeachAndGrid(
+  beachId: string
+): Promise<{ resolvedId: string | null; gridId: number | null }> {
+  const trimmed = beachId?.trim();
+  if (!trimmed) {
+    return { resolvedId: null, gridId: null };
+  }
+
+  if (/^\d+$/.test(trimmed)) {
+    const gridId = await fetchBeachGridId(trimmed);
+    return { resolvedId: trimmed, gridId };
+  }
+
+  const beach = await fetchBeachByIdLoose(trimmed);
+  if (!beach) {
+    return { resolvedId: null, gridId: null };
+  }
+
+  const resolvedId = String(beach.id);
+  const gridId =
+    beach.grid_id != null
+      ? beach.grid_id
+      : await fetchBeachGridId(resolvedId);
+  return { resolvedId, gridId };
+}
+
+async function fetchGridForecastRecords(
+  beachId: string,
+  gridId: number,
+  startDate?: Date,
+  endDate?: Date
+): Promise<SupabaseForecastData[]> {
   let query = supabase
-    .from("forecast_data")
-    .select("*") // This will now include the new tertiary swell columns
-    .eq("beach_id", idValue)
+    .from("grid_forecast_data")
+    .select("*")
+    .eq("grid_id", gridId)
     .order("timestamp", { ascending: true });
 
   if (startDate) {
@@ -884,38 +994,55 @@ export async function fetchBeachForecast(
     query = query.lte("timestamp", endDate.toISOString());
   }
 
-  const { data, error } = await query.returns<SupabaseForecastData[]>();
+  const { data, error } = await query.returns<SupabaseGridForecastRow[]>();
 
   if (error) {
-    console.error("Error fetching forecast data:", error);
+    console.error("Error fetching grid forecast data:", error);
     throw new Error(`Database error: ${error.message}`);
   }
 
-  return transformToComponentFormat(data || []);
+  return (data || []).map((row) => ({
+    ...row,
+    beach_id: String(beachId),
+  }));
 }
 
 export async function fetchCurrentConditions(
   beachId: string
 ): Promise<ForecastData | null> {
-  const idValue: any = /^\d+$/.test(beachId) ? Number(beachId) : beachId;
+  const { resolvedId, gridId } = await resolveBeachAndGrid(beachId);
+  if (resolvedId == null) {
+    return null;
+  }
+
+  if (gridId == null) {
+    console.warn(
+      "No grid_id for beach; unable to fetch grid current conditions",
+      { beachId: resolvedId }
+    );
+    return null;
+  }
+
   const { data, error } = await supabase
-    .from("forecast_data")
-    .select("*") // This will now include the new tertiary swell columns
-    .eq("beach_id", idValue)
+    .from("grid_forecast_data")
+    .select("*")
+    .eq("grid_id", gridId)
     .order("timestamp", { ascending: false })
     .limit(1)
-    .maybeSingle(); // ensure only one row is returned to avoid PGRST116
+    .maybeSingle();
 
   if (error) {
-    const hasDetails = (error as any)?.message || (error as any)?.code;
-    if (hasDetails) {
-      console.error("Error fetching current conditions:", error);
-    }
+    console.error("Error fetching grid current conditions:", error);
     return null;
   }
   if (!data) return null;
 
-  return transformToComponentFormat([data as SupabaseForecastData])[0] ?? null;
+  const record: SupabaseForecastData = {
+    ...(data as SupabaseGridForecastRow),
+    beach_id: String(resolvedId),
+  };
+
+  return transformToComponentFormat([record])[0] ?? null;
 }
 
 export async function fetchDailyConditions(
@@ -1145,23 +1272,30 @@ function pacificMidnightUTC(base: Date = new Date()): Date {
 export async function fetchForecastRange(
   beachId: string
 ): Promise<{ start: string; end: string } | null> {
-  const idValue: any = /^\d+$/.test(beachId) ? Number(beachId) : beachId;
+  const { resolvedId, gridId } = await resolveBeachAndGrid(beachId);
+  if (resolvedId == null) return null;
+
+  if (gridId == null) {
+    console.warn("No grid_id for beach; forecast range unavailable", {
+      beachId: resolvedId,
+    });
+    return null;
+  }
 
   const earliest = await supabase
-    .from("forecast_data")
+    .from("grid_forecast_data")
     .select("timestamp")
-    .eq("beach_id", idValue)
+    .eq("grid_id", gridId)
     .order("timestamp", { ascending: true })
     .limit(1)
     .maybeSingle();
 
-  if (earliest.error) return null;
-  if (!earliest.data) return null;
+  if (earliest.error || !earliest.data) return null;
 
   const latest = await supabase
-    .from("forecast_data")
+    .from("grid_forecast_data")
     .select("timestamp")
-    .eq("beach_id", idValue)
+    .eq("grid_id", gridId)
     .order("timestamp", { ascending: false })
     .limit(1)
     .maybeSingle();

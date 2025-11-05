@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useEffect, useMemo, useState } from "react";
 import {
@@ -288,7 +288,7 @@ const TideChart: React.FC<TideChartProps> = ({
         let rows: ExternalTidePoint[];
         if (!tideRows || tideRows.length === 0) {
           console.warn(
-            "⚠️ No tide data from county_tides_15min, falling back to forecast_data"
+            "[Warning] No tide data from county_tides_15min, falling back to grid_forecast_data"
           );
           const fallback = await fetchBeachForecast(id, fetchStart, fetchEnd);
           rows = fallback.map((r) => ({
@@ -296,7 +296,7 @@ const TideChart: React.FC<TideChartProps> = ({
             tide: r.conditions.tideLevel ?? 0,
           }));
           console.log(
-            "📊 Using forecast data:",
+            "[Warning] Using grid_forecast_data:",
             rows.length,
             "points (3-hour intervals)"
           );
@@ -306,7 +306,7 @@ const TideChart: React.FC<TideChartProps> = ({
             tide: p.tideLevelFt ?? 0,
           }));
           console.log(
-            "📊 Using county tide data:",
+            "?? Using county tide data:",
             rows.length,
             "points (6-min intervals)"
           );
@@ -645,3 +645,7 @@ const TideChart: React.FC<TideChartProps> = ({
 };
 
 export default TideChart;
+
+
+
+

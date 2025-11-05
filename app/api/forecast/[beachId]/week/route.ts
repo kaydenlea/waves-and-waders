@@ -1,6 +1,6 @@
 // app/api/forecast/[beachId]/week/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase, formatTimestamp } from '@/lib/supabase'
+import { formatTimestamp, fetchBeachForecast } from '@/lib/supabase'
 
 export async function GET(
   request: NextRequest,
@@ -19,49 +19,51 @@ export async function GET(
     const now = new Date()
     const sevenDaysLater = new Date(now.getTime() + (7 * 24 * 60 * 60 * 1000))
 
-    const { data, error } = await supabase
-      .from('forecast_data')
-      .select('*')
-      .eq('beach_id', beachId)
-      .gte('timestamp', now.toISOString())
-      .lte('timestamp', sevenDaysLater.toISOString())
-      .order('timestamp', { ascending: true })
+    const forecastsRaw = await fetchBeachForecast(
+      String(beachId),
+      now,
+      sevenDaysLater
+    )
 
-    if (error) {
-      console.error('Supabase error:', error)
-      return NextResponse.json(
-        { success: false, error: 'Failed to fetch forecast' },
-        { status: 500 }
-      )
-    }
+    const ftToMeters = (ft: number | null) =>
+      ft == null ? null : ft * 0.3048
+    const fToC = (f: number | null) =>
+      f == null ? null : ((f - 32) * 5) / 9
+    const mphToKph = (mph: number | null) =>
+      mph == null ? null : mph * 1.60934
+    const inHgToHpa = (inhg: number | null) =>
+      inhg == null ? null : inhg * 33.8639
 
-    const forecasts = data.map(forecast => ({
+    const forecasts = forecastsRaw.map((forecast) => ({
       timestamp: formatTimestamp(forecast.timestamp),
       swell: {
         primary: {
-          height: forecast.primary_swell_height_m,
-          period: forecast.primary_swell_period_s,
-          direction: forecast.primary_swell_direction
+          height: ftToMeters(forecast.swell.primary.height),
+          period: forecast.swell.primary.period,
+          direction: forecast.swell.primary.direction
         },
         secondary: {
-          height: forecast.secondary_swell_height_m,
-          period: forecast.secondary_swell_period_s,
-          direction: forecast.secondary_swell_direction
+          height: ftToMeters(forecast.swell.secondary.height),
+          period: forecast.swell.secondary.period,
+          direction: forecast.swell.secondary.direction
         }
       },
       surf: {
-        heightMin: forecast.surf_height_min_m,
-        heightMax: forecast.surf_height_max_m,
-        waveEnergy: forecast.wave_energy_joules
+        heightMin: ftToMeters(forecast.surf.heightMin),
+        heightMax: ftToMeters(forecast.surf.heightMax),
+        waveEnergy:
+          forecast.surf.waveEnergy != null
+            ? forecast.surf.waveEnergy * 1000
+            : null
       },
       conditions: {
-        waterTemp: forecast.water_temp_c,
-        tideLevel: forecast.tide_level_m,
-        windSpeed: forecast.wind_speed_kph,
-        windGust: forecast.wind_gust_kph,
-        windDirection: forecast.wind_direction_deg,
-        airTemp: forecast.weather,
-        pressure: forecast.pressure_hpa
+        waterTemp: fToC(forecast.conditions.waterTemp),
+        tideLevel: ftToMeters(forecast.conditions.tideLevel),
+        windSpeed: mphToKph(forecast.conditions.windSpeed),
+        windGust: mphToKph(forecast.conditions.windGust),
+        windDirection: forecast.conditions.windDirection,
+        airTemp: forecast.conditions.weather,
+        pressure: inHgToHpa(forecast.conditions.pressure ?? null)
       }
     }))
 

@@ -88,7 +88,7 @@ export async function fetchDailyConditionsAPI(
 
 /**
  * Fetch surf intensity for a specific date via API route (cached)
- * Replaces direct Supabase queries for daily_beach_surf_intensity
+ * Replaces direct Supabase queries for daily_grid_surf_intensity
  */
 export async function fetchSurfIntensityAPI(
   date: Date
