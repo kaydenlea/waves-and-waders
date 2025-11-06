@@ -58,6 +58,7 @@ type BeachPoint = {
   county: string;
   latitude: number;
   longitude: number;
+  grid_id?: number;
   features?: Record<string, boolean>;
   surfIntensity?: number;
 };
@@ -127,21 +128,25 @@ export const SwellRings: React.FC<{
       viewBox={`0 0 ${size} ${size}`}
       aria-hidden="true"
     >
-      {rings.map(({ key, radius, color }) => (
-        <g key={key}>
-          <circle
-            cx={center}
-            cy={center}
-            r={radius}
-            fill="none"
-            stroke={color}
-            strokeWidth={4 * scale}
-            strokeOpacity={0.35}
-          />
-          {typeof directions[key] === "number" &&
-            renderArrow(directions[key] as number, radius, color)}
-        </g>
-      ))}
+      {rings.map(({ key, radius, color }) => {
+        const dir = directions[key];
+        // Default to 0 (North) if direction is null/undefined
+        const direction = typeof dir === "number" && !isNaN(dir) ? dir : 0;
+        return (
+          <g key={key}>
+            <circle
+              cx={center}
+              cy={center}
+              r={radius}
+              fill="none"
+              stroke={color}
+              strokeWidth={4 * scale}
+              strokeOpacity={0.35}
+            />
+            {renderArrow(direction, radius, color)}
+          </g>
+        );
+      })}
     </svg>
   );
 };
@@ -175,6 +180,9 @@ export const WindRing: React.FC<{
     );
   };
 
+  // Default to 0 (North) if direction is null/undefined
+  const finalDirection = typeof direction === "number" && !isNaN(direction) ? direction : 0;
+
   return (
     <svg
       className={cn("pointer-events-none overflow-visible", className)}
@@ -192,7 +200,7 @@ export const WindRing: React.FC<{
         strokeWidth={4 * scale}
         strokeOpacity={0.35}
       />
-      {typeof direction === "number" && renderArrow(direction)}
+      {renderArrow(finalDirection)}
     </svg>
   );
 };
@@ -206,6 +214,11 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
     favoriteIds,
     hoverCardId,
   } = useMapFilters();
+
+  // Debug: Log beaches count whenever it changes
+  React.useEffect(() => {
+    console.log(`🏖️ Beaches from context: ${beaches.length} beaches`);
+  }, [beaches]);
   const { selectedTab } = useClientPath();
   const [selected, setSelected] = React.useState<BeachPoint | null>(null);
   const selectedRef = React.useRef<BeachPoint | null>(null);
@@ -456,6 +469,10 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
           console.log("InteractiveMap: loaded beaches", json.data.length);
           if (json.data.length > 0) {
             console.log("Sample beach:", json.data[0]);
+
+            // Check how many beaches have grid_id
+            const beachesWithGridId = json.data.filter((b: any) => b.grid_id != null).length;
+            console.log(`Beaches with grid_id: ${beachesWithGridId} / ${json.data.length}`);
           }
           setBeaches(json.data as BeachPoint[]);
         } else {
@@ -651,8 +668,22 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
         const json = await res.json();
 
         if (!cancelled && json?.success && json.data) {
-          console.log("Loaded surf intensity from", json.source);
+          console.log("✅ Loaded surf intensity from", json.source);
+          console.log("📊 Surf intensity data:", json.data);
+          console.log("🔢 Number of beaches with intensity:", Object.keys(json.data).length);
+          // Log a few sample values
+          const samples = Object.entries(json.data).slice(0, 5);
+          console.log("📝 Sample intensity values:", samples);
+
+          // Immediately check if data looks valid
+          const values = Object.values(json.data);
+          const nonZero = values.filter(v => v > 0).length;
+          console.log(`🎯 Non-zero values: ${nonZero} / ${values.length}`);
+
           setSurfIntensity(json.data);
+          console.log("✅ setSurfIntensity called with", Object.keys(json.data).length, "entries");
+        } else {
+          console.error("❌ Failed to load surf intensity:", json);
         }
       } catch (e) {
         console.error("Failed to load surf intensity", e);
@@ -722,6 +753,10 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
       "filters:",
       filters.size
     );
+
+    if (beaches.length === 0) {
+      console.warn("⚠️ beaches array is empty! Map will show no dots.");
+    }
     let baseFiltered = beaches.filter((b) => {
       if (b.features?.INLND_AREA) return false;
       if (!filters.size) {
@@ -743,6 +778,18 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
   }, [beaches, filters, selected, selectedTab, favoriteIds]);
 
   const beachesGeoJSON = React.useMemo(() => {
+    console.log("=== Building GeoJSON ===");
+    console.log("surfIntensity object has", Object.keys(surfIntensity).length, "entries");
+    console.log("filteredBeaches has", filteredBeaches.length, "beaches");
+
+    // Sample the first few beach IDs and check if they have intensity
+    const firstFiveBeaches = filteredBeaches.slice(0, 5);
+    console.log("First 5 beach IDs and their intensities:");
+    firstFiveBeaches.forEach(b => {
+      const intensity = surfIntensity[b.id];
+      console.log(`  Beach ${b.id}: ${intensity !== undefined ? intensity : 'undefined (will use 0)'}`);
+    });
+
     const features = filteredBeaches.map((b, idx) => {
       const intensity = surfIntensity[b.id] || 0;
       mapToId[b.id] = {
@@ -770,6 +817,15 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
     });
     console.log("BUILD ID MAP", mapToId);
     console.log("Generated GeoJSON with", features.length, "features");
+
+    // Debug: Count features by intensity range
+    const intensityCounts = {
+      noData: features.filter(f => f.properties.surfIntensity === 0).length,
+      small: features.filter(f => f.properties.surfIntensity > 0 && f.properties.surfIntensity < 3).length,
+      moderate: features.filter(f => f.properties.surfIntensity >= 3 && f.properties.surfIntensity < 6).length,
+      big: features.filter(f => f.properties.surfIntensity >= 6).length,
+    };
+    console.log("Surf intensity distribution:", intensityCounts);
 
     return {
       type: "FeatureCollection",
@@ -1492,6 +1548,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
         {/* Clustered beach points */}
         {filteredBeaches.length > 0 && (
           <Source
+            key={`beaches-${Object.keys(surfIntensity).length}`}
             id="beaches"
             type="geojson"
             data={beachesGeoJSON}
@@ -1730,13 +1787,11 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
                       scale={scale}
                       className="absolute inset-0"
                     />
-                    {typeof windDirection === "number" && (
-                      <WindRing
-                        direction={windDirection}
-                        scale={scale}
-                        className="absolute inset-0"
-                      />
-                    )}
+                    <WindRing
+                      direction={windDirection}
+                      scale={scale}
+                      className="absolute inset-0"
+                    />
                   </div>
                 </div>
               </Marker>
@@ -1780,13 +1835,10 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
                   />
                 </div>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  {typeof popupInfo.properties.conditions.windDirection ===
-                    "number" && (
-                    <WindRing
-                      direction={popupInfo.properties.conditions.windDirection}
-                      scale={0.55}
-                    />
-                  )}
+                  <WindRing
+                    direction={popupInfo.properties.conditions.windDirection}
+                    scale={0.55}
+                  />
                 </div>
               </div> */}
               <header className="p-1 flex gap-1">

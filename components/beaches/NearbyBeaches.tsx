@@ -493,6 +493,9 @@ export default function NearbyBeaches({
 
           const s: SummaryStat[] = [];
 
+          // Use base for rendering (has swell directions), fallback to current if base is null
+          const renderData = base ?? current;
+
           // 1. SURF (first in order)
           const heightMins = forecast
             .map((row) => row?.surf?.heightMin)
@@ -821,7 +824,7 @@ export default function NearbyBeaches({
             }
           }
           setStats(s);
-          return [beachId, s, current] as const;
+          return [beachId, s, renderData] as const;
         } catch (e) {
           console.error("Failed to load summary", e);
         }

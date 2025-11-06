@@ -230,12 +230,10 @@ const BeachCard = ({
               />
             </div>
             <div className="absolute inset-0 flex items-center justify-center">
-              {typeof b.current.conditions.windDirection === "number" && (
-                <WindRing
-                  direction={b.current.conditions.windDirection}
-                  scale={0.55}
-                />
-              )}
+              <WindRing
+                direction={b.current.conditions.windDirection}
+                scale={0.55}
+              />
             </div>
           </>
         )}

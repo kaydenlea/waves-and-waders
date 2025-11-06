@@ -5,7 +5,7 @@ import { supabase, FEATURE_COLUMNS } from '@/lib/supabase'
 export async function GET(request: NextRequest) {
   try {
     // Build select with common columns + feature flags
-    const baseCols = 'id, Name, COUNTY, LATITUDE, LONGITUDE'
+    const baseCols = 'id, Name, COUNTY, LATITUDE, LONGITUDE, grid_id'
 
     if (!FEATURE_COLUMNS || !Array.isArray(FEATURE_COLUMNS)) {
       console.error('FEATURE_COLUMNS is not defined or not an array');
@@ -70,6 +70,7 @@ export async function GET(request: NextRequest) {
         county: beach.COUNTY,
         latitude: beach.LATITUDE,
         longitude: beach.LONGITUDE,
+        grid_id: beach.grid_id,
         features,
       }
     })

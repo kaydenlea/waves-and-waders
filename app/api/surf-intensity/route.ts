@@ -77,17 +77,34 @@ export async function GET(request: NextRequest) {
 async function loadBeachGridMap(): Promise<Map<number, string[]>> {
   const map = new Map<number, string[]>()
 
-  const { data, error } = await supabase
-    .from('beaches')
-    .select('id, grid_id')
-    .not('grid_id', 'is', null)
+  // Fetch all beaches with pagination (Supabase limits to 1000 per request)
+  const PAGE_SIZE = 1000
+  let allData: any[] = []
+  let page = 0
+  let hasMore = true
 
-  if (error) {
-    console.error('Failed to load beaches for grid mapping:', error)
-    return map
+  while (hasMore) {
+    const { data, error } = await supabase
+      .from('beaches')
+      .select('id, grid_id')
+      .not('grid_id', 'is', null)
+      .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1)
+
+    if (error) {
+      console.error('Failed to load beaches for grid mapping:', error)
+      return map
+    }
+
+    if (!data || data.length === 0) {
+      hasMore = false
+    } else {
+      allData = allData.concat(data)
+      hasMore = data.length === PAGE_SIZE
+      page++
+    }
   }
 
-  for (const row of data ?? []) {
+  for (const row of allData) {
     if (row.grid_id == null) continue
     if (!map.has(row.grid_id)) {
       map.set(row.grid_id, [])
@@ -95,6 +112,7 @@ async function loadBeachGridMap(): Promise<Map<number, string[]>> {
     map.get(row.grid_id)!.push(String(row.id))
   }
 
+  console.log(`Loaded beach→grid map: ${allData.length} beaches with grid_id`)
   return map
 }
 
