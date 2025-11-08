@@ -267,9 +267,14 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
             day: "2-digit",
           });
           const parts = formatter.formatToParts(date);
-          const year = parseInt(parts.find((p) => p.type === "year")?.value || "0");
-          const month = parseInt(parts.find((p) => p.type === "month")?.value || "1") - 1;
-          const day = parseInt(parts.find((p) => p.type === "day")?.value || "1");
+          const year = parseInt(
+            parts.find((p) => p.type === "year")?.value || "0"
+          );
+          const month =
+            parseInt(parts.find((p) => p.type === "month")?.value || "1") - 1;
+          const day = parseInt(
+            parts.find((p) => p.type === "day")?.value || "1"
+          );
 
           // Calculate UTC timestamp for Pacific midnight using offset at noon
           const noonUTC = Date.UTC(year, month, day, 12, 0, 0, 0);
@@ -621,8 +626,10 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
         const airTemp = avgAirTemp != null ? Math.round(avgAirTemp) : undefined;
 
         // Calculate high and low temperatures for the day
-        const airTempHigh = airTemps.length > 0 ? Math.round(Math.max(...airTemps)) : undefined;
-        const airTempLow = airTemps.length > 0 ? Math.round(Math.min(...airTemps)) : undefined;
+        const airTempHigh =
+          airTemps.length > 0 ? Math.round(Math.max(...airTemps)) : undefined;
+        const airTempLow =
+          airTemps.length > 0 ? Math.round(Math.min(...airTemps)) : undefined;
 
         // Calculate most occurring weather code for the day
         const weatherCodes = forecast
@@ -1009,7 +1016,7 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
   const hiddenItems = tags.slice(visibleCount);
 
   return (
-    <ul className="grid grid-cols-2 @min-2xl:grid-cols-3 @min-4xl:grid-cols-6 gap-3">
+    <ul className="grid grid-cols-2 @min-md:grid-cols-3 @min-4xl:grid-cols-6 gap-3">
       {/* Overview card */}
       <li
         className={cn(
@@ -1045,7 +1052,9 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
           </div>
         </div>
         <div className="flex-1 flex items-center gap-1 mt-2 justify-center min-h-0">
-          <p className="text-center text-sm leading-snug">{getOverviewText()}</p>
+          <p className="text-center text-sm leading-snug">
+            {getOverviewText()}
+          </p>
         </div>
       </li>
       {stats.map((stat) => {
@@ -1174,7 +1183,7 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
                   stat.tags.length === 0 &&
                   "animate-pulse",
                 stat.type === "features"
-                  ? "col-span-2 @min-xl:col-span-3 @min-4xl:col-span-6"
+                  ? "col-span-2 @min-md:col-span-3 @min-4xl:col-span-6"
                   : "min-h-35"
               )}
             >

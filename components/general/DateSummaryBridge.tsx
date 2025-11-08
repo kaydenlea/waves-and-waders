@@ -359,7 +359,7 @@ const DateSummaryBridge: React.FC<Props> = ({
                   ? `/${beachId}/forecast/edit#forecast-content`
                   : `/${beachId}/overview/edit#overview-content`
               }
-              className="@min-xl:hidden inline-flex bg-highlight-5 hover:bg-highlight-3 rounded-full p-3 @min-sm:py-2.5 gap-2 @min-sm:px-4 shrink-0"
+              className="@min-xl:hidden inline-flex bg-highlight-5 hover:bg-highlight-3 rounded-full p-3 @min-sm:py-2 gap-2 @min-sm:px-4 shrink-0"
               aria-label={`Edit ${
                 selectedTab === "forecast" ? "forecast" : "overview"
               } dashboard`}
