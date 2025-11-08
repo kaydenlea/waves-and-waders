@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useRef, useCallback, useEffect } from "react";
 import {
   CartesianGrid,
   XAxis,
@@ -17,7 +17,7 @@ import {
   ChartLegend,
   ChartLegendContent,
 } from "@/components/ui/chart";
-import { MousePointer2 as ArrowIcon } from "lucide-react";
+import { MousePointer2 as ArrowIcon, ChevronLeft, ChevronRight, TrendingDown, TrendingUp } from "lucide-react";
 import {
   fetchWeeklyForecast,
   fetchBeachByIdLoose,
@@ -25,6 +25,7 @@ import {
   fetchDailyConditions,
   getWindDirection,
 } from "@/lib/supabase";
+import { cn } from "@/lib/utils";
 
 const chartConfig = {
   primary: {
@@ -54,6 +55,8 @@ type SwellPoint = {
 type Props = { beachId?: string; days?: Date[] | null };
 
 const HOURS_PER_DAY = 24;
+const VISIBLE_DAYS = 4;
+const MIN_DAY_PX = 275; // minimum pixels per day to keep UI usable
 
 const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
   const [swellData, setSwellData] = useState<SwellPoint[]>([]);
@@ -62,7 +65,201 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
   const [nightAreas, setNightAreas] = useState<{ x1: number; x2?: number }[]>(
     []
   );
-  const [dayWindow] = useState(4);
+
+  // Scrollable state
+  const [dayOffset, setDayOffset] = useState(0);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const innerRef = useRef<HTMLDivElement | null>(null);
+  const [containerWidth, setContainerWidth] = useState(0);
+  const [isAtRightEdge, setIsAtRightEdge] = useState(false);
+
+  // Pointer & animation refs
+  const currentTranslateRef = useRef(0);
+  const pointerStateRef = useRef<{
+    dragging: boolean;
+    startX: number;
+    startTranslate: number;
+  } | null>(null);
+  const rafRef = useRef<number | null>(null);
+
+  // Derived dimensions - use days prop length if available
+  const totalFetchedDays = useMemo(() => {
+    return (days && days.length > 0) ? days.length : VISIBLE_DAYS;
+  }, [days]);
+  const dayPx = useMemo(() => {
+    if (!containerWidth) return MIN_DAY_PX;
+    const fillPerDay = containerWidth / VISIBLE_DAYS;
+    return Math.max(MIN_DAY_PX, Math.floor(fillPerDay));
+  }, [containerWidth]);
+
+  const chartInnerWidth = useMemo(
+    () => totalFetchedDays * dayPx,
+    [totalFetchedDays, dayPx]
+  );
+
+  const viewportWidth = useMemo(
+    () => Math.min(containerWidth || 0, dayPx * VISIBLE_DAYS),
+    [containerWidth, dayPx]
+  );
+
+  // helpers: clamp translate (px)
+  const clampTranslatePx = useCallback(
+    (px: number) => {
+      const maxTranslate = Math.max(0, chartInnerWidth - viewportWidth);
+      return Math.max(0, Math.min(px, maxTranslate));
+    },
+    [chartInnerWidth, viewportWidth]
+  );
+
+  // set transform imperatively
+  const setInnerTranslatePx = useCallback(
+    (px: number, withTransition = false) => {
+      const node = innerRef.current;
+      if (!node) return;
+      if (withTransition) {
+        node.style.transition = "transform 360ms cubic-bezier(.2,.9,.2,1)";
+      } else {
+        node.style.transition = "none";
+      }
+      node.style.transform = `translate3d(-${px}px,0,0)`;
+      currentTranslateRef.current = px;
+    },
+    []
+  );
+
+  // animate to target px
+  const animateToPx = useCallback(
+    (targetPx: number, onEnd?: () => void) => {
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      const start = currentTranslateRef.current;
+      const delta = targetPx - start;
+      if (Math.abs(delta) < 1) {
+        setInnerTranslatePx(targetPx, true);
+        onEnd?.();
+        return;
+      }
+      const duration = 320;
+      const startTime = performance.now();
+
+      const step = (t: number) => {
+        const p = Math.min(1, (t - startTime) / duration);
+        const ease = 1 - Math.pow(1 - p, 3);
+        const v = start + delta * ease;
+        setInnerTranslatePx(clampTranslatePx(v), false);
+        if (p < 1) {
+          rafRef.current = requestAnimationFrame(step);
+        } else {
+          setInnerTranslatePx(clampTranslatePx(targetPx), true);
+          rafRef.current = null;
+          onEnd?.();
+        }
+      };
+
+      rafRef.current = requestAnimationFrame(step);
+    },
+    [clampTranslatePx, setInnerTranslatePx]
+  );
+
+  // Pointer handlers
+  const onPointerDown = (ev: React.PointerEvent) => {
+    const node = ev.currentTarget as Element;
+    node.setPointerCapture?.(ev.pointerId);
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    pointerStateRef.current = {
+      dragging: true,
+      startX: ev.clientX,
+      startTranslate: currentTranslateRef.current,
+    };
+    setInnerTranslatePx(currentTranslateRef.current, false);
+    document.body.style.userSelect = "none";
+    document.body.style.touchAction = "none";
+  };
+
+  const onPointerMove = (ev: React.PointerEvent) => {
+    const ps = pointerStateRef.current;
+    if (!ps || !ps.dragging) return;
+    const delta = ev.clientX - ps.startX;
+    const next = clampTranslatePx(ps.startTranslate - delta);
+    setInnerTranslatePx(next, false);
+  };
+
+  const onPointerUp = (ev: React.PointerEvent) => {
+    const node = ev.currentTarget as Element;
+    node.releasePointerCapture?.(ev.pointerId);
+    const ps = pointerStateRef.current;
+    if (!ps) return;
+    pointerStateRef.current = null;
+    document.body.style.userSelect = "";
+    document.body.style.touchAction = "";
+
+    const finalPx = clampTranslatePx(currentTranslateRef.current);
+    const fractionalDayOffset = finalPx / dayPx;
+    setDayOffset(fractionalDayOffset);
+    setInnerTranslatePx(finalPx, false);
+
+    const maxTranslate = Math.max(0, chartInnerWidth - viewportWidth);
+    setIsAtRightEdge(finalPx >= maxTranslate - 1);
+  };
+
+  // Button controls
+  const handleNext = useCallback(() => {
+    const maxOffset = Math.max(0, totalFetchedDays - 1);
+    const currentFractionalOffset = currentTranslateRef.current / dayPx;
+    const newOffset = Math.min(maxOffset, currentFractionalOffset + 1);
+    const targetPx = newOffset * dayPx;
+    animateToPx(targetPx, () => {
+      setDayOffset(newOffset);
+      const maxTranslate = Math.max(0, chartInnerWidth - viewportWidth);
+      setIsAtRightEdge(targetPx >= maxTranslate - 1);
+    });
+  }, [animateToPx, dayPx, totalFetchedDays, chartInnerWidth, viewportWidth]);
+
+  const handleBack = useCallback(() => {
+    const currentFractionalOffset = currentTranslateRef.current / dayPx;
+    const newOffset = Math.max(0, currentFractionalOffset - 1);
+    const targetPx = newOffset * dayPx;
+    animateToPx(targetPx, () => {
+      setDayOffset(newOffset);
+      const maxTranslate = Math.max(0, chartInnerWidth - viewportWidth);
+      setIsAtRightEdge(targetPx >= maxTranslate - 1);
+    });
+  }, [animateToPx, dayPx, chartInnerWidth, viewportWidth]);
+
+  // Update transform when dayOffset changes
+  useEffect(() => {
+    if (pointerStateRef.current?.dragging) return;
+    const px = clampTranslatePx(dayOffset * dayPx);
+    setInnerTranslatePx(px, true);
+  }, [dayOffset, dayPx, clampTranslatePx, setInnerTranslatePx]);
+
+  // ResizeObserver for container width
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      for (const e of entries) {
+        const w = Math.floor(e.contentRect.width);
+        setContainerWidth(w);
+        const maxTranslate = Math.max(
+          0,
+          chartInnerWidth - Math.min(w || 0, dayPx * VISIBLE_DAYS)
+        );
+        setIsAtRightEdge(currentTranslateRef.current >= maxTranslate - 1);
+      }
+    });
+    ro.observe(el);
+
+    const maxTranslateOnMount = Math.max(0, chartInnerWidth - viewportWidth);
+    setIsAtRightEdge(currentTranslateRef.current >= maxTranslateOnMount - 1);
+
+    return () => ro.disconnect();
+  }, [chartInnerWidth, dayPx, viewportWidth]);
 
   // Build swell series from forecast rows
   React.useEffect(() => {
@@ -80,7 +277,17 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
 
         const resolved = await fetchBeachByIdLoose(beachId);
         const id = resolved?.id ?? beachId;
-        const rows = await fetchWeeklyForecast(String(id), 3);
+        
+        if (!id) {
+          if (!cancelled) {
+            setSwellData([]);
+            setBaseStartMs(null);
+          }
+          return;
+        }
+        
+        const numDaysToFetch = (days && days.length > 0) ? days.length : VISIBLE_DAYS;
+        const rows = await fetchWeeklyForecast(String(id), numDaysToFetch);
 
         if (!rows || !rows.length) {
           if (!cancelled) {
@@ -134,11 +341,12 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
         }
 
         const series: SwellPoint[] = [];
+        const maxHour = numDaysToFetch * 24; // Maximum hour based on days to fetch
         for (const r of rows) {
           const ts = new Date(r.timestamp).getTime();
           const hour = Math.round((ts - baseMs) / 3600000);
-          // Only include data points from midnight onwards (hour >= 0)
-          if (hour >= 0) {
+          // Only include data points within the valid range
+          if (hour >= 0 && hour <= maxHour) {
             series.push({
               hour,
               primary: Number((r.swell.primary.height ?? 0).toFixed(1)),
@@ -225,7 +433,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
           const dayAreasBuild: { x1: number; x2: number }[] = [];
           const nightAreasBuild: { x1: number; x2?: number }[] = [];
           let nightStart = 0;
-          for (let di = 0; di < 7; di++) {
+          for (let di = 0; di < numDaysToFetch; di++) {
             const cond = await fetchDailyConditions(
               county,
               new Date(startMs + di * 24 * 60 * 60 * 1000)
@@ -276,6 +484,33 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
     };
   }, [beachId, days]);
 
+  const dayStats = React.useMemo(() => {
+    if (!swellData.length) return [];
+
+    const stats: { high: number; low: number }[] = [];
+    const hoursPerDay = 24;
+
+    for (let dayIdx = 0; dayIdx < totalFetchedDays; dayIdx++) {
+      const dayStartHour = dayIdx * hoursPerDay;
+      const dayEndHour = dayStartHour + hoursPerDay;
+
+      const dayData = swellData.filter(
+        (point) => point.hour >= dayStartHour && point.hour < dayEndHour
+      );
+
+      if (dayData.length > 0) {
+        const primaryValues = dayData.map((p) => p.primary);
+        const high = Math.max(...primaryValues);
+        const low = Math.min(...primaryValues);
+        stats.push({ high: Math.round(high * 10) / 10, low: Math.round(low * 10) / 10 });
+      } else {
+        stats.push({ high: 0, low: 0 });
+      }
+    }
+
+    return stats;
+  }, [swellData, totalFetchedDays]);
+
   const dayLabels =
     Array.isArray(days) && days.length > 0
       ? days.map((d) =>
@@ -288,83 +523,140 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
         )
       : null;
 
-  const currentDay = new Date().toLocaleDateString("en-US", {
-    weekday: "short",
-    timeZone: "America/Los_Angeles",
-  });
-
-  const startDay = dayLabels ? dayLabels[0].split(",")[0] : currentDay;
-
-  // Calculate day offset
-  const dayjs = require("dayjs");
-  const getIndex = (d: string) =>
-    dayjs().day(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(d));
-  const getRelativeIndex = (current: string, selected: string) =>
-    (getIndex(selected).day() - getIndex(current).day() + 7) % 7;
-  const dayOffset = getRelativeIndex(currentDay, startDay);
-
-  const startDayIdx = dayOffset * (HOURS_PER_DAY / 3);
-  const windowSize = (HOURS_PER_DAY / 3) * dayWindow;
-  const visibleData = swellData.slice(startDayIdx, startDayIdx + windowSize + 1);
-
-  const visibleNightAreas = nightAreas.filter(
-    (a) =>
-      ((a.x2 && a.x2 >= dayOffset * 24) || !a.x2) &&
-      a.x1 <= (dayOffset + dayWindow) * 24
-  );
-
-  const visibleDayAreas = dayAreas.filter(
-    (a) =>
-      a.x1 >= dayOffset * 24 &&
-      ((a.x2 && a.x2 <= (dayOffset + dayWindow) * 24) || !a.x2)
-  );
+  // Generate ticks for every hour
+  const hourTicks = useMemo(() => {
+    const ticks: number[] = [];
+    for (let v = 0; v <= 24 * totalFetchedDays; v += 1) {
+      ticks.push(v);
+    }
+    return ticks;
+  }, [totalFetchedDays]);
 
   return (
-    <>
+    <div className="w-full">
       <div
-        className="@container w-[calc(100%-60px)] flex justify-between"
+        ref={containerRef}
+        className="relative w-full"
         style={{
-          position: "relative",
-          zIndex: 40,
-          left: 40,
-          top: 0,
-          boxSizing: "border-box",
-          pointerEvents: "none",
+          height: 300,
+          overflow: "hidden",
+          background: "transparent",
         }}
       >
-        {dayLabels?.map((label, idx) => (
+        {/* prev/next buttons */}
+        <button
+          aria-label="Back one day"
+          onClick={handleBack}
+          className={cn(
+            "absolute left-4 top-[55%] -translate-y-1/2 z-50 rounded-full bg-highlight-7/90 p-1 shadow border border-border/30 shadow-even backdrop-blur-xl",
+            dayOffset === 0 && "hidden"
+          )}
+        >
+          <ChevronLeft className="w-5 h-5" />
+        </button>
+        <button
+          aria-label="Next one day"
+          onClick={handleNext}
+          className={cn(
+            "absolute right-4 top-[55%] -translate-y-1/2 z-50 rounded-full bg-highlight-7/90 p-1 shadow border border-border/30 shadow-even backdrop-blur-xl",
+            isAtRightEdge && "hidden"
+          )}
+        >
+          <ChevronRight className="w-5 h-5" />
+        </button>
+
+        {/* moving inner (chart + day labels) */}
+        <div
+          ref={innerRef}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+          style={{
+            marginTop: 65,
+            position: "absolute",
+            left: 0,
+            width: chartInnerWidth,
+            height: 250,
+            display: "block",
+            willChange: "transform",
+            cursor: "grab",
+            touchAction: "pan-y",
+          }}
+        >
+          {/* Day label bar */}
           <div
-            key={idx}
+            className="w-[97%] flex justify-between"
             style={{
-              flex: 1,
-              minWidth: 0,
-              textAlign: "center",
-              borderRadius: 8,
-              padding: "6px 6px",
-              fontWeight: 700,
-              fontSize: 13,
-              color: "var(--foreground)",
+              position: "absolute",
+              zIndex: 40,
+              left: "1.9%",
+              top: -65,
+              boxSizing: "border-box",
               pointerEvents: "none",
             }}
           >
-            <div className="flex justify-center @min-lg:justify-between whitespace-nowrap px-3 py-2 rounded-lg bg-highlight-5">
-              <span className="flex flex-col @min-lg:items-start">
-                <span className="text-xs font-medium">
-                  {label.split(",")[1]}
-                </span>
-                <span className="text-sm font-bold">{label.split(",")[0]}</span>
-              </span>
-            </div>
+            {dayLabels?.map((label, idx) => (
+              <div
+                key={idx}
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  textAlign: "center",
+                  borderRadius: 8,
+                  padding: "6px 6px",
+                  fontWeight: 700,
+                  fontSize: 13,
+                  color: "var(--foreground)",
+                  pointerEvents: "none",
+                }}
+              >
+                <div className="flex justify-center @min-lg:justify-between whitespace-nowrap px-3 py-2 rounded-lg bg-highlight-5">
+                  <span className="flex flex-col @min-lg:items-start">
+                    <span className="text-xs font-medium">
+                      {label.split(",")[1]}
+                    </span>
+                    <span className="text-sm font-bold">{label.split(",")[0]}</span>
+                  </span>
+                  <div className="hidden @min-lg:grid rounded-md bg-highlight-6 grid-cols-[auto_1fr] @min-3xl:grid-cols-[60px_1fr] grid-rows-2 space-y-0.5 items-center text-xs text-muted-foreground uppercase tracking-wide leading-tight">
+                    <span className="flex gap-2 items-center">
+                      <TrendingUp
+                        fill="#353535ff"
+                        className="stroke-muted-foreground w-4 h-4"
+                      />
+                      <span className="hidden @min-3xl:block font-medium">
+                        High
+                      </span>
+                    </span>
+                    <span className="ml-1 text-foreground normal-case font-medium">
+                      {dayStats[idx]?.high ?? 0} <span className="hidden @min-xl:inline-block">ft</span>
+                    </span>
+                    <span className="flex gap-2 items-center">
+                      <TrendingDown
+                        fill="#353535ff"
+                        className="stroke-muted-foreground w-4 h-4"
+                      />
+                      <span className="hidden @min-3xl:block -mb-0.5 font-medium">
+                        Low
+                      </span>
+                    </span>
+                    <span className="ml-1 text-foreground normal-case font-medium">
+                      {dayStats[idx]?.low ?? 0} <span className="hidden @min-xl:inline-block">ft</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
-      <ChartContainer
-        config={chartConfig}
-        className="aspect-auto h-[300px] w-full"
-      >
-        <AreaChart
-          accessibilityLayer
-          data={visibleData}
+
+          <ChartContainer
+            config={chartConfig}
+            className="aspect-auto h-[235px] w-full"
+          >
+            <AreaChart
+              accessibilityLayer
+              width={chartInnerWidth}
+              data={swellData}
           margin={{
             top: 10,
             right: 10,
@@ -372,47 +664,52 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
           }}
           syncId="anyId"
         >
-          {visibleData.map((entry, idx) =>
-            entry.hour % 24 === 0 &&
-            idx !== 0 &&
-            idx !== visibleData.length - 1 ? (
-              <ReferenceLine
-                key={entry.hour}
-                x={entry.hour}
-                stroke="#c2c2c2ff"
-                strokeWidth={0.5}
-              />
-            ) : null
-          )}
-          {visibleDayAreas.map((a, idx) => (
+          {/* vertical boundaries every day */}
+          {Array.from({ length: totalFetchedDays + 1 }, (_, i) => {
+            if (i !== 0 && i !== totalFetchedDays) {
+              return (
+                <ReferenceLine
+                  key={`boundary-${i}`}
+                  x={i * 24}
+                  stroke="var(--foreground)"
+                  strokeOpacity={0.25}
+                  strokeWidth={0.5}
+                />
+              );
+            }
+          })}
+          {dayAreas.map((a, idx) => (
             <ReferenceArea
               key={`day-${idx}`}
               x1={a.x1}
               x2={a.x2}
               fill="#FFE58F"
               fillOpacity={0.2}
+              ifOverflow="extendDomain"
             />
           ))}
-          {visibleNightAreas.map((a, idx) => (
+          {nightAreas.map((a, idx) => (
             <ReferenceArea
               key={`night-${idx}`}
               x1={idx === 0 ? undefined : a.x1}
-              x2={idx === visibleNightAreas.length - 1 ? undefined : a.x2}
+              x2={idx === nightAreas.length - 1 ? undefined : a.x2}
               fill="#ccc1ffff"
               fillOpacity={0.2}
+              ifOverflow="extendDomain"
             />
           ))}
           <XAxis
             dataKey="hour"
+            type="number"
             tickLine={false}
             axisLine={false}
             tickMargin={8}
             minTickGap={0}
             fontSize={11}
-            tickFormatter={(value) =>
-              value % 6 === 0
-                ? (value % 12 === 0 ? 12 : value % 12).toString()
-                : ""
+            domain={[0, totalFetchedDays * 24]}
+            ticks={hourTicks}
+            tickFormatter={(v: number) =>
+              v % 3 === 0 ? String(v % 12 === 0 ? 12 : v % 12) : ""
             }
           />
           <YAxis
@@ -556,7 +853,21 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
           />
         </AreaChart>
       </ChartContainer>
-    </>
+        </div>
+
+        {/* invisible overlay to prevent pointer events leaking */}
+        <div
+          style={{
+            position: "absolute",
+            left: 0,
+            top: 56,
+            width: viewportWidth,
+            height: 220,
+            pointerEvents: "none",
+          }}
+        />
+      </div>
+    </div>
   );
 };
 

@@ -655,8 +655,6 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
         // Format date as YYYY-MM-DD to match how DatePicker does it
         const dateStr = selectedDate.toISOString().split("T")[0];
 
-        console.log("Fetching surf intensity for date:", dateStr);
-
         // Use API route instead of direct Supabase query to reduce egress
         const res = await fetch(`/api/surf-intensity?date=${dateStr}`);
 
@@ -669,19 +667,11 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
 
         if (!cancelled && json?.success && json.data) {
           console.log("✅ Loaded surf intensity from", json.source);
-          console.log("📊 Surf intensity data:", json.data);
-          console.log("🔢 Number of beaches with intensity:", Object.keys(json.data).length);
-          // Log a few sample values
-          const samples = Object.entries(json.data).slice(0, 5);
-          console.log("📝 Sample intensity values:", samples);
-
-          // Immediately check if data looks valid
-          const values = Object.values(json.data);
-          const nonZero = values.filter(v => v > 0).length;
-          console.log(`🎯 Non-zero values: ${nonZero} / ${values.length}`);
-
           setSurfIntensity(json.data);
           console.log("✅ setSurfIntensity called with", Object.keys(json.data).length, "entries");
+        } else if (cancelled) {
+          // This is expected in development due to React Strict Mode
+          console.log("⏭️ Surf intensity fetch cancelled (component re-rendered)");
         } else {
           console.error("❌ Failed to load surf intensity:", json);
         }
