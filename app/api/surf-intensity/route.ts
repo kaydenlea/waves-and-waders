@@ -17,6 +17,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const dateParam = searchParams.get('date')
 
+    console.log('🌊 Surf intensity API called with date:', dateParam)
+
     if (!dateParam) {
       return NextResponse.json(
         { success: false, error: 'Date parameter is required' },
@@ -25,10 +27,14 @@ export async function GET(request: NextRequest) {
     }
 
     const beachMap = await loadBeachGridMap()
+    console.log('🏖️  Beach map loaded:', beachMap.size, 'grid points')
 
     const dailyRows = await fetchDailyGridIntensity(dateParam)
+    console.log('📊 Daily grid rows fetched:', dailyRows?.length ?? 0)
+
     if (dailyRows && dailyRows.length > 0) {
       const intensityMap = mapGridValuesToBeaches(dailyRows, beachMap)
+      console.log('✅ Using daily_grid_table, mapped to', Object.keys(intensityMap).length, 'beaches')
       const response = NextResponse.json({
         success: true,
         data: intensityMap,
@@ -41,17 +47,24 @@ export async function GET(request: NextRequest) {
       return response
     }
 
+    console.log('⚠️  No daily data found, trying forecast fallback...')
     const date = new Date(dateParam)
     const startWindow = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0))
     const endWindow = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999))
+
+    console.log('📅 Fetching forecast data from', startWindow.toISOString(), 'to', endWindow.toISOString())
 
     const forecastRows = await fetchGridForecastRows(
       startWindow.toISOString(),
       endWindow.toISOString()
     )
+    console.log('📈 Forecast rows fetched:', forecastRows.length)
 
     const aggregated = aggregateForecastRows(forecastRows)
+    console.log('🔢 Aggregated to', aggregated.length, 'grid points')
+
     const fallbackIntensity = mapGridValuesToBeaches(aggregated, beachMap)
+    console.log('✅ Using grid_forecast_fallback, mapped to', Object.keys(fallbackIntensity).length, 'beaches')
 
     const response = NextResponse.json({
       success: true,
@@ -66,7 +79,7 @@ export async function GET(request: NextRequest) {
 
     return response
   } catch (error) {
-    console.error('Error fetching surf intensity:', error)
+    console.error('❌ Error fetching surf intensity:', error)
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }

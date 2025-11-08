@@ -63,22 +63,23 @@ const BASE_META_FORECAST: Partial<Record<WidgetId, WidgetMeta>> = {
     id: "tide",
     title: "Tide Chart",
     visible: true,
-    span: "half",
+    span: "full",
+    immutableFull: true,
   },
   surfAndWind: {
     id: "surfAndWind",
     title: "Surf & Wind Charts",
+    visible: false,
+    span: "full",
+    immutableFull: true,
+  },
+  surf: {
+    id: "surf",
+    title: "Surf Chart",
     visible: true,
     span: "full",
     immutableFull: true,
   },
-  // surf: {
-  //   id: "surf",
-  //   title: "Surf Chart",
-  //   visible: true,
-  //   span: "half",
-  //   immutableFull: true,
-  // },
   swell: {
     id: "swell",
     title: "Swell Chart",
@@ -90,15 +91,16 @@ const BASE_META_FORECAST: Partial<Record<WidgetId, WidgetMeta>> = {
     id: "energy",
     title: "Wave Energy Chart",
     visible: true,
-    span: "half",
+    span: "full",
+    immutableFull: true,
   },
-  // wind: {
-  //   id: "wind",
-  //   title: "Wind Chart",
-  //   visible: true,
-  //   span: "half",
-  //   immutableFull: true,
-  // },
+  wind: {
+    id: "wind",
+    title: "Wind Chart",
+    visible: true,
+    span: "full",
+    immutableFull: true,
+  },
   table: {
     id: "table",
     title: "Stats Table",
@@ -121,11 +123,10 @@ const INITIAL_ORDER_OVERVIEW: WidgetId[] = [
 const INITIAL_ORDER_FORECAST: WidgetId[] = [
   "tide",
   "energy",
-  "surfAndWind",
-  // "surf",
-  // "wind",
-  "table",
+  "surf",
+  "wind",
   "swell",
+  "table",
 ];
 
 const STORAGE_PREFIX = "waves-waders:dashboard";
