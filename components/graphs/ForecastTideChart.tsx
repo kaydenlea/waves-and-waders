@@ -33,6 +33,8 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import { cn } from "@/lib/utils";
+import { useDateContext } from "@/components/context/DateContext";
+import { useForecastChartContext } from "@/components/context/ForecastChartContext";
 
 const VISIBLE_DAYS = 4;
 const HOURS_PER_DAY = 24;
@@ -44,6 +46,8 @@ type Props = { beachId?: string; date?: Date; days?: Date[] };
 type TidePoint = { hour: number; tide: number; isPeak?: number };
 
 export default function ForecastTideChart({ beachId, date, days }: Props) {
+  const { setPanFraction, subscribePan } = useForecastChartContext();
+  const myId = React.useId();
   // data loaded for FETCH_DAYS days (hours)
   const [data, setData] = useState<TidePoint[]>([]);
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
@@ -60,6 +64,7 @@ export default function ForecastTideChart({ beachId, date, days }: Props) {
   const innerRef = useRef<HTMLDivElement | null>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [isAtRightEdge, setIsAtRightEdge] = useState(false);
+  const { selected: selectedDate, hour: selectedHour } = useDateContext();
 
   // Derived
   const totalFetchedDays = useMemo(() => FETCH_DAYS, []); // fixed for predictability
@@ -87,6 +92,7 @@ export default function ForecastTideChart({ beachId, date, days }: Props) {
     startTranslate: number;
   } | null>(null);
   const rafRef = useRef<number | null>(null);
+  const broadcastRafRef = useRef<number | null>(null);
 
   // helpers: clamp translate (px)
   const clampTranslatePx = useCallback(
@@ -179,6 +185,12 @@ export default function ForecastTideChart({ beachId, date, days }: Props) {
     const next = clampTranslatePx(ps.startTranslate - delta);
     // update transform imperatively (no React state)
     setInnerTranslatePx(next, false);
+    if (!broadcastRafRef.current) {
+      broadcastRafRef.current = requestAnimationFrame(() => {
+        broadcastRafRef.current = null;
+        setPanFraction(next / dayPx, myId, "drag");
+      });
+    }
   };
 
   const snapToNearestDayFromPx = useCallback(
@@ -213,6 +225,10 @@ export default function ForecastTideChart({ beachId, date, days }: Props) {
     pointerStateRef.current = null;
     document.body.style.userSelect = "";
     document.body.style.touchAction = "";
+    if (broadcastRafRef.current) {
+      cancelAnimationFrame(broadcastRafRef.current);
+      broadcastRafRef.current = null;
+    }
 
     // get the current pixel translation (where the user left it)
     const finalPx = clampTranslatePx(currentTranslateRef.current);
@@ -220,8 +236,9 @@ export default function ForecastTideChart({ beachId, date, days }: Props) {
     // compute the fractional offset in days
     const fractionalDayOffset = finalPx / dayPx;
 
-    // update logical day offset — keeps button behavior in sync
+    // update logical day offset - keeps button behavior in sync
     setDayOffset(fractionalDayOffset);
+    setPanFraction(fractionalDayOffset, myId, "animate");
 
     // do NOT animate or snap visually (user position is already correct)
     // Just ensure transform matches clamped px
@@ -238,6 +255,8 @@ export default function ForecastTideChart({ beachId, date, days }: Props) {
     const currentFractionalOffset = currentTranslateRef.current / dayPx;
     const newOffset = Math.min(maxOffset, currentFractionalOffset + 1);
     const targetPx = newOffset * dayPx;
+    // broadcast target first so others animate in sync
+    setPanFraction(newOffset, myId, "animate");
     animateToPx(targetPx, () => {
       setDayOffset(newOffset);
       // update isAtRightEdge after animation completes
@@ -250,6 +269,7 @@ export default function ForecastTideChart({ beachId, date, days }: Props) {
     const currentFractionalOffset = currentTranslateRef.current / dayPx;
     const newOffset = Math.max(0, currentFractionalOffset - 1);
     const targetPx = newOffset * dayPx;
+    setPanFraction(newOffset, myId, "animate");
     animateToPx(targetPx, () => {
       setDayOffset(newOffset);
       // update isAtRightEdge after animation completes
@@ -257,6 +277,26 @@ export default function ForecastTideChart({ beachId, date, days }: Props) {
       setIsAtRightEdge(targetPx >= maxTranslate - 1);
     });
   }, [animateToPx, dayPx, chartInnerWidth, viewportWidth]);
+
+  // Subscribe to external pan updates
+  useEffect(() => {
+    const unsub = subscribePan(
+      (fraction, sourceId, mode) => {
+        if (sourceId === myId) return;
+        const px = clampTranslatePx(fraction * dayPx);
+        if (mode === "animate") {
+          const maxTranslate = Math.max(0, chartInnerWidth - viewportWidth);
+          setIsAtRightEdge(px >= maxTranslate - 1);
+          setDayOffset(fraction);
+          animateToPx(px);
+        } else {
+          setInnerTranslatePx(px, false);
+        }
+      },
+      { immediate: true }
+    );
+    return () => unsub();
+  }, [subscribePan, myId, dayPx, clampTranslatePx, setInnerTranslatePx]);
 
   // Update inner transform when dayOffset or dayPx changes (unless user is actively dragging)
   useEffect(() => {
@@ -323,8 +363,11 @@ export default function ForecastTideChart({ beachId, date, days }: Props) {
           day: "2-digit",
         });
         const parts = formatter.formatToParts(startInput);
-        const year = parseInt(parts.find((p) => p.type === "year")?.value || "0");
-        const month = parseInt(parts.find((p) => p.type === "month")?.value || "1") - 1;
+        const year = parseInt(
+          parts.find((p) => p.type === "year")?.value || "0"
+        );
+        const month =
+          parseInt(parts.find((p) => p.type === "month")?.value || "1") - 1;
         const day = parseInt(parts.find((p) => p.type === "day")?.value || "1");
 
         // Calculate UTC timestamp for Pacific midnight using offset at noon (avoids DST edge cases)
@@ -621,11 +664,11 @@ export default function ForecastTideChart({ beachId, date, days }: Props) {
         >
           {/* Day label bar (4 filled boxes) — fixed in viewport and aligned to visible days */}
           <div
-            className="w-[97%] flex justify-between"
+            className="w-[95.5%] flex justify-between"
             style={{
               position: "absolute",
               zIndex: 40,
-              left: "1.9%",
+              left: "3%",
               top: -65,
               boxSizing: "border-box",
               pointerEvents: "none",
@@ -690,6 +733,7 @@ export default function ForecastTideChart({ beachId, date, days }: Props) {
               </div>
             ))}
           </div>
+
           <ChartContainer
             config={
               { tide: { label: "Tide", color: "#6e6e6eff" } } as ChartConfig
@@ -700,7 +744,7 @@ export default function ForecastTideChart({ beachId, date, days }: Props) {
               width={chartInnerWidth}
               // height={200}
               data={data}
-              margin={{ left: -35, right: 15, bottom: 5, top: 0 }}
+              margin={{ left: -25, right: 15, bottom: 5, top: 0 }}
             >
               {dayAreas.length > 0 &&
                 console.log("🎨 Rendering", dayAreas.length, "day areas")}
@@ -777,6 +821,37 @@ export default function ForecastTideChart({ beachId, date, days }: Props) {
                       : 8,
                 ]}
               />
+              {/* Selected hour marker */}
+              {(() => {
+                try {
+                  const base = days && days.length > 0 ? days[0] : null;
+                  if (!base || !selectedDate) return null;
+                  const baseMid = new Date(
+                    base.getFullYear(),
+                    base.getMonth(),
+                    base.getDate()
+                  ).getTime();
+                  const selMid = new Date(
+                    selectedDate.getFullYear(),
+                    selectedDate.getMonth(),
+                    selectedDate.getDate()
+                  ).getTime();
+                  const dayDelta = Math.floor(
+                    (selMid - baseMid) / (24 * 3600 * 1000)
+                  );
+                  const x = dayDelta * 24 + (selectedHour ?? 0);
+                  if (x < 0 || x > totalFetchedDays * 24) return null;
+                  return (
+                    <ReferenceLine
+                      x={x}
+                      stroke="var(--foreground)"
+                      strokeDasharray="3 3"
+                    />
+                  );
+                } catch {
+                  return null;
+                }
+              })()}
               <ChartTooltip
                 content={({ active, payload }: any) => {
                   if (!active || !payload || !payload.length) return null;

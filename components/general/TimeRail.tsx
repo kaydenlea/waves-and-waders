@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, startTransition, useState, useEffect } from "react";
+import React, { useMemo, startTransition, useState, useEffect, useRef } from "react";
 import { Calendar, Clock, TimerReset } from "lucide-react";
 import { useDateContext } from "../context/DateContext";
 import { useMapFilters } from "../context/MapFilterContext";
@@ -36,14 +36,37 @@ const TimeRail: React.FC<Props> = ({
   );
 
   // Handler that updates UI immediately but debounces data fetching
+  // Throttle UI updates to animation frames for smoothness
+  const hourRafRef = useRef<number | null>(null);
+  const nextHourRef = useRef<number>(hour);
   const handleHourChange = (newHour: number) => {
-    // Immediate UI update (no lag)
-    setHour(newHour);
-    // Trigger visual feedback
-    setHourChanged(true);
-    // Debounced data fetching
-    debouncedSetSelectedHour(newHour);
+    nextHourRef.current = newHour;
+    if (hourRafRef.current == null) {
+      hourRafRef.current = requestAnimationFrame(() => {
+        hourRafRef.current = null;
+        // Immediate UI update (frame-throttled)
+        setHour(nextHourRef.current);
+        setHourChanged(true);
+      });
+    }
   };
+
+  const handleHourCommit = (newHour: number) => {
+    // Apply selected hour immediately on commit to keep everything in sync
+    startTransition(() => {
+      setHour(newHour);
+      setSelectedHour(newHour);
+    });
+  };
+
+  useEffect(() => {
+    return () => {
+      if (hourRafRef.current != null) {
+        cancelAnimationFrame(hourRafRef.current);
+        hourRafRef.current = null;
+      }
+    };
+  }, []);
 
   // Reset animation after it completes
   useEffect(() => {
@@ -131,6 +154,7 @@ const TimeRail: React.FC<Props> = ({
       <LazyLoadHourSlider
         value={hour}
         onChange={handleHourChange}
+        onCommit={handleHourCommit}
         min={0}
         max={21}
         step={3}

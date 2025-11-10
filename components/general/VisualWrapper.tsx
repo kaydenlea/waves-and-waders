@@ -72,7 +72,7 @@ const VisualWrapper = ({
     <figure className="relative flex-1">
       <div className="bg-highlight-4 border border-border/40 rounded-2xl shadow-sm h-full w-full">
         <div className="p-1.5">
-          <div className="p-2 rounded-xl bg-highlight-6 w-full shadow-even">
+          <div className="p-2 rounded-xl w-full">
             <header className="p-1 flex justify-between gap-1 items-center">
               <div className="flex items-center gap-2">
                 <div
@@ -86,7 +86,7 @@ const VisualWrapper = ({
                 <h3 className="leading-none font-semibold text-lg">{label}</h3>
               </div>
               {unit && (
-                <span className="flex items-center px-2 py-1 rounded-md bg-highlight-4 text-xs sm:text-sm shadow-sm font-medium whitespace-nowrap">
+                <span className="flex items-center px-2 py-1 rounded-md bg-highlight-5 text-xs sm:text-sm shadow-sm font-medium whitespace-nowrap">
                   {unit}
                 </span>
               )}
@@ -95,7 +95,12 @@ const VisualWrapper = ({
         </div>
         <div
           className={cn(
-            "px-2 py-4 overflow-x-hidden touch-pan-y",
+            "px-2 pb-4 pt-3 -mt-3 overflow-x-hidden touch-pan-y",
+            label !== "Current" &&
+              label !== "Historical" &&
+              label !== "Forecast" &&
+              label !== "Hourly Stats" &&
+              "-mt-4",
             extraPadding && "px-4"
           )}
         >

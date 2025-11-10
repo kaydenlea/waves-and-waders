@@ -282,7 +282,7 @@ const StatTable = ({
   date?: Date;
 }) => {
   const [data, setData] = React.useState<TableDay[]>([]);
-  const { selectedDays, hour: selectedHour } = useDateContext();
+  const { selectedDays, hour: selectedHour, selected } = useDateContext();
   const pathname = usePathname();
   const { selectedTab } = useClientPath();
   const forecastPage = selectedTab === "forecast";
@@ -927,7 +927,7 @@ const StatTable = ({
           <div
             ref={pagerRef}
             className={cn(
-              "absolute left-1/2 transform -translate-x-1/2 -bottom-2 z-20 flex items-center gap-2 pointer-events-auto",
+              "absolute left-1/2 transform -translate-x-1/2 -bottom-1 z-20 flex items-center gap-2 pointer-events-auto",
               "bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/70",
               "border border-border/60 rounded-full px-2 py-1 shadow-md"
             )}
@@ -964,7 +964,33 @@ const StatTable = ({
           <tbody>
             {visibleDays.map((day, i) => {
               const content = day.vals.map((entry, rowIdx) => {
-                const isSelectedHour = entry.index === selectedHour;
+                let isSelectedHour = false;
+                // Determine selection per page context
+                if (forecastPage) {
+                  // Highlight only within the selected day and matching interval bucket
+                  const sel = selected instanceof Date ? selected : null;
+                  const sameDay = sel
+                    ? new Date(
+                        sel.getFullYear(),
+                        sel.getMonth(),
+                        sel.getDate()
+                      ).getTime() === day.dateMs
+                    : false;
+                  if (sameDay) {
+                    const hours = day.vals
+                      .map((v) => v.index)
+                      .sort((a, b) => a - b);
+                    // pick the last hour <= selectedHour, otherwise first
+                    let bucket = hours[0];
+                    for (const h of hours) {
+                      if (h <= selectedHour) bucket = h;
+                    }
+                    isSelectedHour = entry.index === bucket;
+                  }
+                } else {
+                  // Overview behavior: exact hour match
+                  isSelectedHour = entry.index === selectedHour;
+                }
                 return (
                   <tr
                     key={`${i}-${entry.index}`}

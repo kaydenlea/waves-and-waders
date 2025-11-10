@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useMemo, useState, useRef, useCallback, useEffect } from "react";
+import React, {
+  useMemo,
+  useState,
+  useRef,
+  useCallback,
+  useEffect,
+} from "react";
 import {
   CartesianGrid,
   XAxis,
@@ -17,7 +23,13 @@ import {
   ChartLegend,
   ChartLegendContent,
 } from "@/components/ui/chart";
-import { MousePointer2 as ArrowIcon, ChevronLeft, ChevronRight, TrendingDown, TrendingUp } from "lucide-react";
+import {
+  MousePointer2 as ArrowIcon,
+  ChevronLeft,
+  ChevronRight,
+  TrendingDown,
+  TrendingUp,
+} from "lucide-react";
 import {
   fetchWeeklyForecast,
   fetchBeachByIdLoose,
@@ -26,6 +38,8 @@ import {
   getWindDirection,
 } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
+import { useDateContext } from "@/components/context/DateContext";
+import { useForecastChartContext } from "@/components/context/ForecastChartContext";
 
 const chartConfig = {
   primary: {
@@ -59,6 +73,8 @@ const VISIBLE_DAYS = 4;
 const MIN_DAY_PX = 275; // minimum pixels per day to keep UI usable
 
 const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
+  const { setPanFraction, subscribePan } = useForecastChartContext();
+  const myId = React.useId();
   const [swellData, setSwellData] = useState<SwellPoint[]>([]);
   const [baseStartMs, setBaseStartMs] = useState<number | null>(null);
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
@@ -72,6 +88,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
   const innerRef = useRef<HTMLDivElement | null>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [isAtRightEdge, setIsAtRightEdge] = useState(false);
+  const { selected: selectedDate, hour: selectedHour } = useDateContext();
 
   // Pointer & animation refs
   const currentTranslateRef = useRef(0);
@@ -84,7 +101,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
 
   // Derived dimensions - use days prop length if available
   const totalFetchedDays = useMemo(() => {
-    return (days && days.length > 0) ? days.length : VISIBLE_DAYS;
+    return days && days.length > 0 ? days.length : VISIBLE_DAYS;
   }, [days]);
   const dayPx = useMemo(() => {
     if (!containerWidth) return MIN_DAY_PX;
@@ -187,6 +204,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
     const delta = ev.clientX - ps.startX;
     const next = clampTranslatePx(ps.startTranslate - delta);
     setInnerTranslatePx(next, false);
+    setPanFraction(next / dayPx, myId, "drag");
   };
 
   const onPointerUp = (ev: React.PointerEvent) => {
@@ -202,6 +220,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
     const fractionalDayOffset = finalPx / dayPx;
     setDayOffset(fractionalDayOffset);
     setInnerTranslatePx(finalPx, false);
+    setPanFraction(fractionalDayOffset, myId, "animate");
 
     const maxTranslate = Math.max(0, chartInnerWidth - viewportWidth);
     setIsAtRightEdge(finalPx >= maxTranslate - 1);
@@ -213,10 +232,12 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
     const currentFractionalOffset = currentTranslateRef.current / dayPx;
     const newOffset = Math.min(maxOffset, currentFractionalOffset + 1);
     const targetPx = newOffset * dayPx;
+    setPanFraction(newOffset, myId, "animate");
     animateToPx(targetPx, () => {
       setDayOffset(newOffset);
       const maxTranslate = Math.max(0, chartInnerWidth - viewportWidth);
       setIsAtRightEdge(targetPx >= maxTranslate - 1);
+      setPanFraction(newOffset, myId);
     });
   }, [animateToPx, dayPx, totalFetchedDays, chartInnerWidth, viewportWidth]);
 
@@ -224,12 +245,40 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
     const currentFractionalOffset = currentTranslateRef.current / dayPx;
     const newOffset = Math.max(0, currentFractionalOffset - 1);
     const targetPx = newOffset * dayPx;
+    setPanFraction(newOffset, myId, "animate");
     animateToPx(targetPx, () => {
       setDayOffset(newOffset);
       const maxTranslate = Math.max(0, chartInnerWidth - viewportWidth);
       setIsAtRightEdge(targetPx >= maxTranslate - 1);
+      setPanFraction(newOffset, myId);
     });
   }, [animateToPx, dayPx, chartInnerWidth, viewportWidth]);
+
+  useEffect(() => {
+    const unsub = subscribePan(
+      (fraction, sourceId, mode) => {
+        if (sourceId === myId) return;
+        const px = clampTranslatePx(fraction * dayPx);
+        if (mode === "animate") {
+          const maxTranslate = Math.max(0, chartInnerWidth - viewportWidth);
+          setIsAtRightEdge(px >= maxTranslate - 1);
+          setDayOffset(fraction);
+          animateToPx(px);
+        } else {
+          setInnerTranslatePx(px, false);
+        }
+      },
+      { immediate: true }
+    );
+    return () => unsub();
+  }, [
+    subscribePan,
+    myId,
+    dayPx,
+    clampTranslatePx,
+    setInnerTranslatePx,
+    animateToPx,
+  ]);
 
   // Update transform when dayOffset changes
   useEffect(() => {
@@ -277,7 +326,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
 
         const resolved = await fetchBeachByIdLoose(beachId);
         const id = resolved?.id ?? beachId;
-        
+
         if (!id) {
           if (!cancelled) {
             setSwellData([]);
@@ -285,8 +334,9 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
           }
           return;
         }
-        
-        const numDaysToFetch = (days && days.length > 0) ? days.length : VISIBLE_DAYS;
+
+        const numDaysToFetch =
+          days && days.length > 0 ? days.length : VISIBLE_DAYS;
         const rows = await fetchWeeklyForecast(String(id), numDaysToFetch);
 
         if (!rows || !rows.length) {
@@ -318,8 +368,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
           dateParts.find((p) => p.type === "year")?.value || "0"
         );
         const month =
-          parseInt(dateParts.find((p) => p.type === "month")?.value || "1") -
-          1;
+          parseInt(dateParts.find((p) => p.type === "month")?.value || "1") - 1;
         const day = parseInt(
           dateParts.find((p) => p.type === "day")?.value || "1"
         );
@@ -502,7 +551,10 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
         const primaryValues = dayData.map((p) => p.primary);
         const high = Math.max(...primaryValues);
         const low = Math.min(...primaryValues);
-        stats.push({ high: Math.round(high * 10) / 10, low: Math.round(low * 10) / 10 });
+        stats.push({
+          high: Math.round(high * 10) / 10,
+          low: Math.round(low * 10) / 10,
+        });
       } else {
         stats.push({ high: 0, low: 0 });
       }
@@ -586,11 +638,11 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
         >
           {/* Day label bar */}
           <div
-            className="w-[97%] flex justify-between"
+            className="w-[95.5%] flex justify-between"
             style={{
               position: "absolute",
               zIndex: 40,
-              left: "1.9%",
+              left: "3%",
               top: -65,
               boxSizing: "border-box",
               pointerEvents: "none",
@@ -611,37 +663,37 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                   pointerEvents: "none",
                 }}
               >
-                <div className="flex justify-center @min-lg:justify-between whitespace-nowrap px-3 py-2 rounded-lg bg-highlight-5">
-                  <span className="flex flex-col @min-lg:items-start">
+                <div className="flex justify-between whitespace-nowrap px-3 py-2 rounded-lg bg-highlight-5">
+                  <span className="flex flex-col items-start">
                     <span className="text-xs font-medium">
                       {label.split(",")[1]}
                     </span>
-                    <span className="text-sm font-bold">{label.split(",")[0]}</span>
+                    <span className="text-sm font-bold">
+                      {label.split(",")[0]}
+                    </span>
                   </span>
-                  <div className="hidden @min-lg:grid rounded-md bg-highlight-6 grid-cols-[auto_1fr] @min-3xl:grid-cols-[60px_1fr] grid-rows-2 space-y-0.5 items-center text-xs text-muted-foreground uppercase tracking-wide leading-tight">
+                  <div className="grid rounded-md bg-highlight-6 grid-cols-[60px_1fr] grid-rows-2 space-y-0.5 items-center text-xs text-muted-foreground uppercase tracking-wide leading-tight">
                     <span className="flex gap-2 items-center">
                       <TrendingUp
                         fill="#353535ff"
                         className="stroke-muted-foreground w-4 h-4"
                       />
-                      <span className="hidden @min-3xl:block font-medium">
-                        High
-                      </span>
+                      <span className="block font-medium">High</span>
                     </span>
                     <span className="ml-1 text-foreground normal-case font-medium">
-                      {dayStats[idx]?.high ?? 0} <span className="hidden @min-xl:inline-block">ft</span>
+                      {dayStats[idx]?.high ?? 0}{" "}
+                      <span className="inline-block">ft</span>
                     </span>
                     <span className="flex gap-2 items-center">
                       <TrendingDown
                         fill="#353535ff"
                         className="stroke-muted-foreground w-4 h-4"
                       />
-                      <span className="hidden @min-3xl:block -mb-0.5 font-medium">
-                        Low
-                      </span>
+                      <span className="block -mb-0.5 font-medium">Low</span>
                     </span>
                     <span className="ml-1 text-foreground normal-case font-medium">
-                      {dayStats[idx]?.low ?? 0} <span className="hidden @min-xl:inline-block">ft</span>
+                      {dayStats[idx]?.low ?? 0}{" "}
+                      <span className="inline-block">ft</span>
                     </span>
                   </div>
                 </div>
@@ -657,202 +709,232 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
               accessibilityLayer
               width={chartInnerWidth}
               data={swellData}
-          margin={{
-            top: 10,
-            right: 10,
-            left: -28,
-          }}
-          syncId="anyId"
-        >
-          {/* vertical boundaries every day */}
-          {Array.from({ length: totalFetchedDays + 1 }, (_, i) => {
-            if (i !== 0 && i !== totalFetchedDays) {
-              return (
-                <ReferenceLine
-                  key={`boundary-${i}`}
-                  x={i * 24}
-                  stroke="var(--foreground)"
-                  strokeOpacity={0.25}
-                  strokeWidth={0.5}
+              margin={{ left: -25, right: 15, bottom: 5, top: 0 }}
+              syncId="anyId"
+            >
+              {/* vertical boundaries every day */}
+              {Array.from({ length: totalFetchedDays + 1 }, (_, i) => {
+                if (i !== 0 && i !== totalFetchedDays) {
+                  return (
+                    <ReferenceLine
+                      key={`boundary-${i}`}
+                      x={i * 24}
+                      stroke="var(--foreground)"
+                      strokeOpacity={0.25}
+                      strokeWidth={0.5}
+                    />
+                  );
+                }
+              })}
+              {dayAreas.map((a, idx) => (
+                <ReferenceArea
+                  key={`day-${idx}`}
+                  x1={a.x1}
+                  x2={a.x2}
+                  fill="#FFE58F"
+                  fillOpacity={0.2}
+                  ifOverflow="extendDomain"
                 />
-              );
-            }
-          })}
-          {dayAreas.map((a, idx) => (
-            <ReferenceArea
-              key={`day-${idx}`}
-              x1={a.x1}
-              x2={a.x2}
-              fill="#FFE58F"
-              fillOpacity={0.2}
-              ifOverflow="extendDomain"
-            />
-          ))}
-          {nightAreas.map((a, idx) => (
-            <ReferenceArea
-              key={`night-${idx}`}
-              x1={idx === 0 ? undefined : a.x1}
-              x2={idx === nightAreas.length - 1 ? undefined : a.x2}
-              fill="#ccc1ffff"
-              fillOpacity={0.2}
-              ifOverflow="extendDomain"
-            />
-          ))}
-          <XAxis
-            dataKey="hour"
-            type="number"
-            tickLine={false}
-            axisLine={false}
-            tickMargin={8}
-            minTickGap={0}
-            fontSize={11}
-            domain={[0, totalFetchedDays * 24]}
-            ticks={hourTicks}
-            tickFormatter={(v: number) =>
-              v % 3 === 0 ? String(v % 12 === 0 ? 12 : v % 12) : ""
-            }
-          />
-          <YAxis
-            allowDecimals={false}
-            tickLine={false}
-            axisLine={false}
-            tickMargin={8}
-            fontSize={11}
-            domain={[0, (dataMax: number) => Math.ceil(dataMax + 2)]}
-          />
-          <ChartLegend content={<ChartLegendContent />} />
-          <ChartTooltip
-            content={({ active, payload }) => {
-              if (!active || !payload || payload.length === 0) return null;
+              ))}
+              {nightAreas.map((a, idx) => (
+                <ReferenceArea
+                  key={`night-${idx}`}
+                  x1={idx === 0 ? undefined : a.x1}
+                  x2={idx === nightAreas.length - 1 ? undefined : a.x2}
+                  fill="#ccc1ffff"
+                  fillOpacity={0.2}
+                  ifOverflow="extendDomain"
+                />
+              ))}
+              <XAxis
+                dataKey="hour"
+                type="number"
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+                minTickGap={0}
+                fontSize={11}
+                domain={[0, totalFetchedDays * 24]}
+                ticks={hourTicks}
+                tickFormatter={(v: number) =>
+                  v % 3 === 0 ? String(v % 12 === 0 ? 12 : v % 12) : ""
+                }
+              />
+              {/* Selected hour marker */}
+              {(() => {
+                try {
+                  const base = days && days.length > 0 ? days[0] : null;
+                  if (!base || !selectedDate) return null;
+                  const baseMid = new Date(
+                    base.getFullYear(),
+                    base.getMonth(),
+                    base.getDate()
+                  ).getTime();
+                  const selMid = new Date(
+                    selectedDate.getFullYear(),
+                    selectedDate.getMonth(),
+                    selectedDate.getDate()
+                  ).getTime();
+                  const dayDelta = Math.floor(
+                    (selMid - baseMid) / (24 * 3600 * 1000)
+                  );
+                  const x = dayDelta * 24 + (selectedHour ?? 0);
+                  if (x < 0 || x > totalFetchedDays * 24) return null;
+                  return (
+                    <ReferenceLine
+                      x={x}
+                      stroke="var(--foreground)"
+                      strokeDasharray="3 3"
+                    />
+                  );
+                } catch {
+                  return null;
+                }
+              })()}
+              <YAxis
+                allowDecimals={false}
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+                fontSize={11}
+                domain={[0, (dataMax: number) => Math.ceil(dataMax + 2)]}
+              />
+              {/* <ChartLegend content={<ChartLegendContent />} /> */}
+              <ChartTooltip
+                content={({ active, payload }) => {
+                  if (!active || !payload || payload.length === 0) return null;
 
-              const data = payload[0].payload;
+                  const data = payload[0].payload;
 
-              return (
-                <div className="rounded-lg border bg-background p-2 shadow-sm">
-                  <div className="grid gap-2">
-                    {payload.map((entry, index) => {
-                      const dirKey = `${entry.dataKey}Dir` as keyof SwellPoint;
-                      const direction = data[dirKey] as number | undefined;
-                      const dirLabel =
-                        direction != null ? getWindDirection(direction) : "N/A";
+                  return (
+                    <div className="rounded-lg border bg-background p-2 shadow-sm">
+                      <div className="grid gap-2">
+                        {payload.map((entry, index) => {
+                          const dirKey =
+                            `${entry.dataKey}Dir` as keyof SwellPoint;
+                          const direction = data[dirKey] as number | undefined;
+                          const dirLabel =
+                            direction != null
+                              ? getWindDirection(direction)
+                              : "N/A";
 
-                      return (
-                        <div key={index} className="flex flex-col">
-                          <span className="text-[0.70rem] uppercase text-muted-foreground">
-                            {entry.name}
-                          </span>
-                          <span
-                            className="font-bold"
-                            style={{ color: entry.color }}
-                          >
-                            {typeof entry.value === "number"
-                              ? entry.value.toFixed(1)
-                              : entry.value}{" "}
-                            ft
-                          </span>
-                          {direction != null && (
-                            <span className="text-[0.65rem] text-muted-foreground">
-                              {dirLabel} ({Math.round(direction)}°)
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            }}
-          />
+                          return (
+                            <div key={index} className="flex flex-col">
+                              <span className="text-[0.70rem] uppercase text-muted-foreground">
+                                {entry.name}
+                              </span>
+                              <span
+                                className="font-bold"
+                                style={{ color: entry.color }}
+                              >
+                                {typeof entry.value === "number"
+                                  ? entry.value.toFixed(1)
+                                  : entry.value}{" "}
+                                ft
+                              </span>
+                              {direction != null && (
+                                <span className="text-[0.65rem] text-muted-foreground">
+                                  {dirLabel} ({Math.round(direction)}°)
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                }}
+              />
 
-          <Area
-            type="monotone"
-            dataKey="primary"
-            activeDot={false}
-            stroke="#023e8a"
-            fill="#0077b6"
-            fillOpacity={0.2}
-            dot={({ payload, cx, cy, index }) => {
-              const iconSize = 15;
-              const direction = payload.primaryDir ?? 0;
-              const rotation = direction - 315;
+              <Area
+                type="monotone"
+                dataKey="primary"
+                activeDot={false}
+                stroke="#023e8a"
+                fill="#0077b6"
+                fillOpacity={0.2}
+                dot={({ payload, cx, cy, index }) => {
+                  const iconSize = 15;
+                  const direction = payload.primaryDir ?? 0;
+                  const rotation = direction - 315;
 
-              return (
-                <g key={`primary-${index}`}>
-                  <g transform={`translate(${cx}, ${cy})`}>
-                    <g transform={`rotate(${rotation}, 0, 0)`}>
-                      <ArrowIcon
-                        size={iconSize}
-                        x={-iconSize / 2}
-                        y={-iconSize / 2}
-                        fill="var(--swell-primary)"
-                        color="var(--color-highlight-2)"
-                      />
+                  return (
+                    <g key={`primary-${index}`}>
+                      <g transform={`translate(${cx}, ${cy})`}>
+                        <g transform={`rotate(${rotation}, 0, 0)`}>
+                          <ArrowIcon
+                            size={iconSize}
+                            x={-iconSize / 2}
+                            y={-iconSize / 2}
+                            fill="var(--swell-primary)"
+                            color="var(--color-highlight-2)"
+                          />
+                        </g>
+                      </g>
                     </g>
-                  </g>
-                </g>
-              );
-            }}
-          />
-          <Area
-            type="monotone"
-            dataKey="secondary"
-            activeDot={false}
-            stroke="#0096c7"
-            fill="#48cae4"
-            fillOpacity={0.2}
-            dot={({ payload, cx, cy, index }) => {
-              const iconSize = 15;
-              const direction = payload.secondaryDir ?? 0;
-              const rotation = direction - 315;
+                  );
+                }}
+              />
+              <Area
+                type="monotone"
+                dataKey="secondary"
+                activeDot={false}
+                stroke="#0096c7"
+                fill="#48cae4"
+                fillOpacity={0.2}
+                dot={({ payload, cx, cy, index }) => {
+                  const iconSize = 15;
+                  const direction = payload.secondaryDir ?? 0;
+                  const rotation = direction - 315;
 
-              return (
-                <g key={`secondary-${index}`}>
-                  <g transform={`translate(${cx}, ${cy})`}>
-                    <g transform={`rotate(${rotation}, 0, 0)`}>
-                      <ArrowIcon
-                        size={iconSize}
-                        x={-iconSize / 2}
-                        y={-iconSize / 2}
-                        fill="var(--swell-primary)"
-                        color="var(--color-highlight-2)"
-                      />
+                  return (
+                    <g key={`secondary-${index}`}>
+                      <g transform={`translate(${cx}, ${cy})`}>
+                        <g transform={`rotate(${rotation}, 0, 0)`}>
+                          <ArrowIcon
+                            size={iconSize}
+                            x={-iconSize / 2}
+                            y={-iconSize / 2}
+                            fill="var(--swell-primary)"
+                            color="var(--color-highlight-2)"
+                          />
+                        </g>
+                      </g>
                     </g>
-                  </g>
-                </g>
-              );
-            }}
-          />
-          <Area
-            type="monotone"
-            dataKey="tertiary"
-            activeDot={false}
-            stroke="#70ccebff"
-            fill="#adf1ffff"
-            fillOpacity={0.2}
-            dot={({ payload, cx, cy, index }) => {
-              const iconSize = 15;
-              const direction = payload.tertiaryDir ?? 0;
-              const rotation = direction - 315;
+                  );
+                }}
+              />
+              <Area
+                type="monotone"
+                dataKey="tertiary"
+                activeDot={false}
+                stroke="#70ccebff"
+                fill="#adf1ffff"
+                fillOpacity={0.2}
+                dot={({ payload, cx, cy, index }) => {
+                  const iconSize = 15;
+                  const direction = payload.tertiaryDir ?? 0;
+                  const rotation = direction - 315;
 
-              return (
-                <g key={`tertiary-${index}`}>
-                  <g transform={`translate(${cx}, ${cy})`}>
-                    <g transform={`rotate(${rotation}, 0, 0)`}>
-                      <ArrowIcon
-                        size={iconSize}
-                        x={-iconSize / 2}
-                        y={-iconSize / 2}
-                        fill="var(--swell-primary)"
-                        color="var(--color-highlight-2)"
-                      />
+                  return (
+                    <g key={`tertiary-${index}`}>
+                      <g transform={`translate(${cx}, ${cy})`}>
+                        <g transform={`rotate(${rotation}, 0, 0)`}>
+                          <ArrowIcon
+                            size={iconSize}
+                            x={-iconSize / 2}
+                            y={-iconSize / 2}
+                            fill="var(--swell-primary)"
+                            color="var(--color-highlight-2)"
+                          />
+                        </g>
+                      </g>
                     </g>
-                  </g>
-                </g>
-              );
-            }}
-          />
-        </AreaChart>
-      </ChartContainer>
+                  );
+                }}
+              />
+            </AreaChart>
+          </ChartContainer>
         </div>
 
         {/* invisible overlay to prevent pointer events leaking */}

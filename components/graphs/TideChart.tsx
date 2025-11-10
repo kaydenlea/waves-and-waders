@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useEffect, useMemo, useState } from "react";
 import {
@@ -436,7 +436,7 @@ const TideChart: React.FC<TideChartProps> = ({
 
   return (
     <ChartContainer
-      className="aspect-auto h-[275px] @min-3xl:h-[295px] w-full"
+      className="aspect-auto h-[275px] @min-3xl:h-[300px] w-full"
       config={chartConfig}
     >
       <LineChart
@@ -453,7 +453,7 @@ const TideChart: React.FC<TideChartProps> = ({
         <ReferenceLine
           x={selectedHour}
           stroke="var(--foreground)"
-          strokeWidth={2}
+          // strokeWidth={2}
           strokeDasharray="3 3"
         />
         {dayAreas.map((area, idx) => (
@@ -646,7 +646,3 @@ const TideChart: React.FC<TideChartProps> = ({
 };
 
 export default TideChart;
-
-
-
-

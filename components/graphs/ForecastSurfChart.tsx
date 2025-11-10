@@ -21,13 +21,20 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { ChevronLeft, ChevronRight, TrendingDown, TrendingUp } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  TrendingDown,
+  TrendingUp,
+} from "lucide-react";
 import {
   fetchWeeklyForecast,
   fetchBeachDetails,
   fetchDailyConditions,
 } from "@/lib/supabase";
 import { cn, getPacificHour } from "@/lib/utils";
+import { useDateContext } from "@/components/context/DateContext";
+import { useForecastChartContext } from "@/components/context/ForecastChartContext";
 
 const chartConfig = {
   surf: {
@@ -48,10 +55,14 @@ const VISIBLE_DAYS = 4;
 const MIN_DAY_PX = 275;
 
 const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
+  const { setPanFraction, subscribePan } = useForecastChartContext();
+  const myId = React.useId();
   const [surfData, setSurfData] = useState<SurfPoint[]>([]);
   const [baseStartMs, setBaseStartMs] = useState<number | null>(null);
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
-  const [nightAreas, setNightAreas] = useState<{ x1: number; x2?: number }[]>([]);
+  const [nightAreas, setNightAreas] = useState<{ x1: number; x2?: number }[]>(
+    []
+  );
 
   // Scrollable state
   const [dayOffset, setDayOffset] = useState(0);
@@ -59,6 +70,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
   const innerRef = useRef<HTMLDivElement | null>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [isAtRightEdge, setIsAtRightEdge] = useState(false);
+  const { selected: selectedDate, hour: selectedHour } = useDateContext();
 
   // Pointer & animation refs
   const currentTranslateRef = useRef(0);
@@ -175,6 +187,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
     const delta = ev.clientX - ps.startX;
     const next = clampTranslatePx(ps.startTranslate - delta);
     setInnerTranslatePx(next, false);
+    setPanFraction(next / dayPx, myId, "drag");
   };
 
   const onPointerUp = (ev: React.PointerEvent) => {
@@ -190,6 +203,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
     const fractionalDayOffset = finalPx / dayPx;
     setDayOffset(fractionalDayOffset);
     setInnerTranslatePx(finalPx, false);
+    setPanFraction(fractionalDayOffset, myId, "animate");
 
     const maxTranslate = Math.max(0, chartInnerWidth - viewportWidth);
     setIsAtRightEdge(finalPx >= maxTranslate - 1);
@@ -201,10 +215,12 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
     const currentFractionalOffset = currentTranslateRef.current / dayPx;
     const newOffset = Math.min(maxOffset, currentFractionalOffset + 1);
     const targetPx = newOffset * dayPx;
+    setPanFraction(newOffset, myId, "animate");
     animateToPx(targetPx, () => {
       setDayOffset(newOffset);
       const maxTranslate = Math.max(0, chartInnerWidth - viewportWidth);
       setIsAtRightEdge(targetPx >= maxTranslate - 1);
+      setPanFraction(newOffset, myId);
     });
   }, [animateToPx, dayPx, totalFetchedDays, chartInnerWidth, viewportWidth]);
 
@@ -212,12 +228,40 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
     const currentFractionalOffset = currentTranslateRef.current / dayPx;
     const newOffset = Math.max(0, currentFractionalOffset - 1);
     const targetPx = newOffset * dayPx;
+    setPanFraction(newOffset, myId, "animate");
     animateToPx(targetPx, () => {
       setDayOffset(newOffset);
       const maxTranslate = Math.max(0, chartInnerWidth - viewportWidth);
       setIsAtRightEdge(targetPx >= maxTranslate - 1);
+      setPanFraction(newOffset, myId);
     });
   }, [animateToPx, dayPx, chartInnerWidth, viewportWidth]);
+
+  useEffect(() => {
+    const unsub = subscribePan(
+      (fraction, sourceId, mode) => {
+        if (sourceId === myId) return;
+        const px = clampTranslatePx(fraction * dayPx);
+        if (mode === "animate") {
+          const maxTranslate = Math.max(0, chartInnerWidth - viewportWidth);
+          setIsAtRightEdge(px >= maxTranslate - 1);
+          setDayOffset(fraction);
+          animateToPx(px);
+        } else {
+          setInnerTranslatePx(px, false);
+        }
+      },
+      { immediate: true }
+    );
+    return () => unsub();
+  }, [
+    subscribePan,
+    myId,
+    dayPx,
+    clampTranslatePx,
+    setInnerTranslatePx,
+    animateToPx,
+  ]);
 
   // Update transform when dayOffset changes
   useEffect(() => {
@@ -263,7 +307,8 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
           return;
         }
 
-        const numDaysToFetch = days && days.length > 0 ? days.length : VISIBLE_DAYS;
+        const numDaysToFetch =
+          days && days.length > 0 ? days.length : VISIBLE_DAYS;
         const rows = await fetchWeeklyForecast(String(beachId), numDaysToFetch);
 
         if (!rows || !rows.length) {
@@ -289,9 +334,14 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
           day: "2-digit",
         });
         const dateParts = dateFormatter.formatToParts(baseDate);
-        const year = parseInt(dateParts.find((p) => p.type === "year")?.value || "0");
-        const month = parseInt(dateParts.find((p) => p.type === "month")?.value || "1") - 1;
-        const day = parseInt(dateParts.find((p) => p.type === "day")?.value || "1");
+        const year = parseInt(
+          dateParts.find((p) => p.type === "year")?.value || "0"
+        );
+        const month =
+          parseInt(dateParts.find((p) => p.type === "month")?.value || "1") - 1;
+        const day = parseInt(
+          dateParts.find((p) => p.type === "day")?.value || "1"
+        );
 
         // Calculate UTC timestamp for Pacific midnight using offset at noon
         const noonUTC = Date.UTC(year, month, day, 12, 0, 0, 0);
@@ -386,26 +436,52 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
           day: "2-digit",
         });
         const startParts = startFormatter.formatToParts(start);
-        const startYear = parseInt(startParts.find((p) => p.type === "year")?.value || "0");
-        const startMonth = parseInt(startParts.find((p) => p.type === "month")?.value || "1") - 1;
-        const startDay = parseInt(startParts.find((p) => p.type === "day")?.value || "1");
+        const startYear = parseInt(
+          startParts.find((p) => p.type === "year")?.value || "0"
+        );
+        const startMonth =
+          parseInt(startParts.find((p) => p.type === "month")?.value || "1") -
+          1;
+        const startDay = parseInt(
+          startParts.find((p) => p.type === "day")?.value || "1"
+        );
 
-        const startNoonUTC = Date.UTC(startYear, startMonth, startDay, 12, 0, 0, 0);
+        const startNoonUTC = Date.UTC(
+          startYear,
+          startMonth,
+          startDay,
+          12,
+          0,
+          0,
+          0
+        );
         const startNoonDate = new Date(startNoonUTC);
         const startNoonFormatter = new Intl.DateTimeFormat("en-US", {
           timeZone: "America/Los_Angeles",
           hour: "2-digit",
           hour12: false,
         });
-        const startPacificNoonHour = parseInt(startNoonFormatter.format(startNoonDate));
+        const startPacificNoonHour = parseInt(
+          startNoonFormatter.format(startNoonDate)
+        );
         const startOffsetHours = startPacificNoonHour - 12;
 
-        const startMs = Date.UTC(startYear, startMonth, startDay, -startOffsetHours, 0, 0, 0);
+        const startMs = Date.UTC(
+          startYear,
+          startMonth,
+          startDay,
+          -startOffsetHours,
+          0,
+          0,
+          0
+        );
 
         const beach = await fetchBeachDetails(String(beachId));
         const county = beach?.COUNTY;
         if (county) {
-          const parseHM = (s: string | null): { h: number; m: number } | null => {
+          const parseHM = (
+            s: string | null
+          ): { h: number; m: number } | null => {
             if (!s) return null;
             const m = /^(\d{1,2}):(\d{2})/.exec(s.trim());
             if (!m) return null;
@@ -487,7 +563,10 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
         const surfValues = dayData.map((p) => p.surf);
         const high = Math.max(...surfValues);
         const low = Math.min(...surfValues);
-        stats.push({ high: Math.round(high * 10) / 10, low: Math.round(low * 10) / 10 });
+        stats.push({
+          high: Math.round(high * 10) / 10,
+          low: Math.round(low * 10) / 10,
+        });
       } else {
         stats.push({ high: 0, low: 0 });
       }
@@ -571,11 +650,11 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
         >
           {/* Day label bar */}
           <div
-            className="w-[97%] flex justify-between"
+            className="w-[95.5%] flex justify-between"
             style={{
               position: "absolute",
               zIndex: 40,
-              left: "1.9%",
+              left: "3%",
               top: -65,
               boxSizing: "border-box",
               pointerEvents: "none",
@@ -596,37 +675,37 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                   pointerEvents: "none",
                 }}
               >
-                <div className="flex justify-center @min-lg:justify-between whitespace-nowrap px-3 py-2 rounded-lg bg-highlight-5">
-                  <span className="flex flex-col @min-lg:items-start">
+                <div className="flex justify-between whitespace-nowrap px-3 py-2 rounded-lg bg-highlight-5">
+                  <span className="flex flex-col items-start">
                     <span className="text-xs font-medium">
                       {label.split(",")[1]}
                     </span>
-                    <span className="text-sm font-bold">{label.split(",")[0]}</span>
+                    <span className="text-sm font-bold">
+                      {label.split(",")[0]}
+                    </span>
                   </span>
-                  <div className="hidden @min-lg:grid rounded-md bg-highlight-6 grid-cols-[auto_1fr] @min-3xl:grid-cols-[60px_1fr] grid-rows-2 space-y-0.5 items-center text-xs text-muted-foreground uppercase tracking-wide leading-tight">
+                  <div className="grid rounded-md bg-highlight-6 grid-cols-[60px_1fr] grid-rows-2 space-y-0.5 items-center text-xs text-muted-foreground uppercase tracking-wide leading-tight">
                     <span className="flex gap-2 items-center">
                       <TrendingUp
                         fill="#353535ff"
                         className="stroke-muted-foreground w-4 h-4"
                       />
-                      <span className="hidden @min-3xl:block font-medium">
-                        High
-                      </span>
+                      <span className="block font-medium">High</span>
                     </span>
                     <span className="ml-1 text-foreground normal-case font-medium">
-                      {dayStats[idx]?.high ?? 0} <span className="hidden @min-xl:inline-block">ft</span>
+                      {dayStats[idx]?.high ?? 0}{" "}
+                      <span className="inline-block">ft</span>
                     </span>
                     <span className="flex gap-2 items-center">
                       <TrendingDown
                         fill="#353535ff"
                         className="stroke-muted-foreground w-4 h-4"
                       />
-                      <span className="hidden @min-3xl:block -mb-0.5 font-medium">
-                        Low
-                      </span>
+                      <span className="block -mb-0.5 font-medium">Low</span>
                     </span>
                     <span className="ml-1 text-foreground normal-case font-medium">
-                      {dayStats[idx]?.low ?? 0} <span className="hidden @min-xl:inline-block">ft</span>
+                      {dayStats[idx]?.low ?? 0}{" "}
+                      <span className="inline-block">ft</span>
                     </span>
                   </div>
                 </div>
@@ -642,11 +721,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
               accessibilityLayer
               width={chartInnerWidth}
               data={surfData}
-              margin={{
-                top: 10,
-                right: 10,
-                left: -28,
-              }}
+              margin={{ left: -25, right: 15, bottom: 5, top: 0 }}
               syncId="anyId"
             >
               {/* vertical boundaries every day */}
@@ -677,7 +752,11 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                 <ReferenceArea
                   key={`night-${idx}`}
                   x1={idx === 0 ? -1 : a.x1}
-                  x2={idx === nightAreas.length - 1 ? totalFetchedDays * 24 + 1 : a.x2}
+                  x2={
+                    idx === nightAreas.length - 1
+                      ? totalFetchedDays * 24 + 1
+                      : a.x2
+                  }
                   fill="#ccc1ffff"
                   fillOpacity={0.2}
                   ifOverflow="visible"
@@ -693,7 +772,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                 fontSize={11}
                 domain={[0, totalFetchedDays * 24]}
                 ticks={hourTicks}
-                padding={{ left: 20, right: 20 }}
+                padding={{ left: 10, right: 10 }}
                 tickFormatter={(v: number) =>
                   v % 3 === 0 ? String(v % 12 === 0 ? 12 : v % 12) : ""
                 }
@@ -704,10 +783,43 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                 axisLine={false}
                 tickMargin={8}
                 fontSize={11}
-                domain={[0, (dataMax: number) => Math.max(4, Math.ceil(dataMax + 2))]}
+                domain={[
+                  0,
+                  (dataMax: number) => Math.max(4, Math.ceil(dataMax + 2)),
+                ]}
               />
               <ChartTooltip content={<ChartTooltipContent />} />
-
+              {/* Selected hour marker */}
+              {(() => {
+                try {
+                  const base = days && days.length > 0 ? days[0] : null;
+                  if (!base || !selectedDate) return null;
+                  const baseMid = new Date(
+                    base.getFullYear(),
+                    base.getMonth(),
+                    base.getDate()
+                  ).getTime();
+                  const selMid = new Date(
+                    selectedDate.getFullYear(),
+                    selectedDate.getMonth(),
+                    selectedDate.getDate()
+                  ).getTime();
+                  const dayDelta = Math.floor(
+                    (selMid - baseMid) / (24 * 3600 * 1000)
+                  );
+                  const x = dayDelta * 24 + (selectedHour ?? 0);
+                  if (x < 0 || x > totalFetchedDays * 24) return null;
+                  return (
+                    <ReferenceLine
+                      x={x}
+                      stroke="var(--foreground)"
+                      strokeDasharray="3 3"
+                    />
+                  );
+                } catch {
+                  return null;
+                }
+              })()}
               <Bar
                 dataKey="surf"
                 fill="var(--color-surf)"
@@ -722,10 +834,15 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                   content={(props: LabelProps) => {
                     const safeX = typeof props.x === "number" ? props.x : 0;
                     const safeY = typeof props.y === "number" ? props.y : 0;
-                    const safeWidth = typeof props.width === "number" ? props.width : 0;
-                    const safeHeight = typeof props.height === "number" ? props.height : 0;
+                    const safeWidth =
+                      typeof props.width === "number" ? props.width : 0;
+                    const safeHeight =
+                      typeof props.height === "number" ? props.height : 0;
                     const fontSize = Math.max(10, safeWidth * 0.15);
-                    const label = typeof props.value === "number" ? props.value.toFixed(1) : "";
+                    const label =
+                      typeof props.value === "number"
+                        ? props.value.toFixed(1)
+                        : "";
 
                     if (label) {
                       return (

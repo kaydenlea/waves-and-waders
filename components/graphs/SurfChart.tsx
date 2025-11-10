@@ -326,7 +326,7 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
     <ChartContainer
       ref={chartRef}
       config={chartConfig}
-      className="aspect-auto h-[275px] @min-3xl:h-[295px] w-full !justify-start"
+      className="aspect-auto h-[275px] @min-3xl:h-[300px] w-full !justify-start"
     >
       <BarChart
         margin={{
@@ -341,13 +341,6 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
         barCategoryGap="15%"
         maxBarSize={60}
       >
-        {/* Hour indicator line */}
-        <ReferenceLine
-          x={selectedHour}
-          stroke="var(--foreground)"
-          strokeWidth={2}
-          strokeDasharray="3 3"
-        />
         {dayAreas.map((a, idx) => (
           <ReferenceArea
             key={`day-${idx}`}
@@ -417,6 +410,13 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
         />
         <ChartTooltip content={<ChartTooltipContent />} />
         <ChartLegend content={<ChartLegendContent />} />
+        {/* Hour indicator line */}
+        <ReferenceLine
+          x={selectedHour}
+          stroke="var(--foreground)"
+          // strokeWidth={2}
+          strokeDasharray="3 3"
+        />
         <Bar
           dataKey="surf"
           fill="var(--color-surf, var(--color-tide))"

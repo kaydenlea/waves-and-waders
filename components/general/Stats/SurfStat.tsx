@@ -1,3 +1,4 @@
+import { MousePointer2 as ArrowIcon } from "lucide-react";
 import GradientCircle from "./GradientCircle";
 
 const SurfStat = ({
@@ -11,8 +12,9 @@ const SurfStat = ({
         {data.height}
         <span className="text-xs font-normal ml-1">ft</span>
       </span>
-      <span className="text-[11px] text-muted-foreground">
-        Period {data.period}s
+      <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+        <ArrowIcon className="w-4 h-4 fill-foreground/20 text-foreground/50" />
+        <span>{data.period}s</span>
       </span>
     </div>
   );

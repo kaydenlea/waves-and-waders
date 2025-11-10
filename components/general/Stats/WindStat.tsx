@@ -1,3 +1,4 @@
+import { MousePointer2 as ArrowIcon } from "lucide-react";
 import GradientCircle from "./GradientCircle";
 
 const WindStat = ({
@@ -11,8 +12,9 @@ const WindStat = ({
         {data.speed}
         <span className="text-xs font-normal ml-1">mph</span>
       </span>
-      <span className="text-[11px] text-muted-foreground">
-        {data.gust != null ? `${data.gust} mph` : "No gust"}
+      <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+        <ArrowIcon className="w-4 h-4 fill-foreground/20 text-foreground/50" />
+        <span>{data.gust != null ? `${data.gust}` : "No gust"}</span>
       </span>
     </div>
   );

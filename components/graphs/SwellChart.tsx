@@ -195,7 +195,7 @@ const SwellChart = ({ beachId, hours = 24, date }: Props) => {
   return (
     <ChartContainer
       config={chartConfig}
-      className="aspect-auto h-[275px] @min-3xl:h-[295px] w-full"
+      className="aspect-auto h-[275px] @min-3xl:h-[300px] w-full"
     >
       <AreaChart
         accessibilityLayer
@@ -225,13 +225,6 @@ const SwellChart = ({ beachId, hours = 24, date }: Props) => {
             fillOpacity={0.2}
           />
         ))}
-        {/* Hour indicator line */}
-        <ReferenceLine
-          x={selectedHour}
-          stroke="var(--foreground)"
-          strokeWidth={2}
-          strokeDasharray="3 3"
-        />
         {/* <CartesianGrid
           strokeDasharray="3 3"
           stroke="var(--foreground)"
@@ -392,6 +385,13 @@ const SwellChart = ({ beachId, hours = 24, date }: Props) => {
               </g>
             );
           }}
+        />
+        {/* Hour indicator line */}
+        <ReferenceLine
+          x={selectedHour}
+          stroke="var(--foreground)"
+          // strokeWidth={2}
+          strokeDasharray="3 3"
         />
       </AreaChart>
     </ChartContainer>

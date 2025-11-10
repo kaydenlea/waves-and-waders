@@ -296,7 +296,7 @@ const DateSummaryBridge: React.FC<Props> = ({
           );
         case "energy":
           return (
-            <VisualWrapper label="Wave Energy" unit="ft">
+            <VisualWrapper label="Wave Energy" unit="kJ">
               <LazyLoadEnergy beachId={beachId} date={selected ?? undefined} />
             </VisualWrapper>
           );

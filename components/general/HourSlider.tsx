@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 type Props = {
   value?: number | null;
   onChange?: (value: number) => void;
+  onCommit?: (value: number) => void;
   min?: number;
   max?: number;
   step?: number;
@@ -15,6 +16,7 @@ type Props = {
 const HourSlider = ({
   value: controlled,
   onChange,
+  onCommit,
   min = 0,
   max = 21,
   step = 3,
@@ -89,6 +91,10 @@ const HourSlider = ({
         step={step}
         value={sliderValue}
         onValueChange={handleChange}
+        onValueCommit={(vals) => {
+          const v = Math.max(min, Math.min(max, Math.round(vals[0] ?? hour)));
+          onCommit?.(v);
+        }}
         onPointerDown={() => setIsSliding(true)}
         onPointerUp={() => setIsSliding(false)}
         className="z-1"

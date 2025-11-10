@@ -18,22 +18,709 @@ import {
   CloudDrizzle,
   CloudRain,
   CloudLightning,
+  MousePointer2 as ArrowIcon,
   Snowflake,
 } from "lucide-react";
+
+// Module-scope helpers and segmented gauge for compact, legible intensity visuals
+const clamp = (n: number, lo: number, hi: number) =>
+  Math.max(lo, Math.min(hi, n));
+const toPct = (v: number, min: number, max: number) =>
+  clamp(((v - min) / Math.max(1, max - min)) * 100, 0, 100);
+
+type SegmentedGaugeProps = {
+  valuePct: number; // 0..100
+  segments?: number;
+  className?: string;
+  height?: number;
+  colors?: string[]; // one per segment
+  trackColor?: string;
+  showCaret?: boolean;
+};
+
+function SegmentedGauge({
+  valuePct,
+  segments = 5,
+  className = "",
+  height = 10,
+  colors,
+  trackColor = "#e5e7eb",
+  showCaret = false,
+}: SegmentedGaugeProps) {
+  const segSize = 100 / segments;
+  const palette =
+    colors && colors.length >= segments
+      ? colors
+      : ["#22c55e", "#84cc16", "#eab308", "#f59e0b", "#ef4444"].slice(
+          0,
+          segments
+        );
+  const pct = clamp(valuePct, 0, 100);
+  const caretTransform =
+    pct <= 0
+      ? "translateX(0%)"
+      : pct >= 100
+      ? "translateX(-100%)"
+      : "translateX(-50%)";
+  return (
+    <div className={cn("relative w-full", className)} aria-hidden>
+      <div className="flex w-full gap-[1px]">
+        {Array.from({ length: segments }, (_, i) => {
+          const start = i * segSize;
+          const inSeg = clamp((pct - start) / segSize, 0, 1);
+          return (
+            <div
+              key={i}
+              className="relative rounded-[2px] overflow-hidden flex-1"
+              style={{ height, background: trackColor }}
+            >
+              <div
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  height: "100%",
+                  width: `${Math.round(inSeg * 100)}%`,
+                  background: palette[i],
+                }}
+              />
+            </div>
+          );
+        })}
+      </div>
+      {showCaret && (
+        <div
+          style={{
+            position: "absolute",
+            left: `${pct}%`,
+            top: -5,
+            transform: caretTransform,
+            width: 0,
+            height: 0,
+            borderLeft: "5px solid transparent",
+            borderRight: "5px solid transparent",
+            borderBottom: "6px solid var(--muted-foreground)",
+            opacity: 0.6,
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// Classic circular pressure gauge with bottom gap and clear pointer highlight
+/* Deprecated: old pressure gauge — kept for history, not used */
+function PressureGaugeClassic({
+  value,
+  min,
+  max,
+  unit,
+  size = 88,
+}: {
+  value: number;
+  min: number;
+  max: number;
+  unit: string;
+  size?: number;
+}) {
+  const stroke = 8;
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const center = size / 2;
+
+  const lo = Math.min(min, max);
+  const hi = Math.max(min, max);
+  const pct = clamp(((value - lo) / Math.max(1e-6, hi - lo)) * 100, 0, 100);
+
+  const startDeg = 180; // left
+  const spanDeg = 180; // sweep to right
+
+  const arcLen = (spanDeg / 360) * c;
+  const filled = (pct / 100) * arcLen;
+
+  const angle = (pct / 100) * spanDeg + startDeg; // absolute angle for needle
+
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const a = toRad(angle);
+  const cosA = Math.cos(a);
+  const sinA = Math.sin(a);
+  const tipX = center + r * cosA;
+  const tipY = center + r * sinA;
+  const innerX = center + (r - 10) * cosA;
+  const innerY = center + (r - 10) * sinA;
+  const px = -sinA;
+  const py = cosA;
+  const halfW = 6;
+  const baseLeftX = innerX - px * halfW;
+  const baseLeftY = innerY - py * halfW;
+  const baseRightX = innerX + px * halfW;
+  const baseRightY = innerY + py * halfW;
+  const hue = Math.max(0, Math.min(140, 140 - Math.round((pct / 100) * 140)));
+  const intensityColor = `hsl(${hue} 80% 45%)`;
+
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden>
+      {/* rotate so 0 of dasharray starts at startDeg */}
+      <g transform={`rotate(${startDeg} ${center} ${center})`}>
+        {/* Track */}
+        <circle
+          cx={center}
+          cy={center}
+          r={r}
+          fill="none"
+          stroke="currentColor"
+          opacity={0.15}
+          strokeWidth={stroke}
+          strokeDasharray={`${arcLen} ${c - arcLen}`}
+          strokeDashoffset={0}
+          strokeLinecap="round"
+        />
+        {/* Filled arc up to value */}
+        <circle
+          cx={center}
+          cy={center}
+          r={r}
+          fill="none"
+          stroke="currentColor"
+          opacity={0.25}
+          strokeWidth={stroke}
+          strokeDasharray={`${filled} ${c}`}
+          strokeDashoffset={0}
+          strokeLinecap="round"
+        />
+        {/* Highlight band at needle only (small arc segment) */}
+        {(() => {
+          const hl = 8; // px along arc
+          const start = Math.max(0, Math.min(arcLen - hl, filled - hl / 2));
+          const dashOffset = c - start;
+          return (
+            <circle
+              cx={center}
+              cy={center}
+              r={r}
+              fill="none"
+              stroke="currentColor"
+              opacity={0.45}
+              strokeWidth={stroke - 2}
+              strokeDasharray={`${hl} ${c}`}
+              strokeDashoffset={c - (filled - hl / 2)}
+              strokeLinecap="round"
+            />
+          );
+        })()}
+      </g>
+      {/* Ticks */}
+      {Array.from({ length: 9 }, (_, i) => {
+        const a = startDeg + (i / 8) * spanDeg;
+        const rad = toRad(a);
+        const outer = r + 1;
+        const major = i % 2 === 0;
+        const inner = r - (major ? 7 : 4);
+        const x1 = center + outer * Math.cos(rad);
+        const y1 = center + outer * Math.sin(rad);
+        const x2 = center + inner * Math.cos(rad);
+        const y2 = center + inner * Math.sin(rad);
+        return (
+          <line
+            key={i}
+            x1={x1}
+            y1={y1}
+            x2={x2}
+            y2={y2}
+            stroke="currentColor"
+            opacity={0.28}
+            strokeWidth={1}
+            strokeLinecap="round"
+          />
+        );
+      })}
+      {/* Needle tip marker (no center overlap) */}
+      <polygon
+        points={`${tipX},${tipY} ${baseRightX},${baseRightY} ${baseLeftX},${baseLeftY}`}
+        fill="currentColor"
+        opacity={0.9}
+        stroke="white"
+        strokeOpacity={0.5}
+        strokeWidth={0.5}
+      />
+      {/* Center label (value + unit combined) */}
+      <text
+        x={center}
+        y={center + 10}
+        textAnchor="middle"
+        dominantBaseline="middle"
+        fill="currentColor"
+      >
+        <tspan fontSize="14" fontWeight="600">
+          {Math.round(value * 100) / 100}
+        </tspan>
+        <tspan fontSize="10" opacity="0.6">
+          {" "}
+          {unit}
+        </tspan>
+      </text>
+      {/* End labels */}
+      {(() => {
+        const lblOffset = r + 10;
+        const radLo = toRad(startDeg);
+        const radHi = toRad(startDeg + spanDeg);
+        const lx = center + lblOffset * Math.cos(radLo);
+        const ly = center + lblOffset * Math.sin(radLo);
+        const hx = center + lblOffset * Math.cos(radHi);
+        const hy = center + lblOffset * Math.sin(radHi);
+        return (
+          <g>
+            <text
+              x={lx}
+              y={ly}
+              textAnchor="middle"
+              fontSize="9"
+              fill="currentColor"
+              opacity={0.6}
+            >
+              Low
+            </text>
+            <text
+              x={hx}
+              y={hy}
+              textAnchor="middle"
+              fontSize="9"
+              fill="currentColor"
+              opacity={0.6}
+            >
+              High
+            </text>
+          </g>
+        );
+      })()}
+    </svg>
+  );
+}
+
+// Donut ring pressure meter with focus segment and center label
+function PressureDonut({
+  value,
+  min,
+  max,
+  unit,
+  size = 84,
+  thickness = 10,
+  focusDeg = 16,
+}: {
+  value: number;
+  min: number;
+  max: number;
+  unit: string;
+  size?: number;
+  thickness?: number;
+  focusDeg?: number;
+}) {
+  const r = (size - thickness) / 2;
+  const center = size / 2;
+  const lo = Math.min(min, max);
+  const hi = Math.max(min, max);
+  const pct = clamp(((value - lo) / Math.max(1e-6, hi - lo)) * 100, 0, 100);
+
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const arcPath = (sa: number, ea: number) => {
+    const a0 = toRad(sa);
+    const a1 = toRad(ea);
+    const x0 = center + r * Math.cos(a0);
+    const y0 = center + r * Math.sin(a0);
+    const x1 = center + r * Math.cos(a1);
+    const y1 = center + r * Math.sin(a1);
+    const laf = ea - sa > 180 ? 1 : 0;
+    return `M ${x0} ${y0} A ${r} ${r} 0 ${laf} 1 ${x1} ${y1}`;
+  };
+
+  const startDeg = 180;
+  const spanDeg = 180;
+  const angle = startDeg + (pct / 100) * spanDeg;
+
+  // Base semi-circle track
+  const baseD = arcPath(startDeg, startDeg + spanDeg);
+  // Needle segment (short arc around current angle)
+  const half = Math.max(2, focusDeg / 2);
+  const ns = Math.max(startDeg, angle - half);
+  const ne = Math.min(startDeg + spanDeg, angle + half);
+  const needleD = arcPath(ns, ne);
+
+  // Tick marks
+  const ticks: React.JSX.Element[] = [];
+  const tickCount = 12;
+  for (let i = 0; i <= tickCount; i++) {
+    const d = startDeg + (i / tickCount) * spanDeg;
+    const rad = toRad(d);
+    const outer = r;
+    const major = i % 2 === 0;
+    const inner = r - (major ? 7 : 4);
+    const x1 = center + outer * Math.cos(rad);
+    const y1 = center + outer * Math.sin(rad);
+    const x2 = center + inner * Math.cos(rad);
+    const y2 = center + inner * Math.sin(rad);
+    ticks.push(
+      <line
+        key={i}
+        x1={x1}
+        y1={y1}
+        x2={x2}
+        y2={y2}
+        stroke="currentColor"
+        opacity={0.28}
+        strokeWidth={1}
+        strokeLinecap="round"
+      />
+    );
+  }
+
+  // Tip dot
+  const ax = center + r * Math.cos(toRad(angle));
+  const ay = center + r * Math.sin(toRad(angle));
+
+  // Low/High label positions (kept inside viewBox)
+  const labelRadius = r - thickness * 0.5 - 6;
+  const labelY = center + Math.max(10, thickness * 0.7);
+
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox={`0 0 ${size} ${size}`}
+      className="text-foreground -mb-8"
+      aria-hidden
+    >
+      <path
+        d={baseD}
+        stroke="currentColor"
+        opacity={0.15}
+        strokeWidth={thickness}
+        fill="none"
+        strokeLinecap="round"
+      />
+      {ticks}
+      <path
+        d={needleD}
+        stroke="currentColor"
+        opacity={0.9}
+        strokeWidth={thickness}
+        fill="none"
+        strokeLinecap="round"
+      />
+      {(() => {
+        const ri = r - thickness; // extend inside the ring
+        const ro = r + thickness * 0.6; // extend slightly outside
+        const xr1 = center + ri * Math.cos(toRad(angle));
+        const yr1 = center + ri * Math.sin(toRad(angle));
+        const xr2 = center + ro * Math.cos(toRad(angle));
+        const yr2 = center + ro * Math.sin(toRad(angle));
+        return (
+          <line
+            x1={xr1}
+            y1={yr1}
+            x2={xr2}
+            y2={yr2}
+            stroke="currentColor"
+            opacity={0.8}
+            strokeWidth={3}
+            strokeLinecap="round"
+          />
+        );
+      })()}
+      <circle cx={ax} cy={ay} r={3.2} fill="currentColor" />
+      <text
+        x={center}
+        y={center - 12}
+        textAnchor="middle"
+        dominantBaseline="middle"
+        fill="currentColor"
+        fontSize="16"
+        fontWeight="600"
+      >
+        {Math.round(value * 100) / 100}
+      </text>
+      <text
+        x={center}
+        y={center + 2}
+        textAnchor="middle"
+        dominantBaseline="middle"
+        fill="currentColor"
+        fontSize="11"
+        opacity={0.7}
+      >
+        {unit}
+      </text>
+      <text
+        x={center - labelRadius}
+        y={labelY}
+        textAnchor="middle"
+        fontSize="9"
+        fill="currentColor"
+        opacity={0.6}
+      >
+        lo
+      </text>
+      <text
+        x={center + labelRadius}
+        y={labelY}
+        textAnchor="middle"
+        fontSize="9"
+        fill="currentColor"
+        opacity={0.6}
+      >
+        hi
+      </text>
+    </svg>
+  );
+}
+
+// Apple-inspired semi-circular pressure dial (clean, theme-aware)
+function PressureDialApple({
+  value,
+  min,
+  max,
+  unit,
+  size = 80,
+}: {
+  value: number;
+  min: number;
+  max: number;
+  unit: string;
+  size?: number;
+}) {
+  const stroke = 8;
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const center = size / 2;
+
+  const lo = Math.min(min, max);
+  const hi = Math.max(min, max);
+  const pct = clamp(((value - lo) / Math.max(1e-6, hi - lo)) * 100, 0, 100);
+
+  const startDeg = 180;
+  const spanDeg = 180;
+  const arcLen = (spanDeg / 360) * c;
+  const filled = (pct / 100) * arcLen;
+
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const angle = (pct / 100) * spanDeg + startDeg;
+  const a = toRad(angle);
+  const tipX = center + r * Math.cos(a);
+  const tipY = center + r * Math.sin(a);
+
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox={`0 0 ${size} ${size}`}
+      className="text-foreground"
+      aria-hidden
+    >
+      <g transform={`rotate(${startDeg} ${center} ${center})`}>
+        <circle
+          cx={center}
+          cy={center}
+          r={r}
+          fill="none"
+          stroke="currentColor"
+          opacity={0.15}
+          strokeWidth={stroke}
+          strokeDasharray={`${arcLen} ${c - arcLen}`}
+          strokeDashoffset={0}
+          strokeLinecap="round"
+        />
+        <circle
+          cx={center}
+          cy={center}
+          r={r}
+          fill="none"
+          stroke="currentColor"
+          opacity={0.28}
+          strokeWidth={stroke}
+          strokeDasharray={`${filled} ${c}`}
+          strokeDashoffset={0}
+          strokeLinecap="round"
+        />
+        {(() => {
+          const hl = 10;
+          const dashOffset = c - Math.max(0, Math.min(arcLen, filled - hl / 2));
+          return (
+            <circle
+              cx={center}
+              cy={center}
+              r={r}
+              fill="none"
+              stroke="currentColor"
+              opacity={0.45}
+              strokeWidth={stroke - 2}
+              strokeDasharray={`${hl} ${c}`}
+              strokeDashoffset={dashOffset}
+              strokeLinecap="round"
+            />
+          );
+        })()}
+      </g>
+      {Array.from({ length: 9 }, (_, i) => {
+        const deg = startDeg + (i / 8) * spanDeg;
+        const rad = toRad(deg);
+        const outer = r + 1;
+        const major = i % 2 === 0;
+        const inner = r - (major ? 7 : 4);
+        const x1 = center + outer * Math.cos(rad);
+        const y1 = center + outer * Math.sin(rad);
+        const x2 = center + inner * Math.cos(rad);
+        const y2 = center + inner * Math.sin(rad);
+        return (
+          <line
+            key={i}
+            x1={x1}
+            y1={y1}
+            x2={x2}
+            y2={y2}
+            stroke="currentColor"
+            opacity={0.28}
+            strokeWidth={1}
+            strokeLinecap="round"
+          />
+        );
+      })}
+      <circle cx={tipX} cy={tipY} r={3.5} fill="currentColor" />
+      <text
+        x={center}
+        y={center + 10}
+        textAnchor="middle"
+        dominantBaseline="middle"
+        fill="currentColor"
+      >
+        <tspan fontSize="14" fontWeight="600">
+          {Math.round(value * 100) / 100}
+        </tspan>
+        <tspan fontSize="10" opacity="0.6">
+          {" "}
+          {unit}
+        </tspan>
+      </text>
+      {(() => {
+        const lblOffset = r + 10;
+        const lx = center + lblOffset * Math.cos(toRad(startDeg));
+        const ly = center + lblOffset * Math.sin(toRad(startDeg));
+        const hx = center + lblOffset * Math.cos(toRad(startDeg + spanDeg));
+        const hy = center + lblOffset * Math.sin(toRad(startDeg + spanDeg));
+        return (
+          <g>
+            <text
+              x={lx}
+              y={ly}
+              textAnchor="middle"
+              fontSize="9"
+              fill="currentColor"
+              opacity={0.6}
+            >
+              Low
+            </text>
+            <text
+              x={hx}
+              y={hy}
+              textAnchor="middle"
+              fontSize="9"
+              fill="currentColor"
+              opacity={0.6}
+            >
+              High
+            </text>
+          </g>
+        );
+      })()}
+    </svg>
+  );
+}
+// Circular pressure gauge (segmented ring + needle + value in center)
+type VerticalSegmentedGaugeProps = {
+  valuePct: number; // 0..100
+  segments?: number;
+  className?: string;
+  width?: number;
+  height?: number;
+  colors?: string[]; // one per segment (bottom to top)
+  trackColor?: string;
+};
+
+function VerticalSegmentedGauge({
+  valuePct,
+  segments = 5,
+  className = "",
+  width = 10,
+  height = 46,
+  colors,
+  trackColor = "#e5e7eb",
+}: VerticalSegmentedGaugeProps) {
+  const segSize = 100 / segments;
+  const palette =
+    colors && colors.length >= segments
+      ? colors
+      : ["#22c55e", "#84cc16", "#eab308", "#f59e0b", "#ef4444"].slice(
+          0,
+          segments
+        );
+  return (
+    <div
+      className={cn("flex flex-col justify-end gap-[2px]", className)}
+      style={{ height, width }}
+      aria-hidden
+    >
+      {Array.from({ length: segments }, (_, idx) => {
+        const i = segments - 1 - idx; // bottom segment is last color
+        const start = i * segSize;
+        const inSeg = clamp((valuePct - start) / segSize, 0, 1);
+        return (
+          <div
+            key={i}
+            className="relative rounded-[2px] overflow-hidden"
+            style={{
+              height: height / segments - 2,
+              width: "100%",
+              background: trackColor,
+            }}
+          >
+            <div
+              style={{
+                position: "absolute",
+                bottom: 0,
+                left: 0,
+                width: "100%",
+                height: `${Math.round(inSeg * 100)}%`,
+                background: palette[i],
+              }}
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+type WeatherGaugeConfig = {
+  valuePct: number;
+  segments?: number;
+  showCaret?: boolean;
+} | null;
 
 const WeatherStat = ({
   temp,
   condition,
   label,
   weatherCode,
+  gaugeConfig = null,
 }: {
   temp: number;
   condition?: string;
   label: string;
   weatherCode?: number | null;
+  gaugeConfig?: WeatherGaugeConfig;
 }) => {
   // Function to get weather icon based on WMO code
   const getWeatherIcon = (code: number | null) => {
+    if (label === "water")
+      return <Droplets className="w-5 h-5" color="#1CACD4" />;
     if (code == null)
       return <Sun className="w-5 h-5" strokeWidth={3} color="#f79e55ff" />;
 
@@ -74,6 +761,15 @@ const WeatherStat = ({
           <span className="text-sm font-normal">&deg;F</span>
         </span>
       </div>
+      {gaugeConfig && label !== "water" && (
+        <div className="w-full px-2 mt-2">
+          <SegmentedGauge
+            valuePct={gaugeConfig.valuePct}
+            segments={gaugeConfig.segments ?? 5}
+            showCaret={gaugeConfig.showCaret ?? true}
+          />
+        </div>
+      )}
     </HighlightCard>
   );
 };
@@ -212,19 +908,163 @@ const MoonStat = ({
 const WindStat = ({
   data,
   label,
+  maxScale,
 }: {
-  data: { speed: number; max: number };
+  data: { speed: number; max: number; dir: number };
   label: string;
+  maxScale?: number;
 }) => {
+  const rotation = typeof data.dir === "number" ? data.dir - 315 : 0;
+  const dirLabel = getWindDirection(
+    typeof data.dir === "number" && Number.isFinite(data.dir) ? data.dir : 0
+  );
+  const valuePct = Math.round(
+    toPct(data.speed, 0, Math.max(1, maxScale ?? 30))
+  );
   return (
     <HighlightCard label={label}>
-      <span className="flex gap-1">
-        <span className="text-2xl font-semibold">{data.speed}</span>
-        <span className="flex flex-col -space-y-1">
-          <span className="text-[0.7rem] font-semibold">{data.max}</span>
-          <span className="text-[0.8rem]">mph</span>
-        </span>
+      <div className="flex gap-1.5 items-center w-full px-2 justify-center">
+        <div className="relative w-8 h-8">
+          <div
+            className="absolute inset-0 rounded-full"
+            style={{
+              background: `conic-gradient(${`hsl(${Math.max(
+                0,
+                Math.min(140, 140 - valuePct * 1.4)
+              )} 75% 45%)`} ${valuePct}%, var(--border) ${valuePct}% 100%)`,
+            }}
+          />
+          <div className="absolute inset-[4px] rounded-full bg-background dark:bg-highlight-4 flex items-center justify-center">
+            <div className="flex flex-col items-center justify-center leading-none">
+              <div
+                style={{
+                  transform: `rotate(${rotation}deg)`,
+                  display: "inline-block",
+                }}
+              >
+                <ArrowIcon className="w-3.5 h-3.5 @min-4xl:w-4 @min-4xl:h-4 fill-foreground/50 text-foreground/50" />
+              </div>
+              {/* <span className="text-[0.6rem] font-medium mt-[3px] mb-0.5">
+                {dirLabel}
+              </span> */}
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-1 whitespace-nowrap">
+          <span className="text-2xl font-semibold tabular-nums">
+            {data.speed}
+          </span>
+          <span className="flex flex-col -space-y-1 leading-tight text-left">
+            <span className="text-[0.7rem] font-semibold">{data.max}</span>
+            <span className="text-[0.7rem]">mph</span>
+          </span>
+        </div>
+      </div>
+    </HighlightCard>
+  );
+};
+
+// Specialized compact stats with gauges where helpful
+const EnergyStat = ({
+  data,
+  label,
+  maxScale,
+}: {
+  data: { value: number; unit: string };
+  label: string;
+  maxScale?: number;
+}) => {
+  const valuePct = Math.round(
+    toPct(data.value, 0, Math.max(1, maxScale ?? (data.value || 1)))
+  );
+  return (
+    <HighlightCard label={label}>
+      <span className="text-2xl font-semibold rounded-md pb-1">
+        {data.value}
+        <span className="text-sm font-normal ml-1">{data.unit}</span>
       </span>
+      <div className="w-full mt-1">
+        <SegmentedGauge
+          className="w-full"
+          valuePct={valuePct}
+          segments={5}
+          showCaret
+          colors={["#22c55e", "#84cc16", "#eab308", "#f59e0b", "#ef4444"]}
+          height={8}
+        />
+      </div>
+    </HighlightCard>
+  );
+};
+
+const PressureStat = ({
+  data,
+  label,
+  minScale,
+  maxScale,
+}: {
+  data: { value: number; unit: string };
+  label: string;
+  minScale?: number;
+  maxScale?: number;
+}) => {
+  const valuePct = Math.round(
+    toPct(
+      data.value,
+      Math.min(minScale ?? data.value, maxScale ?? data.value),
+      Math.max(1, maxScale ?? (data.value || 1))
+    )
+  );
+  return (
+    <HighlightCard label={label}>
+      <div className="w-full flex items-center justify-center">
+        <PressureDonut
+          value={data.value}
+          min={Math.min(minScale ?? data.value, maxScale ?? data.value)}
+          max={Math.max(minScale ?? data.value, maxScale ?? data.value)}
+          unit={data.unit}
+          size={85}
+          thickness={7}
+          focusDeg={12}
+        />
+      </div>
+    </HighlightCard>
+  );
+};
+
+const TideStat = ({
+  data,
+  label,
+  maxAbs,
+}: {
+  data: { value: number | string; unit: string };
+  label: string;
+  maxAbs?: number;
+}) => {
+  const numeric =
+    typeof data.value === "number"
+      ? data.value
+      : Number(String(data.value).replace(/[^-\d.]/g, ""));
+  const magnitude = Number.isFinite(numeric) ? Math.abs(numeric) : 0;
+  const valuePct = Math.round(
+    toPct(magnitude, 0, Math.max(1, maxAbs ?? (magnitude || 1)))
+  );
+  return (
+    <HighlightCard label={label}>
+      <span className="text-2xl font-semibold rounded-md pb-1">
+        {typeof data.value === "number" ? data.value : String(data.value)}
+        <span className="text-sm font-normal ml-1">{data.unit}</span>
+      </span>
+      <div className="w-full mt-1">
+        <SegmentedGauge
+          className="w-full"
+          valuePct={valuePct}
+          segments={5}
+          showCaret
+          colors={["#bfdbfe", "#93c5fd", "#60a5fa", "#3b82f6", "#1d4ed8"]}
+          height={8}
+        />
+      </div>
     </HighlightCard>
   );
 };
@@ -271,11 +1111,16 @@ const HighlightCard = ({
     },
   };
   return (
-    <div className="flex flex-col gap-4 items-center">
+    <div
+      className={cn(
+        "flex flex-col gap-4 items-center",
+        (label === "tide" || label === "energy") && "w-full"
+      )}
+    >
       <h3 className="absolute top-2 left-2 text-muted-foreground text-[0.7rem] font-medium whitespace-nowrap">
         {label.toUpperCase()}
       </h3>
-      <div className="p-0.5 rounded-full bg-highlight-5/50 border border-border/40 absolute -top-3 right-1">
+      {/* <div className="p-0.5 rounded-full bg-highlight-5/50 border border-border/40 absolute -top-3 right-1">
         <div
           className={cn(
             "flex justify-center items-center w-8 h-8 rounded-full",
@@ -284,8 +1129,15 @@ const HighlightCard = ({
         >
           {iconMap[label].icon}
         </div>
+      </div> */}
+      <div
+        className={cn(
+          "w-full px-2",
+          label === "swell" || label === "pressure" ? "mt-3" : "mt-2"
+        )}
+      >
+        {children}
       </div>
-      <div className="mt-4">{children}</div>
     </div>
   );
 };
@@ -320,7 +1172,7 @@ type Stat =
     }
   | { label: "tide"; tide: { value: number | string; unit: string } }
   | { label: "moon"; phase: string | number }
-  | { label: "wind"; wind: { speed: number; max: number } }
+  | { label: "wind"; wind: { speed: number; max: number; dir: number } }
   | { label: "pressure"; pressure: { value: number; unit: string } }
   | { label: "energy"; energy: { value: number; unit: string } };
 
@@ -398,6 +1250,55 @@ const Highlights = ({
     date instanceof Date ? date : undefined
   );
 
+  // Dynamic scales from forecast
+  const percentile = (arr: number[], p: number) => {
+    if (!arr.length) return 0;
+    const sorted = [...arr].sort((a, b) => a - b);
+    const idx = Math.max(
+      0,
+      Math.min(sorted.length - 1, Math.round((p / 100) * (sorted.length - 1)))
+    );
+    return sorted[idx];
+  };
+  const scales = useMemo(() => {
+    const winds = forecast
+      .map((r: any) => Number(r?.conditions?.windSpeed ?? 0))
+      .filter((n) => Number.isFinite(n) && n >= 0);
+    const energies = forecast
+      .map((r: any) => Number(r?.surf?.waveEnergy ?? 0))
+      .filter((n) => Number.isFinite(n) && n >= 0);
+    const waters = forecast
+      .map((r: any) => Number(r?.conditions?.waterTemp ?? 0))
+      .filter((n) => Number.isFinite(n));
+    const pressures = forecast
+      .map((r: any) => Number(r?.conditions?.pressure ?? 0))
+      .filter((n) => Number.isFinite(n));
+    const swellPowers = forecast
+      .map((r: any) => {
+        const h = Number(r?.swell?.primary?.height ?? 0);
+        const p = Number(r?.swell?.primary?.period ?? 0);
+        return h * Math.sqrt(Math.max(0, p));
+      })
+      .filter((n) => Number.isFinite(n) && n >= 0);
+
+    // Tide levels for intensity banding
+    const tideLevels = (tides as any[])
+      .map((t) => Number(t?.tideLevelFt ?? 0))
+      .filter((n) => Number.isFinite(n));
+    const tideAbs = tideLevels.map((n) => Math.abs(n));
+
+    return {
+      windMax: winds.length ? percentile(winds, 90) : 30,
+      energyMax: energies.length ? percentile(energies, 90) : 600,
+      waterMin: waters.length ? percentile(waters, 10) : 45,
+      waterMax: waters.length ? percentile(waters, 90) : 85,
+      pressureMin: pressures.length ? percentile(pressures, 10) : 29,
+      pressureMax: pressures.length ? percentile(pressures, 90) : 31,
+      swellMax: swellPowers.length ? percentile(swellPowers, 90) : 20,
+      tideAbsMax: tideAbs.length ? percentile(tideAbs, 90) : 6,
+    };
+  }, [forecast, tides]);
+
   // Prefetch adjacent hours
   usePrefetchAdjacentHours(resolvedId ?? null, date ?? null, hour ?? 0);
 
@@ -452,7 +1353,7 @@ const Highlights = ({
         },
         { label: "water" as const, temp: 60 },
         { label: "tide" as const, tide: { value: "2-3", unit: "ft" } },
-        { label: "wind" as const, wind: { speed: 12, max: 17 } },
+        { label: "wind" as const, wind: { speed: 12, max: 17, dir: 60 } },
         { label: "moon" as const, phase: "Waning Crescent" },
         { label: "pressure" as const, pressure: { value: 29.9, unit: "in" } },
         { label: "energy" as const, energy: { value: 278, unit: "kJ" } },
@@ -540,6 +1441,7 @@ const Highlights = ({
       wind: {
         speed: Math.round(base?.conditions.windSpeed ?? 0),
         max: Math.round(base?.conditions.windGust ?? 0),
+        dir: Math.round(base?.conditions.windDirection ?? 0),
       },
     });
     // moon
@@ -564,7 +1466,7 @@ const Highlights = ({
   }, [forecast, baseRow, current, date, tides, daily]);
 
   return (
-    <div className="w-full max-w-7xl mx-auto">
+    <div className="w-full max-w-7xl mx-auto p-1.5">
       <ul
         className={cn(
           "grid grid-cols-2 @min-md:grid-cols-3 @min-2xl:grid-cols-4 gap-2.5",
@@ -603,21 +1505,10 @@ const Highlights = ({
               break;
             case "water":
               content = stat.temp && (
-                <HighlightCard label={stat.label}>
-                  <div className="flex items-center justify-center gap-0.5">
-                    <span className="text-2xl font-semibold">
-                      {stat.temp}
-                      <span className="text-sm font-normal">&deg;F</span>
-                    </span>
-                  </div>
-                </HighlightCard>
+                <WeatherStat temp={stat.temp} label={stat.label} />
               );
               break;
-            case "tide":
-              content = stat.tide && (
-                <BasicStat data={stat.tide} label={stat.label} />
-              );
-              break;
+
             case "moon":
               {
                 const hasPhase =
@@ -636,17 +1527,39 @@ const Highlights = ({
               break;
             case "wind":
               content = stat.wind && (
-                <WindStat data={stat.wind} label={stat.label} />
+                <WindStat
+                  data={stat.wind}
+                  label={stat.label}
+                  maxScale={scales.windMax}
+                />
               );
               break;
             case "pressure":
               content = stat.pressure && (
-                <BasicStat data={stat.pressure} label={stat.label} />
+                <PressureStat
+                  data={stat.pressure}
+                  label={stat.label}
+                  minScale={scales.pressureMin}
+                  maxScale={scales.pressureMax}
+                />
               );
               break;
             case "energy":
               content = stat.energy && (
-                <BasicStat data={stat.energy} label={stat.label} />
+                <EnergyStat
+                  data={stat.energy}
+                  label={stat.label}
+                  maxScale={scales.energyMax}
+                />
+              );
+              break;
+            case "tide":
+              content = stat.tide && (
+                <TideStat
+                  data={stat.tide}
+                  label={stat.label}
+                  maxAbs={scales.tideAbsMax}
+                />
               );
               break;
           }

@@ -17,7 +17,7 @@ export default function PathStyleWrapper({
     if (beachPage) {
       return "w-full @min-4xl:w-90 @min-[1400px]:min-w-180";
     }
-    return "@min-4xl:flex-1 max-w-320 @min-[1450px]:min-w-210 @min-[1700px]:min-w-265";
+    return "@min-4xl:flex-1 max-w-320 @min-[1450px]:min-w-235 @min-[1700px]:min-w-265";
   }, [beachPage]);
 
   return (
