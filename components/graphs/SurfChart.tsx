@@ -326,7 +326,7 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
     <ChartContainer
       ref={chartRef}
       config={chartConfig}
-      className="aspect-auto h-[275px] @min-3xl:h-[300px] w-full !justify-start"
+      className="aspect-auto h-[275px] @min-3xl:h-[315px] w-full !justify-start"
     >
       <BarChart
         margin={{

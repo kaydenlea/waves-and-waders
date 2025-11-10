@@ -436,7 +436,7 @@ const TideChart: React.FC<TideChartProps> = ({
 
   return (
     <ChartContainer
-      className="aspect-auto h-[275px] @min-3xl:h-[300px] w-full"
+      className="aspect-auto h-[275px] @min-3xl:h-[315px] w-full"
       config={chartConfig}
     >
       <LineChart

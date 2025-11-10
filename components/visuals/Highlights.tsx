@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useMemo } from "react";
+import dynamic from "next/dynamic";
 import { cn } from "@/lib/utils";
 import SwellStat from "../general/Stats/SwellStat";
 
@@ -64,14 +65,14 @@ function SegmentedGauge({
       : "translateX(-50%)";
   return (
     <div className={cn("relative w-full", className)} aria-hidden>
-      <div className="flex w-full gap-[1px]">
+      <div className="flex w-full gap-[1.5px]">
         {Array.from({ length: segments }, (_, i) => {
           const start = i * segSize;
           const inSeg = clamp((pct - start) / segSize, 0, 1);
           return (
             <div
               key={i}
-              className="relative rounded-[2px] overflow-hidden flex-1"
+              className="relative rounded-[3px] overflow-hidden flex-1"
               style={{ height, background: trackColor }}
             >
               <div
@@ -950,7 +951,7 @@ const WindStat = ({
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-1 whitespace-nowrap">
+        <div className="flex items-center gap-1 whitespace-nowrap min-w-15 justify-center">
           <span className="text-2xl font-semibold tabular-nums">
             {data.speed}
           </span>
@@ -1008,24 +1009,60 @@ const PressureStat = ({
   minScale?: number;
   maxScale?: number;
 }) => {
-  const valuePct = Math.round(
-    toPct(
-      data.value,
-      Math.min(minScale ?? data.value, maxScale ?? data.value),
-      Math.max(1, maxScale ?? (data.value || 1))
-    )
+  // Prefer dynamic range from forecast percentiles if available (more sensitive),
+  // otherwise fall back to physical defaults. The dial renders client-only, so
+  // using dynamic ranges does not cause hydration mismatches.
+  const unit = String(data.unit || "").toLowerCase();
+  const hasDynamic =
+    Number.isFinite(minScale) &&
+    Number.isFinite(maxScale) &&
+    (maxScale as number) > (minScale as number);
+
+  const defaults = (() => {
+    if (unit.includes("hpa") || unit === "mb" || unit.includes("millibar")) {
+      return { min: 980, max: 1040 } as const;
+    }
+    return { min: 28, max: 31 } as const;
+  })();
+
+  let effMin = defaults.min;
+  let effMax = defaults.max;
+  if (hasDynamic) {
+    const baseMin = Math.min(minScale as number, maxScale as number);
+    const baseMax = Math.max(minScale as number, maxScale as number);
+    const span = Math.max(1e-6, baseMax - baseMin);
+    // Add a little breathing room around forecast band
+    const pad = unit.includes("hpa") || unit === "mb" || unit.includes("millibar")
+      ? Math.max(span * 0.08, 2)
+      : Math.max(span * 0.08, 0.05);
+    effMin = Math.min(baseMin, data.value) - pad;
+    effMax = Math.max(baseMax, data.value) + pad;
+    // Ensure sane physical limits
+    if (!(unit.includes("hpa") || unit === "mb" || unit.includes("millibar"))) {
+      effMin = Math.max(27.5, effMin);
+      effMax = Math.min(31.5, effMax);
+    }
+  }
+
+  const ClientPressureDial = useMemo(
+    () =>
+      dynamic(() => import("./PressureDial"), {
+        ssr: false,
+      }),
+    []
   );
+
   return (
     <HighlightCard label={label}>
       <div className="w-full flex items-center justify-center">
-        <PressureDonut
+        <ClientPressureDial
           value={data.value}
-          min={Math.min(minScale ?? data.value, maxScale ?? data.value)}
-          max={Math.max(minScale ?? data.value, maxScale ?? data.value)}
+          min={effMin}
+          max={effMax}
           unit={data.unit}
           size={85}
           thickness={7}
-          focusDeg={12}
+          focusDeg={14}
         />
       </div>
     </HighlightCard>

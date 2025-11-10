@@ -281,7 +281,7 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
     <ChartContainer
       ref={chartRef}
       config={chartConfig}
-      className="aspect-auto h-[275px] @min-3xl:h-[300px] w-full"
+      className="aspect-auto h-[275px] @min-3xl:h-[315px] w-full"
     >
       <BarChart
         margin={{ top: 10, right: 10, left: -28, bottom: 0 }}
