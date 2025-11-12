@@ -943,7 +943,7 @@ const WindStat = ({
                   display: "inline-block",
                 }}
               >
-                <ArrowIcon className="w-3.5 h-3.5 @min-4xl:w-4 @min-4xl:h-4 fill-foreground/50 text-foreground/50" />
+                <ArrowIcon className="w-3.5 h-3.5 @min-4xl:w-4 @min-4xl:h-4 fill-foreground/20 text-foreground/50" />
               </div>
               {/* <span className="text-[0.6rem] font-medium mt-[3px] mb-0.5">
                 {dirLabel}
@@ -1032,9 +1032,10 @@ const PressureStat = ({
     const baseMax = Math.max(minScale as number, maxScale as number);
     const span = Math.max(1e-6, baseMax - baseMin);
     // Add a little breathing room around forecast band
-    const pad = unit.includes("hpa") || unit === "mb" || unit.includes("millibar")
-      ? Math.max(span * 0.08, 2)
-      : Math.max(span * 0.08, 0.05);
+    const pad =
+      unit.includes("hpa") || unit === "mb" || unit.includes("millibar")
+        ? Math.max(span * 0.08, 2)
+        : Math.max(span * 0.08, 0.05);
     effMin = Math.min(baseMin, data.value) - pad;
     effMax = Math.max(baseMax, data.value) + pad;
     // Ensure sane physical limits

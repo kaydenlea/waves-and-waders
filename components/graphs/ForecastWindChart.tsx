@@ -861,8 +861,9 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
                               size={iconSize}
                               x={-iconSize / 2}
                               y={-iconSize / 2}
-                              fill="#8bd668ff"
-                              color="#8bd668ff"
+                              // fill="#8bd668ff"
+                              // color="#8bd668ff"
+                              className="fill-foreground/20 text-foreground/50"
                             />
                           </g>
                         </g>

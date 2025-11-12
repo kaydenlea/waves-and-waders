@@ -89,7 +89,7 @@ const SwellStat = ({
         >
           <ArrowIcon
             size={16}
-            className="fill-foreground/50 text-foreground/50"
+            className="fill-foreground/20 text-foreground/50"
           />
         </div>
         <span className="flex items-baseline gap-[1px] whitespace-nowrap min-w-17 justify-center hidden @min-md:flex">
@@ -135,7 +135,7 @@ const WindStat = ({
         >
           <ArrowIcon
             size={16}
-            className="fill-foreground/50 text-foreground/50"
+            className="fill-foreground/20 text-foreground/50"
           />
         </div>
         <span className="text-[.6rem] mt-0.5">{data.dir}</span>
