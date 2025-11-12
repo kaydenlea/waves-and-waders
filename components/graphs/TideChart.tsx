@@ -91,7 +91,9 @@ const TideChart: React.FC<TideChartProps> = ({
   const [nightAreas, setNightAreas] = useState<{ x1: number; x2?: number }[]>(
     []
   );
-  const [sunMarkers, setSunMarkers] = useState<{ hour: number; type: "sunrise" | "sunset" }[]>([]);
+  const [sunMarkers, setSunMarkers] = useState<
+    { hour: number; type: "sunrise" | "sunset" }[]
+  >([]);
 
   const clampHour = useMemo(
     () => (value: number) => Math.max(0, Math.min(hours, value)),
@@ -433,10 +435,10 @@ const TideChart: React.FC<TideChartProps> = ({
 
   // Calculate high and low tide values from peaks
   const { highTide, lowTide } = useMemo(() => {
-    const peaks = chartData.filter(p => p.isPeak != null);
+    const peaks = chartData.filter((p) => p.isPeak != null);
     if (peaks.length === 0) return { highTide: null, lowTide: null };
 
-    const peakValues = peaks.map(p => p.isPeak!);
+    const peakValues = peaks.map((p) => p.isPeak!);
     const high = Math.max(...peakValues);
     const low = Math.min(...peakValues);
 
@@ -448,10 +450,10 @@ const TideChart: React.FC<TideChartProps> = ({
 
   return (
     <ChartContainer
-      className="aspect-auto h-[275px] @min-3xl:h-[315px] w-full [&_.recharts-legend-wrapper]:hidden"
+      className="aspect-auto h-[250px] @min-3xl:h-[285px] w-full [&_.recharts-legend-wrapper]:hidden"
       config={chartConfig}
     >
-        <LineChart
+      <LineChart
         accessibilityLayer
         data={chartData}
         margin={{
@@ -532,7 +534,7 @@ const TideChart: React.FC<TideChartProps> = ({
           dot={({ payload, cx, cy }) => {
             const point = payload as TidePoint;
             // Check if this hour is a sun marker (sunrise/sunset)
-            const sunMarker = sunMarkers.find(m => m.hour === point.hour);
+            const sunMarker = sunMarkers.find((m) => m.hour === point.hour);
             if (sunMarker) {
               return (
                 <circle
@@ -569,11 +571,12 @@ const TideChart: React.FC<TideChartProps> = ({
             content={(props: LabelProps) => {
               const index = props.index ?? -1;
               const point = chartData[index];
-              const marker = sunMarkers.find(m => m.hour === point?.hour);
+              const marker = sunMarkers.find((m) => m.hour === point?.hour);
               if (!marker) return null;
               const safeX = typeof props.x === "number" ? props.x : 0;
 
-              const IconComponent = marker.type === "sunrise" ? Sunrise : Sunset;
+              const IconComponent =
+                marker.type === "sunrise" ? Sunrise : Sunset;
               return (
                 <g>
                   <IconComponent
@@ -581,7 +584,7 @@ const TideChart: React.FC<TideChartProps> = ({
                     x={safeX - 9}
                     y={15}
                     fill="#ff9946ff"
-                    color="#ff9946ff"
+                    color="var(--muted-foreground)"
                   />
                 </g>
               );

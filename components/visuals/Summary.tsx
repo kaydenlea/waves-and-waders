@@ -52,7 +52,13 @@ type SummaryStat =
     }
   | {
       type: "wind";
-      wind: { speed: number; loc?: string; gust?: number; intensity: number; direction?: number };
+      wind: {
+        speed: number;
+        loc?: string;
+        gust?: number;
+        intensity: number;
+        direction?: number;
+      };
     }
   | {
       type: "surf";
@@ -301,20 +307,22 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
         );
 
         // Parallelize all data fetches (we'll fetch daily conditions after we know the county)
-        const [resolved, current, forecast, beach, tideRows, currentTide] = await Promise.all([
-          fetchBeachByIdLoose(beachId),
-          fetchCurrentConditions(beachId),
-          fetchBeachForecast(beachId, startWindow, endWindow),
-          fetchBeachDetails(beachId),
-          fetchBeachTides(beachId, tideFetchStart, tideFetchEnd),
-          fetchCurrentTide(beachId).catch(() => null),
-        ]);
+        const [resolved, current, forecast, beach, tideRows, currentTide] =
+          await Promise.all([
+            fetchBeachByIdLoose(beachId),
+            fetchCurrentConditions(beachId),
+            fetchBeachForecast(beachId, startWindow, endWindow),
+            fetchBeachDetails(beachId),
+            fetchBeachTides(beachId, tideFetchStart, tideFetchEnd),
+            fetchCurrentTide(beachId).catch(() => null),
+          ]);
         if (cancelled) return;
         const resolvedId = resolved?.id ?? beachId;
 
         // Fetch daily conditions in parallel now that we have beach details
         const county = beach?.COUNTY;
-        const basisDate = date instanceof Date ? new Date(date) : new Date(startWindow);
+        const basisDate =
+          date instanceof Date ? new Date(date) : new Date(startWindow);
         const dailyConditionsPromise = county
           ? fetchDailyConditions(county, basisDate).catch(() => null)
           : Promise.resolve(null);
@@ -614,9 +622,13 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
 
         // Calculate high and low temperatures for the day
         const waterTempHigh =
-          waterTemps.length > 0 ? Math.round(Math.max(...waterTemps)) : undefined;
+          waterTemps.length > 0
+            ? Math.round(Math.max(...waterTemps))
+            : undefined;
         const waterTempLow =
-          waterTemps.length > 0 ? Math.round(Math.min(...waterTemps)) : undefined;
+          waterTemps.length > 0
+            ? Math.round(Math.min(...waterTemps))
+            : undefined;
         const airTempHigh =
           airTemps.length > 0 ? Math.round(Math.max(...airTemps)) : undefined;
         const airTempLow =
@@ -658,7 +670,9 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
                 ? clampIntensity(waterTempHigh, TEMP_CAP)
                 : undefined,
             airTempPercent:
-              airTempHigh != null ? clampIntensity(airTempHigh, TEMP_CAP) : undefined,
+              airTempHigh != null
+                ? clampIntensity(airTempHigh, TEMP_CAP)
+                : undefined,
             weatherCode: dominantWeatherCode,
           });
         }
@@ -1062,15 +1076,16 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
                     <GradientCircle
                       condition="water"
                       percent={stat.waterTempPercent}
-                      size={58}
-                      strokeWidth={4}
+                      size={55}
+                      strokeWidth={3}
                       content={
                         <div className="flex flex-col items-center leading-tight">
-                          <span className="text-lg font-semibold">
+                          <span className="text-[0.9rem] font-semibold mt-1 flex items-start">
                             {stat.waterTempHigh}
+                            <span className="text-[0.6rem] mt-0.5">°F</span>
                           </span>
                           {stat.waterTempLow != null && (
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-[0.7rem] text-muted-foreground">
                               {stat.waterTempLow}
                             </span>
                           )}
@@ -1088,15 +1103,16 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
                       condition="sun"
                       percent={stat.airTempPercent}
                       weatherCode={stat.weatherCode}
-                      size={58}
-                      strokeWidth={4}
+                      size={55}
+                      strokeWidth={3}
                       content={
                         <div className="flex flex-col items-center leading-tight">
-                          <span className="text-lg font-semibold">
+                          <span className="text-[0.9rem] font-semibold mt-1 flex items-start">
                             {stat.airTempHigh}
+                            <span className="text-[0.6rem] mt-0.5">°F</span>
                           </span>
                           {stat.airTempLow != null && (
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-[0.7rem] text-muted-foreground">
                               {stat.airTempLow}
                             </span>
                           )}
@@ -1206,7 +1222,7 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
             >
               <div className="flex items-start justify-between">
                 <h3 className="highlight-title mt-0.5 bg-highlight-5 px-2 py-1 rounded-xl">
-                  {stat.type === "temperature" ? "TEMPERATURE (°F)" : stat.type.toUpperCase()}
+                  {stat.type.toUpperCase()}
                 </h3>
                 {/* {stat.type === "features" && featuresOverflowing ? (
                   <button

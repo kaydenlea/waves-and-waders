@@ -20,7 +20,11 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 
-import { MousePointer2 as ArrowIcon, TrendingUp, TrendingDown } from "lucide-react";
+import {
+  MousePointer2 as ArrowIcon,
+  TrendingUp,
+  TrendingDown,
+} from "lucide-react";
 
 const chartConfig = {
   primary: {
@@ -57,7 +61,15 @@ type Row = {
   tertiaryDir?: number;
 };
 
-export const SwellStatsHeader = ({ beachId, hours = 24, date }: { beachId?: string; hours?: number; date?: Date }) => {
+export const SwellStatsHeader = ({
+  beachId,
+  hours = 24,
+  date,
+}: {
+  beachId?: string;
+  hours?: number;
+  date?: Date;
+}) => {
   const [highSwell, setHighSwell] = React.useState<string | null>(null);
   const [lowSwell, setLowSwell] = React.useState<string | null>(null);
 
@@ -76,7 +88,9 @@ export const SwellStatsHeader = ({ beachId, hours = 24, date }: { beachId?: stri
 
         const HOURS_TO_MS = 60 * 60 * 1000;
         const getPacificMidnightUTC = (d: Date) => {
-          const pst = new Date(d.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+          const pst = new Date(
+            d.toLocaleString("en-US", { timeZone: "America/Los_Angeles" })
+          );
           pst.setHours(0, 0, 0, 0);
           return new Date(pst.toISOString());
         };
@@ -94,8 +108,10 @@ export const SwellStatsHeader = ({ beachId, hours = 24, date }: { beachId?: stri
         if (cancelled) return;
 
         const swellValues = rows
-          .map(r => r.swell.primary.height)
-          .filter((v): v is number => typeof v === 'number' && !isNaN(v) && v !== null);
+          .map((r) => r.swell.primary.height)
+          .filter(
+            (v): v is number => typeof v === "number" && !isNaN(v) && v !== null
+          );
 
         if (swellValues.length > 0) {
           const high = Math.max(...swellValues);
@@ -282,14 +298,14 @@ const SwellChart = ({ beachId, hours = 24, date }: Props) => {
   return (
     <ChartContainer
       config={chartConfig}
-      className="aspect-auto h-[275px] @min-3xl:h-[315px] w-full"
+      className="aspect-auto h-[250px] @min-3xl:h-[285px] w-full"
     >
       <AreaChart
         accessibilityLayer
         data={data}
         margin={{
           top: 10,
-          right: 10,
+          right: 15,
           left: -28,
         }}
         syncId="anyId"
@@ -342,7 +358,7 @@ const SwellChart = ({ beachId, hours = 24, date }: Props) => {
           fontSize={11}
           domain={[0, (dataMax: number) => Math.ceil(dataMax + 2)]}
         />
-        <ChartLegend content={<ChartLegendContent />} />
+        {/* <ChartLegend content={<ChartLegendContent />} /> */}
         <ChartTooltip
           content={({ active, payload }) => {
             if (!active || !payload || payload.length === 0) return null;

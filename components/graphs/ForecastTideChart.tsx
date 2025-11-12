@@ -17,7 +17,15 @@ import {
   ReferenceLine,
   LabelList,
 } from "recharts";
-import { ChevronLeft, ChevronRight, Sun, Sunrise, Sunset, TrendingUp, TrendingDown } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Sun,
+  Sunrise,
+  Sunset,
+  TrendingUp,
+  TrendingDown,
+} from "lucide-react";
 import {
   fetchBeachByIdLoose,
   fetchBeachDetails,
@@ -54,8 +62,12 @@ export default function ForecastTideChart({ beachId, date, days }: Props) {
   const [nightAreas, setNightAreas] = useState<{ x1: number; x2?: number }[]>(
     []
   );
-  const [sunMarkers, setSunMarkers] = useState<{ hour: number; type: "sunrise" | "sunset" }[]>([]);
-  const [tideStats, setTideStats] = useState<{ dayIndex: number; high: number; low: number }[]>([]);
+  const [sunMarkers, setSunMarkers] = useState<
+    { hour: number; type: "sunrise" | "sunset" }[]
+  >([]);
+  const [tideStats, setTideStats] = useState<
+    { dayIndex: number; high: number; low: number }[]
+  >([]);
 
   // which day index (0..totalFetchedDays - VISIBLE_DAYS) is the first visible day
   const [dayOffset, setDayOffset] = useState(0);
@@ -422,20 +434,26 @@ export default function ForecastTideChart({ beachId, date, days }: Props) {
         if (!cancelled) setData(out);
 
         // Calculate tide high/low stats for each day (absolute highest and lowest)
-        const tideStatsBuild: { dayIndex: number; high: number; low: number }[] = [];
+        const tideStatsBuild: {
+          dayIndex: number;
+          high: number;
+          low: number;
+        }[] = [];
         for (let di = 0; di < FETCH_DAYS; di++) {
           const dayStart = di * 24;
           const dayEnd = (di + 1) * 24;
-          const dayPoints = out.filter(p => p.hour >= dayStart && p.hour < dayEnd);
-          
+          const dayPoints = out.filter(
+            (p) => p.hour >= dayStart && p.hour < dayEnd
+          );
+
           if (dayPoints.length > 0) {
-            const tideValues = dayPoints.map(p => p.tide);
+            const tideValues = dayPoints.map((p) => p.tide);
             const high = Math.max(...tideValues);
             const low = Math.min(...tideValues);
             tideStatsBuild.push({ dayIndex: di, high, low });
           }
         }
-        
+
         if (!cancelled) {
           setTideStats(tideStatsBuild);
         }
@@ -458,7 +476,8 @@ export default function ForecastTideChart({ beachId, date, days }: Props) {
 
           const dayAreasBuild: { x1: number; x2: number }[] = [];
           const nightAreasBuild: { x1: number; x2?: number }[] = [];
-          const markerTargets: { hour: number; type: "sunrise" | "sunset" }[] = [];
+          const markerTargets: { hour: number; type: "sunrise" | "sunset" }[] =
+            [];
           let nightStart = 0;
           for (let di = 0; di < FETCH_DAYS; di++) {
             const cond = await fetchDailyConditions(
@@ -500,7 +519,10 @@ export default function ForecastTideChart({ beachId, date, days }: Props) {
               }
             }
             // Only add if within reasonable range (10 minutes = 0.17 hours)
-            if (minDiff < 0.17 && !markers.find(m => m.hour === closest.hour)) {
+            if (
+              minDiff < 0.17 &&
+              !markers.find((m) => m.hour === closest.hour)
+            ) {
               markers.push({ hour: closest.hour, type: target.type });
             }
           }
@@ -725,7 +747,7 @@ export default function ForecastTideChart({ beachId, date, days }: Props) {
                       {label.split(",")[0]}
                     </span>
                   </span>
-                  <div className="rounded-md bg-highlight-6 grid grid-cols-[80px_1fr] grid-rows-2 space-y-0.5 items-center text-xs text-muted-foreground uppercase tracking-wide leading-tight">
+                  <div className="rounded-md bg-highlight-6 grid grid-cols-[60px_1fr] grid-rows-2 space-y-0.5 items-center text-xs text-muted-foreground uppercase tracking-wide leading-tight">
                     <span className="flex gap-2 items-center">
                       <TrendingUp
                         fill="#353535ff"
@@ -734,7 +756,8 @@ export default function ForecastTideChart({ beachId, date, days }: Props) {
                       <span className="font-medium">High</span>
                     </span>
                     <span className="ml-1 text-foreground normal-case font-medium">
-                      {tideStats[idx]?.high.toFixed(1) ?? "--"} <span className="inline-block">ft</span>
+                      {tideStats[idx]?.high.toFixed(1) ?? "--"}{" "}
+                      <span className="inline-block">ft</span>
                     </span>
                     <span className="flex gap-2 items-center">
                       <TrendingDown
@@ -744,7 +767,8 @@ export default function ForecastTideChart({ beachId, date, days }: Props) {
                       <span className="-mb-0.5 font-medium">Low</span>
                     </span>
                     <span className="ml-1 text-foreground normal-case font-medium">
-                      {tideStats[idx]?.low.toFixed(1) ?? "--"} <span className="inline-block">ft</span>
+                      {tideStats[idx]?.low.toFixed(1) ?? "--"}{" "}
+                      <span className="inline-block">ft</span>
                     </span>
                   </div>
                 </div>
@@ -902,7 +926,11 @@ export default function ForecastTideChart({ beachId, date, days }: Props) {
                     </div>
                   );
                 }}
-                cursor={{ stroke: "var(--foreground)", strokeWidth: 1, strokeDasharray: "3 3" }}
+                cursor={{
+                  stroke: "var(--foreground)",
+                  strokeWidth: 1,
+                  strokeDasharray: "3 3",
+                }}
                 animationDuration={0}
               />
 
@@ -915,7 +943,7 @@ export default function ForecastTideChart({ beachId, date, days }: Props) {
                 dot={({ payload, cx, cy }: any) => {
                   const hour = payload.hour as number;
                   // Exact match for sun markers (no duplicates)
-                  const sunMarker = sunMarkers.find(m => m.hour === hour);
+                  const sunMarker = sunMarkers.find((m) => m.hour === hour);
                   if (sunMarker) {
                     return (
                       <circle
@@ -956,10 +984,11 @@ export default function ForecastTideChart({ beachId, date, days }: Props) {
                   content={(props: any) => {
                     const safeX = typeof props.x === "number" ? props.x : 0;
                     const hour = data[props.index ?? -1]?.hour;
-                    const marker = sunMarkers.find(m => m.hour === hour);
+                    const marker = sunMarkers.find((m) => m.hour === hour);
                     if (!marker) return null;
 
-                    const IconComponent = marker.type === "sunrise" ? Sunrise : Sunset;
+                    const IconComponent =
+                      marker.type === "sunrise" ? Sunrise : Sunset;
                     return (
                       <g>
                         <IconComponent
@@ -967,7 +996,7 @@ export default function ForecastTideChart({ beachId, date, days }: Props) {
                           x={safeX - 9}
                           y={5}
                           fill="#ff9946ff"
-                          color="#ff9946ff"
+                          color="var(--muted-foreground)"
                         />
                       </g>
                     );

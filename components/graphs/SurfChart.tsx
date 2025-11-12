@@ -46,7 +46,15 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-export const SurfStatsHeader = ({ beachId, hours = 24, date }: { beachId?: string; hours?: number; date?: Date }) => {
+export const SurfStatsHeader = ({
+  beachId,
+  hours = 24,
+  date,
+}: {
+  beachId?: string;
+  hours?: number;
+  date?: Date;
+}) => {
   const [highSurf, setHighSurf] = React.useState<string | null>(null);
   const [lowSurf, setLowSurf] = React.useState<string | null>(null);
 
@@ -77,8 +85,8 @@ export const SurfStatsHeader = ({ beachId, hours = 24, date }: { beachId?: strin
         if (cancelled) return;
 
         const surfValues = rows
-          .map(r => r.surf.heightMax)
-          .filter((v): v is number => typeof v === 'number' && !isNaN(v));
+          .map((r) => r.surf.heightMax)
+          .filter((v): v is number => typeof v === "number" && !isNaN(v));
 
         if (surfValues.length > 0) {
           const high = Math.max(...surfValues);
@@ -417,13 +425,13 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
     <ChartContainer
       ref={chartRef}
       config={chartConfig}
-      className="aspect-auto h-[275px] @min-3xl:h-[315px] w-full !justify-start"
+      className="aspect-auto h-[250px] @min-3xl:h-[285px] w-full !justify-start"
     >
       <BarChart
         margin={{
           top: 10,
-          right: 10,
-          left: -28,
+          right: 15,
+          left: -30,
           bottom: 0,
         }}
         accessibilityLayer
@@ -470,6 +478,7 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
           orientation="bottom"
           tickLine={false}
           tickMargin={10}
+          fontSize={11}
           axisLine={false}
           padding={{ left: buffer, right: buffer }}
           domain={[domainStart, domainEnd]}
@@ -499,7 +508,17 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
             (dataMax: number) => Math.max(4, Math.ceil(dataMax * 1.5)),
           ]}
         />
-        <ChartTooltip content={<ChartTooltipContent />} />
+        <ChartTooltip
+          content={<ChartTooltipContent />}
+          cursor={{
+            fill: "transparent",
+            stroke: "var(--foreground)",
+            strokeWidth: 0.75,
+            strokeDasharray: "3 3",
+            strokeOpacity: 0.5,
+          }}
+          animationDuration={0}
+        />
         {/* Hour indicator line */}
         <ReferenceLine
           x={selectedHour}
@@ -530,7 +549,8 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
                 typeof props.value === "number" ? props.value.toFixed(1) : "";
 
               // Get color based on surf value
-              const surfValue = typeof props.value === "number" ? props.value : 0;
+              const surfValue =
+                typeof props.value === "number" ? props.value : 0;
               const barColor = getSurfColor(surfValue);
 
               if (label) {

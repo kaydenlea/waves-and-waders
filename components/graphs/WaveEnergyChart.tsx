@@ -221,15 +221,15 @@ const WaveEnergyChart = ({ beachId, hours = 24, date }: Props) => {
   return (
     <ChartContainer
       config={chartConfig}
-      className="aspect-auto h-[275px] @min-3xl:h-[315px] w-full [&_.recharts-legend-wrapper]:hidden"
+      className="aspect-auto h-[250px] @min-3xl:h-[285px] w-full [&_.recharts-legend-wrapper]:hidden"
     >
       <AreaChart
         accessibilityLayer
         data={series}
         margin={{
           top: 10,
-          right: 10,
-          left: -28,
+          right: 15,
+          left: -30,
         }}
         syncId="anyId"
       >

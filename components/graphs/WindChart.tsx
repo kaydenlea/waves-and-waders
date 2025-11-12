@@ -12,7 +12,11 @@ import {
   ReferenceArea,
   ReferenceLine,
 } from "recharts";
-import { MousePointer2 as ArrowIcon, TrendingUp, TrendingDown } from "lucide-react";
+import {
+  MousePointer2 as ArrowIcon,
+  TrendingUp,
+  TrendingDown,
+} from "lucide-react";
 import {
   ChartConfig,
   ChartContainer,
@@ -39,7 +43,15 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-export const WindStatsHeader = ({ beachId, hours = 24, date }: { beachId?: string; hours?: number; date?: Date }) => {
+export const WindStatsHeader = ({
+  beachId,
+  hours = 24,
+  date,
+}: {
+  beachId?: string;
+  hours?: number;
+  date?: Date;
+}) => {
   const [highWind, setHighWind] = React.useState<string | null>(null);
   const [lowWind, setLowWind] = React.useState<string | null>(null);
 
@@ -61,7 +73,9 @@ export const WindStatsHeader = ({ beachId, hours = 24, date }: { beachId?: strin
         let end = new Date(start.getTime() + hours * HOURS_TO_MS);
         if (date instanceof Date) {
           const getPacificMidnightUTC = (d: Date) => {
-            const pst = new Date(d.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+            const pst = new Date(
+              d.toLocaleString("en-US", { timeZone: "America/Los_Angeles" })
+            );
             pst.setHours(0, 0, 0, 0);
             return new Date(pst.toISOString());
           };
@@ -75,8 +89,8 @@ export const WindStatsHeader = ({ beachId, hours = 24, date }: { beachId?: strin
         if (cancelled) return;
 
         const windValues = rows
-          .map(r => r.conditions.windSpeed)
-          .filter((v): v is number => typeof v === 'number' && !isNaN(v));
+          .map((r) => r.conditions.windSpeed)
+          .filter((v): v is number => typeof v === "number" && !isNaN(v));
 
         if (windValues.length > 0) {
           const high = Math.max(...windValues);
@@ -376,10 +390,10 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
     <ChartContainer
       ref={chartRef}
       config={chartConfig}
-      className="aspect-auto h-[275px] @min-3xl:h-[315px] w-full"
+      className="aspect-auto h-[250px] @min-3xl:h-[285px] w-full"
     >
       <BarChart
-        margin={{ top: 10, right: 10, left: -28, bottom: 0 }}
+        margin={{ top: 10, right: 15, left: -30, bottom: 0 }}
         accessibilityLayer
         data={chartData}
         syncId="anyId"
@@ -425,6 +439,7 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
           orientation="bottom"
           tickLine={false}
           tickMargin={10}
+          fontSize={11}
           axisLine={false}
           padding={{ left: buffer, right: buffer }}
           domain={[domainStart, domainEnd]}
@@ -479,6 +494,14 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
               </div>
             );
           }}
+          cursor={{
+            fill: "transparent",
+            stroke: "var(--foreground)",
+            strokeWidth: 0.75,
+            strokeDasharray: "3 3",
+            strokeOpacity: 0.5,
+          }}
+          animationDuration={0}
         />
         {/* Hour indicator line */}
         <ReferenceLine
@@ -550,11 +573,12 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
               const safeHeight =
                 typeof props.height === "number" ? props.height : 0;
               const fontSize = Math.max(10, safeWidth * 0.15);
-              
+
               // Get color based on wind value
-              const windValue = typeof props.value === "number" ? props.value : 0;
+              const windValue =
+                typeof props.value === "number" ? props.value : 0;
               const barColor = getWindColor(windValue);
-              
+
               if (typeof props.value === "number") {
                 return (
                   <g>
