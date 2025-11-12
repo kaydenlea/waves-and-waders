@@ -10,6 +10,9 @@ import { LazyLoadHourSlider } from "@/components/general/LazyLoad/LazyLoadHourSl
 import { LazyLoadTable } from "@/components/general/LazyLoad/LazyLoadTable";
 import { LazyLoadWind } from "@/components/general/LazyLoad/LazyLoadWind";
 import { LazyLoadEnergy } from "@/components/general/LazyLoad/LazyLoadEnergy";
+import { WindStatsHeader } from "@/components/graphs/WindChart";
+import { SurfStatsHeader } from "@/components/graphs/SurfChart";
+import { SwellStatsHeader } from "@/components/graphs/SwellChart";
 
 const chartData = [
   { hour: 0, tide: 5, isPeak: 5 },

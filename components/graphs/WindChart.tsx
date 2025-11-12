@@ -12,7 +12,7 @@ import {
   ReferenceArea,
   ReferenceLine,
 } from "recharts";
-import { MousePointer2 as ArrowIcon } from "lucide-react";
+import { MousePointer2 as ArrowIcon, TrendingUp, TrendingDown } from "lucide-react";
 import {
   ChartConfig,
   ChartContainer,
@@ -39,6 +39,92 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
+export const WindStatsHeader = ({ beachId, hours = 24, date }: { beachId?: string; hours?: number; date?: Date }) => {
+  const [highWind, setHighWind] = React.useState<string | null>(null);
+  const [lowWind, setLowWind] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    let cancelled = false;
+
+    const loadWindStats = async () => {
+      try {
+        if (!beachId) {
+          if (!cancelled) {
+            setHighWind(null);
+            setLowWind(null);
+          }
+          return;
+        }
+
+        const HOURS_TO_MS = 60 * 60 * 1000;
+        let start = new Date();
+        let end = new Date(start.getTime() + hours * HOURS_TO_MS);
+        if (date instanceof Date) {
+          const getPacificMidnightUTC = (d: Date) => {
+            const pst = new Date(d.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+            pst.setHours(0, 0, 0, 0);
+            return new Date(pst.toISOString());
+          };
+          start = getPacificMidnightUTC(date);
+          end = new Date(start.getTime() + hours * HOURS_TO_MS);
+        }
+
+        const resolved = await fetchBeachByIdLoose(beachId);
+        const id = resolved?.id ?? beachId;
+        const rows = await fetchBeachForecast(id, start, end);
+        if (cancelled) return;
+
+        const windValues = rows
+          .map(r => r.conditions.windSpeed)
+          .filter((v): v is number => typeof v === 'number' && !isNaN(v));
+
+        if (windValues.length > 0) {
+          const high = Math.max(...windValues);
+          const low = Math.min(...windValues);
+
+          if (!cancelled) {
+            setHighWind(high.toFixed(0));
+            setLowWind(low.toFixed(0));
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load wind stats", e);
+      }
+    };
+
+    void loadWindStats();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [beachId, hours, date]);
+
+  return (
+    <div className="grid rounded-md bg-highlight-5 grid-cols-[60px_1fr] grid-rows-2 gap-y-0.5 items-center text-xs text-muted-foreground uppercase tracking-wide leading-tight px-2 py-1.5">
+      <span className="flex gap-2 items-center">
+        <TrendingUp
+          fill="#353535ff"
+          className="stroke-muted-foreground w-4 h-4"
+        />
+        <span className="block font-medium">High</span>
+      </span>
+      <span className="ml-1 text-foreground normal-case font-medium">
+        {highWind ?? "--"} <span className="inline-block">mph</span>
+      </span>
+      <span className="flex gap-2 items-center">
+        <TrendingDown
+          fill="#353535ff"
+          className="stroke-muted-foreground w-4 h-4"
+        />
+        <span className="block -mb-0.5 font-medium">Low</span>
+      </span>
+      <span className="ml-1 text-foreground normal-case font-medium">
+        {lowWind ?? "--"} <span className="inline-block">mph</span>
+      </span>
+    </div>
+  );
+};
+
 const WindChart = ({ beachId, hours = 24, date }: Props) => {
   const { hour: selectedHour } = useDateContext();
   const [chartData, setChartData] = useState<
@@ -55,6 +141,15 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
   const [buffer, setBuffer] = useState<number>(0);
   const [width, setWidth] = useState<number>(0);
   const chartRef = React.useRef<HTMLDivElement>(null);
+
+  // Function to get color based on wind speed intensity
+  const getWindColor = (value: number): string => {
+    // Define thresholds and colors (light to dark blue)
+    if (value >= 20) return "#1e40af"; // Very dark blue for 20+ mph
+    if (value >= 15) return "#3b82f6"; // Dark blue for 15-20 mph
+    if (value >= 10) return "#60a5fa"; // Medium blue for 10-15 mph
+    return "#93c5fd"; // Light blue for < 10 mph
+  };
 
   useEffect(() => {
     const chart = chartRef.current;
@@ -385,7 +480,6 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
             );
           }}
         />
-        <ChartLegend content={<ChartLegendContent />} />
         {/* Hour indicator line */}
         <ReferenceLine
           x={selectedHour}
@@ -455,9 +549,25 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
               const safeHeight =
                 typeof props.height === "number" ? props.height : 0;
               const fontSize = Math.max(10, safeWidth * 0.15);
+              
+              // Get color based on wind value
+              const windValue = typeof props.value === "number" ? props.value : 0;
+              const barColor = getWindColor(windValue);
+              
               if (typeof props.value === "number") {
                 return (
                   <g>
+                    {/* Render the colored bar */}
+                    <rect
+                      x={safeX}
+                      y={safeY}
+                      width={safeWidth}
+                      height={safeHeight}
+                      fill={barColor}
+                      rx={4}
+                      stroke="#0000006e"
+                      strokeWidth={0.5}
+                    />
                     <text
                       x={safeX + safeWidth / 2}
                       y={safeY + safeHeight / 2 + fontSize / 3}
@@ -466,11 +576,7 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
                       fontWeight="bold"
                       fontSize={fontSize}
                     >
-                      {width < 500
-                        ? `${Math.round(props.value)}`
-                        : `${Math.round(props.value)}-${
-                            Math.round(props.value) + 1
-                          }`}
+                      {`${Math.round(props.value)}`}
                     </text>
                   </g>
                 );

@@ -65,6 +65,15 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
     []
   );
 
+  // Function to get color based on wind speed intensity
+  const getWindColor = (value: number): string => {
+    // Define thresholds and colors (light to dark blue)
+    if (value >= 20) return "#1e40af"; // Very dark blue for 20+ mph
+    if (value >= 15) return "#3b82f6"; // Dark blue for 15-20 mph
+    if (value >= 10) return "#60a5fa"; // Medium blue for 10-15 mph
+    return "#93c5fd"; // Light blue for < 10 mph
+  };
+
   // Scrollable state
   const [dayOffset, setDayOffset] = useState(0);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -479,8 +488,8 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
               continue;
             }
             const offset = di * 24;
-            const rH = offset + rise.h + Math.floor(rise.m / 60);
-            const sH = offset + setv.h + Math.floor(setv.m / 60);
+            const rH = offset + rise.h + rise.m / 60;
+            const sH = offset + setv.h + setv.m / 60;
             const dayStart = Math.min(rH, sH);
             const dayEnd = Math.max(rH, sH);
             dayAreasBuild.push({
@@ -686,7 +695,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
 
           <ChartContainer
             config={chartConfig}
-            className="aspect-auto h-[235px] w-full"
+            className="forecast-wind-chart-container aspect-auto h-[235px] w-full"
           >
             <BarChart
               accessibilityLayer
@@ -791,6 +800,8 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
                     </div>
                   );
                 }}
+                cursor={{ fill: 'transparent', stroke: 'var(--foreground)', strokeWidth: 1, strokeDasharray: '3 3', strokeOpacity: 0.5 }}
+                animationDuration={0}
               />
               {/* Selected hour marker */}
               {(() => {
@@ -830,6 +841,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
                 stroke="#5f5f5fff"
                 strokeWidth={0.5}
                 minPointSize={10}
+                isAnimationActive={false}
               >
                 <LabelList
                   dataKey="wind"
@@ -869,6 +881,52 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
                       </g>
                     );
                   }}
+                />
+                <LabelList
+                  dataKey="wind"
+                  position="middle"
+                  content={(props: LabelProps) => {
+                    const safeX = typeof props.x === "number" ? props.x : 0;
+                    const safeY = typeof props.y === "number" ? props.y : 0;
+                    const safeWidth =
+                      typeof props.width === "number" ? props.width : 0;
+                    const safeHeight =
+                      typeof props.height === "number" ? props.height : 0;
+                    const fontSize = Math.max(10, safeWidth * 0.15);
+                    
+                    // Get color based on wind value
+                    const windValue = typeof props.value === "number" ? props.value : 0;
+                    const barColor = getWindColor(windValue);
+                    
+                    if (typeof props.value === "number") {
+                      return (
+                        <g>
+                          {/* Render the colored bar */}
+                          <rect
+                            x={safeX}
+                            y={safeY}
+                            width={safeWidth}
+                            height={safeHeight}
+                            fill={barColor}
+                            rx={4}
+                            stroke="#5f5f5fff"
+                            strokeWidth={0.5}
+                          />
+                          <text
+                            x={safeX + safeWidth / 2}
+                            y={safeY + safeHeight / 2 + fontSize / 3}
+                            fill="#2c2c2cff"
+                            textAnchor="middle"
+                            fontWeight="bold"
+                            fontSize={fontSize}
+                          >
+                            {`${Math.round(props.value)}`}
+                          </text>
+                        </g>
+                      );
+                    }
+                  }}
+                  fill="black"
                 />
               </Bar>
             </BarChart>

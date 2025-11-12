@@ -197,9 +197,9 @@ const WeatherStat = ({
   return (
     <div className="w-full flex justify-center items-center gap-0.5">
       {getWeatherIcon(data.code ?? null)}
-      <span>
+      <span className="inline-flex items-start">
         <span className="text-base font-medium">{data.temp}</span>
-        <span className="text-xs">&deg;F</span>
+        <span className="text-xs ml-0.5">&deg;F</span>
       </span>
     </div>
   );
@@ -1078,11 +1078,11 @@ const StatTable = ({
                         case "Water":
                           content = (
                             <div className="w-full flex justify-center items-center gap-0.5">
-                              <span>
+                              <span className="inline-flex items-start">
                                 <span className="text-base font-medium">
                                   {entry.water.temp}
                                 </span>
-                                <span className="text-xs">&deg;F</span>
+                                <span className="text-xs ml-0.5">&deg;F</span>
                               </span>
                             </div>
                           );

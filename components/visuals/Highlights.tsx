@@ -757,9 +757,9 @@ const WeatherStat = ({
     <HighlightCard label={label}>
       <div className="flex items-center justify-center gap-0.5">
         {getWeatherIcon(weatherCode ?? null)}
-        <span className="text-2xl font-semibold">
-          {temp}
-          <span className="text-sm font-normal">&deg;F</span>
+        <span className="text-2xl font-semibold inline-flex items-start">
+          <span>{temp}</span>
+          <span className="text-xs font-normal ml-0.5">&deg;F</span>
         </span>
       </div>
       {gaugeConfig && label !== "water" && (
@@ -975,9 +975,10 @@ const EnergyStat = ({
   label: string;
   maxScale?: number;
 }) => {
-  const valuePct = Math.round(
-    toPct(data.value, 0, Math.max(1, maxScale ?? (data.value || 1)))
-  );
+  // Use 100 kJ as default max (typical range: 0-100 kJ for normal conditions)
+  const effectiveMax = maxScale ?? 100;
+  const valuePct = Math.round(toPct(data.value, 0, effectiveMax));
+
   return (
     <HighlightCard label={label}>
       <span className="text-2xl font-semibold rounded-md pb-1">
@@ -1009,40 +1010,21 @@ const PressureStat = ({
   minScale?: number;
   maxScale?: number;
 }) => {
-  // Prefer dynamic range from forecast percentiles if available (more sensitive),
-  // otherwise fall back to physical defaults. The dial renders client-only, so
-  // using dynamic ranges does not cause hydration mismatches.
+  // Use fixed meteorological scale for accurate low/normal/high pressure display
+  // Below 29.8 = low, 29.92 = normal, 30.2 = high
   const unit = String(data.unit || "").toLowerCase();
-  const hasDynamic =
-    Number.isFinite(minScale) &&
-    Number.isFinite(maxScale) &&
-    (maxScale as number) > (minScale as number);
 
   const defaults = (() => {
     if (unit.includes("hpa") || unit === "mb" || unit.includes("millibar")) {
-      return { min: 980, max: 1040 } as const;
+      // For hPa/mb: 1008 = low (29.8 inHg), 1013 = normal (29.92 inHg), 1023 = high (30.2 inHg)
+      return { min: 1000, max: 1030 } as const;
     }
-    return { min: 28, max: 31 } as const;
+    // For inHg: use fixed scale centered on meteorological standards
+    return { min: 29.4, max: 30.6 } as const;
   })();
 
   let effMin = defaults.min;
   let effMax = defaults.max;
-  if (hasDynamic) {
-    const baseMin = Math.min(minScale as number, maxScale as number);
-    const baseMax = Math.max(minScale as number, maxScale as number);
-    const span = Math.max(1e-6, baseMax - baseMin);
-    // Add a little breathing room around forecast band
-    const pad = unit.includes("hpa") || unit === "mb" || unit.includes("millibar")
-      ? Math.max(span * 0.08, 2)
-      : Math.max(span * 0.08, 0.05);
-    effMin = Math.min(baseMin, data.value) - pad;
-    effMax = Math.max(baseMax, data.value) + pad;
-    // Ensure sane physical limits
-    if (!(unit.includes("hpa") || unit === "mb" || unit.includes("millibar"))) {
-      effMin = Math.max(27.5, effMin);
-      effMax = Math.min(31.5, effMax);
-    }
-  }
 
   const ClientPressureDial = useMemo(
     () =>
@@ -1326,7 +1308,7 @@ const Highlights = ({
 
     return {
       windMax: winds.length ? percentile(winds, 90) : 30,
-      energyMax: energies.length ? percentile(energies, 90) : 600,
+      energyMax: energies.length ? Math.max(100, percentile(energies, 90)) : 100,
       waterMin: waters.length ? percentile(waters, 10) : 45,
       waterMax: waters.length ? percentile(waters, 90) : 85,
       pressureMin: pressures.length ? percentile(pressures, 10) : 29,

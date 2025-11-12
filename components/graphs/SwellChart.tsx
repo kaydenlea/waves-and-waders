@@ -20,7 +20,7 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 
-import { MousePointer2 as ArrowIcon } from "lucide-react";
+import { MousePointer2 as ArrowIcon, TrendingUp, TrendingDown } from "lucide-react";
 
 const chartConfig = {
   primary: {
@@ -55,6 +55,93 @@ type Row = {
   primaryDir?: number;
   secondaryDir?: number;
   tertiaryDir?: number;
+};
+
+export const SwellStatsHeader = ({ beachId, hours = 24, date }: { beachId?: string; hours?: number; date?: Date }) => {
+  const [highSwell, setHighSwell] = React.useState<string | null>(null);
+  const [lowSwell, setLowSwell] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    let cancelled = false;
+
+    const loadSwellStats = async () => {
+      try {
+        if (!beachId) {
+          if (!cancelled) {
+            setHighSwell(null);
+            setLowSwell(null);
+          }
+          return;
+        }
+
+        const HOURS_TO_MS = 60 * 60 * 1000;
+        const getPacificMidnightUTC = (d: Date) => {
+          const pst = new Date(d.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+          pst.setHours(0, 0, 0, 0);
+          return new Date(pst.toISOString());
+        };
+
+        let start = new Date();
+        let end = new Date(start.getTime() + hours * HOURS_TO_MS);
+        if (date instanceof Date) {
+          start = getPacificMidnightUTC(date);
+          end = new Date(start.getTime() + hours * HOURS_TO_MS);
+        }
+
+        const resolved = await fetchBeachByIdLoose(beachId);
+        const id = resolved?.id ?? beachId;
+        const rows = await fetchBeachForecast(id, start, end);
+        if (cancelled) return;
+
+        const swellValues = rows
+          .map(r => r.swell.primary.height)
+          .filter((v): v is number => typeof v === 'number' && !isNaN(v) && v !== null);
+
+        if (swellValues.length > 0) {
+          const high = Math.max(...swellValues);
+          const low = Math.min(...swellValues);
+
+          if (!cancelled) {
+            setHighSwell(high.toFixed(1));
+            setLowSwell(low.toFixed(1));
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load swell stats", e);
+      }
+    };
+
+    void loadSwellStats();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [beachId, hours, date]);
+
+  return (
+    <div className="grid rounded-md bg-highlight-5 grid-cols-[60px_1fr] grid-rows-2 gap-y-0.5 items-center text-xs text-muted-foreground uppercase tracking-wide leading-tight px-2 py-1.5">
+      <span className="flex gap-2 items-center">
+        <TrendingUp
+          fill="#353535ff"
+          className="stroke-muted-foreground w-4 h-4"
+        />
+        <span className="block font-medium">High</span>
+      </span>
+      <span className="ml-1 text-foreground normal-case font-medium">
+        {highSwell ?? "--"} <span className="inline-block">ft</span>
+      </span>
+      <span className="flex gap-2 items-center">
+        <TrendingDown
+          fill="#353535ff"
+          className="stroke-muted-foreground w-4 h-4"
+        />
+        <span className="block -mb-0.5 font-medium">Low</span>
+      </span>
+      <span className="ml-1 text-foreground normal-case font-medium">
+        {lowSwell ?? "--"} <span className="inline-block">ft</span>
+      </span>
+    </div>
+  );
 };
 
 const SwellChart = ({ beachId, hours = 24, date }: Props) => {

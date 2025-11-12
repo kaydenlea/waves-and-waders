@@ -15,8 +15,6 @@ import {
   ChartConfig,
   ChartContainer,
   ChartTooltip,
-  ChartLegend,
-  ChartLegendContent,
   ChartTooltipContent,
 } from "@/components/ui/chart";
 
@@ -223,7 +221,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date }: Props) => {
   return (
     <ChartContainer
       config={chartConfig}
-      className="aspect-auto h-[275px] @min-3xl:h-[315px] w-full"
+      className="aspect-auto h-[275px] @min-3xl:h-[315px] w-full [&_.recharts-legend-wrapper]:hidden"
     >
       <AreaChart
         accessibilityLayer
@@ -283,7 +281,6 @@ const WaveEnergyChart = ({ beachId, hours = 24, date }: Props) => {
           fontSize={11}
           domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.5)]}
         />
-        <ChartLegend content={<ChartLegendContent />} />
         <ChartTooltip content={<ChartTooltipContent />} />
         <defs>
           <linearGradient id="splitColor" x1="0" y1="0" x2="1" y2="0">

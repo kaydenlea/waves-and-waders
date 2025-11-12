@@ -496,8 +496,8 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
               continue;
             }
             const offset = di * 24;
-            const rH = offset + rise.h + Math.floor(rise.m / 60);
-            const sH = offset + setv.h + Math.floor(setv.m / 60);
+            const rH = offset + rise.h + rise.m / 60;
+            const sH = offset + setv.h + setv.m / 60;
             const dayStart = Math.min(rH, sH);
             const dayEnd = Math.max(rH, sH);
             dayAreasBuild.push({
@@ -703,7 +703,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
 
           <ChartContainer
             config={chartConfig}
-            className="aspect-auto h-[235px] w-full"
+            className="forecast-swell-chart-container aspect-auto h-[235px] w-full"
           >
             <AreaChart
               accessibilityLayer
@@ -844,6 +844,8 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                     </div>
                   );
                 }}
+                cursor={{ stroke: 'var(--foreground)', strokeWidth: 1, strokeDasharray: '3 3', strokeOpacity: 0.5 }}
+                animationDuration={0}
               />
 
               <Area
@@ -853,6 +855,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                 stroke="#023e8a"
                 fill="#0077b6"
                 fillOpacity={0.2}
+                isAnimationActive={false}
                 dot={({ payload, cx, cy, index }) => {
                   const iconSize = 15;
                   const direction = payload.primaryDir ?? 0;
@@ -882,6 +885,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                 stroke="#0096c7"
                 fill="#48cae4"
                 fillOpacity={0.2}
+                isAnimationActive={false}
                 dot={({ payload, cx, cy, index }) => {
                   const iconSize = 15;
                   const direction = payload.secondaryDir ?? 0;
@@ -911,6 +915,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                 stroke="#70ccebff"
                 fill="#adf1ffff"
                 fillOpacity={0.2}
+                isAnimationActive={false}
                 dot={({ payload, cx, cy, index }) => {
                   const iconSize = 15;
                   const direction = payload.tertiaryDir ?? 0;
