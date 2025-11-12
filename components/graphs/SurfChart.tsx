@@ -12,6 +12,7 @@ import {
   ReferenceArea,
   ReferenceLine,
 } from "recharts";
+import { TrendingUp, TrendingDown } from "lucide-react";
 import { getPacificMidnightUTC, getPacificHour } from "@/lib/utils";
 import {
   ChartConfig,
@@ -45,6 +46,87 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
+export const SurfStatsHeader = ({ beachId, hours = 24, date }: { beachId?: string; hours?: number; date?: Date }) => {
+  const [highSurf, setHighSurf] = React.useState<string | null>(null);
+  const [lowSurf, setLowSurf] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    let cancelled = false;
+
+    const loadSurfStats = async () => {
+      try {
+        if (!beachId) {
+          if (!cancelled) {
+            setHighSurf(null);
+            setLowSurf(null);
+          }
+          return;
+        }
+
+        const HOURS_TO_MS = 60 * 60 * 1000;
+        let start = new Date();
+        let end = new Date(start.getTime() + hours * HOURS_TO_MS);
+        if (date instanceof Date) {
+          start = getPacificMidnightUTC(date);
+          end = new Date(start.getTime() + hours * HOURS_TO_MS);
+        }
+
+        const resolved = await fetchBeachByIdLoose(beachId);
+        const id = resolved?.id ?? beachId;
+        const rows = await fetchBeachForecast(id, start, end);
+        if (cancelled) return;
+
+        const surfValues = rows
+          .map(r => r.surf.heightMax)
+          .filter((v): v is number => typeof v === 'number' && !isNaN(v));
+
+        if (surfValues.length > 0) {
+          const high = Math.max(...surfValues);
+          const low = Math.min(...surfValues);
+
+          if (!cancelled) {
+            setHighSurf(high.toFixed(1));
+            setLowSurf(low.toFixed(1));
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load surf stats", e);
+      }
+    };
+
+    void loadSurfStats();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [beachId, hours, date]);
+
+  return (
+    <div className="grid rounded-md bg-highlight-5 grid-cols-[60px_1fr] grid-rows-2 gap-y-0.5 items-center text-xs text-muted-foreground uppercase tracking-wide leading-tight px-2 py-1.5">
+      <span className="flex gap-2 items-center">
+        <TrendingUp
+          fill="#353535ff"
+          className="stroke-muted-foreground w-4 h-4"
+        />
+        <span className="block font-medium">High</span>
+      </span>
+      <span className="ml-1 text-foreground normal-case font-medium">
+        {highSurf ?? "--"} <span className="inline-block">ft</span>
+      </span>
+      <span className="flex gap-2 items-center">
+        <TrendingDown
+          fill="#353535ff"
+          className="stroke-muted-foreground w-4 h-4"
+        />
+        <span className="block -mb-0.5 font-medium">Low</span>
+      </span>
+      <span className="ml-1 text-foreground normal-case font-medium">
+        {lowSurf ?? "--"} <span className="inline-block">ft</span>
+      </span>
+    </div>
+  );
+};
+
 const SurfChart = ({ beachId, hours = 24, date }: Props) => {
   const { hour: selectedHour } = useDateContext();
   const [chartData, setChartData] = useState<Row[]>([]);
@@ -56,6 +138,15 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
   const [buffer, setBuffer] = useState<number>(0);
   const [width, setWidth] = useState<number>(0);
   const chartRef = React.useRef<HTMLDivElement>(null);
+
+  // Function to get color based on surf height intensity
+  const getSurfColor = (value: number): string => {
+    // Define thresholds and colors (light to dark blue)
+    if (value >= 5) return "#1e40af"; // Very dark blue for 5+ ft
+    if (value >= 3) return "#3b82f6"; // Dark blue for 3-5 ft
+    if (value >= 1.5) return "#60a5fa"; // Medium blue for 1.5-3 ft
+    return "#93c5fd"; // Light blue for < 1.5 ft
+  };
 
   useEffect(() => {
     const chart = chartRef.current;
@@ -409,7 +500,6 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
           ]}
         />
         <ChartTooltip content={<ChartTooltipContent />} />
-        <ChartLegend content={<ChartLegendContent />} />
         {/* Hour indicator line */}
         <ReferenceLine
           x={selectedHour}
@@ -439,9 +529,24 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
               const label =
                 typeof props.value === "number" ? props.value.toFixed(1) : "";
 
+              // Get color based on surf value
+              const surfValue = typeof props.value === "number" ? props.value : 0;
+              const barColor = getSurfColor(surfValue);
+
               if (label) {
                 return (
                   <g>
+                    {/* Render the colored bar */}
+                    <rect
+                      x={safeX}
+                      y={safeY}
+                      width={safeWidth}
+                      height={safeHeight}
+                      fill={barColor}
+                      rx={4}
+                      stroke="#0000006e"
+                      strokeWidth={0.5}
+                    />
                     <text
                       x={safeX + safeWidth / 2}
                       y={safeY + safeHeight / 2 + fontSize / 3}

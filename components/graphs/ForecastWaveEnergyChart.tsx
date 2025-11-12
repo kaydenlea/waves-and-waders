@@ -96,7 +96,7 @@ function buildTrendStops(
   return stops;
 }
 
-const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
+  const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
   const { setPanFraction, subscribePan } = useForecastChartContext();
   const myId = React.useId();
   const [energyData, setEnergyData] = useState<WavePoint[]>([]);
@@ -498,8 +498,8 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
               continue;
             }
             const offset = di * 24;
-            const rH = offset + rise.h + Math.floor(rise.m / 60);
-            const sH = offset + setv.h + Math.floor(setv.m / 60);
+            const rH = offset + rise.h + rise.m / 60;
+            const sH = offset + setv.h + setv.m / 60;
             const dayStart = Math.min(rH, sH);
             const dayEnd = Math.max(rH, sH);
             dayAreasBuild.push({
@@ -708,7 +708,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
 
           <ChartContainer
             config={chartConfig}
-            className="aspect-auto h-[235px] w-full"
+            className="forecast-wave-energy-chart-container aspect-auto h-[235px] w-full"
           >
             <AreaChart
               accessibilityLayer
@@ -770,6 +770,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
                   v % 3 === 0 ? String(v % 12 === 0 ? 12 : v % 12) : ""
                 }
               />
+              <ChartTooltip content={<ChartTooltipContent />} cursor={{ stroke: 'var(--foreground)', strokeWidth: 1, strokeDasharray: '3 3', strokeOpacity: 0.5 }} />
               {/* Selected hour marker */}
               {(() => {
                 try {
@@ -813,7 +814,11 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
                     Math.max(Math.round(Math.ceil(dataMax) * 1.5), 8),
                 ]}
               />
-              <ChartTooltip content={<ChartTooltipContent />} />
+              <ChartTooltip 
+                content={<ChartTooltipContent />} 
+                cursor={{ stroke: 'var(--foreground)', strokeWidth: 1, strokeDasharray: '3 3', strokeOpacity: 0.5 }} 
+                animationDuration={0}
+              />
               <defs>
                 <linearGradient id="splitColor" x1="0" y1="0" x2="1" y2="0">
                   {stops.map((s, i) => (
@@ -833,6 +838,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
                 stroke="#818181ff"
                 fill="url(#splitColor)"
                 fillOpacity={1}
+                isAnimationActive={false}
               />
             </AreaChart>
           </ChartContainer>

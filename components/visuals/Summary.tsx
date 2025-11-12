@@ -35,8 +35,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 type SummaryStat =
   | {
       type: "temperature";
-      waterTemp?: number;
-      airTemp?: number;
+      waterTempHigh?: number;
+      waterTempLow?: number;
       airTempHigh?: number;
       airTempLow?: number;
       waterTempPercent?: number;
@@ -52,7 +52,7 @@ type SummaryStat =
     }
   | {
       type: "wind";
-      wind: { speed: number; loc?: string; gust?: number; intensity: number };
+      wind: { speed: number; loc?: string; gust?: number; intensity: number; direction?: number };
     }
   | {
       type: "surf";
@@ -202,11 +202,12 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
         gust: 0,
         loc: "-",
         intensity: 0,
+        direction: 0,
       },
     },
     {
       type: "tide",
-      currentHeight: 0,
+      currentHeight: undefined,
       peaks: [
         // { kind: "high", time: placeholderTime, level: 0 },
         // { kind: "low", time: placeholderTime, level: 0 },
@@ -218,8 +219,8 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
     },
     {
       type: "temperature",
-      waterTemp: 0,
-      airTemp: 0,
+      waterTempHigh: undefined,
+      waterTempLow: undefined,
       airTempHigh: undefined,
       airTempLow: undefined,
       waterTempPercent: undefined,
@@ -247,10 +248,6 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
     const load = async () => {
       try {
         if (!beachId) return;
-
-        // Resolve the param to a concrete id (supports id/uuid/slug)
-        const resolved = await fetchBeachByIdLoose(beachId);
-        const resolvedId = resolved?.id ?? beachId;
 
         // Choose the time window: if a date is provided, use that local day; otherwise next 24 hours
         const now = new Date();
@@ -303,13 +300,24 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
           tideEndWindow.getTime() + BUFFER_HOURS * 60 * 60 * 1000
         );
 
-        const [current, forecast, beach, tideRows] = await Promise.all([
-          fetchCurrentConditions(resolvedId),
-          fetchBeachForecast(resolvedId, startWindow, endWindow),
-          fetchBeachDetails(resolvedId),
-          fetchBeachTides(resolvedId, tideFetchStart, tideFetchEnd),
+        // Parallelize all data fetches (we'll fetch daily conditions after we know the county)
+        const [resolved, current, forecast, beach, tideRows, currentTide] = await Promise.all([
+          fetchBeachByIdLoose(beachId),
+          fetchCurrentConditions(beachId),
+          fetchBeachForecast(beachId, startWindow, endWindow),
+          fetchBeachDetails(beachId),
+          fetchBeachTides(beachId, tideFetchStart, tideFetchEnd),
+          fetchCurrentTide(beachId).catch(() => null),
         ]);
         if (cancelled) return;
+        const resolvedId = resolved?.id ?? beachId;
+
+        // Fetch daily conditions in parallel now that we have beach details
+        const county = beach?.COUNTY;
+        const basisDate = date instanceof Date ? new Date(date) : new Date(startWindow);
+        const dailyConditionsPromise = county
+          ? fetchDailyConditions(county, basisDate).catch(() => null)
+          : Promise.resolve(null);
         console.log("OBSERVE", current, forecast, beach, tideRows);
         const first = forecast[0];
         // If a specific date is selected, use that day's forecast; otherwise prefer current conditions
@@ -412,14 +420,23 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
             (value): value is number =>
               typeof value === "number" && !Number.isNaN(value)
           );
+        const windDirections = forecast
+          .map((row) => row?.conditions?.windDirection)
+          .filter(
+            (value): value is number =>
+              typeof value === "number" && !Number.isNaN(value)
+          );
 
         const avgWindSpeed = average(windSpeeds);
         const avgWindGust = average(windGusts);
+        const avgWindDirection = average(windDirections);
 
         const resolvedWindSpeed =
           avgWindSpeed != null ? Math.round(avgWindSpeed) : null;
         const resolvedWindGust =
           avgWindGust != null ? Math.round(avgWindGust) : undefined;
+        const resolvedWindDirection =
+          avgWindDirection != null ? Math.round(avgWindDirection) : undefined;
 
         if (resolvedWindSpeed != null) {
           const windIntensity = clampIntensity(
@@ -434,6 +451,7 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
               gust: resolvedWindGust,
               loc: resolvedWindGust == null ? "-" : undefined,
               intensity: windIntensity,
+              direction: resolvedWindDirection,
             },
           });
         }
@@ -506,36 +524,18 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
           }
         }
 
-        // Fetch current tide from county_tides_15min table for accurate real-time data
+        // Use current tide from county_tides_15min table (already fetched in parallel)
         let currentTideHeight: number | undefined;
-        try {
-          const currentTide = await fetchCurrentTide(resolvedId);
-          if (currentTide?.tideLevelFt != null) {
-            currentTideHeight = Number(currentTide.tideLevelFt.toFixed(1));
-            console.log(
-              "✅ Using county tide data for current height:",
-              currentTideHeight,
-              "ft"
-            );
-          } else {
-            console.warn(
-              "⚠️ fetchCurrentTide returned null/undefined, falling back to forecast"
-            );
-            // Fallback to forecast data if county tide fetch fails
-            currentTideHeight =
-              base?.conditions.tideLevel != null
-                ? Number(base.conditions.tideLevel.toFixed(1))
-                : undefined;
-            console.log(
-              "📊 Using forecast data for current height:",
-              currentTideHeight,
-              "ft"
-            );
-          }
-        } catch (err) {
+        if (currentTide?.tideLevelFt != null) {
+          currentTideHeight = Number(currentTide.tideLevelFt.toFixed(1));
+          console.log(
+            "✅ Using county tide data for current height:",
+            currentTideHeight,
+            "ft"
+          );
+        } else {
           console.warn(
-            "❌ Failed to fetch current tide, falling back to forecast",
-            err
+            "⚠️ currentTide is null/undefined, falling back to forecast"
           );
           // Fallback to forecast data if county tide fetch fails
           currentTideHeight =
@@ -549,44 +549,38 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
           );
         }
 
+        // Use daily conditions (already fetched in parallel)
         let sunrise: string | undefined;
         let sunset: string | undefined;
-        const county = beach?.COUNTY;
-        if (county) {
-          try {
-            const basisDate =
-              date instanceof Date ? new Date(date) : new Date(startWindow);
-            const cond = await fetchDailyConditions(county, basisDate);
-            const dayForFormat = cond?.date
-              ? new Date(`${cond.date}T00:00:00`)
-              : new Date(basisDate);
-            const formatClock = (raw: string | null | undefined) => {
-              if (!raw) return undefined;
-              // Match HH:MM:SS or HH:MM format
-              const match = /^([0-9]{1,2}):([0-9]{2})(?::([0-9]{2}))?/.exec(
-                raw.trim()
-              );
-              if (!match) return undefined;
-              const h = Number(match[1]);
-              const m = Number(match[2]);
-              if (!Number.isFinite(h) || !Number.isFinite(m)) return undefined;
+        const cond = await dailyConditionsPromise;
+        if (cond) {
+          const dayForFormat = cond?.date
+            ? new Date(`${cond.date}T00:00:00`)
+            : new Date(basisDate);
+          const formatClock = (raw: string | null | undefined) => {
+            if (!raw) return undefined;
+            // Match HH:MM:SS or HH:MM format
+            const match = /^([0-9]{1,2}):([0-9]{2})(?::([0-9]{2}))?/.exec(
+              raw.trim()
+            );
+            if (!match) return undefined;
+            const h = Number(match[1]);
+            const m = Number(match[2]);
+            if (!Number.isFinite(h) || !Number.isFinite(m)) return undefined;
 
-              // Create a date with the correct time
-              const ts = new Date(dayForFormat);
-              ts.setHours(h, m, 0, 0);
+            // Create a date with the correct time
+            const ts = new Date(dayForFormat);
+            ts.setHours(h, m, 0, 0);
 
-              return ts.toLocaleTimeString([], {
-                hour: "numeric",
-                minute: "2-digit",
-              });
-            };
-            const resolvedSunrise = formatClock(cond?.sunrise);
-            const resolvedSunset = formatClock(cond?.sunset);
-            sunrise = resolvedSunrise ?? cond?.sunrise ?? undefined;
-            sunset = resolvedSunset ?? cond?.sunset ?? undefined;
-          } catch (sunErr) {
-            console.warn("Summary sunrise/sunset unavailable", sunErr);
-          }
+            return ts.toLocaleTimeString([], {
+              hour: "numeric",
+              minute: "2-digit",
+            });
+          };
+          const resolvedSunrise = formatClock(cond?.sunrise);
+          const resolvedSunset = formatClock(cond?.sunset);
+          sunrise = resolvedSunrise ?? cond?.sunrise ?? undefined;
+          sunset = resolvedSunset ?? cond?.sunset ?? undefined;
         }
 
         if (
@@ -618,14 +612,11 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
               typeof value === "number" && !Number.isNaN(value)
           );
 
-        const avgWaterTemp = average(waterTemps);
-        const avgAirTemp = average(airTemps);
-
-        const waterTemp =
-          avgWaterTemp != null ? Math.round(avgWaterTemp) : undefined;
-        const airTemp = avgAirTemp != null ? Math.round(avgAirTemp) : undefined;
-
         // Calculate high and low temperatures for the day
+        const waterTempHigh =
+          waterTemps.length > 0 ? Math.round(Math.max(...waterTemps)) : undefined;
+        const waterTempLow =
+          waterTemps.length > 0 ? Math.round(Math.min(...waterTemps)) : undefined;
         const airTempHigh =
           airTemps.length > 0 ? Math.round(Math.max(...airTemps)) : undefined;
         const airTempLow =
@@ -655,19 +646,19 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
           }
         }
 
-        if (waterTemp != null || airTemp != null) {
+        if (waterTempHigh != null || airTempHigh != null) {
           s.push({
             type: "temperature",
-            waterTemp,
-            airTemp,
+            waterTempHigh,
+            waterTempLow,
             airTempHigh,
             airTempLow,
             waterTempPercent:
-              waterTemp != null
-                ? clampIntensity(waterTemp, TEMP_CAP)
+              waterTempHigh != null
+                ? clampIntensity(waterTempHigh, TEMP_CAP)
                 : undefined,
             airTempPercent:
-              airTemp != null ? clampIntensity(airTemp, TEMP_CAP) : undefined,
+              airTempHigh != null ? clampIntensity(airTempHigh, TEMP_CAP) : undefined,
             weatherCode: dominantWeatherCode,
           });
         }
@@ -1063,32 +1054,54 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
           case "temperature":
             content = (
               <div className="flex gap-6 items-center justify-center w-full px-1">
-                {stat.waterTemp != null && (
+                {stat.waterTempHigh != null && (
                   <div className="flex flex-col gap-1 items-center min-w-0">
                     <span className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap">
                       WATER
                     </span>
                     <GradientCircle
                       condition="water"
-                      data={stat.waterTemp}
                       percent={stat.waterTempPercent}
                       size={58}
                       strokeWidth={4}
+                      content={
+                        <div className="flex flex-col items-center leading-tight">
+                          <span className="text-lg font-semibold">
+                            {stat.waterTempHigh}
+                          </span>
+                          {stat.waterTempLow != null && (
+                            <span className="text-xs text-muted-foreground">
+                              {stat.waterTempLow}
+                            </span>
+                          )}
+                        </div>
+                      }
                     />
                   </div>
                 )}
-                {stat.airTemp != null && (
+                {stat.airTempHigh != null && (
                   <div className="flex flex-col gap-1 items-center min-w-0">
                     <span className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap">
                       AIR
                     </span>
                     <GradientCircle
                       condition="sun"
-                      data={stat.airTemp}
                       percent={stat.airTempPercent}
                       weatherCode={stat.weatherCode}
                       size={58}
                       strokeWidth={4}
+                      content={
+                        <div className="flex flex-col items-center leading-tight">
+                          <span className="text-lg font-semibold">
+                            {stat.airTempHigh}
+                          </span>
+                          {stat.airTempLow != null && (
+                            <span className="text-xs text-muted-foreground">
+                              {stat.airTempLow}
+                            </span>
+                          )}
+                        </div>
+                      }
                     />
                   </div>
                 )}
@@ -1104,7 +1117,9 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
                   </span>
                   <span className="text-lg font-semibold">
                     {stat.currentHeight != null ? stat.currentHeight : "--"}
-                    <span className="text-xs ml-0.5">ft</span>
+                    {stat.currentHeight != null && (
+                      <span className="text-xs ml-0.5">ft</span>
+                    )}
                   </span>
                 </div>
                 <div className="touch-pan-y flex flex-col overflow-y-auto flex-1">
@@ -1132,10 +1147,12 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
                               : "--:--"}
                           </span>
                           <span className="font-semibold">
-                            {peak.level ? peak.level : "--"}
-                            <span className="ml-0.5 text-[10px] font-light">
-                              ft
-                            </span>
+                            {peak.level != null ? peak.level : "--"}
+                            {peak.level != null && (
+                              <span className="ml-0.5 text-[10px] font-light">
+                                ft
+                              </span>
+                            )}
                           </span>
                         </span>
                       </div>
@@ -1189,7 +1206,7 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
             >
               <div className="flex items-start justify-between">
                 <h3 className="highlight-title mt-0.5 bg-highlight-5 px-2 py-1 rounded-xl">
-                  {stat.type.toUpperCase()}
+                  {stat.type === "temperature" ? "TEMPERATURE (°F)" : stat.type.toUpperCase()}
                 </h3>
                 {/* {stat.type === "features" && featuresOverflowing ? (
                   <button

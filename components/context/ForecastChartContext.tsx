@@ -11,9 +11,6 @@ type Ctx = {
   setLength: React.Dispatch<React.SetStateAction<number>>;
   daysLabel: string;
   setDaysLabel: React.Dispatch<React.SetStateAction<string>>;
-  // Cross-chart hover bucket (3-hour)
-  hoverBucket: number | null;
-  setHoverBucket: React.Dispatch<React.SetStateAction<number | null>>;
   // Cross-chart pan sync (fractional day offset)
   setPanFraction: (
     fraction: number,
@@ -41,7 +38,6 @@ export function ForecastChartProvider({
   const [windowSize, setWindowSize] = React.useState(0);
   const [length, setLength] = React.useState(0);
   const [daysLabel, setDaysLabel] = React.useState("select range");
-  const [hoverBucket, setHoverBucket] = React.useState<number | null>(null);
 
   // Imperative pan bus to avoid re-render thrash on drag
   const panListenersRef = React.useRef(
@@ -97,12 +93,10 @@ export function ForecastChartProvider({
       setLength,
       daysLabel,
       setDaysLabel,
-      hoverBucket,
-      setHoverBucket,
       setPanFraction,
       subscribePan,
     }),
-    [startIndex, windowSize, length, daysLabel, hoverBucket]
+    [startIndex, windowSize, length, daysLabel, setPanFraction, subscribePan]
   );
   return (
     <ForecastChartContext.Provider value={value}>

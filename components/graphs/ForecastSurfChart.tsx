@@ -64,6 +64,15 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
     []
   );
 
+  // Function to get color based on surf height intensity
+  const getSurfColor = (value: number): string => {
+    // Define thresholds and colors (light to dark blue)
+    if (value >= 5) return "#1e40af"; // Very dark blue for 5+ ft
+    if (value >= 3) return "#3b82f6"; // Dark blue for 3-5 ft
+    if (value >= 1.5) return "#60a5fa"; // Medium blue for 1.5-3 ft
+    return "#93c5fd"; // Light blue for < 1.5 ft
+  };
+
   // Scrollable state
   const [dayOffset, setDayOffset] = useState(0);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -407,13 +416,25 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
             const windPenalty = Math.min(0.5, Math.max(0, (wind - 5) / 35));
             const effective = Math.max(0, combined * (1 - windPenalty));
 
-            const heightMax = r.surf.heightMax ?? 0;
+            // Calculate estimate from heightMin and heightMax (same as SurfChart)
+            const heightMin = r.surf.heightMin ?? null;
+            const heightMax = r.surf.heightMax ?? null;
+            
+            let estimate = 0;
+            if (heightMin !== null && heightMax !== null) {
+              estimate = (heightMin + heightMax) / 2;
+            } else if (heightMax !== null) {
+              estimate = heightMax;
+            } else if (heightMin !== null) {
+              estimate = heightMin;
+            }
+
             let representative = effective;
 
             if (!Number.isFinite(representative) || representative <= 0) {
-              representative = heightMax > 0 ? heightMax : 0;
-            } else if (heightMax > 0) {
-              representative = representative * 0.7 + heightMax * 0.3;
+              representative = estimate > 0 ? estimate : 0;
+            } else if (estimate > 0) {
+              representative = representative * 0.7 + estimate * 0.3;
             }
 
             series.push({
@@ -508,8 +529,8 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
               continue;
             }
             const offset = di * 24;
-            const rH = offset + rise.h + Math.floor(rise.m / 60);
-            const sH = offset + setv.h + Math.floor(setv.m / 60);
+            const rH = offset + rise.h + rise.m / 60;
+            const sH = offset + setv.h + setv.m / 60;
             const dayStart = Math.min(rH, sH);
             const dayEnd = Math.max(rH, sH);
             dayAreasBuild.push({
@@ -715,7 +736,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
 
           <ChartContainer
             config={chartConfig}
-            className="aspect-auto h-[235px] w-full"
+            className="forecast-surf-chart-container aspect-auto h-[235px] w-full"
           >
             <BarChart
               accessibilityLayer
@@ -788,7 +809,11 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                   (dataMax: number) => Math.max(4, Math.ceil(dataMax + 2)),
                 ]}
               />
-              <ChartTooltip content={<ChartTooltipContent />} />
+              <ChartTooltip 
+                content={<ChartTooltipContent />} 
+                cursor={{ fill: 'transparent', stroke: 'var(--foreground)', strokeWidth: 1, strokeDasharray: '3 3', strokeOpacity: 0.5 }} 
+                animationDuration={0}
+              />
               {/* Selected hour marker */}
               {(() => {
                 try {
@@ -827,6 +852,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                 stroke="#5f5f5fff"
                 strokeWidth={0.5}
                 minPointSize={10}
+                isAnimationActive={false}
               >
                 <LabelList
                   dataKey="surf"
@@ -844,9 +870,24 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                         ? props.value.toFixed(1)
                         : "";
 
+                    // Get color based on surf value
+                    const surfValue = typeof props.value === "number" ? props.value : 0;
+                    const barColor = getSurfColor(surfValue);
+
                     if (label) {
                       return (
                         <g>
+                          {/* Render the colored bar */}
+                          <rect
+                            x={safeX}
+                            y={safeY}
+                            width={safeWidth}
+                            height={safeHeight}
+                            fill={barColor}
+                            rx={4}
+                            stroke="#5f5f5fff"
+                            strokeWidth={0.5}
+                          />
                           <text
                             x={safeX + safeWidth / 2}
                             y={safeY + safeHeight / 2 + fontSize / 3}

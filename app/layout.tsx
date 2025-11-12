@@ -34,20 +34,18 @@ export default async function RootLayout({
 
   const user = userData.user ?? null;
 
-  // Only fetch session if we have an authenticated user
-  let session = null;
-  if (user) {
-    const { data: sessionData } = await supabase.auth.getSession();
-    session = sessionData.session;
-  }
-
   if (userError) {
     console.error("Failed to load authenticated user", userError);
   }
 
-  const initialSession = user && session
+  // Create a minimal session object from the authenticated user
+  const initialSession = user
     ? {
-        ...session,
+        access_token: '', // Not needed on client
+        refresh_token: '', // Not needed on client
+        expires_in: 0,
+        expires_at: 0,
+        token_type: 'bearer',
         user: user,
       }
     : null;

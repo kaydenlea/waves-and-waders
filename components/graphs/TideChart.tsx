@@ -12,12 +12,10 @@ import {
   LabelList,
   LabelProps,
 } from "recharts";
-import { Sun } from "lucide-react";
+import { Sun, Sunrise, Sunset, TrendingUp, TrendingDown } from "lucide-react";
 import {
   ChartConfig,
   ChartContainer,
-  ChartLegend,
-  ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
@@ -34,7 +32,6 @@ const HOURS_TO_MS = 60 * 60 * 1000;
 
 const chartConfig: ChartConfig = {
   tide: {
-    label: "Tide (ft)",
     color: "#aaaaaaff",
   },
 };
@@ -94,7 +91,7 @@ const TideChart: React.FC<TideChartProps> = ({
   const [nightAreas, setNightAreas] = useState<{ x1: number; x2?: number }[]>(
     []
   );
-  const [sunMarkers, setSunMarkers] = useState<number[]>([]);
+  const [sunMarkers, setSunMarkers] = useState<{ hour: number; type: "sunrise" | "sunset" }[]>([]);
 
   const clampHour = useMemo(
     () => (value: number) => Math.max(0, Math.min(hours, value)),
@@ -375,7 +372,7 @@ const TideChart: React.FC<TideChartProps> = ({
 
         // Create sun markers for sunrise and sunset (if they're within the window)
         // We need to find the closest data point to the actual sunrise/sunset time
-        const markers: number[] = [];
+        const markers: { hour: number; type: "sunrise" | "sunset" }[] = [];
         if (riseHourRaw >= 0 && riseHourRaw <= hours && chartData.length > 0) {
           // Find the data point closest to sunrise
           const closestToRise = chartData.reduce((closest, point) => {
@@ -384,7 +381,7 @@ const TideChart: React.FC<TideChartProps> = ({
             return currentDiff < closestDiff ? point : closest;
           });
           if (Math.abs(closestToRise.hour - riseHourRaw) < 0.5) {
-            markers.push(closestToRise.hour);
+            markers.push({ hour: closestToRise.hour, type: "sunrise" });
           }
         }
         if (
@@ -400,7 +397,7 @@ const TideChart: React.FC<TideChartProps> = ({
             return currentDiff < closestDiff ? point : closest;
           });
           if (Math.abs(closestToSet.hour - setHourRaw) < 0.5) {
-            markers.push(closestToSet.hour);
+            markers.push({ hour: closestToSet.hour, type: "sunset" });
           }
         }
 
@@ -434,12 +431,27 @@ const TideChart: React.FC<TideChartProps> = ({
     return ticks;
   }, [hours]);
 
+  // Calculate high and low tide values from peaks
+  const { highTide, lowTide } = useMemo(() => {
+    const peaks = chartData.filter(p => p.isPeak != null);
+    if (peaks.length === 0) return { highTide: null, lowTide: null };
+
+    const peakValues = peaks.map(p => p.isPeak!);
+    const high = Math.max(...peakValues);
+    const low = Math.min(...peakValues);
+
+    return {
+      highTide: high > 0 ? high.toFixed(1) : null,
+      lowTide: low <= 0 ? low.toFixed(1) : null,
+    };
+  }, [chartData]);
+
   return (
     <ChartContainer
-      className="aspect-auto h-[275px] @min-3xl:h-[315px] w-full"
+      className="aspect-auto h-[275px] @min-3xl:h-[315px] w-full [&_.recharts-legend-wrapper]:hidden"
       config={chartConfig}
     >
-      <LineChart
+        <LineChart
         accessibilityLayer
         data={chartData}
         margin={{
@@ -512,7 +524,6 @@ const TideChart: React.FC<TideChartProps> = ({
             return entry ? formatTime(entry.timestamp) : "";
           }}
         />
-        <ChartLegend content={<ChartLegendContent />} />
         <Line
           dataKey="tide"
           type="natural"
@@ -521,7 +532,8 @@ const TideChart: React.FC<TideChartProps> = ({
           dot={({ payload, cx, cy }) => {
             const point = payload as TidePoint;
             // Check if this hour is a sun marker (sunrise/sunset)
-            if (sunMarkers.includes(point.hour)) {
+            const sunMarker = sunMarkers.find(m => m.hour === point.hour);
+            if (sunMarker) {
               return (
                 <circle
                   key={`sun-${point.hour}`}
@@ -557,12 +569,14 @@ const TideChart: React.FC<TideChartProps> = ({
             content={(props: LabelProps) => {
               const index = props.index ?? -1;
               const point = chartData[index];
-              if (!point || !sunMarkers.includes(point.hour)) return null;
+              const marker = sunMarkers.find(m => m.hour === point?.hour);
+              if (!marker) return null;
               const safeX = typeof props.x === "number" ? props.x : 0;
 
+              const IconComponent = marker.type === "sunrise" ? Sunrise : Sunset;
               return (
                 <g>
-                  <Sun
+                  <IconComponent
                     size={18}
                     x={safeX - 9}
                     y={15}

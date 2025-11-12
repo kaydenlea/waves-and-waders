@@ -57,11 +57,13 @@ const VisualWrapper = ({
   label,
   unit,
   extraPadding,
+  headerContent,
 }: {
   children: React.ReactNode;
   label: string;
   unit?: string;
   extraPadding?: boolean;
+  headerContent?: React.ReactNode;
 }) => {
   const lowerCaseLabel = label.toLowerCase();
   const iconDef = iconMap[lowerCaseLabel] ?? {
@@ -85,11 +87,11 @@ const VisualWrapper = ({
                 </div>
                 <h3 className="leading-none font-semibold text-lg">{label}</h3>
               </div>
-              {unit && (
+              {headerContent || (unit && (
                 <span className="flex items-center px-2 py-1 rounded-md bg-highlight-5 text-xs sm:text-sm shadow-sm font-medium whitespace-nowrap">
                   {unit}
                 </span>
-              )}
+              ))}
             </header>
           </div>
         </div>
