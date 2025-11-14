@@ -21,7 +21,7 @@ import {
   generateBeachUrl,
   extractBeachId,
 } from "@/lib/supabase";
-import { useSwellDirections } from "@/lib/hooks/useBeachData";
+import { useSwellDirections, usePrefetchAdjacentDates } from "@/lib/hooks/useBeachData";
 const DEFAULT_MAP_STYLE =
   "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
 const MAP_STYLE_URL =
@@ -246,6 +246,10 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
   const [showFilters, setShowFilters] = React.useState<boolean>(false);
   const [surfIntensity, setSurfIntensity] = React.useState<
     Record<string | number, number>
+  >({});
+  // Cache surf intensity data for multiple dates
+  const surfIntensityCacheRef = React.useRef<
+    Record<string, Record<string | number, number>>
   >({});
   const [swellDirections, setSwellDirections] =
     React.useState<SwellDirectionSet | null>(null);
@@ -507,19 +511,23 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
     // Clear previous hover state first
     if (lastHoverInternalIdRef.current != null) {
       try {
-        mapInstance.setFeatureState(
-          { source: "beaches", id: lastHoverInternalIdRef.current },
-          { hover: false }
-        );
+        if (mapInstance.getSource("beaches")) {
+          mapInstance.setFeatureState(
+            { source: "beaches", id: lastHoverInternalIdRef.current },
+            { hover: false }
+          );
+        }
       } catch {}
       lastHoverInternalIdRef.current = null;
     }
     if ((mapInstance as any).__lastClusterHoverId != null) {
       try {
-        mapInstance.setFeatureState(
-          { source: "beaches", id: (mapInstance as any).__lastClusterHoverId },
-          { hover: false }
-        );
+        if (mapInstance.getSource("beaches")) {
+          mapInstance.setFeatureState(
+            { source: "beaches", id: (mapInstance as any).__lastClusterHoverId },
+            { hover: false }
+          );
+        }
       } catch {}
       (mapInstance as any).__lastClusterHoverId = null;
     }
@@ -559,11 +567,13 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
       if (unclustered) {
         // Highlight the specific unclustered circle for visual feedback
         try {
-          mapInstance.setFeatureState(
-            { source: "beaches", id: entry.id },
-            { hover: true }
-          );
-          lastHoverInternalIdRef.current = entry.id;
+          if (mapInstance.getSource("beaches")) {
+            mapInstance.setFeatureState(
+              { source: "beaches", id: entry.id },
+              { hover: true }
+            );
+            lastHoverInternalIdRef.current = entry.id;
+          }
         } catch {}
         // Clear any cluster highlight and drive the popup lifecycle based on card hover
         setHoverClusterId(null);
@@ -642,7 +652,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
     setSelectedPointVisible(isVisible);
   }, [zoom, selected]);
 
-  // Fetch surf intensity when date changes
+  // Fetch surf intensity when date changes - with preloading and caching
   React.useEffect(() => {
     if (!selectedDate) {
       setSurfIntensity({});
@@ -650,34 +660,67 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
     }
 
     let cancelled = false;
-    const loadSurfIntensity = async () => {
-      try {
-        // Format date as YYYY-MM-DD to match how DatePicker does it
-        const dateStr = selectedDate.toISOString().split("T")[0];
 
-        // Use API route instead of direct Supabase query to reduce egress
+    // Helper to fetch and cache surf intensity for a specific date
+    const fetchSurfIntensityForDate = async (date: Date): Promise<Record<string | number, number>> => {
+      const dateStr = date.toISOString().split("T")[0];
+
+      // Check cache first
+      if (surfIntensityCacheRef.current[dateStr]) {
+        console.log(`💾 Using cached surf intensity for ${dateStr}`);
+        return surfIntensityCacheRef.current[dateStr];
+      }
+
+      try {
+        console.log(`🗺️  Fetching surf intensity for date: ${dateStr}`);
         const res = await fetch(`/api/surf-intensity?date=${dateStr}`);
 
         if (!res.ok) {
           console.error("Failed to fetch surf intensity:", res.status);
-          return;
+          return {};
         }
 
         const json = await res.json();
 
-        if (!cancelled && json?.success && json.data) {
-          console.log("✅ Loaded surf intensity from", json.source);
-          setSurfIntensity(json.data);
-          console.log("✅ setSurfIntensity called with", Object.keys(json.data).length, "entries");
-        } else if (cancelled) {
-          // This is expected in development due to React Strict Mode
-          console.log("⏭️ Surf intensity fetch cancelled (component re-rendered)");
-        } else {
-          console.error("❌ Failed to load surf intensity:", json);
+        if (json?.success && json.data) {
+          // Cache the result
+          surfIntensityCacheRef.current[dateStr] = json.data;
+          console.log(`✅ Loaded and cached surf intensity for ${dateStr} (${Object.keys(json.data).length} beaches)`);
+          return json.data;
         }
+
+        return {};
       } catch (e) {
-        console.error("Failed to load surf intensity", e);
+        console.error(`Failed to load surf intensity for ${dateStr}`, e);
+        return {};
       }
+    };
+
+    const loadSurfIntensity = async () => {
+      // Load current date first
+      const currentData = await fetchSurfIntensityForDate(selectedDate);
+
+      if (!cancelled) {
+        setSurfIntensity(currentData);
+      }
+
+      // Preload adjacent dates in the background (±3 days)
+      const preloadDates: Date[] = [];
+      for (let i = -3; i <= 3; i++) {
+        if (i === 0) continue; // Skip current date (already loaded)
+        const adjacentDate = new Date(selectedDate);
+        adjacentDate.setDate(adjacentDate.getDate() + i);
+        preloadDates.push(adjacentDate);
+      }
+
+      // Preload in background without blocking
+      Promise.all(preloadDates.map(date => fetchSurfIntensityForDate(date)))
+        .then(() => {
+          if (!cancelled) {
+            console.log(`📦 Preloaded surf intensity for ${preloadDates.length} adjacent dates`);
+          }
+        })
+        .catch(err => console.warn("Preload error:", err));
     };
 
     loadSurfIntensity();
@@ -696,6 +739,9 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
     selectedDate,
     selectedHour
   );
+
+  // Prefetch swell directions for adjacent dates (for faster date switching)
+  usePrefetchAdjacentDates(selected ? String(selected.id) : null, selectedDate);
 
   // Sync the fetched data to local state (for compatibility with existing code)
   React.useEffect(() => {
@@ -1320,19 +1366,21 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
             );
             // Always clear hover state for the last hovered feature, regardless of popup state
             try {
-              if (mapLastHoverInternalIdRef.current != null) {
-                map.setFeatureState(
-                  { source: "beaches", id: mapLastHoverInternalIdRef.current },
-                  { hover: false }
-                );
-                mapLastHoverInternalIdRef.current = null;
-              } else if (popupId.current) {
-                const beach = mapToId[popupId.current];
-                if (beach) {
+              if (map.getSource("beaches")) {
+                if (mapLastHoverInternalIdRef.current != null) {
                   map.setFeatureState(
-                    { source: "beaches", id: beach.id },
+                    { source: "beaches", id: mapLastHoverInternalIdRef.current },
                     { hover: false }
                   );
+                  mapLastHoverInternalIdRef.current = null;
+                } else if (popupId.current) {
+                  const beach = mapToId[popupId.current];
+                  if (beach) {
+                    map.setFeatureState(
+                      { source: "beaches", id: beach.id },
+                      { hover: false }
+                    );
+                  }
                 }
               }
             } catch {}
@@ -1368,10 +1416,12 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
             if (popupId.current && popupRef.current) {
               try {
                 const beach = mapToId[popupId.current];
-                map.setFeatureState(
-                  { source: "beaches", id: beach.id },
-                  { hover: false }
-                );
+                if (map.getSource("beaches") && beach) {
+                  map.setFeatureState(
+                    { source: "beaches", id: beach.id },
+                    { hover: false }
+                  );
+                }
               } catch {}
               setPopupInfo(null);
               popupId.current = null;
@@ -1391,6 +1441,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
             hoverRafRef.current = requestAnimationFrame(() => {
               const beach = mapToId[fid];
               if (!beach) return;
+              if (!map.getSource("beaches")) return;
               try {
                 const prevInternal = mapLastHoverInternalIdRef.current;
                 if (prevInternal != null && prevInternal !== beach.id) {
@@ -1643,11 +1694,11 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
                   [
                     "step",
                     ["get", "surfIntensity"],
-                    "#d1d5db", // gray for no data (bg-gray-300 / highlight-3)
+                    "#e5e7eb", // gray-200 for no data (bg-highlight-3)
                     0.1,
-                    "#86efac", // green-300 for small (< 3ft)
+                    "#4ade80", // green-400 for small (< 3ft)
                     3,
-                    "#fdba74", // orange-300 for moderate (3-6ft)
+                    "#fb923c", // orange-400 for moderate (3-6ft)
                     6,
                     "#f87171", // red-400 for big (>= 6ft)
                   ],
@@ -1837,13 +1888,13 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
                     "p-1 w-2 rounded-full",
                     !popupInfo.properties.surfIntensity ||
                       (popupInfo.properties.surfIntensity < 0.1 &&
-                        "bg-gray-300"),
+                        "bg-highlight-3"),
                     popupInfo.properties.surfIntensity >= 0.1 &&
                       popupInfo.properties.surfIntensity < 3 &&
-                      "bg-green-300",
+                      "bg-green-400",
                     popupInfo.properties.surfIntensity >= 3 &&
                       popupInfo.properties.surfIntensity < 6 &&
-                      "bg-orange-300",
+                      "bg-orange-400",
                     popupInfo.properties.surfIntensity >= 6 && "bg-red-400"
                   )}
                 />

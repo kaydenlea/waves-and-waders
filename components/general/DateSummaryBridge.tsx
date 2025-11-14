@@ -810,8 +810,9 @@ const DateSummaryBridge: React.FC<Props> = ({
         </header>
         {/* Tabs now live inside header for all breakpoints */}
 
-        {isOverview ? (
-          visibleRows.length === 0 ? (
+        {/* Overview content - hidden when forecast is active */}
+        <div className={isOverview ? "" : "hidden"}>
+          {visibleRows.length === 0 ? (
             <p className="mx-2 mt-6 text-sm text-muted-foreground">
               All widgets are hidden. Use the edit screen to enable widgets.
             </p>
@@ -846,18 +847,19 @@ const DateSummaryBridge: React.FC<Props> = ({
                 </div>
               );
             })
-          )
-        ) : (
-          <div>
-            <ForecastChartProvider>
-              <ForecastBridge
-                beachId={beachId}
-                hideHeader
-                onWindowStringChange={setForecastWindow}
-              />
-            </ForecastChartProvider>
-          </div>
-        )}
+          )}
+        </div>
+
+        {/* Forecast content - hidden when overview is active */}
+        <div className={isOverview ? "hidden" : ""}>
+          <ForecastChartProvider>
+            <ForecastBridge
+              beachId={beachId}
+              hideHeader
+              onWindowStringChange={setForecastWindow}
+            />
+          </ForecastChartProvider>
+        </div>
       </section>
     </>
   );

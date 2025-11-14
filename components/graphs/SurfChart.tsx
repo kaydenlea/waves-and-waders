@@ -28,7 +28,7 @@ import {
   fetchBeachDetails,
   fetchDailyConditions,
 } from "@/lib/supabase";
-import { useDateContext } from "@/components/context/DateContext";
+import { useDateContext, useHoveredHour } from "@/components/context/DateContext";
 
 type Props = { beachId?: string; hours?: number; date?: Date };
 type Row = {
@@ -136,7 +136,8 @@ export const SurfStatsHeader = ({
 };
 
 const SurfChart = ({ beachId, hours = 24, date }: Props) => {
-  const { hour: selectedHour } = useDateContext();
+  const { hour: selectedHour, setHoveredHour } = useDateContext();
+  const hoveredHour = useHoveredHour();
   const [chartData, setChartData] = useState<Row[]>([]);
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]); // sunrise-sunset (hours)
   const [nightAreas, setNightAreas] = useState<{ x1: number; x2?: number }[]>(
@@ -421,6 +422,26 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
     return AreaShape;
   };
 
+  const lastHoveredRef = React.useRef<number | null>(null);
+
+  const handleMouseMove = (e: any) => {
+    if (e && e.activeLabel !== undefined) {
+      const hour = Number(e.activeLabel);
+      if (!isNaN(hour)) {
+        // Only update if the hour changed (throttle updates)
+        if (lastHoveredRef.current !== hour) {
+          lastHoveredRef.current = hour;
+          setHoveredHour(hour);
+        }
+      }
+    }
+  };
+
+  const handleMouseLeave = () => {
+    lastHoveredRef.current = null;
+    setHoveredHour(null);
+  };
+
   return (
     <ChartContainer
       ref={chartRef}
@@ -436,9 +457,10 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
         }}
         accessibilityLayer
         data={chartData}
-        syncId="anyId"
         barCategoryGap="15%"
         maxBarSize={60}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
       >
         {dayAreas.map((a, idx) => (
           <ReferenceArea
@@ -526,6 +548,14 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
           // strokeWidth={2}
           strokeDasharray="3 3"
         />
+        {/* Hover indicator line - always rendered to avoid re-mount */}
+        <ReferenceLine
+          x={hoveredHour ?? 0}
+          stroke="var(--foreground)"
+          strokeWidth={1}
+          strokeOpacity={hoveredHour !== null && hoveredHour !== selectedHour ? 0.5 : 0}
+          strokeDasharray="5 5"
+        />
         <Bar
           dataKey="surf"
           fill="var(--color-surf, var(--color-tide))"
@@ -590,4 +620,4 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
   );
 };
 
-export default SurfChart;
+export default React.memo(SurfChart);

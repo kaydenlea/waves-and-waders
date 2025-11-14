@@ -41,7 +41,7 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import { cn } from "@/lib/utils";
-import { useDateContext } from "@/components/context/DateContext";
+import { useDateContext, useHoveredHour } from "@/components/context/DateContext";
 import { useForecastChartContext } from "@/components/context/ForecastChartContext";
 
 const VISIBLE_DAYS = 4;
@@ -56,6 +56,8 @@ type TidePoint = { hour: number; tide: number; isPeak?: number };
 export default function ForecastTideChart({ beachId, date, days }: Props) {
   const { setPanFraction, subscribePan } = useForecastChartContext();
   const myId = React.useId();
+  const { selected: selectedDate, hour: selectedHour, setHoveredHour } = useDateContext();
+  const hoveredHour = useHoveredHour();
   // data loaded for FETCH_DAYS days (hours)
   const [data, setData] = useState<TidePoint[]>([]);
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
@@ -77,7 +79,6 @@ export default function ForecastTideChart({ beachId, date, days }: Props) {
   const innerRef = useRef<HTMLDivElement | null>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [isAtRightEdge, setIsAtRightEdge] = useState(false);
-  const { selected: selectedDate, hour: selectedHour } = useDateContext();
 
   // Derived
   const totalFetchedDays = useMemo(() => FETCH_DAYS, []); // fixed for predictability
@@ -648,6 +649,35 @@ export default function ForecastTideChart({ beachId, date, days }: Props) {
     return ticks;
   }, [totalFetchedDays]);
 
+  // Hover sync handlers
+  const lastHoveredRef = React.useRef<number | null>(null);
+  const rafIdRef = React.useRef<number | null>(null);
+
+  const handleMouseMove = React.useCallback((e: any) => {
+    if (e && e.activeLabel !== undefined) {
+      const hour = Number(e.activeLabel);
+      if (!isNaN(hour) && lastHoveredRef.current !== hour) {
+        if (rafIdRef.current !== null) {
+          cancelAnimationFrame(rafIdRef.current);
+        }
+        rafIdRef.current = requestAnimationFrame(() => {
+          lastHoveredRef.current = hour;
+          setHoveredHour(hour);
+          rafIdRef.current = null;
+        });
+      }
+    }
+  }, [setHoveredHour]);
+
+  const handleMouseLeave = React.useCallback(() => {
+    if (rafIdRef.current !== null) {
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+    }
+    lastHoveredRef.current = null;
+    setHoveredHour(null);
+  }, [setHoveredHour]);
+
   // Render
   return (
     <div className="w-full">
@@ -787,7 +817,8 @@ export default function ForecastTideChart({ beachId, date, days }: Props) {
               // height={200}
               data={data}
               margin={{ left: -25, right: 15, bottom: 5, top: 0 }}
-              syncId="tideChart"
+              onMouseMove={handleMouseMove}
+              onMouseLeave={handleMouseLeave}
             >
               {dayAreas.length > 0 &&
                 console.log("🎨 Rendering", dayAreas.length, "day areas")}
@@ -895,6 +926,26 @@ export default function ForecastTideChart({ beachId, date, days }: Props) {
                   return null;
                 }
               })()}
+              {/* Hover indicator line - always rendered to avoid re-mount */}
+              <ReferenceLine
+                x={hoveredHour ?? 0}
+                stroke="var(--foreground)"
+                strokeWidth={1}
+                strokeOpacity={hoveredHour !== null && (() => {
+                  try {
+                    const base = days && days.length > 0 ? days[0] : null;
+                    if (!base || !selectedDate) return true;
+                    const baseMid = new Date(base.getFullYear(), base.getMonth(), base.getDate()).getTime();
+                    const selMid = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate()).getTime();
+                    const dayDelta = Math.floor((selMid - baseMid) / (24 * 3600 * 1000));
+                    const selectedX = dayDelta * 24 + (selectedHour ?? 0);
+                    return hoveredHour !== selectedX;
+                  } catch {
+                    return true;
+                  }
+                })() ? 0.5 : 0}
+                strokeDasharray="5 5"
+              />
               <ChartTooltip
                 content={({ active, payload }: any) => {
                   if (!active || !payload || !payload.length) return null;

@@ -15,17 +15,22 @@ import {
   CloudRain,
   CloudLightning,
   Snowflake,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import DaySlider from "../general/DaySlider";
 import {
   fetchBeachByIdLoose,
-  fetchBeachForecast,
   getWindDirection,
   type ForecastData,
 } from "@/lib/supabase";
 import { useDateContext } from "../context/DateContext";
 import { usePathname } from "next/navigation";
 import { useClientPath } from "../context/PathContext";
+
+// Simple cache for forecast data to avoid refetching
+const forecastCache = new Map<string, { data: ForecastData[]; timestamp: number }>();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 const SwellStat = ({
   primary = false,
@@ -286,45 +291,78 @@ const StatTable = ({
   const pathname = usePathname();
   const { selectedTab } = useClientPath();
   const forecastPage = selectedTab === "forecast";
+  
+  // Extract requestedDate at component level so it's accessible throughout
+  const requestedDate = React.useMemo(() => isValidDate(date) ? date : undefined, [date]);
+  
+  // Memoize date range calculation to prevent unnecessary recalculations
+  const dateRange = React.useMemo(() => {
+    if (!beachId) return null;
+    
+    const anchor = requestedDate ?? new Date();
+    const anchorStart = getPacificMidnightUTC(anchor);
+    const bufferBefore = requestedDate ? 1 : 0;
+    const bufferAfter = requestedDate ? 1 : 0;
+
+    const hasSelectedDays =
+      Array.isArray(selectedDays) && selectedDays.length > 0;
+    const rangeStart =
+      requestedDate && !forecastPage
+        ? new Date(anchorStart.getTime() - bufferBefore * DAY_MS)
+        : hasSelectedDays
+        ? selectedDays![0]
+        : new Date(anchorStart.getTime() - bufferBefore * DAY_MS);
+
+    const daysToFetch = Math.max(numDays, 1) + bufferAfter;
+    const rangeEnd =
+      requestedDate && !forecastPage
+        ? new Date(anchorStart.getTime() + daysToFetch * DAY_MS)
+        : hasSelectedDays
+        ? new Date(
+            selectedDays![selectedDays!.length - 1].getTime() +
+              bufferAfter * DAY_MS
+          )
+        : new Date(anchorStart.getTime() + daysToFetch * DAY_MS);
+    
+    return { rangeStart, rangeEnd };
+  }, [beachId, requestedDate, selectedDays, forecastPage, numDays]);
+  
   React.useEffect(() => {
     let cancelled = false;
 
     const load = async () => {
       try {
-        if (!beachId) return;
+        if (!beachId || !dateRange) return;
         const resolved = await fetchBeachByIdLoose(beachId);
         const resolvedId = resolved?.id ?? beachId;
-        const requestedDate = isValidDate(date) ? date : undefined;
-        const anchor = requestedDate ?? new Date();
-        const anchorStart = getPacificMidnightUTC(anchor);
-        const bufferBefore = requestedDate ? 1 : 0;
-        const bufferAfter = requestedDate ? 1 : 0;
-
-        // Prioritize date prop over selectedDays for consistency with other charts
-        const hasSelectedDays =
-          Array.isArray(selectedDays) && selectedDays.length > 0;
-        const rangeStart =
-          requestedDate && !forecastPage
-            ? new Date(anchorStart.getTime() - bufferBefore * DAY_MS)
-            : hasSelectedDays
-            ? selectedDays![0]
-            : new Date(anchorStart.getTime() - bufferBefore * DAY_MS);
-
-        const daysToFetch = Math.max(numDays, 1) + bufferAfter;
-        const rangeEnd =
-          requestedDate && !forecastPage
-            ? new Date(anchorStart.getTime() + daysToFetch * DAY_MS)
-            : hasSelectedDays
-            ? new Date(
-                selectedDays![selectedDays!.length - 1].getTime() +
-                  bufferAfter * DAY_MS
-              )
-            : new Date(anchorStart.getTime() + daysToFetch * DAY_MS);
-        const weekly = await fetchBeachForecast(
-          resolvedId,
-          rangeStart,
-          rangeEnd
-        );
+        
+        const { rangeStart, rangeEnd } = dateRange;
+        
+        // Check cache first
+        const cacheKey = `${resolvedId}:${rangeStart.getTime()}:${rangeEnd.getTime()}`;
+        const cached = forecastCache.get(cacheKey);
+        const now = Date.now();
+        
+        let weekly: ForecastData[];
+        if (cached && (now - cached.timestamp) < CACHE_DURATION) {
+          console.log(`📦 StatTable using cached forecast for ${resolvedId}`);
+          weekly = cached.data;
+        } else {
+          // Fetch fresh data
+          const { fetchBeachForecast } = await import("@/lib/supabase");
+          weekly = await fetchBeachForecast(resolvedId, rangeStart, rangeEnd);
+          
+          // Update cache
+          forecastCache.set(cacheKey, { data: weekly, timestamp: now });
+          
+          // Clean up old cache entries
+          if (forecastCache.size > 10) {
+            const keys = Array.from(forecastCache.keys());
+            forecastCache.delete(keys[0]);
+          }
+          console.log(`🌊 StatTable fetched fresh forecast for ${resolvedId}`);
+        }
+        
         if (cancelled) return;
 
         // Group by date using Pacific timezone (matches chart processing)
@@ -627,7 +665,10 @@ const StatTable = ({
     return () => {
       cancelled = true;
     };
-  }, [selectedDays, beachId, numDays, numHours, date]);
+  }, [dateRange, beachId, numDays, numHours]);
+  // Note: Removed selectedDays from deps since it's now in dateRange memo
+
+  const [showSecondarySwells, setShowSecondarySwells] = React.useState(true);
 
   const COLUMNS = [
     { id: "surf", label: "Surf" },
@@ -640,6 +681,16 @@ const StatTable = ({
     { id: "energy", label: "Energy" },
     { id: "pressure", label: "Pressure" },
   ];
+
+  // Filter columns based on toggle state
+  const filteredColumns = React.useMemo(() => {
+    if (showSecondarySwells) {
+      return COLUMNS;
+    }
+    return COLUMNS.filter(
+      (col) => col.id !== "swellSecondary" && col.id !== "swellTertiary"
+    );
+  }, [showSecondarySwells]);
 
   const [visibleCols, setVisibleCols] = React.useState(0);
   const [width, setWidth] = React.useState(0);
@@ -660,35 +711,37 @@ const StatTable = ({
       const widthNow = table.clientWidth;
       setWidth(widthNow);
       let newPages: typeof columnPages;
+      // Use filtered columns instead of COLUMNS
+      const cols = filteredColumns;
       if (widthNow < 550) {
         setVisibleCols(3);
         newPages = [
-          [COLUMNS[0], COLUMNS[2], COLUMNS[1]],
-          COLUMNS.slice(3, 5),
-          COLUMNS.slice(5, COLUMNS.length),
+          [cols[0], cols[2], cols[1]],
+          cols.slice(3, 5),
+          cols.slice(5, cols.length),
         ];
       } else if (widthNow < 800) {
         setVisibleCols(5);
         newPages = [
-          [COLUMNS[0], COLUMNS[2], COLUMNS[5], COLUMNS[6], COLUMNS[1]],
-          [COLUMNS[3], COLUMNS[4], COLUMNS[7], COLUMNS[8]],
+          [cols[0], cols[2], cols[5], cols[6], cols[1]],
+          [cols[3], cols[4], cols[7], cols[8]].filter(Boolean),
         ];
       } else if (widthNow < 1100) {
         setVisibleCols(4);
         newPages = [
-          [COLUMNS[0], COLUMNS[2], COLUMNS[3], COLUMNS[4], COLUMNS[1]],
-          COLUMNS.slice(5, COLUMNS.length),
+          [cols[0], cols[2], cols[3], cols[4], cols[1]].filter(Boolean),
+          cols.slice(5, cols.length),
         ];
       } else {
         setVisibleCols(6);
         const firstPage = [
-          COLUMNS[0],
-          COLUMNS[2],
-          COLUMNS[3],
-          COLUMNS[4],
-          COLUMNS[1],
-        ];
-        const secondPage = COLUMNS.slice(5, COLUMNS.length);
+          cols[0],
+          cols[2],
+          cols[3],
+          cols[4],
+          cols[1],
+        ].filter(Boolean);
+        const secondPage = cols.slice(5, cols.length);
         newPages = [firstPage.concat(secondPage)];
       }
       setColumnPages((prev) => {
@@ -708,7 +761,7 @@ const StatTable = ({
     adjustData();
 
     return () => observer.disconnect();
-  }, []);
+  }, [filteredColumns]);
 
   const handleNext = () => {
     setFadeIn(false);
@@ -904,6 +957,27 @@ const StatTable = ({
         }
       }}
     >
+      {/* Toggle button for secondary/tertiary swells */}
+      <div className="flex justify-end mb-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowSecondarySwells(!showSecondarySwells)}
+          className="flex items-center gap-2"
+        >
+          {showSecondarySwells ? (
+            <>
+              <EyeOff size={16} />
+              <span className="text-xs">Hide Secondary Swells</span>
+            </>
+          ) : (
+            <>
+              <Eye size={16} />
+              <span className="text-xs">Show Secondary Swells</span>
+            </>
+          )}
+        </Button>
+      </div>
       {dockMode === "fixed" && fixedPos && (
         <div
           ref={pagerRef}

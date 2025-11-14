@@ -33,7 +33,7 @@ import {
   fetchDailyConditions,
   getWindDirection,
 } from "@/lib/supabase";
-import { useDateContext } from "@/components/context/DateContext";
+import { useDateContext, useHoveredHour } from "@/components/context/DateContext";
 
 type Props = { beachId?: string; hours?: number; date?: Date };
 const chartConfig = {
@@ -140,7 +140,8 @@ export const WindStatsHeader = ({
 };
 
 const WindChart = ({ beachId, hours = 24, date }: Props) => {
-  const { hour: selectedHour } = useDateContext();
+  const { hour: selectedHour, setHoveredHour } = useDateContext();
+  const hoveredHour = useHoveredHour();
   const [chartData, setChartData] = useState<
     {
       hour: number;
@@ -386,6 +387,26 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
     return AreaShape;
   };
 
+  const lastHoveredRef = React.useRef<number | null>(null);
+
+  const handleMouseMove = (e: any) => {
+    if (e && e.activeLabel !== undefined) {
+      const hour = Number(e.activeLabel);
+      if (!isNaN(hour)) {
+        // Only update if the hour changed (throttle updates)
+        if (lastHoveredRef.current !== hour) {
+          lastHoveredRef.current = hour;
+          setHoveredHour(hour);
+        }
+      }
+    }
+  };
+
+  const handleMouseLeave = () => {
+    lastHoveredRef.current = null;
+    setHoveredHour(null);
+  };
+
   return (
     <ChartContainer
       ref={chartRef}
@@ -396,9 +417,10 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
         margin={{ top: 10, right: 15, left: -30, bottom: 0 }}
         accessibilityLayer
         data={chartData}
-        syncId="anyId"
         barCategoryGap="15%"
         maxBarSize={60}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
       >
         {dayAreas.map((a, idx) => (
           <ReferenceArea
@@ -510,6 +532,14 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
           // strokeWidth={2}
           strokeDasharray="3 3"
         />
+        {/* Hover indicator line - always rendered to avoid re-mount */}
+        <ReferenceLine
+          x={hoveredHour ?? 0}
+          stroke="var(--foreground)"
+          strokeWidth={1}
+          strokeOpacity={hoveredHour !== null && hoveredHour !== selectedHour ? 0.5 : 0}
+          strokeDasharray="5 5"
+        />
         <Bar
           dataKey="wind"
           fill="var(--color-wind)"
@@ -615,4 +645,4 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
   );
 };
 
-export default WindChart;
+export default React.memo(WindChart);

@@ -118,6 +118,39 @@ export function usePrefetchAdjacentHours(
   }, [beachId, date, currentHour, queryClient]);
 }
 
+// Hook to prefetch adjacent dates (for faster date switching)
+export function usePrefetchAdjacentDates(
+  beachId: string | null,
+  selectedDate: Date | null
+) {
+  const queryClient = useQueryClient();
+
+  React.useEffect(() => {
+    if (!beachId || !selectedDate) return;
+
+    const prefetchDate = (daysOffset: number) => {
+      const targetDate = new Date(selectedDate);
+      targetDate.setDate(targetDate.getDate() + daysOffset);
+      targetDate.setHours(0, 0, 0, 0);
+
+      const startWindow = targetDate;
+      const endWindow = new Date(targetDate.getTime() + 24 * 60 * 60 * 1000);
+
+      // Prefetch forecast data for this date
+      queryClient.prefetchQuery({
+        queryKey: ["beach-forecast", beachId, startWindow.toISOString(), endWindow.toISOString()],
+        queryFn: () => fetchBeachForecast(beachId, startWindow, endWindow),
+        staleTime: 5 * 60 * 1000,
+      });
+    };
+
+    // Prefetch ±3 days around the current date
+    [-3, -2, -1, 1, 2, 3].forEach((offset) => {
+      prefetchDate(offset);
+    });
+  }, [beachId, selectedDate, queryClient]);
+}
+
 // Custom hook for swell directions used in InteractiveMap
 export function useSwellDirections(
   beachId: string | null,

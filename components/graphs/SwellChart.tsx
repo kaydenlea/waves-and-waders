@@ -48,7 +48,7 @@ import {
   fetchDailyConditions,
   getWindDirection,
 } from "@/lib/supabase";
-import { useDateContext } from "@/components/context/DateContext";
+import { useDateContext, useHoveredHour } from "@/components/context/DateContext";
 
 type Props = { beachId?: string; hours?: number; date?: Date };
 type Row = {
@@ -161,7 +161,8 @@ export const SwellStatsHeader = ({
 };
 
 const SwellChart = ({ beachId, hours = 24, date }: Props) => {
-  const { hour: selectedHour } = useDateContext();
+  const { hour: selectedHour, setHoveredHour } = useDateContext();
+  const hoveredHour = useHoveredHour();
   const [data, setData] = useState<Row[]>([]);
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
   const [nightAreas, setNightAreas] = useState<{ x1: number; x2?: number }[]>(
@@ -295,6 +296,26 @@ const SwellChart = ({ beachId, hours = 24, date }: Props) => {
     return ticks;
   }, [hours]);
 
+  const lastHoveredRef = React.useRef<number | null>(null);
+
+  const handleMouseMove = (e: any) => {
+    if (e && e.activeLabel !== undefined) {
+      const hour = Number(e.activeLabel);
+      if (!isNaN(hour)) {
+        // Only update if the hour changed (throttle updates)
+        if (lastHoveredRef.current !== hour) {
+          lastHoveredRef.current = hour;
+          setHoveredHour(hour);
+        }
+      }
+    }
+  };
+
+  const handleMouseLeave = () => {
+    lastHoveredRef.current = null;
+    setHoveredHour(null);
+  };
+
   return (
     <ChartContainer
       config={chartConfig}
@@ -308,7 +329,8 @@ const SwellChart = ({ beachId, hours = 24, date }: Props) => {
           right: 15,
           left: -28,
         }}
-        syncId="anyId"
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
       >
         {dayAreas.map((a, idx) => (
           <ReferenceArea
@@ -496,9 +518,19 @@ const SwellChart = ({ beachId, hours = 24, date }: Props) => {
           // strokeWidth={2}
           strokeDasharray="3 3"
         />
+        {/* Hover indicator line - only show when hovering on any chart */}
+        {hoveredHour !== null && hoveredHour !== selectedHour && (
+          <ReferenceLine
+            x={hoveredHour}
+            stroke="var(--foreground)"
+            strokeWidth={1}
+            strokeOpacity={0.5}
+            strokeDasharray="5 5"
+          />
+        )}
       </AreaChart>
     </ChartContainer>
   );
 };
 
-export default SwellChart;
+export default React.memo(SwellChart);

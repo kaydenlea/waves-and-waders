@@ -33,7 +33,7 @@ import {
   fetchDailyConditions,
 } from "@/lib/supabase";
 import { cn, getPacificHour } from "@/lib/utils";
-import { useDateContext } from "@/components/context/DateContext";
+import { useDateContext, useHoveredHour } from "@/components/context/DateContext";
 import { useForecastChartContext } from "@/components/context/ForecastChartContext";
 
 const chartConfig = {
@@ -57,6 +57,8 @@ const MIN_DAY_PX = 275;
 const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
   const { setPanFraction, subscribePan } = useForecastChartContext();
   const myId = React.useId();
+  const { hour: selectedHour, setHoveredHour } = useDateContext();
+  const hoveredHour = useHoveredHour();
   const [surfData, setSurfData] = useState<SurfPoint[]>([]);
   const [baseStartMs, setBaseStartMs] = useState<number | null>(null);
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
@@ -79,7 +81,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
   const innerRef = useRef<HTMLDivElement | null>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [isAtRightEdge, setIsAtRightEdge] = useState(false);
-  const { selected: selectedDate, hour: selectedHour } = useDateContext();
+  const { selected: selectedDate } = useDateContext();
 
   // Pointer & animation refs
   const currentTranslateRef = useRef(0);
@@ -617,6 +619,35 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
     return ticks;
   }, [totalFetchedDays]);
 
+  // Hover sync handlers
+  const lastHoveredRef = React.useRef<number | null>(null);
+  const rafIdRef = React.useRef<number | null>(null);
+
+  const handleMouseMove = useCallback((e: any) => {
+    if (e && e.activeLabel !== undefined) {
+      const hour = Number(e.activeLabel);
+      if (!isNaN(hour) && lastHoveredRef.current !== hour) {
+        if (rafIdRef.current !== null) {
+          cancelAnimationFrame(rafIdRef.current);
+        }
+        rafIdRef.current = requestAnimationFrame(() => {
+          lastHoveredRef.current = hour;
+          setHoveredHour(hour);
+          rafIdRef.current = null;
+        });
+      }
+    }
+  }, [setHoveredHour]);
+
+  const handleMouseLeave = useCallback(() => {
+    if (rafIdRef.current !== null) {
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+    }
+    lastHoveredRef.current = null;
+    setHoveredHour(null);
+  }, [setHoveredHour]);
+
   return (
     <div className="w-full">
       <div
@@ -743,7 +774,8 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
               width={chartInnerWidth}
               data={surfData}
               margin={{ left: -25, right: 15, bottom: 5, top: 0 }}
-              syncId="anyId"
+              onMouseMove={handleMouseMove}
+              onMouseLeave={handleMouseLeave}
             >
               {/* vertical boundaries every day */}
               {Array.from({ length: totalFetchedDays + 1 }, (_, i) => {
@@ -845,6 +877,26 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                   return null;
                 }
               })()}
+              {/* Hover indicator line - always rendered to avoid re-mount */}
+              <ReferenceLine
+                x={hoveredHour ?? 0}
+                stroke="var(--foreground)"
+                strokeWidth={1}
+                strokeOpacity={hoveredHour !== null && (() => {
+                  try {
+                    const base = days && days.length > 0 ? days[0] : null;
+                    if (!base || !selectedDate) return true;
+                    const baseMid = new Date(base.getFullYear(), base.getMonth(), base.getDate()).getTime();
+                    const selMid = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate()).getTime();
+                    const dayDelta = Math.floor((selMid - baseMid) / (24 * 3600 * 1000));
+                    const selectedX = dayDelta * 24 + (selectedHour ?? 0);
+                    return hoveredHour !== selectedX;
+                  } catch {
+                    return true;
+                  }
+                })() ? 0.5 : 0}
+                strokeDasharray="5 5"
+              />
               <Bar
                 dataKey="surf"
                 fill="var(--color-surf)"
@@ -926,4 +978,4 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
   );
 };
 
-export default ForecastSurfChart;
+export default React.memo(ForecastSurfChart);

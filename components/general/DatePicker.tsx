@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import dayjs, { Dayjs } from "dayjs";
 import { cn } from "@/lib/utils";
 import {
@@ -126,6 +126,18 @@ const DatePicker = ({
   const [summaries, setSummaries] = useState<Record<string, DaySummary>>({});
   const [orderedKeys, setOrderedKeys] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  // Store surf intensity data from API (keyed by date: YYYY-MM-DD)
+  const [surfIntensityByDate, setSurfIntensityByDate] = useState<Record<string, number>>({});
+  
+  // Cache forecast data to avoid refetching
+  const forecastCacheRef = useRef<{
+    beachId: string;
+    data: Record<string, DaySummary>;
+    keys: string[];
+  } | null>(null);
+  
+  // Debounce timer for date selection
+  const dateSelectionTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const { setSelectedDays, setSurfRange } = useDateContext();
   const { setSurfIntensityForDate } = useMapFilters();
@@ -151,6 +163,24 @@ const DatePicker = ({
     let active = true;
     const run = async () => {
       if (!beachId) return;
+      
+      // Check if we already have cached data for this beach
+      if (forecastCacheRef.current?.beachId === beachId) {
+        const cached = forecastCacheRef.current;
+        setSummaries(cached.data);
+        setOrderedKeys(cached.keys);
+        
+        // Initialize selection from cache
+        if (value instanceof Date) {
+          setSelectedDate(dayjs(value).startOf("day"));
+        } else if (!selectedDate && cached.keys.length > 0) {
+          const first = cached.data[cached.keys[0]].date;
+          setSelectedDate(first);
+          onSelect?.(first.toDate());
+        }
+        return;
+      }
+      
       setLoading(true);
       try {
         // Determine available range in DB for this beach
@@ -302,6 +332,14 @@ const DatePicker = ({
           }
           setSummaries(limitedGroups);
           setOrderedKeys(limitedKeys);
+          
+          // Cache the processed data
+          forecastCacheRef.current = {
+            beachId,
+            data: limitedGroups,
+            keys: limitedKeys,
+          };
+          
           // initialize selection: prefer controlled value; else first key
           if (value instanceof Date) {
             setSelectedDate(dayjs(value).startOf("day"));
@@ -327,6 +365,54 @@ const DatePicker = ({
       active = false;
     };
   }, [beachId, value]);
+
+  // Fetch surf intensity from API for all visible days (memoized)
+  useEffect(() => {
+    if (!beachId || orderedKeys.length === 0) return;
+
+    let cancelled = false;
+    const fetchSurfIntensities = async () => {
+      const intensityMap: Record<string, number> = { ...surfIntensityByDate };
+      const keysToFetch: string[] = [];
+      
+      // Only fetch dates we don't already have
+      orderedKeys.forEach((dateKey) => {
+        if (!(dateKey in intensityMap)) {
+          keysToFetch.push(dateKey);
+        }
+      });
+      
+      if (keysToFetch.length === 0) return; // All data already cached
+
+      // Fetch only missing surf intensities in parallel
+      await Promise.all(
+        keysToFetch.map(async (dateKey) => {
+          try {
+            const res = await fetch(`/api/surf-intensity?date=${dateKey}`);
+            if (!res.ok) return;
+
+            const json = await res.json();
+            if (json?.success && json.data && json.data[beachId]) {
+              intensityMap[dateKey] = json.data[beachId];
+            }
+          } catch (err) {
+            console.warn(`Failed to fetch surf intensity for ${dateKey}:`, err);
+          }
+        })
+      );
+
+      if (!cancelled) {
+        console.log(`📊 DatePicker loaded surf intensity for ${keysToFetch.length} new dates (${Object.keys(intensityMap).length} total cached)`);
+        setSurfIntensityByDate(intensityMap);
+      }
+    };
+
+    fetchSurfIntensities();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [beachId, orderedKeys]);
 
   // Keep internal selection in sync with controlled value
   useEffect(() => {
@@ -365,44 +451,61 @@ const DatePicker = ({
   }
 
   useEffect(() => {
-    const daysRange: Date[] = [];
-    orderedKeys.forEach((key, index) => {
-      if (startIdx <= index && index <= endIdx) {
-        const summary = summaries[key];
-        const day = summary?.date ?? dayjs(key);
-        daysRange.push(day.toDate());
-      }
-    });
-    setSelectedDays(daysRange);
-
-    // Update surf intensity and surf range for the selected date
-    if (selectedDate) {
-      const key = selectedDate.format("YYYY-MM-DD");
-      const summary = summaries[key];
-      setSurfIntensityForDate(summary?.max ?? null);
-      console.log("OVERVIEW DATA summary", summary);
-      // Calculate surf range using the same logic as display
-      const max = summary?.max ?? null;
-      const minWithFallback =
-        summary?.min ?? (max != null && max <= 1 ? 0 : null);
-
-      if (minWithFallback != null && max != null) {
-        let minRounded = Math.round(minWithFallback);
-        let maxRounded = Math.round(max);
-        // Ensure min <= max
-        if (minRounded > maxRounded) {
-          [minRounded, maxRounded] = [maxRounded, minRounded];
-        }
-        // If they're equal, subtract 1 from min
-        if (minRounded === maxRounded) {
-          minRounded = Math.max(0, maxRounded - 1);
-        }
-        setSurfRange(`${minRounded}-${maxRounded}`);
-      } else {
-        setSurfRange(null);
-      }
+    // Debounce context updates to batch rapid date changes
+    if (dateSelectionTimerRef.current) {
+      clearTimeout(dateSelectionTimerRef.current);
     }
-  }, [value, selectedDate, summaries]);
+    
+    dateSelectionTimerRef.current = setTimeout(() => {
+      const daysRange: Date[] = [];
+      orderedKeys.forEach((key, index) => {
+        if (startIdx <= index && index <= endIdx) {
+          const summary = summaries[key];
+          const day = summary?.date ?? dayjs(key);
+          daysRange.push(day.toDate());
+        }
+      });
+      setSelectedDays(daysRange);
+
+      // Update surf intensity and surf range for the selected date
+      if (selectedDate) {
+        const key = selectedDate.format("YYYY-MM-DD");
+        const summary = summaries[key];
+
+        // Use surf intensity from API instead of summary.max
+        const intensity = surfIntensityByDate[key] ?? null;
+        setSurfIntensityForDate(intensity);
+        console.log(`📅 DatePicker selected date: ${key}, surf intensity: ${intensity}ft (from API)`);
+
+        // Calculate surf range using the same logic as display
+        const max = summary?.max ?? null;
+        const minWithFallback =
+          summary?.min ?? (max != null && max <= 1 ? 0 : null);
+
+        if (minWithFallback != null && max != null) {
+          let minRounded = Math.round(minWithFallback);
+          let maxRounded = Math.round(max);
+          // Ensure min <= max
+          if (minRounded > maxRounded) {
+            [minRounded, maxRounded] = [maxRounded, minRounded];
+          }
+          // If they're equal, subtract 1 from min
+          if (minRounded === maxRounded) {
+            minRounded = Math.max(0, maxRounded - 1);
+          }
+          setSurfRange(`${minRounded}-${maxRounded}`);
+        } else {
+          setSurfRange(null);
+        }
+      }
+    }, 50); // 50ms debounce
+    
+    return () => {
+      if (dateSelectionTimerRef.current) {
+        clearTimeout(dateSelectionTimerRef.current);
+      }
+    };
+  }, [value, selectedDate, summaries, surfIntensityByDate]);
 
   return (
     <div
@@ -435,6 +538,10 @@ const DatePicker = ({
               const isSelected =
                 controlledSelected ??
                 (selectedDate ? selectedDate.isSame(day, "day") : index === 0);
+              // Get surf intensity from API data instead of forecast calculation
+              const surfIntensity = surfIntensityByDate[key] ?? null;
+
+              // Still use summary for display range and weather
               const max = summary?.max ?? null;
               const minWithFallback =
                 summary?.min ?? (max != null && max <= 1 ? 0 : null);
@@ -443,13 +550,12 @@ const DatePicker = ({
               const weather = getWeatherIcon(code);
               const weatherSmall = getWeatherIcon(code, 16);
 
-              // Use rounded max for color to match displayed range
-              const maxRounded = max != null ? Math.round(max) : null;
-              const color = !hasRange
+              // Use surf intensity from API for color (matching InteractiveMap logic)
+              const color = surfIntensity == null || surfIntensity < 0.1
                 ? "bg-highlight-3"
-                : maxRounded! >= 6
+                : surfIntensity >= 6
                 ? "bg-red-400"
-                : maxRounded! >= 3
+                : surfIntensity >= 3
                 ? "bg-orange-400"
                 : "bg-green-400";
               let itemStyle = "bg-highlight-4 rounded-md";

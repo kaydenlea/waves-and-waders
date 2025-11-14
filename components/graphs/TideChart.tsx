@@ -26,7 +26,7 @@ import {
   fetchBeachDetails,
   fetchDailyConditions,
 } from "@/lib/supabase";
-import { useDateContext } from "@/components/context/DateContext";
+import { useDateContext, useHoveredHour } from "@/components/context/DateContext";
 
 const HOURS_TO_MS = 60 * 60 * 1000;
 
@@ -84,7 +84,8 @@ const TideChart: React.FC<TideChartProps> = ({
   chartData: chartDataProp,
   date,
 }) => {
-  const { hour: selectedHour } = useDateContext();
+  const { hour: selectedHour, setHoveredHour } = useDateContext();
+  const hoveredHour = useHoveredHour();
   const [chartData, setChartData] = useState<TidePoint[]>([]);
   const [windowStart, setWindowStart] = useState<number | null>(null);
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
@@ -448,6 +449,28 @@ const TideChart: React.FC<TideChartProps> = ({
     };
   }, [chartData]);
 
+  const lastHoveredRef = React.useRef<number | null>(null);
+
+  const handleMouseMove = (e: any) => {
+    if (e && e.activeLabel !== undefined) {
+      const hour = Number(e.activeLabel);
+      if (!isNaN(hour)) {
+        // Round to nearest 3-hour interval for syncing with other charts
+        const rounded = Math.round(hour / 3) * 3;
+        // Only update if the hour changed (throttle updates)
+        if (lastHoveredRef.current !== rounded) {
+          lastHoveredRef.current = rounded;
+          setHoveredHour(rounded);
+        }
+      }
+    }
+  };
+
+  const handleMouseLeave = () => {
+    lastHoveredRef.current = null;
+    setHoveredHour(null);
+  };
+
   return (
     <ChartContainer
       className="aspect-auto h-[250px] @min-3xl:h-[285px] w-full [&_.recharts-legend-wrapper]:hidden"
@@ -462,6 +485,8 @@ const TideChart: React.FC<TideChartProps> = ({
           right: 15,
           bottom: 0,
         }}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
       >
         {/* Hour indicator line */}
         <ReferenceLine
@@ -469,6 +494,14 @@ const TideChart: React.FC<TideChartProps> = ({
           stroke="var(--foreground)"
           // strokeWidth={2}
           strokeDasharray="3 3"
+        />
+        {/* Hover indicator line - always rendered to avoid re-mount */}
+        <ReferenceLine
+          x={hoveredHour ?? 0}
+          stroke="var(--foreground)"
+          strokeWidth={1}
+          strokeOpacity={hoveredHour !== null && hoveredHour !== selectedHour ? 0.5 : 0}
+          strokeDasharray="5 5"
         />
         {dayAreas.map((area, idx) => (
           <ReferenceArea
@@ -662,4 +695,4 @@ const TideChart: React.FC<TideChartProps> = ({
   );
 };
 
-export default TideChart;
+export default React.memo(TideChart);

@@ -34,18 +34,21 @@ export default async function RootLayout({
 
   const user = userData.user ?? null;
 
+  // Session can be derived from user data if needed
+  let session = null;
+  if (user) {
+    // If you need session data, you can access it from the authenticated user
+    // For most cases, the user object is sufficient
+    session = user;
+  }
+
   if (userError) {
     console.error("Failed to load authenticated user", userError);
   }
 
-  // Create a minimal session object from the authenticated user
-  const initialSession = user
+  const initialSession = user && session
     ? {
-        access_token: '', // Not needed on client
-        refresh_token: '', // Not needed on client
-        expires_in: 0,
-        expires_at: 0,
-        token_type: 'bearer',
+        ...session,
         user: user,
       }
     : null;

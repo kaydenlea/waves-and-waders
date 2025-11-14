@@ -18,15 +18,7 @@ export default function BackButton({
   const router = useRouter();
 
   const handleClick = () => {
-    try {
-      if (typeof window !== "undefined" && window.history.length > 1) {
-        router.back();
-        return;
-      }
-    } catch {
-      // no-op; fall through to push below
-    }
-    // Fallback: return to previously selected beaches tab if available
+    // Always navigate to /beaches (preserving previously selected tab if available)
     let tab: string | null = null;
     let target = "/beaches";
     try {

@@ -1347,18 +1347,18 @@ const Highlights = ({
 
   const stats = useMemo(() => {
     if (!forecast.length) {
-      // Return default stats if no data
+      // Return empty/null stats if no data (no fake placeholder values)
       return [
         {
           label: "weather" as const,
-          weather: { temp: 64, condition: "sun" },
+          weather: { temp: 0, condition: "sun", code: null },
         },
         {
           label: "swell" as const,
-          primary: { height: 2.1, period: 7, wind: { dir: "W", deg: 272 } },
+          primary: { height: 0, period: 0, wind: { dir: "N", deg: 0 } },
           secondary: [
-            { height: 2.1, period: 7, wind: { dir: "W", deg: 272 } },
-            { height: 2.1, period: 7, wind: { dir: "W", deg: 272 } },
+            { height: 0, period: 0, wind: { dir: "N", deg: 0 } },
+            { height: 0, period: 0, wind: { dir: "N", deg: 0 } },
           ] as [
             {
               height: number;
@@ -1372,12 +1372,12 @@ const Highlights = ({
             }
           ],
         },
-        { label: "water" as const, temp: 60 },
-        { label: "tide" as const, tide: { value: "2-3", unit: "ft" } },
-        { label: "wind" as const, wind: { speed: 12, max: 17, dir: 60 } },
-        { label: "moon" as const, phase: "Waning Crescent" },
-        { label: "pressure" as const, pressure: { value: 29.9, unit: "in" } },
-        { label: "energy" as const, energy: { value: 278, unit: "kJ" } },
+        { label: "water" as const, temp: 0 },
+        { label: "tide" as const, tide: { value: 0, unit: "ft" } },
+        { label: "wind" as const, wind: { speed: 0, max: 0, dir: 0 } },
+        { label: "moon" as const, phase: 0 },
+        { label: "pressure" as const, pressure: { value: 0, unit: "in" } },
+        { label: "energy" as const, energy: { value: 0, unit: "kJ" } },
       ];
     }
 

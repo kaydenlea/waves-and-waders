@@ -25,6 +25,24 @@ export function PathProvider({ children }: { children: React.ReactNode }) {
         setSelectedTab(qp);
         return;
       }
+
+      // For beach pages, default to "overview" instead of saved tab
+      // This ensures clicking a beach card always goes to overview
+      if (pathname.includes("/overview") || pathname.match(/^\/[^/]+\/[^/]+$/)) {
+        if (selectedTab !== "overview") {
+          setSelectedTab("overview");
+        }
+        return;
+      }
+
+      // For forecast pages, set to "forecast"
+      if (pathname.includes("/forecast")) {
+        if (selectedTab !== "forecast") {
+          setSelectedTab("forecast");
+        }
+        return;
+      }
+
       const key = `tab:${pathname}`;
       const saved = window.localStorage.getItem(key);
       if (saved && saved !== selectedTab) {

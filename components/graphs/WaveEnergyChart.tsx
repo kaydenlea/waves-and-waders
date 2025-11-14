@@ -42,7 +42,7 @@ import {
   fetchBeachDetails,
   fetchDailyConditions,
 } from "@/lib/supabase";
-import { useDateContext } from "@/components/context/DateContext";
+import { useDateContext, useHoveredHour } from "@/components/context/DateContext";
 
 const HOURS_TO_MS = 60 * 60 * 1000;
 
@@ -83,7 +83,8 @@ function buildTrendStops(
 }
 
 const WaveEnergyChart = ({ beachId, hours = 24, date }: Props) => {
-  const { hour: selectedHour } = useDateContext();
+  const { hour: selectedHour, setHoveredHour } = useDateContext();
+  const hoveredHour = useHoveredHour();
   const [series, setSeries] = useState<EnergyPoint[]>([]);
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
   const [nightAreas, setNightAreas] = useState<{ x1: number; x2: number }[]>(
@@ -218,6 +219,27 @@ const WaveEnergyChart = ({ beachId, hours = 24, date }: Props) => {
     () => buildTrendStops(series, "var(--green)", "var(--red)"),
     [series]
   );
+
+  const lastHoveredRef = React.useRef<number | null>(null);
+
+  const handleMouseMove = (e: any) => {
+    if (e && e.activeLabel !== undefined) {
+      const hour = Number(e.activeLabel);
+      if (!isNaN(hour)) {
+        // Only update if the hour changed (throttle updates)
+        if (lastHoveredRef.current !== hour) {
+          lastHoveredRef.current = hour;
+          setHoveredHour(hour);
+        }
+      }
+    }
+  };
+
+  const handleMouseLeave = () => {
+    lastHoveredRef.current = null;
+    setHoveredHour(null);
+  };
+
   return (
     <ChartContainer
       config={chartConfig}
@@ -231,7 +253,8 @@ const WaveEnergyChart = ({ beachId, hours = 24, date }: Props) => {
           right: 15,
           left: -30,
         }}
-        syncId="anyId"
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
       >
         {dayAreas.map((area, idx) => (
           <ReferenceArea
@@ -312,9 +335,19 @@ const WaveEnergyChart = ({ beachId, hours = 24, date }: Props) => {
           // strokeWidth={2}
           strokeDasharray="3 3"
         />
+        {/* Hover indicator line - only show when hovering on any chart */}
+        {hoveredHour !== null && hoveredHour !== selectedHour && (
+          <ReferenceLine
+            x={hoveredHour}
+            stroke="var(--foreground)"
+            strokeWidth={1}
+            strokeOpacity={0.5}
+            strokeDasharray="5 5"
+          />
+        )}
       </AreaChart>
     </ChartContainer>
   );
 };
 
-export default WaveEnergyChart;
+export default React.memo(WaveEnergyChart);
