@@ -36,6 +36,7 @@ import Link from "next/link";
 import { Pencil, TrendingUp, TrendingDown } from "lucide-react";
 import { fetchBeachTides, fetchBeachForecast } from "@/lib/supabase";
 import { getPacificMidnightUTC } from "@/lib/utils";
+import SurfIntensityMarker from "./SurfIntensityMarker";
 
 type Props = {
   beachId: string;
@@ -861,15 +862,18 @@ const DateSummaryBridge: React.FC<Props> = ({
     <>
       {/* Summary header */}
       <section className="mb-8">
-        <h2 className="mb-4 ml-2 text-muted-foreground text-lg">
-          {selected
-            ? selected.toLocaleDateString(undefined, {
-                weekday: "long",
-                month: "long",
-                day: "numeric",
-              })
-            : "Select a day"}
-        </h2>
+        <header className="mb-4 ml-2 flex gap-2 items-center">
+          <SurfIntensityMarker />
+          <h2 className="text-muted-foreground text-lg">
+            {selected
+              ? selected.toLocaleDateString(undefined, {
+                  weekday: "long",
+                  month: "long",
+                  day: "numeric",
+                })
+              : "Select a day"}
+          </h2>
+        </header>
         <Summary beachId={beachId} date={selected ?? undefined} />
         {/* <LazyLoadSummary beachId={beachId} date={selected ?? undefined} /> */}
       </section>
