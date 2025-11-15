@@ -61,11 +61,11 @@ export default function BackButton({
         // Match SaveButton default styling on overview for visual harmony
         "group/button self-center rounded-full bg-highlight-5 backdrop-blur p-2 transition hover:bg-highlight-3",
         // On overview we show icon + label with slightly larger padding
-        "flex items-center gap-2 @min-2xl:px-4 @min-2xl:py-2",
+        "flex items-center gap-1 @min-2xl:px-4 @min-2xl:py-2.5",
         className
       )}
     >
-      <Undo2 className="w-6 h-6 text-foreground" />
+      <Undo2 className="w-6 h-6 text-foreground @min-2xl:-mt-[3px]" />
       <span className="font-medium hidden @min-2xl:inline-block">{label}</span>
     </button>
   );

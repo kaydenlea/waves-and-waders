@@ -124,16 +124,16 @@ const PageTabs = ({
               type="button"
               aria-label="Reopen map"
               className={cn(
-                "bg-highlight-5 hover:bg-highlight-3 my-auto rounded-full py-2 px-4 disabled:opacity-50 disabled:hover:bg-highlight-5 flex gap-2"
+                "bg-highlight-5 hover:bg-highlight-3 rounded-full py-2.5 px-4 disabled:opacity-50 disabled:hover:bg-highlight-5 flex gap-1.5"
               )}
               onClick={() => setShowMap(!showMap)}
             >
               {showMap ? (
                 <ArrowLeftFromLine className="w-6 h-6 @min-sm:w-6 @min-sm:h-6" />
               ) : (
-                <MapPinned className="w-6 h-6 @min-sm:w-6 @min-sm:h-6" />
+                <MapPinned className="w-5 h-5 @min-sm:w-5 @min-sm:h-5" />
               )}
-              <span className="font-medium">Zoom</span>
+              <span className="font-medium text-[15px]">Zoom</span>
             </button>
           )}
           {(forecastPage || overviewPage) && (
@@ -143,13 +143,13 @@ const PageTabs = ({
                   ? `/${beachId}/forecast/edit#forecast-content`
                   : `/${beachId}/overview/edit#overview-content`
               }
-              className="hidden @min-xl:inline-flex bg-highlight-5 hover:bg-highlight-3 my-auto rounded-full p-3 @min-2xl:py-2 @min-2xl:px-4 gap-2"
+              className="hidden @min-xl:inline-flex bg-highlight-5 hover:bg-highlight-3 items-center rounded-full p-3 @min-2xl:py-2.5 @min-2xl:px-4 gap-1.5"
               aria-label={`Edit ${
                 forecastPage ? "forecast" : "overview"
               } dashboard`}
             >
-              <Pencil className="stroke-[2.5px] w-5 h-5 @min-sm:w-5 @min-sm:h-5" />
-              <span className="font-medium hidden @min-2xl:inline-block">
+              <Pencil className="stroke-[2.5px] w-4.5 h-4.5 mb-0.5" />
+              <span className="font-medium hidden @min-2xl:inline-block text-[15px]">
                 Edit
               </span>
             </Link>

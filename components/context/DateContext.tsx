@@ -18,11 +18,14 @@ type Ctx = {
   hoveredHourListeners: React.MutableRefObject<Set<() => void>>;
   subscribeToHover: (callback: () => void) => () => void;
   setHoveredHour: (hour: number | null) => void;
+  showSecondarySwells: boolean;
+  setShowSecondarySwells: React.Dispatch<React.SetStateAction<boolean>>;
 };
 
 const DateContext = React.createContext<Ctx | null>(null);
 
 export function DateProvider({ children }: { children: React.ReactNode }) {
+  const [showSecondarySwells, setShowSecondarySwells] = React.useState(true);
   const id = React.useRef<string>("");
   const [mode, setMode] = React.useState<string>("date");
   const [selected, setSelected] = React.useState<Date | null>(null);
@@ -65,10 +68,12 @@ export function DateProvider({ children }: { children: React.ReactNode }) {
       hoveredHourListeners,
       subscribeToHover,
       setHoveredHour,
+      showSecondarySwells,
+      setShowSecondarySwells,
     }),
     // Only recreate context when these specific values change
     // This prevents unnecessary re-renders in consuming components
-    [mode, selected, hour, selectedDays, surfRange]
+    [mode, selected, hour, selectedDays, surfRange, showSecondarySwells]
   );
   // After mount, set hour to nearest 3-hour bucket to avoid SSR/CSR mismatch
   React.useEffect(() => {

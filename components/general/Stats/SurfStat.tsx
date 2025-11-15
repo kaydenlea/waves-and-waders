@@ -11,9 +11,7 @@ const SurfStat = ({
         {data.height}
         <span className="text-xs font-normal ml-1">ft</span>
       </span>
-      <span className="text-[11px] text-muted-foreground">
-        {data.period}s
-      </span>
+      <span className="text-[13px] text-muted-foreground">{data.period}s</span>
     </div>
   );
 

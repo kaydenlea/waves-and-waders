@@ -122,14 +122,14 @@ const SaveButton = ({
       className={cn(
         baseClass,
         className,
-        overviewPage && "flex gap-2 @min-2xl:px-4 @min-2xl:py-2"
+        overviewPage && "flex gap-1.5 @min-2xl:px-4 @min-2xl:py-2.5"
       )}
       onClick={handleClick}
       disabled={loading}
     >
       <Heart
         className={cn(
-          "w-6 h-6 transition-colors",
+          "w-6 h-6 -mt-[1px] transition-colors",
           heartClass,
           loading && "opacity-60"
         )}

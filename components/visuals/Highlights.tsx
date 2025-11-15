@@ -887,19 +887,28 @@ const MoonStat = ({
   data: string | number;
 }) => {
   const info = getMoonPhaseInfo(data);
+  const MoonImg = () => {
+    return (
+      <span
+        role="img"
+        aria-label={`${info.lines[0]} ${info.lines[1]}`}
+        style={{ fontSize: 26, lineHeight: 1 }}
+      >
+        {getMoonEmoji(info.kind)}
+      </span>
+    );
+  };
   return (
     <HighlightCard label={label}>
       <div className="flex items-center justify-center gap-0.5">
-        <span
-          role="img"
-          aria-label={`${info.lines[0]} ${info.lines[1]}`}
-          style={{ fontSize: 26, lineHeight: 1 }}
-        >
-          {getMoonEmoji(info.kind)}
-        </span>
+        <MoonImg />
         <div className="flex flex-col font-semibold">
-          <span className="text-[0.8rem] -mb-1">{info.lines[0]}</span>
-          <span className="text-[0.8rem]">{info.lines[1]}</span>
+          <span className="@min-3xl:text-[0.7rem] text-[0.8rem] @min-4xl:text-[0.8rem] -mb-1">
+            {info.lines[0]}
+          </span>
+          <span className="@min-3xl:text-[0.7rem] text-[0.8rem] @min-4xl:text-[0.8rem]">
+            {info.lines[1]}
+          </span>
         </div>
       </div>
     </HighlightCard>
@@ -924,8 +933,8 @@ const WindStat = ({
   );
   return (
     <HighlightCard label={label}>
-      <div className="flex gap-1.5 items-center w-full px-2 justify-center">
-        <div className="relative w-8 h-8">
+      <div className="flex items-center w-full px-2 justify-center">
+        <div className="relative w-6.5 @min-4xl:w-9 h-6.5 @min-4xl:h-9 mb-0.5">
           <div
             className="absolute inset-0 rounded-full"
             style={{
@@ -935,7 +944,7 @@ const WindStat = ({
               )} 75% 45%)`} ${valuePct}%, var(--border) ${valuePct}% 100%)`,
             }}
           />
-          <div className="absolute inset-[4px] rounded-full bg-background dark:bg-highlight-4 flex items-center justify-center">
+          <div className="absolute inset-[3px] @min-4xl:inset-[4px] rounded-full bg-background dark:bg-highlight-4 flex items-center justify-center">
             <div className="flex flex-col items-center justify-center leading-none">
               <div
                 style={{
@@ -951,13 +960,13 @@ const WindStat = ({
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-1 whitespace-nowrap min-w-15 justify-center">
-          <span className="text-2xl font-semibold tabular-nums">
+        <div className="flex items-center gap-0.5 whitespace-nowrap min-w-15 justify-center">
+          <span className="text-[21.5px] font-semibold tabular-nums">
             {data.speed}
           </span>
-          <span className="flex flex-col -space-y-1 leading-tight text-left">
-            <span className="text-[0.7rem] font-semibold">{data.max}</span>
-            <span className="text-[0.7rem]">mph</span>
+          <span className="mb-0.5 flex flex-col -space-y-0.5 leading-tight text-left">
+            <span className="text-[0.7rem] font-medium">{data.max}</span>
+            <span className="text-[0.6rem]">mph</span>
           </span>
         </div>
       </div>
@@ -1042,8 +1051,8 @@ const PressureStat = ({
           min={effMin}
           max={effMax}
           unit={data.unit}
-          size={85}
-          thickness={7}
+          size={75}
+          thickness={6}
           focusDeg={14}
         />
       </div>
@@ -1091,9 +1100,11 @@ const TideStat = ({
 const HighlightCard = ({
   children,
   label,
+  statVisual,
 }: {
   children: React.ReactNode;
   label: string;
+  statVisual?: React.ReactNode;
 }) => {
   const iconMap: Record<string, { icon: React.ReactNode; bgColor: string }> = {
     wind: {
@@ -1139,6 +1150,7 @@ const HighlightCard = ({
       <h3 className="absolute top-2 left-2 text-muted-foreground text-[0.7rem] font-medium whitespace-nowrap">
         {label.toUpperCase()}
       </h3>
+      {/* {statVisual && <div className="absolute top-2 right-1">{statVisual}</div>} */}
       {/* <div className="p-0.5 rounded-full bg-highlight-5/50 border border-border/40 absolute -top-3 right-1">
         <div
           className={cn(
@@ -1152,7 +1164,8 @@ const HighlightCard = ({
       <div
         className={cn(
           "w-full px-2",
-          label === "swell" || label === "pressure" ? "mt-3" : "mt-2"
+          label === "swell" || label === "pressure" ? "mt-3" : "mt-2",
+          label === "pressure" && "mb-1.5"
         )}
       >
         {children}
@@ -1589,7 +1602,7 @@ const Highlights = ({
               <li
                 key={stat.label}
                 className={cn(
-                  "relative highlight-card shadow-even min-h-22",
+                  "relative highlight-card shadow-even min-h-22 @min-3xl:min-h-20 @min-4xl:min-h-22",
                   isFull && "@min-4xl:min-h-25",
                   stat.label === "swell" &&
                     "col-span-1 @min-md:col-span-2 @min-2xl:col-span-1",

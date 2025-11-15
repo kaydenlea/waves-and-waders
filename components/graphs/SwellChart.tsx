@@ -48,7 +48,10 @@ import {
   fetchDailyConditions,
   getWindDirection,
 } from "@/lib/supabase";
-import { useDateContext, useHoveredHour } from "@/components/context/DateContext";
+import {
+  useDateContext,
+  useHoveredHour,
+} from "@/components/context/DateContext";
 
 type Props = { beachId?: string; hours?: number; date?: Date };
 type Row = {
@@ -319,7 +322,7 @@ const SwellChart = ({ beachId, hours = 24, date }: Props) => {
   return (
     <ChartContainer
       config={chartConfig}
-      className="aspect-auto h-[250px] @min-3xl:h-[285px] w-full"
+      className="aspect-auto h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px] w-full mb-3"
     >
       <AreaChart
         accessibilityLayer

@@ -26,7 +26,10 @@ import {
   fetchBeachDetails,
   fetchDailyConditions,
 } from "@/lib/supabase";
-import { useDateContext, useHoveredHour } from "@/components/context/DateContext";
+import {
+  useDateContext,
+  useHoveredHour,
+} from "@/components/context/DateContext";
 
 const HOURS_TO_MS = 60 * 60 * 1000;
 
@@ -473,7 +476,7 @@ const TideChart: React.FC<TideChartProps> = ({
 
   return (
     <ChartContainer
-      className="aspect-auto h-[250px] @min-3xl:h-[285px] w-full [&_.recharts-legend-wrapper]:hidden"
+      className="aspect-auto h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px] w-full [&_.recharts-legend-wrapper]:hidden mb-3"
       config={chartConfig}
     >
       <LineChart
@@ -500,7 +503,9 @@ const TideChart: React.FC<TideChartProps> = ({
           x={hoveredHour ?? 0}
           stroke="var(--foreground)"
           strokeWidth={1}
-          strokeOpacity={hoveredHour !== null && hoveredHour !== selectedHour ? 0.5 : 0}
+          strokeOpacity={
+            hoveredHour !== null && hoveredHour !== selectedHour ? 0.5 : 0
+          }
           strokeDasharray="5 5"
         />
         {dayAreas.map((area, idx) => (

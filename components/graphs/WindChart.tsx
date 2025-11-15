@@ -33,7 +33,10 @@ import {
   fetchDailyConditions,
   getWindDirection,
 } from "@/lib/supabase";
-import { useDateContext, useHoveredHour } from "@/components/context/DateContext";
+import {
+  useDateContext,
+  useHoveredHour,
+} from "@/components/context/DateContext";
 
 type Props = { beachId?: string; hours?: number; date?: Date };
 const chartConfig = {
@@ -160,10 +163,10 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
   // Function to get color based on wind speed intensity
   const getWindColor = (value: number): string => {
     // Define thresholds and colors (light to dark blue)
-    if (value >= 20) return "#1e40af"; // Very dark blue for 20+ mph
-    if (value >= 15) return "#3b82f6"; // Dark blue for 15-20 mph
-    if (value >= 10) return "#60a5fa"; // Medium blue for 10-15 mph
-    return "#93c5fd"; // Light blue for < 10 mph
+    if (value >= 20) return "#74b0ffff"; // Very dark blue for 20+ mph
+    if (value >= 15) return "#86bbffff"; // Dark blue for 15-20 mph
+    if (value >= 10) return "#9ccaffff"; // Medium blue for 10-15 mph
+    return "#b8d9ffff"; // Light blue for < 10 mph
   };
 
   useEffect(() => {
@@ -411,7 +414,7 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
     <ChartContainer
       ref={chartRef}
       config={chartConfig}
-      className="aspect-auto h-[250px] @min-3xl:h-[285px] w-full"
+      className="aspect-auto h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px] w-full mb-3"
     >
       <BarChart
         margin={{ top: 10, right: 15, left: -30, bottom: 0 }}
@@ -537,7 +540,9 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
           x={hoveredHour ?? 0}
           stroke="var(--foreground)"
           strokeWidth={1}
-          strokeOpacity={hoveredHour !== null && hoveredHour !== selectedHour ? 0.5 : 0}
+          strokeOpacity={
+            hoveredHour !== null && hoveredHour !== selectedHour ? 0.5 : 0
+          }
           strokeDasharray="5 5"
         />
         <Bar

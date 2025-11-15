@@ -33,7 +33,10 @@ import {
   fetchDailyConditions,
 } from "@/lib/supabase";
 import { cn, getPacificHour } from "@/lib/utils";
-import { useDateContext, useHoveredHour } from "@/components/context/DateContext";
+import {
+  useDateContext,
+  useHoveredHour,
+} from "@/components/context/DateContext";
 import { useForecastChartContext } from "@/components/context/ForecastChartContext";
 
 const chartConfig = {
@@ -69,10 +72,10 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
   // Function to get color based on surf height intensity
   const getSurfColor = (value: number): string => {
     // Define thresholds and colors (light to dark blue)
-    if (value >= 5) return "#1e40af"; // Very dark blue for 5+ ft
-    if (value >= 3) return "#3b82f6"; // Dark blue for 3-5 ft
-    if (value >= 1.5) return "#60a5fa"; // Medium blue for 1.5-3 ft
-    return "#93c5fd"; // Light blue for < 1.5 ft
+    if (value >= 5) return "#74b0ffff"; // Very dark blue for 5+ ft
+    if (value >= 3) return "#86bbffff"; // Dark blue for 3-5 ft
+    if (value >= 1.5) return "#9ccaffff"; // Medium blue for 1.5-3 ft
+    return "#b8d9ffff"; // Light blue for < 1.5 ft
   };
 
   // Scrollable state
@@ -421,7 +424,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
             // Calculate estimate from heightMin and heightMax (same as SurfChart)
             const heightMin = r.surf.heightMin ?? null;
             const heightMax = r.surf.heightMax ?? null;
-            
+
             let estimate = 0;
             if (heightMin !== null && heightMax !== null) {
               estimate = (heightMin + heightMax) / 2;
@@ -623,21 +626,24 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
   const lastHoveredRef = React.useRef<number | null>(null);
   const rafIdRef = React.useRef<number | null>(null);
 
-  const handleMouseMove = useCallback((e: any) => {
-    if (e && e.activeLabel !== undefined) {
-      const hour = Number(e.activeLabel);
-      if (!isNaN(hour) && lastHoveredRef.current !== hour) {
-        if (rafIdRef.current !== null) {
-          cancelAnimationFrame(rafIdRef.current);
+  const handleMouseMove = useCallback(
+    (e: any) => {
+      if (e && e.activeLabel !== undefined) {
+        const hour = Number(e.activeLabel);
+        if (!isNaN(hour) && lastHoveredRef.current !== hour) {
+          if (rafIdRef.current !== null) {
+            cancelAnimationFrame(rafIdRef.current);
+          }
+          rafIdRef.current = requestAnimationFrame(() => {
+            lastHoveredRef.current = hour;
+            setHoveredHour(hour);
+            rafIdRef.current = null;
+          });
         }
-        rafIdRef.current = requestAnimationFrame(() => {
-          lastHoveredRef.current = hour;
-          setHoveredHour(hour);
-          rafIdRef.current = null;
-        });
       }
-    }
-  }, [setHoveredHour]);
+    },
+    [setHoveredHour]
+  );
 
   const handleMouseLeave = useCallback(() => {
     if (rafIdRef.current !== null) {
@@ -841,9 +847,15 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                   (dataMax: number) => Math.max(4, Math.ceil(dataMax + 2)),
                 ]}
               />
-              <ChartTooltip 
-                content={<ChartTooltipContent />} 
-                cursor={{ fill: 'transparent', stroke: 'var(--foreground)', strokeWidth: 1, strokeDasharray: '3 3', strokeOpacity: 0.5 }} 
+              <ChartTooltip
+                content={<ChartTooltipContent />}
+                cursor={{
+                  fill: "transparent",
+                  stroke: "var(--foreground)",
+                  strokeWidth: 1,
+                  strokeDasharray: "3 3",
+                  strokeOpacity: 0.5,
+                }}
                 animationDuration={0}
               />
               {/* Selected hour marker */}
@@ -882,19 +894,34 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                 x={hoveredHour ?? 0}
                 stroke="var(--foreground)"
                 strokeWidth={1}
-                strokeOpacity={hoveredHour !== null && (() => {
-                  try {
-                    const base = days && days.length > 0 ? days[0] : null;
-                    if (!base || !selectedDate) return true;
-                    const baseMid = new Date(base.getFullYear(), base.getMonth(), base.getDate()).getTime();
-                    const selMid = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate()).getTime();
-                    const dayDelta = Math.floor((selMid - baseMid) / (24 * 3600 * 1000));
-                    const selectedX = dayDelta * 24 + (selectedHour ?? 0);
-                    return hoveredHour !== selectedX;
-                  } catch {
-                    return true;
-                  }
-                })() ? 0.5 : 0}
+                strokeOpacity={
+                  hoveredHour !== null &&
+                  (() => {
+                    try {
+                      const base = days && days.length > 0 ? days[0] : null;
+                      if (!base || !selectedDate) return true;
+                      const baseMid = new Date(
+                        base.getFullYear(),
+                        base.getMonth(),
+                        base.getDate()
+                      ).getTime();
+                      const selMid = new Date(
+                        selectedDate.getFullYear(),
+                        selectedDate.getMonth(),
+                        selectedDate.getDate()
+                      ).getTime();
+                      const dayDelta = Math.floor(
+                        (selMid - baseMid) / (24 * 3600 * 1000)
+                      );
+                      const selectedX = dayDelta * 24 + (selectedHour ?? 0);
+                      return hoveredHour !== selectedX;
+                    } catch {
+                      return true;
+                    }
+                  })()
+                    ? 0.5
+                    : 0
+                }
                 strokeDasharray="5 5"
               />
               <Bar
@@ -923,7 +950,8 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                         : "";
 
                     // Get color based on surf value
-                    const surfValue = typeof props.value === "number" ? props.value : 0;
+                    const surfValue =
+                      typeof props.value === "number" ? props.value : 0;
                     const barColor = getSurfColor(surfValue);
 
                     if (label) {

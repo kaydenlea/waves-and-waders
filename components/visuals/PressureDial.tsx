@@ -12,7 +12,8 @@ type Props = {
   focusDeg?: number;
 };
 
-const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
+const clamp = (n: number, lo: number, hi: number) =>
+  Math.max(lo, Math.min(hi, n));
 
 export default function PressureDial({
   value,
@@ -81,13 +82,33 @@ export default function PressureDial({
   const ax = center + r * Math.cos(toRad(angle));
   const ay = center + r * Math.sin(toRad(angle));
   const labelRadius = r - thickness * 0.5 - 6;
-  const labelY = center + Math.max(10, thickness * 0.7);
+  const labelY = center + Math.max(10, thickness * 0.7) + 1;
 
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="text-foreground -mb-7" aria-hidden>
-      <path d={baseD} stroke="currentColor" opacity={0.15} strokeWidth={thickness} fill="none" strokeLinecap="round" />
+    <svg
+      width={size}
+      height={size}
+      viewBox={`0 0 ${size} ${size}`}
+      className="text-foreground -mb-7"
+      aria-hidden
+    >
+      <path
+        d={baseD}
+        stroke="currentColor"
+        opacity={0.15}
+        strokeWidth={thickness}
+        fill="none"
+        strokeLinecap="round"
+      />
       {ticks}
-      <path d={needleD} stroke="currentColor" opacity={0.9} strokeWidth={thickness} fill="none" strokeLinecap="round" />
+      <path
+        d={needleD}
+        stroke="currentColor"
+        opacity={0.9}
+        strokeWidth={thickness}
+        fill="none"
+        strokeLinecap="round"
+      />
       {(() => {
         const ri = r - thickness;
         const ro = r + thickness * 0.6;
@@ -95,22 +116,62 @@ export default function PressureDial({
         const yr1 = center + ri * Math.sin(toRad(angle));
         const xr2 = center + ro * Math.cos(toRad(angle));
         const yr2 = center + ro * Math.sin(toRad(angle));
-        return <line x1={xr1} y1={yr1} x2={xr2} y2={yr2} stroke="currentColor" opacity={0.8} strokeWidth={3} strokeLinecap="round" />;
+        return (
+          <line
+            x1={xr1}
+            y1={yr1}
+            x2={xr2}
+            y2={yr2}
+            stroke="currentColor"
+            opacity={0.8}
+            strokeWidth={3}
+            strokeLinecap="round"
+          />
+        );
       })()}
       <circle cx={ax} cy={ay} r={3.2} fill="currentColor" />
-      <text x={center} y={center - 12} textAnchor="middle" dominantBaseline="middle" fill="currentColor" fontSize="16" fontWeight="600">
+      <text
+        x={center}
+        y={center - 8}
+        textAnchor="middle"
+        dominantBaseline="middle"
+        fill="currentColor"
+        fontSize="16"
+        fontWeight="600"
+      >
         {Math.round(value * 100) / 100}
       </text>
-      <text x={center} y={center + 2} textAnchor="middle" dominantBaseline="middle" fill="currentColor" fontSize="11" opacity={0.7}>
+      <text
+        x={center}
+        y={center + 6}
+        textAnchor="middle"
+        dominantBaseline="middle"
+        fill="currentColor"
+        fontSize="11"
+        opacity={0.7}
+      >
         {unit}
       </text>
-      <text x={center - labelRadius} y={labelY} textAnchor="middle" fontSize="9" fill="currentColor" opacity={0.6}>
+      <text
+        x={center - labelRadius - 4}
+        y={labelY}
+        textAnchor="middle"
+        fontSize="9"
+        fill="currentColor"
+        opacity={0.6}
+      >
         lo
       </text>
-      <text x={center + labelRadius} y={labelY} textAnchor="middle" fontSize="9" fill="currentColor" opacity={0.6}>
+      <text
+        x={center + labelRadius + 4}
+        y={labelY}
+        textAnchor="middle"
+        fontSize="9"
+        fill="currentColor"
+        opacity={0.6}
+      >
         hi
       </text>
     </svg>
   );
 }
-

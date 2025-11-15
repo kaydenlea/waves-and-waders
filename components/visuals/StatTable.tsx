@@ -29,7 +29,10 @@ import { usePathname } from "next/navigation";
 import { useClientPath } from "../context/PathContext";
 
 // Simple cache for forecast data to avoid refetching
-const forecastCache = new Map<string, { data: ForecastData[]; timestamp: number }>();
+const forecastCache = new Map<
+  string,
+  { data: ForecastData[]; timestamp: number }
+>();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 const SwellStat = ({
@@ -55,7 +58,7 @@ const SwellStat = ({
   return (
     <div
       className={cn(
-        "flex-1 flex items-center justify-center space-x-2 rounded-sm p-1 h-10",
+        "mx-auto max-w-75 flex-1 flex items-center justify-center space-x-2 rounded-sm p-1 h-10",
         primary ? "bg-highlight-1" : "bg-highlight-2"
       )}
     >
@@ -130,7 +133,19 @@ const WindStat = ({
   const windLevel = getWindLevel(data.speed, data.max);
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-1 justify-center">
+      <span
+        className={cn(
+          "flex-1 max-w-30 justify-center flex gap-[3px] rounded-md py-1.5 px-3",
+          windLevel
+        )}
+      >
+        <span className="text-lg font-semibold">{data.speed}</span>
+        <span className="hidden @min-[310px]:flex flex flex-col -space-y-1">
+          <span className="text-[0.7rem] font-medium">{data.max}</span>
+          <span className="hidden @min-sm:block text-[0.6rem]">mph</span>
+        </span>
+      </span>
       <div className="shadow-sm border border-border p-1 rounded-md text-center min-w-10 flex flex-col items-center justify-center">
         <div
           style={{
@@ -143,28 +158,20 @@ const WindStat = ({
             className="fill-foreground/20 text-foreground/50"
           />
         </div>
-        <span className="text-[.6rem] mt-0.5">{data.dir}</span>
+        <span className="text-[.6rem] mt-0.5 font-semibold">{data.dir}</span>
       </div>
-      <span
-        className={cn(
-          "flex-1 justify-center flex gap-1 rounded-md py-2 px-3",
-          windLevel
-        )}
-      >
-        <span className="text-lg font-medium">{data.speed}</span>
-        <span className="hidden @min-[310px]:flex flex flex-col -space-y-1">
-          <span className="text-[0.6rem]">{data.max}</span>
-          <span className="hidden @min-sm:block text-[0.7rem]">mph</span>
-        </span>
-      </span>
     </div>
   );
 };
 
 const WeatherStat = ({
   data,
+  level,
+  water,
 }: {
-  data: { condition?: string; temp: number; code?: number | null };
+  data?: { condition?: string; temp: number; code?: number | null };
+  water?: number;
+  level?: string;
 }) => {
   // Function to get weather icon based on WMO code
   const getWeatherIcon = (code: number | null) => {
@@ -200,10 +207,15 @@ const WeatherStat = ({
   };
 
   return (
-    <div className="w-full flex justify-center items-center gap-0.5">
-      {getWeatherIcon(data.code ?? null)}
+    <div
+      className={cn(
+        "max-w-25 mx-auto w-full flex justify-center items-center gap-0.5 rounded-sm p-1.5 @min-md:p-3 h-10",
+        level
+      )}
+    >
+      {!water && getWeatherIcon(data?.code ?? null)}
       <span className="inline-flex items-start">
-        <span className="text-base font-medium">{data.temp}</span>
+        <span className="text-base font-semibold">{water ?? data?.temp}</span>
         <span className="text-xs ml-0.5">&deg;F</span>
       </span>
     </div>
@@ -222,12 +234,12 @@ const GeneralStat = ({
   return (
     <span
       className={cn(
-        "text-base font-medium flex justify-center items-center text-center gap-1 whitespace-nowrap rounded-sm p-1.5 @min-md:p-3 h-10",
+        "mx-auto max-w-25 text-base font-semibold flex justify-center items-center text-center gap-1 whitespace-nowrap rounded-sm p-1.5 @min-md:p-3 h-10",
         level
       )}
     >
       {val}
-      <span className="text-xs hidden sm:inline">{unit}</span>
+      <span className="text-xs hidden sm:inline font-normal">{unit}</span>
     </span>
   );
 };
@@ -287,18 +299,26 @@ const StatTable = ({
   date?: Date;
 }) => {
   const [data, setData] = React.useState<TableDay[]>([]);
-  const { selectedDays, hour: selectedHour, selected } = useDateContext();
+  const {
+    selectedDays,
+    hour: selectedHour,
+    selected,
+    showSecondarySwells,
+  } = useDateContext();
   const pathname = usePathname();
   const { selectedTab } = useClientPath();
   const forecastPage = selectedTab === "forecast";
-  
+
   // Extract requestedDate at component level so it's accessible throughout
-  const requestedDate = React.useMemo(() => isValidDate(date) ? date : undefined, [date]);
-  
+  const requestedDate = React.useMemo(
+    () => (isValidDate(date) ? date : undefined),
+    [date]
+  );
+
   // Memoize date range calculation to prevent unnecessary recalculations
   const dateRange = React.useMemo(() => {
     if (!beachId) return null;
-    
+
     const anchor = requestedDate ?? new Date();
     const anchorStart = getPacificMidnightUTC(anchor);
     const bufferBefore = requestedDate ? 1 : 0;
@@ -323,10 +343,10 @@ const StatTable = ({
               bufferAfter * DAY_MS
           )
         : new Date(anchorStart.getTime() + daysToFetch * DAY_MS);
-    
+
     return { rangeStart, rangeEnd };
   }, [beachId, requestedDate, selectedDays, forecastPage, numDays]);
-  
+
   React.useEffect(() => {
     let cancelled = false;
 
@@ -335,26 +355,26 @@ const StatTable = ({
         if (!beachId || !dateRange) return;
         const resolved = await fetchBeachByIdLoose(beachId);
         const resolvedId = resolved?.id ?? beachId;
-        
+
         const { rangeStart, rangeEnd } = dateRange;
-        
+
         // Check cache first
         const cacheKey = `${resolvedId}:${rangeStart.getTime()}:${rangeEnd.getTime()}`;
         const cached = forecastCache.get(cacheKey);
         const now = Date.now();
-        
+
         let weekly: ForecastData[];
-        if (cached && (now - cached.timestamp) < CACHE_DURATION) {
+        if (cached && now - cached.timestamp < CACHE_DURATION) {
           console.log(`📦 StatTable using cached forecast for ${resolvedId}`);
           weekly = cached.data;
         } else {
           // Fetch fresh data
           const { fetchBeachForecast } = await import("@/lib/supabase");
           weekly = await fetchBeachForecast(resolvedId, rangeStart, rangeEnd);
-          
+
           // Update cache
           forecastCache.set(cacheKey, { data: weekly, timestamp: now });
-          
+
           // Clean up old cache entries
           if (forecastCache.size > 10) {
             const keys = Array.from(forecastCache.keys());
@@ -362,7 +382,7 @@ const StatTable = ({
           }
           console.log(`🌊 StatTable fetched fresh forecast for ${resolvedId}`);
         }
-        
+
         if (cancelled) return;
 
         // Group by date using Pacific timezone (matches chart processing)
@@ -668,8 +688,6 @@ const StatTable = ({
   }, [dateRange, beachId, numDays, numHours]);
   // Note: Removed selectedDays from deps since it's now in dateRange memo
 
-  const [showSecondarySwells, setShowSecondarySwells] = React.useState(true);
-
   const COLUMNS = [
     { id: "surf", label: "Surf" },
     { id: "wind", label: "Wind" },
@@ -714,35 +732,59 @@ const StatTable = ({
       // Use filtered columns instead of COLUMNS
       const cols = filteredColumns;
       if (widthNow < 550) {
-        setVisibleCols(3);
-        newPages = [
-          [cols[0], cols[2], cols[1]],
-          cols.slice(3, 5),
-          cols.slice(5, cols.length),
-        ];
+        if (showSecondarySwells) {
+          setVisibleCols(3);
+          newPages = [
+            [cols[0], cols[2], cols[1]],
+            cols.slice(3, 5),
+            cols.slice(5, cols.length),
+          ];
+        } else {
+          setVisibleCols(3);
+          newPages = [[cols[0], cols[2], cols[1]], cols.slice(3, cols.length)];
+        }
       } else if (widthNow < 800) {
-        setVisibleCols(5);
-        newPages = [
-          [cols[0], cols[2], cols[5], cols[6], cols[1]],
-          [cols[3], cols[4], cols[7], cols[8]].filter(Boolean),
-        ];
+        if (showSecondarySwells) {
+          setVisibleCols(5);
+          newPages = [
+            [cols[0], cols[2], cols[5], cols[6], cols[1]],
+            [cols[3], cols[4], cols[7], cols[8]].filter(Boolean),
+          ];
+        } else {
+          setVisibleCols(3);
+          newPages = [[cols[0], cols[2], cols[1]], cols.slice(3, cols.length)];
+        }
       } else if (widthNow < 1100) {
-        setVisibleCols(4);
-        newPages = [
-          [cols[0], cols[2], cols[3], cols[4], cols[1]].filter(Boolean),
-          cols.slice(5, cols.length),
-        ];
+        if (showSecondarySwells) {
+          setVisibleCols(4);
+          newPages = [
+            [cols[0], cols[2], cols[3], cols[4], cols[1]].filter(Boolean),
+            cols.slice(5, cols.length),
+          ];
+        } else {
+          setVisibleCols(7);
+          newPages = [
+            [cols[0], cols[2], cols[3], cols[4], cols[5], cols[6], cols[1]],
+          ];
+        }
       } else {
-        setVisibleCols(6);
-        const firstPage = [
-          cols[0],
-          cols[2],
-          cols[3],
-          cols[4],
-          cols[1],
-        ].filter(Boolean);
-        const secondPage = cols.slice(5, cols.length);
-        newPages = [firstPage.concat(secondPage)];
+        if (showSecondarySwells) {
+          setVisibleCols(6);
+          const firstPage = [
+            cols[0],
+            cols[2],
+            cols[3],
+            cols[4],
+            cols[1],
+          ].filter(Boolean);
+          const secondPage = cols.slice(5, cols.length);
+          newPages = [firstPage.concat(secondPage)];
+        } else {
+          setVisibleCols(7);
+          newPages = [
+            [cols[0], cols[2], cols[3], cols[4], cols[5], cols[6], cols[1]],
+          ];
+        }
       }
       setColumnPages((prev) => {
         const prevJson = JSON.stringify(prev);
@@ -940,7 +982,7 @@ const StatTable = ({
   return (
     <div
       ref={tableRef}
-      className="relative"
+      className="relative mx-0 @min-md:mx-2 @min-2xl:mx-4"
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
@@ -958,7 +1000,7 @@ const StatTable = ({
       }}
     >
       {/* Toggle button for secondary/tertiary swells */}
-      <div className="flex justify-end mb-2">
+      {/* <div className="flex justify-end mb-2">
         <Button
           variant="outline"
           size="sm"
@@ -977,7 +1019,7 @@ const StatTable = ({
             </>
           )}
         </Button>
-      </div>
+      </div> */}
       {dockMode === "fixed" && fixedPos && (
         <div
           ref={pagerRef}
@@ -1070,7 +1112,7 @@ const StatTable = ({
                     key={`${i}-${entry.index}`}
                     className={cn(
                       rowIdx !== day.vals.length - 1 &&
-                        "border-b border-border/40",
+                        "border-b border-border/20",
                       isSelectedHour && "bg-blue-100 dark:bg-blue-900/30"
                     )}
                   >
@@ -1108,7 +1150,12 @@ const StatTable = ({
                           content = <WindStat data={entry.wind} />;
                           break;
                         case "Weather":
-                          content = <WeatherStat data={entry.weather} />;
+                          content = (
+                            <WeatherStat
+                              data={entry.weather}
+                              level="bg-highlight-2"
+                            />
+                          );
                           break;
                         case "Surf":
                           content = (
@@ -1151,14 +1198,10 @@ const StatTable = ({
                           break;
                         case "Water":
                           content = (
-                            <div className="w-full flex justify-center items-center gap-0.5">
-                              <span className="inline-flex items-start">
-                                <span className="text-base font-medium">
-                                  {entry.water.temp}
-                                </span>
-                                <span className="text-xs ml-0.5">&deg;F</span>
-                              </span>
-                            </div>
+                            <WeatherStat
+                              water={entry.water.temp}
+                              level="bg-highlight-2"
+                            />
                           );
                           break;
                         case "Energy":
@@ -1177,7 +1220,7 @@ const StatTable = ({
                           className={cn(
                             "px-1",
                             colIdx !== visibleColumns.length - 1 &&
-                              "border-r border-border/40"
+                              "border-r border-border/20"
                           )}
                         >
                           {content}

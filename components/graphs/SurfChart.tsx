@@ -28,7 +28,10 @@ import {
   fetchBeachDetails,
   fetchDailyConditions,
 } from "@/lib/supabase";
-import { useDateContext, useHoveredHour } from "@/components/context/DateContext";
+import {
+  useDateContext,
+  useHoveredHour,
+} from "@/components/context/DateContext";
 
 type Props = { beachId?: string; hours?: number; date?: Date };
 type Row = {
@@ -151,10 +154,10 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
   // Function to get color based on surf height intensity
   const getSurfColor = (value: number): string => {
     // Define thresholds and colors (light to dark blue)
-    if (value >= 5) return "#1e40af"; // Very dark blue for 5+ ft
-    if (value >= 3) return "#3b82f6"; // Dark blue for 3-5 ft
-    if (value >= 1.5) return "#60a5fa"; // Medium blue for 1.5-3 ft
-    return "#93c5fd"; // Light blue for < 1.5 ft
+    if (value >= 5) return "#74b0ffff"; // Very dark blue for 5+ ft
+    if (value >= 3) return "#86bbffff"; // Dark blue for 3-5 ft
+    if (value >= 1.5) return "#9ccaffff"; // Medium blue for 1.5-3 ft
+    return "#b8d9ffff"; // Light blue for < 1.5 ft
   };
 
   useEffect(() => {
@@ -446,7 +449,7 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
     <ChartContainer
       ref={chartRef}
       config={chartConfig}
-      className="aspect-auto h-[250px] @min-3xl:h-[285px] w-full !justify-start"
+      className="aspect-auto h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px] w-full !justify-start mb-3"
     >
       <BarChart
         margin={{
@@ -553,7 +556,9 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
           x={hoveredHour ?? 0}
           stroke="var(--foreground)"
           strokeWidth={1}
-          strokeOpacity={hoveredHour !== null && hoveredHour !== selectedHour ? 0.5 : 0}
+          strokeOpacity={
+            hoveredHour !== null && hoveredHour !== selectedHour ? 0.5 : 0
+          }
           strokeDasharray="5 5"
         />
         <Bar

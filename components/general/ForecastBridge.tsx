@@ -249,7 +249,7 @@ const ForecastBridge: React.FC<Props> = ({
           );
         case "tide":
           return (
-            <VisualWrapper label="Tide" extraPadding>
+            <VisualWrapper label="Tide" extraPadding unit="ft">
               <LazyLoadForecastTide
                 beachId={beachId}
                 date={selectedDays?.[0] ?? undefined}
@@ -259,7 +259,7 @@ const ForecastBridge: React.FC<Props> = ({
           );
         case "surf":
           return (
-            <VisualWrapper extraPadding label="Surf">
+            <VisualWrapper extraPadding label="Surf" unit="ft">
               <LazyLoadForecastSurf beachId={beachId} days={selectedDays} />
             </VisualWrapper>
           );
@@ -282,7 +282,7 @@ const ForecastBridge: React.FC<Props> = ({
           );
         case "energy":
           return (
-            <VisualWrapper extraPadding label="Wave Energy">
+            <VisualWrapper extraPadding label="Energy" unit="kJ">
               <LazyLoadForecastWaveEnergy
                 beachId={beachId}
                 days={selectedDays}
@@ -291,7 +291,7 @@ const ForecastBridge: React.FC<Props> = ({
           );
         case "table":
           return (
-            <VisualWrapper label="Hourly Stats" unit="12 hrs">
+            <VisualWrapper label="Daily" unit="12 hrs">
               <LazyLoadTable
                 beachId={beachId}
                 numHours={3}
@@ -303,7 +303,7 @@ const ForecastBridge: React.FC<Props> = ({
           );
         case "swell":
           return (
-            <VisualWrapper extraPadding label="Swell">
+            <VisualWrapper extraPadding label="Swell" unit="ft">
               <LazyLoadForecastSwell beachId={beachId} days={selectedDays} />
             </VisualWrapper>
           );
