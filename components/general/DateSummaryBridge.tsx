@@ -862,7 +862,7 @@ const DateSummaryBridge: React.FC<Props> = ({
     <>
       {/* Summary header */}
       <section className="mb-8">
-        <header className="mb-4 ml-2 flex gap-2 items-center">
+        <header className="mb-4 ml-3 flex gap-2 items-center">
           <SurfIntensityMarker />
           <h2 className="text-muted-foreground text-lg">
             {selected

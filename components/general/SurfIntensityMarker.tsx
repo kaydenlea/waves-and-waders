@@ -14,7 +14,7 @@ const SurfIntensityMarker = () => {
       : surfIntensity >= 3
       ? "bg-orange-400"
       : "bg-green-400";
-  return <div className={cn("rounded-full w-4.5 h-4.5", color)} />;
+  return <div className={cn("rounded-full w-4 h-4", color)} />;
 };
 
 export default SurfIntensityMarker;
