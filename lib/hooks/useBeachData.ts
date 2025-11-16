@@ -231,7 +231,45 @@ export function useSwellDirections(
 
     const windDirection = baseRow?.conditions?.windDirection ?? null;
 
-    return { swellDirections, windDirection };
+    // Provide overlay label values (strings) for use on rings
+    const fmtHeight = (n: number | null | undefined, precision: number) =>
+      n == null ? null : `${Number(n).toFixed(precision)} ft`;
+    const fmtPeriod = (n: number | null | undefined) =>
+      n == null ? null : `${Math.round(Number(n))} s`;
+    const fmtWind = (n: number | null | undefined) =>
+      n == null ? null : `${Math.round(Number(n))} mph`;
+
+    const joinParts = (parts: Array<string | null | undefined>) =>
+      parts.filter(Boolean).join(" · ");
+
+    const primaryLabelParts: Array<string | null> = [];
+    const h1 = fmtHeight(baseRow?.swell?.primary?.height ?? null, 1);
+    const p1 = fmtPeriod(baseRow?.swell?.primary?.period ?? null);
+    if (h1) primaryLabelParts.push(h1);
+    if (p1) primaryLabelParts.push(p1);
+
+    const secondaryLabelParts: Array<string | null> = [];
+    const h2 = fmtHeight(baseRow?.swell?.secondary?.height ?? null, 1);
+    const p2 = fmtPeriod(baseRow?.swell?.secondary?.period ?? null);
+    if (h2) secondaryLabelParts.push(h2);
+    if (p2) secondaryLabelParts.push(p2);
+
+    const tertiaryLabelParts: Array<string | null> = [];
+    const h3 = fmtHeight(baseRow?.swell?.tertiary?.height ?? null, 1);
+    const p3 = fmtPeriod(baseRow?.swell?.tertiary?.period ?? null);
+    if (h3) tertiaryLabelParts.push(h3);
+    if (p3) tertiaryLabelParts.push(p3);
+
+    const windLabel = fmtWind(baseRow?.conditions?.windSpeed ?? null);
+
+    const overlayLabels = {
+      primary: joinParts(primaryLabelParts) || null,
+      secondary: joinParts(secondaryLabelParts) || null,
+      tertiary: joinParts(tertiaryLabelParts) || null,
+      wind: windLabel ?? null,
+    };
+
+    return { swellDirections, windDirection, overlayLabels };
   }, [forecast, selectedHour, selectedDate]);
 
   return result;

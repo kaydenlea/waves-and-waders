@@ -21,7 +21,10 @@ import {
   generateBeachUrl,
   extractBeachId,
 } from "@/lib/supabase";
-import { useSwellDirections, usePrefetchAdjacentDates } from "@/lib/hooks/useBeachData";
+import {
+  useSwellDirections,
+  usePrefetchAdjacentDates,
+} from "@/lib/hooks/useBeachData";
 const DEFAULT_MAP_STYLE =
   "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
 const MAP_STYLE_URL =
@@ -34,6 +37,7 @@ import {
   ChevronUp,
   ChevronDown,
   Waves,
+  Wind,
   SlidersHorizontal,
   Info,
   Map as MapIcon,
@@ -79,9 +83,15 @@ export const SwellRings: React.FC<{
     secondary: number | null | undefined;
     tertiary: number | null | undefined;
   };
+  labels?: {
+    primary?: string | null;
+    secondary?: string | null;
+    tertiary?: string | null;
+  };
   scale?: number;
   className?: string;
-}> = ({ directions, scale = 1, className = "" }) => {
+  variant?: "full" | "preview";
+}> = ({ directions, labels, scale = 1, className = "", variant = "full" }) => {
   const size = 160 * scale;
   const center = size / 2;
   const rings: Array<{
@@ -89,32 +99,101 @@ export const SwellRings: React.FC<{
     radius: number;
     color: string;
   }> = [
-    { key: "primary", radius: 36 * scale, color: "#2563eb" },
-    { key: "secondary", radius: 56 * scale, color: "#16a34a" },
-    { key: "tertiary", radius: 76 * scale, color: "#f97316" },
+    // Slightly spaced-out radii to reduce cross-ring arrow overlap
+    { key: "primary", radius: 40 * scale, color: "#1d4ed8" }, // deep blue
+    { key: "secondary", radius: 64 * scale, color: "#0ea5e9" }, // sky
+    { key: "tertiary", radius: 88 * scale, color: "#22d3ee" }, // cyan
   ];
 
   const renderArrow = (
     direction: number,
     radius: number,
-    color: string
+    color: string,
+    kind?: "primary" | "secondary" | "tertiary"
   ): React.ReactNode => {
     const normalized = ((direction % 360) + 360) % 360;
-    const arrowLength = 14 * scale;
-    const arrowWidth = 12 * scale;
+    const isPreview = variant === "preview";
+    // Pointer-like, softly-rounded arrowhead sized to fit icon snugly
+    const headLen = (isPreview ? 14 : 20) * scale;
+    const arrowWidth = (isPreview ? 12 : 18) * scale;
+    const tipY = -headLen * 0.64;
+    const baseY = headLen * 0.48;
+    const shoulderY = headLen * 0.16;
+    const connectorLen = 1.5 * scale;
+    const badgeRadius = 7 * scale;
+    // Place badge to the side so it stays out of adjacent rings
+    const badgeOffsetX = arrowWidth * 0.62;
+    const badgeCy = baseY - headLen * 0.04;
     return (
       <g
         key={`${color}-${radius}`}
         transform={`rotate(${normalized} ${center} ${center})`}
       >
         <g transform={`translate(${center} ${center - radius})`}>
-          <polygon
-            points={`0 ${-arrowLength / 2} ${-arrowWidth / 2} ${
-              arrowLength / 2
-            } ${arrowWidth / 2} ${arrowLength / 2}`}
+          {/* Head: pointer-like arrow with gentle rounding */}
+          <path
+            d={`M 0 ${tipY}
+                L ${arrowWidth / 2} ${shoulderY}
+                L ${arrowWidth * 0.38} ${baseY}
+                Q 0 ${baseY + headLen * 0.1} ${-arrowWidth * 0.38} ${baseY}
+                L ${-arrowWidth / 2} ${shoulderY} Z`}
             fill={color}
-            opacity={0.9}
+            opacity={0.95}
+            stroke={color}
+            strokeWidth={(isPreview ? 1 : 1.4) * scale}
+            strokeLinejoin="round"
           />
+          {/* Swell icon rotates with arrow; badge stays upright (hidden in preview) */}
+          {kind &&
+            !isPreview &&
+            (() => {
+              const iconSize = Math.min(arrowWidth * 0.75, headLen * 0.75);
+              const iconCenterY = (tipY + baseY) / 2 + headLen * 0.08;
+              const num =
+                kind === "primary" ? "1" : kind === "secondary" ? "2" : "3";
+              return (
+                <>
+                  <Waves
+                    color="#ffffff"
+                    strokeWidth={2.2 * scale}
+                    width={iconSize}
+                    height={iconSize}
+                    x={-iconSize / 2}
+                    y={iconCenterY - iconSize / 2 + 4}
+                  />
+                  {/* <line
+                    x1={0}
+                    y1={baseY}
+                    x2={badgeOffsetX * 0.82}
+                    y2={badgeCy - badgeRadius * 0.65}
+                    stroke="#ffffff"
+                    strokeWidth={2 * scale}
+                    strokeLinecap="round"
+                    opacity={0.8}
+                  /> */}
+                  <circle
+                    cx={badgeOffsetX}
+                    cy={badgeCy}
+                    r={badgeRadius}
+                    fill="#ffffff"
+                    stroke="#cacacaff"
+                    opacity={0.98}
+                  />
+                  <text
+                    x={badgeOffsetX}
+                    y={badgeCy}
+                    transform={`rotate(${-normalized} ${badgeOffsetX} ${badgeCy})`}
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    fontSize={8.6 * scale}
+                    fontWeight={900}
+                    fill={color}
+                  >
+                    {num}
+                  </text>
+                </>
+              );
+            })()}
         </g>
       </g>
     );
@@ -128,22 +207,86 @@ export const SwellRings: React.FC<{
       viewBox={`0 0 ${size} ${size}`}
       aria-hidden="true"
     >
+      {/* Path defs for curved labels around rings (cw and ccw for flipping) */}
+      <defs>
+        {rings.map(({ key, radius }) => (
+          <g key={`ring-defs-${key}`}>
+            <path
+              id={`ring-path-${key}`}
+              d={`M ${center - radius},${center} a ${radius},${radius} 0 1,1 ${
+                2 * radius
+              },0 a ${radius},${radius} 0 1,1 ${-2 * radius},0`}
+            />
+            <path
+              id={`ring-path-${key}-rev`}
+              d={`M ${center - radius},${center} a ${radius},${radius} 0 1,0 ${
+                2 * radius
+              },0 a ${radius},${radius} 0 1,0 ${-2 * radius},0`}
+            />
+          </g>
+        ))}
+      </defs>
       {rings.map(({ key, radius, color }) => {
         const dir = directions[key];
         // Default to 0 (North) if direction is null/undefined
         const direction = typeof dir === "number" && !isNaN(dir) ? dir : 0;
+        // Curved label: compute startOffset along ring path and optionally flip side
+        const needsFlip = direction > 90 && direction < 270;
+        const circ = 2 * Math.PI * radius;
+        const baseAngle = (direction + 90) % 360;
+        // Spacing from arrowhead and additional offset when flipped (keep label away from arrow)
+        const delta = 45 * scale;
+        const extra = needsFlip ? -100 * scale : 0;
+        const baseOffset = (baseAngle / 360) * circ + delta + extra; // desired center of label/gap
+        const useRev = needsFlip;
+        const centerOffset = useRev ? circ - baseOffset : baseOffset;
+        const labelText = labels?.[key] ?? null;
+        // Build path commands for ring (normal and reversed)
+        const pathD = `M ${
+          center - radius
+        },${center} a ${radius},${radius} 0 1,1 ${
+          2 * radius
+        },0 a ${radius},${radius} 0 1,1 ${-2 * radius},0`;
+        const pathDRev = `M ${
+          center - radius
+        },${center} a ${radius},${radius} 0 1,0 ${
+          2 * radius
+        },0 a ${radius},${radius} 0 1,0 ${-2 * radius},0`;
+        // Estimate gap length and apply stroke-dasharray to remove ring segment under label
+        const fontSize = 11 * scale;
+        const estimate = (t: string | null | undefined) =>
+          (t?.length ?? 0) * fontSize * 0.48;
+        const labelLen = labelText ? estimate(labelText) : 0;
+        // Slightly larger gap pad so text breathes inside the removed segment
+        const gapLen = labelText ? labelLen + 12 * scale : 0;
+        const dashLen = Math.max(0, circ - gapLen);
+        const labelStart = ((centerOffset - labelLen / 2 + circ) % circ) + 10;
+        const gapStart = ((centerOffset - gapLen / 2 + circ) % circ) + 10;
         return (
           <g key={key}>
-            <circle
-              cx={center}
-              cy={center}
-              r={radius}
+            <path
+              d={useRev ? pathDRev : pathD}
               fill="none"
               stroke={color}
               strokeWidth={4 * scale}
               strokeOpacity={0.35}
+              strokeDasharray={labelText ? `${dashLen} ${gapLen}` : undefined}
+              strokeDashoffset={
+                labelText ? (dashLen - gapStart + circ) % circ : undefined
+              }
             />
-            {renderArrow(direction, radius, color)}
+            {renderArrow(direction, radius, color, key)}
+            {labelText && (
+              <text fill={color} fontSize={11 * scale} fontWeight={800}>
+                <textPath
+                  href={`#ring-path-${key}${useRev ? "-rev" : ""}`}
+                  startOffset={labelStart}
+                  dy={3 * scale}
+                >
+                  {labelText}
+                </textPath>
+              </text>
+            )}
           </g>
         );
       })}
@@ -153,35 +296,67 @@ export const SwellRings: React.FC<{
 
 export const WindRing: React.FC<{
   direction: number | null | undefined;
+  label?: string | null;
   scale?: number;
   className?: string;
-}> = ({ direction, scale = 1, className = "" }) => {
+  variant?: "full" | "preview";
+}> = ({ direction, label, scale = 1, className = "", variant = "full" }) => {
   const size = 160 * scale;
   const center = size / 2;
-  const radius = 96 * scale;
+  // Slightly larger wind ring radius to increase spacing from swell rings
+  const radius = 108 * scale;
   const color = "#a855f7"; // purple-500
 
   const renderArrow = (dir: number): React.ReactNode => {
     const normalized = ((dir % 360) + 360) % 360;
-    const arrowLength = 14 * scale;
-    const arrowWidth = 12 * scale;
+    const isPreview = variant === "preview";
+    // Arrowhead centered on ring; no shaft
+    const headLen = (isPreview ? 14 : 20) * scale;
+    const arrowWidth = (isPreview ? 12 : 18) * scale;
+    const tipY = -headLen * 0.64;
+    const baseY = headLen * 0.48;
+    const shoulderY = headLen * 0.16;
     return (
       <g transform={`rotate(${normalized} ${center} ${center})`}>
         <g transform={`translate(${center} ${center - radius})`}>
-          <polygon
-            points={`0 ${-arrowLength / 2} ${-arrowWidth / 2} ${
-              arrowLength / 2
-            } ${arrowWidth / 2} ${arrowLength / 2}`}
+          {/* Head: compact arrowhead */}
+          <path
+            d={`M 0 ${tipY}
+                L ${arrowWidth / 2} ${shoulderY}
+                L ${arrowWidth * 0.38} ${baseY}
+                Q 0 ${baseY + headLen * 0.1} ${-arrowWidth * 0.38} ${baseY}
+                L ${-arrowWidth / 2} ${shoulderY} Z`}
             fill={color}
-            opacity={0.9}
+            opacity={0.95}
+            stroke={color}
+            strokeWidth={(isPreview ? 1 : 1.4) * scale}
+            strokeLinejoin="round"
           />
+          {/* No shaft */}
+          {/* Wind icon follows arrow rotation */}
+          {!isPreview &&
+            (() => {
+              const iconSize = Math.min(arrowWidth * 0.75, headLen * 0.75);
+              const iconCenterY = (tipY + baseY) / 2 + headLen * 0.05;
+              return (
+                <Wind
+                  color="#ffffff"
+                  strokeWidth={2.2 * scale}
+                  width={iconSize}
+                  height={iconSize}
+                  x={-iconSize / 2}
+                  y={iconCenterY - iconSize / 2 + 4}
+                />
+              );
+            })()}
         </g>
       </g>
     );
   };
 
   // Default to 0 (North) if direction is null/undefined
-  const finalDirection = typeof direction === "number" && !isNaN(direction) ? direction : 0;
+  const finalDirection =
+    typeof direction === "number" && !isNaN(direction) ? direction : 0;
 
   return (
     <svg
@@ -191,16 +366,91 @@ export const WindRing: React.FC<{
       viewBox={`0 0 ${size} ${size}`}
       aria-hidden="true"
     >
-      <circle
-        cx={center}
-        cy={center}
-        r={radius}
-        fill="none"
-        stroke={color}
-        strokeWidth={4 * scale}
-        strokeOpacity={0.35}
-      />
+      {/* Path defs for curved label on wind ring (cw and ccw) */}
+      <defs>
+        <path
+          id="wind-ring-path"
+          d={`M ${center - radius},${center} a ${radius},${radius} 0 1,1 ${
+            2 * radius
+          },0 a ${radius},${radius} 0 1,1 ${-2 * radius},0`}
+        />
+        <path
+          id="wind-ring-path-rev"
+          d={`M ${center - radius},${center} a ${radius},${radius} 0 1,0 ${
+            2 * radius
+          },0 a ${radius},${radius} 0 1,0 ${-2 * radius},0`}
+        />
+      </defs>
+      {(() => {
+        const circ = 2 * Math.PI * radius;
+        const pathD = `M ${
+          center - radius
+        },${center} a ${radius},${radius} 0 1,1 ${
+          2 * radius
+        },0 a ${radius},${radius} 0 1,1 ${-2 * radius},0`;
+        const pathDRev = `M ${
+          center - radius
+        },${center} a ${radius},${radius} 0 1,0 ${
+          2 * radius
+        },0 a ${radius},${radius} 0 1,0 ${-2 * radius},0`;
+        const needsFlip = finalDirection > 90 && finalDirection < 270;
+        const baseAngle = (finalDirection + 90) % 360;
+        // Match swell logic for consistent spacing and placement
+        const delta = 45 * scale;
+        const extra = needsFlip ? -90 * scale : 0;
+        const baseOffset = (baseAngle / 360) * circ + delta + extra; // desired center
+        const centerOffset = needsFlip ? circ - baseOffset : baseOffset;
+        const labelText = label ?? null;
+        const estimate = (t: string | null) =>
+          (t?.length ?? 0) * (11 * scale) * 0.55;
+        const labelLen = labelText ? estimate(labelText) : 0;
+        const gapLen = labelText ? labelLen + 25 * scale : 0;
+        const dashLen = Math.max(0, circ - gapLen);
+        const gapStart = (centerOffset - gapLen / 2 + circ) % circ;
+        return (
+          <path
+            d={needsFlip ? pathDRev : pathD}
+            fill="none"
+            stroke={color}
+            strokeWidth={4 * scale}
+            strokeOpacity={0.35}
+            strokeDasharray={labelText ? `${dashLen} ${gapLen}` : undefined}
+            strokeDashoffset={
+              labelText ? (dashLen - gapStart + circ) % circ : undefined
+            }
+          />
+        );
+      })()}
       {renderArrow(finalDirection)}
+      {label && (
+        <text fill={color} fontSize={11 * scale} fontWeight={800}>
+          <textPath
+            href={`#${
+              finalDirection > 90 && finalDirection < 270
+                ? "wind-ring-path-rev"
+                : "wind-ring-path"
+            }`}
+            startOffset={(() => {
+              const circ = 2 * Math.PI * radius;
+              const needsFlip = finalDirection > 90 && finalDirection < 270;
+              const baseAngle = (finalDirection + 90) % 360;
+              // Match swell logic for text start offset as well
+              const delta = 40 * scale;
+              const extra = needsFlip ? -80 * scale : 0;
+              const baseOffset = (baseAngle / 360) * circ + delta + extra; // desired center
+              const centerOffset = needsFlip ? circ - baseOffset : baseOffset;
+              const estimate = (t: string | null) =>
+                (t?.length ?? 0) * (11 * scale) * 0.55;
+              const labelLen = label ? estimate(label) : 0;
+              const labelStart = (centerOffset - labelLen / 2 + circ) % circ;
+              return labelStart;
+            })()}
+            dy={3 * scale}
+          >
+            {label}
+          </textPath>
+        </text>
+      )}
     </svg>
   );
 };
@@ -475,8 +725,12 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
             console.log("Sample beach:", json.data[0]);
 
             // Check how many beaches have grid_id
-            const beachesWithGridId = json.data.filter((b: any) => b.grid_id != null).length;
-            console.log(`Beaches with grid_id: ${beachesWithGridId} / ${json.data.length}`);
+            const beachesWithGridId = json.data.filter(
+              (b: any) => b.grid_id != null
+            ).length;
+            console.log(
+              `Beaches with grid_id: ${beachesWithGridId} / ${json.data.length}`
+            );
           }
           setBeaches(json.data as BeachPoint[]);
         } else {
@@ -524,7 +778,10 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
       try {
         if (mapInstance.getSource("beaches")) {
           mapInstance.setFeatureState(
-            { source: "beaches", id: (mapInstance as any).__lastClusterHoverId },
+            {
+              source: "beaches",
+              id: (mapInstance as any).__lastClusterHoverId,
+            },
             { hover: false }
           );
         }
@@ -662,7 +919,9 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
     let cancelled = false;
 
     // Helper to fetch and cache surf intensity for a specific date
-    const fetchSurfIntensityForDate = async (date: Date): Promise<Record<string | number, number>> => {
+    const fetchSurfIntensityForDate = async (
+      date: Date
+    ): Promise<Record<string | number, number>> => {
       const dateStr = date.toISOString().split("T")[0];
 
       // Check cache first
@@ -685,7 +944,11 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
         if (json?.success && json.data) {
           // Cache the result
           surfIntensityCacheRef.current[dateStr] = json.data;
-          console.log(`✅ Loaded and cached surf intensity for ${dateStr} (${Object.keys(json.data).length} beaches)`);
+          console.log(
+            `✅ Loaded and cached surf intensity for ${dateStr} (${
+              Object.keys(json.data).length
+            } beaches)`
+          );
           return json.data;
         }
 
@@ -714,13 +977,15 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
       }
 
       // Preload in background without blocking
-      Promise.all(preloadDates.map(date => fetchSurfIntensityForDate(date)))
+      Promise.all(preloadDates.map((date) => fetchSurfIntensityForDate(date)))
         .then(() => {
           if (!cancelled) {
-            console.log(`📦 Preloaded surf intensity for ${preloadDates.length} adjacent dates`);
+            console.log(
+              ` Preloaded surf intensity for ${preloadDates.length} adjacent dates`
+            );
           }
         })
-        .catch(err => console.warn("Preload error:", err));
+        .catch((err) => console.warn("Preload error:", err));
     };
 
     loadSurfIntensity();
@@ -734,6 +999,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
   const {
     swellDirections: fetchedSwellDirections,
     windDirection: fetchedWindDirection,
+    overlayLabels,
   } = useSwellDirections(
     selected ? String(selected.id) : null,
     selectedDate,
@@ -815,15 +1081,23 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
 
   const beachesGeoJSON = React.useMemo(() => {
     console.log("=== Building GeoJSON ===");
-    console.log("surfIntensity object has", Object.keys(surfIntensity).length, "entries");
+    console.log(
+      "surfIntensity object has",
+      Object.keys(surfIntensity).length,
+      "entries"
+    );
     console.log("filteredBeaches has", filteredBeaches.length, "beaches");
 
     // Sample the first few beach IDs and check if they have intensity
     const firstFiveBeaches = filteredBeaches.slice(0, 5);
     console.log("First 5 beach IDs and their intensities:");
-    firstFiveBeaches.forEach(b => {
+    firstFiveBeaches.forEach((b) => {
       const intensity = surfIntensity[b.id];
-      console.log(`  Beach ${b.id}: ${intensity !== undefined ? intensity : 'undefined (will use 0)'}`);
+      console.log(
+        `  Beach ${b.id}: ${
+          intensity !== undefined ? intensity : "undefined (will use 0)"
+        }`
+      );
     });
 
     const features = filteredBeaches.map((b, idx) => {
@@ -856,10 +1130,14 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
 
     // Debug: Count features by intensity range
     const intensityCounts = {
-      noData: features.filter(f => f.properties.surfIntensity === 0).length,
-      small: features.filter(f => f.properties.surfIntensity > 0 && f.properties.surfIntensity < 3).length,
-      moderate: features.filter(f => f.properties.surfIntensity >= 3 && f.properties.surfIntensity < 6).length,
-      big: features.filter(f => f.properties.surfIntensity >= 6).length,
+      noData: features.filter((f) => f.properties.surfIntensity === 0).length,
+      small: features.filter(
+        (f) => f.properties.surfIntensity > 0 && f.properties.surfIntensity < 3
+      ).length,
+      moderate: features.filter(
+        (f) => f.properties.surfIntensity >= 3 && f.properties.surfIntensity < 6
+      ).length,
+      big: features.filter((f) => f.properties.surfIntensity >= 6).length,
     };
     console.log("Surf intensity distribution:", intensityCounts);
 
@@ -1369,7 +1647,10 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
               if (map.getSource("beaches")) {
                 if (mapLastHoverInternalIdRef.current != null) {
                   map.setFeatureState(
-                    { source: "beaches", id: mapLastHoverInternalIdRef.current },
+                    {
+                      source: "beaches",
+                      id: mapLastHoverInternalIdRef.current,
+                    },
                     { hover: false }
                   );
                   mapLastHoverInternalIdRef.current = null;
@@ -1664,7 +1945,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
                 // use the raw point_count (exact) and convert to string to avoid layout/abbrev races
                 "text-field": ["to-string", ["get", "point_count"]],
                 "text-size": 12,
-                // critical â€” allow overlap & ignore placement so the label renders immediately
+                // critical — allow overlap & ignore placement so the label renders immediately
                 "text-allow-overlap": true,
                 "text-ignore-placement": true,
                 // optionally specify a bold system font or style available in your style
@@ -1753,8 +2034,15 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
             const ringSize = 160 * scale;
             const outerRadius =
               (typeof windDirection === "number" ? 96 : 76) * scale;
-            const labelDistance = outerRadius + 18 * scale;
+            // Integrate compass labels inside the overlay near the center
+            const labelDistance = 125 * scale;
             const centerOffset = ringSize / 2;
+            const blurOuter = outerRadius;
+            const markerHole = 12 * scale;
+            const haloPadding = Math.max(blurOuter - ringSize / 2, 0);
+            const blurMask = `radial-gradient(circle ${blurOuter}px at center, transparent 0, transparent ${markerHole}px, black ${
+              markerHole + 2 * scale
+            }px, black ${blurOuter}px, transparent ${blurOuter + 1}px)`;
             const cardinalLabels = [
               {
                 id: "N" as const,
@@ -1797,7 +2085,12 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
                 anchor="center"
               >
                 <div className="pointer-events-none relative flex flex-col items-center justify-center overflow-visible">
-                  <div className="absolute -top-22 bg-background rounded-lg border border-border px-3 py-1.5 shadow-lg whitespace-nowrap z-10">
+                  <div
+                    className={cn(
+                      "absolute bg-background rounded-lg border border-border px-3 py-1.5 shadow-lg whitespace-nowrap z-10",
+                      openPanel === "legend" ? "-top-25" : "-top-19"
+                    )}
+                  >
                     <span className="text-sm font-semibold text-foreground antialiased">
                       {selected.name}
                     </span>
@@ -1806,12 +2099,47 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
                     className="relative flex items-center justify-center"
                     style={{ width: ringSize, height: ringSize }}
                   >
+                    <div
+                      className="pointer-events-none absolute rounded-full bg-white/15 shadow-[0_8px_28px_rgba(0,0,0,0.08)] border border-border/40"
+                      aria-hidden="true"
+                      style={{
+                        top: -haloPadding,
+                        left: -haloPadding,
+                        right: -haloPadding,
+                        bottom: -haloPadding,
+                        backdropFilter: "blur(1px)",
+                        WebkitBackdropFilter: "blur(1px)",
+                        maskImage: blurMask,
+                        WebkitMaskImage: blurMask,
+                      }}
+                    />
+                    <div
+                      className="pointer-events-none absolute rounded-full border border-border/45"
+                      aria-hidden="true"
+                      style={{
+                        top: -haloPadding * 0.6,
+                        left: -haloPadding * 0.6,
+                        right: -haloPadding * 0.6,
+                        bottom: -haloPadding * 0.6,
+                      }}
+                    />
+                    {/* Compass ring removed; integrated labels sit closer to wind ring */}
+                    <div
+                      className="pointer-events-none absolute inset-0"
+                      aria-hidden="true"
+                    >
+                      <div className="absolute left-1/2 top-0 h-6 w-[1px] -translate-x-1/2 bg-border/35" />
+                      <div className="absolute left-1/2 bottom-0 h-6 w-[1px] -translate-x-1/2 bg-border/35" />
+                      <div className="absolute top-1/2 left-0 w-6 h-[1px] -translate-y-1/2 bg-border/35" />
+                      <div className="absolute top-1/2 right-0 w-6 h-[1px] -translate-y-1/2 bg-border/35" />
+                    </div>
+                    {/* Basemap place label mask removed to avoid covering marker */}
                     {openPanel === "legend" && (
                       <div className="pointer-events-none absolute inset-0">
                         {cardinalLabels.map(({ id, style }) => (
                           <span
                             key={id}
-                            className="absolute rounded-sm px-1.5 py-[1px] text-[11px] font-extrabold uppercase tracking-wide text-slate-800 dark:text-slate-100 bg-white/85 dark:bg-slate-900/80 shadow-even select-none"
+                            className="absolute rounded-md w-6 px-1 py-[1px] text-center text-[10px] font-black uppercase tracking-[0.12em] text-slate-900 dark:text-slate-100 bg-white/90 dark:bg-slate-900/85 border border-border/50 shadow-sm select-none"
                             style={style}
                           >
                             {id}
@@ -1825,11 +2153,17 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
                         secondary: swellDirections.secondary,
                         tertiary: swellDirections.tertiary,
                       }}
+                      labels={{
+                        primary: overlayLabels?.primary ?? null,
+                        secondary: overlayLabels?.secondary ?? null,
+                        tertiary: overlayLabels?.tertiary ?? null,
+                      }}
                       scale={scale}
                       className="absolute inset-0"
                     />
                     <WindRing
                       direction={windDirection}
+                      label={overlayLabels?.wind ?? null}
                       scale={scale}
                       className="absolute inset-0"
                     />
@@ -2275,7 +2609,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
             </motion.div>
           )}
         </AnimatePresence> */}
-        {/* FILTER PANEL â€” slides from bottom */}
+        {/* FILTER PANEL — slides from bottom */}
 
         {/* {(showMap || smallScreen) &&
           selected &&

@@ -920,7 +920,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
                 radius={4}
                 stroke="#5f5f5fff"
                 strokeWidth={0.5}
-                minPointSize={10}
+                minPointSize={15}
                 isAnimationActive={false}
               >
                 <LabelList

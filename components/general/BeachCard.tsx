@@ -226,13 +226,15 @@ const BeachCard = ({
                   secondary: b.current.swell.secondary.direction,
                   tertiary: b.current.swell.tertiary.direction,
                 }}
-                scale={0.55}
+                scale={0.5}
+                variant="preview"
               />
             </div>
             <div className="absolute inset-0 flex items-center justify-center">
               <WindRing
                 direction={b.current.conditions.windDirection}
-                scale={0.55}
+                scale={0.5}
+                variant="preview"
               />
             </div>
           </>
