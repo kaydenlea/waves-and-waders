@@ -2033,7 +2033,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
             const scale = zoom >= 14 ? 1 : zoom / 14;
             const ringSize = 160 * scale;
             const outerRadius =
-              (typeof windDirection === "number" ? 96 : 76) * scale;
+              (typeof windDirection === "number" ? 110 : 76) * scale;
             // Integrate compass labels inside the overlay near the center
             const labelDistance = 125 * scale;
             const centerOffset = ringSize / 2;
@@ -2139,7 +2139,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
                         {cardinalLabels.map(({ id, style }) => (
                           <span
                             key={id}
-                            className="absolute rounded-md w-6 px-1 py-[1px] text-center text-[10px] font-black uppercase tracking-[0.12em] text-slate-900 dark:text-slate-100 bg-white/90 dark:bg-slate-900/85 border border-border/50 shadow-sm select-none"
+                            className="absolute rounded-md px-1.5 py-[1px] text-[11px] font-black uppercase text-slate-900 dark:text-slate-100 bg-white/90 dark:bg-slate-900/85 border border-border select-none"
                             style={style}
                           >
                             {id}
@@ -2478,15 +2478,15 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
                     </span>
                     <div className="mt-1.5 flex flex-col gap-1 text-[11px] text-foreground">
                       <div className="flex items-center gap-2">
-                        <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#2563eb]" />
+                        <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#1d4ed8]" />
                         <span>Primary swell</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#16a34a]" />
+                        <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#0ea5e9]" />
                         <span>Secondary swell</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#f97316]" />
+                        <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#22d3ee]" />
                         <span>Tertiary swell</span>
                       </div>
                       <div className="flex items-center gap-2">

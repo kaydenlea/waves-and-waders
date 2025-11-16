@@ -188,15 +188,15 @@ const BeachCard = ({
             </span>
             <div className="mt-1.5 flex flex-col gap-1 text-[11px] text-foreground">
               <div className="flex items-center gap-2">
-                <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#2563eb]" />
+                <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#1d4ed8]" />
                 <span>Primary swell</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#16a34a]" />
+                <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#0ea5e9]" />
                 <span>Secondary swell</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#f97316]" />
+                <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#22d3ee]" />
                 <span>Tertiary swell</span>
               </div>
               <div className="flex items-center gap-2">

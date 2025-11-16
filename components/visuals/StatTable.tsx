@@ -1043,7 +1043,7 @@ const StatTable = ({
           <div
             ref={pagerRef}
             className={cn(
-              "absolute left-1/2 transform -translate-x-1/2 -bottom-1 z-20 flex items-center gap-2 pointer-events-auto",
+              "absolute left-1/2 transform -translate-x-1/2 bottom-1 z-20 flex items-center gap-2 pointer-events-auto",
               "bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/70",
               "border border-border/60 rounded-full px-2 py-1 shadow-md"
             )}
@@ -1059,7 +1059,7 @@ const StatTable = ({
           fadeIn ? "opacity-100" : "opacity-0"
         )}
       >
-        <table className="w-full table-auto border-collapse text-sm">
+        <table className="w-full table-auto border-separate text-sm">
           <thead>
             <tr>
               <th className="sticky left-0 z-1 bg-highlight-4" />
@@ -1113,7 +1113,8 @@ const StatTable = ({
                     className={cn(
                       rowIdx !== day.vals.length - 1 &&
                         "border-b border-border/20",
-                      isSelectedHour && "bg-blue-100 dark:bg-blue-900/30"
+                      isSelectedHour &&
+                        "ring-1 ring-muted-foreground/80 rounded-sm"
                     )}
                   >
                     <th
@@ -1250,7 +1251,7 @@ const StatTable = ({
         </table>
       </div>
       {/* Reserve space for pager to avoid layout jump and coverage */}
-      {columnPages.length > 1 && <div aria-hidden className="h-10" />}
+      {columnPages.length > 1 && <div aria-hidden className="h-12" />}
     </div>
   );
 };
