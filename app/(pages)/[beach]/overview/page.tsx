@@ -40,8 +40,7 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
   const beachName = resolved.Name;
 
   const supabase = await getServerSupabase();
-  const { data: userData, error: userError } =
-    await supabase.auth.getUser();
+  const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError) {
     console.error("Failed to load user", userError);
   }
@@ -63,7 +62,7 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
       <NavBar />
       <main
         id="main-content"
-        className="bg-background-2 min-h-[calc(100vh-4rem)] @min-4xl:flex @min-4xl:flex-1 @min-4xl:mt-[5.5rem] @min-4xl:pb-4 @min-4xl:pr-3"
+        className="bg-background-2 min-h-[calc(100vh-4rem)] @min-4xl:flex @min-4xl:flex-1 @min-4xl:mt-[5.5rem] @min-4xl:pb-4"
       >
         <LazyLoadMap />
         <PathStyleWrapper>

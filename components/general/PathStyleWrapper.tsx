@@ -3,6 +3,7 @@
 import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
 import { useMemo } from "react";
+import { useMapFilters } from "../context/MapFilterContext";
 
 export default function PathStyleWrapper({
   children,
@@ -10,6 +11,7 @@ export default function PathStyleWrapper({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const { showMap } = useMapFilters();
   const beachPage = pathname.endsWith("/beaches");
   const editPage = pathname.endsWith("/edit");
 
@@ -28,7 +30,8 @@ export default function PathStyleWrapper({
         className={cn(
           "relative touch-pan-y w-full px-2 relative @min-4xl:pt-4 z-1 bg-background border-t border-x border-border/70 @min-4xl:border-none mx-auto",
           cls,
-          !editPage ? "rounded-t-4xl @min-4xl:rounded-t-none pt-10" : "pt-10"
+          !editPage ? "rounded-t-4xl @min-4xl:rounded-t-none pt-10" : "pt-10",
+          showMap && "@min-4xl:pr-3"
         )}
       >
         {!editPage && (

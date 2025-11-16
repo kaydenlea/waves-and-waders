@@ -902,7 +902,7 @@ const DateSummaryBridge: React.FC<Props> = ({
                 selectedTab === "forecast" ? "forecast" : "overview"
               } dashboard`}
             >
-              <Pencil className="stroke-[2.5px] w-4.5 h-4.5 mb-0.5" />
+              <Pencil className="stroke-[2.5px] w-4.5 h-4.5 @min-sm:mb-0.5" />
               <span className="font-medium hidden @min-sm:inline-block text-[15px]">
                 Edit
               </span>

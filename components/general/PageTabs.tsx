@@ -148,7 +148,7 @@ const PageTabs = ({
                 forecastPage ? "forecast" : "overview"
               } dashboard`}
             >
-              <Pencil className="stroke-[2.5px] w-4.5 h-4.5 mb-0.5" />
+              <Pencil className="stroke-[2.5px] w-4.5 h-4.5 @min-2xl:mb-0.5" />
               <span className="font-medium hidden @min-2xl:inline-block text-[15px]">
                 Edit
               </span>

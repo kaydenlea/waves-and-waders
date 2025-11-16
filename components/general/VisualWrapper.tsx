@@ -13,6 +13,7 @@ import {
   MapPin,
   EyeOff,
   Eye,
+  ChartNoAxesCombined,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { useDateContext } from "../context/DateContext";
@@ -38,9 +39,9 @@ const iconMap: Record<string, { icon: React.ReactNode; bgColor: string }> = {
     icon: <MoonStar size={16} className="text-purple-600" />,
     bgColor: "bg-purple-100",
   },
-  "hourly stats": {
-    icon: <CircleGauge size={16} className="text-orange-800" />,
-    bgColor: "bg-orange-100",
+  daily: {
+    icon: <ChartNoAxesCombined size={16} className="text-green-600" />,
+    bgColor: "bg-green-50",
   },
   swell: {
     icon: <Shell size={16} className="text-blue-900" />,
@@ -50,7 +51,7 @@ const iconMap: Record<string, { icon: React.ReactNode; bgColor: string }> = {
     icon: <Waves size={16} className="text-blue-500" />,
     bgColor: "bg-blue-100",
   },
-  "wave energy": {
+  energy: {
     icon: <Atom size={16} className="text-red-400" />,
     bgColor: "bg-red-100",
   },

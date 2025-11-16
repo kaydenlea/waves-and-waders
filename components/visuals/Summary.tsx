@@ -1147,14 +1147,14 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
                         }-${i}`}
                         className="flex items-center justify-between flex-shrink-0 gap-1 @container"
                       >
-                        <span className="text-sm font-medium hidden @min-[145px]:flex">
-                          {peak.kind === "high" ? "High" : "Low"}
-                        </span>
-                        <span className="font-medium text-xs @min-[125px]:text-sm @min-[130px]:text-sm @min-[145px]:hidden">
-                          {peak.kind === "high" ? "Hi" : "Lo"}
-                        </span>
-                        <span className="text-muted-foreground text-xs @min-[125px]:text-sm @min-[130px]:text-sm text-right flex justify-between min-w-21 @min-[125px]:min-w-24 @min-[130px]:min-w-25">
-                          <span className="">
+                        <div className="flex gap-2">
+                          <span className="text-sm font-medium hidden @min-[145px]:flex min-w-8.5">
+                            {peak.kind === "high" ? "High" : "Low"}
+                          </span>
+                          <span className="font-medium text-xs @min-[125px]:text-sm @min-[130px]:text-sm @min-[145px]:hidden min-w-4">
+                            {peak.kind === "high" ? "Hi" : "Lo"}
+                          </span>
+                          <span className="text-xs @min-[125px]:text-sm @min-[130px]:text-sm">
                             {peak.time
                               ? `${peak.time.toLocaleTimeString([], {
                                   hour: "numeric",
@@ -1162,14 +1162,14 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
                                 })}`
                               : "--:--"}
                           </span>
-                          <span className="font-semibold">
-                            {peak.level != null ? peak.level : "--"}
-                            {peak.level != null && (
-                              <span className="ml-0.5 text-[10px] font-light">
-                                ft
-                              </span>
-                            )}
-                          </span>
+                        </div>
+                        <span className="text-muted-foreground flex items-baseline font-semibold text-xs @min-[125px]:text-sm @min-[130px]:text-sm">
+                          {peak.level != null ? peak.level : "--"}
+                          {peak.level != null && (
+                            <span className="ml-0.5 text-[10px] font-light">
+                              ft
+                            </span>
+                          )}
                         </span>
                       </div>
                     ))
