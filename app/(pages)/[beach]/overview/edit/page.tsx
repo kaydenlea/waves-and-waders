@@ -9,7 +9,7 @@ import type { Metadata } from "next";
 import { CircleCheck } from "lucide-react";
 import { use } from "react";
 import PathStyleWrapper from "@/components/general/PathStyleWrapper";
-import { useClientPath } from "@/components/context/PathContext";
+import { useRouter } from "next/navigation";
 
 // export const metadata: Metadata = {
 //   title: "Surf Daily Forecast | Waves and Waders",
@@ -19,17 +19,10 @@ import { useClientPath } from "@/components/context/PathContext";
 
 const Page = ({ params }: { params: Promise<{ beach: string }> }) => {
   const { beach } = use(params);
-  const { setSelectedTab } = useClientPath();
+  const router = useRouter();
 
   const handleConfirm = () => {
-    // Extract beach ID from the URL parameter
-    const beachId = beach.split("--").pop() || beach;
-
-    // Dispatch the map refocus event
-    const event = new CustomEvent(MAP_FOCUS_EVENT, {
-      detail: { beachId, scroll: true },
-    });
-    window.dispatchEvent(event);
+    router.push(`/${beach}/overview#overview-content`);
   };
   return (
     <PathStyleWrapper>
@@ -45,17 +38,13 @@ const Page = ({ params }: { params: Promise<{ beach: string }> }) => {
                 Customize your dashboard
               </p>
             </div>
-            <Link
-              href={`/${beach}/overview#overview-content`}
-              onClick={() => {
-                setSelectedTab("overview");
-              }}
-              // onClick={handleConfirm}
+            <button
+              onClick={handleConfirm}
               className="flex justify-center text-sm gap-1 h-10 px-3 items-center border border-border bg-highlight-4 rounded-full drop-shadow-sm hover:bg-highlight-3"
             >
               <CircleCheck size={20} />
               Confirm
-            </Link>
+            </button>
           </header>
           <LazyLoadDashboard />
         </section>

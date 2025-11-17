@@ -593,28 +593,34 @@ function buildTrendStops(
 
   // Hover sync handlers
   const lastHoveredRef = React.useRef<number | null>(null);
-  const rafIdRef = React.useRef<number | null>(null);
+  const throttleTimerRef = React.useRef<number | null>(null);
 
   const handleMouseMove = React.useCallback((e: any) => {
     if (e && e.activeLabel !== undefined) {
       const hour = Number(e.activeLabel);
-      if (!isNaN(hour) && lastHoveredRef.current !== hour) {
-        if (rafIdRef.current !== null) {
-          cancelAnimationFrame(rafIdRef.current);
+      if (!isNaN(hour)) {
+        // Round to nearest 3-hour increment
+        const roundedHour = Math.round(hour / 3) * 3;
+        
+        // Throttle updates - only process every 50ms
+        if (throttleTimerRef.current === null) {
+          throttleTimerRef.current = window.setTimeout(() => {
+            throttleTimerRef.current = null;
+          }, 50);
+          
+          if (lastHoveredRef.current !== roundedHour) {
+            lastHoveredRef.current = roundedHour;
+            setHoveredHour(roundedHour);
+          }
         }
-        rafIdRef.current = requestAnimationFrame(() => {
-          lastHoveredRef.current = hour;
-          setHoveredHour(hour);
-          rafIdRef.current = null;
-        });
       }
     }
   }, [setHoveredHour]);
 
   const handleMouseLeave = React.useCallback(() => {
-    if (rafIdRef.current !== null) {
-      cancelAnimationFrame(rafIdRef.current);
-      rafIdRef.current = null;
+    if (throttleTimerRef.current !== null) {
+      window.clearTimeout(throttleTimerRef.current);
+      throttleTimerRef.current = null;
     }
     lastHoveredRef.current = null;
     setHoveredHour(null);
@@ -629,6 +635,8 @@ function buildTrendStops(
           height: 300,
           overflow: "hidden",
           background: "transparent",
+          contain: "layout style paint",
+          willChange: "transform",
         }}
       >
         {/* prev/next buttons */}
@@ -750,6 +758,8 @@ function buildTrendStops(
                 right: 15,
                 bottom: 5,
               }}
+              syncId="allCharts"
+              syncMethod="value"
               onMouseMove={handleMouseMove}
               onMouseLeave={handleMouseLeave}
             >
@@ -866,10 +876,11 @@ function buildTrendStops(
                     Math.max(Math.round(Math.ceil(dataMax) * 1.5), 8),
                 ]}
               />
-              <ChartTooltip 
-                content={<ChartTooltipContent />} 
-                cursor={{ stroke: 'var(--foreground)', strokeWidth: 1, strokeDasharray: '3 3', strokeOpacity: 0.5 }} 
+              <ChartTooltip
+                content={<ChartTooltipContent />}
+                cursor={{ stroke: 'var(--foreground)', strokeWidth: 1, strokeDasharray: '3 3', strokeOpacity: 0.5 }}
                 animationDuration={0}
+                isAnimationActive={false}
               />
               <defs>
                 <linearGradient id="splitColor" x1="0" y1="0" x2="1" y2="0">

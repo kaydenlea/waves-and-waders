@@ -43,6 +43,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useDateContext, useHoveredHour } from "@/components/context/DateContext";
 import { useForecastChartContext } from "@/components/context/ForecastChartContext";
+import { useSunData } from "@/components/context/SunDataContext";
 
 const VISIBLE_DAYS = 4;
 const HOURS_PER_DAY = 24;
@@ -53,11 +54,13 @@ const MIN_DAY_PX = 275; // minimum pixels per day to keep UI usable on tiny scre
 type Props = { beachId?: string; date?: Date; days?: Date[] };
 type TidePoint = { hour: number; tide: number; isPeak?: number };
 
-export default function ForecastTideChart({ beachId, date, days }: Props) {
+export default React.memo(function ForecastTideChart({ beachId, date, days }: Props) {
   const { setPanFraction, subscribePan } = useForecastChartContext();
+  const { getSunData } = useSunData();
   const myId = React.useId();
   const { selected: selectedDate, hour: selectedHour, setHoveredHour } = useDateContext();
   const hoveredHour = useHoveredHour();
+  
   // data loaded for FETCH_DAYS days (hours)
   const [data, setData] = useState<TidePoint[]>([]);
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
@@ -398,7 +401,6 @@ export default function ForecastTideChart({ beachId, date, days }: Props) {
         const startMs = Date.UTC(year, month, day, -offsetHours, 0, 0, 0);
         const fetchHours = FETCH_DAYS * HOURS_PER_DAY;
         const end = new Date(startMs + fetchHours * 60 * 60 * 1000);
-        console.log("WINDOW WINDOW WINDOW", new Date(startMs), end);
         const points = await fetchBeachTides(id, new Date(startMs), end);
         let series: TidePoint[] = [];
         if (!points || points.length === 0) {
@@ -481,12 +483,10 @@ export default function ForecastTideChart({ beachId, date, days }: Props) {
             [];
           let nightStart = 0;
           for (let di = 0; di < FETCH_DAYS; di++) {
-            const cond = await fetchDailyConditions(
-              county,
-              new Date(startMs + di * 24 * 60 * 60 * 1000)
-            );
-            const rise = parseHM(cond?.sunrise ?? null);
-            const setv = parseHM(cond?.sunset ?? null);
+            const currentDate = new Date(startMs + di * 24 * 60 * 60 * 1000);
+            const sunData = await getSunData(beachId!, currentDate);
+            const rise = parseHM(sunData?.sunrise ?? null);
+            const setv = parseHM(sunData?.sunset ?? null);
             if (!rise || !setv) {
               // fallback mark whole day
               dayAreasBuild.push({ x1: di * 24, x2: di * 24 + 24 });
@@ -649,34 +649,74 @@ export default function ForecastTideChart({ beachId, date, days }: Props) {
     return ticks;
   }, [totalFetchedDays]);
 
-  // Hover sync handlers
+  // Hover sync handlers - optimized for high-frequency data (6-min intervals)
   const lastHoveredRef = React.useRef<number | null>(null);
-  const rafIdRef = React.useRef<number | null>(null);
+  const throttleTimerRef = React.useRef<number | null>(null);
 
   const handleMouseMove = React.useCallback((e: any) => {
     if (e && e.activeLabel !== undefined) {
       const hour = Number(e.activeLabel);
-      if (!isNaN(hour) && lastHoveredRef.current !== hour) {
-        if (rafIdRef.current !== null) {
-          cancelAnimationFrame(rafIdRef.current);
+      if (!isNaN(hour)) {
+        // Round to nearest 3-hour increment like overview charts
+        const roundedHour = Math.round(hour / 3) * 3;
+        
+        // Throttle updates - only process every 50ms
+        if (throttleTimerRef.current === null) {
+          throttleTimerRef.current = window.setTimeout(() => {
+            throttleTimerRef.current = null;
+          }, 50);
+          
+          // Only broadcast to other charts when crossing 3-hour boundaries
+          if (lastHoveredRef.current !== roundedHour) {
+            lastHoveredRef.current = roundedHour;
+            setHoveredHour(roundedHour);
+          }
         }
-        rafIdRef.current = requestAnimationFrame(() => {
-          lastHoveredRef.current = hour;
-          setHoveredHour(hour);
-          rafIdRef.current = null;
-        });
       }
     }
   }, [setHoveredHour]);
 
   const handleMouseLeave = React.useCallback(() => {
-    if (rafIdRef.current !== null) {
-      cancelAnimationFrame(rafIdRef.current);
-      rafIdRef.current = null;
+    if (throttleTimerRef.current !== null) {
+      window.clearTimeout(throttleTimerRef.current);
+      throttleTimerRef.current = null;
     }
     lastHoveredRef.current = null;
     setHoveredHour(null);
   }, [setHoveredHour]);
+
+  // Memoize tooltip content to prevent recreation on every render
+  const tooltipContent = React.useMemo(
+    () =>
+      ({ active, payload }: any) => {
+        if (!active || !payload || !payload.length) return null;
+
+        const dataPoint = payload[0].payload;
+        const h = dataPoint.hour;
+
+        // Format time
+        const wholeHour = Math.floor(h);
+        const minutes = Math.round((h - wholeHour) * 60);
+        const displayHour = wholeHour % 12 === 0 ? 12 : wholeHour % 12;
+        const ampm = wholeHour % 24 >= 12 ? "PM" : "AM";
+        const timeLabel =
+          minutes > 0
+            ? `${displayHour}:${minutes.toString().padStart(2, "0")} ${ampm}`
+            : `${displayHour} ${ampm}`;
+
+        // Format tide value
+        const tideValue =
+          dataPoint.tide != null ? dataPoint.tide.toFixed(1) : "N/A";
+
+        return (
+          <div className="rounded-lg border bg-background p-2 shadow-sm">
+            <div className="text-xs font-medium">{timeLabel}</div>
+            <div className="text-sm font-bold">{tideValue} ft</div>
+          </div>
+        );
+      },
+    []
+  );
 
   // Render
   return (
@@ -688,6 +728,8 @@ export default function ForecastTideChart({ beachId, date, days }: Props) {
           height: 300,
           overflow: "hidden",
           background: "transparent",
+          contain: "layout style paint",
+          willChange: "transform",
         }}
       >
         {/* prev/next buttons */}
@@ -820,8 +862,6 @@ export default function ForecastTideChart({ beachId, date, days }: Props) {
               onMouseMove={handleMouseMove}
               onMouseLeave={handleMouseLeave}
             >
-              {dayAreas.length > 0 &&
-                console.log("🎨 Rendering", dayAreas.length, "day areas")}
               {dayAreas.map((a, idx) => (
                 <ReferenceArea
                   key={`day-${idx}`}
@@ -832,8 +872,6 @@ export default function ForecastTideChart({ beachId, date, days }: Props) {
                   ifOverflow="extendDomain"
                 />
               ))}
-              {nightAreas.length > 0 &&
-                console.log("🎨 Rendering", nightAreas.length, "night areas")}
               {nightAreas.map((a, idx) => (
                 <ReferenceArea
                   key={`night-${idx}`}
@@ -926,63 +964,21 @@ export default function ForecastTideChart({ beachId, date, days }: Props) {
                   return null;
                 }
               })()}
-              {/* Hover indicator line - always rendered to avoid re-mount */}
-              <ReferenceLine
-                x={hoveredHour ?? 0}
-                stroke="var(--foreground)"
-                strokeWidth={1}
-                strokeOpacity={hoveredHour !== null && (() => {
-                  try {
-                    const base = days && days.length > 0 ? days[0] : null;
-                    if (!base || !selectedDate) return true;
-                    const baseMid = new Date(base.getFullYear(), base.getMonth(), base.getDate()).getTime();
-                    const selMid = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate()).getTime();
-                    const dayDelta = Math.floor((selMid - baseMid) / (24 * 3600 * 1000));
-                    const selectedX = dayDelta * 24 + (selectedHour ?? 0);
-                    return hoveredHour !== selectedX;
-                  } catch {
-                    return true;
-                  }
-                })() ? 0.5 : 0}
-                strokeDasharray="5 5"
-              />
+              {/* Hover indicator line */}
+              {hoveredHour !== null && (
+                <ReferenceLine
+                  x={hoveredHour}
+                  stroke="var(--foreground)"
+                  strokeWidth={1}
+                  strokeOpacity={0.5}
+                  strokeDasharray="5 5"
+                />
+              )}
               <ChartTooltip
-                content={({ active, payload }: any) => {
-                  if (!active || !payload || !payload.length) return null;
-
-                  const dataPoint = payload[0].payload;
-                  const h = dataPoint.hour;
-
-                  // Format time
-                  const wholeHour = Math.floor(h);
-                  const minutes = Math.round((h - wholeHour) * 60);
-                  const displayHour =
-                    wholeHour % 12 === 0 ? 12 : wholeHour % 12;
-                  const ampm = wholeHour % 24 >= 12 ? "PM" : "AM";
-                  const timeLabel =
-                    minutes > 0
-                      ? `${displayHour}:${minutes
-                          .toString()
-                          .padStart(2, "0")} ${ampm}`
-                      : `${displayHour} ${ampm}`;
-
-                  // Format tide value
-                  const tideValue =
-                    dataPoint.tide != null ? dataPoint.tide.toFixed(1) : "N/A";
-
-                  return (
-                    <div className="rounded-lg border bg-background p-2 shadow-sm">
-                      <div className="text-xs font-medium">{timeLabel}</div>
-                      <div className="text-sm font-bold">{tideValue} ft</div>
-                    </div>
-                  );
-                }}
-                cursor={{
-                  stroke: "var(--foreground)",
-                  strokeWidth: 1,
-                  strokeDasharray: "3 3",
-                }}
+                content={tooltipContent}
+                cursor={false}
                 animationDuration={0}
+                isAnimationActive={false}
               />
 
               <Line
@@ -991,6 +987,7 @@ export default function ForecastTideChart({ beachId, date, days }: Props) {
                 stroke="var(--color-tide)"
                 strokeWidth={2}
                 isAnimationActive={false}
+                animationDuration={0}
                 dot={({ payload, cx, cy }: any) => {
                   const hour = payload.hour as number;
                   // Exact match for sun markers (no duplicates)
@@ -1125,4 +1122,4 @@ export default function ForecastTideChart({ beachId, date, days }: Props) {
       </div>
     </div>
   );
-}
+});

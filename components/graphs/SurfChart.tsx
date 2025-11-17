@@ -462,6 +462,8 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
         data={chartData}
         barCategoryGap="15%"
         maxBarSize={60}
+        syncId="allCharts"
+        syncMethod="value"
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
       >

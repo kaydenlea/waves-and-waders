@@ -1,4 +1,5 @@
 import DateSummaryBridge from "@/components/general/DateSummaryBridge";
+import { SunDataProvider } from "@/components/context/SunDataContext";
 import SaveButton from "@/components/general/SaveButton";
 import BackButton from "@/components/general/BackButton";
 import type { Metadata } from "next";
@@ -85,11 +86,13 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
             {/* Time controls are now in the top NavBar (desktop + mobile). */}
 
             {/* <BeachContent beachId={beachId} /> */}
-            <DateSummaryBridge
-              beachId={beachId}
-              beachParam={beach}
-              isFavorite={isFav}
-            />
+            <SunDataProvider>
+              <DateSummaryBridge
+                beachId={beachId}
+                beachParam={beach}
+                isFavorite={isFav}
+              />
+            </SunDataProvider>
           </div>
         </PathStyleWrapper>
       </main>
