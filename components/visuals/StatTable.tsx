@@ -731,7 +731,7 @@ const StatTable = ({
       let newPages: typeof columnPages;
       // Use filtered columns instead of COLUMNS
       const cols = filteredColumns;
-      if (widthNow < 550) {
+      if (widthNow < 600) {
         if (showSecondarySwells) {
           setVisibleCols(3);
           newPages = [
@@ -754,7 +754,7 @@ const StatTable = ({
           setVisibleCols(3);
           newPages = [[cols[0], cols[2], cols[1]], cols.slice(3, cols.length)];
         }
-      } else if (widthNow < 1100) {
+      } else if (widthNow < 1150) {
         if (showSecondarySwells) {
           setVisibleCols(4);
           newPages = [
