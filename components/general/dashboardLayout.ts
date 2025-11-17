@@ -29,7 +29,6 @@ export const ALL_WIDGET_IDS: readonly WidgetId[] = [
   "stats",
   "tide",
   "swell",
-  "surfAndWind",
   "surf",
   "energy",
   "wind",
@@ -63,43 +62,31 @@ const BASE_META_FORECAST: Partial<Record<WidgetId, WidgetMeta>> = {
     id: "tide",
     title: "Tide Chart",
     visible: true,
-    span: "full",
-    immutableFull: true,
-  },
-  surfAndWind: {
-    id: "surfAndWind",
-    title: "Surf & Wind Charts",
-    visible: false,
-    span: "full",
-    immutableFull: true,
+    span: "half",
   },
   surf: {
     id: "surf",
     title: "Surf Chart",
     visible: true,
-    span: "full",
-    immutableFull: true,
+    span: "half",
   },
   swell: {
     id: "swell",
     title: "Swell Chart",
     visible: true,
-    span: "full",
-    immutableFull: true,
+    span: "half",
   },
   energy: {
     id: "energy",
     title: "Wave Energy Chart",
     visible: true,
-    span: "full",
-    immutableFull: true,
+    span: "half",
   },
   wind: {
     id: "wind",
     title: "Wind Chart",
     visible: true,
-    span: "full",
-    immutableFull: true,
+    span: "half",
   },
   table: {
     id: "table",
@@ -130,7 +117,7 @@ const INITIAL_ORDER_FORECAST: WidgetId[] = [
 ];
 
 const STORAGE_PREFIX = "waves-waders:dashboard";
-const STORAGE_VERSION = "v1";
+const STORAGE_VERSION = "v2";
 
 export const getDashboardStorageKey = (
   type: DashboardType,
@@ -214,9 +201,8 @@ export const normalizeMeta = (
     if (isSpan(candidate.span) && meta[id]) {
       meta[id].span = candidate.span;
     }
-    if (typeof candidate.immutableFull !== "undefined" && meta[id]) {
-      meta[id].immutableFull = Boolean(candidate.immutableFull);
-    }
+    // immutableFull should NEVER be copied from saved data - always use defaults
+    // This ensures that schema changes (like removing immutableFull from widgets) take effect
   }
 
   return meta;

@@ -623,22 +623,28 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
   }, [totalFetchedDays]);
 
   // Hover sync handlers
-  const lastHoveredRef = React.useRef<number | null>(null);
-  const rafIdRef = React.useRef<number | null>(null);
+  const lastHoveredRef = useRef<number | null>(null);
+  const throttleTimerRef = useRef<number | null>(null);
 
   const handleMouseMove = useCallback(
     (e: any) => {
-      if (e && e.activeLabel !== undefined) {
+      if (e?.activeLabel !== undefined) {
         const hour = Number(e.activeLabel);
-        if (!isNaN(hour) && lastHoveredRef.current !== hour) {
-          if (rafIdRef.current !== null) {
-            cancelAnimationFrame(rafIdRef.current);
+        if (!isNaN(hour)) {
+          // Round to nearest 3-hour increment
+          const roundedHour = Math.round(hour / 3) * 3;
+          
+          // Throttle updates - only process every 50ms
+          if (throttleTimerRef.current === null) {
+            throttleTimerRef.current = window.setTimeout(() => {
+              throttleTimerRef.current = null;
+            }, 50);
+            
+            if (lastHoveredRef.current !== roundedHour) {
+              lastHoveredRef.current = roundedHour;
+              setHoveredHour(roundedHour);
+            }
           }
-          rafIdRef.current = requestAnimationFrame(() => {
-            lastHoveredRef.current = hour;
-            setHoveredHour(hour);
-            rafIdRef.current = null;
-          });
         }
       }
     },
@@ -646,9 +652,9 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
   );
 
   const handleMouseLeave = useCallback(() => {
-    if (rafIdRef.current !== null) {
-      cancelAnimationFrame(rafIdRef.current);
-      rafIdRef.current = null;
+    if (throttleTimerRef.current !== null) {
+      window.clearTimeout(throttleTimerRef.current);
+      throttleTimerRef.current = null;
     }
     lastHoveredRef.current = null;
     setHoveredHour(null);
@@ -663,6 +669,8 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
           height: 300,
           overflow: "hidden",
           background: "transparent",
+          contain: "layout style paint",
+          willChange: "transform",
         }}
       >
         {/* prev/next buttons */}
@@ -780,6 +788,8 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
               width={chartInnerWidth}
               data={surfData}
               margin={{ left: -25, right: 15, bottom: 5, top: 0 }}
+              syncId="allCharts"
+              syncMethod="value"
               onMouseMove={handleMouseMove}
               onMouseLeave={handleMouseLeave}
             >
@@ -857,6 +867,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                   strokeOpacity: 0.5,
                 }}
                 animationDuration={0}
+                isAnimationActive={false}
               />
               {/* Selected hour marker */}
               {(() => {

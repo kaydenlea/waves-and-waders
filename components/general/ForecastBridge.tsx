@@ -18,6 +18,7 @@ import { LazyLoadTable } from "@/components/general/LazyLoad/LazyLoadTable";
 import Link from "next/link";
 import { Pencil } from "lucide-react";
 import { useDateContext } from "../context/DateContext";
+import { useSunData } from "../context/SunDataContext";
 import dayjs from "dayjs";
 import { LazyLoadForecastWaveEnergy } from "./LazyLoad/LazyLoadForecastWaveEnergy";
 import { LazyLoadForecastSurf } from "./LazyLoad/LazyLoadForecastSurf";
@@ -85,10 +86,19 @@ const ForecastBridge: React.FC<Props> = ({
   );
   const supabase = useSupabaseClient();
   const { session } = useSessionContext();
+  const { prefetchSunData } = useSunData();
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  // Prefetch sun data for all selected days to speed up chart rendering
+  useEffect(() => {
+    if (!beachId || !selectedDays || selectedDays.length === 0) return;
+    
+    // Prefetch sun data for all days in the range
+    void prefetchSunData(beachId, selectedDays);
+  }, [beachId, selectedDays, prefetchSunData]);
 
   // Set up the IntersectionObserver on client only (after mount). Keeps layout stable on SSR.
   useEffect(() => {
@@ -232,87 +242,77 @@ const ForecastBridge: React.FC<Props> = ({
     [layoutRows, layoutMeta]
   );
 
-  const renderWidget = useCallback(
-    (id: WidgetId) => {
-      switch (id) {
-        case "stats":
-          return (
-            <VisualWrapper label="Forecast Overview">
-              <div className="space-y-2 text-sm text-muted-foreground">
-                <p className="font-medium text-foreground">{windowString}</p>
-                <p>
-                  Adjust the date range above or use the edit mode to customize
-                  which panels show here.
-                </p>
-              </div>
-            </VisualWrapper>
-          );
-        case "tide":
-          return (
-            <VisualWrapper label="Tide" extraPadding unit="ft">
-              <LazyLoadForecastTide
-                beachId={beachId}
-                date={selectedDays?.[0] ?? undefined}
-                days={selectedDays}
-              />
-            </VisualWrapper>
-          );
-        case "surf":
-          return (
-            <VisualWrapper extraPadding label="Surf" unit="ft">
-              <LazyLoadForecastSurf beachId={beachId} days={selectedDays} />
-            </VisualWrapper>
-          );
-        case "wind":
-          return (
-            <VisualWrapper extraPadding label="Wind" unit="mph">
-              <LazyLoadForecastWind beachId={beachId} days={selectedDays} />
-            </VisualWrapper>
-          );
-        case "surfAndWind":
-          return (
-            <div className="w-full flex flex-col @min-2xl:flex-row gap-6">
-              <VisualWrapper label="Wind" unit="mph">
-                <LazyLoadForecastWind beachId={beachId} days={selectedDays} />
-              </VisualWrapper>
-              <VisualWrapper label="Surf" unit="ft">
-                <LazyLoadForecastSurf beachId={beachId} days={selectedDays} />
-              </VisualWrapper>
-            </div>
-          );
-        case "energy":
-          return (
-            <VisualWrapper extraPadding label="Energy" unit="kJ">
-              <LazyLoadForecastWaveEnergy
-                beachId={beachId}
-                days={selectedDays}
-              />
-            </VisualWrapper>
-          );
-        case "table":
-          return (
-            <VisualWrapper label="Daily" unit="12 hrs">
-              <LazyLoadTable
-                beachId={beachId}
-                numHours={3}
-                numDays={7}
-                header
-                date={selected ?? undefined}
-              />
-            </VisualWrapper>
-          );
-        case "swell":
-          return (
-            <VisualWrapper extraPadding label="Swell" unit="ft">
-              <LazyLoadForecastSwell beachId={beachId} days={selectedDays} />
-            </VisualWrapper>
-          );
-        default:
-          return null;
-      }
-    },
-    [beachId, selected, selectedDays, windowString]
-  );
+  // Memoize individual widgets to prevent unnecessary re-renders
+  const widgets = useMemo(() => {
+    const firstDay = selectedDays?.[0] ?? undefined;
+    
+    return {
+      stats: (
+        <VisualWrapper label="Forecast Overview">
+          <div className="space-y-2 text-sm text-muted-foreground">
+            <p className="font-medium text-foreground">{windowString}</p>
+            <p>
+              Adjust the date range above or use the edit mode to customize
+              which panels show here.
+            </p>
+          </div>
+        </VisualWrapper>
+      ),
+      tide: (
+        <VisualWrapper label="Tide" extraPadding unit="ft">
+          <LazyLoadForecastTide
+            beachId={beachId}
+            date={firstDay}
+            days={selectedDays ?? undefined}
+          />
+        </VisualWrapper>
+      ),
+      surf: (
+        <VisualWrapper extraPadding label="Surf" unit="ft">
+          <LazyLoadForecastSurf beachId={beachId} days={selectedDays} />
+        </VisualWrapper>
+      ),
+      wind: (
+        <VisualWrapper extraPadding label="Wind" unit="mph">
+          <LazyLoadForecastWind beachId={beachId} days={selectedDays} />
+        </VisualWrapper>
+      ),
+      surfAndWind: (
+        <div className="w-full flex flex-col @min-2xl:flex-row gap-6">
+          <VisualWrapper label="Wind" unit="mph">
+            <LazyLoadForecastWind beachId={beachId} days={selectedDays} />
+          </VisualWrapper>
+          <VisualWrapper label="Surf" unit="ft">
+            <LazyLoadForecastSurf beachId={beachId} days={selectedDays} />
+          </VisualWrapper>
+        </div>
+      ),
+      energy: (
+        <VisualWrapper extraPadding label="Energy" unit="kJ">
+          <LazyLoadForecastWaveEnergy
+            beachId={beachId}
+            days={selectedDays}
+          />
+        </VisualWrapper>
+      ),
+      table: (
+        <VisualWrapper label="Daily" unit="12 hrs">
+          <LazyLoadTable
+            beachId={beachId}
+            numHours={3}
+            numDays={7}
+            header
+            date={selected ?? undefined}
+          />
+        </VisualWrapper>
+      ),
+      swell: (
+        <VisualWrapper extraPadding label="Swell" unit="ft">
+          <LazyLoadForecastSwell beachId={beachId} days={selectedDays} />
+        </VisualWrapper>
+      ),
+    } as const;
+  }, [beachId, selected, selectedDays, windowString]);
 
   return (
     <section
@@ -376,27 +376,17 @@ const ForecastBridge: React.FC<Props> = ({
                 (id) => layoutMeta[id]?.visible !== false
               );
               if (!visibleItems.length) return null;
-              console.log("FORECAST WIDGETS", visibleItems);
+              
               const renderedItems = visibleItems
-                .map((id) => ({
-                  id,
-                  content: renderWidget(id),
-                }))
-                .filter(
-                  (
-                    entry
-                  ): entry is {
-                    id: WidgetId;
-                    content: React.JSX.Element | null;
-                  } => Boolean(entry.content)
-                );
+                .map((id) => ({ id, content: widgets[id] }))
+                .filter((entry) => Boolean(entry.content));
 
               if (!renderedItems.length) return null;
 
-              const spacingClass = index === 0 ? "mt-4" : "mt-3";
+              const spacingClass = index === 0 ? "mt-4" : "mt-5";
               const isFull =
                 renderedItems.length === 1 &&
-                (layoutMeta[renderedItems[0].id]?.span ?? "full") === "full";
+                layoutMeta[renderedItems[0].id]?.span === "full";
 
               if (isFull) {
                 return (
@@ -409,7 +399,7 @@ const ForecastBridge: React.FC<Props> = ({
               return (
                 <div
                   key={row.id}
-                  className={`${spacingClass} w-full flex flex-col @min-2xl:flex-row gap-6`}
+                  className={`${spacingClass} w-full flex flex-col @min-3xl:flex-row gap-5`}
                 >
                   {renderedItems.map((entry) => (
                     <React.Fragment key={entry.id}>

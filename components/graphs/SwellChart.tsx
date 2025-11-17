@@ -332,6 +332,8 @@ const SwellChart = ({ beachId, hours = 24, date }: Props) => {
           right: 15,
           left: -28,
         }}
+        syncId="allCharts"
+        syncMethod="value"
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
       >

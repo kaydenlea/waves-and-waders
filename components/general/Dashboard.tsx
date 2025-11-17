@@ -491,6 +491,27 @@ export default function Dashboard({
       if (!slot) return;
       const { rowId, pos } = slot;
 
+      // First check if we need to convert a full-width widget to half-width
+      // We need to do this BEFORE updating rows to avoid race conditions
+      const targetRow = rows.find((r) => r.id === rowId);
+      if (targetRow) {
+        const tgtIsFull =
+          targetRow.items.length === 1 &&
+          meta[targetRow.items[0]]?.span === "full";
+
+        if (tgtIsFull) {
+          const fullWidgetId = targetRow.items[0];
+          // Don't allow drops on immutableFull widgets (like table)
+          if (meta[fullWidgetId]?.immutableFull) return;
+
+          // Convert the full-width widget to half-width
+          setMeta((prev) => ({
+            ...prev,
+            [fullWidgetId]: { ...prev[fullWidgetId], span: "half" },
+          }));
+        }
+      }
+
       setRows((prev) => {
         const next = cloneRows(prev);
         const srcIdx = next.findIndex((r) => r.items.includes(active));
@@ -502,9 +523,6 @@ export default function Dashboard({
         if (tgtIdx === -1) return prev;
         const tgtRow = next[tgtIdx];
 
-        const tgtIsFull =
-          tgtRow.items.length === 1 && meta[tgtRow.items[0]]?.span === "full";
-        if (tgtIsFull) return prev; // cannot drop half into full row
         // if same row, do swap logic
 
         if (srcIdx === tgtIdx) {
@@ -713,9 +731,6 @@ export default function Dashboard({
                     <X className="w-4 h-4" strokeWidth={3} />
                   )}
                   <span>{m.title}</span>
-                  {m.immutableFull && (
-                    <span className="ml-1 text-xs text-gray-400">Fixed</span>
-                  )}
                 </button>
               )
           )}
@@ -743,10 +758,12 @@ export default function Dashboard({
           {rows.map((row, idx) => {
             const visibleItems = row.items.filter((id) => meta[id]?.visible);
             if (visibleItems.length === 0) return null;
+            // A row is full-width only if it has exactly one item AND that item's span is "full"
+            // Don't treat single half-width items as full-width
             const isFull =
               visibleItems.length === 1 &&
               meta[visibleItems[0]]?.span === "full";
-            const isFixed = meta[visibleItems[0]]?.immutableFull;
+            const isFixed = visibleItems.length === 1 && meta[visibleItems[0]]?.immutableFull;
             return (
               <React.Fragment key={`frag-${row.id}`}>
                 <div className="w-full">
@@ -759,12 +776,35 @@ export default function Dashboard({
 
                 <section className="grid grid-cols-1 @min-3xl:grid-cols-2 gap-4 items-stretch">
                   {isFull ? (
-                    <div className="@min-3xl:col-span-2 h-full rounded-2xl border border-dashed p-2">
-                      <DraggableCard
-                        id={visibleItems[0]}
-                        meta={meta[visibleItems[0]]}
-                        dim={isDraggingHalf && !isFixed}
-                      />
+                    <div className="rounded-2xl border border-dashed p-2 flex flex-col @min-3xl:flex-row w-full @min-3xl:col-span-2 gap-2">
+                      <Slot
+                        className="w-full"
+                        rowId={row.id}
+                        pos={0}
+                        highlight={
+                          isDraggingHalf && overId === slotId(row.id, 0)
+                        }
+                      >
+                        <div className={cn("h-full min-h-[14rem]")}>
+                          <DraggableCard
+                            id={visibleItems[0]}
+                            meta={meta[visibleItems[0]]}
+                            dim={isDraggingHalf && !isFixed}
+                          />
+                        </div>
+                      </Slot>
+                      {isDraggingHalf && (
+                        <Slot
+                          className="w-full"
+                          rowId={row.id}
+                          pos={1}
+                          highlight={
+                            isDraggingHalf && overId === slotId(row.id, 1)
+                          }
+                        >
+                          <div className="h-full min-h-[14rem] rounded-2xl border border-dashed bg-highlight-2/50" />
+                        </Slot>
+                      )}
                     </div>
                   ) : (
                     <div className="rounded-2xl border border-dashed p-2 flex flex-col @min-3xl:flex-row w-full @min-3xl:col-span-2 gap-2">
@@ -792,7 +832,7 @@ export default function Dashboard({
                         </div>
                       </Slot>
 
-                      {visibleItems[1] && (
+                      {(visibleItems[1] || isDraggingHalf) && (
                         <Slot
                           className="w-full"
                           rowId={row.id}
@@ -812,8 +852,7 @@ export default function Dashboard({
                                 }
                               />
                             ) : (
-                              // <div className="h-full min-h-[14rem] rounded-2xl border border-dashed" />
-                              <></>
+                              <div className="h-full rounded-2xl border border-dashed bg-highlight-2/50" />
                             )}
                           </div>
                         </Slot>

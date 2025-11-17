@@ -256,6 +256,8 @@ const WaveEnergyChart = ({ beachId, hours = 24, date }: Props) => {
           right: 15,
           left: -30,
         }}
+        syncId="allCharts"
+        syncMethod="value"
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
       >

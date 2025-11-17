@@ -1,4 +1,5 @@
 import ForecastBridge from "@/components/general/ForecastBridge";
+import { SunDataProvider } from "@/components/context/SunDataContext";
 
 import type { Metadata } from "next";
 import PageTabs from "@/components/general/PageTabs";
@@ -80,9 +81,11 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
                 {beachName} Forecast
               </h1>
             </header>
-            <ForecastChartProvider>
-              <ForecastBridge beachId={beachId} />
-            </ForecastChartProvider>
+            <SunDataProvider>
+              <ForecastChartProvider>
+                <ForecastBridge beachId={beachId} />
+              </ForecastChartProvider>
+            </SunDataProvider>
           </div>
         </PathStyleWrapper>
       </main>

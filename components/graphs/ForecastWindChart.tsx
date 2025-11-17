@@ -583,22 +583,27 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
 
   // Hover sync handlers
   const lastHoveredRef = React.useRef<number | null>(null);
-
-  const rafIdRef = React.useRef<number | null>(null);
+  const throttleTimerRef = React.useRef<number | null>(null);
 
   const handleMouseMove = React.useCallback(
     (e: any) => {
       if (e && e.activeLabel !== undefined) {
         const hour = Number(e.activeLabel);
-        if (!isNaN(hour) && lastHoveredRef.current !== hour) {
-          if (rafIdRef.current !== null) {
-            cancelAnimationFrame(rafIdRef.current);
+        if (!isNaN(hour)) {
+          // Round to nearest 3-hour increment
+          const roundedHour = Math.round(hour / 3) * 3;
+          
+          // Throttle updates - only process every 50ms
+          if (throttleTimerRef.current === null) {
+            throttleTimerRef.current = window.setTimeout(() => {
+              throttleTimerRef.current = null;
+            }, 50);
+            
+            if (lastHoveredRef.current !== roundedHour) {
+              lastHoveredRef.current = roundedHour;
+              setHoveredHour(roundedHour);
+            }
           }
-          rafIdRef.current = requestAnimationFrame(() => {
-            lastHoveredRef.current = hour;
-            setHoveredHour(hour);
-            rafIdRef.current = null;
-          });
         }
       }
     },
@@ -606,13 +611,50 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
   );
 
   const handleMouseLeave = React.useCallback(() => {
-    if (rafIdRef.current !== null) {
-      cancelAnimationFrame(rafIdRef.current);
-      rafIdRef.current = null;
+    if (throttleTimerRef.current !== null) {
+      window.clearTimeout(throttleTimerRef.current);
+      throttleTimerRef.current = null;
     }
     lastHoveredRef.current = null;
     setHoveredHour(null);
   }, [setHoveredHour]);
+
+  // Memoize tooltip content to prevent re-renders
+  const tooltipContent = React.useMemo(
+    () =>
+      ({ active, payload }: any) => {
+        if (!active || !payload || payload.length === 0) return null;
+
+        const data = payload[0].payload;
+        const windSpeed = data.wind;
+        const direction = data.direction ?? 0;
+        const directionLabel = getWindDirection(direction);
+
+        return (
+          <div className="rounded-lg border bg-background p-2 shadow-sm">
+            <div className="grid gap-2">
+              <div className="flex flex-col">
+                <span className="text-[0.70rem] uppercase text-muted-foreground">
+                  Wind Speed
+                </span>
+                <span className="font-bold text-muted-foreground">
+                  {Math.round(windSpeed)} mph
+                </span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[0.70rem] uppercase text-muted-foreground">
+                  Direction
+                </span>
+                <span className="font-bold text-muted-foreground">
+                  {directionLabel} ({Math.round(direction)}°)
+                </span>
+              </div>
+            </div>
+          </div>
+        );
+      },
+    []
+  );
 
   return (
     <div className="w-full">
@@ -623,6 +665,8 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
           height: 300,
           overflow: "hidden",
           background: "transparent",
+          contain: "layout style paint",
+          willChange: "transform",
         }}
       >
         {/* prev/next buttons */}
@@ -740,6 +784,8 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
               width={chartInnerWidth}
               data={windData}
               margin={{ left: -25, right: 15, bottom: 5, top: 0 }}
+              syncId="allCharts"
+              syncMethod="value"
               onMouseMove={handleMouseMove}
               onMouseLeave={handleMouseLeave}
             >
@@ -808,37 +854,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
                 ]}
               />
               <ChartTooltip
-                content={({ active, payload }) => {
-                  if (!active || !payload || payload.length === 0) return null;
-
-                  const data = payload[0].payload;
-                  const windSpeed = data.wind;
-                  const direction = data.direction ?? 0;
-                  const directionLabel = getWindDirection(direction);
-
-                  return (
-                    <div className="rounded-lg border bg-background p-2 shadow-sm">
-                      <div className="grid gap-2">
-                        <div className="flex flex-col">
-                          <span className="text-[0.70rem] uppercase text-muted-foreground">
-                            Wind Speed
-                          </span>
-                          <span className="font-bold text-muted-foreground">
-                            {Math.round(windSpeed)} mph
-                          </span>
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-[0.70rem] uppercase text-muted-foreground">
-                            Direction
-                          </span>
-                          <span className="font-bold text-muted-foreground">
-                            {directionLabel} ({Math.round(direction)}°)
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }}
+                content={tooltipContent}
                 cursor={{
                   fill: "transparent",
                   stroke: "var(--foreground)",
@@ -847,6 +863,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
                   strokeOpacity: 0.5,
                 }}
                 animationDuration={0}
+                isAnimationActive={false}
               />
               {/* Selected hour marker */}
               {(() => {

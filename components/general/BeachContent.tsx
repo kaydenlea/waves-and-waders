@@ -1,6 +1,7 @@
 "use client";
 
 import { ForecastChartProvider } from "../context/ForecastChartContext";
+import { SunDataProvider } from "../context/SunDataContext";
 import { useClientPath } from "../context/PathContext";
 import DateSummaryBridge from "./DateSummaryBridge";
 import ForecastBridge from "./ForecastBridge";
@@ -11,9 +12,11 @@ const BeachContent = ({ beachId }: { beachId: string }) => {
     return <DateSummaryBridge beachId={beachId} />;
   }
   return (
-    <ForecastChartProvider>
-      <ForecastBridge beachId={beachId} />
-    </ForecastChartProvider>
+    <SunDataProvider>
+      <ForecastChartProvider>
+        <ForecastBridge beachId={beachId} />
+      </ForecastChartProvider>
+    </SunDataProvider>
   );
 };
 

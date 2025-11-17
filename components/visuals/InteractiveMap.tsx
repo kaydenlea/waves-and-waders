@@ -2002,11 +2002,20 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
                 "text-offset": [0, 1.8],
                 "text-size": 10,
                 "text-anchor": "top",
+                "visibility": "visible",
               }}
               paint={{
                 "text-color": "#1f2937",
                 "text-halo-color": "#ffffff",
                 "text-halo-width": 1,
+                "text-opacity": selected
+                  ? [
+                      "case",
+                      ["==", ["get", "name"], selected.name],
+                      0,
+                      1
+                    ]
+                  : 1,
               }}
             />
           </Source>

@@ -30,6 +30,7 @@ import { useMapFilters } from "../context/MapFilterContext";
 import { useDateContext } from "../context/DateContext";
 import { useClientPath } from "../context/PathContext";
 import { ForecastChartProvider } from "../context/ForecastChartContext";
+import { SunDataProvider } from "../context/SunDataContext";
 import ForecastBridge from "./ForecastBridge";
 import PageTabs from "./PageTabs";
 import Link from "next/link";
@@ -966,13 +967,15 @@ const DateSummaryBridge: React.FC<Props> = ({
 
         {/* Forecast content - hidden when overview is active */}
         <div className={isOverview ? "hidden" : ""}>
-          <ForecastChartProvider>
-            <ForecastBridge
-              beachId={beachId}
-              hideHeader
-              onWindowStringChange={setForecastWindow}
-            />
-          </ForecastChartProvider>
+          <SunDataProvider>
+            <ForecastChartProvider>
+              <ForecastBridge
+                beachId={beachId}
+                hideHeader
+                onWindowStringChange={setForecastWindow}
+              />
+            </ForecastChartProvider>
+          </SunDataProvider>
         </div>
       </section>
     </>

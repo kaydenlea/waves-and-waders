@@ -19,10 +19,22 @@ export function PathProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     try {
       if (typeof window === "undefined") return;
-      // Query param takes precedence if provided
+
+      // Query param takes precedence if provided - check this FIRST
       const qp = searchParams?.get("tab");
-      if (qp && qp !== selectedTab) {
-        setSelectedTab(qp);
+      if (qp) {
+        if (qp !== selectedTab) {
+          setSelectedTab(qp);
+        }
+        return;
+      }
+
+      // For forecast pages, set to "forecast"
+      // Check this BEFORE overview to handle /forecast/edit correctly
+      if (pathname.includes("/forecast")) {
+        if (selectedTab !== "forecast") {
+          setSelectedTab("forecast");
+        }
         return;
       }
 
@@ -31,14 +43,6 @@ export function PathProvider({ children }: { children: React.ReactNode }) {
       if (pathname.includes("/overview") || pathname.match(/^\/[^/]+\/[^/]+$/)) {
         if (selectedTab !== "overview") {
           setSelectedTab("overview");
-        }
-        return;
-      }
-
-      // For forecast pages, set to "forecast"
-      if (pathname.includes("/forecast")) {
-        if (selectedTab !== "forecast") {
-          setSelectedTab("forecast");
         }
         return;
       }
