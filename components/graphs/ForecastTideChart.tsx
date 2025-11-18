@@ -649,9 +649,8 @@ export default React.memo(function ForecastTideChart({ beachId, date, days }: Pr
     return ticks;
   }, [totalFetchedDays]);
 
-  // Hover sync handlers - optimized for high-frequency data (6-min intervals)
+  // Hover sync handlers - DateContext handles RAF batching
   const lastHoveredRef = React.useRef<number | null>(null);
-  const throttleTimerRef = React.useRef<number | null>(null);
 
   const handleMouseMove = React.useCallback((e: any) => {
     if (e && e.activeLabel !== undefined) {
@@ -659,28 +658,18 @@ export default React.memo(function ForecastTideChart({ beachId, date, days }: Pr
       if (!isNaN(hour)) {
         // Round to nearest 3-hour increment like overview charts
         const roundedHour = Math.round(hour / 3) * 3;
-        
-        // Throttle updates - only process every 50ms
-        if (throttleTimerRef.current === null) {
-          throttleTimerRef.current = window.setTimeout(() => {
-            throttleTimerRef.current = null;
-          }, 50);
-          
-          // Only broadcast to other charts when crossing 3-hour boundaries
-          if (lastHoveredRef.current !== roundedHour) {
-            lastHoveredRef.current = roundedHour;
-            setHoveredHour(roundedHour);
-          }
+
+        // Only broadcast to other charts when crossing 3-hour boundaries
+        if (lastHoveredRef.current !== roundedHour) {
+          lastHoveredRef.current = roundedHour;
+          // DateContext batches this with RAF - no need to batch here
+          setHoveredHour(roundedHour);
         }
       }
     }
   }, [setHoveredHour]);
 
   const handleMouseLeave = React.useCallback(() => {
-    if (throttleTimerRef.current !== null) {
-      window.clearTimeout(throttleTimerRef.current);
-      throttleTimerRef.current = null;
-    }
     lastHoveredRef.current = null;
     setHoveredHour(null);
   }, [setHoveredHour]);
@@ -717,6 +706,21 @@ export default React.memo(function ForecastTideChart({ beachId, date, days }: Pr
       },
     []
   );
+
+  // Memoize hover line to prevent unnecessary re-renders
+  const hoverLine = React.useMemo(() => {
+    if (hoveredHour === null) return null;
+    return (
+      <ReferenceLine
+        x={hoveredHour}
+        stroke="var(--foreground)"
+        strokeWidth={1}
+        strokeOpacity={0.5}
+        strokeDasharray="5 5"
+        isAnimationActive={false}
+      />
+    );
+  }, [hoveredHour]);
 
   // Render
   return (
@@ -965,15 +969,7 @@ export default React.memo(function ForecastTideChart({ beachId, date, days }: Pr
                 }
               })()}
               {/* Hover indicator line */}
-              {hoveredHour !== null && (
-                <ReferenceLine
-                  x={hoveredHour}
-                  stroke="var(--foreground)"
-                  strokeWidth={1}
-                  strokeOpacity={0.5}
-                  strokeDasharray="5 5"
-                />
-              )}
+              {hoverLine}
               <ChartTooltip
                 content={tooltipContent}
                 cursor={false}

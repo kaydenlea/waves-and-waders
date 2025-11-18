@@ -33,11 +33,9 @@ import {
   fetchDailyConditions,
 } from "@/lib/supabase";
 import { cn, getPacificHour } from "@/lib/utils";
-import {
-  useDateContext,
-  useHoveredHour,
-} from "@/components/context/DateContext";
+import { useDateContext } from "@/components/context/DateContext";
 import { useForecastChartContext } from "@/components/context/ForecastChartContext";
+import HoverReferenceLine from "@/components/graphs/HoverReferenceLine";
 
 const chartConfig = {
   surf: {
@@ -61,7 +59,6 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
   const { setPanFraction, subscribePan } = useForecastChartContext();
   const myId = React.useId();
   const { hour: selectedHour, setHoveredHour } = useDateContext();
-  const hoveredHour = useHoveredHour();
   const [surfData, setSurfData] = useState<SurfPoint[]>([]);
   const [baseStartMs, setBaseStartMs] = useState<number | null>(null);
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
@@ -900,40 +897,11 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                   return null;
                 }
               })()}
-              {/* Hover indicator line - always rendered to avoid re-mount */}
-              <ReferenceLine
-                x={hoveredHour ?? 0}
-                stroke="var(--foreground)"
-                strokeWidth={1}
-                strokeOpacity={
-                  hoveredHour !== null &&
-                  (() => {
-                    try {
-                      const base = days && days.length > 0 ? days[0] : null;
-                      if (!base || !selectedDate) return true;
-                      const baseMid = new Date(
-                        base.getFullYear(),
-                        base.getMonth(),
-                        base.getDate()
-                      ).getTime();
-                      const selMid = new Date(
-                        selectedDate.getFullYear(),
-                        selectedDate.getMonth(),
-                        selectedDate.getDate()
-                      ).getTime();
-                      const dayDelta = Math.floor(
-                        (selMid - baseMid) / (24 * 3600 * 1000)
-                      );
-                      const selectedX = dayDelta * 24 + (selectedHour ?? 0);
-                      return hoveredHour !== selectedX;
-                    } catch {
-                      return true;
-                    }
-                  })()
-                    ? 0.5
-                    : 0
-                }
-                strokeDasharray="5 5"
+              {/* Hover indicator line */}
+              <HoverReferenceLine
+                days={days}
+                selectedDate={selectedDate}
+                selectedHour={selectedHour}
               />
               <Bar
                 dataKey="surf"
