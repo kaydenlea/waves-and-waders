@@ -934,7 +934,7 @@ const WindStat = ({
   return (
     <HighlightCard label={label}>
       <div className="flex items-center w-full px-2 justify-center">
-        <div className="relative w-6.5 @min-4xl:w-9 h-6.5 @min-4xl:h-9 mb-0.5">
+        <div className="relative w-9 h-9 @min-3xl:w-6.5 @min-3xl:h-6.5 @min-4xl:w-9 @min-4xl:h-9 mb-0.5">
           <div
             className="absolute inset-0 rounded-full"
             style={{
@@ -944,7 +944,7 @@ const WindStat = ({
               )} 75% 45%)`} ${valuePct}%, var(--border) ${valuePct}% 100%)`,
             }}
           />
-          <div className="absolute inset-[3px] @min-4xl:inset-[4px] rounded-full bg-background dark:bg-highlight-4 flex items-center justify-center">
+          <div className="absolute inset-[4px] @min-3xl:inset-[3px] @min-4xl:inset-[4px] rounded-full bg-background dark:bg-highlight-4 flex items-center justify-center">
             <div className="flex flex-col items-center justify-center leading-none">
               <div
                 style={{
@@ -952,7 +952,7 @@ const WindStat = ({
                   display: "inline-block",
                 }}
               >
-                <ArrowIcon className="w-3.5 h-3.5 @min-4xl:w-4 @min-4xl:h-4 fill-foreground/20 text-foreground/50" />
+                <ArrowIcon className="w-4 h-4 @min-3xl:w-3.5 @min-3xl:h-3.5 @min-4xl:w-4 @min-4xl:h-4 fill-foreground/20 text-foreground/50" />
               </div>
               {/* <span className="text-[0.6rem] font-medium mt-[3px] mb-0.5">
                 {dirLabel}
@@ -1543,22 +1543,19 @@ const Highlights = ({
               );
               break;
 
-            case "moon":
-              {
-                const hasPhase =
-                  stat.phase !== null && stat.phase !== undefined;
-                content = hasPhase ? (
-                  <MoonStat data={stat.phase as any} label={stat.label} />
-                ) : (
-                  <HighlightCard label={stat.label}>
-                    <div className="flex flex-col items-center text-sm text-muted-foreground">
-                      <span>Moon data unavailable</span>
-                    </div>
-                  </HighlightCard>
-                );
-                break;
-              }
+            case "moon": {
+              const hasPhase = stat.phase !== null && stat.phase !== undefined;
+              content = hasPhase ? (
+                <MoonStat data={stat.phase as any} label={stat.label} />
+              ) : (
+                <HighlightCard label={stat.label}>
+                  <div className="flex flex-col items-center text-sm text-muted-foreground">
+                    <span>Moon data unavailable</span>
+                  </div>
+                </HighlightCard>
+              );
               break;
+            }
             case "wind":
               content = stat.wind && (
                 <WindStat

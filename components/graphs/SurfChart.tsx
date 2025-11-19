@@ -590,6 +590,7 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
               const surfValue =
                 typeof props.value === "number" ? props.value : 0;
               const barColor = getSurfColor(surfValue);
+              const surfLabel = width > 400 ? label : Math.round(Number(label));
 
               if (label) {
                 return (
@@ -613,7 +614,7 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
                       fontWeight="bold"
                       fontSize={fontSize}
                     >
-                      {label === "0.0" ? "0" : label}
+                      {label === "0.0" ? "0" : surfLabel}
                     </text>
                   </g>
                 );

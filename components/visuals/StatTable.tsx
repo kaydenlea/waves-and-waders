@@ -136,12 +136,14 @@ const WindStat = ({
     <div className="flex items-center gap-1 justify-center">
       <span
         className={cn(
-          "flex-1 max-w-30 justify-center flex gap-[3px] rounded-md py-1.5 px-3",
+          "flex-1 max-w-8 @min-[350px]:max-w-30 justify-center flex gap-[3px] rounded-md py-2 @min-[350px]:py-1.5 px-3",
           windLevel
         )}
       >
-        <span className="text-lg font-semibold">{data.speed}</span>
-        <span className="hidden @min-[310px]:flex flex flex-col -space-y-1">
+        <span className="text-base @min-[350px]:text-lg font-semibold">
+          {data.speed}
+        </span>
+        <span className="hidden @min-[350px]:flex flex flex-col -space-y-1">
           <span className="text-[0.7rem] font-medium">{data.max}</span>
           <span className="hidden @min-sm:block text-[0.6rem]">mph</span>
         </span>

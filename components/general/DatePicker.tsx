@@ -565,9 +565,7 @@ DatePickerProps) => {
               const isRangeStart = forecast && index === rangeStartIdx;
               const isRangeEnd = forecast && index === rangeEndIdx;
               const isInRange =
-                forecast &&
-                rangeStartIdx <= index &&
-                index <= rangeEndIdx;
+                forecast && rangeStartIdx <= index && index <= rangeEndIdx;
               // Get surf intensity from API data instead of forecast calculation
               const surfIntensity = surfIntensityByDate[key] ?? null;
 
@@ -592,7 +590,7 @@ DatePickerProps) => {
               const rangeClasses =
                 isInRange && forecast
                   ? cn(
-                      "bg-highlight-6/70",
+                      "bg-highlight-5",
                       isRangeStart && "rounded-l-md",
                       isRangeEnd && "rounded-r-md",
                       !isRangeStart && !isRangeEnd && "rounded-none"
@@ -614,7 +612,7 @@ DatePickerProps) => {
                       onSelect?.(day.toDate());
                     }}
                     className={cn(
-                      "flex flex-col items-center w-full py-1 text-center text-sm font-medium transition-colors hover:bg-highlight-5/60 border-2 border-transparent",
+                      "flex flex-col items-center w-full py-1 text-center text-sm font-medium transition-colors hover:rounded-md hover:bg-highlight-5/60 border-2 border-transparent",
                       buttonRounding,
                       rangeClasses,
                       isSelected && "bg-highlight-7 border-border shadow-sm"

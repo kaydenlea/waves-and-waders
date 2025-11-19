@@ -2002,19 +2002,14 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
                 "text-offset": [0, 1.8],
                 "text-size": 10,
                 "text-anchor": "top",
-                "visibility": "visible",
+                visibility: "visible",
               }}
               paint={{
                 "text-color": "#1f2937",
                 "text-halo-color": "#ffffff",
                 "text-halo-width": 1,
                 "text-opacity": selected
-                  ? [
-                      "case",
-                      ["==", ["get", "name"], selected.name],
-                      0,
-                      1
-                    ]
+                  ? ["case", ["==", ["get", "name"], selected.name], 0, 1]
                   : 1,
               }}
             />
@@ -2047,7 +2042,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
             const labelDistance = 125 * scale;
             const centerOffset = ringSize / 2;
             const blurOuter = outerRadius;
-            const markerHole = 12 * scale;
+            const markerHole = 8 * scale;
             const haloPadding = Math.max(blurOuter - ringSize / 2, 0);
             const blurMask = `radial-gradient(circle ${blurOuter}px at center, transparent 0, transparent ${markerHole}px, black ${
               markerHole + 2 * scale
