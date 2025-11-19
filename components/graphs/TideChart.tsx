@@ -488,6 +488,8 @@ const TideChart: React.FC<TideChartProps> = ({
           right: 15,
           bottom: 0,
         }}
+        syncId="allCharts"
+        syncMethod="value"
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
       >

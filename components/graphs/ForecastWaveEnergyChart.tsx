@@ -43,6 +43,7 @@ import { cn } from "@/lib/utils";
 import { useDateContext } from "@/components/context/DateContext";
 import { useForecastChartContext } from "@/components/context/ForecastChartContext";
 import HoverReferenceLine from "@/components/graphs/HoverReferenceLine";
+import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
 
 const chartConfig = {
   energy: {
@@ -759,7 +760,7 @@ function buildTrendStops(
                 bottom: 5,
               }}
               syncId="allCharts"
-              syncMethod="value"
+              syncMethod={syncToNearestThirdHour}
               onMouseMove={handleMouseMove}
               onMouseLeave={handleMouseLeave}
             >

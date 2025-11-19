@@ -37,6 +37,7 @@ import {
   useDateContext,
   useHoveredHour,
 } from "@/components/context/DateContext";
+import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
 
 type Props = { beachId?: string; hours?: number; date?: Date };
 const chartConfig = {
@@ -423,7 +424,7 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
         barCategoryGap="15%"
         maxBarSize={60}
         syncId="allCharts"
-        syncMethod="value"
+        syncMethod={syncToNearestThirdHour}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
       >

@@ -52,6 +52,7 @@ import {
   useDateContext,
   useHoveredHour,
 } from "@/components/context/DateContext";
+import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
 
 type Props = { beachId?: string; hours?: number; date?: Date };
 type Row = {
@@ -333,7 +334,7 @@ const SwellChart = ({ beachId, hours = 24, date }: Props) => {
           left: -28,
         }}
         syncId="allCharts"
-        syncMethod="value"
+        syncMethod={syncToNearestThirdHour}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
       >

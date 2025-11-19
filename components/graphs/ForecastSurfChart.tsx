@@ -36,6 +36,7 @@ import { cn, getPacificHour } from "@/lib/utils";
 import { useDateContext } from "@/components/context/DateContext";
 import { useForecastChartContext } from "@/components/context/ForecastChartContext";
 import HoverReferenceLine from "@/components/graphs/HoverReferenceLine";
+import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
 
 const chartConfig = {
   surf: {
@@ -786,7 +787,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
               data={surfData}
               margin={{ left: -25, right: 15, bottom: 5, top: 0 }}
               syncId="allCharts"
-              syncMethod="value"
+              syncMethod={syncToNearestThirdHour}
               onMouseMove={handleMouseMove}
               onMouseLeave={handleMouseLeave}
             >

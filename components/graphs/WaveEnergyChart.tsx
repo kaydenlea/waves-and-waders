@@ -46,6 +46,7 @@ import {
   useDateContext,
   useHoveredHour,
 } from "@/components/context/DateContext";
+import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
 
 const HOURS_TO_MS = 60 * 60 * 1000;
 
@@ -257,7 +258,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date }: Props) => {
           left: -30,
         }}
         syncId="allCharts"
-        syncMethod="value"
+        syncMethod={syncToNearestThirdHour}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
       >

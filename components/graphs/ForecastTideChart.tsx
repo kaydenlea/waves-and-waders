@@ -652,22 +652,25 @@ export default React.memo(function ForecastTideChart({ beachId, date, days }: Pr
   // Hover sync handlers - DateContext handles RAF batching
   const lastHoveredRef = React.useRef<number | null>(null);
 
-  const handleMouseMove = React.useCallback((e: any) => {
-    if (e && e.activeLabel !== undefined) {
-      const hour = Number(e.activeLabel);
-      if (!isNaN(hour)) {
-        // Round to nearest 3-hour increment like overview charts
-        const roundedHour = Math.round(hour / 3) * 3;
+  const handleMouseMove = React.useCallback(
+    (e: any) => {
+      if (e && e.activeLabel !== undefined) {
+        const hour = Number(e.activeLabel);
+        if (!isNaN(hour)) {
+          // Round to nearest 3-hour increment like overview charts
+          const roundedHour = Math.round(hour / 3) * 3;
 
-        // Only broadcast to other charts when crossing 3-hour boundaries
-        if (lastHoveredRef.current !== roundedHour) {
-          lastHoveredRef.current = roundedHour;
-          // DateContext batches this with RAF - no need to batch here
-          setHoveredHour(roundedHour);
+          // Only broadcast to other charts when crossing 3-hour boundaries
+          if (lastHoveredRef.current !== roundedHour) {
+            lastHoveredRef.current = roundedHour;
+            // DateContext batches this with RAF - no need to batch here
+            setHoveredHour(roundedHour);
+          }
         }
       }
-    }
-  }, [setHoveredHour]);
+    },
+    [setHoveredHour]
+  );
 
   const handleMouseLeave = React.useCallback(() => {
     lastHoveredRef.current = null;
@@ -863,6 +866,8 @@ export default React.memo(function ForecastTideChart({ beachId, date, days }: Pr
               // height={200}
               data={data}
               margin={{ left: -25, right: 15, bottom: 5, top: 0 }}
+              syncId="allCharts"
+              syncMethod="value"
               onMouseMove={handleMouseMove}
               onMouseLeave={handleMouseLeave}
             >
