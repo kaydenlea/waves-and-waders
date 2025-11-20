@@ -763,7 +763,8 @@ export default function Dashboard({
             const isFull =
               visibleItems.length === 1 &&
               meta[visibleItems[0]]?.span === "full";
-            const isFixed = visibleItems.length === 1 && meta[visibleItems[0]]?.immutableFull;
+            const isFixed =
+              visibleItems.length === 1 && meta[visibleItems[0]]?.immutableFull;
             return (
               <React.Fragment key={`frag-${row.id}`}>
                 <div className="w-full">
@@ -793,7 +794,7 @@ export default function Dashboard({
                           />
                         </div>
                       </Slot>
-                      {isDraggingHalf && (
+                      {/* {isDraggingHalf && (
                         <Slot
                           className="w-full"
                           rowId={row.id}
@@ -804,7 +805,7 @@ export default function Dashboard({
                         >
                           <div className="h-full min-h-[14rem] rounded-2xl border border-dashed bg-highlight-2/50" />
                         </Slot>
-                      )}
+                      )} */}
                     </div>
                   ) : (
                     <div className="rounded-2xl border border-dashed p-2 flex flex-col @min-3xl:flex-row w-full @min-3xl:col-span-2 gap-2">

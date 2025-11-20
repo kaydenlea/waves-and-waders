@@ -122,7 +122,7 @@ const VisualWrapper = ({
                 </div>
                 <h3 className="leading-none font-semibold text-lg">{label}</h3>
                 {headerContent && unit && (
-                  <span className="-ml-0.5 text-xs py-1 px-2 rounded-md bg-highlight-5 font-medium">
+                  <span className="hidden @min-xs:block -ml-0.5 text-xs py-1 px-2 rounded-md bg-highlight-5 font-medium">
                     {unit}
                   </span>
                 )}
