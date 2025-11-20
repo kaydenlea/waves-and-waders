@@ -80,6 +80,46 @@ export const supabase = createClient(supabaseUrl, supabaseKey);
 // Cache grid lookups to avoid repeated Supabase calls during a single request burst
 const beachGridCache = new Map<string, number | null>();
 
+type ForecastFetchCacheEntry = {
+  promise: Promise<ForecastData[]>;
+  data?: ForecastData[];
+  timestamp: number;
+};
+
+const FORECAST_FETCH_CACHE_MS = 2 * 60 * 1000; // 2 minutes
+const FORECAST_FETCH_CACHE_MAX = 40;
+const forecastFetchCache = new Map<string, ForecastFetchCacheEntry>();
+
+function getForecastCacheKey(
+  beachId: string,
+  startDate?: Date,
+  endDate?: Date
+): string {
+  const trimmed = (beachId ?? "").trim();
+  const startKey =
+    startDate instanceof Date && Number.isFinite(startDate.getTime())
+      ? startDate.getTime()
+      : "na";
+  const endKey =
+    endDate instanceof Date && Number.isFinite(endDate.getTime())
+      ? endDate.getTime()
+      : "na";
+  return `${trimmed}:${startKey}:${endKey}`;
+}
+
+function pruneForecastFetchCache() {
+  if (forecastFetchCache.size <= FORECAST_FETCH_CACHE_MAX) {
+    return;
+  }
+  const entries = Array.from(forecastFetchCache.entries()).sort(
+    (a, b) => a[1].timestamp - b[1].timestamp
+  );
+  const excess = entries.length - FORECAST_FETCH_CACHE_MAX;
+  for (let i = 0; i < excess; i++) {
+    forecastFetchCache.delete(entries[i][0]);
+  }
+}
+
 export async function fetchBeachGridId(
   beachId: string | number
 ): Promise<number | null> {
@@ -926,27 +966,72 @@ export async function fetchBeachForecast(
   startDate?: Date,
   endDate?: Date
 ): Promise<ForecastData[]> {
-  const { resolvedId, gridId } = await resolveBeachAndGrid(beachId);
-
-  if (resolvedId == null) {
-    throw new Error(`Unable to resolve beach ID for "${beachId}"`);
-  }
-
-  if (gridId == null) {
-    console.warn("No grid_id for beach; returning empty forecast dataset", {
-      beachId: resolvedId,
-    });
-    return [];
-  }
-
-  const data = await fetchGridForecastRecords(
-    resolvedId,
-    gridId,
+  const normalizedBeachId = (beachId ?? "").trim();
+  const cacheKey = getForecastCacheKey(
+    normalizedBeachId,
     startDate,
     endDate
   );
+  const now = Date.now();
+  const cached = forecastFetchCache.get(cacheKey);
 
-  return transformToComponentFormat(data);
+  if (cached) {
+    const isFresh = now - cached.timestamp < FORECAST_FETCH_CACHE_MS;
+    if (cached.data && isFresh) {
+      return cached.data;
+    }
+    if (isFresh) {
+      return cached.promise;
+    }
+    forecastFetchCache.delete(cacheKey);
+  }
+
+  const fetchPromise = (async () => {
+    try {
+      const { resolvedId, gridId } = await resolveBeachAndGrid(
+        normalizedBeachId
+      );
+
+      if (resolvedId == null) {
+        throw new Error(`Unable to resolve beach ID for "${beachId}"`);
+      }
+
+      if (gridId == null) {
+        console.warn("No grid_id for beach; returning empty forecast dataset", {
+          beachId: resolvedId,
+        });
+        forecastFetchCache.set(cacheKey, {
+          promise: Promise.resolve([]),
+          data: [],
+          timestamp: Date.now(),
+        });
+        pruneForecastFetchCache();
+        return [];
+      }
+
+      const data = await fetchGridForecastRecords(
+        resolvedId,
+        gridId,
+        startDate,
+        endDate
+      );
+
+      const transformed = transformToComponentFormat(data);
+      forecastFetchCache.set(cacheKey, {
+        promise: Promise.resolve(transformed),
+        data: transformed,
+        timestamp: Date.now(),
+      });
+      pruneForecastFetchCache();
+      return transformed;
+    } catch (error) {
+      forecastFetchCache.delete(cacheKey);
+      throw error;
+    }
+  })();
+
+  forecastFetchCache.set(cacheKey, { promise: fetchPromise, timestamp: now });
+  return fetchPromise;
 }
 
 async function resolveBeachAndGrid(

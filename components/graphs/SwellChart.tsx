@@ -44,14 +44,14 @@ const chartConfig = {
 import {
   fetchBeachForecast,
   fetchBeachByIdLoose,
-  fetchBeachDetails,
-  fetchDailyConditions,
   getWindDirection,
 } from "@/lib/supabase";
 import {
   useDateContext,
   useHoveredHour,
 } from "@/components/context/DateContext";
+import { useSunData } from "@/components/context/SunDataContext";
+import { buildSunSegments } from "@/components/graphs/sunSegments";
 import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
 
 type Props = { beachId?: string; hours?: number; date?: Date };
@@ -166,6 +166,7 @@ export const SwellStatsHeader = ({
 
 const SwellChart = ({ beachId, hours = 24, date }: Props) => {
   const { hour: selectedHour, setHoveredHour } = useDateContext();
+  const { getSunData } = useSunData();
   const hoveredHour = useHoveredHour();
   const [data, setData] = useState<Row[]>([]);
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
@@ -227,45 +228,17 @@ const SwellChart = ({ beachId, hours = 24, date }: Props) => {
 
         // Compute sunrise/sunset shading for the day in view
         try {
-          const beach = await fetchBeachDetails(String(id));
-          const county = beach?.COUNTY;
-          if (county) {
-            const basisDate =
-              date instanceof Date ? new Date(date) : new Date(start);
-            const cond = await fetchDailyConditions(county, basisDate);
-            const parseHM = (s: string | null): number | null => {
-              if (!s) return null;
-              const m = /^(\d{1,2}):(\d{2})/.exec(s.trim());
-              if (!m) return null;
-              const h = Number(m[1]);
-              const mm = Number(m[2]);
-              if (!Number.isFinite(h) || !Number.isFinite(mm)) return null;
-              return h + mm / 60;
-            };
-            const riseH = parseHM(cond?.sunrise ?? null);
-            const setH = parseHM(cond?.sunset ?? null);
-            if (riseH != null && setH != null) {
-              const dayStart = Math.min(riseH, setH);
-              const dayEnd = Math.max(riseH, setH);
-              const clampedStart = Math.max(0, Math.min(hours, dayStart));
-              const clampedEnd = Math.max(0, Math.min(hours, dayEnd));
-              if (!cancelled) {
-                setDayAreas([{ x1: clampedStart, x2: clampedEnd }]);
-              }
-              const nightSegments: { x1: number; x2: number }[] = [];
-              if (clampedStart > 0) {
-                nightSegments.push({ x1: 0, x2: clampedStart });
-              }
-              if (clampedEnd < hours) {
-                nightSegments.push({ x1: clampedEnd, x2: hours });
-              }
-              if (!cancelled) {
-                setNightAreas(nightSegments);
-              }
-            } else if (!cancelled) {
-              setDayAreas([]);
-              setNightAreas([{ x1: 0, x2: hours }]);
-            }
+          const basisDate =
+            date instanceof Date ? new Date(date) : new Date(start);
+          const sunData = await getSunData(String(id), basisDate);
+          const segments = buildSunSegments(
+            hours,
+            sunData?.sunrise ?? null,
+            sunData?.sunset ?? null
+          );
+          if (!cancelled) {
+            setDayAreas(segments.dayAreas);
+            setNightAreas(segments.nightAreas);
           }
         } catch (e) {
           if (!cancelled) {
@@ -287,7 +260,7 @@ const SwellChart = ({ beachId, hours = 24, date }: Props) => {
     return () => {
       cancelled = true;
     };
-  }, [beachId, hours, date]);
+  }, [beachId, hours, date, getSunData]);
 
   const hourTicks = useMemo(() => {
     const ticks: number[] = [];

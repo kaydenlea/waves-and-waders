@@ -35,7 +35,8 @@ import ForecastBridge from "./ForecastBridge";
 import PageTabs from "./PageTabs";
 import Link from "next/link";
 import { Pencil, TrendingUp, TrendingDown } from "lucide-react";
-import { fetchBeachTides, fetchBeachForecast } from "@/lib/supabase";
+import { fetchBeachTides } from "@/lib/supabase";
+import { useCachedForecast } from "@/lib/hooks/useCachedForecast";
 import { getPacificMidnightUTC } from "@/lib/utils";
 import SurfIntensityMarker from "./SurfIntensityMarker";
 
@@ -44,6 +45,13 @@ type Props = {
   beachParam?: string;
   isFavorite?: boolean;
 };
+
+type RangeStats = {
+  min: string | null;
+  max: string | null;
+};
+
+const FORECAST_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 const HeaderVisual = ({
   unit,
@@ -178,358 +186,20 @@ const TideStatsHeader = ({
   );
 };
 
-const WaveEnergyStatsHeader = ({
-  beachId,
-  date,
-}: {
-  beachId: string;
-  date?: Date;
-}) => {
-  const [highEnergy, setHighEnergy] = React.useState<string | null>(null);
-  const [lowEnergy, setLowEnergy] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    let cancelled = false;
-
-    const loadEnergyStats = async () => {
-      try {
-        const HOURS_TO_MS = 60 * 60 * 1000;
-        const hours = 24;
-
-        let start = new Date();
-        let end = new Date(start.getTime() + hours * HOURS_TO_MS);
-        if (date instanceof Date) {
-          start = getPacificMidnightUTC(date);
-          end = new Date(start.getTime() + hours * HOURS_TO_MS);
-        }
-
-        const rows = await fetchBeachForecast(beachId, start, end);
-        if (cancelled) return;
-
-        const energyValues = rows
-          .map((r) => r.surf.waveEnergy)
-          .filter((v): v is number => typeof v === "number" && !isNaN(v));
-
-        if (energyValues.length > 0) {
-          const high = Math.max(...energyValues);
-          const low = Math.min(...energyValues);
-
-          if (!cancelled) {
-            setHighEnergy(high.toFixed(0));
-            setLowEnergy(low.toFixed(0));
-          }
-        }
-      } catch (e) {
-        console.error("Failed to load wave energy stats", e);
-      }
-    };
-
-    void loadEnergyStats();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [beachId, date]);
-
-  return (
-    <HeaderVisual unit="kJ" min={lowEnergy} max={highEnergy} />
-    // <div className="grid rounded-md bg-highlight-5 grid-cols-[60px_1fr] grid-rows-2 gap-y-0.5 items-center text-xs text-muted-foreground uppercase tracking-wide leading-tight px-2 py-1.5">
-    //   <span className="flex gap-2 items-center">
-    //     <TrendingUp
-    //       fill="#353535ff"
-    //       className="stroke-muted-foreground w-4 h-4"
-    //     />
-    //     <span className="block font-medium">High</span>
-    //   </span>
-    //   <span className="ml-1 text-foreground normal-case font-medium">
-    //     {highEnergy ?? "--"} <span className="inline-block">kJ</span>
-    //   </span>
-    //   <span className="flex gap-2 items-center">
-    //     <TrendingDown
-    //       fill="#353535ff"
-    //       className="stroke-muted-foreground w-4 h-4"
-    //     />
-    //     <span className="block -mb-0.5 font-medium">Low</span>
-    //   </span>
-    //   <span className="ml-1 text-foreground normal-case font-medium">
-    //     {lowEnergy ?? "--"} <span className="inline-block">kJ</span>
-    //   </span>
-    // </div>
-  );
+const WaveEnergyStatsHeader = ({ stats }: { stats: RangeStats }) => {
+  return <HeaderVisual unit="kJ" min={stats.min} max={stats.max} />;
 };
 
-const WindStatsHeader = ({
-  beachId,
-  date,
-}: {
-  beachId: string;
-  date?: Date;
-}) => {
-  const [highWind, setHighWind] = React.useState<string | null>(null);
-  const [lowWind, setLowWind] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    let cancelled = false;
-
-    const loadWindStats = async () => {
-      try {
-        const HOURS_TO_MS = 60 * 60 * 1000;
-        const hours = 24;
-
-        let start = new Date();
-        let end = new Date(start.getTime() + hours * HOURS_TO_MS);
-        if (date instanceof Date) {
-          start = getPacificMidnightUTC(date);
-          end = new Date(start.getTime() + hours * HOURS_TO_MS);
-        }
-
-        const rows = await fetchBeachForecast(beachId, start, end);
-        if (cancelled) return;
-
-        const windValues = rows
-          .map((r) => r.conditions.windSpeed)
-          .filter((v): v is number => typeof v === "number" && !isNaN(v));
-
-        if (windValues.length > 0) {
-          const high = Math.max(...windValues);
-          const low = Math.min(...windValues);
-
-          if (!cancelled) {
-            setHighWind(high.toFixed(0));
-            setLowWind(low.toFixed(0));
-          }
-        }
-      } catch (e) {
-        console.error("Failed to load wind stats", e);
-      }
-    };
-
-    void loadWindStats();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [beachId, date]);
-
-  return (
-    <HeaderVisual unit="mph" min={lowWind} max={highWind} />
-    // <div className="grid rounded-md bg-highlight-5 grid-cols-[60px_1fr] grid-rows-2 gap-y-0.5 items-center text-xs text-muted-foreground uppercase tracking-wide leading-tight px-2 py-1.5">
-    //   <span className="flex gap-2 items-center">
-    //     <TrendingUp
-    //       fill="#353535ff"
-    //       className="stroke-muted-foreground w-4 h-4"
-    //     />
-    //     <span className="block font-medium">High</span>
-    //   </span>
-    //   <span className="ml-1 text-foreground normal-case font-medium">
-    //     {highWind ?? "--"} <span className="inline-block">mph</span>
-    //   </span>
-    //   <span className="flex gap-2 items-center">
-    //     <TrendingDown
-    //       fill="#353535ff"
-    //       className="stroke-muted-foreground w-4 h-4"
-    //     />
-    //     <span className="block -mb-0.5 font-medium">Low</span>
-    //   </span>
-    //   <span className="ml-1 text-foreground normal-case font-medium">
-    //     {lowWind ?? "--"} <span className="inline-block">mph</span>
-    //   </span>
-    // </div>
-  );
+const WindStatsHeader = ({ stats }: { stats: RangeStats }) => {
+  return <HeaderVisual unit="mph" min={stats.min} max={stats.max} />;
 };
 
-const SurfStatsHeader = ({
-  beachId,
-  date,
-}: {
-  beachId: string;
-  date?: Date;
-}) => {
-  const [highSurf, setHighSurf] = React.useState<string | null>(null);
-  const [lowSurf, setLowSurf] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    let cancelled = false;
-
-    const loadSurfStats = async () => {
-      try {
-        const HOURS_TO_MS = 60 * 60 * 1000;
-        const hours = 24;
-
-        let start = new Date();
-        let end = new Date(start.getTime() + hours * HOURS_TO_MS);
-        if (date instanceof Date) {
-          start = getPacificMidnightUTC(date);
-          end = new Date(start.getTime() + hours * HOURS_TO_MS);
-        }
-
-        const rows = await fetchBeachForecast(beachId, start, end);
-        if (cancelled) return;
-
-        // Calculate representative surf values the same way the chart does
-        const surfValues = rows
-          .map((r) => {
-            const h1 = r.swell.primary.height ?? 0;
-            const p1 = r.swell.primary.period ?? 10;
-            const h2 = r.swell.secondary.height ?? 0;
-            const p2 = r.swell.secondary.period ?? 10;
-            const h3 = r.swell.tertiary?.height ?? 0;
-            const p3 = r.swell.tertiary?.period ?? 10;
-            const s1 = h1 * Math.sqrt(Math.max(0, p1) / 10);
-            const s2 = h2 * Math.sqrt(Math.max(0, p2) / 10);
-            const s3 = h3 * Math.sqrt(Math.max(0, p3) / 10);
-            const w1 = 1.0,
-              w2 = 0.6,
-              w3 = 0.3;
-            const combined = Math.sqrt(
-              Math.pow(w1 * s1, 2) + Math.pow(w2 * s2, 2) + Math.pow(w3 * s3, 2)
-            );
-            const wind = r.conditions.windSpeed ?? 0;
-            const windPenalty = Math.min(0.5, Math.max(0, (wind - 5) / 35));
-            const effective = Math.max(0, combined * (1 - windPenalty));
-
-            // Calculate estimate from heightMin/heightMax
-            const min = r.surf.heightMin ?? 0;
-            const max = r.surf.heightMax ?? 0;
-            const estimate = min > 0 && max > 0 ? (min + max) / 2 : max;
-
-            let representative = effective;
-            if (!Number.isFinite(representative) || representative <= 0) {
-              representative = estimate > 0 ? estimate : 0;
-            } else if (estimate > 0) {
-              representative = representative * 0.7 + estimate * 0.3;
-            }
-
-            return Math.max(0, representative);
-          })
-          .filter((v): v is number => typeof v === "number" && !isNaN(v));
-
-        if (surfValues.length > 0) {
-          const high = Math.max(...surfValues);
-          const low = Math.min(...surfValues);
-
-          if (!cancelled) {
-            setHighSurf(high.toFixed(1));
-            setLowSurf(low.toFixed(1));
-          }
-        }
-      } catch (e) {
-        console.error("Failed to load surf stats", e);
-      }
-    };
-
-    void loadSurfStats();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [beachId, date]);
-
-  return (
-    <HeaderVisual unit="ft" min={lowSurf} max={highSurf} />
-    // <div className="grid rounded-md bg-highlight-5 grid-cols-[60px_1fr] grid-rows-2 gap-y-0.5 items-center text-xs text-muted-foreground uppercase tracking-wide leading-tight px-2 py-1.5">
-    //   <span className="flex gap-2 items-center">
-    //     <TrendingUp
-    //       fill="#353535ff"
-    //       className="stroke-muted-foreground w-4 h-4"
-    //     />
-    //     <span className="block font-medium">High</span>
-    //   </span>
-    //   <span className="ml-1 text-foreground normal-case font-medium">
-    //     {highSurf ?? "--"} <span className="inline-block">ft</span>
-    //   </span>
-    //   <span className="flex gap-2 items-center">
-    //     <TrendingDown
-    //       fill="#353535ff"
-    //       className="stroke-muted-foreground w-4 h-4"
-    //     />
-    //     <span className="block -mb-0.5 font-medium">Low</span>
-    //   </span>
-    //   <span className="ml-1 text-foreground normal-case font-medium">
-    //     {lowSurf ?? "--"} <span className="inline-block">ft</span>
-    //   </span>
-    // </div>
-  );
+const SurfStatsHeader = ({ stats }: { stats: RangeStats }) => {
+  return <HeaderVisual unit="ft" min={stats.min} max={stats.max} />;
 };
 
-const SwellStatsHeader = ({
-  beachId,
-  date,
-}: {
-  beachId: string;
-  date?: Date;
-}) => {
-  const [highSwell, setHighSwell] = React.useState<string | null>(null);
-  const [lowSwell, setLowSwell] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    let cancelled = false;
-
-    const loadSwellStats = async () => {
-      try {
-        const HOURS_TO_MS = 60 * 60 * 1000;
-        const hours = 24;
-
-        let start = new Date();
-        let end = new Date(start.getTime() + hours * HOURS_TO_MS);
-        if (date instanceof Date) {
-          start = getPacificMidnightUTC(date);
-          end = new Date(start.getTime() + hours * HOURS_TO_MS);
-        }
-
-        const rows = await fetchBeachForecast(beachId, start, end);
-        if (cancelled) return;
-
-        const swellValues = rows
-          .map((r) => r.swell.primary.height)
-          .filter((v): v is number => typeof v === "number" && !isNaN(v));
-
-        if (swellValues.length > 0) {
-          const high = Math.max(...swellValues);
-          const low = Math.min(...swellValues);
-
-          if (!cancelled) {
-            setHighSwell(high.toFixed(1));
-            setLowSwell(low.toFixed(1));
-          }
-        }
-      } catch (e) {
-        console.error("Failed to load swell stats", e);
-      }
-    };
-
-    void loadSwellStats();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [beachId, date]);
-
-  return (
-    <HeaderVisual unit="ft" min={lowSwell} max={highSwell} />
-    // <div className="grid rounded-md bg-highlight-5 grid-cols-[60px_1fr] grid-rows-2 gap-y-0.5 items-center text-xs text-muted-foreground uppercase tracking-wide leading-tight px-2 py-1.5">
-    //   <span className="flex gap-2 items-center">
-    //     <TrendingUp
-    //       fill="#353535ff"
-    //       className="stroke-muted-foreground w-4 h-4"
-    //     />
-    //     <span className="block font-medium">High</span>
-    //   </span>
-    //   <span className="ml-1 text-foreground normal-case font-medium">
-    //     {highSwell ?? "--"} <span className="inline-block">ft</span>
-    //   </span>
-    //   <span className="flex gap-2 items-center">
-    //     <TrendingDown
-    //       fill="#353535ff"
-    //       className="stroke-muted-foreground w-4 h-4"
-    //     />
-    //     <span className="block -mb-0.5 font-medium">Low</span>
-    //   </span>
-    //   <span className="ml-1 text-foreground normal-case font-medium">
-    //     {lowSwell ?? "--"} <span className="inline-block">ft</span>
-    //   </span>
-    // </div>
-  );
+const SwellStatsHeader = ({ stats }: { stats: RangeStats }) => {
+  return <HeaderVisual unit="ft" min={stats.min} max={stats.max} />;
 };
 
 const DateSummaryBridge: React.FC<Props> = ({
@@ -565,6 +235,94 @@ const DateSummaryBridge: React.FC<Props> = ({
   );
   const supabase = useSupabaseClient();
   const { session } = useSessionContext();
+  const statsRange = React.useMemo(() => {
+    let start = new Date();
+    if (selected instanceof Date) {
+      start = getPacificMidnightUTC(selected);
+    }
+    const end = new Date(start.getTime() + FORECAST_WINDOW_MS);
+    return { start, end };
+  }, [selected]);
+  const { data: forecastRows } = useCachedForecast({
+    beachId,
+    start: statsRange.start,
+    end: statsRange.end,
+    enabled: Boolean(beachId),
+  });
+  const { windStats, surfStats, swellStats, energyStats } = React.useMemo(() => {
+    const makeEmptyRange = () => ({ min: null, max: null });
+    const toRange = (values: number[], fractionDigits: number): RangeStats => {
+      if (!values.length) {
+        return makeEmptyRange();
+      }
+      const max = Math.max(...values);
+      const min = Math.min(...values);
+      return {
+        min: min.toFixed(fractionDigits),
+        max: max.toFixed(fractionDigits),
+      };
+    };
+    const isValidNumber = (value: unknown): value is number =>
+      typeof value === "number" && Number.isFinite(value);
+
+    if (!forecastRows.length) {
+      return {
+        windStats: makeEmptyRange(),
+        surfStats: makeEmptyRange(),
+        swellStats: makeEmptyRange(),
+        energyStats: makeEmptyRange(),
+      };
+    }
+
+    const energyValues = forecastRows
+      .map((row) => row.surf.waveEnergy)
+      .filter(isValidNumber);
+    const windValues = forecastRows
+      .map((row) => row.conditions.windSpeed)
+      .filter(isValidNumber);
+    const swellValues = forecastRows
+      .map((row) => row.swell.primary.height)
+      .filter(isValidNumber);
+    const surfValues = forecastRows
+      .map((row) => {
+        const h1 = row.swell.primary.height ?? 0;
+        const p1 = row.swell.primary.period ?? 10;
+        const h2 = row.swell.secondary.height ?? 0;
+        const p2 = row.swell.secondary.period ?? 10;
+        const h3 = row.swell.tertiary?.height ?? 0;
+        const p3 = row.swell.tertiary?.period ?? 10;
+        const s1 = h1 * Math.sqrt(Math.max(0, p1) / 10);
+        const s2 = h2 * Math.sqrt(Math.max(0, p2) / 10);
+        const s3 = h3 * Math.sqrt(Math.max(0, p3) / 10);
+        const w1 = 1.0;
+        const w2 = 0.6;
+        const w3 = 0.3;
+        const combined = Math.sqrt(
+          Math.pow(w1 * s1, 2) + Math.pow(w2 * s2, 2) + Math.pow(w3 * s3, 2)
+        );
+        const wind = row.conditions.windSpeed ?? 0;
+        const windPenalty = Math.min(0.5, Math.max(0, (wind - 5) / 35));
+        const effective = Math.max(0, combined * (1 - windPenalty));
+        const min = row.surf.heightMin ?? 0;
+        const max = row.surf.heightMax ?? 0;
+        const estimate = min > 0 && max > 0 ? (min + max) / 2 : max;
+        let representative = effective;
+        if (!Number.isFinite(representative) || representative <= 0) {
+          representative = estimate > 0 ? estimate : 0;
+        } else if (estimate > 0) {
+          representative = representative * 0.7 + estimate * 0.3;
+        }
+        return Math.max(0, representative);
+      })
+      .filter(isValidNumber);
+
+    return {
+      windStats: toRange(windValues, 0),
+      surfStats: toRange(surfValues, 1),
+      swellStats: toRange(swellValues, 1),
+      energyStats: toRange(energyValues, 0),
+    };
+  }, [forecastRows]);
 
   const { setSelectedDate, setSelectedHour } = useMapFilters();
 
@@ -782,10 +540,7 @@ const DateSummaryBridge: React.FC<Props> = ({
               label="Wind"
               unit="mph"
               headerContent={
-                <WindStatsHeader
-                  beachId={beachId}
-                  date={selected ?? undefined}
-                />
+                <WindStatsHeader stats={windStats} />
               }
             >
               <LazyLoadWind beachId={beachId} date={selected ?? undefined} />
@@ -797,10 +552,7 @@ const DateSummaryBridge: React.FC<Props> = ({
               label="Swell"
               unit="ft"
               headerContent={
-                <SwellStatsHeader
-                  beachId={beachId}
-                  date={selected ?? undefined}
-                />
+                <SwellStatsHeader stats={swellStats} />
               }
             >
               <LazyLoadSwell beachId={beachId} date={selected ?? undefined} />
@@ -812,10 +564,7 @@ const DateSummaryBridge: React.FC<Props> = ({
               label="Surf"
               unit="ft"
               headerContent={
-                <SurfStatsHeader
-                  beachId={beachId}
-                  date={selected ?? undefined}
-                />
+                <SurfStatsHeader stats={surfStats} />
               }
             >
               <LazyLoadSurf beachId={beachId} date={selected ?? undefined} />
@@ -827,10 +576,7 @@ const DateSummaryBridge: React.FC<Props> = ({
               label="Energy"
               unit="kJ"
               headerContent={
-                <WaveEnergyStatsHeader
-                  beachId={beachId}
-                  date={selected ?? undefined}
-                />
+                <WaveEnergyStatsHeader stats={energyStats} />
               }
             >
               <LazyLoadEnergy beachId={beachId} date={selected ?? undefined} />
@@ -851,7 +597,17 @@ const DateSummaryBridge: React.FC<Props> = ({
           return null;
       }
     },
-    [beachId, selected, hour, label, timeDisplay]
+    [
+      beachId,
+      selected,
+      hour,
+      label,
+      timeDisplay,
+      windStats,
+      surfStats,
+      swellStats,
+      energyStats,
+    ]
   );
 
   const sectionId = isOverview ? "overview-content" : "forecast-content";

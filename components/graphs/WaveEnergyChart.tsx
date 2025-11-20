@@ -17,6 +17,17 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
+import {
+  fetchBeachForecast,
+  fetchBeachByIdLoose,
+} from "@/lib/supabase";
+import {
+  useDateContext,
+  useHoveredHour,
+} from "@/components/context/DateContext";
+import { useSunData } from "@/components/context/SunDataContext";
+import { buildSunSegments } from "@/components/graphs/sunSegments";
+import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
 
 const chartConfig = {
   energy: {
@@ -35,18 +46,6 @@ const chartConfig = {
 
 type Props = { beachId?: string; hours?: number; date?: Date };
 type EnergyPoint = { hour: number; energy: number };
-
-import {
-  fetchBeachForecast,
-  fetchBeachByIdLoose,
-  fetchBeachDetails,
-  fetchDailyConditions,
-} from "@/lib/supabase";
-import {
-  useDateContext,
-  useHoveredHour,
-} from "@/components/context/DateContext";
-import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
 
 const HOURS_TO_MS = 60 * 60 * 1000;
 
@@ -88,6 +87,7 @@ function buildTrendStops(
 
 const WaveEnergyChart = ({ beachId, hours = 24, date }: Props) => {
   const { hour: selectedHour, setHoveredHour } = useDateContext();
+  const { getSunData } = useSunData();
   const hoveredHour = useHoveredHour();
   const [series, setSeries] = useState<EnergyPoint[]>([]);
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
@@ -147,51 +147,17 @@ const WaveEnergyChart = ({ beachId, hours = 24, date }: Props) => {
           }))
         );
 
-        const beach = await fetchBeachDetails(String(id));
-        if (cancelled) return;
-
-        const county = beach?.COUNTY;
-        if (county) {
-          const basisDate =
-            date instanceof Date ? new Date(date) : new Date(start);
-          const cond = await fetchDailyConditions(county, basisDate);
-          if (cancelled) return;
-
-          const parseHM = (
-            s: string | null
-          ): { h: number; m: number } | null => {
-            if (!s) return null;
-            const m = /^([0-9]{1,2}):(\d{2})/.exec(s.trim());
-            if (!m) return null;
-            const h = Number(m[1]);
-            const mm = Number(m[2]);
-            if (!Number.isFinite(h) || !Number.isFinite(mm)) return null;
-            return { h, m: mm };
-          };
-          const rise = parseHM(cond?.sunrise ?? null);
-          const setv = parseHM(cond?.sunset ?? null);
-          const toHour = (value: { h: number; m: number }) =>
-            value.h + value.m / 60;
-          const clampHour = (val: number) => Math.max(0, Math.min(hours, val));
-          if (rise && setv) {
-            const riseHour = clampHour(toHour(rise));
-            const setHour = clampHour(toHour(setv));
-            const x1 = Math.min(riseHour, setHour);
-            const x2 = Math.max(riseHour, setHour);
-            if (!cancelled) {
-              setDayAreas(x2 > x1 ? [{ x1, x2 }] : []);
-              const nights: { x1: number; x2: number }[] = [];
-              if (x1 > 0) nights.push({ x1: 0, x2: x1 });
-              if (x2 < hours) nights.push({ x1: x2, x2: hours });
-              setNightAreas(nights);
-            }
-          } else if (!cancelled) {
-            setDayAreas([]);
-            setNightAreas([{ x1: 0, x2: hours }]);
-          }
-        } else if (!cancelled) {
-          setDayAreas([]);
-          setNightAreas([{ x1: 0, x2: hours }]);
+        const basisDate =
+          date instanceof Date ? new Date(date) : new Date(start);
+        const sunData = await getSunData(String(id), basisDate);
+        if (!cancelled) {
+          const segments = buildSunSegments(
+            hours,
+            sunData?.sunrise ?? null,
+            sunData?.sunset ?? null
+          );
+          setDayAreas(segments.dayAreas);
+          setNightAreas(segments.nightAreas);
         }
       } catch (e) {
         console.error("Failed to load wave energy", e);
@@ -206,7 +172,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date }: Props) => {
     return () => {
       cancelled = true;
     };
-  }, [beachId, hours, date]);
+  }, [beachId, hours, date, getSunData]);
 
   const hourTicks = useMemo(() => {
     const ticks: number[] = [];

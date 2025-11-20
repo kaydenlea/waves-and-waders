@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useEffect, useMemo, useState } from "react";
 import {
@@ -23,13 +23,16 @@ import {
   fetchBeachTides,
   fetchBeachByIdLoose,
   fetchBeachForecast,
-  fetchBeachDetails,
-  fetchDailyConditions,
 } from "@/lib/supabase";
 import {
   useDateContext,
   useHoveredHour,
 } from "@/components/context/DateContext";
+import { useSunData } from "@/components/context/SunDataContext";
+import {
+  buildSunSegments,
+  parseSunTimeToHour,
+} from "@/components/graphs/sunSegments";
 
 const HOURS_TO_MS = 60 * 60 * 1000;
 
@@ -69,17 +72,10 @@ const formatHourTick = (value: number) => {
     : "";
 };
 
-const parseHourMinute = (value: string | null) => {
-  if (!value) return null;
-  const match = /^([0-9]{1,2}):(\d{2})(?::(\d{2}))?/.exec(value.trim());
-  if (!match) return null;
-  const h = Number(match[1]);
-  const m = Number(match[2]);
-  const s = Number(match[3] || 0);
-  if (!Number.isFinite(h) || !Number.isFinite(m) || !Number.isFinite(s))
-    return null;
-  return h + m / 60 + s / 3600;
-};
+const isSameDay = (a: Date, b: Date) =>
+  a.getFullYear() === b.getFullYear() &&
+  a.getMonth() === b.getMonth() &&
+  a.getDate() === b.getDate();
 
 const TideChart: React.FC<TideChartProps> = ({
   beachId,
@@ -88,6 +84,7 @@ const TideChart: React.FC<TideChartProps> = ({
   date,
 }) => {
   const { hour: selectedHour, setHoveredHour } = useDateContext();
+  const { getSunData } = useSunData();
   const hoveredHour = useHoveredHour();
   const [chartData, setChartData] = useState<TidePoint[]>([]);
   const [windowStart, setWindowStart] = useState<number | null>(null);
@@ -242,98 +239,98 @@ const TideChart: React.FC<TideChartProps> = ({
   useEffect(() => {
     let cancelled = false;
 
-    const loadFromProp = (points: ExternalTidePoint[]) => {
-      if (!points.length) {
-        setChartData([]);
-        setWindowStart(null);
-        return;
-      }
-      const origin = resolveStartMs(new Date(points[0].x));
-      const firstPointDate = new Date(points[0].x);
-      const today = new Date();
-      const isToday =
-        firstPointDate.getFullYear() === today.getFullYear() &&
-        firstPointDate.getMonth() === today.getMonth() &&
-        firstPointDate.getDate() === today.getDate();
-      const built = buildPoints(points, origin, hours, isToday);
-      if (!cancelled) {
-        setWindowStart(origin);
-        setChartData(built);
-      }
-    };
-
-    const loadFromApi = async () => {
-      if (!beachId) {
-        setChartData([]);
-        setWindowStart(null);
-        return;
-      }
+    const load = async () => {
       try {
+        if (chartDataProp && chartDataProp.length > 0) {
+          const sorted = chartDataProp
+            .map((row) => ({
+              x: typeof row.x === "number" ? row.x : Number(row.x),
+              tide: row.tide,
+              isPeak: row.isPeak,
+            }))
+            .filter((row) => Number.isFinite(row.x));
+          if (!sorted.length) {
+            if (!cancelled) {
+              setChartData([]);
+              setWindowStart(null);
+            }
+            return;
+          }
+          const firstTimestamp = sorted[0].x;
+          const baseDate = new Date(firstTimestamp);
+          const startMs = resolveStartMs(baseDate);
+          const built = buildPoints(
+            sorted,
+            startMs,
+            hours,
+            isSameDay(baseDate, new Date())
+          );
+          if (!cancelled) {
+            setChartData(built);
+            setWindowStart(startMs);
+          }
+          return;
+        }
+
+        if (!beachId) {
+          if (!cancelled) {
+            setChartData([]);
+            setWindowStart(null);
+          }
+          return;
+        }
+
         const resolved = await fetchBeachByIdLoose(beachId);
         const id = resolved?.id ?? beachId;
-        const startBasis = date instanceof Date ? new Date(date) : new Date();
-        const startMs = resolveStartMs(startBasis);
 
-        // Check if this is today
-        const today = new Date();
-        const isToday =
-          startBasis.getFullYear() === today.getFullYear() &&
-          startBasis.getMonth() === today.getMonth() &&
-          startBasis.getDate() === today.getDate();
+        const baseDate =
+          date instanceof Date ? new Date(date) : new Date();
+        const startMs = resolveStartMs(baseDate);
+        const startDate = new Date(startMs);
+        const endDate = new Date(startMs + hours * HOURS_TO_MS);
 
-        // Fetch extra data (6 hours before and after) to detect peaks at window boundaries
-        const BUFFER_HOURS = 6;
-        const fetchStart = new Date(startMs - BUFFER_HOURS * HOURS_TO_MS);
-        const fetchEnd = new Date(
-          startMs + (hours + BUFFER_HOURS) * HOURS_TO_MS
+        let tideRows = await fetchBeachTides(String(id), startDate, endDate);
+        let externalRows: ExternalTidePoint[];
+        if (tideRows && tideRows.length > 0) {
+          externalRows = tideRows
+            .filter((row) => row.tideLevelFt != null)
+            .map((row) => ({
+              x: new Date(row.timestamp).getTime(),
+              tide: row.tideLevelFt ?? 0,
+            }));
+        } else {
+          const forecastRows = await fetchBeachForecast(
+            String(id),
+            startDate,
+            endDate
+          );
+          externalRows = forecastRows.map((row) => ({
+            x: new Date(row.timestamp).getTime(),
+            tide: row.conditions.tideLevel ?? 0,
+          }));
+        }
+
+        const built = buildPoints(
+          externalRows,
+          startMs,
+          hours,
+          isSameDay(baseDate, new Date())
         );
 
-        const tideRows = await fetchBeachTides(id, fetchStart, fetchEnd);
-        let rows: ExternalTidePoint[];
-        if (!tideRows || tideRows.length === 0) {
-          console.warn(
-            "[Warning] No tide data from county_tides_15min, falling back to grid_forecast_data"
-          );
-          const fallback = await fetchBeachForecast(id, fetchStart, fetchEnd);
-          rows = fallback.map((r) => ({
-            x: new Date(r.timestamp).getTime(),
-            tide: r.conditions.tideLevel ?? 0,
-          }));
-          console.log(
-            "[Warning] Using grid_forecast_data:",
-            rows.length,
-            "points (3-hour intervals)"
-          );
-        } else {
-          rows = tideRows.map((p) => ({
-            x: new Date(p.timestamp).getTime(),
-            tide: p.tideLevelFt ?? 0,
-          }));
-          console.log(
-            "?? Using county tide data:",
-            rows.length,
-            "points (6-min intervals)"
-          );
-        }
-        const built = buildPoints(rows, startMs, hours, isToday);
         if (!cancelled) {
-          setWindowStart(startMs);
           setChartData(built);
+          setWindowStart(startMs);
         }
       } catch (error) {
+        console.error("Failed to load tide data", error);
         if (!cancelled) {
-          console.error("Failed to load tide data", error);
           setChartData([]);
           setWindowStart(null);
         }
       }
     };
 
-    if (chartDataProp?.length) {
-      loadFromProp(chartDataProp);
-    } else {
-      void loadFromApi();
-    }
+    void load();
 
     return () => {
       cancelled = true;
@@ -347,76 +344,67 @@ const TideChart: React.FC<TideChartProps> = ({
       if (!beachId || windowStart == null || chartData.length === 0) {
         setDayAreas([]);
         setNightAreas([]);
+        setSunMarkers([]);
         return;
       }
       try {
         const resolved = await fetchBeachByIdLoose(beachId);
         const id = resolved?.id ?? beachId;
-        const beach = await fetchBeachDetails(String(id));
-        const county = beach?.COUNTY;
-        if (!county) {
-          setDayAreas([]);
-          setNightAreas([]);
+        const sunData = await getSunData(String(id), new Date(windowStart));
+        const riseHourRaw = parseSunTimeToHour(sunData?.sunrise ?? null);
+        const setHourRaw = parseSunTimeToHour(sunData?.sunset ?? null);
+        if (riseHourRaw == null || setHourRaw == null) {
+          if (!cancelled) {
+            setDayAreas([]);
+            setNightAreas([{ x1: 0, x2: hours }]);
+            setSunMarkers([]);
+          }
           return;
         }
-        const conditions = await fetchDailyConditions(
-          county,
-          new Date(windowStart)
+
+        const segments = buildSunSegments(
+          hours,
+          sunData?.sunrise ?? null,
+          sunData?.sunset ?? null
         );
-        const riseHourRaw = parseHourMinute(conditions?.sunrise ?? null) ?? 0;
-        const setHourRaw = parseHourMinute(conditions?.sunset ?? null) ?? hours;
-        const riseHour = clampHour(riseHourRaw);
-        const setHour = clampHour(setHourRaw);
 
-        const x1 = Math.min(riseHour, setHour);
-        const x2 = Math.max(riseHour, setHour);
-
-        const daySegments = x2 > x1 ? [{ x1, x2 }] : [];
-        const nightSegments: { x1: number; x2?: number }[] = [];
-        if (x1 > 0) nightSegments.push({ x1: 0, x2: x1 });
-        if (x2 < hours) nightSegments.push({ x1: x2, x2: hours });
-
-        // Create sun markers for sunrise and sunset (if they're within the window)
-        // We need to find the closest data point to the actual sunrise/sunset time
         const markers: { hour: number; type: "sunrise" | "sunset" }[] = [];
-        if (riseHourRaw >= 0 && riseHourRaw <= hours && chartData.length > 0) {
-          // Find the data point closest to sunrise
-          const closestToRise = chartData.reduce((closest, point) => {
-            const currentDiff = Math.abs(point.hour - riseHourRaw);
-            const closestDiff = Math.abs(closest.hour - riseHourRaw);
-            return currentDiff < closestDiff ? point : closest;
-          });
-          if (Math.abs(closestToRise.hour - riseHourRaw) < 0.5) {
-            markers.push({ hour: closestToRise.hour, type: "sunrise" });
+        if (chartData.length > 0) {
+          const pushClosest = (
+            target: number,
+            type: "sunrise" | "sunset"
+          ) => {
+            const closest = chartData.reduce((closestPoint, point) => {
+              const currentDiff = Math.abs(point.hour - target);
+              const closestDiff = Math.abs(closestPoint.hour - target);
+              return currentDiff < closestDiff ? point : closestPoint;
+            });
+            if (Math.abs(closest.hour - target) < 0.5) {
+              markers.push({ hour: closest.hour, type });
+            }
+          };
+          if (riseHourRaw >= 0 && riseHourRaw <= hours) {
+            pushClosest(riseHourRaw, "sunrise");
           }
-        }
-        if (
-          setHourRaw >= 0 &&
-          setHourRaw <= hours &&
-          setHourRaw !== riseHourRaw &&
-          chartData.length > 0
-        ) {
-          // Find the data point closest to sunset
-          const closestToSet = chartData.reduce((closest, point) => {
-            const currentDiff = Math.abs(point.hour - setHourRaw);
-            const closestDiff = Math.abs(closest.hour - setHourRaw);
-            return currentDiff < closestDiff ? point : closest;
-          });
-          if (Math.abs(closestToSet.hour - setHourRaw) < 0.5) {
-            markers.push({ hour: closestToSet.hour, type: "sunset" });
+          if (
+            setHourRaw >= 0 &&
+            setHourRaw <= hours &&
+            setHourRaw !== riseHourRaw
+          ) {
+            pushClosest(setHourRaw, "sunset");
           }
         }
 
         if (!cancelled) {
-          setDayAreas(daySegments);
-          setNightAreas(nightSegments);
+          setDayAreas(segments.dayAreas);
+          setNightAreas(segments.nightAreas);
           setSunMarkers(markers);
         }
       } catch (error) {
         if (!cancelled) {
           console.error("Failed to build sunrise/sunset shading", error);
           setDayAreas([]);
-          setNightAreas([]);
+          setNightAreas([{ x1: 0, x2: hours }]);
           setSunMarkers([]);
         }
       }
@@ -427,7 +415,7 @@ const TideChart: React.FC<TideChartProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [beachId, chartData, clampHour, hours, windowStart]);
+  }, [beachId, chartData, getSunData, hours, windowStart]);
 
   const hourTicks = useMemo(() => {
     const ticks: number[] = [];
