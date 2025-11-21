@@ -320,7 +320,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date }: Props) => {
                 key={i}
                 offset={s.offset}
                 stopColor={s.color}
-                stopOpacity={1}
+                stopOpacity={0.7}
               />
             ))}
           </linearGradient>

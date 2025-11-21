@@ -179,7 +179,7 @@ const average = (values: number[]): number | null => {
   return total / values.length;
 };
 
-const clampIntensity = (value: number, max: number): number => {
+export const clampIntensity = (value: number, max: number): number => {
   if (!Number.isFinite(value) || value <= 0) return 0;
   return Math.min(100, Math.round((value / max) * 100));
 };

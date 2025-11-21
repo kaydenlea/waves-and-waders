@@ -91,6 +91,7 @@ const GradientCircle = ({
   unitOverride,
   weatherCode,
   percent,
+  className,
 }: {
   data?: React.ReactNode;
   percentage?: number;
@@ -103,6 +104,7 @@ const GradientCircle = ({
   unitOverride?: string;
   weatherCode?: number | null;
   percent?: number;
+  className?: string;
 }) => {
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -153,7 +155,7 @@ const GradientCircle = ({
 
   return (
     <div
-      className="relative flex items-center justify-center"
+      className={cn("relative flex items-center justify-center", className)}
       style={{ width: size, height: size }}
     >
       <div className="absolute inset-0 rounded-full bg-gray-200" />

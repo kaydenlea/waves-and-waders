@@ -124,7 +124,7 @@ const HourSlider = ({
       <div className="w-full flex justify-between pl-1.5 pr-2.5">
         {Array.from({ length: 8 }, (_, i) => (
           <div key={i}>
-            <div className="absolute bottom-0 h-3 w-[2px] rounded-full bg-gray-300" />
+            <div className="absolute bottom-0 h-3.5 w-[2px] rounded-full bg-gray-300" />
           </div>
         ))}
       </div>
