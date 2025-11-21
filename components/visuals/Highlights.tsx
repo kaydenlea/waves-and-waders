@@ -1100,11 +1100,13 @@ const TideStat = ({
 const HighlightCard = ({
   children,
   label,
+  className,
   statVisual,
 }: {
   children: React.ReactNode;
   label: string;
   statVisual?: React.ReactNode;
+  className?: string;
 }) => {
   const iconMap: Record<string, { icon: React.ReactNode; bgColor: string }> = {
     wind: {
@@ -1144,7 +1146,9 @@ const HighlightCard = ({
     <div
       className={cn(
         "flex flex-col gap-4 items-center",
-        (label === "tide" || label === "energy") && "w-full"
+        (label === "tide" || label === "energy") && "w-full",
+        className
+        // label === "swell" && "@min-lg:w-full @min-2xl:w-auto @min-5xl:w-full"
       )}
     >
       <h3 className="absolute top-2 left-2 text-muted-foreground text-[0.7rem] font-medium whitespace-nowrap">
@@ -1164,7 +1168,9 @@ const HighlightCard = ({
       <div
         className={cn(
           "w-full px-2",
-          label === "swell" || label === "pressure" ? "mt-3" : "mt-2",
+          label === "swell" || label === "pressure"
+            ? "mt-3 @min-md:mt-2"
+            : "mt-2",
           label === "pressure" && "mb-1.5"
         )}
       >
@@ -1183,6 +1189,8 @@ import {
   useBeachById,
   usePrefetchAdjacentHours,
 } from "@/lib/hooks/useBeachData";
+import GradientCircle from "../general/Stats/GradientCircle";
+import { clampIntensity } from "./Summary";
 
 type Stat =
   | {
@@ -1513,18 +1521,60 @@ const Highlights = ({
           switch (stat.label) {
             case "swell":
               content = stat.primary && stat.secondary && (
-                <HighlightCard label={stat.label}>
-                  <div className="">
-                    <SwellStat
-                      primary
-                      data={stat.primary}
-                      small
-                      isFull={isFull}
+                <div className="flex justify-between items-center gap-2 @min-lg:w-full @min-2xl:w-auto @min-5xl:w-full">
+                  <HighlightCard
+                    className="@min-lg:w-47 @min-2xl:w-auto @min-5xl:w-47"
+                    label={stat.label}
+                  >
+                    <ul>
+                      <li>
+                        <SwellStat
+                          primary
+                          data={stat.primary}
+                          small
+                          isFull={isFull}
+                        />
+                      </li>
+                      <li>
+                        <SwellStat
+                          data={stat.secondary[0]}
+                          small
+                          isFull={isFull}
+                        />
+                      </li>
+                      <li>
+                        <SwellStat
+                          data={stat.secondary[1]}
+                          small
+                          isFull={isFull}
+                        />
+                      </li>
+                    </ul>
+                  </HighlightCard>
+                  <div className="border border-border/20 font-semibold @container hidden @min-lg:block @min-2xl:hidden @min-5xl:block -mt-2 bg-highlight-6 py-3 px-3 flex-1 rounded-md text-center max-w-40">
+                    {/* <span>5 ft </span>
+                    <span className="hidden @min-[100px]:inline-block">
+                      --- 10 ft
+                    </span> */}
+                    <GradientCircle
+                      className="mx-auto"
+                      condition="surf"
+                      data={stat.primary.height}
+                      percentage={clampIntensity(stat.primary.height, 12)}
+                      size={50}
+                      strokeWidth={4}
+                      showIcon={false}
+                      content={
+                        <span className="flex flex-col items-center mt-1">
+                          <span className="text-[0.9rem]">
+                            {stat.primary.height}
+                          </span>
+                          <span className="text-[0.55rem] -mt-1">ft</span>
+                        </span>
+                      }
                     />
-                    <SwellStat data={stat.secondary[0]} small isFull={isFull} />
-                    <SwellStat data={stat.secondary[1]} small isFull={isFull} />
                   </div>
-                </HighlightCard>
+                </div>
               );
               break;
             case "weather":

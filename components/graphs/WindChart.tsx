@@ -179,8 +179,8 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
     const adjustData = () => {
       const width = chart.clientWidth;
       setWidth(width);
-      if (width < 350) {
-        setBuffer(15);
+      if (width < 450) {
+        setBuffer(20);
       } else if (width < 800) {
         setBuffer(40);
       } else {
@@ -397,7 +397,7 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
         accessibilityLayer
         data={chartData}
         barCategoryGap="15%"
-        maxBarSize={60}
+        maxBarSize={40}
         syncId="allCharts"
         syncMethod={syncToNearestThirdHour}
         onMouseMove={handleMouseMove}

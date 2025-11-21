@@ -93,11 +93,11 @@ const SwellStat = ({
               !small && primary && "text-md font-semibold",
               small &&
                 !primary &&
-                "text-[0.7rem] @min-sm:text-sm @min-2xl:text-xs @min-4xl:text-sm font-medium text-foreground/80",
+                "text-[0.7rem] @min-sm:text-[0.75rem] @min-md:text-sm @min-lg:text-xs @min-2xl:text-xs @min-4xl:text-[0.8rem] font-medium text-foreground/80",
               small && !primary && isFull && "@min-6xl:text-[0.7rem]",
               small &&
                 primary &&
-                "text-xs @min-sm:text-base @min-2xl:text-sm @min-4xl:text-base font-bold",
+                "text-[0.8rem] @min-sm:text-[0.9rem] @min-md:text-base @min-lg:text-sm @min-2xl:text-sm @min-4xl:text-[0.9rem] font-bold",
               small && primary && isFull && "@min-6xl:text-xs"
             )}
           >

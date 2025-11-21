@@ -163,31 +163,16 @@ const SearchBar = ({
     const html = document.documentElement;
     const body = document.body;
 
-    if (isOverlay) {
-      // Measure scrollbar width *before* hiding scroll
-      const scrollbarWidth = window.innerWidth - html.clientWidth;
-
-      // Lock scroll on both html & body
-      html.style.overflow = "hidden";
-      // body.style.overflow = "hidden";
-
-      // Apply compensation only once (to the element that actually scrolls)
-      // Check which element has scrollbar width > 0 (some setups attach scroll to html, others to body)
-      const hasHtmlScrollbar = html.scrollHeight > html.clientHeight;
-      const target = hasHtmlScrollbar ? html : body;
-
-      if (scrollbarWidth > 0) {
-        target.style.paddingRight = `${scrollbarWidth}px`;
-      }
-    } else {
+    if (isOverlay) html.style.overflow = "hidden";
+    else {
       // Restore defaults
       html.style.overflow = "";
       body.style.overflow = "";
       html.style.paddingRight = "";
       body.style.paddingRight = "";
     }
-
     return () => {
+      // Restore defaults
       html.style.overflow = "";
       body.style.overflow = "";
       html.style.paddingRight = "";
@@ -268,7 +253,7 @@ const SearchBar = ({
       {isOverlay &&
         createPortal(
           <div
-            className="fixed inset-0 z-[9999] backdrop-blur-lg bg-background/20 flex flex-col items-center pt-5.5 px-8"
+            className="fixed inset-0 z-[50] backdrop-blur-sm bg-background/50 dark:bg-background/80 flex flex-col items-center pt-5.5 px-8"
             onClick={(e) => {
               if (e.target === e.currentTarget)
                 // setQuery("");
@@ -301,7 +286,7 @@ const SearchBar = ({
                     setQuery("");
                     setIsOverlay(false);
                   }}
-                  className="p-1.5 rounded-full hover:bg-highlight-3 transition"
+                  className="p-1.5 rounded-full hover:bg-highlight-5 transition"
                 >
                   <X className="w-5 h-5" />
                 </button>

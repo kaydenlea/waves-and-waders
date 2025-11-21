@@ -2039,7 +2039,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
             const outerRadius =
               (typeof windDirection === "number" ? 110 : 76) * scale;
             // Integrate compass labels inside the overlay near the center
-            const labelDistance = 125 * scale;
+            const labelDistance = 130 * scale;
             const centerOffset = ringSize / 2;
             const blurOuter = outerRadius;
             const markerHole = 8 * scale;

@@ -141,7 +141,7 @@ const VisualWrapper = ({
         </div>
         <div
           className={cn(
-            "px-2 pb-3 pt-3 -mt-3 overflow-x-hidden touch-pan-y",
+            "px-2 pb-3 pt-3 -mt-4.5 overflow-x-hidden touch-pan-y",
             label !== "Current" &&
               label !== "Historical" &&
               label !== "Forecast" &&

@@ -134,20 +134,6 @@ const WindStat = ({
 
   return (
     <div className="flex items-center gap-1 justify-center">
-      <span
-        className={cn(
-          "flex-1 max-w-8 @min-[350px]:max-w-30 justify-center flex gap-[3px] rounded-md py-2 @min-[350px]:py-1.5 px-3",
-          windLevel
-        )}
-      >
-        <span className="text-base @min-[350px]:text-lg font-semibold">
-          {data.speed}
-        </span>
-        <span className="hidden @min-[350px]:flex flex flex-col -space-y-1">
-          <span className="text-[0.7rem] font-medium">{data.max}</span>
-          <span className="hidden @min-sm:block text-[0.6rem]">mph</span>
-        </span>
-      </span>
       <div className="shadow-sm border border-border p-1 rounded-md text-center min-w-10 flex flex-col items-center justify-center">
         <div
           style={{
@@ -162,6 +148,20 @@ const WindStat = ({
         </div>
         <span className="text-[.6rem] mt-0.5 font-semibold">{data.dir}</span>
       </div>
+      <span
+        className={cn(
+          "flex-1 max-w-8 @min-[350px]:max-w-25 justify-center flex gap-[3px] rounded-md py-2 @min-[350px]:py-1.5 px-3",
+          windLevel
+        )}
+      >
+        <span className="text-base @min-[350px]:text-lg font-semibold">
+          {data.speed}
+        </span>
+        <span className="hidden @min-[350px]:flex flex flex-col -space-y-1">
+          <span className="text-[0.7rem] font-medium">{data.max}</span>
+          <span className="hidden @min-sm:block text-[0.6rem]">mph</span>
+        </span>
+      </span>
     </div>
   );
 };
@@ -753,8 +753,11 @@ const StatTable = ({
             [cols[3], cols[4], cols[7], cols[8]].filter(Boolean),
           ];
         } else {
-          setVisibleCols(3);
-          newPages = [[cols[0], cols[2], cols[1]], cols.slice(3, cols.length)];
+          setVisibleCols(4);
+          newPages = [
+            [cols[0], cols[2], cols[3], cols[1]],
+            cols.slice(3, cols.length),
+          ];
         }
       } else if (widthNow < 1150) {
         if (showSecondarySwells) {
@@ -907,7 +910,7 @@ const StatTable = ({
       }
       const viewportBottomY = vh - margin - pillH;
       const tableBottomY = c.bottom - margin - pillH;
-      const hysteresis = 40; // px buffer to avoid toggling
+      const hysteresis = 0; // px buffer to avoid toggling
       const now = Date.now();
       const minInterval = 200; // debounce between mode changes
       const wantDock =

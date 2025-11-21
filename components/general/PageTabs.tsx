@@ -8,7 +8,13 @@ import { cn } from "@/lib/utils";
 import FocusMapButton from "./FocusMapButton";
 import SaveButton from "./SaveButton";
 import { useMapFilters } from "../context/MapFilterContext";
-import { ArrowLeftFromLine, MapPinned, Pencil } from "lucide-react";
+import {
+  ArrowLeftFromLine,
+  Calendar1,
+  CalendarDays,
+  MapPinned,
+  Pencil,
+} from "lucide-react";
 import { motion } from "motion/react";
 import { useClientPath } from "../context/PathContext";
 
@@ -107,7 +113,7 @@ const PageTabs = ({
       ref={tabsRef}
       className={cn(
         placement === "inline"
-          ? "flex w-full flex-wrap items-center gap-1 @min-sm:gap-2 justify-center @min-xl:ml-auto @min-xl:justify-end @min-xl:w-auto"
+          ? "flex w-full items-center gap-1 @min-sm:gap-2 justify-center @min-xl:ml-auto @min-xl:justify-end @min-xl:w-auto"
           : "mx-auto flex gap-1 @min-sm:gap-2 w-full justify-center",
         placement === "default" &&
           (beachPage
@@ -136,6 +142,16 @@ const PageTabs = ({
               <span className="font-medium text-[15px]">Zoom</span>
             </button>
           )}
+          <span className="hidden @min-md:flex @min-xl:hidden font-semibold w-full px-4 py-3 bg-highlight-5 rounded-full text-center gap-1.5 flex items-center justify-center max-w-30">
+            {forecastPage ? (
+              <CalendarDays className="w-5 h-5 mb-0.5" />
+            ) : (
+              <Calendar1 className="w-5 h-5 mb-0.5" />
+            )}
+            <span>{`${forecastPage ? 4 : 1} day${
+              forecastPage ? "s" : ""
+            }`}</span>
+          </span>
           {(forecastPage || overviewPage) && (
             <Link
               href={
