@@ -855,22 +855,25 @@ export default React.memo(function ForecastTideChart({ beachId, date, days }: Pr
             ))}
           </div>
 
-          <ChartContainer
-            config={
-              { tide: { label: "Tide", color: "#6e6e6eff" } } as ChartConfig
-            }
-            className="forecast-tide-chart-container aspect-auto h-[235px] w-full"
-          >
-            <LineChart
-              width={chartInnerWidth}
-              // height={200}
-              data={data}
-              margin={{ left: -25, right: 15, bottom: 5, top: 0 }}
-              syncId="allCharts"
-              syncMethod="value"
-              onMouseMove={handleMouseMove}
-              onMouseLeave={handleMouseLeave}
+          {containerWidth > 0 && (
+            <ChartContainer
+              key={chartInnerWidth}
+              config={
+                { tide: { label: "Tide", color: "#6e6e6eff" } } as ChartConfig
+              }
+              className="forecast-tide-chart-container aspect-auto h-[235px] w-full"
             >
+              <LineChart
+                accessibilityLayer={false}
+                width={chartInnerWidth}
+                // height={200}
+                data={data}
+                margin={{ left: -25, right: 15, bottom: 5, top: 0 }}
+                syncId="allCharts"
+                syncMethod="value"
+                onMouseMove={handleMouseMove}
+                onMouseLeave={handleMouseLeave}
+              >
               {dayAreas.map((a, idx) => (
                 <ReferenceArea
                   key={`day-${idx}`}
@@ -1107,6 +1110,7 @@ export default React.memo(function ForecastTideChart({ beachId, date, days }: Pr
               </Line>
             </LineChart>
           </ChartContainer>
+          )}
         </div>
 
         {/* invisible overlay (visual viewport) to prevent pointer events leaking to inner beyond boundaries */}

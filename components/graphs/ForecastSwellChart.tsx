@@ -589,7 +589,6 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
 
   // Hover sync handlers
   const lastHoveredRef = React.useRef<number | null>(null);
-  const throttleTimerRef = React.useRef<number | null>(null);
 
   const handleMouseMove = React.useCallback((e: any) => {
     if (e && e.activeLabel !== undefined) {
@@ -597,27 +596,16 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
       if (!isNaN(hour)) {
         // Round to nearest 3-hour increment
         const roundedHour = Math.round(hour / 3) * 3;
-        
-        // Throttle updates - only process every 50ms
-        if (throttleTimerRef.current === null) {
-          throttleTimerRef.current = window.setTimeout(() => {
-            throttleTimerRef.current = null;
-          }, 50);
-          
-          if (lastHoveredRef.current !== roundedHour) {
-            lastHoveredRef.current = roundedHour;
-            setHoveredHour(roundedHour);
-          }
+
+        if (lastHoveredRef.current !== roundedHour) {
+          lastHoveredRef.current = roundedHour;
+          setHoveredHour(roundedHour);
         }
       }
     }
   }, [setHoveredHour]);
 
   const handleMouseLeave = React.useCallback(() => {
-    if (throttleTimerRef.current !== null) {
-      window.clearTimeout(throttleTimerRef.current);
-      throttleTimerRef.current = null;
-    }
     lastHoveredRef.current = null;
     setHoveredHour(null);
   }, [setHoveredHour]);
@@ -741,20 +729,22 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
             ))}
           </div>
 
-          <ChartContainer
-            config={chartConfig}
-            className="forecast-swell-chart-container aspect-auto h-[235px] w-full"
-          >
-            <AreaChart
-              accessibilityLayer
-              width={chartInnerWidth}
-              data={swellData}
-              margin={{ left: -25, right: 15, bottom: 5, top: 0 }}
-              syncId="allCharts"
-              syncMethod={syncToNearestThirdHour}
-              onMouseMove={handleMouseMove}
-              onMouseLeave={handleMouseLeave}
+          {containerWidth > 0 && (
+            <ChartContainer
+              key={chartInnerWidth}
+              config={chartConfig}
+              className="forecast-swell-chart-container aspect-auto h-[235px] w-full"
             >
+              <AreaChart
+                accessibilityLayer={false}
+                width={chartInnerWidth}
+                data={swellData}
+                margin={{ left: -25, right: 15, bottom: 5, top: 0 }}
+                syncId="allCharts"
+                syncMethod={syncToNearestThirdHour}
+                onMouseMove={handleMouseMove}
+                onMouseLeave={handleMouseLeave}
+              >
               {/* vertical boundaries every day */}
               {Array.from({ length: totalFetchedDays + 1 }, (_, i) => {
                 if (i !== 0 && i !== totalFetchedDays) {
@@ -988,8 +978,9 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                   );
                 }}
               />
-            </AreaChart>
-          </ChartContainer>
+              </AreaChart>
+            </ChartContainer>
+          )}
         </div>
 
         {/* invisible overlay to prevent pointer events leaking */}

@@ -33,6 +33,7 @@ import {
 import { useSunData } from "@/components/context/SunDataContext";
 import { buildSunSegments } from "@/components/graphs/sunSegments";
 import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
+import { buildYAxisTicks } from "@/components/graphs/yAxisTicks";
 
 type Props = { beachId?: string; hours?: number; date?: Date };
 type Row = {
@@ -345,6 +346,10 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
 
   const domainStart = 0;
   const domainEnd = hours;
+  const surfTicks = useMemo(
+    () => buildYAxisTicks(chartData.map((d) => d.surf), 0, 6, 0.2, 5),
+    [chartData]
+  );
 
   const hourTicks = useMemo(() => {
     const step = 3;
@@ -493,15 +498,15 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
         />
         <YAxis
           dataKey="surf"
-          allowDecimals={false}
           tickLine={false}
           axisLine={false}
           tickMargin={8}
           fontSize={11}
           domain={[
-            0,
-            (dataMax: number) => Math.max(4, Math.ceil(dataMax * 1.5)),
+            surfTicks[0] ?? 0,
+            surfTicks[surfTicks.length - 1] ?? 6,
           ]}
+          ticks={surfTicks}
         />
         <ChartTooltip
           content={<ChartTooltipContent />}

@@ -37,6 +37,7 @@ import { useDateContext } from "@/components/context/DateContext";
 import { useForecastChartContext } from "@/components/context/ForecastChartContext";
 import HoverReferenceLine from "@/components/graphs/HoverReferenceLine";
 import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
+import { buildYAxisTicks } from "@/components/graphs/yAxisTicks";
 
 const chartConfig = {
   wind: {
@@ -67,6 +68,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
   const [nightAreas, setNightAreas] = useState<{ x1: number; x2?: number }[]>(
     []
   );
+  const [axisPadding, setAxisPadding] = useState(10);
 
   // Function to get color based on wind speed intensity
   const getWindColor = (value: number): string => {
@@ -108,6 +110,18 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
   const chartInnerWidth = useMemo(
     () => totalFetchedDays * dayPx,
     [totalFetchedDays, dayPx]
+  );
+  const hoursSpan = useMemo(
+    () => totalFetchedDays * HOURS_PER_DAY,
+    [totalFetchedDays]
+  );
+  const edgePadHours = useMemo(() => {
+    if (!chartInnerWidth || hoursSpan === 0) return 0;
+    return (axisPadding / chartInnerWidth) * hoursSpan;
+  }, [axisPadding, chartInnerWidth, hoursSpan]);
+  const windTicks = useMemo(
+    () => buildYAxisTicks(windData.map((d) => d.wind), 0, 6, 0.2, 10),
+    [windData]
   );
 
   const viewportWidth = useMemo(
@@ -291,6 +305,13 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
       for (const e of entries) {
         const w = Math.floor(e.contentRect.width);
         setContainerWidth(w);
+        if (w < 350) {
+          setAxisPadding(8);
+        } else if (w < 800) {
+          setAxisPadding(20);
+        } else {
+          setAxisPadding(32);
+        }
         const maxTranslate = Math.max(
           0,
           chartInnerWidth - Math.min(w || 0, dayPx * VISIBLE_DAYS)
@@ -581,7 +602,6 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
 
   // Hover sync handlers
   const lastHoveredRef = React.useRef<number | null>(null);
-  const throttleTimerRef = React.useRef<number | null>(null);
 
   const handleMouseMove = React.useCallback(
     (e: any) => {
@@ -590,17 +610,9 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
         if (!isNaN(hour)) {
           // Round to nearest 3-hour increment
           const roundedHour = Math.round(hour / 3) * 3;
-          
-          // Throttle updates - only process every 50ms
-          if (throttleTimerRef.current === null) {
-            throttleTimerRef.current = window.setTimeout(() => {
-              throttleTimerRef.current = null;
-            }, 50);
-            
-            if (lastHoveredRef.current !== roundedHour) {
-              lastHoveredRef.current = roundedHour;
-              setHoveredHour(roundedHour);
-            }
+          if (lastHoveredRef.current !== roundedHour) {
+            lastHoveredRef.current = roundedHour;
+            setHoveredHour(roundedHour);
           }
         }
       }
@@ -609,10 +621,6 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
   );
 
   const handleMouseLeave = React.useCallback(() => {
-    if (throttleTimerRef.current !== null) {
-      window.clearTimeout(throttleTimerRef.current);
-      throttleTimerRef.current = null;
-    }
     lastHoveredRef.current = null;
     setHoveredHour(null);
   }, [setHoveredHour]);
@@ -773,142 +781,155 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
             ))}
           </div>
 
-          <ChartContainer
-            config={chartConfig}
-            className="forecast-wind-chart-container aspect-auto h-[235px] w-full"
-          >
-            <BarChart
-              accessibilityLayer
-              width={chartInnerWidth}
-              data={windData}
-              margin={{ left: -25, right: 15, bottom: 5, top: 0 }}
-              syncId="allCharts"
-              syncMethod={syncToNearestThirdHour}
-              onMouseMove={handleMouseMove}
-              onMouseLeave={handleMouseLeave}
+          {containerWidth > 0 && (
+            <ChartContainer
+              key={chartInnerWidth}
+              config={chartConfig}
+              className="forecast-wind-chart-container aspect-auto h-[235px] w-full"
             >
-              {/* vertical boundaries every day */}
-              {Array.from({ length: totalFetchedDays + 1 }, (_, i) => {
-                if (i !== 0 && i !== totalFetchedDays) {
-                  return (
-                    <ReferenceLine
-                      key={`boundary-${i}`}
-                      x={i * 24}
-                      stroke="var(--foreground)"
-                      strokeOpacity={0.25}
-                      strokeWidth={0.5}
-                    />
-                  );
-                }
-              })}
-              {dayAreas.map((a, idx) => (
-                <ReferenceArea
-                  key={`day-${idx}`}
-                  x1={a.x1}
-                  x2={a.x2}
-                  fill="#FFE58F"
-                  fillOpacity={0.2}
-                  ifOverflow="visible"
-                />
-              ))}
-              {nightAreas.map((a, idx) => (
-                <ReferenceArea
-                  key={`night-${idx}`}
-                  x1={idx === 0 ? -1 : a.x1}
-                  x2={
-                    idx === nightAreas.length - 1
-                      ? totalFetchedDays * 24 + 1
-                      : a.x2
-                  }
-                  fill="#ccc1ffff"
-                  fillOpacity={0.2}
-                  ifOverflow="visible"
-                />
-              ))}
-              <XAxis
-                dataKey="hour"
-                type="number"
-                tickLine={false}
-                axisLine={false}
-                tickMargin={8}
-                minTickGap={0}
-                fontSize={11}
-                domain={[0, totalFetchedDays * 24]}
-                ticks={hourTicks}
-                padding={{ left: 10, right: 10 }}
-                tickFormatter={(v: number) =>
-                  v % 3 === 0 ? String(v % 12 === 0 ? 12 : v % 12) : ""
-                }
-              />
-              <YAxis
-                allowDecimals={false}
-                tickLine={false}
-                axisLine={false}
-                tickMargin={8}
-                fontSize={11}
-                domain={[
-                  0,
-                  (dataMax: number) => Math.max(8, Math.ceil(dataMax + 5)),
-                ]}
-              />
-              <ChartTooltip
-                content={tooltipContent}
-                cursor={{
-                  fill: "transparent",
-                  stroke: "var(--foreground)",
-                  strokeWidth: 1,
-                  strokeDasharray: "3 3",
-                  strokeOpacity: 0.5,
-                }}
-                animationDuration={0}
-                isAnimationActive={false}
-              />
-              {/* Selected hour marker */}
-              {(() => {
-                try {
-                  const base = days && days.length > 0 ? days[0] : null;
-                  if (!base || !selectedDate) return null;
-                  const baseMid = new Date(
-                    base.getFullYear(),
-                    base.getMonth(),
-                    base.getDate()
-                  ).getTime();
-                  const selMid = new Date(
-                    selectedDate.getFullYear(),
-                    selectedDate.getMonth(),
-                    selectedDate.getDate()
-                  ).getTime();
-                  const dayDelta = Math.floor(
-                    (selMid - baseMid) / (24 * 3600 * 1000)
-                  );
-                  const x = dayDelta * 24 + (selectedHour ?? 0);
-                  if (x < 0 || x > totalFetchedDays * 24) return null;
-                  return (
-                    <ReferenceLine
-                      x={x}
-                      stroke="var(--foreground)"
-                      strokeDasharray="3 3"
-                    />
-                  );
-                } catch {
-                  return null;
-                }
-              })()}
-              {/* Hover indicator line */}
-              <HoverReferenceLine
-                days={days}
-                selectedDate={selectedDate}
-                selectedHour={selectedHour}
-              />
-              <Bar
-                dataKey="wind"
-                fill="var(--color-wind)"
-                radius={4}
-                stroke="#5f5f5fff"
-                strokeWidth={0.5}
-                minPointSize={15}
-                isAnimationActive={false}
+              <BarChart
+                accessibilityLayer={false}
+                width={chartInnerWidth}
+                data={windData}
+                margin={{ left: -25, right: 15, bottom: 5, top: 0 }}
+                syncId="allCharts"
+                syncMethod={syncToNearestThirdHour}
+                onMouseMove={handleMouseMove}
+                onMouseLeave={handleMouseLeave}
               >
+                {/* vertical boundaries every day */}
+                {Array.from({ length: totalFetchedDays + 1 }, (_, i) => {
+                  if (i !== 0 && i !== totalFetchedDays) {
+                    return (
+                      <ReferenceLine
+                        key={`boundary-${i}`}
+                        x={i * 24}
+                        stroke="var(--foreground)"
+                        strokeOpacity={0.25}
+                        strokeWidth={0.5}
+                      />
+                    );
+                  }
+                })}
+                {dayAreas.map((a, idx) => {
+                  const extendLeft = idx === 0 && a.x1 <= 0 + 1e-3;
+                  const extendRight =
+                    idx === dayAreas.length - 1 &&
+                    Math.abs(a.x2 - hoursSpan) <= 1e-3;
+                  return (
+                    <ReferenceArea
+                      key={`day-${idx}`}
+                      x1={extendLeft ? a.x1 - edgePadHours : a.x1}
+                      x2={extendRight ? a.x2 + edgePadHours : a.x2}
+                      fill="#FFE58F"
+                      fillOpacity={0.2}
+                      ifOverflow="visible"
+                    />
+                  );
+                })}
+                {nightAreas.map((a, idx) => {
+                  const isFirst = idx === 0;
+                  const isLast = idx === nightAreas.length - 1;
+                  const x1 = isFirst ? 0 : a.x1 ?? 0;
+                  const x2 = isLast ? hoursSpan : a.x2 ?? hoursSpan;
+                  const extendLeft = isFirst && x1 <= 0 + 1e-3;
+                  const extendRight =
+                    isLast && Math.abs(x2 - hoursSpan) <= 1e-3;
+                  return (
+                    <ReferenceArea
+                      key={`night-${idx}`}
+                      x1={extendLeft ? x1 - edgePadHours : x1}
+                      x2={extendRight ? x2 + edgePadHours : x2}
+                      fill="#ccc1ffff"
+                      fillOpacity={0.2}
+                      ifOverflow="visible"
+                    />
+                  );
+                })}
+                <XAxis
+                  dataKey="hour"
+                  type="number"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  minTickGap={0}
+                  fontSize={11}
+                  domain={[0, totalFetchedDays * 24]}
+                  ticks={hourTicks}
+                  padding={{ left: axisPadding, right: axisPadding }}
+                  tickFormatter={(v: number) =>
+                    v % 3 === 0 ? String(v % 12 === 0 ? 12 : v % 12) : ""
+                  }
+                />
+                <YAxis
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  fontSize={11}
+                  domain={[
+                    windTicks[0] ?? 0,
+                    windTicks[windTicks.length - 1] ?? 20,
+                  ]}
+                  ticks={windTicks}
+                />
+                <ChartTooltip
+                  content={tooltipContent}
+                  cursor={{
+                    fill: "transparent",
+                    stroke: "var(--foreground)",
+                    strokeWidth: 1,
+                    strokeDasharray: "3 3",
+                    strokeOpacity: 0.5,
+                  }}
+                  animationDuration={0}
+                  isAnimationActive={false}
+                />
+                {/* Selected hour marker */}
+                {(() => {
+                  try {
+                    const base = days && days.length > 0 ? days[0] : null;
+                    if (!base || !selectedDate) return null;
+                    const baseMid = new Date(
+                      base.getFullYear(),
+                      base.getMonth(),
+                      base.getDate()
+                    ).getTime();
+                    const selMid = new Date(
+                      selectedDate.getFullYear(),
+                      selectedDate.getMonth(),
+                      selectedDate.getDate()
+                    ).getTime();
+                    const dayDelta = Math.floor(
+                      (selMid - baseMid) / (24 * 3600 * 1000)
+                    );
+                    const x = dayDelta * 24 + (selectedHour ?? 0);
+                    if (x < 0 || x > totalFetchedDays * 24) return null;
+                    return (
+                      <ReferenceLine
+                        x={x}
+                        stroke="var(--foreground)"
+                        strokeDasharray="3 3"
+                      />
+                    );
+                  } catch {
+                    return null;
+                  }
+                })()}
+                {/* Hover indicator line */}
+                <HoverReferenceLine
+                  days={days}
+                  selectedDate={selectedDate}
+                  selectedHour={selectedHour}
+                />
+                <Bar
+                  dataKey="wind"
+                  fill="var(--color-wind)"
+                  radius={4}
+                  stroke="#5f5f5fff"
+                  strokeWidth={0.5}
+                  minPointSize={15}
+                  isAnimationActive={false}
+                >
                 <LabelList
                   dataKey="wind"
                   position="top"
@@ -999,6 +1020,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
               </Bar>
             </BarChart>
           </ChartContainer>
+          )}
         </div>
 
         {/* invisible overlay to prevent pointer events leaking */}

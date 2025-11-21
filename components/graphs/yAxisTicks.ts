@@ -1,0 +1,69 @@
+"use client";
+
+// Compute a "nice" linear set of ticks with consistent spacing.
+export function buildYAxisTicks(
+  values: number[],
+  minValue = 0,
+  targetCount = 6,
+  paddingRatio = 0.2,
+  minMax?: number
+): number[] {
+  const finiteValues = values.filter(
+    (v) => typeof v === "number" && Number.isFinite(v)
+  );
+  const maxRaw = Math.max(
+    minValue,
+    finiteValues.length ? Math.max(...finiteValues) : minValue
+  );
+  const spanRaw = Math.max(1e-6, maxRaw - minValue);
+  const paddedCandidate = maxRaw + Math.max(spanRaw * paddingRatio, 0.01);
+  const paddedMax = Math.max(minMax ?? minValue, paddedCandidate);
+
+  const span = Math.max(1e-6, paddedMax - minValue);
+  const desiredSteps = Math.max(2, targetCount - 1);
+  const rawStep = span / desiredSteps;
+
+  const niceStep = chooseNiceStep(rawStep);
+  const start = Math.floor(minValue / niceStep) * niceStep;
+  const end = Math.ceil(paddedMax / niceStep) * niceStep;
+
+  const ticks: number[] = [];
+  for (let v = start; v <= end + 1e-9; v += niceStep) {
+    const rounded = roundForDisplay(v, niceStep);
+    if (!ticks.length || Math.abs(rounded - ticks[ticks.length - 1]) > 1e-6) {
+      ticks.push(rounded);
+    }
+  }
+
+  // Fallback if something went wrong
+  if (ticks.length === 0) {
+    return [0, 1, 2, 3, 4, 5];
+  }
+
+  return ticks;
+}
+
+// Pick a friendly step (1/2/5 * 10^n)
+function chooseNiceStep(step: number) {
+  if (step <= 0) return 1;
+  const exponent = Math.floor(Math.log10(step));
+  const fraction = step / Math.pow(10, exponent);
+  let niceFraction = 1;
+  if (fraction <= 1) {
+    niceFraction = 1;
+  } else if (fraction <= 2) {
+    niceFraction = 2;
+  } else if (fraction <= 5) {
+    niceFraction = 5;
+  } else {
+    niceFraction = 10;
+  }
+  return niceFraction * Math.pow(10, exponent);
+}
+
+// Round to a reasonable precision based on step size
+function roundForDisplay(value: number, step: number) {
+  const precision = step >= 1 ? 0 : step >= 0.1 ? 1 : 2;
+  const factor = Math.pow(10, precision);
+  return Math.round(value * factor) / factor;
+}

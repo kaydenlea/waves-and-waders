@@ -38,6 +38,7 @@ import {
 import { useSunData } from "@/components/context/SunDataContext";
 import { buildSunSegments } from "@/components/graphs/sunSegments";
 import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
+import { buildYAxisTicks } from "@/components/graphs/yAxisTicks";
 
 type Props = { beachId?: string; hours?: number; date?: Date };
 const chartConfig = {
@@ -332,6 +333,10 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
   // const EDGE_GUTTER_PX = 35;
   const closeTo = (a: number, b: number, tolerance = 0.05) =>
     Math.abs(a - b) <= tolerance;
+  const windTicks = useMemo(
+    () => buildYAxisTicks(chartData.map((d) => d.wind), 0, 6, 0.2, 10),
+    [chartData]
+  );
   const makeAreaShape = (
     color: string,
     touchesLeft: boolean,
@@ -453,12 +458,15 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
         />
         <YAxis
           dataKey="wind"
-          allowDecimals={false}
           tickLine={false}
           axisLine={false}
           tickMargin={8}
           fontSize={11}
-          domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.2)]}
+          domain={[
+            windTicks[0] ?? 0,
+            windTicks[windTicks.length - 1] ?? 20,
+          ]}
+          ticks={windTicks}
         />
         <ChartTooltip
           content={({ active, payload }) => {
