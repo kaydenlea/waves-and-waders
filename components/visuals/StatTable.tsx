@@ -150,7 +150,7 @@ const WindStat = ({
       </div>
       <span
         className={cn(
-          "flex-1 max-w-8 @min-[350px]:max-w-25 justify-center flex gap-[3px] rounded-md py-2 @min-[350px]:py-1.5 px-3",
+          "flex-1 max-w-8 @min-[320px]:max-w-25 justify-center flex gap-[3px] rounded-md py-2 @min-[350px]:py-1.5 px-3",
           windLevel
         )}
       >
@@ -987,7 +987,7 @@ const StatTable = ({
   return (
     <div
       ref={tableRef}
-      className="relative mx-0 @min-md:mx-2 @min-2xl:mx-4"
+      className="relative -mx-1 @min-md:mx-2 @min-2xl:mx-4"
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}

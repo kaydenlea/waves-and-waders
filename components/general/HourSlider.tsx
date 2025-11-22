@@ -105,8 +105,22 @@ const HourSlider = ({
         )}
         thumbClassName="size-5 bg-white dark:bg-slate-900 border-2 border-slate-800 dark:border-white shadow-md"
         trackStyle={{ background: trackGradient }}
-        rangeStyle={{ background: rangeTint }}
+        // rangeStyle={{ background: rangeTint }}
         thumbStyle={{ boxShadow: thumbShadow }}
+        // displayContent={
+        //   <span
+        //     className={cn(
+        //       "font-medium absolute bottom-4.5 text-[0.7rem] w-10 text-center transform",
+        //       hour === 0
+        //         ? "-left-1"
+        //         : hour === 21
+        //         ? "-right-1.5"
+        //         : "-translate-x-1/3"
+        //     )}
+        //   >
+        //     {`${displayValue} ${ampm}`}
+        //   </span>
+        // }
       />
       {/* <div className="pointer-events-none relative -mt-2 h-3 w-full">
         {Array.from({ length: Math.floor((max - min) / step) + 1 }, (_, i) => {
@@ -124,7 +138,7 @@ const HourSlider = ({
       <div className="w-full flex justify-between pl-1.5 pr-2.5">
         {Array.from({ length: 8 }, (_, i) => (
           <div key={i}>
-            <div className="absolute bottom-0 h-3.5 w-[2px] rounded-full bg-gray-300" />
+            <div className="absolute bottom-0 h-[15px] @min-md:h-[16px] w-[2px] rounded-full bg-gray-300" />
           </div>
         ))}
       </div>

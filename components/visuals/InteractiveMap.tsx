@@ -1478,7 +1478,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
         style={{
           width: "100%",
           height: "100%",
-          borderRadius: isDesktop ? "12px" : "0px",
+          borderRadius: isDesktop ? "18px" : "0px",
         }}
         mapStyle={MAP_STYLE_URL}
         maxZoom={16}

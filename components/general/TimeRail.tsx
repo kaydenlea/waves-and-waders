@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useMemo, startTransition, useState, useEffect, useRef } from "react";
+import React, {
+  useMemo,
+  startTransition,
+  useState,
+  useEffect,
+  useRef,
+} from "react";
 import { Calendar, Clock, TimerReset } from "lucide-react";
 import { useDateContext } from "../context/DateContext";
 import { useMapFilters } from "../context/MapFilterContext";
@@ -89,7 +95,7 @@ const TimeRail: React.FC<Props> = ({
     });
   };
 
-  const railPad = size === "lg" ? "py-3 @min-4xl:py-3" : "py-2";
+  const railPad = size === "lg" ? "py-2.5 @min-4xl:py-2.5" : "py-2";
   const labelWidth = size === "lg" ? "w-12" : "w-14";
 
   // Manual popover: center relative to the entire rail (not the button)
@@ -122,20 +128,34 @@ const TimeRail: React.FC<Props> = ({
   return (
     <div
       ref={railRef}
-      className={`relative w-full grid grid-cols-[auto_1fr_auto] items-center @min-lg:gap-2 rounded-full bg-background @min-4xl:dark:bg-highlight-5/50 @min-4xl:bg-highlight-5/10 backdrop-blur dark:supports-[backdrop-filter]:bg-highlight-5/90 supports-[backdrop-filter]:bg-background/80 shadow-even px-3 ${railPad} @min-4xl:border @min-4xl:border-border/60`}
+      className={`relative w-full grid grid-cols-[auto_1fr_auto] items-center @min-lg:gap-2 rounded-full bg-background @min-4xl:dark:bg-highlight-5/50 @min-4xl:bg-highlight-5/10 backdrop-blur dark:supports-[backdrop-filter]:bg-highlight-5/90 supports-[backdrop-filter]:bg-background/80 shadow-even px-2 ${railPad} @min-4xl:border @min-4xl:border-border/60`}
     >
-      <div className="flex items-center @min-lg:gap-1">
+      <div className="flex items-center @min-lg:gap-1 mr-1.5">
         <button
           type="button"
           onClick={onNow}
-          className="inline-flex items-center gap-1 rounded-full border border-border bg-highlight-5/50 hover:bg-highlight-3 px-2.5 @min-lg:px-3 py-2 @min-lg:py-2 text-xs font-medium"
+          className="inline-flex items-center gap-1 rounded-full border border-border bg-highlight-5/50 hover:bg-highlight-3 justify-center py-2 w-16 @min-md:w-20 text-xs font-semibold"
         >
-          <TimerReset size={16} />{" "}
-          <span className="hidden @min-md:inline-block">Now</span>
+          <TimerReset className="w-3.5 h-3.5 @min-md:w-4 @min-md:h-4 -mt-[2px]" />
+          <span
+            className={cn(
+              "text-[0.7rem] @min-md:text-xs -mb-[1px] @min-md:mb-0 transition-all duration-300",
+              hourChanged
+                ? "scale-110 text-blue-500 dark:text-blue-400 font-semibold"
+                : "dark:text-foreground text-muted-foreground scale-100"
+            )}
+          >
+            {(() => {
+              const v = hour;
+              const d = v % 12 === 0 ? 12 : v % 12;
+              const ampm = v >= 12 ? "PM" : "AM";
+              return `${d} ${ampm}`;
+            })()}
+          </span>
         </button>
-        <span
+        {/* <span
           className={cn(
-            "text-xs @min-lg:text-sm font-medium text-center inline-block transition-all duration-300",
+            "mt-1 @min-lg:mt-0 text-xs @min-lg:text-sm font-medium text-center inline-block transition-all duration-300",
             labelWidth,
             hourChanged
               ? "scale-110 text-blue-500 dark:text-blue-400 font-semibold"
@@ -148,7 +168,7 @@ const TimeRail: React.FC<Props> = ({
             const ampm = v >= 12 ? "PM" : "AM";
             return `${d} ${ampm}`;
           })()}
-        </span>
+        </span> */}
       </div>
 
       <LazyLoadHourSlider
@@ -158,7 +178,7 @@ const TimeRail: React.FC<Props> = ({
         min={0}
         max={21}
         step={3}
-        className="-mb-1"
+        className="-mb-0"
       />
 
       <div className="ml-2 flex items-center gap-2">
@@ -166,9 +186,9 @@ const TimeRail: React.FC<Props> = ({
           ref={buttonRef}
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="inline-flex items-center gap-1 rounded-full border border-border bg-highlight-5/50 hover:bg-highlight-3 px-2.5 @min-lg:px-3 py-2 @min-lg:py-2 text-xs font-medium"
+          className="inline-flex items-center gap-1 rounded-full border border-border bg-highlight-5/50 hover:bg-highlight-3 px-2.5 @min-lg:px-3 py-2 @min-lg:py-2 text-xs font-semibold"
         >
-          <Calendar size={16} />
+          <Calendar className="w-3.5 h-3.5 @min-md:w-4 @min-md:h-4" />
           <span className="tabular-nums hidden @min-md:inline-block text-center w-9">
             {selected
               ? selected.toLocaleDateString(undefined, {

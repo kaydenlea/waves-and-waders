@@ -12,6 +12,7 @@ type SliderProps = React.ComponentProps<typeof SliderPrimitive.Root> & {
   trackStyle?: React.CSSProperties;
   rangeStyle?: React.CSSProperties;
   thumbStyle?: React.CSSProperties;
+  displayContent?: React.ReactNode;
 };
 
 function Slider({
@@ -26,6 +27,7 @@ function Slider({
   trackStyle,
   rangeStyle,
   thumbStyle,
+  displayContent,
   ...props
 }: SliderProps) {
   const _values = React.useMemo(
@@ -54,7 +56,7 @@ function Slider({
       <SliderPrimitive.Track
         data-slot="slider-track"
         className={cn(
-          "bg-[#DBDBDB] relative grow overflow-hidden rounded-full data-[orientation=horizontal]:h-[9px] data-[orientation=horizontal]:w-full data-[orientation=vertical]:h-full data-[orientation=vertical]:w-1.5",
+          "bg-[#DBDBDB] relative grow overflow-hidden rounded-full data-[orientation=horizontal]:h-[11px] data-[orientation=horizontal]:w-full data-[orientation=vertical]:h-full data-[orientation=vertical]:w-1.5",
           trackClassName
         )}
         style={trackStyle}
@@ -62,7 +64,7 @@ function Slider({
         <SliderPrimitive.Range
           data-slot="slider-range"
           className={cn(
-            "bg-blue-200 absolute data-[orientation=horizontal]:h-full data-[orientation=vertical]:w-full",
+            "absolute data-[orientation=horizontal]:h-full data-[orientation=vertical]:w-full",
             rangeClassName
           )}
           style={rangeStyle}
@@ -78,7 +80,9 @@ function Slider({
             thumbClassName
           )}
           style={thumbStyle}
-        />
+        >
+          {displayContent}
+        </SliderPrimitive.Thumb>
       ))}
     </SliderPrimitive.Root>
   );

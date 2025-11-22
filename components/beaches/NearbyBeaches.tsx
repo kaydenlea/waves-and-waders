@@ -26,12 +26,11 @@ import {
   getFeatureDisplayName,
 } from "@/lib/supabase";
 import type { ForecastData } from "@/lib/supabase";
+import { ChevronDown, ChevronUp, SearchX } from "lucide-react";
 import {
-  ChevronDown,
-  ChevronUp,
-  SearchX,
-} from "lucide-react";
-import { BEACH_FEATURE_ICONS, DEFAULT_FEATURE_ICON } from "@/lib/beachFeatureIcons";
+  BEACH_FEATURE_ICONS,
+  DEFAULT_FEATURE_ICON,
+} from "@/lib/beachFeatureIcons";
 import { useDateContext } from "../context/DateContext";
 import { Spinner } from "../ui/spinner";
 import { AnimatePresence, motion } from "motion/react";
@@ -77,7 +76,12 @@ type SummaryStat =
     }
   | {
       type: "features";
-      tags: { label: string; icon: React.ReactNode; color: string; rank?: number }[];
+      tags: {
+        label: string;
+        icon: React.ReactNode;
+        color: string;
+        rank?: number;
+      }[];
     };
 type TidePointValue = { x: number; tide: number };
 type TidePeak = { kind: "high" | "low"; time: Date; level: number };
@@ -211,7 +215,10 @@ export default function NearbyBeaches({
   const dropdownRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node)
+      ) {
         if (!loadingListRef.current && !statsLoadingRef.current) setOpen(false);
       }
     };
@@ -813,7 +820,12 @@ export default function NearbyBeaches({
                     ? getFeatureDisplayName(key)
                     : key;
                 const def = BEACH_FEATURE_ICONS[key] ?? DEFAULT_FEATURE_ICON;
-                tags.push({ label, icon: def.icon, color: def.color, rank: def.rank });
+                tags.push({
+                  label,
+                  icon: def.icon,
+                  color: def.color,
+                  rank: def.rank,
+                });
               }
             }
             // Sort tags by rank (lower rank = higher priority)
@@ -1061,7 +1073,7 @@ export default function NearbyBeaches({
       {dataLoaded.current ? (
         // If we have beaches loaded but none are in view, show a helpful message
         sorted.length > 0 && inView.length === 0 ? (
-          <section className="text-center pt-10 flex flex-col justify-center items-center gap-3">
+          <section className="text-center pt-10 pb-100 flex flex-col justify-center items-center gap-3">
             <SearchX className="w-10 h-10" />
             <span className="text-lg">
               {selectedTab === "saved"
@@ -1083,18 +1095,18 @@ export default function NearbyBeaches({
             ))}
           </section>
         ) : filterCount > 0 ? (
-          <section className="text-center pt-10 flex flex-col justify-center items-center gap-3">
+          <section className="text-center pt-10 pb-100 flex flex-col justify-center items-center gap-3">
             <SearchX className="w-10 h-10" />
             <span className="text-lg">No beaches found...</span>
           </section>
         ) : (
-          <section className="text-center pt-10 flex flex-col justify-center items-center gap-3">
+          <section className="text-center pt-10 pb-100 flex flex-col justify-center items-center gap-3">
             <span className="text-lg">Loading beaches...</span>
             <Spinner />
           </section>
         )
       ) : (
-        <section className="text-center pt-10 flex flex-col justify-center items-center gap-3">
+        <section className="text-center pt-10 pb-100 flex flex-col justify-center items-center gap-3">
           <span className="text-lg">Loading beaches...</span>
           <Spinner />
         </section>

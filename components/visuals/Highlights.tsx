@@ -1521,7 +1521,7 @@ const Highlights = ({
           switch (stat.label) {
             case "swell":
               content = stat.primary && stat.secondary && (
-                <div className="flex justify-between items-center gap-2 @min-lg:w-full @min-2xl:w-auto @min-5xl:w-full">
+                <div className="flex justify-between items-center px-3 gap-0 @min-lg:w-full @min-2xl:w-auto @min-5xl:w-full">
                   <HighlightCard
                     className="@min-lg:w-47 @min-2xl:w-auto @min-5xl:w-47"
                     label={stat.label}
@@ -1551,7 +1551,7 @@ const Highlights = ({
                       </li>
                     </ul>
                   </HighlightCard>
-                  <div className="border border-border/20 font-semibold @container hidden @min-lg:block @min-2xl:hidden @min-5xl:block -mt-2 bg-highlight-6 py-3 px-3 flex-1 rounded-md text-center max-w-40">
+                  <div className="shadow-even border border-border/20 font-semibold @container hidden @min-lg:block @min-2xl:hidden @min-5xl:block -mt-2 bg-highlight-6 py-3 px-3 flex-1 rounded-md text-center max-w-40">
                     {/* <span>5 ft </span>
                     <span className="hidden @min-[100px]:inline-block">
                       --- 10 ft
@@ -1567,7 +1567,7 @@ const Highlights = ({
                       content={
                         <span className="flex flex-col items-center mt-1">
                           <span className="text-[0.9rem]">
-                            {stat.primary.height}
+                            {stat.primary.height.toFixed(1)}
                           </span>
                           <span className="text-[0.55rem] -mt-1">ft</span>
                         </span>
