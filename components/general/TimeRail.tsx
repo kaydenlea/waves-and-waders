@@ -1,19 +1,20 @@
 "use client";
 
 import React, {
-  useMemo,
   startTransition,
   useState,
   useEffect,
   useRef,
+  useMemo,
 } from "react";
-import { Calendar, Clock, TimerReset } from "lucide-react";
+import * as Collapsible from "@radix-ui/react-collapsible";
+import { Calendar, TimerReset } from "lucide-react";
 import { useDateContext } from "../context/DateContext";
 import { useMapFilters } from "../context/MapFilterContext";
 import { LazyLoadDatePicker } from "./LazyLoad/LazyLoadDatePicker";
 import { LazyLoadHourSlider } from "./LazyLoad/LazyLoadHourSlider";
-import { debounce } from "@/lib/utils/debounce";
 import { cn } from "@/lib/utils";
+import { debounce } from "@/lib/utils/debounce";
 
 type Props = {
   beachId: string;
@@ -96,12 +97,39 @@ const TimeRail: React.FC<Props> = ({
   };
 
   const railPad = size === "lg" ? "py-2.5 @min-4xl:py-2.5" : "py-2";
-  const labelWidth = size === "lg" ? "w-12" : "w-14";
 
-  // Manual popover: center relative to the entire rail (not the button)
   const [open, setOpen] = React.useState(false);
+  const [closing, setClosing] = React.useState(false);
+  const hasOpenedRef = React.useRef(false);
+  const closeTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
   const railRef = React.useRef<HTMLDivElement | null>(null);
   const buttonRef = React.useRef<HTMLButtonElement | null>(null);
+
+  React.useEffect(() => {
+    if (open) {
+      hasOpenedRef.current = true;
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+        closeTimerRef.current = null;
+      }
+      setClosing(false);
+      return;
+    }
+    if (!hasOpenedRef.current) return;
+    setClosing(true);
+    closeTimerRef.current = setTimeout(() => {
+      setClosing(false);
+      closeTimerRef.current = null;
+    }, 0);
+    return () => {
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+        closeTimerRef.current = null;
+      }
+    };
+  }, [open]);
 
   React.useEffect(() => {
     const onDocClick = (e: MouseEvent) => {
@@ -125,106 +153,99 @@ const TimeRail: React.FC<Props> = ({
     };
   }, []);
 
+  const panelActive = open || closing;
+
   return (
-    <div
-      ref={railRef}
-      className={`relative w-full grid grid-cols-[auto_1fr_auto] items-center @min-lg:gap-2 rounded-full bg-background @min-4xl:dark:bg-highlight-5/50 @min-4xl:bg-highlight-5/10 backdrop-blur dark:supports-[backdrop-filter]:bg-highlight-5/90 supports-[backdrop-filter]:bg-background/80 shadow-even px-2 ${railPad} @min-4xl:border @min-4xl:border-border/60`}
-    >
-      <div className="flex items-center @min-lg:gap-1 mr-1.5">
-        <button
-          type="button"
-          onClick={onNow}
-          className="inline-flex items-center gap-1 rounded-full border border-border bg-highlight-5/50 hover:bg-highlight-3 justify-center py-2 w-16 @min-md:w-20 text-xs font-semibold"
-        >
-          <TimerReset className="w-3.5 h-3.5 @min-md:w-4 @min-md:h-4 -mt-[2px]" />
-          <span
-            className={cn(
-              "text-[0.7rem] @min-md:text-xs -mb-[1px] @min-md:mb-0 transition-all duration-300",
-              hourChanged
-                ? "scale-110 text-blue-500 dark:text-blue-400 font-semibold"
-                : "dark:text-foreground text-muted-foreground scale-100"
-            )}
-          >
-            {(() => {
-              const v = hour;
-              const d = v % 12 === 0 ? 12 : v % 12;
-              const ampm = v >= 12 ? "PM" : "AM";
-              return `${d} ${ampm}`;
-            })()}
-          </span>
-        </button>
-        {/* <span
+    <div ref={railRef} className="relative w-full">
+      <Collapsible.Root open={open} onOpenChange={setOpen} className="w-full">
+        <div
           className={cn(
-            "mt-1 @min-lg:mt-0 text-xs @min-lg:text-sm font-medium text-center inline-block transition-all duration-300",
-            labelWidth,
-            hourChanged
-              ? "scale-110 text-blue-500 dark:text-blue-400 font-semibold"
-              : "dark:text-foreground text-muted-foreground scale-100"
+            "grid grid-cols-[auto_1fr_auto] items-center @min-lg:gap-2 rounded-full bg-background/80 dark:bg-highlight-5/80 @min-4xl:dark:bg-highlight-5/90 @min-4xl:bg-background/80 backdrop-blur shadow-even px-2 @min-md:px-3 transition-[background-color,border-color,box-shadow] duration-300",
+            railPad,
+            panelActive ? "rounded-t-[1.75rem] rounded-b-none" : "rounded-full"
           )}
         >
-          {(() => {
-            const v = hour;
-            const d = v % 12 === 0 ? 12 : v % 12;
-            const ampm = v >= 12 ? "PM" : "AM";
-            return `${d} ${ampm}`;
-          })()}
-        </span> */}
-      </div>
+          <div className="flex items-center @min-lg:gap-1 mr-1.5">
+            <button
+              type="button"
+              onClick={onNow}
+              className="inline-flex items-center gap-1 rounded-full bg-highlight-3/75 dark:bg-highlight-2 dark:hover:bg-highlight-5 hover:bg-highlight-5 hover:shadow-sm justify-center py-2 w-16 @min-md:w-20 text-xs font-semibold"
+            >
+              <TimerReset className="w-3.5 h-3.5 @min-md:w-4 @min-md:h-4 -mt-[2px]" />
+              <span
+                className={cn(
+                  "text-[0.7rem] @min-md:text-xs -mb-[1px] @min-md:mb-0 transition-all duration-300",
+                  hourChanged
+                    ? "scale-110 text-blue-500 dark:text-blue-400 font-semibold"
+                    : "text-foreground scale-100"
+                )}
+              >
+                {(() => {
+                  const v = hour;
+                  const d = v % 12 === 0 ? 12 : v % 12;
+                  const ampm = v >= 12 ? "PM" : "AM";
+                  return `${d} ${ampm}`;
+                })()}
+              </span>
+            </button>
+          </div>
 
-      <LazyLoadHourSlider
-        value={hour}
-        onChange={handleHourChange}
-        onCommit={handleHourCommit}
-        min={0}
-        max={21}
-        step={3}
-        className="-mb-0"
-      />
+          <LazyLoadHourSlider
+            value={hour}
+            onChange={handleHourChange}
+            onCommit={handleHourCommit}
+            min={0}
+            max={21}
+            step={3}
+            className="-mb-0"
+          />
 
-      <div className="ml-2 flex items-center gap-2">
-        <button
-          ref={buttonRef}
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          className="inline-flex items-center gap-1 rounded-full border border-border bg-highlight-5/50 hover:bg-highlight-3 px-2.5 @min-lg:px-3 py-2 @min-lg:py-2 text-xs font-semibold"
+          <div className="ml-2 flex items-center gap-2">
+            <button
+              ref={buttonRef}
+              type="button"
+              onClick={() => setOpen((v) => !v)}
+              aria-expanded={open}
+              className="inline-flex items-center gap-1 rounded-full bg-highlight-3/75 dark:bg-highlight-2 dark:hover:bg-highlight-5 hover:bg-highlight-5 hover:shadow-sm px-2.5 @min-lg:px-3 py-2 @min-lg:py-2 text-xs font-semibold transition-colors"
+            >
+              <Calendar className="w-3.5 h-3.5 @min-md:w-4 @min-md:h-4" />
+              <span className="tabular-nums hidden @min-md:inline-block text-center w-9">
+                {selected
+                  ? selected.toLocaleDateString(undefined, {
+                      month: "numeric",
+                      day: "numeric",
+                    })
+                  : "Date"}
+              </span>
+            </button>
+            {trailingActions && (
+              <>
+                <span className="hidden @min-4xl:inline-block h-7 w-px bg-border/80" />
+                <div className="hidden @min-4xl:flex items-center">
+                  {trailingActions}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+        <Collapsible.Content
+          forceMount
+          data-time-rail-panel
+          className={cn(
+            "@container absolute left-0 right-0 top-full z-[60] mt-[0.03rem] rounded-b-[1.75rem] shadow-even bg-background/80 dark:bg-highlight-5/80 @min-4xl:dark:bg-highlight-5/90 @min-4xl:bg-background/80 backdrop-blur px-1 py-0.5 overflow-hidden transition-all duration-200",
+            "data-[state=closed]:max-h-0 data-[state=open]:max-h-[520px] data-[state=closed]:pointer-events-none data-[state=closed]:opacity-0 data-[state=open]:opacity-100"
+          )}
         >
-          <Calendar className="w-3.5 h-3.5 @min-md:w-4 @min-md:h-4" />
-          <span className="tabular-nums hidden @min-md:inline-block text-center w-9">
-            {selected
-              ? selected.toLocaleDateString(undefined, {
-                  month: "numeric",
-                  day: "numeric",
-                })
-              : "Date"}
-          </span>
-        </button>
-        {trailingActions && (
-          <>
-            <span className="hidden @min-4xl:inline-block h-7 w-px bg-border/80" />
-            <div className="hidden @min-4xl:flex items-center">
-              {trailingActions}
-            </div>
-          </>
-        )}
-      </div>
-      {/* Manually positioned panel centered under the entire rail */}
-      <div
-        data-time-rail-panel
-        className={`absolute left-1/2 top-full z-[60] mt-3 w-[min(720px,92vw)] -translate-x-1/2 bg-transparent transition-all duration-200 ease-out ${
-          open
-            ? "opacity-100 translate-y-0 pointer-events-auto"
-            : "opacity-0 -translate-y-1 pointer-events-none"
-        }`}
-      >
-        <LazyLoadDatePicker
-          beachId={beachId}
-          value={selected ?? undefined}
-          onSelect={(d) => {
-            setSelected(d);
-            setSelectedDate(d);
-          }}
-        />
-      </div>
+          <LazyLoadDatePicker
+            beachId={beachId}
+            value={selected ?? undefined}
+            onSelect={(d) => {
+              setSelected(d);
+              setSelectedDate(d);
+            }}
+          />
+        </Collapsible.Content>
+      </Collapsible.Root>
     </div>
   );
 };

@@ -532,12 +532,7 @@ DatePickerProps) => {
   }, [value, selectedDate, summaries, surfIntensityByDate]);
 
   return (
-    <div
-      className={cn(
-        "relative w-full bg-highlight-4 px-2 py-2 rounded-full shadow-even border border-border",
-        className
-      )}
-    >
+    <div className={cn("relative w-full px-2 py-2 rounded-2xl", className)}>
       {orderedKeys.length === 0 && (
         <div className="w-full py-7 text-center text-sm text-muted-foreground">
           {loading ? "Loading forecast days..." : "No forecast data available."}
@@ -590,20 +585,20 @@ DatePickerProps) => {
               const rangeClasses =
                 isInRange && forecast
                   ? cn(
-                      "bg-highlight-5",
-                      isRangeStart && "rounded-l-md",
-                      isRangeEnd && "rounded-r-md",
+                      "dark:bg-highlight-4/40 bg-highlight-5 ring ring-muted-foreground/40 mx-0",
+                      isRangeStart && "rounded-l-md ml-1",
+                      isRangeEnd && "rounded-r-md mr-1",
                       !isRangeStart && !isRangeEnd && "rounded-none"
                     )
                   : forecast
-                  ? "bg-highlight-4 rounded-none"
-                  : "bg-highlight-4 rounded-md";
+                  ? "bg-background dark:bg-highlight-4 rounded-md"
+                  : "bg-background dark:bg-highlight-4 rounded-md";
               const buttonRounding = forecast ? "rounded-none" : "rounded-md";
               return (
                 <CarouselItem
                   key={index}
                   className={cn(
-                    "basis-1/3 @min-md:basis-1/4 @min-xl:basis-1/5 @min-2xl:basis-1/6 @min-3xl:basis-1/7 flex justify-center"
+                    "basis-1/2 @min-[350px]:basis-1/3 @min-md:basis-1/4 @min-xl:basis-1/5 @min-2xl:basis-1/6 @min-3xl:basis-1/7 flex justify-center"
                   )}
                 >
                   <button
@@ -612,10 +607,11 @@ DatePickerProps) => {
                       onSelect?.(day.toDate());
                     }}
                     className={cn(
-                      "flex flex-col items-center w-full py-1 text-center text-sm font-medium transition-colors hover:rounded-md hover:bg-highlight-5/60 border-2 border-transparent",
+                      "mx-1 my-0.5 flex flex-col items-center w-full py-1.5 text-center text-sm font-medium transition-colors dark:hover:bg-highlight-5/60 hover:bg-highlight-5/60 shadow-even border-1 border-border/20",
                       buttonRounding,
                       rangeClasses,
-                      isSelected && "bg-highlight-7 border-border shadow-sm"
+                      isSelected &&
+                        "bg-highlight-7 dark:bg-highlight-7 shadow-even"
                     )}
                   >
                     <span className="font-semibold text-[0.7rem] @min-sm:text-[0.7rem] whitespace-nowrap">

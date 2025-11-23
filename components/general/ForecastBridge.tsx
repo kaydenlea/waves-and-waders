@@ -95,7 +95,7 @@ const ForecastBridge: React.FC<Props> = ({
   // Prefetch sun data for all selected days to speed up chart rendering
   useEffect(() => {
     if (!beachId || !selectedDays || selectedDays.length === 0) return;
-    
+
     // Prefetch sun data for all days in the range
     void prefetchSunData(beachId, selectedDays);
   }, [beachId, selectedDays, prefetchSunData]);
@@ -245,7 +245,7 @@ const ForecastBridge: React.FC<Props> = ({
   // Memoize individual widgets to prevent unnecessary re-renders
   const widgets = useMemo(() => {
     const firstDay = selectedDays?.[0] ?? undefined;
-    
+
     return {
       stats: (
         <VisualWrapper label="Forecast Overview">
@@ -289,10 +289,7 @@ const ForecastBridge: React.FC<Props> = ({
       ),
       energy: (
         <VisualWrapper extraPadding label="Energy" unit="kJ">
-          <LazyLoadForecastWaveEnergy
-            beachId={beachId}
-            days={selectedDays}
-          />
+          <LazyLoadForecastWaveEnergy beachId={beachId} days={selectedDays} />
         </VisualWrapper>
       ),
       table: (
@@ -364,7 +361,7 @@ const ForecastBridge: React.FC<Props> = ({
             Edit
           </Link>
         </div> */}
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col">
           {visibleRows.length === 0 ? (
             <p className="mx-2 mt-4 text-sm text-muted-foreground">
               All widgets are hidden. Use the edit page to re-enable panels for
@@ -376,7 +373,7 @@ const ForecastBridge: React.FC<Props> = ({
                 (id) => layoutMeta[id]?.visible !== false
               );
               if (!visibleItems.length) return null;
-              
+
               const renderedItems = visibleItems
                 .map((id) => ({ id, content: widgets[id] }))
                 .filter((entry) => Boolean(entry.content));

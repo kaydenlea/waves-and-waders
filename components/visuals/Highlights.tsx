@@ -1551,13 +1551,9 @@ const Highlights = ({
                       </li>
                     </ul>
                   </HighlightCard>
-                  <div className="shadow-even border border-border/20 font-semibold @container hidden @min-lg:block @min-2xl:hidden @min-5xl:block -mt-2 bg-highlight-6 py-3 px-3 flex-1 rounded-md text-center max-w-40">
-                    {/* <span>5 ft </span>
-                    <span className="hidden @min-[100px]:inline-block">
-                      --- 10 ft
-                    </span> */}
+                  <div className="relative shadow-even border border-border/20 font-semibold @container hidden @min-lg:block @min-2xl:hidden @min-5xl:block -mt-2 bg-highlight-6 py-3 px-3 flex-1 rounded-md text-center max-w-40">
                     <GradientCircle
-                      className="mx-auto"
+                      className="mx-auto @min-[110px]:mx-0"
                       condition="surf"
                       data={stat.primary.height}
                       percentage={clampIntensity(stat.primary.height, 12)}
@@ -1573,6 +1569,14 @@ const Highlights = ({
                         </span>
                       }
                     />
+                    <span className="hidden @min-[110px]:block text-[0.7rem] absolute right-2.5 bottom-2">
+                      PRIMARY
+                    </span>
+                    <span className="hidden @min-[110px]:block p-0.5 rounded-full bg-highlight-5/50 border border-border/40 absolute -top-3 right-1">
+                      <span className="flex justify-center items-center w-6 h-6 rounded-full bg-blue-100">
+                        <Waves size={16} className="text-blue-500" />
+                      </span>
+                    </span>
                   </div>
                 </div>
               );

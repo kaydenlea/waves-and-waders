@@ -1242,7 +1242,7 @@ const StatTable = ({
                     <tr key={`${i}-date`}>
                       <td
                         colSpan={10}
-                        className="p-3 bg-highlight-5 font-semibold rounded-sm"
+                        className="p-3 bg-highlight-5 font-semibold rounded-sm shadow-even"
                       >
                         {day.date}
                       </td>
