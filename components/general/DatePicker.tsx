@@ -611,7 +611,8 @@ DatePickerProps) => {
                       buttonRounding,
                       rangeClasses,
                       isSelected &&
-                        "bg-highlight-7 dark:bg-highlight-7 shadow-even"
+                        "bg-highlight-7 dark:bg-highlight-7 shadow-even",
+                      isSelected && !forecast && "ring-1 ring-muted-foreground"
                     )}
                   >
                     <span className="font-semibold text-[0.7rem] @min-sm:text-[0.7rem] whitespace-nowrap">
