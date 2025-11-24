@@ -14,15 +14,12 @@ import {
 import BeachCard, {
   type Beach as UIBeach,
 } from "@/components/general/BeachCard";
-import { cn } from "@/lib/utils";
+import { cn, getPacificMidnightUTC } from "@/lib/utils";
 import {
   FEATURE_COLUMNS,
   fetchBeachByIdLoose,
   fetchBeachDetails,
-  fetchBeachForecast,
-  fetchBeachTides,
   fetchCurrentConditions,
-  fetchDailyConditions,
   getFeatureDisplayName,
 } from "@/lib/supabase";
 import type { ForecastData } from "@/lib/supabase";
@@ -31,10 +28,14 @@ import {
   BEACH_FEATURE_ICONS,
   DEFAULT_FEATURE_ICON,
 } from "@/lib/beachFeatureIcons";
-import { useDateContext } from "../context/DateContext";
 import { Spinner } from "../ui/spinner";
 import { AnimatePresence, motion } from "motion/react";
 import { useClientPath } from "../context/PathContext";
+import {
+  getForecastCached,
+  getTidesCached,
+  getDailyConditionsCached,
+} from "@/lib/dataCache";
 
 type DbBeach = {
   id: string | number;
@@ -149,9 +150,445 @@ const SURF_HEIGHT_CAP = 12;
 const WIND_SPEED_CAP = 40;
 const TEMP_CAP = 100; // For temperature circles
 
+type BeachStatsSnapshot = {
+  summary: SummaryStat[];
+  current: ForecastData | null;
+};
+
+const beachStatsCache = new Map<string, Promise<BeachStatsSnapshot | null>>();
+
+const decorateBeachWithStats = (
+  beach: UIBeach,
+  snapshot?: BeachStatsSnapshot | null
+): UIBeach => {
+  if (!snapshot || !snapshot.summary) return beach;
+  const surfStat = snapshot.summary.find(
+    (stat): stat is Extract<SummaryStat, { type: "surf" }> =>
+      stat.type === "surf"
+  );
+  const windStat = snapshot.summary.find(
+    (stat): stat is Extract<SummaryStat, { type: "wind" }> =>
+      stat.type === "wind"
+  );
+  const featuresStat = snapshot.summary.find(
+    (stat): stat is Extract<SummaryStat, { type: "features" }> =>
+      stat.type === "features"
+  );
+
+  return {
+    ...beach,
+    conditions: {
+      ...beach.conditions,
+      rating: surfStat?.surf.intensity ?? beach.conditions.rating ?? 0,
+      surf: surfStat?.surf.height ?? beach.conditions.surf,
+      windDir: windStat?.wind.direction ?? beach.conditions.windDir,
+      wind:
+        windStat?.wind.speed != null
+          ? String(windStat.wind.speed)
+          : beach.conditions.wind,
+    },
+    features: featuresStat?.tags ?? beach.features,
+    current: snapshot.current ?? beach.current,
+  };
+};
+
+const dateKey = (value?: Date) => {
+  if (!value) return "today";
+  const copy = new Date(value);
+  copy.setHours(0, 0, 0, 0);
+  return copy.toISOString().split("T")[0]!;
+};
+async function computeBeachStatsSnapshot(
+  beachId: string,
+  targetDate?: Date
+): Promise<BeachStatsSnapshot | null> {
+  try {
+    const resolved = await fetchBeachByIdLoose(beachId);
+    const resolvedId = resolved?.id ? String(resolved.id) : beachId;
+    const beach = await fetchBeachDetails(resolvedId);
+    const dayStart =
+      targetDate instanceof Date
+        ? getPacificMidnightUTC(targetDate)
+        : getPacificMidnightUTC();
+    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+    const tideBufferMs = 6 * 60 * 60 * 1000;
+    const tideStart = new Date(dayStart.getTime() - tideBufferMs);
+    const tideEnd = new Date(dayEnd.getTime() + tideBufferMs);
+
+    const [forecast = [], current, tides = [], daily] = await Promise.all([
+      getForecastCached(resolvedId, dayStart, dayEnd),
+      fetchCurrentConditions(resolvedId).catch(() => null),
+      getTidesCached(resolvedId, tideStart, tideEnd),
+      beach?.COUNTY
+        ? getDailyConditionsCached(
+            beach.COUNTY,
+            targetDate instanceof Date ? targetDate : dayStart
+          )
+        : Promise.resolve(null),
+    ]);
+
+    if (!forecast.length && !current) {
+      return null;
+    }
+
+    const base = targetDate ? forecast[0] : current ?? forecast[0];
+    const renderData = base ?? current ?? null;
+    const stats: SummaryStat[] = [];
+
+    const heightMins = forecast
+      .map((row) => row?.surf?.heightMin)
+      .filter(
+        (value): value is number =>
+          typeof value === "number" && !Number.isNaN(value)
+      );
+    const heightMaxes = forecast
+      .map((row) => row?.surf?.heightMax)
+      .filter(
+        (value): value is number =>
+          typeof value === "number" && !Number.isNaN(value)
+      );
+    const periods = forecast
+      .map((row) => row?.swell?.primary?.period)
+      .filter(
+        (value): value is number =>
+          typeof value === "number" && !Number.isNaN(value)
+      );
+
+    const avgHeightMin = average(heightMins);
+    const avgHeightMax = average(heightMaxes);
+    const avgPeriod = average(periods);
+
+    const max = avgHeightMax != null ? avgHeightMax : null;
+    const minWithFallback =
+      avgHeightMin != null
+        ? avgHeightMin
+        : max != null && max <= 1
+        ? 0
+        : null;
+    const hasRange = minWithFallback != null && max != null;
+
+    let surfHeightLabel: string | null = null;
+    if (hasRange) {
+      let minRounded = Math.round(minWithFallback!);
+      let maxRounded = Math.round(max!);
+      if (minRounded > maxRounded) {
+        [minRounded, maxRounded] = [maxRounded, minRounded];
+      }
+      if (minRounded === maxRounded) {
+        minRounded = Math.max(0, maxRounded - 1);
+      }
+      surfHeightLabel = `${minRounded}-${maxRounded}`;
+    }
+    const surfPeriod = avgPeriod != null ? Math.round(avgPeriod) : null;
+
+    if ((surfHeightLabel || hasRange) && surfPeriod != null) {
+      const surfIntensity = clampIntensity(
+        max ?? minWithFallback ?? 0,
+        SURF_HEIGHT_CAP
+      );
+      stats.push({
+        type: "surf",
+        surf: {
+          height: surfHeightLabel ?? "-",
+          period: surfPeriod,
+          intensity: max ?? 0,
+        },
+      });
+    }
+
+    const windSpeeds = forecast
+      .map((row) => row?.conditions?.windSpeed)
+      .filter(
+        (value): value is number =>
+          typeof value === "number" && !Number.isNaN(value)
+      );
+    const windGusts = forecast
+      .map((row) => row?.conditions?.windGust)
+      .filter(
+        (value): value is number =>
+          typeof value === "number" && !Number.isNaN(value)
+      );
+    const windDirections = forecast
+      .map((row) => row?.conditions?.windDirection)
+      .filter(
+        (value): value is number =>
+          typeof value === "number" && !Number.isNaN(value)
+      );
+
+    const avgWindSpeed = average(windSpeeds);
+    const avgWindGust = average(windGusts);
+    const avgWindDirection = average(windDirections);
+
+    const resolvedWindSpeed =
+      avgWindSpeed != null ? Math.round(avgWindSpeed) : null;
+    const resolvedWindGust =
+      avgWindGust != null ? Math.round(avgWindGust) : undefined;
+    const resolvedWindDirection =
+      avgWindDirection != null ? Math.round(avgWindDirection) : undefined;
+
+    if (resolvedWindSpeed != null) {
+      const windIntensity = clampIntensity(
+        resolvedWindSpeed,
+        WIND_SPEED_CAP
+      );
+
+      stats.push({
+        type: "wind",
+        wind: {
+          speed: resolvedWindSpeed,
+          gust: resolvedWindGust,
+          loc: resolvedWindGust == null ? "-" : undefined,
+          intensity: windIntensity,
+          direction: resolvedWindDirection,
+        },
+      });
+    }
+
+    const tideSeries: TidePointValue[] = (tides as any[])
+      .map((row) => {
+        const tideFt =
+          typeof row?.tideLevelFt === "number"
+            ? row.tideLevelFt
+            : typeof row?.tideLevelM === "number"
+            ? row.tideLevelM * 3.28084
+            : null;
+        if (tideFt == null || Number.isNaN(tideFt)) return null;
+        return {
+          x: new Date(row.timestamp).getTime(),
+          tide: tideFt,
+        };
+      })
+      .filter((point): point is TidePointValue => point !== null)
+      .sort((a, b) => a.x - b.x);
+
+    let tidePeaks = computeTidePeaks(tideSeries);
+    if (tidePeaks.length === 0 && forecast.length > 0) {
+      const fallbackSeries: TidePointValue[] = forecast
+        .map((row) => {
+          const tideLevel = row?.conditions?.tideLevel;
+          if (tideLevel == null || Number.isNaN(tideLevel)) return null;
+          return {
+            x: new Date(row.timestamp).getTime(),
+            tide: tideLevel,
+          };
+        })
+        .filter((point): point is TidePointValue => point !== null)
+        .sort((a, b) => a.x - b.x);
+      tidePeaks = computeTidePeaks(fallbackSeries);
+    }
+    const tideStatPeaks = tidePeaks.slice(0, 4);
+    while (tideStatPeaks.length < 4) {
+      const peakType = tideStatPeaks.length % 2 === 0 ? "high" : "low";
+      tideStatPeaks.push({
+        kind: peakType,
+        time: new Date(dayStart),
+        level: null,
+      });
+    }
+
+    let currentTideHeight: number | undefined;
+    if (tides.length > 0) {
+      const nowMs = Date.now();
+      let bestDiff = Number.POSITIVE_INFINITY;
+      tides.forEach((row) => {
+        const tideFt =
+          typeof row?.tideLevelFt === "number"
+            ? row.tideLevelFt
+            : typeof row?.tideLevelM === "number"
+            ? row.tideLevelM * 3.28084
+            : null;
+        if (tideFt == null || Number.isNaN(tideFt)) return;
+        const diff = Math.abs(new Date(row.timestamp).getTime() - nowMs);
+        if (diff < bestDiff) {
+          bestDiff = diff;
+          currentTideHeight = Number(tideFt.toFixed(1));
+        }
+      });
+    }
+    if (
+      currentTideHeight == null &&
+      base?.conditions.tideLevel != null &&
+      Number.isFinite(base.conditions.tideLevel)
+    ) {
+      currentTideHeight = Number(base.conditions.tideLevel.toFixed(1));
+    }
+
+    let sunrise: string | undefined;
+    let sunset: string | undefined;
+    const county = beach?.COUNTY;
+    if (county) {
+      try {
+        const conditions = await getDailyConditionsCached(
+          county,
+          targetDate instanceof Date ? targetDate : dayStart
+        );
+        const dayForFormat = conditions?.date
+          ? new Date(`${conditions.date}T00:00:00`)
+          : new Date(targetDate ?? dayStart);
+        const formatClock = (raw: string | null | undefined) => {
+          if (!raw) return undefined;
+          const match = /^([0-9]{1,2}):([0-9]{2})(?::([0-9]{2}))?/.exec(
+            raw.trim()
+          );
+          if (!match) return undefined;
+          const h = Number(match[1]);
+          const m = Number(match[2]);
+          if (!Number.isFinite(h) || !Number.isFinite(m)) return undefined;
+          const ts = new Date(dayForFormat);
+          ts.setHours(h, m, 0, 0);
+          return ts.toLocaleTimeString([], {
+            hour: "numeric",
+            minute: "2-digit",
+          });
+        };
+        sunrise = formatClock(conditions?.sunrise) ?? conditions?.sunrise ?? undefined;
+        sunset = formatClock(conditions?.sunset) ?? conditions?.sunset ?? undefined;
+      } catch (err) {
+        console.warn("NearbyBeaches sunrise/sunset unavailable", err);
+      }
+    }
+
+    stats.push({
+      type: "tide",
+      currentHeight: currentTideHeight,
+      peaks: tideStatPeaks,
+      sunrise,
+      sunset,
+    });
+
+    const waterTemps = forecast
+      .map((row) => row?.conditions?.waterTemp)
+      .filter(
+        (value): value is number =>
+          typeof value === "number" && !Number.isNaN(value)
+      );
+    const airTemps = forecast
+      .map((row) => row?.conditions?.airTemp)
+      .filter(
+        (value): value is number =>
+          typeof value === "number" && !Number.isNaN(value)
+      );
+
+    const waterTemp =
+      waterTemps.length > 0
+        ? Math.round(
+            waterTemps.reduce((sum, v) => sum + v, 0) / waterTemps.length
+          )
+        : undefined;
+    const airTemp =
+      airTemps.length > 0
+        ? Math.round(
+            airTemps.reduce((sum, v) => sum + v, 0) / airTemps.length
+          )
+        : undefined;
+
+    const weatherCodes = forecast
+      .map((row) => row?.conditions?.weather)
+      .filter(
+        (value): value is number =>
+          typeof value === "number" && !Number.isNaN(value)
+      );
+
+    let dominantWeatherCode: number | null = null;
+    if (weatherCodes.length > 0) {
+      const codeCounts: Record<number, number> = {};
+      for (const code of weatherCodes) {
+        codeCounts[code] = (codeCounts[code] ?? 0) + 1;
+      }
+      let bestCount = -1;
+      for (const code of Object.keys(codeCounts)) {
+        const count = codeCounts[Number(code)];
+        if (count > bestCount) {
+          dominantWeatherCode = Number(code);
+          bestCount = count;
+        }
+      }
+    }
+
+    if (waterTemp != null || airTemp != null) {
+      stats.push({
+        type: "temperature",
+        waterTemp,
+        airTemp,
+        waterTempPercent:
+          waterTemp != null ? clampIntensity(waterTemp, TEMP_CAP) : undefined,
+        airTempPercent:
+          airTemp != null ? clampIntensity(airTemp, TEMP_CAP) : undefined,
+        weatherCode: dominantWeatherCode,
+      });
+    }
+
+    if (beach) {
+      const tags: {
+        label: string;
+        icon: React.ReactNode;
+        color: string;
+        rank?: number;
+      }[] = [];
+      const keys: string[] =
+        typeof FEATURE_COLUMNS !== "undefined" && Array.isArray(FEATURE_COLUMNS)
+          ? (FEATURE_COLUMNS as string[])
+          : [
+              "FISHING",
+              "RESTROOMS",
+              "PARKING",
+              "DOG_FRIEND",
+              "SNDY_BEACH",
+              "LIFEGUARD",
+            ];
+      for (const key of keys) {
+        const val = (beach as any)[key];
+        if (val === true) {
+          const label =
+            typeof getFeatureDisplayName === "function"
+              ? getFeatureDisplayName(key)
+              : key;
+          const def = BEACH_FEATURE_ICONS[key] ?? DEFAULT_FEATURE_ICON;
+          tags.push({
+            label,
+            icon: def.icon,
+            color: def.color,
+            rank: def.rank,
+          });
+        }
+      }
+      tags.sort((a, b) => (a.rank ?? 999) - (b.rank ?? 999));
+      const topTags = tags.slice(0, 5);
+      if (topTags.length > 0) {
+        stats.push({
+          type: "features",
+          tags: topTags,
+        });
+      }
+    }
+
+    return {
+      summary: stats,
+      current: renderData,
+    };
+  } catch (error) {
+    console.error("Failed to load cached beach stats", error);
+    return null;
+  }
+}
+
+async function getBeachStatsCached(
+  beachId: string,
+  targetDate?: Date
+): Promise<BeachStatsSnapshot | null> {
+  const key = `${beachId}:${dateKey(targetDate)}`;
+  if (!beachStatsCache.has(key)) {
+    beachStatsCache.set(
+      key,
+      computeBeachStatsSnapshot(beachId, targetDate)
+    );
+  }
+  return beachStatsCache.get(key)!;
+}
+
 export default function NearbyBeaches({
   beaches,
-  date = new Date(),
+  date,
   favoriteIds = [],
 }: {
   beaches: DbBeach[];
@@ -165,9 +602,9 @@ export default function NearbyBeaches({
     setBeaches: setSharedBeaches,
   } = useMapFilters();
   const filterCount = filters?.size ?? 0;
-  const initialList: UIBeach[] = useMemo(
-    () =>
-      (beaches || []).map(
+const initialList: UIBeach[] = useMemo(
+  () =>
+    (beaches || []).map(
         (b) =>
           ({
             id: String(b.id),
@@ -189,6 +626,22 @@ export default function NearbyBeaches({
     [beaches]
   );
 
+  const fallbackApiBeaches = useMemo(
+    () =>
+      (beaches || []).map(
+        (b) =>
+          ({
+            id: b.id,
+            name: b.Name,
+            county: b.COUNTY,
+            latitude: Number(b.LATITUDE),
+            longitude: Number(b.LONGITUDE),
+            features: undefined,
+          } satisfies ApiBeach)
+      ),
+    [beaches]
+  );
+
   const favoriteSet = useMemo(
     () => new Set((favoriteIds ?? []).map((id) => String(id))),
     [favoriteIds]
@@ -205,8 +658,6 @@ export default function NearbyBeaches({
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
   const loadingListRef = useRef<boolean>(false);
-  const { surfRange } = useDateContext();
-  const [stats, setStats] = useState<SummaryStat[]>([]);
   const statsLoadingRef = useRef<boolean>(false);
   const dataLoaded = useRef<boolean>(false);
   const { selectedTab } = useClientPath();
@@ -235,13 +686,23 @@ export default function NearbyBeaches({
           return;
         }
         const res = await fetch("/api/beaches");
-        if (!res.ok) return;
+        if (!res.ok) {
+          throw new Error(`status ${res.status}`);
+        }
         const json = await res.json();
-        if (!cancelled && json?.success) {
+        if (!cancelled && json?.success && Array.isArray(json.data)) {
           setApiBeaches(json.data as ApiBeach[]);
           setSharedBeaches(json.data as ApiBeach[]);
+          return;
         }
-      } catch {}
+        throw new Error("invalid beaches payload");
+      } catch (error) {
+        console.warn("NearbyBeaches failed to load /api/beaches", error);
+        if (!cancelled && fallbackApiBeaches.length) {
+          setApiBeaches(fallbackApiBeaches);
+          setSharedBeaches(fallbackApiBeaches);
+        }
+      }
     };
     loadBeachesContextOrFetch();
     return () => {
@@ -465,452 +926,79 @@ export default function NearbyBeaches({
     return () => clearTimeout(t);
   }, [perPage, inView, page]);
 
+const [statsByBeach, setStatsByBeach] = useState<
+  Record<string, BeachStatsSnapshot>
+>({});
+
   const loadStats = async (beaches: UIBeach[]) => {
+    if (!beaches.length) return null;
+    const targetDate =
+      date instanceof Date ? new Date(date) : undefined;
+
     const entries = await Promise.all(
       beaches.map(async (beach) => {
-        const beachId = beach.id;
         try {
-          if (!beachId) return;
-
-          // Resolve the param to a concrete id (supports id/uuid/slug)
-          const resolved = await fetchBeachByIdLoose(beachId);
-          const resolvedId = resolved?.id ?? beachId;
-
-          // Choose the time window: if a date is provided, use that local day; otherwise next 24 hours
-          const now = new Date();
-          let startWindow = now;
-          let endWindow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-          let tideEndWindow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-          if (date instanceof Date) {
-            const d = new Date(date);
-            d.setHours(0, 0, 0, 0);
-            startWindow = d;
-            endWindow = new Date(d.getTime() + 24 * 60 * 60 * 1000);
-            tideEndWindow = endWindow;
-          }
-          const [current, forecast, beach, tideRows] = await Promise.all([
-            fetchCurrentConditions(resolvedId),
-            fetchBeachForecast(resolvedId, startWindow, endWindow),
-            fetchBeachDetails(resolvedId),
-            fetchBeachTides(resolvedId, startWindow, tideEndWindow),
-          ]);
-          const first = forecast[0];
-          // If a specific date is selected, use that day's forecast; otherwise prefer current conditions
-          const base = date ? first : current ?? first;
-
-          const s: SummaryStat[] = [];
-
-          // Use base for rendering (has swell directions), fallback to current if base is null
-          const renderData = base ?? current;
-
-          // 1. SURF (first in order)
-          const heightMins = forecast
-            .map((row) => row?.surf?.heightMin)
-            .filter(
-              (value): value is number =>
-                typeof value === "number" && !Number.isNaN(value)
-            );
-          const heightMaxes = forecast
-            .map((row) => row?.surf?.heightMax)
-            .filter(
-              (value): value is number =>
-                typeof value === "number" && !Number.isNaN(value)
-            );
-          const periods = forecast
-            .map((row) => row?.swell?.primary?.period)
-            .filter(
-              (value): value is number =>
-                typeof value === "number" && !Number.isNaN(value)
-            );
-
-          const avgHeightMin = average(heightMins);
-          const avgHeightMax = average(heightMaxes);
-          const avgPeriod = average(periods);
-
-          const max = avgHeightMax != null ? avgHeightMax : null;
-          const minWithFallback =
-            avgHeightMin != null
-              ? avgHeightMin
-              : max != null && max <= 1
-              ? 0
-              : null;
-          const hasRange = minWithFallback != null && max != null;
-
-          // Use surf range from DatePicker context when date is selected, otherwise calculate
-          let surfHeightLabel: string | null = null;
-          // if (date && surfRange) {
-          //   // Use the exact range from DatePicker
-          //   surfHeightLabel = surfRange;
-          // } else if (hasRange) {
-          //   let minRounded = Math.round(minWithFallback!);
-          //   let maxRounded = Math.round(max!);
-          //   // Ensure min <= max
-          //   if (minRounded > maxRounded) {
-          //     [minRounded, maxRounded] = [maxRounded, minRounded];
-          //   }
-          //   // If they're equal, subtract 1 from min
-          //   if (minRounded === maxRounded) {
-          //     minRounded = Math.max(0, maxRounded - 1);
-          //   }
-          //   surfHeightLabel = `${minRounded}-${maxRounded}`;
-          // }
-
-          if (hasRange) {
-            let minRounded = Math.round(minWithFallback!);
-            let maxRounded = Math.round(max!);
-            // Ensure min <= max
-            if (minRounded > maxRounded) {
-              [minRounded, maxRounded] = [maxRounded, minRounded];
-            }
-            // If they're equal, subtract 1 from min
-            if (minRounded === maxRounded) {
-              minRounded = Math.max(0, maxRounded - 1);
-            }
-            surfHeightLabel = `${minRounded}-${maxRounded}`;
-          }
-
-          const surfPeriod = avgPeriod != null ? Math.round(avgPeriod) : null;
-
-          if ((surfHeightLabel || hasRange) && surfPeriod != null) {
-            const surfIntensity = clampIntensity(
-              max ?? minWithFallback ?? 0,
-              SURF_HEIGHT_CAP
-            );
-            s.push({
-              type: "surf",
-              surf: {
-                height: surfHeightLabel ?? "-",
-                period: surfPeriod,
-                intensity: max ?? 0,
-              },
-            });
-          }
-
-          // 2. WIND (second in order)
-          const windSpeeds = forecast
-            .map((row) => row?.conditions?.windSpeed)
-            .filter(
-              (value): value is number =>
-                typeof value === "number" && !Number.isNaN(value)
-            );
-          const windGusts = forecast
-            .map((row) => row?.conditions?.windGust)
-            .filter(
-              (value): value is number =>
-                typeof value === "number" && !Number.isNaN(value)
-            );
-          const windDirections = forecast
-            .map((row) => row?.conditions?.windDirection)
-            .filter(
-              (value): value is number =>
-                typeof value === "number" && !Number.isNaN(value)
-            );
-          const avgWindSpeed = average(windSpeeds);
-          const avgWindGust = average(windGusts);
-          const avgWindDirection = average(windDirections);
-
-          const resolvedWindDirection =
-            avgWindDirection != null ? Math.round(avgWindDirection) : undefined;
-          const resolvedWindSpeed =
-            avgWindSpeed != null ? Math.round(avgWindSpeed) : null;
-          const resolvedWindGust =
-            avgWindGust != null ? Math.round(avgWindGust) : undefined;
-
-          if (resolvedWindSpeed != null) {
-            const windIntensity = clampIntensity(
-              resolvedWindSpeed,
-              WIND_SPEED_CAP
-            );
-
-            s.push({
-              type: "wind",
-              wind: {
-                direction: resolvedWindDirection,
-                speed: resolvedWindSpeed,
-                gust: resolvedWindGust,
-                loc: resolvedWindGust == null ? "-" : undefined,
-                intensity: windIntensity,
-              },
-            });
-          }
-
-          // 3. TIDE (third in order)
-          const tideSeries: TidePointValue[] = (tideRows ?? [])
-            .map((row) => {
-              const tideFt =
-                typeof row?.tideLevelFt === "number"
-                  ? row.tideLevelFt
-                  : typeof row?.tideLevelM === "number"
-                  ? row.tideLevelM * 3.28084
-                  : null;
-              if (tideFt == null || Number.isNaN(tideFt)) return null;
-              return {
-                x: new Date(row.timestamp).getTime(),
-                tide: tideFt,
-              };
-            })
-            .filter((point): point is TidePointValue => point !== null)
-            .sort((a, b) => a.x - b.x);
-
-          let tidePeaks = computeTidePeaks(tideSeries);
-          if (tidePeaks.length === 0 && forecast.length > 0) {
-            const fallbackSeries: TidePointValue[] = forecast
-              .map((row) => {
-                const tideLevel = row?.conditions?.tideLevel;
-                if (tideLevel == null || Number.isNaN(tideLevel)) return null;
-                return {
-                  x: new Date(row.timestamp).getTime(),
-                  tide: tideLevel,
-                };
-              })
-              .filter((point): point is TidePointValue => point !== null)
-              .sort((a, b) => a.x - b.x);
-            tidePeaks = computeTidePeaks(fallbackSeries);
-          }
-
-          const tideStatPeaks = tidePeaks.slice(0, 4);
-          const currentTideHeight =
-            base?.conditions.tideLevel != null
-              ? Number(base.conditions.tideLevel.toFixed(1))
-              : undefined;
-
-          let sunrise: string | undefined;
-          let sunset: string | undefined;
-          const county = beach?.COUNTY;
-          if (county) {
-            try {
-              const basisDate =
-                date instanceof Date ? new Date(date) : new Date(startWindow);
-              const cond = await fetchDailyConditions(county, basisDate);
-              const dayForFormat = cond?.date
-                ? new Date(`${cond.date}T00:00:00`)
-                : new Date(basisDate);
-              const formatClock = (raw: string | null | undefined) => {
-                if (!raw) return undefined;
-                // Match HH:MM:SS or HH:MM format
-                const match = /^([0-9]{1,2}):([0-9]{2})(?::([0-9]{2}))?/.exec(
-                  raw.trim()
-                );
-                if (!match) return undefined;
-                const h = Number(match[1]);
-                const m = Number(match[2]);
-                if (!Number.isFinite(h) || !Number.isFinite(m))
-                  return undefined;
-
-                // Create a date with the correct time
-                const ts = new Date(dayForFormat);
-                ts.setHours(h, m, 0, 0);
-
-                return ts.toLocaleTimeString([], {
-                  hour: "numeric",
-                  minute: "2-digit",
-                });
-              };
-              const resolvedSunrise = formatClock(cond?.sunrise);
-              const resolvedSunset = formatClock(cond?.sunset);
-              sunrise = resolvedSunrise ?? cond?.sunrise ?? undefined;
-              sunset = resolvedSunset ?? cond?.sunset ?? undefined;
-            } catch (sunErr) {
-              console.warn("Summary sunrise/sunset unavailable", sunErr);
-            }
-          }
-
-          if (
-            currentTideHeight != null ||
-            tideStatPeaks.length > 0 ||
-            sunrise ||
-            sunset
-          ) {
-            s.push({
-              type: "tide",
-              currentHeight: currentTideHeight,
-              peaks: tideStatPeaks,
-              sunrise,
-              sunset,
-            });
-          }
-
-          // 4. TEMPERATURE (fourth in order)
-          const waterTemps = forecast
-            .map((row) => row?.conditions?.waterTemp)
-            .filter(
-              (value): value is number =>
-                typeof value === "number" && !Number.isNaN(value)
-            );
-          const airTemps = forecast
-            .map((row) => row?.conditions?.airTemp)
-            .filter(
-              (value): value is number =>
-                typeof value === "number" && !Number.isNaN(value)
-            );
-
-          const avgWaterTemp = average(waterTemps);
-          const avgAirTemp = average(airTemps);
-
-          const waterTemp =
-            avgWaterTemp != null ? Math.round(avgWaterTemp) : undefined;
-          const airTemp =
-            avgAirTemp != null ? Math.round(avgAirTemp) : undefined;
-
-          // Calculate most occurring weather code for the day
-          const weatherCodes = forecast
-            .map((row) => row?.conditions?.weather)
-            .filter(
-              (value): value is number =>
-                typeof value === "number" && !Number.isNaN(value)
-            );
-
-          let dominantWeatherCode: number | null = null;
-          if (weatherCodes.length > 0) {
-            const codeCounts: Record<number, number> = {};
-            for (const code of weatherCodes) {
-              codeCounts[code] = (codeCounts[code] ?? 0) + 1;
-            }
-            let bestCount = -1;
-            for (const code of Object.keys(codeCounts)) {
-              const count = codeCounts[Number(code)];
-              if (count > bestCount) {
-                dominantWeatherCode = Number(code);
-                bestCount = count;
-              }
-            }
-          }
-
-          if (waterTemp != null || airTemp != null) {
-            s.push({
-              type: "temperature",
-              waterTemp,
-              airTemp,
-              waterTempPercent:
-                waterTemp != null
-                  ? clampIntensity(waterTemp, TEMP_CAP)
-                  : undefined,
-              airTempPercent:
-                airTemp != null ? clampIntensity(airTemp, TEMP_CAP) : undefined,
-              weatherCode: dominantWeatherCode,
-            });
-          }
-
-          // Build features from beach flags when available
-          if (beach) {
-            const tags: {
-              label: string;
-              icon: React.ReactNode;
-              color: string;
-              rank?: number;
-            }[] = [];
-            // If FEATURE_COLUMNS/getFeatureDisplayName are exported, iterate them; else, fallback to known ones
-            const keys: string[] =
-              typeof FEATURE_COLUMNS !== "undefined" &&
-              Array.isArray(FEATURE_COLUMNS)
-                ? (FEATURE_COLUMNS as string[])
-                : [
-                    "FISHING",
-                    "RESTROOMS",
-                    "PARKING",
-                    "DOG_FRIEND",
-                    "SNDY_BEACH",
-                    "LIFEGUARD",
-                  ];
-            for (const key of keys) {
-              const val = (beach as any)[key];
-              if (val === true) {
-                const label =
-                  typeof getFeatureDisplayName === "function"
-                    ? getFeatureDisplayName(key)
-                    : key;
-                const def = BEACH_FEATURE_ICONS[key] ?? DEFAULT_FEATURE_ICON;
-                tags.push({
-                  label,
-                  icon: def.icon,
-                  color: def.color,
-                  rank: def.rank,
-                });
-              }
-            }
-            // Sort tags by rank (lower rank = higher priority)
-            tags.sort((a, b) => (a.rank ?? 999) - (b.rank ?? 999));
-            const topTags = tags.slice(0, 5);
-            if (topTags.length > 0) {
-              s.push({ type: "features", tags: topTags });
-            }
-          }
-          setStats(s);
-          return [beachId, s, renderData] as const;
-        } catch (e) {
-          console.error("Failed to load summary", e);
+          if (!beach?.id) return null;
+          const snapshot = await getBeachStatsCached(
+            String(beach.id),
+            targetDate
+          );
+          if (!snapshot) return null;
+          return [String(beach.id), snapshot] as const;
+        } catch (error) {
+          console.error("Failed to load summary", error);
+          return null;
         }
       })
     );
-    const statsMap: Record<
-      string,
-      { summary: SummaryStat[] | null; current: ForecastData | null }
-    > = {};
-    if (!entries) return null;
-    if (!entries.some((e) => !e || !e[0] || !e[1])) {
-      entries.forEach((e) => {
-        if (e) {
-          const val: {
-            summary: SummaryStat[] | null;
-            current: ForecastData | null;
-          } = { summary: null, current: null };
-          const id = e[0];
-          const stat = e[1];
-          val.summary = stat;
-          if (e[2]) {
-            const currentConditions = e[2];
-            val.current = currentConditions;
-          }
-          statsMap[id] = val;
-        }
-      });
-    }
-    return statsMap;
+
+    const statsMap: Record<string, BeachStatsSnapshot> = {};
+    entries.forEach((entry) => {
+      if (!entry) return;
+      const [id, snapshot] = entry;
+      statsMap[id] = snapshot;
+    });
+    return Object.keys(statsMap).length ? statsMap : null;
   };
 
+  const missingStatIds = useMemo(() => {
+    return currentItems
+      .map((beach) => String(beach.id))
+      .filter((id) => !statsByBeach[id]);
+  }, [currentItems, statsByBeach]);
+
+  const dateKey = date instanceof Date ? date.getTime() : null;
+
   useEffect(() => {
+    setStatsByBeach({});
+  }, [dateKey]);
+
+  useEffect(() => {
+    if (!missingStatIds.length) return;
     const loadBeaches = async () => {
       statsLoadingRef.current = true;
       try {
-        const statsMap = await loadStats(currentItems);
+        const missingSet = new Set(missingStatIds);
+        const targets = currentItems.filter((beach) =>
+          missingSet.has(String(beach.id))
+        );
+        const statsMap = await loadStats(targets);
         if (!statsMap) return;
-        currentItems.forEach((beach) => {
-          const statsEntry = statsMap[beach.id];
-          if (!statsEntry) {
-            return;
-          }
-          const beachStats = statsEntry.summary;
-          if (!beachStats) return;
-          const surfStat = beachStats.find(
-            (stat): stat is Extract<SummaryStat, { type: "surf" }> =>
-              stat.type === "surf"
-          );
-          const windStat = beachStats.find(
-            (stat): stat is Extract<SummaryStat, { type: "wind" }> =>
-              stat.type === "wind"
-          );
-          const featuresStat = beachStats.find(
-            (stat): stat is Extract<SummaryStat, { type: "features" }> =>
-              stat.type === "features"
-          );
-          beach.conditions.rating = surfStat?.surf.intensity ?? 0;
-          beach.conditions.surf = surfStat?.surf.height ?? "-";
-          beach.conditions.windDir = windStat?.wind.direction ?? 0;
-          beach.conditions.wind = windStat?.wind.speed
-            ? String(windStat?.wind.speed)
-            : "-";
-          beach.features = featuresStat?.tags ?? [];
-
-          const beachConditions = statsEntry.current;
-          if (!beachConditions) return;
-          beach.current = beachConditions;
-        });
+        setStatsByBeach((prev) => ({ ...prev, ...statsMap }));
       } finally {
         statsLoadingRef.current = false;
       }
     };
     loadBeaches();
-  }, [currentItems]);
+  }, [missingStatIds, currentItems]);
+
+  const renderedItems = useMemo(
+    () =>
+      currentItems.map((beach) =>
+        decorateBeachWithStats(beach, statsByBeach[String(beach.id)])
+      ),
+    [currentItems, statsByBeach]
+  );
 
   const handlePrev = () => setPage((p) => Math.max(1, p - 1));
   const handleNext = () => setPage((p) => Math.min(totalPages, p + 1));
@@ -1084,9 +1172,9 @@ export default function NearbyBeaches({
               Pan or zoom the map to see beaches here.
             </span>
           </section>
-        ) : currentItems.length > 0 ? (
+        ) : renderedItems.length > 0 ? (
           <section className="grid grid-cols-1 gap-3 @min-lg:grid-cols-2 mb-4">
-            {currentItems.map((b) => (
+            {renderedItems.map((b) => (
               <BeachCard
                 key={b.id}
                 b={b}

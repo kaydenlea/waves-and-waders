@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import dynamic from "next/dynamic";
 import { cn } from "@/lib/utils";
 import SwellStat from "../general/Stats/SwellStat";
@@ -1189,8 +1189,11 @@ import {
   useBeachById,
   usePrefetchAdjacentHours,
 } from "@/lib/hooks/useBeachData";
+import type { ForecastData } from "@/lib/supabase";
 import GradientCircle from "../general/Stats/GradientCircle";
 import { clampIntensity } from "./Summary";
+
+type HighlightScales = any;
 
 type Stat =
   | {
@@ -1216,6 +1219,28 @@ type Stat =
   | { label: "pressure"; pressure: { value: number; unit: string } }
   | { label: "energy"; energy: { value: number; unit: string } };
 
+const PLACEHOLDER_STATS: Stat[] = [
+  { label: "tide", tide: { value: 0, unit: "ft" } },
+  {
+    label: "swell",
+    primary: {
+      height: 0,
+      period: 0,
+      wind: { dir: "-", deg: 0 },
+    },
+    secondary: [
+      { height: 0, period: 0, wind: { dir: "-", deg: 0 } },
+      { height: 0, period: 0, wind: { dir: "-", deg: 0 } },
+    ],
+  },
+  { label: "water", temp: 0 },
+  { label: "weather", weather: { temp: 0, condition: "", code: null } },
+  { label: "wind", wind: { speed: 0, max: 0, dir: 0 } },
+  { label: "moon", phase: "" },
+  { label: "pressure", pressure: { value: 0, unit: "in" } },
+  { label: "energy", energy: { value: 0, unit: "kJ" } },
+];
+
 const Highlights = ({
   beachId,
   date,
@@ -1223,6 +1248,7 @@ const Highlights = ({
   startIdx = 0,
   endIdx = 7,
   isFull,
+  forecastRows,
 }: {
   beachId?: string;
   date?: Date;
@@ -1230,6 +1256,7 @@ const Highlights = ({
   startIdx?: number;
   endIdx?: number;
   isFull?: boolean;
+  forecastRows?: ForecastData[] | null;
 }) => {
   // Calculate time windows (DST-aware for Pacific timezone)
   const { startWindow, endWindow } = useMemo(() => {
@@ -1273,19 +1300,25 @@ const Highlights = ({
 
   // Fetch all data with React Query
   const { data: current } = useCurrentConditions(resolvedId ?? null);
-  const { data: forecast = [] } = useBeachForecast(
+  const hasPrefetched = Boolean(forecastRows?.length);
+  const { data: fetchedForecast = [] } = useBeachForecast(
     resolvedId ?? null,
     startWindow,
-    endWindow
+    endWindow,
+    Boolean(resolvedId) && !hasPrefetched
   );
-  const { data: tides = [] } = useBeachTides(
+  const forecast = useMemo(
+    () => (hasPrefetched ? forecastRows ?? [] : fetchedForecast),
+    [hasPrefetched, forecastRows, fetchedForecast]
+  );
+  const { data: tides = [], isLoading: tidesLoading } = useBeachTides(
     resolvedId ?? null,
     startWindow,
     endWindow
   );
 
   const county = beach?.COUNTY ?? null;
-  const { data: daily } = useDailyConditions(
+  const { data: daily, isLoading: dailyLoading } = useDailyConditions(
     county,
     date instanceof Date ? date : undefined
   );
@@ -1300,7 +1333,7 @@ const Highlights = ({
     );
     return sorted[idx];
   };
-  const scales = useMemo(() => {
+  const computedScales = useMemo<HighlightScales>(() => {
     const winds = forecast
       .map((r: any) => Number(r?.conditions?.windSpeed ?? 0))
       .filter((n) => Number.isFinite(n) && n >= 0);
@@ -1340,6 +1373,8 @@ const Highlights = ({
       tideAbsMax: tideAbs.length ? percentile(tideAbs, 90) : 6,
     };
   }, [forecast, tides]);
+  const [scalesState, setScalesState] =
+    useState<HighlightScales>(computedScales);
 
   // Prefetch adjacent hours
   usePrefetchAdjacentHours(resolvedId ?? null, date ?? null, hour ?? 0);
@@ -1366,40 +1401,18 @@ const Highlights = ({
     return forecast[0];
   }, [forecast, hour, date]);
 
-  const stats = useMemo(() => {
-    if (!forecast.length) {
-      // Return empty/null stats if no data (no fake placeholder values)
-      return [
-        {
-          label: "weather" as const,
-          weather: { temp: 0, condition: "sun", code: null },
-        },
-        {
-          label: "swell" as const,
-          primary: { height: 0, period: 0, wind: { dir: "N", deg: 0 } },
-          secondary: [
-            { height: 0, period: 0, wind: { dir: "N", deg: 0 } },
-            { height: 0, period: 0, wind: { dir: "N", deg: 0 } },
-          ] as [
-            {
-              height: number;
-              period: number;
-              wind: { dir: string; deg: number };
-            },
-            {
-              height: number;
-              period: number;
-              wind: { dir: string; deg: number };
-            }
-          ],
-        },
-        { label: "water" as const, temp: 0 },
-        { label: "tide" as const, tide: { value: 0, unit: "ft" } },
-        { label: "wind" as const, wind: { speed: 0, max: 0, dir: 0 } },
-        { label: "moon" as const, phase: 0 },
-        { label: "pressure" as const, pressure: { value: 0, unit: "in" } },
-        { label: "energy" as const, energy: { value: 0, unit: "kJ" } },
-      ];
+  const statsRef = useRef<Stat[] | null>(null);
+  const [statsState, setStatsState] = useState<Stat[] | null>(null);
+  const dataReady =
+    (forecast.length > 0 || hasPrefetched) &&
+    tides.length > 0 &&
+    Boolean(daily) &&
+    !tidesLoading &&
+    !dailyLoading;
+
+  const computedStats = useMemo(() => {
+    if (!dataReady) {
+      return null;
     }
 
     const nextStats: Stat[] = [];
@@ -1505,7 +1518,23 @@ const Highlights = ({
     });
 
     return nextStats;
-  }, [forecast, baseRow, current, date, tides, daily]);
+  }, [dataReady, forecast, baseRow, current, date, tides, daily]);
+
+  useEffect(() => {
+    if (!computedStats) return;
+    statsRef.current = computedStats;
+    setStatsState(computedStats);
+    setScalesState(computedScales);
+  }, [computedStats, computedScales]);
+
+  const displayStats = statsState ?? statsRef.current;
+  const isHydrated = Boolean(displayStats);
+  const effectiveStats = displayStats ?? PLACEHOLDER_STATS;
+  const visibleStats = effectiveStats.slice(
+    startIdx,
+    Math.min(effectiveStats.length, endIdx + 1)
+  );
+  const displayScales = scalesState;
 
   return (
     <div className="w-full max-w-7xl mx-auto p-1.5">
@@ -1516,149 +1545,157 @@ const Highlights = ({
           isFull && "@min-4xl:grid-cols-4 @min-6xl:grid-cols-8"
         )}
       >
-        {stats.slice(startIdx, endIdx + 1).map((stat) => {
+        {visibleStats.map((stat, idx) => {
           let content;
-          switch (stat.label) {
-            case "swell":
-              content = stat.primary && stat.secondary && (
-                <div className="flex justify-between items-center px-3 gap-0 @min-lg:w-full @min-2xl:w-auto @min-5xl:w-full">
-                  <HighlightCard
-                    className="@min-lg:w-47 @min-2xl:w-auto @min-5xl:w-47"
-                    label={stat.label}
-                  >
-                    <ul>
-                      <li>
-                        <SwellStat
-                          primary
-                          data={stat.primary}
-                          small
-                          isFull={isFull}
-                        />
-                      </li>
-                      <li>
-                        <SwellStat
-                          data={stat.secondary[0]}
-                          small
-                          isFull={isFull}
-                        />
-                      </li>
-                      <li>
-                        <SwellStat
-                          data={stat.secondary[1]}
-                          small
-                          isFull={isFull}
-                        />
-                      </li>
-                    </ul>
-                  </HighlightCard>
-                  <div className="relative shadow-even border border-border/20 font-semibold @container hidden @min-lg:block @min-2xl:hidden @min-5xl:block -mt-2 bg-highlight-6 py-3 px-3 flex-1 rounded-md text-center max-w-40">
-                    <GradientCircle
-                      className="mx-auto @min-[110px]:mx-0"
-                      condition="surf"
-                      data={stat.primary.height}
-                      percentage={clampIntensity(stat.primary.height, 12)}
-                      size={50}
-                      strokeWidth={4}
-                      showIcon={false}
-                      content={
-                        <span className="flex flex-col items-center mt-1">
-                          <span className="text-[0.9rem]">
-                            {stat.primary.height.toFixed(1)}
+          if (!isHydrated) {
+            content = (
+              <div className="w-full h-16 rounded-xl bg-highlight-6/70" />
+            );
+          } else {
+            switch (stat.label) {
+              case "swell":
+                content = stat.primary && stat.secondary && (
+                  <div className="flex justify-between items-center px-3 gap-0 @min-lg:w-full @min-2xl:w-auto @min-5xl:w-full">
+                    <HighlightCard
+                      className="@min-lg:w-47 @min-2xl:w-auto @min-5xl:w-47"
+                      label={stat.label}
+                    >
+                      <ul>
+                        <li>
+                          <SwellStat
+                            primary
+                            data={stat.primary}
+                            small
+                            isFull={isFull}
+                          />
+                        </li>
+                        <li>
+                          <SwellStat
+                            data={stat.secondary[0]}
+                            small
+                            isFull={isFull}
+                          />
+                        </li>
+                        <li>
+                          <SwellStat
+                            data={stat.secondary[1]}
+                            small
+                            isFull={isFull}
+                          />
+                        </li>
+                      </ul>
+                    </HighlightCard>
+                    <div className="relative shadow-even border border-border/20 font-semibold @container hidden @min-lg:block @min-2xl:hidden @min-5xl:block -mt-2 bg-highlight-6 py-3 px-3 flex-1 rounded-md text-center max-w-40">
+                      <GradientCircle
+                        className="mx-auto @min-[110px]:mx-0"
+                        condition="surf"
+                        data={stat.primary.height}
+                        percentage={clampIntensity(stat.primary.height, 12)}
+                        size={50}
+                        strokeWidth={4}
+                        showIcon={false}
+                        content={
+                          <span className="flex flex-col items-center mt-1">
+                            <span className="text-[0.9rem]">
+                              {stat.primary.height.toFixed(1)}
+                            </span>
+                            <span className="text-[0.55rem] -mt-1">ft</span>
                           </span>
-                          <span className="text-[0.55rem] -mt-1">ft</span>
-                        </span>
-                      }
-                    />
-                    <span className="hidden @min-[110px]:block text-[0.7rem] absolute right-2.5 bottom-2">
-                      PRIMARY
-                    </span>
-                    <span className="hidden @min-[110px]:block p-0.5 rounded-full bg-highlight-5/50 border border-border/40 absolute -top-3 right-1">
-                      <span className="flex justify-center items-center w-6 h-6 rounded-full bg-blue-100">
-                        <Waves size={16} className="text-blue-500" />
+                        }
+                      />
+                      <span className="hidden @min-[110px]:block text-[0.7rem] absolute right-2.5 bottom-2">
+                        PRIMARY
                       </span>
-                    </span>
+                      <span className="hidden @min-[110px]:block p-0.5 rounded-full bg-highlight-5/50 border border-border/40 absolute -top-3 right-1">
+                        <span className="flex justify-center items-center w-6 h-6 rounded-full bg-blue-100">
+                          <Waves size={16} className="text-blue-500" />
+                        </span>
+                      </span>
+                    </div>
                   </div>
-                </div>
-              );
-              break;
-            case "weather":
-              content = stat.weather && (
-                <WeatherStat
-                  temp={stat.weather.temp}
-                  condition={stat.weather.condition}
-                  label={stat.label}
-                  weatherCode={stat.weather.code}
-                />
-              );
-              break;
-            case "water":
-              content = stat.temp && (
-                <WeatherStat temp={stat.temp} label={stat.label} />
-              );
-              break;
+                );
+                break;
+              case "weather":
+                content = stat.weather && (
+                  <WeatherStat
+                    temp={stat.weather.temp}
+                    condition={stat.weather.condition}
+                    label={stat.label}
+                    weatherCode={stat.weather.code}
+                  />
+                );
+                break;
+              case "water":
+                content = stat.temp && (
+                  <WeatherStat temp={stat.temp} label={stat.label} />
+                );
+                break;
 
-            case "moon": {
-              const hasPhase = stat.phase !== null && stat.phase !== undefined;
-              content = hasPhase ? (
-                <MoonStat data={stat.phase as any} label={stat.label} />
-              ) : (
-                <HighlightCard label={stat.label}>
-                  <div className="flex flex-col items-center text-sm text-muted-foreground">
-                    <span>Moon data unavailable</span>
-                  </div>
-                </HighlightCard>
-              );
-              break;
+              case "moon": {
+                const hasPhase =
+                  stat.phase !== null && stat.phase !== undefined;
+                content = hasPhase ? (
+                  <MoonStat data={stat.phase as any} label={stat.label} />
+                ) : (
+                  <HighlightCard label={stat.label}>
+                    <div className="flex flex-col items-center text-sm text-muted-foreground">
+                      <span>Moon data unavailable</span>
+                    </div>
+                  </HighlightCard>
+                );
+                break;
+              }
+              case "wind":
+                content = stat.wind && (
+                  <WindStat
+                    data={stat.wind}
+                    label={stat.label}
+                    maxScale={displayScales.windMax}
+                  />
+                );
+                break;
+              case "pressure":
+                content = stat.pressure && (
+                  <PressureStat
+                    data={stat.pressure}
+                    label={stat.label}
+                    minScale={displayScales.pressureMin}
+                    maxScale={displayScales.pressureMax}
+                  />
+                );
+                break;
+              case "energy":
+                content = stat.energy && (
+                  <EnergyStat
+                    data={stat.energy}
+                    label={stat.label}
+                    maxScale={displayScales.energyMax}
+                  />
+                );
+                break;
+              case "tide":
+                content = stat.tide && (
+                  <TideStat
+                    data={stat.tide}
+                    label={stat.label}
+                    maxAbs={displayScales.tideAbsMax}
+                  />
+                );
+                break;
             }
-            case "wind":
-              content = stat.wind && (
-                <WindStat
-                  data={stat.wind}
-                  label={stat.label}
-                  maxScale={scales.windMax}
-                />
-              );
-              break;
-            case "pressure":
-              content = stat.pressure && (
-                <PressureStat
-                  data={stat.pressure}
-                  label={stat.label}
-                  minScale={scales.pressureMin}
-                  maxScale={scales.pressureMax}
-                />
-              );
-              break;
-            case "energy":
-              content = stat.energy && (
-                <EnergyStat
-                  data={stat.energy}
-                  label={stat.label}
-                  maxScale={scales.energyMax}
-                />
-              );
-              break;
-            case "tide":
-              content = stat.tide && (
-                <TideStat
-                  data={stat.tide}
-                  label={stat.label}
-                  maxAbs={scales.tideAbsMax}
-                />
-              );
-              break;
           }
           if (content) {
             return (
               <li
-                key={stat.label}
+                key={`${stat.label}-${idx}`}
                 className={cn(
                   "relative highlight-card shadow-even min-h-22 @min-3xl:min-h-20 @min-4xl:min-h-22",
                   isFull && "@min-4xl:min-h-25",
                   stat.label === "swell" &&
                     "col-span-1 @min-md:col-span-2 @min-2xl:col-span-1",
                   stat.label === "swell" && !isFull && "@min-3xl:col-span-2",
-                  stat.label === "swell" && isFull && "@min-md:col-span-2"
+                  stat.label === "swell" && isFull && "@min-md:col-span-2",
+                  !isHydrated && "animate-pulse"
                 )}
               >
                 <div className="flex-1 flex items-center justify-center gap-1 mt-1 h-full">

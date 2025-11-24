@@ -13,7 +13,7 @@ import {
   ReferenceLine,
 } from "recharts";
 import { TrendingUp, TrendingDown } from "lucide-react";
-import { getPacificMidnightUTC, getPacificHour } from "@/lib/utils";
+import { getPacificHour } from "@/lib/utils";
 import {
   ChartConfig,
   ChartContainer,
@@ -22,10 +22,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import {
-  fetchBeachForecast,
-  fetchBeachByIdLoose,
-} from "@/lib/supabase";
+import { useForecastWindowData } from "@/lib/hooks/useForecastWindow";
 import {
   useDateContext,
   useHoveredHour,
@@ -60,59 +57,26 @@ export const SurfStatsHeader = ({
   hours?: number;
   date?: Date;
 }) => {
-  const [highSurf, setHighSurf] = React.useState<string | null>(null);
-  const [lowSurf, setLowSurf] = React.useState<string | null>(null);
+  const { rows } = useForecastWindowData({ beachId, hours, date });
+  const { highSurf, lowSurf } = React.useMemo(() => {
+    if (!beachId || !rows.length) {
+      return { highSurf: null, lowSurf: null };
+    }
+    const surfValues = rows
+      .map((r) => r.surf.heightMax)
+      .filter((v): v is number => typeof v === "number" && !isNaN(v));
 
-  React.useEffect(() => {
-    let cancelled = false;
+    if (!surfValues.length) {
+      return { highSurf: null, lowSurf: null };
+    }
 
-    const loadSurfStats = async () => {
-      try {
-        if (!beachId) {
-          if (!cancelled) {
-            setHighSurf(null);
-            setLowSurf(null);
-          }
-          return;
-        }
-
-        const HOURS_TO_MS = 60 * 60 * 1000;
-        let start = new Date();
-        let end = new Date(start.getTime() + hours * HOURS_TO_MS);
-        if (date instanceof Date) {
-          start = getPacificMidnightUTC(date);
-          end = new Date(start.getTime() + hours * HOURS_TO_MS);
-        }
-
-        const resolved = await fetchBeachByIdLoose(beachId);
-        const id = resolved?.id ?? beachId;
-        const rows = await fetchBeachForecast(id, start, end);
-        if (cancelled) return;
-
-        const surfValues = rows
-          .map((r) => r.surf.heightMax)
-          .filter((v): v is number => typeof v === "number" && !isNaN(v));
-
-        if (surfValues.length > 0) {
-          const high = Math.max(...surfValues);
-          const low = Math.min(...surfValues);
-
-          if (!cancelled) {
-            setHighSurf(high.toFixed(1));
-            setLowSurf(low.toFixed(1));
-          }
-        }
-      } catch (e) {
-        console.error("Failed to load surf stats", e);
-      }
+    const high = Math.max(...surfValues);
+    const low = Math.min(...surfValues);
+    return {
+      highSurf: high.toFixed(1),
+      lowSurf: low.toFixed(1),
     };
-
-    void loadSurfStats();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [beachId, hours, date]);
+  }, [beachId, rows]);
 
   return (
     <div className="grid rounded-md bg-highlight-5 grid-cols-[60px_1fr] grid-rows-2 gap-y-0.5 items-center text-xs text-muted-foreground uppercase tracking-wide leading-tight px-2 py-1.5">
@@ -144,7 +108,6 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
   const { hour: selectedHour, setHoveredHour } = useDateContext();
   const { getSunData } = useSunData();
   const hoveredHour = useHoveredHour();
-  const [chartData, setChartData] = useState<Row[]>([]);
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]); // sunrise-sunset (hours)
   const [nightAreas, setNightAreas] = useState<{ x1: number; x2?: number }[]>(
     []
@@ -153,6 +116,111 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
   const [buffer, setBuffer] = useState<number>(0);
   const [width, setWidth] = useState<number>(0);
   const chartRef = React.useRef<HTMLDivElement>(null);
+
+  const { rows: forecastRows, start: windowStart } = useForecastWindowData({
+    beachId,
+    date,
+    hours,
+  });
+
+  const chartData = useMemo<Row[]>(() => {
+    if (!beachId || !forecastRows.length) {
+      return [];
+    }
+
+    const formatSurfRange = (
+      min: number | null | undefined,
+      max: number | null | undefined
+    ) => {
+      const safeMin =
+        typeof min === "number" && Number.isFinite(min) ? min : null;
+      const safeMax =
+        typeof max === "number" && Number.isFinite(max) ? max : null;
+
+      if (safeMin === null && safeMax === null) {
+        return {
+          min: null,
+          max: null,
+          label: "--",
+          estimate: 0,
+        };
+      }
+
+      let effectiveMin = safeMin ?? safeMax ?? 0;
+      let effectiveMax = safeMax ?? safeMin ?? 0;
+
+      if (effectiveMin > effectiveMax) {
+        [effectiveMin, effectiveMax] = [effectiveMax, effectiveMin];
+      }
+
+      const minRounded = Math.round(Math.max(0, effectiveMin));
+      const maxRounded = Math.round(Math.max(0, effectiveMax));
+
+      let label = "";
+      if (minRounded === 0 && maxRounded === 0) {
+        label = "--";
+      } else if (minRounded === maxRounded) {
+        label = String(maxRounded);
+      } else {
+        label = `${minRounded}-${maxRounded}`;
+      }
+
+      return {
+        min: Math.max(0, effectiveMin),
+        max: Math.max(0, effectiveMax),
+        label,
+        estimate: Math.max(
+          0,
+          safeMin !== null && safeMax !== null
+            ? (effectiveMin + effectiveMax) / 2
+            : effectiveMax
+        ),
+      };
+    };
+
+    const total = forecastRows.length;
+    return forecastRows.map((r, index) => {
+      const h1 = r.swell.primary.height ?? 0;
+      const p1 = r.swell.primary.period ?? 10;
+      const h2 = r.swell.secondary.height ?? 0;
+      const p2 = r.swell.secondary.period ?? 10;
+      const h3 = r.swell.tertiary?.height ?? 0;
+      const p3 = r.swell.tertiary?.period ?? 10;
+      const s1 = h1 * Math.sqrt(Math.max(0, p1) / 10);
+      const s2 = h2 * Math.sqrt(Math.max(0, p2) / 10);
+      const s3 = h3 * Math.sqrt(Math.max(0, p3) / 10);
+      const w1 = 1.0,
+        w2 = 0.6,
+        w3 = 0.3;
+      const combined = Math.sqrt(
+        Math.pow(w1 * s1, 2) + Math.pow(w2 * s2, 2) + Math.pow(w3 * s3, 2)
+      );
+      const wind = r.conditions.windSpeed ?? 0;
+      const windPenalty = Math.min(0.5, Math.max(0, (wind - 5) / 35));
+      const effective = Math.max(0, combined * (1 - windPenalty));
+
+      const { min, max, label, estimate } = formatSurfRange(
+        r.surf.heightMin,
+        r.surf.heightMax
+      );
+
+      let representative = effective;
+
+      if (!Number.isFinite(representative) || representative <= 0) {
+        representative = estimate > 0 ? estimate : 0;
+      } else if (estimate > 0) {
+        representative = representative * 0.7 + estimate * 0.3;
+      }
+
+      return {
+        hour: index === total - 1 ? hours : getPacificHour(r.timestamp),
+        surf: Number(Math.max(0, representative).toFixed(1)),
+        min,
+        max,
+        rangeLabel: label,
+      };
+    });
+  }, [beachId, forecastRows, hours]);
 
   // Function to get color based on surf height intensity
   const getSurfColor = (value: number): string => {
@@ -187,162 +255,42 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
     return () => observer.disconnect();
   }, []);
 
+  const windowStartMs = windowStart.getTime();
+
   useEffect(() => {
+    if (!beachId) {
+      setDayAreas([]);
+      setNightAreas([]);
+      return;
+    }
     let cancelled = false;
 
-    const load = async () => {
+    const hydrateShading = async () => {
       try {
-        if (!beachId) {
-          if (!cancelled) {
-            // setChartData(
-            //   Array.from({ length: 25 }, (_, h) => ({
-            //     hour: h,
-            //     surf: Number((2 + Math.sin((h / 24) * Math.PI * 2)).toFixed(1)),
-            //   }))
-            // );
-          }
-          return;
-        }
-        const resolved = await fetchBeachByIdLoose(beachId);
-        const id = resolved?.id ?? beachId;
-        let start = new Date();
-        let end = new Date(start.getTime() + hours * 60 * 60 * 1000);
-        if (date instanceof Date) {
-          start = getPacificMidnightUTC(date);
-          end = new Date(start.getTime() + hours * 60 * 60 * 1000);
-        }
-        const rows = await fetchBeachForecast(id, start, end);
-
-        const formatSurfRange = (
-          min: number | null | undefined,
-          max: number | null | undefined
-        ) => {
-          const safeMin =
-            typeof min === "number" && Number.isFinite(min) ? min : null;
-          const safeMax =
-            typeof max === "number" && Number.isFinite(max) ? max : null;
-
-          if (safeMin === null && safeMax === null) {
-            return {
-              min: null,
-              max: null,
-              label: "--",
-              estimate: 0,
-            };
-          }
-
-          let effectiveMin = safeMin ?? safeMax ?? 0;
-          let effectiveMax = safeMax ?? safeMin ?? 0;
-
-          if (effectiveMin > effectiveMax) {
-            [effectiveMin, effectiveMax] = [effectiveMax, effectiveMin];
-          }
-
-          const minRounded = Math.round(Math.max(0, effectiveMin));
-          const maxRounded = Math.round(Math.max(0, effectiveMax));
-
-          let label = "";
-          if (minRounded === 0 && maxRounded === 0) {
-            label = "--";
-          } else if (minRounded === maxRounded) {
-            label = String(maxRounded);
-          } else {
-            label = `${minRounded}-${maxRounded}`;
-          }
-
-          return {
-            min: Math.max(0, effectiveMin),
-            max: Math.max(0, effectiveMax),
-            label,
-            estimate: Math.max(
-              0,
-              safeMin !== null && safeMax !== null
-                ? (effectiveMin + effectiveMax) / 2
-                : effectiveMax
-            ),
-          };
-        };
-
-        const data: Row[] = rows.map((r, i) => {
-          const h1 = r.swell.primary.height ?? 0;
-          const p1 = r.swell.primary.period ?? 10;
-          const h2 = r.swell.secondary.height ?? 0;
-          const p2 = r.swell.secondary.period ?? 10;
-          const h3 = r.swell.tertiary?.height ?? 0;
-          const p3 = r.swell.tertiary?.period ?? 10;
-          const s1 = h1 * Math.sqrt(Math.max(0, p1) / 10);
-          const s2 = h2 * Math.sqrt(Math.max(0, p2) / 10);
-          const s3 = h3 * Math.sqrt(Math.max(0, p3) / 10);
-          const w1 = 1.0,
-            w2 = 0.6,
-            w3 = 0.3;
-          const combined = Math.sqrt(
-            Math.pow(w1 * s1, 2) + Math.pow(w2 * s2, 2) + Math.pow(w3 * s3, 2)
-          );
-          const wind = r.conditions.windSpeed ?? 0;
-          const windPenalty = Math.min(0.5, Math.max(0, (wind - 5) / 35));
-          const effective = Math.max(0, combined * (1 - windPenalty));
-
-          const { min, max, label, estimate } = formatSurfRange(
-            r.surf.heightMin,
-            r.surf.heightMax
-          );
-
-          let representative = effective;
-
-          if (!Number.isFinite(representative) || representative <= 0) {
-            representative = estimate > 0 ? estimate : 0;
-          } else if (estimate > 0) {
-            representative = representative * 0.7 + estimate * 0.3;
-          }
-
-          return {
-            hour: i === rows.length - 1 ? hours : getPacificHour(r.timestamp),
-            surf: Number(Math.max(0, representative).toFixed(1)),
-            min,
-            max,
-            rangeLabel: label,
-          };
-        });
+        const sunData = await getSunData(String(beachId), new Date(windowStartMs));
+        const segments = buildSunSegments(
+          hours,
+          sunData?.sunrise ?? null,
+          sunData?.sunset ?? null
+        );
         if (!cancelled) {
-          setChartData(data);
+          setDayAreas(segments.dayAreas);
+          setNightAreas(segments.nightAreas);
         }
-
-        // Build sunrise/sunset shading for the selected day window (hours)
-        try {
-          const basisDate =
-            date instanceof Date ? new Date(date) : new Date(start);
-          const sunData = await getSunData(String(id), basisDate);
-          const segments = buildSunSegments(
-            hours,
-            sunData?.sunrise ?? null,
-            sunData?.sunset ?? null
-          );
-          if (!cancelled) {
-            setDayAreas(segments.dayAreas);
-            setNightAreas(segments.nightAreas);
-          }
-        } catch (_) {
-          if (!cancelled) {
-            setDayAreas([]);
-            setNightAreas([{ x1: 0, x2: hours }]);
-          }
-        }
-      } catch (e) {
-        console.error("Failed to load surf data", e);
+      } catch (_) {
         if (!cancelled) {
-          setChartData([]);
           setDayAreas([]);
-          setNightAreas([]);
+          setNightAreas([{ x1: 0, x2: hours }]);
         }
       }
     };
-    void load();
+
+    void hydrateShading();
 
     return () => {
       cancelled = true;
     };
-  }, [beachId, hours, date, getSunData]);
+  }, [beachId, getSunData, hours, windowStartMs]);
 
   const domainStart = 0;
   const domainEnd = hours;

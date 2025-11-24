@@ -26,18 +26,15 @@ import {
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
-import {
-  fetchWeeklyForecast,
-  fetchBeachDetails,
-  fetchDailyConditions,
-  getWindDirection,
-} from "@/lib/supabase";
-import { cn, getPacificHour } from "@/lib/utils";
+import { getWindDirection } from "@/lib/supabase";
+import { cn, getPacificHour, getPacificMidnightUTC } from "@/lib/utils";
+import { getForecastCached } from "@/lib/dataCache";
 import { useDateContext } from "@/components/context/DateContext";
 import { useForecastChartContext } from "@/components/context/ForecastChartContext";
 import HoverReferenceLine from "@/components/graphs/HoverReferenceLine";
 import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
 import { buildYAxisTicks } from "@/components/graphs/yAxisTicks";
+import { useSunData } from "@/components/context/SunDataContext";
 
 const chartConfig = {
   wind: {
@@ -62,6 +59,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
   const { setPanFraction, subscribePan } = useForecastChartContext();
   const myId = React.useId();
   const { hour: selectedHour, setHoveredHour } = useDateContext();
+  const { getSunData } = useSunData();
   const [windData, setWindData] = useState<WindPoint[]>([]);
   const [baseStartMs, setBaseStartMs] = useState<number | null>(null);
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
@@ -343,7 +341,12 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
 
         const numDaysToFetch =
           days && days.length > 0 ? days.length : VISIBLE_DAYS;
-        const rows = await fetchWeeklyForecast(String(beachId), numDaysToFetch);
+        const baseDateValue = days && days.length > 0 ? days[0] : new Date();
+        const start = getPacificMidnightUTC(baseDateValue);
+        const end = new Date(
+          start.getTime() + numDaysToFetch * 24 * 60 * 60 * 1000
+        );
+        const rows = await getForecastCached(String(beachId), start, end);
 
         if (!rows || !rows.length) {
           if (!cancelled) {
@@ -358,7 +361,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
             new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
         );
 
-        const baseDate = days && days.length > 0 ? days[0] : new Date();
+        const shadingBaseDate = baseDateValue;
 
         // Get midnight in Pacific timezone for the base date (DST-aware)
         const dateFormatter = new Intl.DateTimeFormat("en-US", {
@@ -367,7 +370,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
           month: "2-digit",
           day: "2-digit",
         });
-        const dateParts = dateFormatter.formatToParts(baseDate);
+        const dateParts = dateFormatter.formatToParts(shadingBaseDate);
         const year = parseInt(
           dateParts.find((p) => p.type === "year")?.value || "0"
         );
@@ -432,14 +435,14 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
         }
 
         // Day/night areas
-        const start = days ? days[0] : new Date();
+        const shadingStartDate = days ? days[0] : new Date();
         const startFormatter = new Intl.DateTimeFormat("en-US", {
           timeZone: "America/Los_Angeles",
           year: "numeric",
           month: "2-digit",
           day: "2-digit",
         });
-        const startParts = startFormatter.formatToParts(start);
+        const startParts = startFormatter.formatToParts(shadingStartDate);
         const startYear = parseInt(
           startParts.find((p) => p.type === "year")?.value || "0"
         );
@@ -480,9 +483,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
           0
         );
 
-        const beach = await fetchBeachDetails(String(beachId));
-        const county = beach?.COUNTY;
-        if (county) {
+        if (beachId) {
           const parseHM = (
             s: string | null
           ): { h: number; m: number } | null => {
@@ -499,12 +500,17 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
           const nightAreasBuild: { x1: number; x2?: number }[] = [];
           let nightStart = 0;
           for (let di = 0; di < numDaysToFetch; di++) {
-            const cond = await fetchDailyConditions(
-              county,
-              new Date(startMs + di * 24 * 60 * 60 * 1000)
-            );
-            const rise = parseHM(cond?.sunrise ?? null);
-            const setv = parseHM(cond?.sunset ?? null);
+            const targetDate = new Date(startMs + di * 24 * 60 * 60 * 1000);
+            let rise: { h: number; m: number } | null = null;
+            let setv: { h: number; m: number } | null = null;
+            try {
+              const sun = await getSunData(String(beachId), targetDate);
+              rise = parseHM(sun?.sunrise ?? null);
+              setv = parseHM(sun?.sunset ?? null);
+            } catch (err) {
+              console.warn("ForecastWindChart sun data unavailable", err);
+            }
+
             if (!rise || !setv) {
               dayAreasBuild.push({ x1: di * 24, x2: di * 24 + 24 });
               nightAreasBuild.push({ x1: nightStart, x2: di * 24 });

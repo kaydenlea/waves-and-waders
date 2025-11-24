@@ -1,4 +1,5 @@
 // app/api/tides/route.ts
+// Tide series are cacheable for 1 hour; see Cache-Control below.
 import { NextRequest, NextResponse } from 'next/server'
 import { fetchBeachTides } from '@/lib/supabase'
 

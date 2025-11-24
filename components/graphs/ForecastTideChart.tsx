@@ -26,13 +26,8 @@ import {
   TrendingUp,
   TrendingDown,
 } from "lucide-react";
-import {
-  fetchBeachByIdLoose,
-  fetchBeachDetails,
-  fetchDailyConditions,
-  fetchBeachTides,
-  fetchBeachForecast,
-} from "@/lib/supabase";
+import { fetchBeachByIdLoose, fetchBeachDetails } from "@/lib/supabase";
+import { getForecastCached, getTidesCached } from "@/lib/dataCache";
 import DaySlider from "../general/DaySlider";
 import {
   ChartConfig,
@@ -401,10 +396,10 @@ export default React.memo(function ForecastTideChart({ beachId, date, days }: Pr
         const startMs = Date.UTC(year, month, day, -offsetHours, 0, 0, 0);
         const fetchHours = FETCH_DAYS * HOURS_PER_DAY;
         const end = new Date(startMs + fetchHours * 60 * 60 * 1000);
-        const points = await fetchBeachTides(id, new Date(startMs), end);
+        const points = await getTidesCached(String(id), new Date(startMs), end);
         let series: TidePoint[] = [];
         if (!points || points.length === 0) {
-          const rows = await fetchBeachForecast(id, new Date(startMs), end);
+          const rows = await getForecastCached(String(id), new Date(startMs), end);
           series = rows.map((r) => ({
             hour: Math.round(
               (new Date(r.timestamp).getTime() - startMs) / (60 * 60 * 1000)

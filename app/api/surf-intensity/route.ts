@@ -1,4 +1,5 @@
 // app/api/surf-intensity/route.ts
+// Surf intensity lookups are cached for 1 hour with SWR.
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 

@@ -1,7 +1,8 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { fetchBeachByIdLoose, fetchBeachDetails, fetchDailyConditions } from "@/lib/supabase";
+import { fetchBeachByIdLoose, fetchBeachDetails } from "@/lib/supabase";
+import { getDailyConditionsCached } from "@/lib/dataCache";
 
 interface SunData {
   sunrise: string | null;
@@ -78,7 +79,7 @@ export const SunDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
           return null;
         }
 
-        const conditions = await fetchDailyConditions(county, date);
+        const conditions = await getDailyConditionsCached(county, date);
         const sunData: SunData = {
           sunrise: conditions?.sunrise ?? null,
           sunset: conditions?.sunset ?? null,

@@ -1,4 +1,5 @@
 // app/api/forecast/route.ts
+// Returns beach forecast windows and is cached for 30 minutes via Cache-Control.
 import { NextRequest, NextResponse } from 'next/server'
 import { fetchBeachForecast } from '@/lib/supabase'
 

@@ -1,4 +1,5 @@
 // app/api/beaches/route.ts
+// Returns full beach metadata; responses can be CDN cached client-side as needed.
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase, FEATURE_COLUMNS } from '@/lib/supabase'
 

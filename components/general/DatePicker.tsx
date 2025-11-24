@@ -31,6 +31,8 @@ import {
   fetchForecastRange,
   type ForecastData,
 } from "@/lib/supabase";
+import { fetchSurfIntensityAPI } from "@/lib/api";
+import { useSurfIntensity } from "@/lib/hooks/useSurfIntensity";
 import { useDateContext } from "../context/DateContext";
 import { useMapFilters } from "../context/MapFilterContext";
 import { useClientPath } from "../context/PathContext";
@@ -135,17 +137,16 @@ DatePickerProps) => {
   const [summaries, setSummaries] = useState<Record<string, DaySummary>>({});
   const [orderedKeys, setOrderedKeys] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
-  // Store surf intensity data from API (keyed by date: YYYY-MM-DD)
-  const [surfIntensityByDate, setSurfIntensityByDate] = useState<
-    Record<string, number>
-  >({});
-
   // Cache forecast data to avoid refetching
   const forecastCacheRef = useRef<{
     beachId: string;
     data: Record<string, DaySummary>;
     keys: string[];
   } | null>(null);
+
+  const [surfIntensityByDate, setSurfIntensityByDate] = useState<
+    Record<string, number>
+  >({});
 
   // Debounce timer for date selection
   const dateSelectionTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -379,57 +380,8 @@ DatePickerProps) => {
     };
   }, [beachId, value]);
 
-  // Fetch surf intensity from API for all visible days (memoized)
-  useEffect(() => {
-    if (!beachId || orderedKeys.length === 0) return;
 
-    let cancelled = false;
-    const fetchSurfIntensities = async () => {
-      const intensityMap: Record<string, number> = { ...surfIntensityByDate };
-      const keysToFetch: string[] = [];
 
-      // Only fetch dates we don't already have
-      orderedKeys.forEach((dateKey) => {
-        if (!(dateKey in intensityMap)) {
-          keysToFetch.push(dateKey);
-        }
-      });
-
-      if (keysToFetch.length === 0) return; // All data already cached
-
-      // Fetch only missing surf intensities in parallel
-      await Promise.all(
-        keysToFetch.map(async (dateKey) => {
-          try {
-            const res = await fetch(`/api/surf-intensity?date=${dateKey}`);
-            if (!res.ok) return;
-
-            const json = await res.json();
-            if (json?.success && json.data && json.data[beachId]) {
-              intensityMap[dateKey] = json.data[beachId];
-            }
-          } catch (err) {
-            console.warn(`Failed to fetch surf intensity for ${dateKey}:`, err);
-          }
-        })
-      );
-
-      if (!cancelled) {
-        console.log(
-          `📊 DatePicker loaded surf intensity for ${
-            keysToFetch.length
-          } new dates (${Object.keys(intensityMap).length} total cached)`
-        );
-        setSurfIntensityByDate(intensityMap);
-      }
-    };
-
-    fetchSurfIntensities();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [beachId, orderedKeys]);
 
   // Keep internal selection in sync with controlled value
   useEffect(() => {
@@ -473,6 +425,56 @@ DatePickerProps) => {
   );
 
   useEffect(() => {
+    if (!beachId || orderedKeys.length === 0) return;
+    const missing = orderedKeys.filter(
+      (dateKey) => surfIntensityByDate[dateKey] == null
+    );
+    if (!missing.length) return;
+
+    let cancelled = false;
+    const run = async () => {
+      const updates: Record<string, number> = {};
+      await Promise.all(
+        missing.map(async (dateKey) => {
+          try {
+            const record = await fetchSurfIntensityAPI(
+              new Date(`${dateKey}T00:00:00Z`)
+            );
+            const value = record[beachId];
+            if (typeof value === "number" && Number.isFinite(value)) {
+              updates[dateKey] = value;
+            }
+          } catch (error) {
+            console.warn(
+              `Failed to fetch surf intensity for ${dateKey}`,
+              error
+            );
+          }
+        })
+      );
+      if (!cancelled && Object.keys(updates).length) {
+        setSurfIntensityByDate((prev) => ({ ...prev, ...updates }));
+      }
+    };
+
+    run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [orderedKeys, beachId, surfIntensityByDate]);
+
+  const selectedDateForIntensity = useMemo(() => {
+    if (selectedDate) return selectedDate.toDate();
+    return value instanceof Date ? value : null;
+  }, [selectedDate, value]);
+
+  const { data: selectedIntensityRecord } = useSurfIntensity(
+    selectedDateForIntensity,
+    Boolean(beachId && selectedDateForIntensity)
+  );
+
+  useEffect(() => {
     // Debounce context updates to batch rapid date changes
     if (dateSelectionTimerRef.current) {
       clearTimeout(dateSelectionTimerRef.current);
@@ -489,19 +491,26 @@ DatePickerProps) => {
       });
       setSelectedDays(daysRange);
 
-      // Update surf intensity and surf range for the selected date
-      if (selectedDate) {
-        const key = selectedDate.format("YYYY-MM-DD");
-        const summary = summaries[key];
+      const targetKey = selectedDate
+        ? selectedDate.format("YYYY-MM-DD")
+        : value instanceof Date
+        ? dayjs(value).format("YYYY-MM-DD")
+        : null;
 
-        // Use surf intensity from API instead of summary.max
-        const intensity = surfIntensityByDate[key] ?? null;
-        setSurfIntensityForDate(intensity);
-        console.log(
-          `📅 DatePicker selected date: ${key}, surf intensity: ${intensity}ft (from API)`
-        );
+      if (targetKey) {
+        const summary = summaries[targetKey];
+        let intensity: number | null = null;
+        const mapValue = surfIntensityByDate[targetKey];
+        if (typeof mapValue === "number" && Number.isFinite(mapValue)) {
+          intensity = mapValue;
+        } else if (selectedIntensityRecord && beachId) {
+          const fallback = selectedIntensityRecord[beachId];
+          if (typeof fallback === "number" && Number.isFinite(fallback)) {
+            intensity = fallback;
+          }
+        }
+        setSurfIntensityForDate(intensity ?? null);
 
-        // Calculate surf range using the same logic as display
         const max = summary?.max ?? null;
         const minWithFallback =
           summary?.min ?? (max != null && max <= 1 ? 0 : null);
@@ -509,11 +518,9 @@ DatePickerProps) => {
         if (minWithFallback != null && max != null) {
           let minRounded = Math.round(minWithFallback);
           let maxRounded = Math.round(max);
-          // Ensure min <= max
           if (minRounded > maxRounded) {
             [minRounded, maxRounded] = [maxRounded, minRounded];
           }
-          // If they're equal, subtract 1 from min
           if (minRounded === maxRounded) {
             minRounded = Math.max(0, maxRounded - 1);
           }
@@ -521,15 +528,29 @@ DatePickerProps) => {
         } else {
           setSurfRange(null);
         }
+      } else {
+        setSurfIntensityForDate(null);
+        setSurfRange(null);
       }
-    }, 50); // 50ms debounce
+
+    }, 50);  // 50ms debounce
 
     return () => {
       if (dateSelectionTimerRef.current) {
         clearTimeout(dateSelectionTimerRef.current);
       }
     };
-  }, [value, selectedDate, summaries, surfIntensityByDate]);
+  }, [
+    value,
+    selectedDate,
+    summaries,
+    surfIntensityByDate,
+    selectedIntensityRecord,
+    beachId,
+    orderedKeys,
+    rangeStartIdx,
+    rangeEndIdx,
+  ]);
 
   return (
     <div className={cn("relative w-full px-2 py-2 rounded-2xl", className)}>
@@ -678,3 +699,6 @@ DatePickerProps) => {
 };
 
 export default DatePicker;
+
+
+

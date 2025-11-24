@@ -1,12 +1,15 @@
 import React from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  fetchBeachForecast,
   fetchCurrentConditions,
-  fetchBeachTides,
-  fetchDailyConditions,
   fetchBeachByIdLoose,
+  fetchBeachDetails,
 } from "../supabase";
+import {
+  getForecastCached,
+  getTidesCached,
+  getDailyConditionsCached,
+} from "../dataCache";
 
 export function useBeachForecast(
   beachId: string | null,
@@ -15,10 +18,10 @@ export function useBeachForecast(
   enabled: boolean = true
 ) {
   return useQuery({
-    queryKey: ["beach-forecast", beachId, startWindow.toISOString(), endWindow.toISOString()],
+    queryKey: ["forecast", beachId, startWindow.toISOString(), endWindow.toISOString()],
     queryFn: () => {
       if (!beachId) throw new Error("Beach ID required");
-      return fetchBeachForecast(beachId, startWindow, endWindow);
+      return getForecastCached(beachId, startWindow, endWindow);
     },
     enabled: enabled && !!beachId,
     staleTime: 5 * 60 * 1000,
@@ -44,10 +47,10 @@ export function useBeachTides(
   enabled: boolean = true
 ) {
   return useQuery({
-    queryKey: ["beach-tides", beachId, startWindow.toISOString(), endWindow.toISOString()],
+    queryKey: ["tides", beachId, startWindow.toISOString(), endWindow.toISOString()],
     queryFn: () => {
       if (!beachId) throw new Error("Beach ID required");
-      return fetchBeachTides(beachId, startWindow, endWindow);
+      return getTidesCached(beachId, startWindow, endWindow);
     },
     enabled: enabled && !!beachId,
     staleTime: 10 * 60 * 1000, // Tides change slowly
@@ -63,7 +66,7 @@ export function useDailyConditions(
     queryKey: ["daily-conditions", county, date?.toISOString()],
     queryFn: () => {
       if (!county) throw new Error("County required");
-      return fetchDailyConditions(county, date);
+      return getDailyConditionsCached(county, date);
     },
     enabled: enabled && !!county,
     staleTime: 30 * 60 * 1000, // Daily data changes infrequently
@@ -79,6 +82,21 @@ export function useBeachById(beachId: string | null, enabled: boolean = true) {
     },
     enabled: enabled && !!beachId,
     staleTime: 60 * 60 * 1000, // Beach metadata rarely changes
+  });
+}
+
+export function useBeachDetails(
+  beachId: string | null,
+  enabled: boolean = true
+) {
+  return useQuery({
+    queryKey: ["beach-details", beachId],
+    queryFn: () => {
+      if (!beachId) throw new Error("Beach ID required");
+      return fetchBeachDetails(beachId);
+    },
+    enabled: enabled && !!beachId,
+    staleTime: 60 * 60 * 1000,
   });
 }
 
@@ -101,8 +119,8 @@ export function usePrefetchAdjacentHours(
 
       // Prefetch forecast data for this hour
       queryClient.prefetchQuery({
-        queryKey: ["beach-forecast", beachId, startWindow.toISOString(), endWindow.toISOString()],
-        queryFn: () => fetchBeachForecast(beachId, startWindow, endWindow),
+        queryKey: ["forecast", beachId, startWindow.toISOString(), endWindow.toISOString()],
+        queryFn: () => getForecastCached(beachId, startWindow, endWindow),
         staleTime: 5 * 60 * 1000,
       });
     };
@@ -138,8 +156,8 @@ export function usePrefetchAdjacentDates(
 
       // Prefetch forecast data for this date
       queryClient.prefetchQuery({
-        queryKey: ["beach-forecast", beachId, startWindow.toISOString(), endWindow.toISOString()],
-        queryFn: () => fetchBeachForecast(beachId, startWindow, endWindow),
+        queryKey: ["forecast", beachId, startWindow.toISOString(), endWindow.toISOString()],
+        queryFn: () => getForecastCached(beachId, startWindow, endWindow),
         staleTime: 5 * 60 * 1000,
       });
     };

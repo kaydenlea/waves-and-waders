@@ -30,15 +30,18 @@ import { useMapFilters } from "../context/MapFilterContext";
 import { useDateContext } from "../context/DateContext";
 import { useClientPath } from "../context/PathContext";
 import { ForecastChartProvider } from "../context/ForecastChartContext";
-import { SunDataProvider } from "../context/SunDataContext";
+import { SunDataProvider, useSunData } from "../context/SunDataContext";
 import ForecastBridge from "./ForecastBridge";
 import PageTabs from "./PageTabs";
 import Link from "next/link";
 import { Pencil, TrendingUp, TrendingDown } from "lucide-react";
-import { fetchBeachTides } from "@/lib/supabase";
+import { getTidesCached } from "@/lib/dataCache";
 import { useCachedForecast } from "@/lib/hooks/useCachedForecast";
 import { getPacificMidnightUTC } from "@/lib/utils";
 import SurfIntensityMarker from "./SurfIntensityMarker";
+import { ForecastDataProvider } from "../context/ForecastDataContext";
+import { useTideWindowData } from "@/lib/hooks/useTideWindow";
+import { TideDataProvider } from "../context/TideDataContext";
 
 type Props = {
   beachId: string;
@@ -119,7 +122,7 @@ const TideStatsHeader = ({
           end.getTime() + BUFFER_HOURS * HOURS_TO_MS
         );
 
-        const tideRows = await fetchBeachTides(
+        const tideRows = await getTidesCached(
           beachId,
           tideFetchStart,
           tideFetchEnd
@@ -243,11 +246,22 @@ const DateSummaryBridge: React.FC<Props> = ({
     const end = new Date(start.getTime() + FORECAST_WINDOW_MS);
     return { start, end };
   }, [selected]);
-  const { data: forecastRows } = useCachedForecast({
+  const statsStartMs = statsRange.start.getTime();
+  const { prefetchSunData } = useSunData();
+  React.useEffect(() => {
+    if (!beachId) return;
+    void prefetchSunData(beachId, [new Date(statsStartMs)]);
+  }, [beachId, statsStartMs, prefetchSunData]);
+  const { data: forecastRows, loading: forecastLoading } = useCachedForecast({
     beachId,
     start: statsRange.start,
     end: statsRange.end,
     enabled: Boolean(beachId),
+  });
+  const tideWindow = useTideWindowData({
+    beachId,
+    date: selected ?? undefined,
+    hours: 24,
   });
   const { windStats, surfStats, swellStats, energyStats } = React.useMemo(() => {
     const makeEmptyRange = () => ({ min: null, max: null });
@@ -325,6 +339,7 @@ const DateSummaryBridge: React.FC<Props> = ({
   }, [forecastRows]);
 
   const { setSelectedDate, setSelectedHour } = useMapFilters();
+  const [, startMapSyncTransition] = React.useTransition();
 
   // Set mounted and initialize time on client
   React.useEffect(() => {
@@ -492,8 +507,16 @@ const DateSummaryBridge: React.FC<Props> = ({
   }, [storageMetaKey, storageRowsKey, supabase, session]);
 
   // Sync selected date and hour with context
-  React.useEffect(() => setSelectedDate(selected), [selected, setSelectedDate]);
-  React.useEffect(() => setSelectedHour(hour), [hour, setSelectedHour]);
+  React.useEffect(() => {
+    startMapSyncTransition(() => {
+      setSelectedDate(selected ?? null);
+    });
+  }, [selected, setSelectedDate, startMapSyncTransition]);
+  React.useEffect(() => {
+    startMapSyncTransition(() => {
+      setSelectedHour(hour ?? null);
+    });
+  }, [hour, setSelectedHour, startMapSyncTransition]);
 
   const visibleRows = React.useMemo(
     () =>
@@ -516,6 +539,7 @@ const DateSummaryBridge: React.FC<Props> = ({
                 startIdx={0}
                 endIdx={7}
                 isFull={isFull}
+                forecastRows={forecastRows}
               />
             </VisualWrapper>
           );
@@ -616,7 +640,16 @@ const DateSummaryBridge: React.FC<Props> = ({
   const headerSubtitle = isOverview ? "Today's surf insights" : forecastWindow;
 
   return (
-    <>
+    <ForecastDataProvider
+      value={{
+        rows: forecastRows ?? null,
+        start: statsRange.start,
+        end: statsRange.end,
+        loading: forecastLoading,
+      }}
+    >
+      <TideDataProvider value={tideWindow}>
+        <>
       {/* Summary header */}
       <section className="mb-8">
         <header className="mb-4 ml-3 flex gap-2 items-center">
@@ -734,7 +767,9 @@ const DateSummaryBridge: React.FC<Props> = ({
           </SunDataProvider>
         </div>
       </section>
-    </>
+        </>
+      </TideDataProvider>
+    </ForecastDataProvider>
   );
 };
 

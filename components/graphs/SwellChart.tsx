@@ -10,7 +10,7 @@ import {
   AreaChart,
   Area,
 } from "recharts";
-import { getPacificMidnightUTC, getPacificHour } from "@/lib/utils";
+import { getPacificHour } from "@/lib/utils";
 import {
   ChartConfig,
   ChartContainer,
@@ -41,11 +41,7 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-import {
-  fetchBeachForecast,
-  fetchBeachByIdLoose,
-  getWindDirection,
-} from "@/lib/supabase";
+import { getWindDirection } from "@/lib/supabase";
 import {
   useDateContext,
   useHoveredHour,
@@ -53,6 +49,7 @@ import {
 import { useSunData } from "@/components/context/SunDataContext";
 import { buildSunSegments } from "@/components/graphs/sunSegments";
 import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
+import { useForecastWindowData } from "@/lib/hooks/useForecastWindow";
 
 type Props = { beachId?: string; hours?: number; date?: Date };
 type Row = {
@@ -74,69 +71,25 @@ export const SwellStatsHeader = ({
   hours?: number;
   date?: Date;
 }) => {
-  const [highSwell, setHighSwell] = React.useState<string | null>(null);
-  const [lowSwell, setLowSwell] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    let cancelled = false;
-
-    const loadSwellStats = async () => {
-      try {
-        if (!beachId) {
-          if (!cancelled) {
-            setHighSwell(null);
-            setLowSwell(null);
-          }
-          return;
-        }
-
-        const HOURS_TO_MS = 60 * 60 * 1000;
-        const getPacificMidnightUTC = (d: Date) => {
-          const pst = new Date(
-            d.toLocaleString("en-US", { timeZone: "America/Los_Angeles" })
-          );
-          pst.setHours(0, 0, 0, 0);
-          return new Date(pst.toISOString());
-        };
-
-        let start = new Date();
-        let end = new Date(start.getTime() + hours * HOURS_TO_MS);
-        if (date instanceof Date) {
-          start = getPacificMidnightUTC(date);
-          end = new Date(start.getTime() + hours * HOURS_TO_MS);
-        }
-
-        const resolved = await fetchBeachByIdLoose(beachId);
-        const id = resolved?.id ?? beachId;
-        const rows = await fetchBeachForecast(id, start, end);
-        if (cancelled) return;
-
-        const swellValues = rows
-          .map((r) => r.swell.primary.height)
-          .filter(
-            (v): v is number => typeof v === "number" && !isNaN(v) && v !== null
-          );
-
-        if (swellValues.length > 0) {
-          const high = Math.max(...swellValues);
-          const low = Math.min(...swellValues);
-
-          if (!cancelled) {
-            setHighSwell(high.toFixed(1));
-            setLowSwell(low.toFixed(1));
-          }
-        }
-      } catch (e) {
-        console.error("Failed to load swell stats", e);
-      }
+  const { rows } = useForecastWindowData({ beachId, hours, date });
+  const { highSwell, lowSwell } = React.useMemo(() => {
+    if (!beachId || !rows.length) {
+      return { highSwell: null, lowSwell: null };
+    }
+    const swellValues = rows
+      .map((r) => r.swell.primary.height)
+      .filter(
+        (v): v is number =>
+          typeof v === "number" && !Number.isNaN(v) && v !== null
+      );
+    if (!swellValues.length) {
+      return { highSwell: null, lowSwell: null };
+    }
+    return {
+      highSwell: Math.max(...swellValues).toFixed(1),
+      lowSwell: Math.min(...swellValues).toFixed(1),
     };
-
-    void loadSwellStats();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [beachId, hours, date]);
+  }, [beachId, rows]);
 
   return (
     <div className="grid rounded-md bg-highlight-5 grid-cols-[60px_1fr] grid-rows-2 gap-y-0.5 items-center text-xs text-muted-foreground uppercase tracking-wide leading-tight px-2 py-1.5">
@@ -168,99 +121,93 @@ const SwellChart = ({ beachId, hours = 24, date }: Props) => {
   const { hour: selectedHour, setHoveredHour } = useDateContext();
   const { getSunData } = useSunData();
   const hoveredHour = useHoveredHour();
-  const [data, setData] = useState<Row[]>([]);
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
   const [nightAreas, setNightAreas] = useState<{ x1: number; x2?: number }[]>(
     []
   );
 
+  const { rows: forecastRows, start: windowStart } = useForecastWindowData({
+    beachId,
+    hours,
+    date,
+  });
+  const windowStartMs = windowStart.getTime();
+
+  const placeholderData = useMemo(
+    () =>
+      Array.from({ length: 9 }, (_, idx) => {
+        const time = idx * 3;
+        return {
+          time,
+          primary: Number((2 + Math.sin((time / 24) * Math.PI)).toFixed(1)),
+          secondary: Number((1 + Math.cos((time / 24) * Math.PI)).toFixed(1)),
+          tertiary: Number(
+            (0.5 + Math.sin((time / 12) * Math.PI) * 0.3).toFixed(1)
+          ),
+          primaryDir: (time * 15) % 360,
+          secondaryDir: (time * 20) % 360,
+          tertiaryDir: (time * 25) % 360,
+        };
+      }),
+    []
+  );
+
+  const data = useMemo<Row[]>(() => {
+    if (!beachId) {
+      return placeholderData;
+    }
+    if (!forecastRows.length) {
+      return [];
+    }
+    return forecastRows.map((r, index, arr) => ({
+      time: index === arr.length - 1 ? hours : getPacificHour(r.timestamp),
+      primary: Number((r.swell.primary.height ?? 0).toFixed(1)),
+      secondary: Number((r.swell.secondary.height ?? 0).toFixed(1)),
+      tertiary: Number((r.swell.tertiary?.height ?? 0).toFixed(1)),
+      primaryDir: r.swell.primary.direction ?? undefined,
+      secondaryDir: r.swell.secondary.direction ?? undefined,
+      tertiaryDir: r.swell.tertiary?.direction ?? undefined,
+    }));
+  }, [beachId, forecastRows, hours, placeholderData]);
+
   useEffect(() => {
+    if (!beachId) {
+      setDayAreas([{ x1: 6, x2: 18 }]);
+      setNightAreas([
+        { x1: 0, x2: 6 },
+        { x1: 18, x2: hours },
+      ]);
+      return;
+    }
     let cancelled = false;
 
-    const load = async () => {
+    const hydrateShading = async () => {
       try {
-        if (!beachId) {
-          if (!cancelled) {
-            setData(
-              Array.from({ length: 9 }, (_, idx) => {
-                const time = idx * 3;
-                return {
-                  time,
-                  primary: Number(
-                    (2 + Math.sin((time / 24) * Math.PI)).toFixed(1)
-                  ),
-                  secondary: Number(
-                    (1 + Math.cos((time / 24) * Math.PI)).toFixed(1)
-                  ),
-                  tertiary: Number(
-                    (0.5 + Math.sin((time / 12) * Math.PI) * 0.3).toFixed(1)
-                  ),
-                  primaryDir: (time * 15) % 360,
-                  secondaryDir: (time * 20) % 360,
-                  tertiaryDir: (time * 25) % 360,
-                };
-              })
-            );
-          }
-          return;
-        }
-        const resolved = await fetchBeachByIdLoose(beachId);
-        const id = resolved?.id ?? beachId;
-        let start = new Date();
-        let end = new Date(start.getTime() + hours * 60 * 60 * 1000);
-        if (date instanceof Date) {
-          start = getPacificMidnightUTC(date);
-          end = new Date(start.getTime() + hours * 60 * 60 * 1000);
-        }
-        const rows = await fetchBeachForecast(id, start, end);
-        const series = rows.map((r, i) => ({
-          time: i === rows.length - 1 ? hours : getPacificHour(r.timestamp),
-          primary: Number((r.swell.primary.height ?? 0).toFixed(1)),
-          secondary: Number((r.swell.secondary.height ?? 0).toFixed(1)),
-          tertiary: Number((r.swell.tertiary?.height ?? 0).toFixed(1)),
-          primaryDir: r.swell.primary.direction ?? undefined,
-          secondaryDir: r.swell.secondary.direction ?? undefined,
-          tertiaryDir: r.swell.tertiary?.direction ?? undefined,
-        }));
+        const sunData = await getSunData(String(beachId), new Date(windowStartMs));
+        const segments = buildSunSegments(
+          hours,
+          sunData?.sunrise ?? null,
+          sunData?.sunset ?? null
+        );
         if (!cancelled) {
-          setData(series);
-        }
-
-        // Compute sunrise/sunset shading for the day in view
-        try {
-          const basisDate =
-            date instanceof Date ? new Date(date) : new Date(start);
-          const sunData = await getSunData(String(id), basisDate);
-          const segments = buildSunSegments(
-            hours,
-            sunData?.sunrise ?? null,
-            sunData?.sunset ?? null
-          );
-          if (!cancelled) {
-            setDayAreas(segments.dayAreas);
-            setNightAreas(segments.nightAreas);
-          }
-        } catch (e) {
-          if (!cancelled) {
-            setDayAreas([]);
-            setNightAreas([{ x1: 0, x2: hours }]);
-          }
+          setDayAreas(segments.dayAreas);
+          setNightAreas(segments.nightAreas);
         }
       } catch (e) {
         console.error("Failed to load swell data", e);
         if (!cancelled) {
-          setData([]);
           setDayAreas([]);
-          setNightAreas([]);
+          setNightAreas([{ x1: 0, x2: hours }]);
         }
       }
     };
-    void load();
+
+    void hydrateShading();
 
     return () => {
       cancelled = true;
     };
-  }, [beachId, hours, date, getSunData]);
+  }, [beachId, getSunData, hours, windowStartMs]);
 
   const hourTicks = useMemo(() => {
     const ticks: number[] = [];

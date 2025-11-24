@@ -27,17 +27,15 @@ import {
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
-import {
-  fetchWeeklyForecast,
-  fetchBeachDetails,
-  fetchDailyConditions,
-} from "@/lib/supabase";
-import { cn, getPacificHour } from "@/lib/utils";
+import { cn, getPacificHour, getPacificMidnightUTC } from "@/lib/utils";
+import { getForecastCached } from "@/lib/dataCache";
+import { useForecastData } from "@/components/context/ForecastDataContext";
 import { useDateContext } from "@/components/context/DateContext";
 import { useForecastChartContext } from "@/components/context/ForecastChartContext";
 import HoverReferenceLine from "@/components/graphs/HoverReferenceLine";
 import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
 import { buildYAxisTicks } from "@/components/graphs/yAxisTicks";
+import { useSunData } from "@/components/context/SunDataContext";
 
 const chartConfig = {
   surf: {
@@ -61,6 +59,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
   const { setPanFraction, subscribePan } = useForecastChartContext();
   const myId = React.useId();
   const { hour: selectedHour, setHoveredHour } = useDateContext();
+  const { getSunData } = useSunData();
   const [surfData, setSurfData] = useState<SurfPoint[]>([]);
   const [baseStartMs, setBaseStartMs] = useState<number | null>(null);
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
@@ -96,9 +95,18 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
   const rafRef = useRef<number | null>(null);
 
   // Derived dimensions
-  const totalFetchedDays = useMemo(() => {
-    return days && days.length > 0 ? days.length : VISIBLE_DAYS;
+  const normalizedDays = useMemo(() => {
+    if (!days || days.length === 0) {
+      return null;
+    }
+    return [...days].sort((a, b) => a.getTime() - b.getTime());
   }, [days]);
+
+  const totalFetchedDays = useMemo(() => {
+    return normalizedDays && normalizedDays.length > 0
+      ? normalizedDays.length
+      : VISIBLE_DAYS;
+  }, [normalizedDays]);
 
   const dayPx = useMemo(() => {
     if (!containerWidth) return MIN_DAY_PX;
@@ -111,7 +119,14 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
     [totalFetchedDays, dayPx]
   );
   const surfTicks = useMemo(
-    () => buildYAxisTicks(surfData.map((d) => d.surf), 0, 6, 0.2, 5),
+    () =>
+      buildYAxisTicks(
+        surfData.map((d) => d.surf),
+        0,
+        6,
+        0.2,
+        5
+      ),
     [surfData]
   );
   const hoursSpan = useMemo(
@@ -327,6 +342,8 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
   }, [chartInnerWidth, dayPx, viewportWidth]);
 
   // Build surf series from forecast rows
+  const { rows: sharedRows } = useForecastData();
+
   React.useEffect(() => {
     let cancelled = false;
 
@@ -341,8 +358,52 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
         }
 
         const numDaysToFetch =
-          days && days.length > 0 ? days.length : VISIBLE_DAYS;
-        const rows = await fetchWeeklyForecast(String(beachId), numDaysToFetch);
+          normalizedDays && normalizedDays.length > 0
+            ? normalizedDays.length
+            : VISIBLE_DAYS;
+        const baseDateValue =
+          normalizedDays && normalizedDays.length > 0
+            ? normalizedDays[0]
+            : new Date();
+        const start = getPacificMidnightUTC(baseDateValue);
+        const end = new Date(
+          start.getTime() + numDaysToFetch * 24 * 60 * 60 * 1000
+        );
+        const startMs = start.getTime();
+        const endMs = end.getTime();
+        const coverageToleranceMs = 3 * 60 * 60 * 1000;
+
+        const filterSharedRows = () => {
+          if (!sharedRows?.length) {
+            return [] as typeof sharedRows;
+          }
+          const filtered =
+            sharedRows
+              .filter((row) => {
+                const ts = new Date(row.timestamp).getTime();
+                return ts >= startMs && ts <= endMs;
+              })
+              .sort(
+                (a, b) =>
+                  new Date(a.timestamp).getTime() -
+                  new Date(b.timestamp).getTime()
+              ) ?? [];
+          if (!filtered.length) {
+            return [];
+          }
+          const firstTs = new Date(filtered[0].timestamp).getTime();
+          const lastTs = new Date(
+            filtered[filtered.length - 1].timestamp
+          ).getTime();
+          const coversStart = firstTs <= startMs + coverageToleranceMs;
+          const coversEnd = lastTs >= endMs - coverageToleranceMs;
+          return coversStart && coversEnd ? filtered : [];
+        };
+
+        let rows = filterSharedRows();
+        if (!rows?.length) {
+          rows = await getForecastCached(String(beachId), start, end);
+        }
 
         if (!rows || !rows.length) {
           if (!cancelled) {
@@ -357,7 +418,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
             new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
         );
 
-        const baseDate = days && days.length > 0 ? days[0] : new Date();
+        const shadingBaseDate = baseDateValue;
 
         // Get midnight in Pacific timezone for the base date (DST-aware)
         const dateFormatter = new Intl.DateTimeFormat("en-US", {
@@ -366,7 +427,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
           month: "2-digit",
           day: "2-digit",
         });
-        const dateParts = dateFormatter.formatToParts(baseDate);
+        const dateParts = dateFormatter.formatToParts(shadingBaseDate);
         const year = parseInt(
           dateParts.find((p) => p.type === "year")?.value || "0"
         );
@@ -473,28 +534,31 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
         }
 
         // Day/night areas
-        const start = days ? days[0] : new Date();
+        const shadingStartDate =
+          normalizedDays && normalizedDays.length > 0
+            ? normalizedDays[0]
+            : new Date();
         const startFormatter = new Intl.DateTimeFormat("en-US", {
           timeZone: "America/Los_Angeles",
           year: "numeric",
           month: "2-digit",
           day: "2-digit",
         });
-        const startParts = startFormatter.formatToParts(start);
-        const startYear = parseInt(
+        const startParts = startFormatter.formatToParts(shadingStartDate);
+        const shadingStartYear = parseInt(
           startParts.find((p) => p.type === "year")?.value || "0"
         );
-        const startMonth =
+        const shadingStartMonth =
           parseInt(startParts.find((p) => p.type === "month")?.value || "1") -
           1;
-        const startDay = parseInt(
+        const shadingStartDay = parseInt(
           startParts.find((p) => p.type === "day")?.value || "1"
         );
 
         const startNoonUTC = Date.UTC(
-          startYear,
-          startMonth,
-          startDay,
+          shadingStartYear,
+          shadingStartMonth,
+          shadingStartDay,
           12,
           0,
           0,
@@ -511,19 +575,17 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
         );
         const startOffsetHours = startPacificNoonHour - 12;
 
-        const startMs = Date.UTC(
-          startYear,
-          startMonth,
-          startDay,
+        const shadingStartMs = Date.UTC(
+          shadingStartYear,
+          shadingStartMonth,
+          shadingStartDay,
           -startOffsetHours,
           0,
           0,
           0
         );
 
-        const beach = await fetchBeachDetails(String(beachId));
-        const county = beach?.COUNTY;
-        if (county) {
+        if (beachId) {
           const parseHM = (
             s: string | null
           ): { h: number; m: number } | null => {
@@ -540,12 +602,19 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
           const nightAreasBuild: { x1: number; x2?: number }[] = [];
           let nightStart = 0;
           for (let di = 0; di < numDaysToFetch; di++) {
-            const cond = await fetchDailyConditions(
-              county,
-              new Date(startMs + di * 24 * 60 * 60 * 1000)
+            const targetDate = new Date(
+              shadingStartMs + di * 24 * 60 * 60 * 1000
             );
-            const rise = parseHM(cond?.sunrise ?? null);
-            const setv = parseHM(cond?.sunset ?? null);
+            let rise: { h: number; m: number } | null = null;
+            let setv: { h: number; m: number } | null = null;
+            try {
+              const sun = await getSunData(String(beachId), targetDate);
+              rise = parseHM(sun?.sunrise ?? null);
+              setv = parseHM(sun?.sunset ?? null);
+            } catch (err) {
+              console.warn("ForecastSurfChart sun data unavailable", err);
+            }
+
             if (!rise || !setv) {
               dayAreasBuild.push({ x1: di * 24, x2: di * 24 + 24 });
               nightAreasBuild.push({ x1: nightStart, x2: di * 24 });
@@ -588,7 +657,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
     return () => {
       cancelled = true;
     };
-  }, [beachId, days]);
+  }, [beachId, normalizedDays, sharedRows]);
 
   const dayStats = React.useMemo(() => {
     if (!surfData.length) return [];
@@ -621,8 +690,8 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
   }, [surfData, totalFetchedDays]);
 
   const dayLabels =
-    Array.isArray(days) && days.length > 0
-      ? days.map((d) =>
+    normalizedDays && normalizedDays.length > 0
+      ? normalizedDays.map((d) =>
           d.toLocaleDateString("en-US", {
             weekday: "short",
             month: "short",
@@ -802,193 +871,197 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                 onMouseMove={handleMouseMove}
                 onMouseLeave={handleMouseLeave}
               >
-              {/* vertical boundaries every day */}
-              {Array.from({ length: totalFetchedDays + 1 }, (_, i) => {
-                if (i !== 0 && i !== totalFetchedDays) {
+                {/* vertical boundaries every day */}
+                {Array.from({ length: totalFetchedDays + 1 }, (_, i) => {
+                  if (i !== 0 && i !== totalFetchedDays) {
+                    return (
+                      <ReferenceLine
+                        key={`boundary-${i}`}
+                        x={i * 24}
+                        stroke="var(--foreground)"
+                        strokeOpacity={0.25}
+                        strokeWidth={0.5}
+                      />
+                    );
+                  }
+                })}
+                {dayAreas.map((a, idx) => {
+                  const extendLeft = idx === 0 && a.x1 <= 0 + 1e-3;
+                  const extendRight =
+                    idx === dayAreas.length - 1 &&
+                    Math.abs(a.x2 - hoursSpan) <= 1e-3;
                   return (
-                    <ReferenceLine
-                      key={`boundary-${i}`}
-                      x={i * 24}
-                      stroke="var(--foreground)"
-                      strokeOpacity={0.25}
-                      strokeWidth={0.5}
+                    <ReferenceArea
+                      key={`day-${idx}`}
+                      x1={extendLeft ? a.x1 - edgePadHours : a.x1}
+                      x2={extendRight ? a.x2 + edgePadHours : a.x2}
+                      fill="#FFE58F"
+                      fillOpacity={0.2}
+                      ifOverflow="visible"
                     />
                   );
-                }
-              })}
-              {dayAreas.map((a, idx) => {
-                const extendLeft = idx === 0 && a.x1 <= 0 + 1e-3;
-                const extendRight =
-                  idx === dayAreas.length - 1 &&
-                  Math.abs(a.x2 - hoursSpan) <= 1e-3;
-                return (
-                  <ReferenceArea
-                    key={`day-${idx}`}
-                    x1={extendLeft ? a.x1 - edgePadHours : a.x1}
-                    x2={extendRight ? a.x2 + edgePadHours : a.x2}
-                    fill="#FFE58F"
-                    fillOpacity={0.2}
-                    ifOverflow="visible"
-                  />
-                );
-              })}
-              {nightAreas.map((a, idx) => {
-                const isFirst = idx === 0;
-                const isLast = idx === nightAreas.length - 1;
-                const x1 = isFirst ? 0 : a.x1 ?? 0;
-                const x2 = isLast ? hoursSpan : a.x2 ?? hoursSpan;
-                const extendLeft = isFirst && x1 <= 0 + 1e-3;
-                const extendRight = isLast && Math.abs(x2 - hoursSpan) <= 1e-3;
-                return (
-                  <ReferenceArea
-                    key={`night-${idx}`}
-                    x1={extendLeft ? x1 - edgePadHours : x1}
-                    x2={extendRight ? x2 + edgePadHours : x2}
-                    fill="#ccc1ffff"
-                    fillOpacity={0.2}
-                    ifOverflow="visible"
-                  />
-                );
-              })}
-              <XAxis
-                dataKey="hour"
-                type="number"
-                tickLine={false}
-                axisLine={false}
-                tickMargin={8}
-                minTickGap={0}
-                fontSize={11}
-                domain={[0, totalFetchedDays * 24]}
-                ticks={hourTicks}
-                padding={{ left: axisPadding, right: axisPadding }}
-                tickFormatter={(v: number) =>
-                  v % 3 === 0 ? String(v % 12 === 0 ? 12 : v % 12) : ""
-                }
-              />
-              <YAxis
-                tickLine={false}
-                axisLine={false}
-                tickMargin={8}
-                fontSize={11}
-                domain={[
-                  surfTicks[0] ?? 0,
-                  surfTicks[surfTicks.length - 1] ?? 6,
-                ]}
-                ticks={surfTicks}
-              />
-              <ChartTooltip
-                content={<ChartTooltipContent />}
-                cursor={{
-                  fill: "transparent",
-                  stroke: "var(--foreground)",
-                  strokeWidth: 1,
-                  strokeDasharray: "3 3",
-                  strokeOpacity: 0.5,
-                }}
-                animationDuration={0}
-                isAnimationActive={false}
-              />
-              {/* Selected hour marker */}
-              {(() => {
-                try {
-                  const base = days && days.length > 0 ? days[0] : null;
-                  if (!base || !selectedDate) return null;
-                  const baseMid = new Date(
-                    base.getFullYear(),
-                    base.getMonth(),
-                    base.getDate()
-                  ).getTime();
-                  const selMid = new Date(
-                    selectedDate.getFullYear(),
-                    selectedDate.getMonth(),
-                    selectedDate.getDate()
-                  ).getTime();
-                  const dayDelta = Math.floor(
-                    (selMid - baseMid) / (24 * 3600 * 1000)
-                  );
-                  const x = dayDelta * 24 + (selectedHour ?? 0);
-                  if (x < 0 || x > totalFetchedDays * 24) return null;
+                })}
+                {nightAreas.map((a, idx) => {
+                  const isFirst = idx === 0;
+                  const isLast = idx === nightAreas.length - 1;
+                  const x1 = isFirst ? 0 : a.x1 ?? 0;
+                  const x2 = isLast ? hoursSpan : a.x2 ?? hoursSpan;
+                  const extendLeft = isFirst && x1 <= 0 + 1e-3;
+                  const extendRight =
+                    isLast && Math.abs(x2 - hoursSpan) <= 1e-3;
                   return (
-                    <ReferenceLine
-                      x={x}
-                      stroke="var(--foreground)"
-                      strokeDasharray="3 3"
+                    <ReferenceArea
+                      key={`night-${idx}`}
+                      x1={extendLeft ? x1 - edgePadHours : x1}
+                      x2={extendRight ? x2 + edgePadHours : x2}
+                      fill="#ccc1ffff"
+                      fillOpacity={0.2}
+                      ifOverflow="visible"
                     />
                   );
-                } catch {
-                  return null;
-                }
-              })()}
-              {/* Hover indicator line */}
-              <HoverReferenceLine
-                days={days}
-                selectedDate={selectedDate}
-                selectedHour={selectedHour}
-              />
-              <Bar
-                dataKey="surf"
-                fill="var(--color-surf)"
-                radius={4}
-                stroke="#5f5f5fff"
-                strokeWidth={0.5}
-                minPointSize={15}
-                isAnimationActive={false}
-              >
-                <LabelList
-                  dataKey="surf"
-                  position="middle"
-                  content={(props: LabelProps) => {
-                    const safeX = typeof props.x === "number" ? props.x : 0;
-                    const safeY = typeof props.y === "number" ? props.y : 0;
-                    const safeWidth =
-                      typeof props.width === "number" ? props.width : 0;
-                    const safeHeight =
-                      typeof props.height === "number" ? props.height : 0;
-                    const fontSize = Math.max(10, safeWidth * 0.15);
-                    const label =
-                      typeof props.value === "number"
-                        ? props.value.toFixed(1)
-                        : "";
-
-                    // Get color based on surf value
-                    const surfValue =
-                      typeof props.value === "number" ? props.value : 0;
-                    const barColor = getSurfColor(surfValue);
-
-                    if (label) {
-                      return (
-                        <g>
-                          {/* Render the colored bar */}
-                          <rect
-                            x={safeX}
-                            y={safeY}
-                            width={safeWidth}
-                            height={safeHeight}
-                            fill={barColor}
-                            rx={4}
-                            stroke="#5f5f5fff"
-                            strokeWidth={0.5}
-                          />
-                          <text
-                            x={safeX + safeWidth / 2}
-                            y={safeY + safeHeight / 2 + fontSize / 3}
-                            fill="#2c2c2cff"
-                            textAnchor="middle"
-                            fontWeight="bold"
-                            fontSize={fontSize}
-                          >
-                            {label === "0.0" ? "0" : label}
-                          </text>
-                        </g>
-                      );
-                    }
-                    return null;
-                  }}
-                  fill="black"
+                })}
+                <XAxis
+                  dataKey="hour"
+                  type="number"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  minTickGap={0}
+                  fontSize={11}
+                  domain={[0, totalFetchedDays * 24]}
+                  ticks={hourTicks}
+                  padding={{ left: axisPadding, right: axisPadding }}
+                  tickFormatter={(v: number) =>
+                    v % 3 === 0 ? String(v % 12 === 0 ? 12 : v % 12) : ""
+                  }
                 />
-              </Bar>
-            </BarChart>
-          </ChartContainer>
+                <YAxis
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  fontSize={11}
+                  domain={[
+                    surfTicks[0] ?? 0,
+                    surfTicks[surfTicks.length - 1] ?? 6,
+                  ]}
+                  ticks={surfTicks}
+                />
+                <ChartTooltip
+                  content={<ChartTooltipContent />}
+                  cursor={{
+                    fill: "transparent",
+                    stroke: "var(--foreground)",
+                    strokeWidth: 1,
+                    strokeDasharray: "3 3",
+                    strokeOpacity: 0.5,
+                  }}
+                  animationDuration={0}
+                  isAnimationActive={false}
+                />
+                {/* Selected hour marker */}
+                {(() => {
+                  try {
+                    const base =
+                      normalizedDays && normalizedDays.length > 0
+                        ? normalizedDays[0]
+                        : null;
+                    if (!base || !selectedDate) return null;
+                    const baseMid = new Date(
+                      base.getFullYear(),
+                      base.getMonth(),
+                      base.getDate()
+                    ).getTime();
+                    const selMid = new Date(
+                      selectedDate.getFullYear(),
+                      selectedDate.getMonth(),
+                      selectedDate.getDate()
+                    ).getTime();
+                    const dayDelta = Math.floor(
+                      (selMid - baseMid) / (24 * 3600 * 1000)
+                    );
+                    const x = dayDelta * 24 + (selectedHour ?? 0);
+                    if (x < 0 || x > totalFetchedDays * 24) return null;
+                    return (
+                      <ReferenceLine
+                        x={x}
+                        stroke="var(--foreground)"
+                        strokeDasharray="3 3"
+                      />
+                    );
+                  } catch {
+                    return null;
+                  }
+                })()}
+                {/* Hover indicator line */}
+                <HoverReferenceLine
+                  days={normalizedDays ?? undefined}
+                  selectedDate={selectedDate}
+                  selectedHour={selectedHour}
+                />
+                <Bar
+                  dataKey="surf"
+                  fill="var(--color-surf)"
+                  radius={4}
+                  stroke="#5f5f5fff"
+                  strokeWidth={0.5}
+                  minPointSize={15}
+                  isAnimationActive={false}
+                >
+                  <LabelList
+                    dataKey="surf"
+                    position="middle"
+                    content={(props: LabelProps) => {
+                      const safeX = typeof props.x === "number" ? props.x : 0;
+                      const safeY = typeof props.y === "number" ? props.y : 0;
+                      const safeWidth =
+                        typeof props.width === "number" ? props.width : 0;
+                      const safeHeight =
+                        typeof props.height === "number" ? props.height : 0;
+                      const fontSize = Math.max(10, safeWidth * 0.15);
+                      const label =
+                        typeof props.value === "number"
+                          ? props.value.toFixed(1)
+                          : "";
+
+                      // Get color based on surf value
+                      const surfValue =
+                        typeof props.value === "number" ? props.value : 0;
+                      const barColor = getSurfColor(surfValue);
+
+                      if (label) {
+                        return (
+                          <g>
+                            {/* Render the colored bar */}
+                            <rect
+                              x={safeX}
+                              y={safeY}
+                              width={safeWidth}
+                              height={safeHeight}
+                              fill={barColor}
+                              rx={4}
+                              stroke="#5f5f5fff"
+                              strokeWidth={0.5}
+                            />
+                            <text
+                              x={safeX + safeWidth / 2}
+                              y={safeY + safeHeight / 2 + fontSize / 3}
+                              fill="#2c2c2cff"
+                              textAnchor="middle"
+                              fontWeight="bold"
+                              fontSize={fontSize}
+                            >
+                              {label === "0.0" ? "0" : label}
+                            </text>
+                          </g>
+                        );
+                      }
+                      return null;
+                    }}
+                    fill="black"
+                  />
+                </Bar>
+              </BarChart>
+            </ChartContainer>
           )}
         </div>
 

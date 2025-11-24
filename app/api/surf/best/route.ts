@@ -1,4 +1,5 @@
 // app/api/surf/best/route.ts
+// Best-surf snapshots depend on forecast tables; cache lifetime can match upstream TTLs.
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase, formatTimestamp } from '@/lib/supabase'
 

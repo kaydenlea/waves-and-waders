@@ -891,7 +891,45 @@ export async function fetchBeachDetails(id: string): Promise<Beach | null> {
   return beachWithFeatures;
 }
 
+function resolveInternalApiUrl(pathname: string) {
+  const explicit =
+    process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || null;
+  if (explicit) {
+    try {
+      return new URL(pathname, explicit).toString();
+    } catch {
+      // ignore
+    }
+  }
+  const vercelUrl = process.env.VERCEL_URL;
+  if (vercelUrl) {
+    return `https://${vercelUrl}${pathname}`;
+  }
+  return null;
+}
+
 export async function fetchAllBeaches(): Promise<Beach[]> {
+  const endpoint = resolveInternalApiUrl("/api/beaches");
+  if (endpoint) {
+    try {
+      const res = await fetch(endpoint, { next: { revalidate: 300 } });
+      if (res.ok) {
+        const json = await res.json();
+        if (json?.success && Array.isArray(json.data)) {
+          return (json.data as any[]).map((beach) => ({
+            id: beach.id,
+            Name: beach.name ?? beach.Name,
+            LATITUDE: Number(beach.latitude ?? beach.LATITUDE),
+            LONGITUDE: Number(beach.longitude ?? beach.LONGITUDE),
+            COUNTY: beach.county ?? beach.COUNTY ?? "",
+          }));
+        }
+      }
+    } catch (error) {
+      console.warn("Failed to fetch beaches via API, falling back", error);
+    }
+  }
+
   const { data, error } = await supabase
     .from("beaches")
     .select("id, Name, LATITUDE, LONGITUDE, COUNTY")

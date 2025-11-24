@@ -1,4 +1,5 @@
 // app/api/daily-conditions/route.ts
+// Daily sunrise/sunset/moon data changes slowly; cached for 6h.
 import { NextRequest, NextResponse } from 'next/server'
 import { fetchDailyConditions } from '@/lib/supabase'
 

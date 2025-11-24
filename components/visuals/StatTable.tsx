@@ -24,6 +24,7 @@ import {
   getWindDirection,
   type ForecastData,
 } from "@/lib/supabase";
+import { getForecastCached } from "@/lib/dataCache";
 import { useDateContext } from "../context/DateContext";
 import { usePathname } from "next/navigation";
 import { useClientPath } from "../context/PathContext";
@@ -47,12 +48,12 @@ const SwellStat = ({
     deg?: number | null;
   } | null;
 }) => {
-  const height = data?.height ?? "—";
-  const period = data?.period ?? "—";
-  const dir = data?.dir ?? "—";
+  const height = data?.height ?? "-";
+  const period = data?.period ?? "-";
+  const dir = data?.dir ?? "-";
   const deg = data?.deg ?? 0;
 
-  // Calculate rotation for arrow (arrow points at 315° by default)
+  // Calculate rotation for arrow (arrow points at 315 degrees by default)
   const rotation = typeof deg === "number" ? deg - 315 : 0;
 
   return (
@@ -128,7 +129,7 @@ const WindStat = ({
 }: {
   data: { dir: string; speed: number; max: number; deg?: number };
 }) => {
-  // Calculate rotation for wind arrow (arrow points at 315° by default)
+  // Calculate rotation for wind arrow (arrow points at 315 degrees by default)
   const rotation = typeof data.deg === "number" ? data.deg - 315 : 0;
   const windLevel = getWindLevel(data.speed, data.max);
 
@@ -367,12 +368,13 @@ const StatTable = ({
 
         let weekly: ForecastData[];
         if (cached && now - cached.timestamp < CACHE_DURATION) {
-          console.log(`📦 StatTable using cached forecast for ${resolvedId}`);
           weekly = cached.data;
         } else {
-          // Fetch fresh data
-          const { fetchBeachForecast } = await import("@/lib/supabase");
-          weekly = await fetchBeachForecast(resolvedId, rangeStart, rangeEnd);
+          weekly = await getForecastCached(
+            String(resolvedId),
+            rangeStart,
+            rangeEnd
+          );
 
           // Update cache
           forecastCache.set(cacheKey, { data: weekly, timestamp: now });
@@ -382,7 +384,6 @@ const StatTable = ({
             const keys = Array.from(forecastCache.keys());
             forecastCache.delete(keys[0]);
           }
-          console.log(`🌊 StatTable fetched fresh forecast for ${resolvedId}`);
         }
 
         if (cancelled) return;
@@ -518,7 +519,7 @@ const StatTable = ({
             const maxR = Math.round(max);
             const surfHeight =
               minR === 0 && maxR === 0
-                ? "—"
+                ? "-"
                 : minR === maxR
                 ? `${maxR}`
                 : `${minR}-${maxR}`;
@@ -605,11 +606,11 @@ const StatTable = ({
             return {
               index: hour,
               time: `${displayHour} ${ampm}`,
-              wind: { label: "wind", dir: "—", speed: 0, max: 0, deg: 0 },
-              surf: { label: "surf", height: "—" },
+              wind: { label: "wind", dir: "-", speed: 0, max: 0, deg: 0 },
+              surf: { label: "surf", height: "-" },
               swell: {
                 label: "swell",
-                primary: { height: 0, period: 0, dir: "—", deg: 0 },
+                primary: { height: 0, period: 0, dir: "-", deg: 0 },
                 secondary: [],
               },
               pressure: { label: "pressure", value: 0 },
@@ -1136,7 +1137,7 @@ const StatTable = ({
                     {visibleColumns.map((col, colIdx) => {
                       // Functional color coding for surf ranges (matches DatePicker)
                       const getSurfLevel = (height: string) => {
-                        if (height === "—") return "bg-highlight-3";
+                        if (height === "-") return "bg-highlight-3";
                         const match = height.match(/(\d+)-?(\d+)?/);
                         if (!match) return "bg-highlight-3";
                         // Use the max value from the range (e.g., "2-4" -> 4)

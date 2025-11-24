@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useEffect, useMemo, useState } from "react";
 import {
@@ -25,12 +25,8 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-
-import {
-  fetchBeachForecast,
-  fetchBeachByIdLoose,
-  getWindDirection,
-} from "@/lib/supabase";
+import { getPacificHour } from "@/lib/utils";
+import { getWindDirection } from "@/lib/supabase";
 import {
   useDateContext,
   useHoveredHour,
@@ -39,6 +35,7 @@ import { useSunData } from "@/components/context/SunDataContext";
 import { buildSunSegments } from "@/components/graphs/sunSegments";
 import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
 import { buildYAxisTicks } from "@/components/graphs/yAxisTicks";
+import { useForecastWindowData } from "@/lib/hooks/useForecastWindow";
 
 type Props = { beachId?: string; hours?: number; date?: Date };
 const chartConfig = {
@@ -57,66 +54,22 @@ export const WindStatsHeader = ({
   hours?: number;
   date?: Date;
 }) => {
-  const [highWind, setHighWind] = React.useState<string | null>(null);
-  const [lowWind, setLowWind] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    let cancelled = false;
-
-    const loadWindStats = async () => {
-      try {
-        if (!beachId) {
-          if (!cancelled) {
-            setHighWind(null);
-            setLowWind(null);
-          }
-          return;
-        }
-
-        const HOURS_TO_MS = 60 * 60 * 1000;
-        let start = new Date();
-        let end = new Date(start.getTime() + hours * HOURS_TO_MS);
-        if (date instanceof Date) {
-          const getPacificMidnightUTC = (d: Date) => {
-            const pst = new Date(
-              d.toLocaleString("en-US", { timeZone: "America/Los_Angeles" })
-            );
-            pst.setHours(0, 0, 0, 0);
-            return new Date(pst.toISOString());
-          };
-          start = getPacificMidnightUTC(date);
-          end = new Date(start.getTime() + hours * HOURS_TO_MS);
-        }
-
-        const resolved = await fetchBeachByIdLoose(beachId);
-        const id = resolved?.id ?? beachId;
-        const rows = await fetchBeachForecast(id, start, end);
-        if (cancelled) return;
-
-        const windValues = rows
-          .map((r) => r.conditions.windSpeed)
-          .filter((v): v is number => typeof v === "number" && !isNaN(v));
-
-        if (windValues.length > 0) {
-          const high = Math.max(...windValues);
-          const low = Math.min(...windValues);
-
-          if (!cancelled) {
-            setHighWind(high.toFixed(0));
-            setLowWind(low.toFixed(0));
-          }
-        }
-      } catch (e) {
-        console.error("Failed to load wind stats", e);
-      }
+  const { rows } = useForecastWindowData({ beachId, hours, date });
+  const { highWind, lowWind } = React.useMemo(() => {
+    if (!beachId || !rows.length) {
+      return { highWind: null, lowWind: null };
+    }
+    const windValues = rows
+      .map((r) => r.conditions.windSpeed)
+      .filter((v): v is number => typeof v === "number" && !Number.isNaN(v));
+    if (!windValues.length) {
+      return { highWind: null, lowWind: null };
+    }
+    return {
+      highWind: Math.max(...windValues).toFixed(0),
+      lowWind: Math.min(...windValues).toFixed(0),
     };
-
-    void loadWindStats();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [beachId, hours, date]);
+  }, [beachId, rows]);
 
   return (
     <div className="grid rounded-md bg-highlight-5 grid-cols-[60px_1fr] grid-rows-2 gap-y-0.5 items-center text-xs text-muted-foreground uppercase tracking-wide leading-tight px-2 py-1.5">
@@ -148,13 +101,6 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
   const { hour: selectedHour, setHoveredHour } = useDateContext();
   const { getSunData } = useSunData();
   const hoveredHour = useHoveredHour();
-  const [chartData, setChartData] = useState<
-    {
-      hour: number;
-      wind: number;
-      direction?: number;
-    }[]
-  >([]);
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
   const [nightAreas, setNightAreas] = useState<{ x1: number; x2: number }[]>(
     []
@@ -162,6 +108,40 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
   const [buffer, setBuffer] = useState<number>(0);
   const [width, setWidth] = useState<number>(0);
   const chartRef = React.useRef<HTMLDivElement>(null);
+
+  const { rows: forecastRows, start: windowStart } = useForecastWindowData({
+    beachId,
+    hours,
+    date,
+  });
+  const windowStartMs = windowStart.getTime();
+
+  const placeholderData = useMemo(
+    () =>
+      Array.from({ length: hours + 1 }, (_, h) => ({
+        hour: h,
+        wind: Number(
+          Math.max(0, 3 + Math.sin((h / 24) * Math.PI * 2) * 2).toFixed(1)
+        ),
+        direction: (h * 15) % 360,
+      })),
+    [hours]
+  );
+
+  const chartData = useMemo(
+    () =>
+      !beachId
+        ? placeholderData
+        : forecastRows.length === 0
+        ? []
+        : forecastRows.map((row, index, arr) => ({
+            hour:
+              index === arr.length - 1 ? hours : getPacificHour(row.timestamp),
+            wind: Math.round(row.conditions.windSpeed ?? 0),
+            direction: row.conditions.windDirection ?? undefined,
+          })),
+    [beachId, forecastRows, hours, placeholderData]
+  );
 
   // Function to get color based on wind speed intensity
   const getWindColor = (value: number): string => {
@@ -197,123 +177,42 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
   }, []);
 
   useEffect(() => {
+    if (!beachId) {
+      setDayAreas([]);
+      setNightAreas([{ x1: 0, x2: hours }]);
+      return;
+    }
     let cancelled = false;
 
-    const load = async () => {
+    const hydrateShading = async () => {
       try {
-        if (!beachId) {
-          // default placeholder 24 hours
-          if (!cancelled) {
-            setChartData(
-              Array.from({ length: 25 }, (_, h) => ({
-                hour: h,
-                wind: Number(
-                  Math.max(0, 3 + Math.sin((h / 24) * Math.PI * 2) * 2).toFixed(
-                    1
-                  )
-                ),
-                direction: (h * 15) % 360, // rotating placeholder
-              }))
-            );
-          }
-          return;
-        }
-        const resolved = await fetchBeachByIdLoose(beachId);
-        const id = resolved?.id ?? beachId;
-        let start = new Date();
-        let end = new Date(start.getTime() + hours * 60 * 60 * 1000);
-        if (date instanceof Date) {
-          // Get midnight in Pacific timezone (DST-aware)
-          const formatter = new Intl.DateTimeFormat("en-US", {
-            timeZone: "America/Los_Angeles",
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-          });
-          const parts = formatter.formatToParts(date);
-          const year = parseInt(
-            parts.find((p) => p.type === "year")?.value || "0"
-          );
-          const month =
-            parseInt(parts.find((p) => p.type === "month")?.value || "1") - 1;
-          const day = parseInt(
-            parts.find((p) => p.type === "day")?.value || "1"
-          );
-
-          // Calculate UTC timestamp for Pacific midnight using offset at noon
-          const noonUTC = Date.UTC(year, month, day, 12, 0, 0, 0);
-          const noonDate = new Date(noonUTC);
-          const noonFormatter = new Intl.DateTimeFormat("en-US", {
-            timeZone: "America/Los_Angeles",
-            hour: "2-digit",
-            hour12: false,
-          });
-          const pacificNoonHour = parseInt(noonFormatter.format(noonDate));
-          const offsetHours = pacificNoonHour - 12;
-
-          start = new Date(Date.UTC(year, month, day, -offsetHours, 0, 0, 0));
-          end = new Date(start.getTime() + hours * 60 * 60 * 1000);
-        }
-        const rows = await fetchBeachForecast(id, start, end);
-
-        // Helper to get Pacific timezone hour from timestamp
-        const getPacificHour = (timestamp: string): number => {
-          try {
-            const fmt = new Intl.DateTimeFormat("en-US", {
-              hour: "numeric",
-              hour12: false,
-              timeZone: "America/Los_Angeles",
-            });
-            const h = Number(fmt.format(new Date(timestamp)));
-            return Number.isFinite(h) ? h : new Date(timestamp).getUTCHours();
-          } catch {
-            return new Date(timestamp).getUTCHours();
-          }
-        };
-
-        const data = rows.map((r, i) => ({
-          hour: i === rows.length - 1 ? hours : getPacificHour(r.timestamp),
-          wind: Math.round(r.conditions.windSpeed ?? 0),
-          direction: r.conditions.windDirection ?? undefined,
-        }));
+        const sunData = await getSunData(
+          String(beachId),
+          new Date(windowStartMs)
+        );
+        const segments = buildSunSegments(
+          hours,
+          sunData?.sunrise ?? null,
+          sunData?.sunset ?? null
+        );
         if (!cancelled) {
-          setChartData(data);
+          setDayAreas(segments.dayAreas);
+          setNightAreas(segments.nightAreas);
         }
-
-        try {
-          const basisDate =
-            date instanceof Date ? new Date(date) : new Date(start);
-          const sunData = await getSunData(String(id), basisDate);
-          const segments = buildSunSegments(
-            hours,
-            sunData?.sunrise ?? null,
-            sunData?.sunset ?? null
-          );
-          if (!cancelled) {
-            setDayAreas(segments.dayAreas);
-            setNightAreas(segments.nightAreas);
-          }
-        } catch (_) {
-          if (!cancelled) {
-            setDayAreas([]);
-            setNightAreas([{ x1: 0, x2: hours }]);
-          }
-        }
-      } catch (e) {
-        console.error("Failed to load wind data", e);
+      } catch (_) {
         if (!cancelled) {
-          setChartData([]);
           setDayAreas([]);
-          setNightAreas([]);
+          setNightAreas([{ x1: 0, x2: hours }]);
         }
       }
     };
-    void load();
+
+    void hydrateShading();
 
     return () => {
       cancelled = true;
     };
-  }, [beachId, hours, date, getSunData]);
+  }, [beachId, getSunData, hours, windowStartMs]);
 
   const domainStart = 0;
   const domainEnd = hours;
@@ -334,7 +233,14 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
   const closeTo = (a: number, b: number, tolerance = 0.05) =>
     Math.abs(a - b) <= tolerance;
   const windTicks = useMemo(
-    () => buildYAxisTicks(chartData.map((d) => d.wind), 0, 6, 0.2, 10),
+    () =>
+      buildYAxisTicks(
+        chartData.map((d) => d.wind),
+        0,
+        6,
+        0.2,
+        10
+      ),
     [chartData]
   );
   const makeAreaShape = (
@@ -462,10 +368,7 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
           axisLine={false}
           tickMargin={8}
           fontSize={11}
-          domain={[
-            windTicks[0] ?? 0,
-            windTicks[windTicks.length - 1] ?? 20,
-          ]}
+          domain={[windTicks[0] ?? 0, windTicks[windTicks.length - 1] ?? 20]}
           ticks={windTicks}
         />
         <ChartTooltip
@@ -550,7 +453,7 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
               const dataPoint = chartData[props.index ?? 0];
               const direction = dataPoint?.direction ?? 0;
               const directionLabel = getWindDirection(direction);
-              // Arrow points at 315° by default, adjust rotation
+              // Arrow points at 315Â° by default, adjust rotation
               const rotation = direction - 315;
 
               // Calculate center point for rotation - position on top of bar
@@ -561,7 +464,7 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
                 <g>
                   <title>{`Wind Direction: ${directionLabel} (${Math.round(
                     direction
-                  )}°)`}</title>
+                  )}Â°)`}</title>
                   <g transform={`translate(${centerX}, ${centerY})`}>
                     <g transform={`rotate(${rotation}, 0, 0)`}>
                       <ArrowIcon
