@@ -38,7 +38,12 @@ import { buildYAxisTicks } from "@/components/graphs/yAxisTicks";
 import { useForecastWindowData } from "@/lib/hooks/useForecastWindow";
 import type { SharedSunSegments } from "./sharedSunSegments";
 
-type Props = { beachId?: string; hours?: number; date?: Date; sunSegments?: SharedSunSegments };
+type Props = {
+  beachId?: string;
+  hours?: number;
+  date?: Date;
+  sunSegments?: SharedSunSegments;
+};
 const chartConfig = {
   wind: {
     label: "Wind (mph)",
@@ -178,7 +183,12 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   }, []);
 
   useEffect(() => {
-    if (sunSegments && (sunSegments.dayAreas?.length || sunSegments.sunrise || sunSegments.sunset)) {
+    if (
+      sunSegments &&
+      (sunSegments.dayAreas?.length ||
+        sunSegments.sunrise ||
+        sunSegments.sunset)
+    ) {
       setDayAreas(sunSegments.dayAreas ?? []);
       setNightAreas(sunSegments.nightAreas ?? []);
       return;
@@ -442,6 +452,9 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           stroke="#0000006e"
           strokeWidth={0.5}
           minPointSize={15}
+          isAnimationActive={false}
+          animationDuration={0}
+          animationBegin={0}
         >
           <LabelList
             dataKey="wind"

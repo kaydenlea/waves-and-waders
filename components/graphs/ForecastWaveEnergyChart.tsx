@@ -33,9 +33,7 @@ import {
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
-import {
-  fetchBeachByIdLoose,
-} from "@/lib/supabase";
+import { fetchBeachByIdLoose } from "@/lib/supabase";
 import { cn, getPacificMidnightUTC } from "@/lib/utils";
 import { getForecastCached } from "@/lib/dataCache";
 import { useDateContext } from "@/components/context/DateContext";
@@ -603,20 +601,23 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
   // Hover sync handlers
   const lastHoveredRef = React.useRef<number | null>(null);
 
-  const handleMouseMove = React.useCallback((e: any) => {
-    if (e && e.activeLabel !== undefined) {
-      const hour = Number(e.activeLabel);
-      if (!isNaN(hour)) {
-        // Round to nearest 3-hour increment
-        const roundedHour = Math.round(hour / 3) * 3;
+  const handleMouseMove = React.useCallback(
+    (e: any) => {
+      if (e && e.activeLabel !== undefined) {
+        const hour = Number(e.activeLabel);
+        if (!isNaN(hour)) {
+          // Round to nearest 3-hour increment
+          const roundedHour = Math.round(hour / 3) * 3;
 
-        if (lastHoveredRef.current !== roundedHour) {
-          lastHoveredRef.current = roundedHour;
-          setHoveredHour(roundedHour);
+          if (lastHoveredRef.current !== roundedHour) {
+            lastHoveredRef.current = roundedHour;
+            setHoveredHour(roundedHour);
+          }
         }
       }
-    }
-  }, [setHoveredHour]);
+    },
+    [setHoveredHour]
+  );
 
   const handleMouseLeave = React.useCallback(() => {
     lastHoveredRef.current = null;
@@ -762,134 +763,149 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
                 onMouseMove={handleMouseMove}
                 onMouseLeave={handleMouseLeave}
               >
-              {/* vertical boundaries every day */}
-              {Array.from({ length: totalFetchedDays + 1 }, (_, i) => {
-                if (i !== 0 && i !== totalFetchedDays) {
-                  return (
-                    <ReferenceLine
-                      key={`boundary-${i}`}
-                      x={i * 24}
-                      stroke="var(--foreground)"
-                      strokeOpacity={0.25}
-                      strokeWidth={0.5}
-                    />
-                  );
-                }
-              })}
-              {dayAreas.map((a, idx) => (
-                <ReferenceArea
-                  key={`day-${idx}`}
-                  x1={a.x1}
-                  x2={a.x2}
-                  fill="#FFE58F"
-                  fillOpacity={0.18}
-                  ifOverflow="extendDomain"
-                />
-              ))}
-              {nightAreas.map((a, idx) => (
-                <ReferenceArea
-                  key={`night-${idx}`}
-                  x1={idx === 0 ? undefined : a.x1}
-                  x2={idx === nightAreas.length - 1 ? undefined : a.x2}
-                  fill="#ccc1ffff"
-                  fillOpacity={0.12}
-                  ifOverflow="extendDomain"
-                />
-              ))}
+                {/* vertical boundaries every day */}
+                {Array.from({ length: totalFetchedDays + 1 }, (_, i) => {
+                  if (i !== 0 && i !== totalFetchedDays) {
+                    return (
+                      <ReferenceLine
+                        key={`boundary-${i}`}
+                        x={i * 24}
+                        stroke="var(--foreground)"
+                        strokeOpacity={0.25}
+                        strokeWidth={0.5}
+                      />
+                    );
+                  }
+                })}
+                {dayAreas.map((a, idx) => (
+                  <ReferenceArea
+                    key={`day-${idx}`}
+                    x1={a.x1}
+                    x2={a.x2}
+                    fill="#FFE58F"
+                    fillOpacity={0.18}
+                    ifOverflow="extendDomain"
+                  />
+                ))}
+                {nightAreas.map((a, idx) => (
+                  <ReferenceArea
+                    key={`night-${idx}`}
+                    x1={idx === 0 ? undefined : a.x1}
+                    x2={idx === nightAreas.length - 1 ? undefined : a.x2}
+                    fill="#ccc1ffff"
+                    fillOpacity={0.12}
+                    ifOverflow="extendDomain"
+                  />
+                ))}
 
-              <XAxis
-                dataKey="hour"
-                type="number"
-                tickLine={false}
-                axisLine={false}
-                tickMargin={8}
-                minTickGap={0}
-                fontSize={11}
-                domain={[0, totalFetchedDays * 24]}
-                ticks={hourTicks}
-                tickFormatter={(v: number) =>
-                  v % 3 === 0 ? String(v % 12 === 0 ? 12 : v % 12) : ""
-                }
-              />
-              <ChartTooltip content={<ChartTooltipContent />} cursor={{ stroke: 'var(--foreground)', strokeWidth: 1, strokeDasharray: '3 3', strokeOpacity: 0.5 }} />
-              {/* Selected hour marker */}
-              {(() => {
-                try {
-                  const base = days && days.length > 0 ? days[0] : null;
-                  if (!base || !selectedDate) return null;
-                  const baseMid = new Date(
-                    base.getFullYear(),
-                    base.getMonth(),
-                    base.getDate()
-                  ).getTime();
-                  const selMid = new Date(
-                    selectedDate.getFullYear(),
-                    selectedDate.getMonth(),
-                    selectedDate.getDate()
-                  ).getTime();
-                  const dayDelta = Math.floor(
-                    (selMid - baseMid) / (24 * 3600 * 1000)
-                  );
-                  const x = dayDelta * 24 + (selectedHour ?? 0);
-                  if (x < 0 || x > totalFetchedDays * 24) return null;
-                  return (
-                    <ReferenceLine
-                      x={x}
-                      stroke="var(--foreground)"
-                      strokeDasharray="3 3"
-                    />
-                  );
-                } catch {
-                  return null;
-                }
-              })()}
-              {/* Hover indicator line */}
-              <HoverReferenceLine
-                days={days}
-                selectedDate={selectedDate}
-                selectedHour={selectedHour}
-              />
-              <YAxis
-                dataKey="energy"
-                tickLine={false}
-                axisLine={false}
-                tickMargin={8}
-                fontSize={11}
-                domain={[
-                  0,
-                  (dataMax: number) =>
-                    Math.max(Math.round(Math.ceil(dataMax) * 1.5), 8),
-                ]}
-              />
-              <ChartTooltip
-                content={<ChartTooltipContent />}
-                cursor={{ stroke: 'var(--foreground)', strokeWidth: 1, strokeDasharray: '3 3', strokeOpacity: 0.5 }}
-                animationDuration={0}
-                isAnimationActive={false}
-              />
-              <defs>
-                <linearGradient id="splitColor" x1="0" y1="0" x2="1" y2="0">
-                  {stops.map((s, i) => (
-                    <stop
-                      key={i}
-                      offset={s.offset}
-                      stopColor={s.color}
-                      stopOpacity={0.8}
-                    />
-                  ))}
-                </linearGradient>
-              </defs>
-              <Area
-                type="monotone"
-                dataKey="energy"
-                stackId="1"
-                stroke="#818181ff"
-                fill="url(#splitColor)"
-                fillOpacity={1}
-                isAnimationActive={false}
-              />
-            </AreaChart>
-          </ChartContainer>
+                <XAxis
+                  dataKey="hour"
+                  type="number"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  minTickGap={0}
+                  fontSize={11}
+                  domain={[0, totalFetchedDays * 24]}
+                  ticks={hourTicks}
+                  tickFormatter={(v: number) =>
+                    v % 3 === 0 ? String(v % 12 === 0 ? 12 : v % 12) : ""
+                  }
+                />
+                <ChartTooltip
+                  content={<ChartTooltipContent />}
+                  cursor={{
+                    stroke: "var(--foreground)",
+                    strokeWidth: 1,
+                    strokeDasharray: "3 3",
+                    strokeOpacity: 0.5,
+                  }}
+                />
+                {/* Selected hour marker */}
+                {(() => {
+                  try {
+                    const base = days && days.length > 0 ? days[0] : null;
+                    if (!base || !selectedDate) return null;
+                    const baseMid = new Date(
+                      base.getFullYear(),
+                      base.getMonth(),
+                      base.getDate()
+                    ).getTime();
+                    const selMid = new Date(
+                      selectedDate.getFullYear(),
+                      selectedDate.getMonth(),
+                      selectedDate.getDate()
+                    ).getTime();
+                    const dayDelta = Math.floor(
+                      (selMid - baseMid) / (24 * 3600 * 1000)
+                    );
+                    const x = dayDelta * 24 + (selectedHour ?? 0);
+                    if (x < 0 || x > totalFetchedDays * 24) return null;
+                    return (
+                      <ReferenceLine
+                        x={x}
+                        stroke="var(--foreground)"
+                        strokeDasharray="3 3"
+                      />
+                    );
+                  } catch {
+                    return null;
+                  }
+                })()}
+                {/* Hover indicator line */}
+                <HoverReferenceLine
+                  days={days}
+                  selectedDate={selectedDate}
+                  selectedHour={selectedHour}
+                />
+                <YAxis
+                  dataKey="energy"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  fontSize={11}
+                  domain={[
+                    0,
+                    (dataMax: number) =>
+                      Math.max(Math.round(Math.ceil(dataMax) * 1.5), 8),
+                  ]}
+                />
+                <ChartTooltip
+                  content={<ChartTooltipContent />}
+                  cursor={{
+                    stroke: "var(--foreground)",
+                    strokeWidth: 1,
+                    strokeDasharray: "3 3",
+                    strokeOpacity: 0.5,
+                  }}
+                  animationDuration={0}
+                  isAnimationActive={false}
+                />
+                <defs>
+                  <linearGradient id="splitColor" x1="0" y1="0" x2="1" y2="0">
+                    {stops.map((s, i) => (
+                      <stop
+                        key={i}
+                        offset={s.offset}
+                        stopColor={s.color}
+                        stopOpacity={0.8}
+                      />
+                    ))}
+                  </linearGradient>
+                </defs>
+                <Area
+                  type="monotone"
+                  dataKey="energy"
+                  stackId="1"
+                  stroke="#818181ff"
+                  fill="url(#splitColor)"
+                  fillOpacity={1}
+                  isAnimationActive={false}
+                  animationDuration={0}
+                  animationBegin={0}
+                />
+              </AreaChart>
+            </ChartContainer>
           )}
         </div>
 

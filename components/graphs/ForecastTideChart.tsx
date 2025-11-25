@@ -36,7 +36,10 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import { cn } from "@/lib/utils";
-import { useDateContext, useHoveredHour } from "@/components/context/DateContext";
+import {
+  useDateContext,
+  useHoveredHour,
+} from "@/components/context/DateContext";
 import { useForecastChartContext } from "@/components/context/ForecastChartContext";
 import { useSunData } from "@/components/context/SunDataContext";
 
@@ -49,13 +52,21 @@ const MIN_DAY_PX = 275; // minimum pixels per day to keep UI usable on tiny scre
 type Props = { beachId?: string; date?: Date; days?: Date[] };
 type TidePoint = { hour: number; tide: number; isPeak?: number };
 
-export default React.memo(function ForecastTideChart({ beachId, date, days }: Props) {
+export default React.memo(function ForecastTideChart({
+  beachId,
+  date,
+  days,
+}: Props) {
   const { setPanFraction, subscribePan } = useForecastChartContext();
   const { getSunData } = useSunData();
   const myId = React.useId();
-  const { selected: selectedDate, hour: selectedHour, setHoveredHour } = useDateContext();
+  const {
+    selected: selectedDate,
+    hour: selectedHour,
+    setHoveredHour,
+  } = useDateContext();
   const hoveredHour = useHoveredHour();
-  
+
   // data loaded for FETCH_DAYS days (hours)
   const [data, setData] = useState<TidePoint[]>([]);
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
@@ -399,7 +410,11 @@ export default React.memo(function ForecastTideChart({ beachId, date, days }: Pr
         const points = await getTidesCached(String(id), new Date(startMs), end);
         let series: TidePoint[] = [];
         if (!points || points.length === 0) {
-          const rows = await getForecastCached(String(id), new Date(startMs), end);
+          const rows = await getForecastCached(
+            String(id),
+            new Date(startMs),
+            end
+          );
           series = rows.map((r) => ({
             hour: Math.round(
               (new Date(r.timestamp).getTime() - startMs) / (60 * 60 * 1000)
@@ -715,7 +730,6 @@ export default React.memo(function ForecastTideChart({ beachId, date, days }: Pr
         strokeWidth={1}
         strokeOpacity={0.5}
         strokeDasharray="5 5"
-        isAnimationActive={false}
       />
     );
   }, [hoveredHour]);
@@ -869,242 +883,243 @@ export default React.memo(function ForecastTideChart({ beachId, date, days }: Pr
                 onMouseMove={handleMouseMove}
                 onMouseLeave={handleMouseLeave}
               >
-              {dayAreas.map((a, idx) => (
-                <ReferenceArea
-                  key={`day-${idx}`}
-                  x1={a.x1}
-                  x2={a.x2}
-                  fill="#FFE58F"
-                  fillOpacity={0.18}
-                  ifOverflow="extendDomain"
-                />
-              ))}
-              {nightAreas.map((a, idx) => (
-                <ReferenceArea
-                  key={`night-${idx}`}
-                  x1={idx === 0 ? undefined : a.x1}
-                  x2={idx === nightAreas.length - 1 ? undefined : a.x2}
-                  fill="#ccc1ffff"
-                  fillOpacity={0.12}
-                  ifOverflow="extendDomain"
-                />
-              ))}
+                {dayAreas.map((a, idx) => (
+                  <ReferenceArea
+                    key={`day-${idx}`}
+                    x1={a.x1}
+                    x2={a.x2}
+                    fill="#FFE58F"
+                    fillOpacity={0.18}
+                    ifOverflow="extendDomain"
+                  />
+                ))}
+                {nightAreas.map((a, idx) => (
+                  <ReferenceArea
+                    key={`night-${idx}`}
+                    x1={idx === 0 ? undefined : a.x1}
+                    x2={idx === nightAreas.length - 1 ? undefined : a.x2}
+                    fill="#ccc1ffff"
+                    fillOpacity={0.12}
+                    ifOverflow="extendDomain"
+                  />
+                ))}
 
-              {/* vertical boundaries every day */}
-              {Array.from({ length: totalFetchedDays + 1 }, (_, i) => {
-                if (i !== 0 && i !== totalFetchedDays) {
-                  return (
-                    <ReferenceLine
-                      key={`boundary-${i}`}
-                      x={i * 24}
-                      stroke="var(--foreground)"
-                      strokeOpacity={0.25}
-                      strokeWidth={0.5}
-                    />
-                  );
-                }
-              })}
+                {/* vertical boundaries every day */}
+                {Array.from({ length: totalFetchedDays + 1 }, (_, i) => {
+                  if (i !== 0 && i !== totalFetchedDays) {
+                    return (
+                      <ReferenceLine
+                        key={`boundary-${i}`}
+                        x={i * 24}
+                        stroke="var(--foreground)"
+                        strokeOpacity={0.25}
+                        strokeWidth={0.5}
+                      />
+                    );
+                  }
+                })}
 
-              {/* <CartesianGrid
+                {/* <CartesianGrid
                 strokeDasharray="3 3"
                 stroke="var(--foreground)"
                 strokeWidth={0.08}
                 vertical={false}
               /> */}
-              <XAxis
-                dataKey="hour"
-                type="number"
-                tickLine={false}
-                axisLine={false}
-                tickMargin={8}
-                minTickGap={0}
-                fontSize={11}
-                domain={[0, totalFetchedDays * 24]}
-                ticks={hourTicks}
-                tickFormatter={(v: number) =>
-                  v % 3 === 0 ? String(v % 12 === 0 ? 12 : v % 12) : ""
-                }
-              />
-              <YAxis
-                dataKey="tide"
-                tickLine={false}
-                axisLine={false}
-                tickMargin={8}
-                fontSize={11}
-                domain={[
-                  (dataMin: number) =>
-                    Number.isFinite(dataMin) ? Math.floor(dataMin) - 4 : 0,
-                  (dataMax: number) =>
-                    Number.isFinite(dataMax)
-                      ? Math.max(Math.ceil(dataMax) + 4, 8)
-                      : 8,
-                ]}
-              />
-              {/* Selected hour marker */}
-              {(() => {
-                try {
-                  const base = days && days.length > 0 ? days[0] : null;
-                  if (!base || !selectedDate) return null;
-                  const baseMid = new Date(
-                    base.getFullYear(),
-                    base.getMonth(),
-                    base.getDate()
-                  ).getTime();
-                  const selMid = new Date(
-                    selectedDate.getFullYear(),
-                    selectedDate.getMonth(),
-                    selectedDate.getDate()
-                  ).getTime();
-                  const dayDelta = Math.floor(
-                    (selMid - baseMid) / (24 * 3600 * 1000)
-                  );
-                  const x = dayDelta * 24 + (selectedHour ?? 0);
-                  if (x < 0 || x > totalFetchedDays * 24) return null;
-                  return (
-                    <ReferenceLine
-                      x={x}
-                      stroke="var(--foreground)"
-                      strokeDasharray="3 3"
-                    />
-                  );
-                } catch {
-                  return null;
-                }
-              })()}
-              {/* Hover indicator line */}
-              {hoverLine}
-              <ChartTooltip
-                content={tooltipContent}
-                cursor={false}
-                animationDuration={0}
-                isAnimationActive={false}
-              />
-
-              <Line
-                dataKey="tide"
-                type="natural"
-                stroke="var(--color-tide)"
-                strokeWidth={2}
-                isAnimationActive={false}
-                animationDuration={0}
-                dot={({ payload, cx, cy }: any) => {
-                  const hour = payload.hour as number;
-                  // Exact match for sun markers (no duplicates)
-                  const sunMarker = sunMarkers.find((m) => m.hour === hour);
-                  if (sunMarker) {
-                    return (
-                      <circle
-                        key={hour}
-                        cx={cx}
-                        cy={cy}
-                        r={4}
-                        fill="orange"
-                        stroke="var(--color-tide)"
-                        strokeWidth={1}
-                      />
-                    );
-                  } else if (
-                    payload.isPeak !== undefined &&
-                    payload.isPeak !== null
-                  ) {
-                    const isLow =
-                      typeof payload.isPeak === "number" &&
-                      payload.isPeak <= (payload.tide ?? 0) &&
-                      payload.isPeak <= 0;
-                    return (
-                      <circle
-                        key={hour}
-                        cx={cx}
-                        cy={cy}
-                        r={3}
-                        fill={isLow ? "#ef4444" : "#22c55e"}
-                        stroke="var(--color-tide)"
-                        strokeWidth={1}
-                      />
-                    );
+                <XAxis
+                  dataKey="hour"
+                  type="number"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  minTickGap={0}
+                  fontSize={11}
+                  domain={[0, totalFetchedDays * 24]}
+                  ticks={hourTicks}
+                  tickFormatter={(v: number) =>
+                    v % 3 === 0 ? String(v % 12 === 0 ? 12 : v % 12) : ""
                   }
-                  return <g key={payload.hour} />;
-                }}
-              >
-                <LabelList
-                  dataKey="tide"
-                  content={(props: any) => {
-                    const safeX = typeof props.x === "number" ? props.x : 0;
-                    const hour = data[props.index ?? -1]?.hour;
-                    const marker = sunMarkers.find((m) => m.hour === hour);
-                    if (!marker) return null;
-
-                    const IconComponent =
-                      marker.type === "sunrise" ? Sunrise : Sunset;
-                    return (
-                      <g>
-                        <IconComponent
-                          size={18}
-                          x={safeX - 9}
-                          y={5}
-                          fill="#ff9946ff"
-                          color="var(--muted-foreground)"
-                        />
-                      </g>
-                    );
-                  }}
                 />
-                <LabelList
-                  dataKey="isPeak"
-                  content={(props: any) => {
-                    const safeX = typeof props.x === "number" ? props.x : 0;
-                    const safeY = typeof props.y === "number" ? props.y : 0;
-                    if (props.value && typeof props.index === "number") {
-                      const h = data[props.index]?.hour ?? 0;
-                      const wholeHour = Math.floor(h);
-                      const minutes = Math.round((h - wholeHour) * 60);
-                      const displayHour =
-                        wholeHour % 12 === 0 ? 12 : wholeHour % 12;
-                      const ampm = wholeHour % 24 >= 12 ? "PM" : "AM";
-                      // Format time as "8:30 AM" or "8 AM" if no minutes
-                      const lbl =
-                        minutes > 0
-                          ? `${displayHour}:${minutes
-                              .toString()
-                              .padStart(2, "0")} ${ampm}`
-                          : `${displayHour} ${ampm}`;
-                      // Round tide value to 1 decimal place
-                      const tideValue = Number(props.value).toFixed(1);
+                <YAxis
+                  dataKey="tide"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  fontSize={11}
+                  domain={[
+                    (dataMin: number) =>
+                      Number.isFinite(dataMin) ? Math.floor(dataMin) - 4 : 0,
+                    (dataMax: number) =>
+                      Number.isFinite(dataMax)
+                        ? Math.max(Math.ceil(dataMax) + 4, 8)
+                        : 8,
+                  ]}
+                />
+                {/* Selected hour marker */}
+                {(() => {
+                  try {
+                    const base = days && days.length > 0 ? days[0] : null;
+                    if (!base || !selectedDate) return null;
+                    const baseMid = new Date(
+                      base.getFullYear(),
+                      base.getMonth(),
+                      base.getDate()
+                    ).getTime();
+                    const selMid = new Date(
+                      selectedDate.getFullYear(),
+                      selectedDate.getMonth(),
+                      selectedDate.getDate()
+                    ).getTime();
+                    const dayDelta = Math.floor(
+                      (selMid - baseMid) / (24 * 3600 * 1000)
+                    );
+                    const x = dayDelta * 24 + (selectedHour ?? 0);
+                    if (x < 0 || x > totalFetchedDays * 24) return null;
+                    return (
+                      <ReferenceLine
+                        x={x}
+                        stroke="var(--foreground)"
+                        strokeDasharray="3 3"
+                      />
+                    );
+                  } catch {
+                    return null;
+                  }
+                })()}
+                {/* Hover indicator line */}
+                {hoverLine}
+                <ChartTooltip
+                  content={tooltipContent}
+                  cursor={false}
+                  animationDuration={0}
+                  isAnimationActive={false}
+                />
 
-                      // Get collision-adjusted offset
-                      const yOffset = labelPositions.get(props.index) ?? -32;
-
+                <Line
+                  dataKey="tide"
+                  type="natural"
+                  stroke="var(--color-tide)"
+                  strokeWidth={2}
+                  isAnimationActive={false}
+                  animationDuration={0}
+                  animationBegin={0}
+                  dot={({ payload, cx, cy }: any) => {
+                    const hour = payload.hour as number;
+                    // Exact match for sun markers (no duplicates)
+                    const sunMarker = sunMarkers.find((m) => m.hour === hour);
+                    if (sunMarker) {
                       return (
-                        <g>
-                          <text
-                            x={safeX}
-                            y={safeY + yOffset}
-                            fill="var(--foreground)"
-                            textAnchor="middle"
-                            dominantBaseline="middle"
-                            fontSize={10}
-                          >
-                            {lbl}
-                          </text>
-                          <text
-                            x={safeX}
-                            y={safeY + yOffset + 15}
-                            fill="var(--foreground)"
-                            textAnchor="middle"
-                            fontWeight="bold"
-                            fontSize={12}
-                          >
-                            {`${tideValue} ft`}
-                          </text>
-                        </g>
+                        <circle
+                          key={hour}
+                          cx={cx}
+                          cy={cy}
+                          r={4}
+                          fill="orange"
+                          stroke="var(--color-tide)"
+                          strokeWidth={1}
+                        />
+                      );
+                    } else if (
+                      payload.isPeak !== undefined &&
+                      payload.isPeak !== null
+                    ) {
+                      const isLow =
+                        typeof payload.isPeak === "number" &&
+                        payload.isPeak <= (payload.tide ?? 0) &&
+                        payload.isPeak <= 0;
+                      return (
+                        <circle
+                          key={hour}
+                          cx={cx}
+                          cy={cy}
+                          r={3}
+                          fill={isLow ? "#ef4444" : "#22c55e"}
+                          stroke="var(--color-tide)"
+                          strokeWidth={1}
+                        />
                       );
                     }
-                    return null;
+                    return <g key={payload.hour} />;
                   }}
-                />
-              </Line>
-            </LineChart>
-          </ChartContainer>
+                >
+                  <LabelList
+                    dataKey="tide"
+                    content={(props: any) => {
+                      const safeX = typeof props.x === "number" ? props.x : 0;
+                      const hour = data[props.index ?? -1]?.hour;
+                      const marker = sunMarkers.find((m) => m.hour === hour);
+                      if (!marker) return null;
+
+                      const IconComponent =
+                        marker.type === "sunrise" ? Sunrise : Sunset;
+                      return (
+                        <g>
+                          <IconComponent
+                            size={18}
+                            x={safeX - 9}
+                            y={5}
+                            fill="#ff9946ff"
+                            color="var(--muted-foreground)"
+                          />
+                        </g>
+                      );
+                    }}
+                  />
+                  <LabelList
+                    dataKey="isPeak"
+                    content={(props: any) => {
+                      const safeX = typeof props.x === "number" ? props.x : 0;
+                      const safeY = typeof props.y === "number" ? props.y : 0;
+                      if (props.value && typeof props.index === "number") {
+                        const h = data[props.index]?.hour ?? 0;
+                        const wholeHour = Math.floor(h);
+                        const minutes = Math.round((h - wholeHour) * 60);
+                        const displayHour =
+                          wholeHour % 12 === 0 ? 12 : wholeHour % 12;
+                        const ampm = wholeHour % 24 >= 12 ? "PM" : "AM";
+                        // Format time as "8:30 AM" or "8 AM" if no minutes
+                        const lbl =
+                          minutes > 0
+                            ? `${displayHour}:${minutes
+                                .toString()
+                                .padStart(2, "0")} ${ampm}`
+                            : `${displayHour} ${ampm}`;
+                        // Round tide value to 1 decimal place
+                        const tideValue = Number(props.value).toFixed(1);
+
+                        // Get collision-adjusted offset
+                        const yOffset = labelPositions.get(props.index) ?? -32;
+
+                        return (
+                          <g>
+                            <text
+                              x={safeX}
+                              y={safeY + yOffset}
+                              fill="var(--foreground)"
+                              textAnchor="middle"
+                              dominantBaseline="middle"
+                              fontSize={10}
+                            >
+                              {lbl}
+                            </text>
+                            <text
+                              x={safeX}
+                              y={safeY + yOffset + 15}
+                              fill="var(--foreground)"
+                              textAnchor="middle"
+                              fontWeight="bold"
+                              fontSize={12}
+                            >
+                              {`${tideValue} ft`}
+                            </text>
+                          </g>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                </Line>
+              </LineChart>
+            </ChartContainer>
           )}
         </div>
 

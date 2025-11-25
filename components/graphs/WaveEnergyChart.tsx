@@ -41,7 +41,12 @@ const chartConfig = {
   //   },
 } satisfies ChartConfig;
 
-type Props = { beachId?: string; hours?: number; date?: Date; sunSegments?: SharedSunSegments };
+type Props = {
+  beachId?: string;
+  hours?: number;
+  date?: Date;
+  sunSegments?: SharedSunSegments;
+};
 type EnergyPoint = { hour: number; energy: number };
 
 const HOURS_TO_MS = 60 * 60 * 1000;
@@ -131,7 +136,12 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   }, [beachId, forecastRows, hours, windowStartMs, placeholderSeries]);
 
   useEffect(() => {
-    if (sunSegments && (sunSegments.dayAreas?.length || sunSegments.sunrise || sunSegments.sunset)) {
+    if (
+      sunSegments &&
+      (sunSegments.dayAreas?.length ||
+        sunSegments.sunrise ||
+        sunSegments.sunset)
+    ) {
       setDayAreas(sunSegments.dayAreas ?? []);
       setNightAreas(sunSegments.nightAreas ?? []);
       return;
@@ -144,7 +154,10 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     let cancelled = false;
     const hydrateShading = async () => {
       try {
-        const sunData = await getSunData(String(beachId), new Date(windowStartMs));
+        const sunData = await getSunData(
+          String(beachId),
+          new Date(windowStartMs)
+        );
         const segments = buildSunSegments(
           hours,
           sunData?.sunrise ?? null,
@@ -293,6 +306,9 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           //   fill="#adf1ffff"
           fill="url(#splitColor)"
           fillOpacity={1}
+          isAnimationActive={false}
+          animationDuration={0}
+          animationBegin={0}
         />
         {/* Hour indicator line - rendered last so it appears on top */}
         <ReferenceLine

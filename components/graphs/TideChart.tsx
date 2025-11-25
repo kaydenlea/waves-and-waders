@@ -56,7 +56,12 @@ type TideChartProps = {
   hours?: number;
   chartData?: ExternalTidePoint[];
   date?: Date;
-  sunSegments?: { dayAreas: { x1: number; x2: number }[]; nightAreas: { x1: number; x2?: number }[]; sunrise?: string | null; sunset?: string | null };
+  sunSegments?: {
+    dayAreas: { x1: number; x2: number }[];
+    nightAreas: { x1: number; x2?: number }[];
+    sunrise?: string | null;
+    sunset?: string | null;
+  };
 };
 
 const formatTime = (timestamp: number) =>
@@ -285,8 +290,7 @@ const TideChart: React.FC<TideChartProps> = ({
         const resolved = await fetchBeachByIdLoose(beachId);
         const id = resolved?.id ?? beachId;
 
-        const baseDate =
-          date instanceof Date ? new Date(date) : new Date();
+        const baseDate = date instanceof Date ? new Date(date) : new Date();
         const startMs = resolveStartMs(baseDate);
         const startDate = new Date(startMs);
         const endDate = new Date(startMs + hours * HOURS_TO_MS);
@@ -345,12 +349,17 @@ const TideChart: React.FC<TideChartProps> = ({
     const hydrateShading = async () => {
       if (
         sunSegments &&
-        (sunSegments.dayAreas?.length || sunSegments.sunrise || sunSegments.sunset)
+        (sunSegments.dayAreas?.length ||
+          sunSegments.sunrise ||
+          sunSegments.sunset)
       ) {
         setDayAreas(sunSegments.dayAreas ?? []);
         setNightAreas(sunSegments.nightAreas ?? []);
         // build markers from provided sunrise/sunset if data present
-        if (chartData.length > 0 && (sunSegments.sunrise || sunSegments.sunset)) {
+        if (
+          chartData.length > 0 &&
+          (sunSegments.sunrise || sunSegments.sunset)
+        ) {
           const riseHourRaw = parseSunTimeToHour(sunSegments.sunrise ?? null);
           const setHourRaw = parseSunTimeToHour(sunSegments.sunset ?? null);
           const markers: { hour: number; type: "sunrise" | "sunset" }[] = [];
@@ -409,10 +418,7 @@ const TideChart: React.FC<TideChartProps> = ({
 
         const markers: { hour: number; type: "sunrise" | "sunset" }[] = [];
         if (chartData.length > 0) {
-          const pushClosest = (
-            target: number,
-            type: "sunrise" | "sunset"
-          ) => {
+          const pushClosest = (target: number, type: "sunrise" | "sunset") => {
             const closest = chartData.reduce((closestPoint, point) => {
               const currentDiff = Math.abs(point.hour - target);
               const closestDiff = Math.abs(closestPoint.hour - target);
@@ -598,6 +604,9 @@ const TideChart: React.FC<TideChartProps> = ({
           type="natural"
           stroke="var(--color-tide)"
           strokeWidth={2}
+          isAnimationActive={false}
+          animationDuration={0}
+          animationBegin={0}
           dot={({ payload, cx, cy }) => {
             const point = payload as TidePoint;
             // Check if this hour is a sun marker (sunrise/sunset)

@@ -52,7 +52,12 @@ import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
 import { useForecastWindowData } from "@/lib/hooks/useForecastWindow";
 import type { SharedSunSegments } from "./sharedSunSegments";
 
-type Props = { beachId?: string; hours?: number; date?: Date; sunSegments?: SharedSunSegments };
+type Props = {
+  beachId?: string;
+  hours?: number;
+  date?: Date;
+  sunSegments?: SharedSunSegments;
+};
 type Row = {
   time: number;
   primary: number;
@@ -172,7 +177,12 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   }, [beachId, forecastRows, hours, placeholderData]);
 
   useEffect(() => {
-    if (sunSegments && (sunSegments.dayAreas?.length || sunSegments.sunrise || sunSegments.sunset)) {
+    if (
+      sunSegments &&
+      (sunSegments.dayAreas?.length ||
+        sunSegments.sunrise ||
+        sunSegments.sunset)
+    ) {
       setDayAreas(sunSegments.dayAreas ?? []);
       setNightAreas(sunSegments.nightAreas ?? []);
       return;
@@ -186,7 +196,10 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
 
     const hydrateShading = async () => {
       try {
-        const sunData = await getSunData(String(beachId), new Date(windowStartMs));
+        const sunData = await getSunData(
+          String(beachId),
+          new Date(windowStartMs)
+        );
         const segments = buildSunSegments(
           hours,
           sunData?.sunrise ?? null,
@@ -359,6 +372,9 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           stroke="#023e8a"
           fill="#0077b6"
           fillOpacity={0.2}
+          isAnimationActive={false}
+          animationDuration={0}
+          animationBegin={0}
           dot={({ payload, cx, cy, index }) => {
             const iconSize = 15;
             const direction = payload.primaryDir ?? 0;
@@ -388,6 +404,9 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           stroke="#0096c7"
           fill="#48cae4"
           fillOpacity={0.2}
+          isAnimationActive={false}
+          animationDuration={0}
+          animationBegin={0}
           dot={({ payload, cx, cy, index }) => {
             const iconSize = 15;
             const direction = payload.secondaryDir ?? 0;
@@ -417,6 +436,9 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           stroke="#70ccebff"
           fill="#adf1ffff"
           fillOpacity={0.2}
+          isAnimationActive={false}
+          animationDuration={0}
+          animationBegin={0}
           dot={({ payload, cx, cy, index }) => {
             const iconSize = 15;
             const direction = payload.tertiaryDir ?? 0;

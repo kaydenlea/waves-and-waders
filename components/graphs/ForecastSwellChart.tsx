@@ -30,10 +30,7 @@ import {
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
-import {
-  fetchBeachByIdLoose,
-  getWindDirection,
-} from "@/lib/supabase";
+import { fetchBeachByIdLoose, getWindDirection } from "@/lib/supabase";
 import { cn, getPacificMidnightUTC } from "@/lib/utils";
 import { getForecastCached } from "@/lib/dataCache";
 import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
@@ -597,20 +594,23 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
   // Hover sync handlers
   const lastHoveredRef = React.useRef<number | null>(null);
 
-  const handleMouseMove = React.useCallback((e: any) => {
-    if (e && e.activeLabel !== undefined) {
-      const hour = Number(e.activeLabel);
-      if (!isNaN(hour)) {
-        // Round to nearest 3-hour increment
-        const roundedHour = Math.round(hour / 3) * 3;
+  const handleMouseMove = React.useCallback(
+    (e: any) => {
+      if (e && e.activeLabel !== undefined) {
+        const hour = Number(e.activeLabel);
+        if (!isNaN(hour)) {
+          // Round to nearest 3-hour increment
+          const roundedHour = Math.round(hour / 3) * 3;
 
-        if (lastHoveredRef.current !== roundedHour) {
-          lastHoveredRef.current = roundedHour;
-          setHoveredHour(roundedHour);
+          if (lastHoveredRef.current !== roundedHour) {
+            lastHoveredRef.current = roundedHour;
+            setHoveredHour(roundedHour);
+          }
         }
       }
-    }
-  }, [setHoveredHour]);
+    },
+    [setHoveredHour]
+  );
 
   const handleMouseLeave = React.useCallback(() => {
     lastHoveredRef.current = null;
@@ -752,239 +752,253 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                 onMouseMove={handleMouseMove}
                 onMouseLeave={handleMouseLeave}
               >
-              {/* vertical boundaries every day */}
-              {Array.from({ length: totalFetchedDays + 1 }, (_, i) => {
-                if (i !== 0 && i !== totalFetchedDays) {
-                  return (
-                    <ReferenceLine
-                      key={`boundary-${i}`}
-                      x={i * 24}
-                      stroke="var(--foreground)"
-                      strokeOpacity={0.25}
-                      strokeWidth={0.5}
-                    />
-                  );
-                }
-              })}
-              {dayAreas.map((a, idx) => (
-                <ReferenceArea
-                  key={`day-${idx}`}
-                  x1={a.x1}
-                  x2={a.x2}
-                  fill="#FFE58F"
-                  fillOpacity={0.2}
-                  ifOverflow="extendDomain"
+                {/* vertical boundaries every day */}
+                {Array.from({ length: totalFetchedDays + 1 }, (_, i) => {
+                  if (i !== 0 && i !== totalFetchedDays) {
+                    return (
+                      <ReferenceLine
+                        key={`boundary-${i}`}
+                        x={i * 24}
+                        stroke="var(--foreground)"
+                        strokeOpacity={0.25}
+                        strokeWidth={0.5}
+                      />
+                    );
+                  }
+                })}
+                {dayAreas.map((a, idx) => (
+                  <ReferenceArea
+                    key={`day-${idx}`}
+                    x1={a.x1}
+                    x2={a.x2}
+                    fill="#FFE58F"
+                    fillOpacity={0.2}
+                    ifOverflow="extendDomain"
+                  />
+                ))}
+                {nightAreas.map((a, idx) => (
+                  <ReferenceArea
+                    key={`night-${idx}`}
+                    x1={idx === 0 ? undefined : a.x1}
+                    x2={idx === nightAreas.length - 1 ? undefined : a.x2}
+                    fill="#ccc1ffff"
+                    fillOpacity={0.2}
+                    ifOverflow="extendDomain"
+                  />
+                ))}
+                <XAxis
+                  dataKey="hour"
+                  type="number"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  minTickGap={0}
+                  fontSize={11}
+                  domain={[0, totalFetchedDays * 24]}
+                  ticks={hourTicks}
+                  tickFormatter={(v: number) =>
+                    v % 3 === 0 ? String(v % 12 === 0 ? 12 : v % 12) : ""
+                  }
                 />
-              ))}
-              {nightAreas.map((a, idx) => (
-                <ReferenceArea
-                  key={`night-${idx}`}
-                  x1={idx === 0 ? undefined : a.x1}
-                  x2={idx === nightAreas.length - 1 ? undefined : a.x2}
-                  fill="#ccc1ffff"
-                  fillOpacity={0.2}
-                  ifOverflow="extendDomain"
+                {/* Selected hour marker */}
+                {(() => {
+                  try {
+                    const base = days && days.length > 0 ? days[0] : null;
+                    if (!base || !selectedDate) return null;
+                    const baseMid = new Date(
+                      base.getFullYear(),
+                      base.getMonth(),
+                      base.getDate()
+                    ).getTime();
+                    const selMid = new Date(
+                      selectedDate.getFullYear(),
+                      selectedDate.getMonth(),
+                      selectedDate.getDate()
+                    ).getTime();
+                    const dayDelta = Math.floor(
+                      (selMid - baseMid) / (24 * 3600 * 1000)
+                    );
+                    const x = dayDelta * 24 + (selectedHour ?? 0);
+                    if (x < 0 || x > totalFetchedDays * 24) return null;
+                    return (
+                      <ReferenceLine
+                        x={x}
+                        stroke="var(--foreground)"
+                        strokeDasharray="3 3"
+                      />
+                    );
+                  } catch {
+                    return null;
+                  }
+                })()}
+                {/* Hover indicator line */}
+                <HoverReferenceLine
+                  days={days}
+                  selectedDate={selectedDate}
+                  selectedHour={selectedHour}
                 />
-              ))}
-              <XAxis
-                dataKey="hour"
-                type="number"
-                tickLine={false}
-                axisLine={false}
-                tickMargin={8}
-                minTickGap={0}
-                fontSize={11}
-                domain={[0, totalFetchedDays * 24]}
-                ticks={hourTicks}
-                tickFormatter={(v: number) =>
-                  v % 3 === 0 ? String(v % 12 === 0 ? 12 : v % 12) : ""
-                }
-              />
-              {/* Selected hour marker */}
-              {(() => {
-                try {
-                  const base = days && days.length > 0 ? days[0] : null;
-                  if (!base || !selectedDate) return null;
-                  const baseMid = new Date(
-                    base.getFullYear(),
-                    base.getMonth(),
-                    base.getDate()
-                  ).getTime();
-                  const selMid = new Date(
-                    selectedDate.getFullYear(),
-                    selectedDate.getMonth(),
-                    selectedDate.getDate()
-                  ).getTime();
-                  const dayDelta = Math.floor(
-                    (selMid - baseMid) / (24 * 3600 * 1000)
-                  );
-                  const x = dayDelta * 24 + (selectedHour ?? 0);
-                  if (x < 0 || x > totalFetchedDays * 24) return null;
-                  return (
-                    <ReferenceLine
-                      x={x}
-                      stroke="var(--foreground)"
-                      strokeDasharray="3 3"
-                    />
-                  );
-                } catch {
-                  return null;
-                }
-              })()}
-              {/* Hover indicator line */}
-              <HoverReferenceLine
-                days={days}
-                selectedDate={selectedDate}
-                selectedHour={selectedHour}
-              />
-              <YAxis
-                allowDecimals={false}
-                tickLine={false}
-                axisLine={false}
-                tickMargin={8}
-                fontSize={11}
-                domain={[0, (dataMax: number) => Math.ceil(dataMax + 2)]}
-              />
-              {/* <ChartLegend content={<ChartLegendContent />} /> */}
-              <ChartTooltip
-                content={({ active, payload }) => {
-                  if (!active || !payload || payload.length === 0) return null;
+                <YAxis
+                  allowDecimals={false}
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  fontSize={11}
+                  domain={[0, (dataMax: number) => Math.ceil(dataMax + 2)]}
+                />
+                {/* <ChartLegend content={<ChartLegendContent />} /> */}
+                <ChartTooltip
+                  content={({ active, payload }) => {
+                    if (!active || !payload || payload.length === 0)
+                      return null;
 
-                  const data = payload[0].payload;
+                    const data = payload[0].payload;
 
-                  return (
-                    <div className="rounded-lg border bg-background p-2 shadow-sm">
-                      <div className="grid gap-2">
-                        {payload.map((entry, index) => {
-                          const dirKey =
-                            `${entry.dataKey}Dir` as keyof SwellPoint;
-                          const direction = data[dirKey] as number | undefined;
-                          const dirLabel =
-                            direction != null
-                              ? getWindDirection(direction)
-                              : "N/A";
+                    return (
+                      <div className="rounded-lg border bg-background p-2 shadow-sm">
+                        <div className="grid gap-2">
+                          {payload.map((entry, index) => {
+                            const dirKey =
+                              `${entry.dataKey}Dir` as keyof SwellPoint;
+                            const direction = data[dirKey] as
+                              | number
+                              | undefined;
+                            const dirLabel =
+                              direction != null
+                                ? getWindDirection(direction)
+                                : "N/A";
 
-                          return (
-                            <div key={index} className="flex flex-col">
-                              <span className="text-[0.70rem] uppercase text-muted-foreground">
-                                {entry.name}
-                              </span>
-                              <span
-                                className="font-bold"
-                                style={{ color: entry.color }}
-                              >
-                                {typeof entry.value === "number"
-                                  ? entry.value.toFixed(1)
-                                  : entry.value}{" "}
-                                ft
-                              </span>
-                              {direction != null && (
-                                <span className="text-[0.65rem] text-muted-foreground">
-                                  {dirLabel} ({Math.round(direction)}°)
+                            return (
+                              <div key={index} className="flex flex-col">
+                                <span className="text-[0.70rem] uppercase text-muted-foreground">
+                                  {entry.name}
                                 </span>
-                              )}
-                            </div>
-                          );
-                        })}
+                                <span
+                                  className="font-bold"
+                                  style={{ color: entry.color }}
+                                >
+                                  {typeof entry.value === "number"
+                                    ? entry.value.toFixed(1)
+                                    : entry.value}{" "}
+                                  ft
+                                </span>
+                                {direction != null && (
+                                  <span className="text-[0.65rem] text-muted-foreground">
+                                    {dirLabel} ({Math.round(direction)}°)
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  );
-                }}
-                cursor={{ stroke: 'var(--foreground)', strokeWidth: 1, strokeDasharray: '3 3', strokeOpacity: 0.5 }}
-                animationDuration={0}
-                isAnimationActive={false}
-              />
+                    );
+                  }}
+                  cursor={{
+                    stroke: "var(--foreground)",
+                    strokeWidth: 1,
+                    strokeDasharray: "3 3",
+                    strokeOpacity: 0.5,
+                  }}
+                  animationDuration={0}
+                  isAnimationActive={false}
+                />
 
-              <Area
-                type="monotone"
-                dataKey="primary"
-                activeDot={false}
-                stroke="#023e8a"
-                fill="#0077b6"
-                fillOpacity={0.2}
-                isAnimationActive={false}
-                dot={({ payload, cx, cy, index }) => {
-                  const iconSize = 15;
-                  const direction = payload.primaryDir ?? 0;
-                  const rotation = direction - 315;
+                <Area
+                  type="monotone"
+                  dataKey="primary"
+                  activeDot={false}
+                  stroke="#023e8a"
+                  fill="#0077b6"
+                  fillOpacity={0.2}
+                  isAnimationActive={false}
+                  animationDuration={0}
+                  animationBegin={0}
+                  dot={({ payload, cx, cy, index }) => {
+                    const iconSize = 15;
+                    const direction = payload.primaryDir ?? 0;
+                    const rotation = direction - 315;
 
-                  return (
-                    <g key={`primary-${index}`}>
-                      <g transform={`translate(${cx}, ${cy})`}>
-                        <g transform={`rotate(${rotation}, 0, 0)`}>
-                          <ArrowIcon
-                            size={iconSize}
-                            x={-iconSize / 2}
-                            y={-iconSize / 2}
-                            fill="var(--swell-primary)"
-                            color="var(--color-highlight-2)"
-                          />
+                    return (
+                      <g key={`primary-${index}`}>
+                        <g transform={`translate(${cx}, ${cy})`}>
+                          <g transform={`rotate(${rotation}, 0, 0)`}>
+                            <ArrowIcon
+                              size={iconSize}
+                              x={-iconSize / 2}
+                              y={-iconSize / 2}
+                              fill="var(--swell-primary)"
+                              color="var(--color-highlight-2)"
+                            />
+                          </g>
                         </g>
                       </g>
-                    </g>
-                  );
-                }}
-              />
-              <Area
-                type="monotone"
-                dataKey="secondary"
-                activeDot={false}
-                stroke="#0096c7"
-                fill="#48cae4"
-                fillOpacity={0.2}
-                isAnimationActive={false}
-                dot={({ payload, cx, cy, index }) => {
-                  const iconSize = 15;
-                  const direction = payload.secondaryDir ?? 0;
-                  const rotation = direction - 315;
+                    );
+                  }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="secondary"
+                  activeDot={false}
+                  stroke="#0096c7"
+                  fill="#48cae4"
+                  fillOpacity={0.2}
+                  isAnimationActive={false}
+                  animationDuration={0}
+                  animationBegin={0}
+                  dot={({ payload, cx, cy, index }) => {
+                    const iconSize = 15;
+                    const direction = payload.secondaryDir ?? 0;
+                    const rotation = direction - 315;
 
-                  return (
-                    <g key={`secondary-${index}`}>
-                      <g transform={`translate(${cx}, ${cy})`}>
-                        <g transform={`rotate(${rotation}, 0, 0)`}>
-                          <ArrowIcon
-                            size={iconSize}
-                            x={-iconSize / 2}
-                            y={-iconSize / 2}
-                            fill="var(--swell-primary)"
-                            color="var(--color-highlight-2)"
-                          />
+                    return (
+                      <g key={`secondary-${index}`}>
+                        <g transform={`translate(${cx}, ${cy})`}>
+                          <g transform={`rotate(${rotation}, 0, 0)`}>
+                            <ArrowIcon
+                              size={iconSize}
+                              x={-iconSize / 2}
+                              y={-iconSize / 2}
+                              fill="var(--swell-primary)"
+                              color="var(--color-highlight-2)"
+                            />
+                          </g>
                         </g>
                       </g>
-                    </g>
-                  );
-                }}
-              />
-              <Area
-                type="monotone"
-                dataKey="tertiary"
-                activeDot={false}
-                stroke="#70ccebff"
-                fill="#adf1ffff"
-                fillOpacity={0.2}
-                isAnimationActive={false}
-                dot={({ payload, cx, cy, index }) => {
-                  const iconSize = 15;
-                  const direction = payload.tertiaryDir ?? 0;
-                  const rotation = direction - 315;
+                    );
+                  }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="tertiary"
+                  activeDot={false}
+                  stroke="#70ccebff"
+                  fill="#adf1ffff"
+                  fillOpacity={0.2}
+                  isAnimationActive={false}
+                  animationDuration={0}
+                  animationBegin={0}
+                  dot={({ payload, cx, cy, index }) => {
+                    const iconSize = 15;
+                    const direction = payload.tertiaryDir ?? 0;
+                    const rotation = direction - 315;
 
-                  return (
-                    <g key={`tertiary-${index}`}>
-                      <g transform={`translate(${cx}, ${cy})`}>
-                        <g transform={`rotate(${rotation}, 0, 0)`}>
-                          <ArrowIcon
-                            size={iconSize}
-                            x={-iconSize / 2}
-                            y={-iconSize / 2}
-                            fill="var(--swell-primary)"
-                            color="var(--color-highlight-2)"
-                          />
+                    return (
+                      <g key={`tertiary-${index}`}>
+                        <g transform={`translate(${cx}, ${cy})`}>
+                          <g transform={`rotate(${rotation}, 0, 0)`}>
+                            <ArrowIcon
+                              size={iconSize}
+                              x={-iconSize / 2}
+                              y={-iconSize / 2}
+                              fill="var(--swell-primary)"
+                              color="var(--color-highlight-2)"
+                            />
+                          </g>
                         </g>
                       </g>
-                    </g>
-                  );
-                }}
-              />
+                    );
+                  }}
+                />
               </AreaChart>
             </ChartContainer>
           )}

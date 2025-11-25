@@ -118,7 +118,14 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
     return (axisPadding / chartInnerWidth) * hoursSpan;
   }, [axisPadding, chartInnerWidth, hoursSpan]);
   const windTicks = useMemo(
-    () => buildYAxisTicks(windData.map((d) => d.wind), 0, 6, 0.2, 10),
+    () =>
+      buildYAxisTicks(
+        windData.map((d) => d.wind),
+        0,
+        6,
+        0.2,
+        10
+      ),
     [windData]
   );
 
@@ -935,97 +942,99 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
                   strokeWidth={0.5}
                   minPointSize={15}
                   isAnimationActive={false}
+                  animationDuration={0}
+                  animationBegin={0}
                 >
-                <LabelList
-                  dataKey="wind"
-                  position="top"
-                  content={(props: LabelProps) => {
-                    const safeX = typeof props.x === "number" ? props.x : 0;
-                    const safeY = typeof props.y === "number" ? props.y : 0;
-                    const safeWidth =
-                      typeof props.width === "number" ? props.width : 0;
-                    const iconSize = Math.min(20, safeWidth * 0.8);
+                  <LabelList
+                    dataKey="wind"
+                    position="top"
+                    content={(props: LabelProps) => {
+                      const safeX = typeof props.x === "number" ? props.x : 0;
+                      const safeY = typeof props.y === "number" ? props.y : 0;
+                      const safeWidth =
+                        typeof props.width === "number" ? props.width : 0;
+                      const iconSize = Math.min(20, safeWidth * 0.8);
 
-                    const dataPoint = windData[props.index ?? 0];
-                    if (!dataPoint) return null;
-                    const direction = dataPoint?.direction ?? 0;
-                    const directionLabel = getWindDirection(direction);
-                    const rotation = direction - 315;
+                      const dataPoint = windData[props.index ?? 0];
+                      if (!dataPoint) return null;
+                      const direction = dataPoint?.direction ?? 0;
+                      const directionLabel = getWindDirection(direction);
+                      const rotation = direction - 315;
 
-                    const centerX = safeX + safeWidth / 2;
-                    const centerY = safeY - iconSize / 2 - 7;
+                      const centerX = safeX + safeWidth / 2;
+                      const centerY = safeY - iconSize / 2 - 7;
 
-                    return (
-                      <g>
-                        <title>{`Wind Direction: ${directionLabel} (${Math.round(
-                          direction
-                        )}°)`}</title>
-                        <g transform={`translate(${centerX}, ${centerY})`}>
-                          <g transform={`rotate(${rotation}, 0, 0)`}>
-                            <ArrowIcon
-                              size={iconSize}
-                              x={-iconSize / 2}
-                              y={-iconSize / 2}
-                              // fill="#8bd668ff"
-                              // color="#8bd668ff"
-                              className="fill-foreground/20 text-foreground/50"
-                            />
-                          </g>
-                        </g>
-                      </g>
-                    );
-                  }}
-                />
-                <LabelList
-                  dataKey="wind"
-                  position="middle"
-                  content={(props: LabelProps) => {
-                    const safeX = typeof props.x === "number" ? props.x : 0;
-                    const safeY = typeof props.y === "number" ? props.y : 0;
-                    const safeWidth =
-                      typeof props.width === "number" ? props.width : 0;
-                    const safeHeight =
-                      typeof props.height === "number" ? props.height : 0;
-                    const fontSize = Math.max(10, safeWidth * 0.15);
-
-                    // Get color based on wind value
-                    const windValue =
-                      typeof props.value === "number" ? props.value : 0;
-                    const barColor = getWindColor(windValue);
-
-                    if (typeof props.value === "number") {
                       return (
                         <g>
-                          {/* Render the colored bar */}
-                          <rect
-                            x={safeX}
-                            y={safeY}
-                            width={safeWidth}
-                            height={safeHeight}
-                            fill={barColor}
-                            rx={4}
-                            stroke="#5f5f5fff"
-                            strokeWidth={0.5}
-                          />
-                          <text
-                            x={safeX + safeWidth / 2}
-                            y={safeY + safeHeight / 2 + fontSize / 3}
-                            fill="#2c2c2cff"
-                            textAnchor="middle"
-                            fontWeight="bold"
-                            fontSize={fontSize}
-                          >
-                            {`${Math.round(props.value)}`}
-                          </text>
+                          <title>{`Wind Direction: ${directionLabel} (${Math.round(
+                            direction
+                          )}°)`}</title>
+                          <g transform={`translate(${centerX}, ${centerY})`}>
+                            <g transform={`rotate(${rotation}, 0, 0)`}>
+                              <ArrowIcon
+                                size={iconSize}
+                                x={-iconSize / 2}
+                                y={-iconSize / 2}
+                                // fill="#8bd668ff"
+                                // color="#8bd668ff"
+                                className="fill-foreground/20 text-foreground/50"
+                              />
+                            </g>
+                          </g>
                         </g>
                       );
-                    }
-                  }}
-                  fill="black"
-                />
-              </Bar>
-            </BarChart>
-          </ChartContainer>
+                    }}
+                  />
+                  <LabelList
+                    dataKey="wind"
+                    position="middle"
+                    content={(props: LabelProps) => {
+                      const safeX = typeof props.x === "number" ? props.x : 0;
+                      const safeY = typeof props.y === "number" ? props.y : 0;
+                      const safeWidth =
+                        typeof props.width === "number" ? props.width : 0;
+                      const safeHeight =
+                        typeof props.height === "number" ? props.height : 0;
+                      const fontSize = Math.max(10, safeWidth * 0.15);
+
+                      // Get color based on wind value
+                      const windValue =
+                        typeof props.value === "number" ? props.value : 0;
+                      const barColor = getWindColor(windValue);
+
+                      if (typeof props.value === "number") {
+                        return (
+                          <g>
+                            {/* Render the colored bar */}
+                            <rect
+                              x={safeX}
+                              y={safeY}
+                              width={safeWidth}
+                              height={safeHeight}
+                              fill={barColor}
+                              rx={4}
+                              stroke="#5f5f5fff"
+                              strokeWidth={0.5}
+                            />
+                            <text
+                              x={safeX + safeWidth / 2}
+                              y={safeY + safeHeight / 2 + fontSize / 3}
+                              fill="#2c2c2cff"
+                              textAnchor="middle"
+                              fontWeight="bold"
+                              fontSize={fontSize}
+                            >
+                              {`${Math.round(props.value)}`}
+                            </text>
+                          </g>
+                        );
+                      }
+                    }}
+                    fill="black"
+                  />
+                </Bar>
+              </BarChart>
+            </ChartContainer>
           )}
         </div>
 

@@ -1006,6 +1006,8 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                   strokeWidth={0.5}
                   minPointSize={15}
                   isAnimationActive={false}
+                  animationDuration={0}
+                  animationBegin={0}
                 >
                   <LabelList
                     dataKey="surf"

@@ -33,7 +33,12 @@ import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
 import { buildYAxisTicks } from "@/components/graphs/yAxisTicks";
 import type { SharedSunSegments } from "./sharedSunSegments";
 
-type Props = { beachId?: string; hours?: number; date?: Date; sunSegments?: SharedSunSegments };
+type Props = {
+  beachId?: string;
+  hours?: number;
+  date?: Date;
+  sunSegments?: SharedSunSegments;
+};
 type Row = {
   hour: number;
   surf: number;
@@ -259,7 +264,12 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   const windowStartMs = windowStart.getTime();
 
   useEffect(() => {
-    if (sunSegments && (sunSegments.dayAreas?.length || sunSegments.sunrise || sunSegments.sunset)) {
+    if (
+      sunSegments &&
+      (sunSegments.dayAreas?.length ||
+        sunSegments.sunrise ||
+        sunSegments.sunset)
+    ) {
       setDayAreas(sunSegments.dayAreas ?? []);
       setNightAreas(sunSegments.nightAreas ?? []);
       return;
@@ -273,7 +283,10 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
 
     const hydrateShading = async () => {
       try {
-        const sunData = await getSunData(String(beachId), new Date(windowStartMs));
+        const sunData = await getSunData(
+          String(beachId),
+          new Date(windowStartMs)
+        );
         const segments = buildSunSegments(
           hours,
           sunData?.sunrise ?? null,
@@ -301,7 +314,14 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   const domainStart = 0;
   const domainEnd = hours;
   const surfTicks = useMemo(
-    () => buildYAxisTicks(chartData.map((d) => d.surf), 0, 6, 0.2, 5),
+    () =>
+      buildYAxisTicks(
+        chartData.map((d) => d.surf),
+        0,
+        6,
+        0.2,
+        5
+      ),
     [chartData]
   );
 
@@ -456,10 +476,7 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           axisLine={false}
           tickMargin={8}
           fontSize={11}
-          domain={[
-            surfTicks[0] ?? 0,
-            surfTicks[surfTicks.length - 1] ?? 6,
-          ]}
+          domain={[surfTicks[0] ?? 0, surfTicks[surfTicks.length - 1] ?? 6]}
           ticks={surfTicks}
         />
         <ChartTooltip
@@ -497,6 +514,9 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           stroke="#0000006e"
           strokeWidth={0.5}
           minPointSize={15}
+          isAnimationActive={false}
+          animationDuration={0}
+          animationBegin={0}
         >
           <LabelList
             dataKey="surf"
