@@ -42,6 +42,8 @@ import SurfIntensityMarker from "./SurfIntensityMarker";
 import { ForecastDataProvider } from "../context/ForecastDataContext";
 import { useTideWindowData } from "@/lib/hooks/useTideWindow";
 import { TideDataProvider } from "../context/TideDataContext";
+import { buildSunSegments } from "@/components/graphs/sunSegments";
+import type { SharedSunSegments } from "@/components/graphs/sharedSunSegments";
 
 type Props = {
   beachId: string;
@@ -247,17 +249,77 @@ const DateSummaryBridge: React.FC<Props> = ({
     return { start, end };
   }, [selected]);
   const statsStartMs = statsRange.start.getTime();
-  const { prefetchSunData } = useSunData();
+  const { prefetchSunData, getSunData } = useSunData();
   React.useEffect(() => {
     if (!beachId) return;
     void prefetchSunData(beachId, [new Date(statsStartMs)]);
   }, [beachId, statsStartMs, prefetchSunData]);
+
   const { data: forecastRows, loading: forecastLoading } = useCachedForecast({
     beachId,
     start: statsRange.start,
     end: statsRange.end,
     enabled: Boolean(beachId),
   });
+
+  const [sharedSunSegments, setSharedSunSegments] =
+    React.useState<SharedSunSegments>({
+      dayAreas: [],
+      nightAreas: [],
+      sunrise: null,
+      sunset: null,
+      baseDate: null,
+    });
+
+  React.useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      if (!beachId) {
+        setSharedSunSegments({
+          dayAreas: [],
+          nightAreas: [],
+          sunrise: null,
+          sunset: null,
+          baseDate: null,
+        });
+        return;
+      }
+      const baseDate =
+        selected instanceof Date ? new Date(selected) : new Date();
+      try {
+        const sunData = await getSunData(String(beachId), baseDate);
+        const segments = buildSunSegments(
+          24,
+          sunData?.sunrise ?? null,
+          sunData?.sunset ?? null
+        );
+        if (!cancelled) {
+          setSharedSunSegments({
+            dayAreas: segments.dayAreas,
+            nightAreas: segments.nightAreas,
+            sunrise: sunData?.sunrise ?? null,
+            sunset: sunData?.sunset ?? null,
+            baseDate,
+          });
+        }
+      } catch {
+        if (!cancelled) {
+          setSharedSunSegments({
+            dayAreas: [],
+            nightAreas: [],
+            sunrise: null,
+            sunset: null,
+            baseDate,
+          });
+        }
+      }
+    };
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [beachId, getSunData, selected]);
+
   const tideWindow = useTideWindowData({
     beachId,
     date: selected ?? undefined,
@@ -555,7 +617,11 @@ const DateSummaryBridge: React.FC<Props> = ({
                 />
               }
             >
-              <LazyLoadTide beachId={beachId} date={selected ?? undefined} />
+              <LazyLoadTide
+                beachId={beachId}
+                date={selected ?? undefined}
+                sunSegments={sharedSunSegments}
+              />
             </VisualWrapper>
           );
         case "wind":
@@ -567,7 +633,11 @@ const DateSummaryBridge: React.FC<Props> = ({
                 <WindStatsHeader stats={windStats} />
               }
             >
-              <LazyLoadWind beachId={beachId} date={selected ?? undefined} />
+              <LazyLoadWind
+                beachId={beachId}
+                date={selected ?? undefined}
+                sunSegments={sharedSunSegments}
+              />
             </VisualWrapper>
           );
         case "swell":
@@ -579,7 +649,11 @@ const DateSummaryBridge: React.FC<Props> = ({
                 <SwellStatsHeader stats={swellStats} />
               }
             >
-              <LazyLoadSwell beachId={beachId} date={selected ?? undefined} />
+              <LazyLoadSwell
+                beachId={beachId}
+                date={selected ?? undefined}
+                sunSegments={sharedSunSegments}
+              />
             </VisualWrapper>
           );
         case "surf":
@@ -591,7 +665,11 @@ const DateSummaryBridge: React.FC<Props> = ({
                 <SurfStatsHeader stats={surfStats} />
               }
             >
-              <LazyLoadSurf beachId={beachId} date={selected ?? undefined} />
+              <LazyLoadSurf
+                beachId={beachId}
+                date={selected ?? undefined}
+                sunSegments={sharedSunSegments}
+              />
             </VisualWrapper>
           );
         case "energy":
@@ -603,7 +681,11 @@ const DateSummaryBridge: React.FC<Props> = ({
                 <WaveEnergyStatsHeader stats={energyStats} />
               }
             >
-              <LazyLoadEnergy beachId={beachId} date={selected ?? undefined} />
+              <LazyLoadEnergy
+                beachId={beachId}
+                date={selected ?? undefined}
+                sunSegments={sharedSunSegments}
+              />
             </VisualWrapper>
           );
         case "table":

@@ -36,8 +36,9 @@ import { buildSunSegments } from "@/components/graphs/sunSegments";
 import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
 import { buildYAxisTicks } from "@/components/graphs/yAxisTicks";
 import { useForecastWindowData } from "@/lib/hooks/useForecastWindow";
+import type { SharedSunSegments } from "./sharedSunSegments";
 
-type Props = { beachId?: string; hours?: number; date?: Date };
+type Props = { beachId?: string; hours?: number; date?: Date; sunSegments?: SharedSunSegments };
 const chartConfig = {
   wind: {
     label: "Wind (mph)",
@@ -97,7 +98,7 @@ export const WindStatsHeader = ({
   );
 };
 
-const WindChart = ({ beachId, hours = 24, date }: Props) => {
+const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   const { hour: selectedHour, setHoveredHour } = useDateContext();
   const { getSunData } = useSunData();
   const hoveredHour = useHoveredHour();
@@ -177,9 +178,14 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
   }, []);
 
   useEffect(() => {
+    if (sunSegments && (sunSegments.dayAreas?.length || sunSegments.sunrise || sunSegments.sunset)) {
+      setDayAreas(sunSegments.dayAreas ?? []);
+      setNightAreas(sunSegments.nightAreas ?? []);
+      return;
+    }
     if (!beachId) {
       setDayAreas([]);
-      setNightAreas([{ x1: 0, x2: hours }]);
+      setNightAreas([]);
       return;
     }
     let cancelled = false;
@@ -212,7 +218,7 @@ const WindChart = ({ beachId, hours = 24, date }: Props) => {
     return () => {
       cancelled = true;
     };
-  }, [beachId, getSunData, hours, windowStartMs]);
+  }, [beachId, getSunData, hours, sunSegments, windowStartMs]);
 
   const domainStart = 0;
   const domainEnd = hours;

@@ -24,6 +24,7 @@ import { useSunData } from "@/components/context/SunDataContext";
 import { buildSunSegments } from "@/components/graphs/sunSegments";
 import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
 import { useForecastWindowData } from "@/lib/hooks/useForecastWindow";
+import type { SharedSunSegments } from "./sharedSunSegments";
 
 const chartConfig = {
   energy: {
@@ -40,7 +41,7 @@ const chartConfig = {
   //   },
 } satisfies ChartConfig;
 
-type Props = { beachId?: string; hours?: number; date?: Date };
+type Props = { beachId?: string; hours?: number; date?: Date; sunSegments?: SharedSunSegments };
 type EnergyPoint = { hour: number; energy: number };
 
 const HOURS_TO_MS = 60 * 60 * 1000;
@@ -81,7 +82,7 @@ function buildTrendStops(
   return stops;
 }
 
-const WaveEnergyChart = ({ beachId, hours = 24, date }: Props) => {
+const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   const { hour: selectedHour, setHoveredHour } = useDateContext();
   const { getSunData } = useSunData();
   const hoveredHour = useHoveredHour();
@@ -130,12 +131,14 @@ const WaveEnergyChart = ({ beachId, hours = 24, date }: Props) => {
   }, [beachId, forecastRows, hours, windowStartMs, placeholderSeries]);
 
   useEffect(() => {
+    if (sunSegments && (sunSegments.dayAreas?.length || sunSegments.sunrise || sunSegments.sunset)) {
+      setDayAreas(sunSegments.dayAreas ?? []);
+      setNightAreas(sunSegments.nightAreas ?? []);
+      return;
+    }
     if (!beachId) {
-      setDayAreas([{ x1: 6, x2: 18 }]);
-      setNightAreas([
-        { x1: 0, x2: 6 },
-        { x1: 18, x2: hours },
-      ]);
+      setDayAreas([]);
+      setNightAreas([]);
       return;
     }
     let cancelled = false;
@@ -163,7 +166,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date }: Props) => {
     return () => {
       cancelled = true;
     };
-  }, [beachId, getSunData, hours, windowStartMs]);
+  }, [beachId, getSunData, hours, sunSegments, windowStartMs]);
 
   const hourTicks = useMemo(() => {
     const ticks: number[] = [];

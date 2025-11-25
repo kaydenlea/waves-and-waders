@@ -1,11 +1,18 @@
 "use client";
 
+import React from "react";
 import dynamic from "next/dynamic";
+import type { SharedSunSegments } from "@/components/graphs/sharedSunSegments";
 
-export const LazyLoadSwell = dynamic(() => import("../../graphs/SwellChart"), {
+type Props = { beachId?: string; date?: Date; sunSegments?: SharedSunSegments };
+
+const SwellChartLazy = dynamic<Props>(() => import("../../graphs/SwellChart"), {
   ssr: false,
   loading: () => (
-    // <div className="animate-pulse bg-highlight-5 rounded-2xl h-[250px] w-full" />
     <div className="animate-pulse bg-highlight-5 rounded-2xl touch-pan-y @min-lg:aspect-auto h-[200px] @min-lg:h-[300px] w-full" />
   ),
 });
+
+export const LazyLoadSwell: React.FC<Props> = (props) => {
+  return <SwellChartLazy {...props} />;
+};

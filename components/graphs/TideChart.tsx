@@ -56,6 +56,7 @@ type TideChartProps = {
   hours?: number;
   chartData?: ExternalTidePoint[];
   date?: Date;
+  sunSegments?: { dayAreas: { x1: number; x2: number }[]; nightAreas: { x1: number; x2?: number }[]; sunrise?: string | null; sunset?: string | null };
 };
 
 const formatTime = (timestamp: number) =>
@@ -82,6 +83,7 @@ const TideChart: React.FC<TideChartProps> = ({
   hours = 24,
   chartData: chartDataProp,
   date,
+  sunSegments,
 }) => {
   const { hour: selectedHour, setHoveredHour } = useDateContext();
   const { getSunData } = useSunData();
@@ -341,6 +343,43 @@ const TideChart: React.FC<TideChartProps> = ({
     let cancelled = false;
 
     const hydrateShading = async () => {
+      if (
+        sunSegments &&
+        (sunSegments.dayAreas?.length || sunSegments.sunrise || sunSegments.sunset)
+      ) {
+        setDayAreas(sunSegments.dayAreas ?? []);
+        setNightAreas(sunSegments.nightAreas ?? []);
+        // build markers from provided sunrise/sunset if data present
+        if (chartData.length > 0 && (sunSegments.sunrise || sunSegments.sunset)) {
+          const riseHourRaw = parseSunTimeToHour(sunSegments.sunrise ?? null);
+          const setHourRaw = parseSunTimeToHour(sunSegments.sunset ?? null);
+          const markers: { hour: number; type: "sunrise" | "sunset" }[] = [];
+          const pushClosest = (target: number, type: "sunrise" | "sunset") => {
+            const closest = chartData.reduce((closestPoint, point) => {
+              const currentDiff = Math.abs(point.hour - target);
+              const closestDiff = Math.abs(closestPoint.hour - target);
+              return currentDiff < closestDiff ? point : closestPoint;
+            });
+            if (Math.abs(closest.hour - target) < 0.5) {
+              markers.push({ hour: closest.hour, type });
+            }
+          };
+          if (riseHourRaw != null && riseHourRaw >= 0 && riseHourRaw <= hours) {
+            pushClosest(riseHourRaw, "sunrise");
+          }
+          if (
+            setHourRaw != null &&
+            setHourRaw >= 0 &&
+            setHourRaw <= hours &&
+            setHourRaw !== riseHourRaw
+          ) {
+            pushClosest(setHourRaw, "sunset");
+          }
+          setSunMarkers(markers);
+        }
+        return;
+      }
+
       if (!beachId || windowStart == null || chartData.length === 0) {
         setDayAreas([]);
         setNightAreas([]);
@@ -415,7 +454,7 @@ const TideChart: React.FC<TideChartProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [beachId, chartData, getSunData, hours, windowStart]);
+  }, [beachId, chartData, getSunData, hours, sunSegments, windowStart]);
 
   const hourTicks = useMemo(() => {
     const ticks: number[] = [];

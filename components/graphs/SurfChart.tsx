@@ -31,8 +31,9 @@ import { useSunData } from "@/components/context/SunDataContext";
 import { buildSunSegments } from "@/components/graphs/sunSegments";
 import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
 import { buildYAxisTicks } from "@/components/graphs/yAxisTicks";
+import type { SharedSunSegments } from "./sharedSunSegments";
 
-type Props = { beachId?: string; hours?: number; date?: Date };
+type Props = { beachId?: string; hours?: number; date?: Date; sunSegments?: SharedSunSegments };
 type Row = {
   hour: number;
   surf: number;
@@ -104,7 +105,7 @@ export const SurfStatsHeader = ({
   );
 };
 
-const SurfChart = ({ beachId, hours = 24, date }: Props) => {
+const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   const { hour: selectedHour, setHoveredHour } = useDateContext();
   const { getSunData } = useSunData();
   const hoveredHour = useHoveredHour();
@@ -258,6 +259,11 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
   const windowStartMs = windowStart.getTime();
 
   useEffect(() => {
+    if (sunSegments && (sunSegments.dayAreas?.length || sunSegments.sunrise || sunSegments.sunset)) {
+      setDayAreas(sunSegments.dayAreas ?? []);
+      setNightAreas(sunSegments.nightAreas ?? []);
+      return;
+    }
     if (!beachId) {
       setDayAreas([]);
       setNightAreas([]);
@@ -290,7 +296,7 @@ const SurfChart = ({ beachId, hours = 24, date }: Props) => {
     return () => {
       cancelled = true;
     };
-  }, [beachId, getSunData, hours, windowStartMs]);
+  }, [beachId, getSunData, hours, sunSegments, windowStartMs]);
 
   const domainStart = 0;
   const domainEnd = hours;
