@@ -2092,7 +2092,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
                   <div
                     className={cn(
                       "absolute bg-background rounded-lg border border-border px-3 py-1.5 shadow-lg whitespace-nowrap z-10",
-                      openPanel === "legend" ? "-top-25" : "-top-19"
+                      openPanel === "legend" ? "-top-26" : "-top-19"
                     )}
                   >
                     <span className="text-sm font-semibold text-foreground antialiased">
@@ -2377,7 +2377,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
                     };
                   }
                 }}
-                className="bg-background hover:bg-blue-200 dark:hover:bg-blue-400 rounded-full border border-border shadow-lg p-3 text-sm font-medium flex items-center gap-2 active:scale-95 transition"
+                className="bg-highlight-7/80 backdrop-blur hover:bg-blue-200 dark:hover:bg-blue-400 rounded-full border border-border shadow-lg p-3 text-sm font-medium flex items-center gap-2 active:scale-95 transition"
               >
                 <MapPin className="w-5 h-5 mx-auto" />
               </button>
@@ -2391,7 +2391,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
                   setShowFilters(true);
                 }}
                 className={cn(
-                  "relative bg-background hover:bg-blue-200 dark:hover:bg-blue-400 rounded-full border border-border shadow-lg p-3 text-sm font-medium flex items-center gap-2 active:scale-95 transition",
+                  "relative bg-highlight-7/80 backdrop-blur hover:bg-blue-200 dark:hover:bg-blue-400 rounded-full border border-border shadow-lg p-3 text-sm font-medium flex items-center gap-2 active:scale-95 transition",
                   openPanel === "filters" && "bg-blue-300",
                   !fullMapPage && "hidden @min-4xl:block"
                 )}
@@ -2410,7 +2410,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
                 aria-label="toggle legend"
                 onClick={() => togglePanel("legend")}
                 className={cn(
-                  "bg-background hover:bg-blue-200 dark:hover:bg-blue-400 rounded-full border border-border shadow-lg p-3 text-sm font-medium flex items-center gap-2 active:scale-95 transition",
+                  "bg-highlight-7/80 backdrop-blur hover:bg-blue-200 dark:hover:bg-blue-400 rounded-full border border-border shadow-lg p-3 text-sm font-medium flex items-center gap-2 active:scale-95 transition",
                   openPanel === "legend" && "bg-blue-300",
                   !fullMapPage && "hidden @min-4xl:block"
                 )}
@@ -2422,7 +2422,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
               <button
                 type="button"
                 aria-label="open map"
-                className="icon-button p-3 hover:bg-blue-200 dark:hover:bg-blue-400"
+                className="bg-highlight-7/80 backdrop-blur icon-button p-3 hover:bg-blue-200 dark:hover:bg-blue-400"
                 onClick={() => {
                   setIsOverlay(false);
                   router.push("/beaches");
@@ -2437,7 +2437,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
           <button
             aria-label={`${showMap ? "Minimize" : "Maximize"} map`}
             className={cn(
-              "z-80 bg-background rounded-full p-3 shadow-lg border border-border hover:bg-blue-200 dark:hover:bg-blue-400 absolute left-3 bottom-3"
+              "z-80 bg-highlight-7/80 backdrop-blur rounded-full p-3 shadow-lg border border-border hover:bg-blue-200 dark:hover:bg-blue-400 absolute left-3 bottom-3"
               // showMap ? "top-4" : "top-[50%] transform -translate-y-1/2"
             )}
             onClick={() => {
@@ -2476,11 +2476,11 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
                     "absolute top-21 right-3 max-w-[200px] @min-4xl:top-3"
                   )}
                 >
-                  <div className="rounded-lg border border-border/60 bg-background/90 backdrop-blur px-3 py-2 shadow">
-                    <span className="text-[11px] font-semibold uppercase text-muted-foreground">
+                  <div className="rounded-lg border border-border/60 bg-highlight-7/80 backdrop-blur px-3 py-2 shadow">
+                    <span className="text-[11px] font-semibold uppercase text-foreground">
                       Direction Rings
                     </span>
-                    <div className="mt-1.5 flex flex-col gap-1 text-[11px] text-foreground">
+                    <div className="mt-1.5 flex flex-col gap-1 text-[11px] text-foreground/90">
                       <div className="flex items-center gap-2">
                         <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#1d4ed8]" />
                         <span>Primary swell</span>

@@ -200,7 +200,7 @@ const TimeRail: React.FC<Props> = ({
             className="-mb-0"
           />
 
-          <div className="ml-2 flex items-center gap-2">
+          <div className="ml-1.5 flex items-center gap-2">
             <button
               ref={buttonRef}
               type="button"
