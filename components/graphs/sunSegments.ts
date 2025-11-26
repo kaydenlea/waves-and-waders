@@ -58,3 +58,75 @@ export const buildSunSegments = (
     nightAreas: nightAreas.length ? nightAreas : [{ x1: 0, x2: hours }],
   };
 };
+
+type SunFetcher = (
+  date: Date
+) => Promise<{ sunrise?: string | null; sunset?: string | null } | null>;
+
+const snapHour = (value: number, step: number) =>
+  step > 0 ? Math.round(value / step) * step : value;
+
+/**
+ * Build day/night areas for a multi-day forecast window, snapping to a given hour step.
+ * This runs fetches in parallel so charts can render sun shading immediately.
+ */
+export const buildSunSegmentsForRange = async (options: {
+  fetchSun: SunFetcher;
+  startDate: Date;
+  days: number;
+  hourSnap?: number;
+}) => {
+  const { fetchSun, startDate, days, hourSnap = 3 } = options;
+  const totalDays = Math.max(1, Math.floor(days));
+  const HOURS_PER_DAY = 24;
+  const targets = Array.from({ length: totalDays }, (_, i) => {
+    return new Date(startDate.getTime() + i * HOURS_PER_DAY * 60 * 60 * 1000);
+  });
+
+  const results = await Promise.all(
+    targets.map(async (date) => {
+      try {
+        return await fetchSun(date);
+      } catch {
+        return null;
+      }
+    })
+  );
+
+  const dayAreas: SunArea[] = [];
+  const nightAreas: { x1: number; x2?: number }[] = [];
+  let nightStart = 0;
+
+  results.forEach((sun, idx) => {
+    const rise = parseSunTimeToHour(sun?.sunrise ?? null);
+    const setv = parseSunTimeToHour(sun?.sunset ?? null);
+
+    if (rise == null || setv == null) {
+      // Fallback: mark the whole day as daylight to avoid gaps
+      dayAreas.push({ x1: idx * HOURS_PER_DAY, x2: (idx + 1) * HOURS_PER_DAY });
+      nightAreas.push({ x1: nightStart, x2: idx * HOURS_PER_DAY });
+      nightStart = (idx + 1) * HOURS_PER_DAY;
+      return;
+    }
+
+    const offset = idx * HOURS_PER_DAY;
+    const dayStart = offset + Math.max(0, Math.min(HOURS_PER_DAY, Math.min(rise, setv)));
+    const dayEnd = offset + Math.max(0, Math.min(HOURS_PER_DAY, Math.max(rise, setv)));
+
+    const snappedStart = snapHour(dayStart, hourSnap);
+    const snappedEnd = snapHour(dayEnd, hourSnap);
+    const snappedNightStart = snapHour(nightStart, hourSnap);
+
+    dayAreas.push({ x1: snappedStart, x2: snappedEnd });
+    nightAreas.push({ x1: snappedNightStart, x2: snappedStart });
+    nightStart = snappedEnd;
+  });
+
+  nightAreas.push({ x1: snapHour(nightStart, hourSnap) });
+
+  const totalHours = totalDays * HOURS_PER_DAY;
+  return {
+    dayAreas,
+    nightAreas: nightAreas.length ? nightAreas : [{ x1: 0, x2: totalHours }],
+  };
+};

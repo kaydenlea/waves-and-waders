@@ -266,6 +266,9 @@ const TideChart: React.FC<TideChartProps> = ({
           const firstTimestamp = sorted[0].x;
           const baseDate = new Date(firstTimestamp);
           const startMs = resolveStartMs(baseDate);
+          if (!cancelled) {
+            setWindowStart(startMs);
+          }
           const built = buildPoints(
             sorted,
             startMs,
@@ -274,7 +277,6 @@ const TideChart: React.FC<TideChartProps> = ({
           );
           if (!cancelled) {
             setChartData(built);
-            setWindowStart(startMs);
           }
           return;
         }
@@ -292,6 +294,9 @@ const TideChart: React.FC<TideChartProps> = ({
 
         const baseDate = date instanceof Date ? new Date(date) : new Date();
         const startMs = resolveStartMs(baseDate);
+        if (!cancelled) {
+          setWindowStart(startMs);
+        }
         const startDate = new Date(startMs);
         const endDate = new Date(startMs + hours * HOURS_TO_MS);
 
@@ -325,7 +330,6 @@ const TideChart: React.FC<TideChartProps> = ({
 
         if (!cancelled) {
           setChartData(built);
-          setWindowStart(startMs);
         }
       } catch (error) {
         console.error("Failed to load tide data", error);
@@ -389,7 +393,7 @@ const TideChart: React.FC<TideChartProps> = ({
         return;
       }
 
-      if (!beachId || windowStart == null || chartData.length === 0) {
+      if (!beachId || windowStart == null) {
         setDayAreas([]);
         setNightAreas([]);
         setSunMarkers([]);

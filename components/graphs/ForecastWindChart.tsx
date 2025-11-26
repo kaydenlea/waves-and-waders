@@ -35,6 +35,7 @@ import HoverReferenceLine from "@/components/graphs/HoverReferenceLine";
 import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
 import { buildYAxisTicks } from "@/components/graphs/yAxisTicks";
 import { useSunData } from "@/components/context/SunDataContext";
+import { buildSunSegmentsForRange } from "@/components/graphs/sunSegments";
 
 const chartConfig = {
   wind: {
@@ -332,6 +333,47 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
     return () => ro.disconnect();
   }, [chartInnerWidth, dayPx, viewportWidth]);
 
+  // Hydrate sun shading immediately (in parallel with data fetch)
+  useEffect(() => {
+    let cancelled = false;
+    const hydrateSun = async () => {
+      const totalDays =
+        days && days.length > 0 ? days.length : VISIBLE_DAYS;
+      if (!beachId || totalDays <= 0) {
+        setDayAreas([]);
+        setNightAreas([]);
+        return;
+      }
+
+      const baseDate = days && days.length > 0 ? days[0] : new Date();
+      const startDate = getPacificMidnightUTC(baseDate);
+
+      try {
+        const segments = await buildSunSegmentsForRange({
+          fetchSun: (date) => getSunData(String(beachId), date),
+          startDate,
+          days: totalDays,
+          hourSnap: 3,
+        });
+        if (!cancelled) {
+          setDayAreas(segments.dayAreas);
+          setNightAreas(segments.nightAreas);
+        }
+      } catch {
+        if (!cancelled) {
+          setDayAreas([]);
+          setNightAreas([{ x1: 0, x2: totalDays * HOURS_PER_DAY }]);
+        }
+      }
+    };
+
+    void hydrateSun();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [beachId, days, getSunData]);
+
   // Build wind series from forecast rows
   React.useEffect(() => {
     let cancelled = false;
@@ -441,110 +483,6 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
           setWindData(series);
         }
 
-        // Day/night areas
-        const shadingStartDate = days ? days[0] : new Date();
-        const startFormatter = new Intl.DateTimeFormat("en-US", {
-          timeZone: "America/Los_Angeles",
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-        });
-        const startParts = startFormatter.formatToParts(shadingStartDate);
-        const startYear = parseInt(
-          startParts.find((p) => p.type === "year")?.value || "0"
-        );
-        const startMonth =
-          parseInt(startParts.find((p) => p.type === "month")?.value || "1") -
-          1;
-        const startDay = parseInt(
-          startParts.find((p) => p.type === "day")?.value || "1"
-        );
-
-        const startNoonUTC = Date.UTC(
-          startYear,
-          startMonth,
-          startDay,
-          12,
-          0,
-          0,
-          0
-        );
-        const startNoonDate = new Date(startNoonUTC);
-        const startNoonFormatter = new Intl.DateTimeFormat("en-US", {
-          timeZone: "America/Los_Angeles",
-          hour: "2-digit",
-          hour12: false,
-        });
-        const startPacificNoonHour = parseInt(
-          startNoonFormatter.format(startNoonDate)
-        );
-        const startOffsetHours = startPacificNoonHour - 12;
-
-        const startMs = Date.UTC(
-          startYear,
-          startMonth,
-          startDay,
-          -startOffsetHours,
-          0,
-          0,
-          0
-        );
-
-        if (beachId) {
-          const parseHM = (
-            s: string | null
-          ): { h: number; m: number } | null => {
-            if (!s) return null;
-            const m = /^(\d{1,2}):(\d{2})/.exec(s.trim());
-            if (!m) return null;
-            const h = Number(m[1]);
-            const mm = Number(m[2]);
-            if (!Number.isFinite(h) || !Number.isFinite(mm)) return null;
-            return { h, m: mm };
-          };
-
-          const dayAreasBuild: { x1: number; x2: number }[] = [];
-          const nightAreasBuild: { x1: number; x2?: number }[] = [];
-          let nightStart = 0;
-          for (let di = 0; di < numDaysToFetch; di++) {
-            const targetDate = new Date(startMs + di * 24 * 60 * 60 * 1000);
-            let rise: { h: number; m: number } | null = null;
-            let setv: { h: number; m: number } | null = null;
-            try {
-              const sun = await getSunData(String(beachId), targetDate);
-              rise = parseHM(sun?.sunrise ?? null);
-              setv = parseHM(sun?.sunset ?? null);
-            } catch (err) {
-              console.warn("ForecastWindChart sun data unavailable", err);
-            }
-
-            if (!rise || !setv) {
-              dayAreasBuild.push({ x1: di * 24, x2: di * 24 + 24 });
-              nightAreasBuild.push({ x1: nightStart, x2: di * 24 });
-              nightStart = di * 24 + 24;
-              continue;
-            }
-            const offset = di * 24;
-            const rH = offset + rise.h + rise.m / 60;
-            const sH = offset + setv.h + setv.m / 60;
-            const dayStart = Math.min(rH, sH);
-            const dayEnd = Math.max(rH, sH);
-            dayAreasBuild.push({
-              x1: Math.round(dayStart / 3) * 3,
-              x2: Math.round(dayEnd / 3) * 3,
-            });
-            nightAreasBuild.push({
-              x1: Math.round(nightStart / 3) * 3,
-              x2: Math.round(dayStart / 3) * 3,
-            });
-            nightStart = Math.round(dayEnd / 3) * 3;
-          }
-          nightAreasBuild.push({ x1: nightStart });
-          if (!cancelled) {
-            setDayAreas(dayAreasBuild);
-            setNightAreas(nightAreasBuild);
-          }
-        }
       } catch (e) {
         console.error("Failed to load wind data", e);
         if (!cancelled) {
