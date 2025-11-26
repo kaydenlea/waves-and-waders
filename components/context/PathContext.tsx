@@ -29,28 +29,16 @@ export function PathProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // For forecast pages, set to "forecast"
-      // Check this BEFORE overview to handle /forecast/edit correctly
-      if (pathname.includes("/forecast")) {
-        if (selectedTab !== "forecast") {
-          setSelectedTab("forecast");
-        }
-        return;
-      }
-
-      // For beach pages, default to "overview" instead of saved tab
-      // This ensures clicking a beach card always goes to overview
-      if (pathname.includes("/overview") || pathname.match(/^\/[^/]+\/[^/]+$/)) {
-        if (selectedTab !== "overview") {
-          setSelectedTab("overview");
-        }
-        return;
-      }
-
       const key = `tab:${pathname}`;
       const saved = window.localStorage.getItem(key);
       if (saved && saved !== selectedTab) {
         setSelectedTab(saved);
+        return;
+      }
+
+      // Default forecast pages to the forecast tab when no saved state exists
+      if (pathname.includes("/forecast") && selectedTab !== "forecast") {
+        setSelectedTab("forecast");
       }
     } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps

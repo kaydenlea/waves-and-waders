@@ -492,9 +492,15 @@ export default React.memo(function ForecastTideChart({
           const markerTargets: { hour: number; type: "sunrise" | "sunset" }[] =
             [];
           let nightStart = 0;
+          const sunResults = await Promise.all(
+            Array.from({ length: FETCH_DAYS }, (_, di) => {
+              const currentDate = new Date(startMs + di * 24 * 60 * 60 * 1000);
+              return getSunData(beachId!, currentDate).catch(() => null);
+            })
+          );
+
           for (let di = 0; di < FETCH_DAYS; di++) {
-            const currentDate = new Date(startMs + di * 24 * 60 * 60 * 1000);
-            const sunData = await getSunData(beachId!, currentDate);
+            const sunData = sunResults[di];
             const rise = parseHM(sunData?.sunrise ?? null);
             const setv = parseHM(sunData?.sunset ?? null);
             if (!rise || !setv) {

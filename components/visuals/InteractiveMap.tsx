@@ -56,6 +56,15 @@ import FocusMapButton from "../general/FocusMapButton";
 import { useSearchContext } from "../context/SearchContext";
 import { useClientPath } from "../context/PathContext";
 
+// Prefetch map style once to shave a network round-trip off the first paint.
+let mapStylePrefetch: Promise<void> | null = null;
+const prefetchMapStyle = () => {
+  if (mapStylePrefetch || typeof window === "undefined") return;
+  mapStylePrefetch = fetch(MAP_STYLE_URL, { cache: "force-cache" })
+    .then(() => {})
+    .catch(() => {});
+};
+
 type BeachPoint = {
   id: string | number;
   name: string;
@@ -649,6 +658,11 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
   const forecastPage = pathName.includes("forecast");
   const isDesktop = smallScreen === false;
   const mobileMapHeight = "calc(100dvh - 6.25rem)";
+
+  // Warm map style fetch as early as possible
+  React.useEffect(() => {
+    prefetchMapStyle();
+  }, []);
 
   React.useEffect(() => {
     if (typeof window === "undefined") {
@@ -1481,6 +1495,8 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
           borderRadius: isDesktop ? "18px" : "0px",
         }}
         mapStyle={MAP_STYLE_URL}
+        antialias={false}
+        fadeDuration={0}
         maxZoom={16}
         minZoom={3}
         dragRotate={false}
