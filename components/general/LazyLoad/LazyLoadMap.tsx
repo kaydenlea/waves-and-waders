@@ -79,6 +79,7 @@ const Loading = () => {
 
 type Props = {
   beachId?: string | number;
+  loggedIn?: boolean;
 };
 
 const InteractiveMap = dynamic<React.ComponentProps<any>>(

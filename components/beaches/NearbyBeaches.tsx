@@ -260,11 +260,7 @@ async function computeBeachStatsSnapshot(
 
     const max = avgHeightMax != null ? avgHeightMax : null;
     const minWithFallback =
-      avgHeightMin != null
-        ? avgHeightMin
-        : max != null && max <= 1
-        ? 0
-        : null;
+      avgHeightMin != null ? avgHeightMin : max != null && max <= 1 ? 0 : null;
     const hasRange = minWithFallback != null && max != null;
 
     let surfHeightLabel: string | null = null;
@@ -327,10 +323,7 @@ async function computeBeachStatsSnapshot(
       avgWindDirection != null ? Math.round(avgWindDirection) : undefined;
 
     if (resolvedWindSpeed != null) {
-      const windIntensity = clampIntensity(
-        resolvedWindSpeed,
-        WIND_SPEED_CAP
-      );
+      const windIntensity = clampIntensity(resolvedWindSpeed, WIND_SPEED_CAP);
 
       stats.push({
         type: "wind",
@@ -441,8 +434,10 @@ async function computeBeachStatsSnapshot(
             minute: "2-digit",
           });
         };
-        sunrise = formatClock(conditions?.sunrise) ?? conditions?.sunrise ?? undefined;
-        sunset = formatClock(conditions?.sunset) ?? conditions?.sunset ?? undefined;
+        sunrise =
+          formatClock(conditions?.sunrise) ?? conditions?.sunrise ?? undefined;
+        sunset =
+          formatClock(conditions?.sunset) ?? conditions?.sunset ?? undefined;
       } catch (err) {
         console.warn("NearbyBeaches sunrise/sunset unavailable", err);
       }
@@ -477,9 +472,7 @@ async function computeBeachStatsSnapshot(
         : undefined;
     const airTemp =
       airTemps.length > 0
-        ? Math.round(
-            airTemps.reduce((sum, v) => sum + v, 0) / airTemps.length
-          )
+        ? Math.round(airTemps.reduce((sum, v) => sum + v, 0) / airTemps.length)
         : undefined;
 
     const weatherCodes = forecast
@@ -578,10 +571,7 @@ async function getBeachStatsCached(
 ): Promise<BeachStatsSnapshot | null> {
   const key = `${beachId}:${dateKey(targetDate)}`;
   if (!beachStatsCache.has(key)) {
-    beachStatsCache.set(
-      key,
-      computeBeachStatsSnapshot(beachId, targetDate)
-    );
+    beachStatsCache.set(key, computeBeachStatsSnapshot(beachId, targetDate));
   }
   return beachStatsCache.get(key)!;
 }
@@ -602,9 +592,9 @@ export default function NearbyBeaches({
     setBeaches: setSharedBeaches,
   } = useMapFilters();
   const filterCount = filters?.size ?? 0;
-const initialList: UIBeach[] = useMemo(
-  () =>
-    (beaches || []).map(
+  const initialList: UIBeach[] = useMemo(
+    () =>
+      (beaches || []).map(
         (b) =>
           ({
             id: String(b.id),
@@ -926,14 +916,13 @@ const initialList: UIBeach[] = useMemo(
     return () => clearTimeout(t);
   }, [perPage, inView, page]);
 
-const [statsByBeach, setStatsByBeach] = useState<
-  Record<string, BeachStatsSnapshot>
->({});
+  const [statsByBeach, setStatsByBeach] = useState<
+    Record<string, BeachStatsSnapshot>
+  >({});
 
   const loadStats = async (beaches: UIBeach[]) => {
     if (!beaches.length) return null;
-    const targetDate =
-      date instanceof Date ? new Date(date) : undefined;
+    const targetDate = date instanceof Date ? new Date(date) : undefined;
 
     const entries = await Promise.all(
       beaches.map(async (beach) => {
@@ -1122,8 +1111,8 @@ const [statsByBeach, setStatsByBeach] = useState<
   // console.log("FINAL BEACHES", currentItems);
   return (
     <>
-      <div className="flex mb-4 ml-2 items-center justify-between gap-10 mx-2">
-        {status === "locating" && (
+      {/* <div className="flex mb-4 ml-2 items-center justify-between gap-10 mx-2"> */}
+      {/* {status === "locating" && (
           <div className="text-sm text-foreground/70">
             Finding your location…
           </div>
@@ -1132,9 +1121,9 @@ const [statsByBeach, setStatsByBeach] = useState<
           <div className="hidden @min-lg:flex text-sm text-foreground/70">
             Location denied. Showing unsorted beaches.
           </div>
-        )}
-        {/* Per Page Dropdown */}
-        {/* <div className="flex items-center gap-2">
+        )} */}
+      {/* Per Page Dropdown */}
+      {/* <div className="flex items-center gap-2">
           <label htmlFor="perPage" className="text-sm text-gray-600">
             Per page:
           </label>
@@ -1155,8 +1144,8 @@ const [statsByBeach, setStatsByBeach] = useState<
             </option>
           </select>
         </div> */}
-        <PageOptions />
-      </div>
+      {/* <PageOptions /> */}
+      {/* </div> */}
 
       {dataLoaded.current ? (
         // If we have beaches loaded but none are in view, show a helpful message
@@ -1173,7 +1162,7 @@ const [statsByBeach, setStatsByBeach] = useState<
             </span>
           </section>
         ) : renderedItems.length > 0 ? (
-          <section className="grid grid-cols-1 gap-3 @min-lg:grid-cols-2 mb-4">
+          <section className="grid grid-cols-1 gap-3 @min-4xl/main:gap-4 @min-md/beaches:grid-cols-2 mb-4">
             {renderedItems.map((b) => (
               <BeachCard
                 key={b.id}

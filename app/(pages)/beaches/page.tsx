@@ -45,23 +45,26 @@ export default async function BeachesPage() {
         id="main-content"
         className="bg-background-2 min-h-[calc(100vh-4rem)] @min-4xl:flex @min-4xl:flex-1 @min-4xl:mt-[5.5rem] @min-4xl:pb-4 @min-4xl:pr-3"
       >
-        <LazyLoadMap />
+        <LazyLoadMap loggedIn={Boolean(user)} />
         <PathStyleWrapper>
-          <div className="@container px-2 pb-3 pt-8 touch-pan-y">
+          <div className="@container/beaches pb-4 px-2 pt-0 @min-4xl:pt-8 touch-pan-y">
             <FavoriteIdsHydrator favoriteIds={favoriteIds} />
             <div className="relative w-full flex flex-col gap-6">
-              <PageTabs
+              {/* <PageTabs
                 buttons={false}
                 tabs={["nearby", "saved"]}
                 defaultPage="nearby"
                 beachPage
                 loggedIn={Boolean(user)}
-              />
-              <header id="content" className="ml-2 mb-4 scroll-mt-30">
-                <h1 className="font-semibold text-4xl tracking-tight">
+              /> */}
+              <header
+                id="content"
+                className="ml-2 mb-2 @min-4xl/main:mb-4 scroll-mt-30"
+              >
+                <h1 className="font-semibold text-xl @min-4xl/main:text-4xl tracking-tight -mb-1 @min-4xl/main:mb-0">
                   Surf spots
                 </h1>
-                <span className="text-muted-foreground">
+                <span className="text-xs @min-4xl/main:text-base text-muted-foreground">
                   Explore nearby beaches on the map
                 </span>
               </header>

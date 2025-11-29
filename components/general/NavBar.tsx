@@ -94,7 +94,7 @@ const NavBar = ({
     <header
       className={cn(
         "fixed @min-4xl:p-0 z-50 w-full @container touch-pan-y",
-        beachesPage && "px-1.5 pt-1.5"
+        beachesPage && "px-1.5 pt-1.5 hidden @min-4xl:block"
       )}
     >
       <nav

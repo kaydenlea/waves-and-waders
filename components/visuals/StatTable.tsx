@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React from "react";
 import { cn, getPacificMidnightUTC } from "@/lib/utils";
@@ -59,7 +59,7 @@ const SwellStat = ({
   return (
     <div
       className={cn(
-        "mx-auto max-w-75 flex-1 flex items-center justify-center space-x-2 rounded-sm p-1 h-10",
+        "mx-auto flex-1 flex items-center justify-center space-x-2 rounded-sm p-1 h-10",
         primary ? "bg-highlight-1" : "bg-highlight-2"
       )}
     >
@@ -151,14 +151,14 @@ const WindStat = ({
       </div>
       <span
         className={cn(
-          "flex-1 max-w-8 @min-[320px]:max-w-25 justify-center flex gap-[3px] rounded-md py-2 @min-[350px]:py-1.5 px-3",
+          "flex-1 justify-center flex gap-[3px] rounded-md py-2 @min-[350px]:py-1.5 px-3",
           windLevel
         )}
       >
         <span className="text-base @min-[350px]:text-lg font-semibold">
           {data.speed}
         </span>
-        <span className="hidden @min-[350px]:flex flex flex-col -space-y-1">
+        <span className="hidden @min-[330px]:flex flex-col -space-y-1">
           <span className="text-[0.7rem] font-medium">{data.max}</span>
           <span className="hidden @min-sm:block text-[0.6rem]">mph</span>
         </span>
@@ -212,7 +212,7 @@ const WeatherStat = ({
   return (
     <div
       className={cn(
-        "max-w-25 mx-auto w-full flex justify-center items-center gap-0.5 rounded-sm p-1.5 @min-md:p-3 h-10",
+        "mx-auto w-full flex justify-center items-center gap-0.5 rounded-sm p-1.5 @min-md:p-3 h-10",
         level
       )}
     >
@@ -237,7 +237,7 @@ const GeneralStat = ({
   return (
     <span
       className={cn(
-        "mx-auto max-w-25 text-base font-semibold flex justify-center items-center text-center gap-1 whitespace-nowrap rounded-sm p-1.5 @min-md:p-3 h-10",
+        "mx-auto text-base font-semibold flex justify-center items-center text-center gap-1 whitespace-nowrap rounded-sm p-1.5 @min-md:p-3 h-10",
         level
       )}
     >

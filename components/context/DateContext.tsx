@@ -25,7 +25,7 @@ type Ctx = {
 const DateContext = React.createContext<Ctx | null>(null);
 
 export function DateProvider({ children }: { children: React.ReactNode }) {
-  const [showSecondarySwells, setShowSecondarySwells] = React.useState(true);
+  const [showSecondarySwells, setShowSecondarySwells] = React.useState(false);
   const id = React.useRef<string>("");
   const [mode, setMode] = React.useState<string>("date");
   const [selected, setSelected] = React.useState<Date | null>(null);

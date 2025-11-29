@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useClientPath } from "../context/PathContext";
+import { poppins } from "@/lib/fonts";
 
 type PageTabsProps = {
   beach?: string;
@@ -112,6 +113,7 @@ const PageTabs = ({
     <div
       ref={tabsRef}
       className={cn(
+        `${poppins.variable} font-poppins antialiased`,
         placement === "inline"
           ? "flex w-full items-center gap-1 @min-sm:gap-2 justify-center @min-xl:ml-auto @min-xl:justify-end @min-xl:w-auto"
           : "mx-auto flex gap-1 @min-sm:gap-2 w-full justify-center",
@@ -187,7 +189,9 @@ const PageTabs = ({
             ? "w-full @min-xl:w-fit"
             : fullWidth
             ? "w-full"
-            : "w-fit"
+            : "w-fit",
+          beachPage &&
+            "hidden @min-4xl:block absolute left-3 top-3 shadow-lg bg-highlight-3/80 backdrop-blur"
         )}
       >
         {tabs.map((tab) => {

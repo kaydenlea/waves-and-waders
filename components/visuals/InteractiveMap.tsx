@@ -55,6 +55,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import FocusMapButton from "../general/FocusMapButton";
 import { useSearchContext } from "../context/SearchContext";
 import { useClientPath } from "../context/PathContext";
+import PageTabs from "../general/PageTabs";
 
 // Prefetch map style once to shave a network round-trip off the first paint.
 let mapStylePrefetch: Promise<void> | null = null;
@@ -464,9 +465,9 @@ export const WindRing: React.FC<{
   );
 };
 
-type Props = { beachId?: string | number };
+type Props = { beachId?: string | number; loggedIn?: boolean };
 
-const InteractiveMap: React.FC<Props> = ({ beachId }) => {
+const InteractiveMap = ({ beachId, loggedIn }: Props) => {
   const {
     beaches: beaches,
     setBeaches,
@@ -1878,9 +1879,34 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
         )}
         <AttributionControl compact={true} />
         <NavigationControl
-          position="bottom-right"
+          key={
+            (fullMapPage && !smallScreen) || !smallScreen
+              ? "nav-bottom"
+              : "nav-top"
+          }
+          position={
+            (fullMapPage && !smallScreen) || !smallScreen
+              ? "bottom-left"
+              : "top-left"
+          }
           showCompass={false}
           visualizePitch={false}
+          style={{
+            background: "var(--highlight-7)",
+            opacity: "0.8",
+            borderRadius: "30px",
+            padding: "7px",
+            marginTop: !fullMapPage ? "70px" : smallScreen ? "260px" : "0px",
+            marginBottom: !fullMapPage
+              ? smallScreen
+                ? "0px"
+                : "12px"
+              : smallScreen
+              ? "80px"
+              : "70px",
+            marginLeft: "0.8rem",
+            boxShadow: "0px 0px 15px rgba(0, 0, 0, 0.2)",
+          }}
         />
 
         {/* Clustered beach points */}
@@ -2193,6 +2219,16 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
             );
           })()}
 
+        {!fullMapPage && (
+          <PageTabs
+            buttons={false}
+            tabs={["nearby", "saved"]}
+            defaultPage="nearby"
+            beachPage
+            loggedIn={loggedIn}
+          />
+        )}
+
         {popupInfo && (
           <Popup
             longitude={popupInfo.longitude}
@@ -2362,7 +2398,12 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
           </div>
         )} */}
         {(showMap || smallScreen) && (
-          <div className="absolute top-21 left-3 @min-4xl:top-3 flex flex-col gap-3 z-40">
+          <div
+            className={cn(
+              "absolute left-3 @min-4xl:top-3 flex flex-col gap-3 z-40",
+              fullMapPage ? "top-21" : "top-3"
+            )}
+          >
             {selected && (
               <button
                 type="button"
@@ -2398,28 +2439,26 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
                 <MapPin className="w-5 h-5 mx-auto" />
               </button>
             )}
-            {fullMapPage && (
-              <button
-                type="button"
-                aria-label="toggle filters"
-                onClick={() => {
-                  togglePanel("filters");
-                  setShowFilters(true);
-                }}
-                className={cn(
-                  "relative bg-highlight-7/80 backdrop-blur hover:bg-blue-200 dark:hover:bg-blue-400 rounded-full border border-border shadow-lg p-3 text-sm font-medium flex items-center gap-2 active:scale-95 transition",
-                  openPanel === "filters" && "bg-blue-300",
-                  !fullMapPage && "hidden @min-4xl:block"
-                )}
-              >
-                <SlidersHorizontal className="w-5 h-5 mx-auto" />
-                {filterCount > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 bg-sky-500 text-white text-[10px] font-semibold rounded-full w-5 h-5 flex items-center justify-center shadow-md ring-2 ring-background dark:ring-highlight-5">
-                    {filterCount}
-                  </span>
-                )}
-              </button>
-            )}
+            <button
+              type="button"
+              aria-label="toggle filters"
+              onClick={() => {
+                togglePanel("filters");
+                setShowFilters(true);
+              }}
+              className={cn(
+                "relative bg-highlight-7/80 backdrop-blur hover:bg-blue-200 dark:hover:bg-blue-400 rounded-full border border-border shadow-lg p-3 text-sm font-medium flex items-center gap-2 active:scale-95 transition",
+                openPanel === "filters" && "bg-blue-300",
+                !fullMapPage && "block @min-4xl:hidden"
+              )}
+            >
+              <SlidersHorizontal className="w-5 h-5 mx-auto" />
+              {filterCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-sky-500 text-white text-[10px] font-semibold rounded-full w-5 h-5 flex items-center justify-center shadow-md ring-2 ring-background dark:ring-highlight-5">
+                  {filterCount}
+                </span>
+              )}
+            </button>
             {fullMapPage && (
               <button
                 type="button"
@@ -2434,7 +2473,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
                 <Info className="w-5 h-5 mx-auto" />
               </button>
             )}
-            {fullMapPage && (
+            {fullMapPage && !smallScreen && (
               <button
                 type="button"
                 aria-label="open map"
@@ -2689,7 +2728,7 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
             background: transparent;
           }
 
-          @media (max-width: 910px) {
+          @media (max-width: 895px) {
             .maplibregl-ctrl-attrib {
               bottom: 60px;
             }
@@ -2697,6 +2736,50 @@ const InteractiveMap: React.FC<Props> = ({ beachId }) => {
             .maplibregl-ctrl.maplibregl-ctrl-group {
               margin-bottom: 60px;
             }
+          }
+
+          .maplibregl-ctrl.maplibregl-ctrl-group {
+            backdrop-filter: blur(10px);
+          }
+
+          .maplibregl-ctrl-zoom-in .maplibregl-ctrl-icon {
+            background-image: none !important;
+            font-size: 28px;
+            font-weight: 200;
+            color: var(--foreground);
+            display: flex !important;
+            justify-content: center;
+            align-items: center;
+            margin-top: -2px;
+          }
+
+          .maplibregl-ctrl-zoom-in,
+          .maplibregl-ctrl-zoom-out {
+            background: none !important;
+          }
+
+          .maplibregl-ctrl-zoom-in .maplibregl-ctrl-icon::before {
+            content: "+";
+          }
+
+          .maplibregl-ctrl-zoom-out .maplibregl-ctrl-icon {
+            background-image: none !important;
+            font-size: 39px;
+            font-weight: 100;
+            color: var(--foreground);
+            display: flex !important;
+            justify-content: center;
+            margin-top: 2px;
+          }
+
+          .maplibregl-ctrl-zoom-out .maplibregl-ctrl-icon::before {
+            content: "-";
+          }
+
+          .maplibregl-ctrl-icon:hover {
+            color: var(--muted-foreground);
+            font-weight: 500;
+            outline: none !important;
           }
 
           .maplibregl-popup-content {

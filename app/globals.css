@@ -8,7 +8,7 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground @container;
+    @apply bg-background text-foreground @container/main;
   }
   /* button {
     @apply focus-visible:outline-none focus-visible:ring focus-visible:ring-foreground;
