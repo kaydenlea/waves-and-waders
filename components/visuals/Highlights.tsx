@@ -1555,9 +1555,17 @@ const Highlights = ({
             switch (stat.label) {
               case "swell":
                 content = stat.primary && stat.secondary && (
-                  <div className="flex justify-between items-center px-3 gap-0 @min-lg:w-full @min-2xl:w-auto @min-5xl:w-full">
+                  <div
+                    className={cn(
+                      "flex justify-between items-center px-3 gap-0 @min-lg:w-full @min-2xl:w-auto",
+                      !isFull && "@min-5xl:w-full"
+                    )}
+                  >
                     <HighlightCard
-                      className="@min-lg:w-47 @min-2xl:w-auto @min-5xl:w-47"
+                      className={cn(
+                        "@min-lg:w-47 @min-2xl:w-auto",
+                        !isFull && "@min-5xl:w-47"
+                      )}
                       label={stat.label}
                     >
                       <ul>
@@ -1585,7 +1593,12 @@ const Highlights = ({
                         </li>
                       </ul>
                     </HighlightCard>
-                    <div className="relative shadow-even border border-border/20 font-semibold @container hidden @min-lg:block @min-2xl:hidden @min-5xl:block -mt-2 bg-highlight-6 py-3 px-3 flex-1 rounded-md text-center max-w-40">
+                    <div
+                      className={cn(
+                        "relative shadow-even border border-border/20 font-semibold @container hidden @min-lg:block @min-2xl:hidden -mt-2 bg-highlight-6 py-3 px-3 flex-1 rounded-md text-center max-w-40",
+                        isFull ? "@min-6xl:hidden" : "@min-5xl:block"
+                      )}
+                    >
                       <GradientCircle
                         className="mx-auto @min-[110px]:mx-0"
                         condition="surf"
