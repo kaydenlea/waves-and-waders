@@ -1171,6 +1171,7 @@ const InteractiveMap = ({ beachId, loggedIn }: Props) => {
           width: "100%",
           height: "100%",
           borderRadius: isDesktop ? "18px" : "0px",
+          boxShadow: "0px 0px 5px rgba(0,0,0,0.2)",
         }}
         mapStyle={MAP_STYLE_URL}
         antialias={false}
@@ -2089,7 +2090,7 @@ const InteractiveMap = ({ beachId, loggedIn }: Props) => {
               fullMapPage ? "top-21" : "top-3"
             )}
           >
-            {selected && (
+            {fullMapPage && (
               <button
                 type="button"
                 aria-label="Refocus map on beach"
@@ -2413,9 +2414,9 @@ const InteractiveMap = ({ beachId, loggedIn }: Props) => {
             background: transparent;
           }
 
-          @media (max-width: 895px) {
+          @media (max-width: 910px) {
             .maplibregl-ctrl-attrib {
-              bottom: 60px;
+              bottom: 68px;
             }
 
             .maplibregl-ctrl.maplibregl-ctrl-group {

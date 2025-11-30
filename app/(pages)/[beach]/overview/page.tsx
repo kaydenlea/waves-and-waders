@@ -67,7 +67,7 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
       >
         <LazyLoadMap />
         <PathStyleWrapper>
-          <div className="@container pb-3 pt-2 @min-4xl:pt-8 px-1 @min-md:px-3">
+          <div className="@container pb-6 @min-4xl:pb-3 pt-2 @min-4xl:pt-8 px-1 @min-md:px-3">
             <header
               id="content"
               className="relative w-full flex flex-col gap-6 p-2 pb-0 scroll-mt-30"
