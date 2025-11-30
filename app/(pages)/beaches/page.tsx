@@ -61,10 +61,10 @@ export default async function BeachesPage() {
                 id="content"
                 className="ml-2 mb-2 @min-4xl/main:mb-4 scroll-mt-30"
               >
-                <h1 className="font-semibold text-xl @min-4xl/main:text-4xl tracking-tight -mb-1 @min-4xl/main:mb-0">
+                <h1 className="font-semibold text-xl @min-4xl/main:text-3xl tracking-tight -mb-1 @min-4xl/main:mb-0">
                   Surf spots
                 </h1>
-                <span className="text-xs @min-4xl/main:text-base text-muted-foreground">
+                <span className="text-xs @min-4xl/main:text-sm text-muted-foreground">
                   Explore nearby beaches on the map
                 </span>
               </header>

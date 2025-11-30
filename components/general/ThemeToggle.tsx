@@ -20,15 +20,15 @@ const ThemeToggle = ({
       <button
         aria-label="theme toggle"
         onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-        className="hover:bg-highlight-5 px-2 py-1.5 rounded-md flex flex-col items-center gap-1"
+        className="hover:bg-highlight-5 p-2 rounded-2xl flex flex-col items-center gap-1 @min-[350px]:min-w-15"
       >
         {/* {theme === "light" ? (
           <Sun className="w-5 h-5 -mt-0.5" />
         ) : (
           <Moon className="w-5 h-5 -mt-0.5" />
         )} */}
-        <SunMoon className="w-5 h-5 -mt-0.5" />
-        <span className="text-xs">Mode</span>
+        <SunMoon className="w-6 h-6 @min-[350px]:w-5 @min-[350px]:h-5 -mt-0.5" />
+        <span className="text-xs sr-only @min-[350px]:not-sr-only">Mode</span>
       </button>
     );
   }

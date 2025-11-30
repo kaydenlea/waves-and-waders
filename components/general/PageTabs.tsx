@@ -144,16 +144,16 @@ const PageTabs = ({
               <span className="font-medium text-[15px]">Zoom</span>
             </button>
           )}
-          <span className="hidden @min-md:flex @min-xl:hidden font-semibold w-full px-4 py-3 bg-highlight-5 rounded-full text-center gap-1.5 flex items-center justify-center max-w-30">
-            {forecastPage ? (
-              <CalendarDays className="w-5 h-5 mb-0.5" />
-            ) : (
-              <Calendar1 className="w-5 h-5 mb-0.5" />
-            )}
-            <span>{`${forecastPage ? 4 : 1} day${
-              forecastPage ? "s" : ""
-            }`}</span>
-          </span>
+          <div className="w-full hidden @min-md:block @min-xl:hidden bg-highlight-3 p-1 rounded-3xl max-w-45">
+            <span className="flex font-medium text-sm px-3 py-2.5 bg-background dark:bg-highlight-5 rounded-3xl text-center gap-2 flex items-center justify-center">
+              {forecastPage ? (
+                <CalendarDays className="w-5 h-5 mb-0.5" />
+              ) : (
+                <Calendar1 className="w-5 h-5 mb-0.5" />
+              )}
+              <span>{`${forecastPage ? 4 : 1} day range`}</span>
+            </span>
+          </div>
           {(forecastPage || overviewPage) && (
             <Link
               href={
@@ -184,7 +184,7 @@ const PageTabs = ({
       )}
       <div
         className={cn(
-          "relative flex rounded-full bg-highlight-3 p-1.5 text-sm @min-sm:text-base font-medium border border-border/20 shadow-inner",
+          "relative flex rounded-full p-1 bg-highlight-3 @min-sm:text-base text-sm font-medium border border-border/20 shadow-md",
           responsiveFull
             ? "w-full @min-xl:w-fit"
             : fullWidth
@@ -227,14 +227,16 @@ const PageTabs = ({
                 responsiveFull && "py-2",
                 fullWidth ? "py-1.5 min-w-0" : "w-27",
                 isActive
-                  ? "text-foreground font-semibold"
+                  ? beachPage
+                    ? "text-foreground font-medium"
+                    : "text-foreground font-semibold"
                   : "text-muted-foreground hover:text-foreground/80"
               )}
             >
               {isActive && (
                 <motion.div
                   layoutId="tab-pill"
-                  className="absolute inset-0 z-0 rounded-full bg-background dark:bg-highlight-5 shadow-md"
+                  className="absolute inset-0 z-0 rounded-full bg-background dark:bg-highlight-5"
                   transition={{
                     type: "spring",
                     stiffness: 400,

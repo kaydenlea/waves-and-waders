@@ -217,7 +217,7 @@ export default function BottomNav() {
         )}
       >
         {atTop && !landingPage ? (
-          <div className="touch-pan-y block @min-4xl:hidden flex justify-center mt-10 mb-4">
+          <div className="touch-pan-y block @min-4xl:hidden flex justify-center mt-10 mb-8">
             <button
               onClick={() => {
                 const content = document.getElementById("content");
@@ -440,119 +440,131 @@ export default function BottomNav() {
       )} */}
 
       {/* Bottom Navigation */}
-      <nav
-        aria-label="bottom navigation"
+      <div
         className={cn(
-          "rounded-t-lg fixed bottom-0 left-0 right-0 z-30 bg-highlight-4 dark:bg-highlight-3 border border-border flex justify-around items-center h-16 shadow-md transition-transform duration-300 @min-4xl:hidden safe-area-inset-bottom",
-          showBottomUI ? "translate-y-0" : "translate-y-full"
+          "shadow-md @min-4xl:hidden safe-area-inset-bottom rounded-2xl bg-highlight-4 backdrop-blur border border-border mb-1 mx-1 fixed bottom-0 left-0 right-0 z-30 transition-all duration-300",
+          showBottomUI ? "translate-y-0" : "mb-0 translate-y-full"
         )}
       >
-        <button
-          type="button"
-          className="hover:bg-highlight-5 px-2 py-1.5 rounded-md flex flex-col items-center gap-1"
-          onClick={() => {
-            try {
-              if (typeof window !== "undefined") {
-                window.localStorage.setItem("tab:/beaches", "nearby");
-              }
-            } catch {}
-            router.push("/beaches?tab=nearby");
-          }}
+        <nav
+          aria-label="bottom navigation"
+          className="max-w-150 mx-auto flex justify-around items-center h-17 -mb-0.5"
         >
-          <MapPinned className="w-5 h-5 -mt-0.5" />
-          <span className="text-xs">Browse</span>
-        </button>
-        <button
-          type="button"
-          className="hover:bg-highlight-5 px-2 py-1.5 rounded-md flex flex-col items-center gap-1"
-          onClick={() => {
-            try {
-              if (!user) {
-                router.push(`/login?next=${encodeURIComponent("/beaches")}`);
-                return;
-              }
-              if (typeof window !== "undefined") {
-                window.localStorage.setItem("tab:/beaches", "saved");
-              }
-              router.push("/beaches?tab=saved");
-            } catch {
-              router.push("/beaches?tab=saved");
-            }
-          }}
-        >
-          <Heart className="w-5 h-5 -mt-0.5" />
-          <span className="text-xs">Saved</span>
-        </button>
-        <button
-          type="button"
-          aria-label="search"
-          onClick={() => setIsOverlay(true)}
-          className="group/button hover:scale-[1.05] inline-flex @min-4xl:hidden items-center gap-1 rounded-full bg-gradient-to-br from-cyan-300 to-blue-500 p-3 font-medium text-foreground shadow-lg shadow-cyan-500/30 transition active:scale-[0.98]"
-        >
-          <Search
-            className="h-5 w-5 group-hover/button:scale-[1.05]"
-            strokeWidth={3}
-          />
-        </button>
-        {/* <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-cyan-300 to-blue-500 text-foreground shadow-lg shadow-cyan-500/20">
-          <Waves className="h-6 w-6" aria-hidden />
-        </div> */}
-        {user ? (
-          <Popover open={profileOpen} onOpenChange={setProfileOpen}>
-            <PopoverTrigger className="hover:bg-highlight-5 px-2 py-1.5 rounded-md flex flex-col items-center gap-1">
-              <User className="w-5 h-5 -mt-0.5" />
-              <span className="text-xs">Profile</span>
-            </PopoverTrigger>
-            <PopoverContent
-              align="end"
-              className="z-50 w-56 py-2 px-4 flex flex-col gap-1"
-            >
-              <span className="px-2 py-1.5 text-sm text-muted-foreground max-w-[208px] truncate">
-                {displayEmail}
-              </span>
-              <div className="border-t border-border/40 my-1" />
-              <Link
-                className="hover:bg-highlight-5 px-2 py-1.5 rounded-md flex items-center gap-2 whitespace-nowrap"
-                href="/beaches"
-                onClick={() => {
-                  try {
-                    if (typeof window !== "undefined") {
-                      window.localStorage.setItem("tab:/beaches", "saved");
-                    }
-                    router.push("/beaches?tab=saved");
-                  } catch {
-                    router.push("/beaches?tab=saved");
-                  }
-                  setProfileOpen(false);
-                }}
-              >
-                <Heart className="w-5 h-5 -mt-0.5" /> Saved
-              </Link>
-              <div className="border-t border-border/40 my-1" />
-              <button
-                onClick={async () => {
-                  setProfileOpen(false);
-                  await supabase.auth.signOut();
-                  router.refresh();
-                }}
-                className="hover:bg-highlight-5 px-2 py-1.5 rounded-md flex items-center gap-2 text-destructive"
-              >
-                <LogOut className="h-5 w-5" /> Sign out
-              </button>
-            </PopoverContent>
-          </Popover>
-        ) : (
           <button
             type="button"
-            className="hover:bg-highlight-5 px-2 py-1.5 rounded-md flex flex-col items-center gap-1"
-            onClick={() => router.push("/login")}
+            className="hover:bg-highlight-5 p-2 rounded-2xl flex flex-col items-center gap-1 @min-[350px]:min-w-15"
+            onClick={() => {
+              try {
+                if (typeof window !== "undefined") {
+                  window.localStorage.setItem("tab:/beaches", "nearby");
+                }
+              } catch {}
+              router.push("/beaches?tab=nearby");
+            }}
           >
-            <User className="w-5 h-5 -mt-0.5" />
-            <span className="text-xs">Profile</span>
+            <MapPinned className="w-6 h-6 @min-[350px]:w-5 @min-[350px]:h-5 -mt-0.5" />
+            <span className="text-xs sr-only @min-[350px]:not-sr-only">
+              Browse
+            </span>
           </button>
-        )}
-        <ThemeToggle bottomNavMode />
-      </nav>
+          <button
+            type="button"
+            className="hover:bg-highlight-5 p-2 rounded-2xl flex flex-col items-center gap-1 @min-[350px]:min-w-15"
+            onClick={() => {
+              try {
+                if (!user) {
+                  router.push(`/login?next=${encodeURIComponent("/beaches")}`);
+                  return;
+                }
+                if (typeof window !== "undefined") {
+                  window.localStorage.setItem("tab:/beaches", "saved");
+                }
+                router.push("/beaches?tab=saved");
+              } catch {
+                router.push("/beaches?tab=saved");
+              }
+            }}
+          >
+            <Heart className="w-6 h-6 @min-[350px]:w-5 @min-[350px]:h-5 -mt-0.5" />
+            <span className="text-xs sr-only @min-[350px]:not-sr-only">
+              Saved
+            </span>
+          </button>
+          <button
+            type="button"
+            aria-label="search"
+            onClick={() => setIsOverlay(true)}
+            className="group/button hover:scale-[1.05] inline-flex @min-4xl:hidden items-center gap-1 rounded-full bg-gradient-to-br from-cyan-300 to-blue-500 p-3 font-medium text-foreground shadow-lg shadow-cyan-500/30 transition active:scale-[0.98]"
+          >
+            <Search
+              className="h-5 w-5 group-hover/button:scale-[1.05]"
+              strokeWidth={3}
+            />
+          </button>
+          {/* <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-cyan-300 to-blue-500 text-foreground shadow-lg shadow-cyan-500/20">
+          <Waves className="h-6 w-6" aria-hidden />
+        </div> */}
+          {user ? (
+            <Popover open={profileOpen} onOpenChange={setProfileOpen}>
+              <PopoverTrigger className="hover:bg-highlight-5 p-2 rounded-2xl flex flex-col items-center gap-1 @min-[350px]:min-w-15">
+                <User className="w-6 h-6 @min-[350px]:w-5 @min-[350px]:h-5 -mt-0.5" />
+                <span className="text-xs sr-only @min-[350px]:not-sr-only">
+                  Profile
+                </span>
+              </PopoverTrigger>
+              <PopoverContent
+                align="end"
+                className="z-50 w-56 py-2 px-4 flex flex-col gap-1"
+              >
+                <span className="px-2 py-1.5 text-sm text-muted-foreground max-w-[208px] truncate">
+                  {displayEmail}
+                </span>
+                <div className="border-t border-border/40 my-1" />
+                <Link
+                  className="hover:bg-highlight-5 px-2 py-1.5 rounded-md flex items-center gap-2 whitespace-nowrap"
+                  href="/beaches"
+                  onClick={() => {
+                    try {
+                      if (typeof window !== "undefined") {
+                        window.localStorage.setItem("tab:/beaches", "saved");
+                      }
+                      router.push("/beaches?tab=saved");
+                    } catch {
+                      router.push("/beaches?tab=saved");
+                    }
+                    setProfileOpen(false);
+                  }}
+                >
+                  <Heart className="w-5 h-5 -mt-0.5" /> Saved
+                </Link>
+                <div className="border-t border-border/40 my-1" />
+                <button
+                  onClick={async () => {
+                    setProfileOpen(false);
+                    await supabase.auth.signOut();
+                    router.refresh();
+                  }}
+                  className="hover:bg-highlight-5 px-2 py-1.5 rounded-md flex items-center gap-2 text-destructive"
+                >
+                  <LogOut className="h-5 w-5" /> Sign out
+                </button>
+              </PopoverContent>
+            </Popover>
+          ) : (
+            <button
+              type="button"
+              className="hover:bg-highlight-5 p-2 rounded-2xl flex flex-col items-center gap-1 @min-[350px]:min-w-15"
+              onClick={() => router.push("/login")}
+            >
+              <User className="w-6 h-6 @min-[350px]:w-5 @min-[350px]:h-5 -mt-0.5" />
+              <span className="text-xs sr-only @min-[350px]:not-sr-only">
+                Profile
+              </span>
+            </button>
+          )}
+          <ThemeToggle bottomNavMode />
+        </nav>
+      </div>
     </>
   );
 }
