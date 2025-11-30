@@ -6,12 +6,12 @@ import { generateBeachUrl } from "@/lib/supabase";
 import type { ForecastData } from "@/lib/supabase";
 import { Waves, Wind, MousePointer2 as ArrowIcon, Info } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { useMapFilters } from "../context/MapFilterContext";
 import { cn } from "@/lib/utils";
 import SaveButton from "./SaveButton";
-import { SwellRings, WindRing } from "../visuals/InteractiveMap";
+import { SwellRings, WindRing } from "../visuals/DirectionRings";
 import { useRouter } from "next/navigation";
 import Tag from "./Tag";
+import { useMapFilters } from "../context/MapFilterContext";
 
 export type Beach = {
   id: string;
@@ -31,96 +31,102 @@ export type Beach = {
   features: { label: string; icon: ReactNode; color: string }[];
 };
 
-const BeachCard = ({
-  b,
-  useMiles = true,
-  isFav,
-}: {
+type BeachCardProps = {
   b: Beach;
   useMiles?: boolean;
   isFav: boolean;
-}) => {
-  const router = useRouter();
-  const { map, setHoverCardId } = useMapFilters();
-  const tagsRowRef = React.useRef<HTMLDivElement | null>(null);
-  const [fitCount, setFitCount] = React.useState<number>(0);
-  const measureTagRefs = React.useRef<Array<HTMLDivElement | null>>([]);
-  const moreMeasureRef = React.useRef<HTMLDivElement | null>(null);
+  map?: any;
+  setHoverCardId?: (id: string | null) => void;
+};
 
-  const distance =
-    b.distanceKm != null
-      ? useMiles
-        ? b.distanceKm * 0.621371
-        : b.distanceKm
-      : null;
-  const maxRounded =
-    b.conditions.rating != null ? Math.round(b.conditions.rating) : null;
-  const color = !b.conditions.rating
-    ? "bg-highlight-3"
-    : maxRounded! >= 6
-    ? "bg-red-400"
-    : maxRounded! >= 3
-    ? "bg-orange-300"
-    : "bg-green-300";
-  const rotation =
-    typeof b.conditions.windDir === "number" ? b.conditions.windDir - 315 : 0;
+const BeachCard = React.memo(
+  ({
+    b,
+    useMiles = true,
+    isFav,
+    map,
+    setHoverCardId = () => {},
+  }: BeachCardProps) => {
+    const router = useRouter();
+    const tagsRowRef = React.useRef<HTMLDivElement | null>(null);
+    const [fitCount, setFitCount] = React.useState<number>(0);
+    const measureTagRefs = React.useRef<Array<HTMLDivElement | null>>([]);
+    const moreMeasureRef = React.useRef<HTMLDivElement | null>(null);
 
-  const goToOverview = () => {
-    router.push(`${generateBeachUrl(b.name, b.id)}/overview#content`);
-  };
+    const distance =
+      b.distanceKm != null
+        ? useMiles
+          ? b.distanceKm * 0.621371
+          : b.distanceKm
+        : null;
+    const maxRounded =
+      b.conditions.rating != null ? Math.round(b.conditions.rating) : null;
+    const color = !b.conditions.rating
+      ? "bg-highlight-3"
+      : maxRounded! >= 6
+      ? "bg-red-400"
+      : maxRounded! >= 3
+      ? "bg-orange-300"
+      : "bg-green-300";
+    const rotation =
+      typeof b.conditions.windDir === "number" ? b.conditions.windDir - 315 : 0;
 
-  // Compute how many tags fit in the visible row; others go under a +N popover
-  React.useEffect(() => {
-    if (!Array.isArray(b.features) || b.features.length === 0) {
-      setFitCount(0);
-      return;
-    }
-    const row = tagsRowRef.current;
-    if (!row) return;
+    const goToOverview = () => {
+      router.push(`${generateBeachUrl(b.name, b.id)}/overview#content`);
+    };
 
-    const compute = () => {
-      const containerWidth = row.clientWidth || 0;
-      if (containerWidth <= 0) {
+    // Compute how many tags fit in the visible row; others go under a +N popover
+    React.useEffect(() => {
+      if (!Array.isArray(b.features) || b.features.length === 0) {
         setFitCount(0);
         return;
       }
-      // Approximate horizontal gap between tags (gap-1 => 0.25rem)
-      const gapPx = 4;
-      const widths = measureTagRefs.current
-        .slice(0, b.features.length)
-        .map((el) => (el ? el.getBoundingClientRect().width : 0));
-      const moreWidth = moreMeasureRef.current
-        ? moreMeasureRef.current.getBoundingClientRect().width
-        : 36; // reasonable default
-      let used = 0;
-      let count = 0;
-      for (let i = 0; i < widths.length; i++) {
-        const w = widths[i] + (i > 0 ? gapPx : 0);
-        // Check if we need to reserve space for the more button
-        const needMore = i < widths.length - 1; // if we can't fit all, reserve
-        const reserve = needMore ? gapPx + moreWidth : 0;
-        if (used + w + reserve <= containerWidth) {
-          used += w;
-          count++;
-        } else {
-          break;
+      const row = tagsRowRef.current;
+      if (!row) return;
+
+      const compute = () => {
+        const containerWidth = row.clientWidth || 0;
+        if (containerWidth <= 0) {
+          setFitCount(0);
+          return;
         }
-      }
-      setFitCount(count);
-    };
+        // Approximate horizontal gap between tags (gap-1 => 0.25rem)
+        const gapPx = 4;
+        const widths = measureTagRefs.current
+          .slice(0, b.features.length)
+          .map((el) => (el ? el.getBoundingClientRect().width : 0));
+        const moreWidth = moreMeasureRef.current
+          ? moreMeasureRef.current.getBoundingClientRect().width
+          : 36; // reasonable default
+        let used = 0;
+        let count = 0;
+        for (let i = 0; i < widths.length; i++) {
+          const w = widths[i] + (i > 0 ? gapPx : 0);
+          // Check if we need to reserve space for the more button
+          const needMore = i < widths.length - 1; // if we can't fit all, reserve
+          const reserve = needMore ? gapPx + moreWidth : 0;
+          if (used + w + reserve <= containerWidth) {
+            used += w;
+            count++;
+          } else {
+            break;
+          }
+        }
+        setFitCount(count);
+      };
 
-    const ro = new ResizeObserver(() => compute());
-    ro.observe(row);
-    // slight delay to ensure measurers mounted
-    const id = requestAnimationFrame(compute);
-    return () => {
-      ro.disconnect();
-      cancelAnimationFrame(id);
-    };
-  }, [b.features]);
+      const ro = new ResizeObserver(() => compute());
+      ro.observe(row);
+      // slight delay to ensure measurers mounted
+      const id = requestAnimationFrame(compute);
+      return () => {
+        ro.disconnect();
+        cancelAnimationFrame(id);
+      };
+    }, [b.features]);
 
-  return (
-    <article
+    return (
+      <article
       onMouseEnter={() => {
         setHoverCardId(b.id);
         if (!map) return;
@@ -517,6 +523,30 @@ const BeachCard = ({
   //     </div>
   //   </article>
   // );
+  },
+  (prev, next) =>
+    prev.b === next.b &&
+    prev.useMiles === next.useMiles &&
+    prev.isFav === next.isFav &&
+    prev.map === next.map &&
+    prev.setHoverCardId === next.setHoverCardId
+);
+
+const BeachCardWithContext = ({
+  b,
+  useMiles,
+  isFav,
+}: Omit<BeachCardProps, "map" | "setHoverCardId">) => {
+  const { map, setHoverCardId } = useMapFilters();
+  return (
+    <BeachCard
+      b={b}
+      useMiles={useMiles}
+      isFav={isFav}
+      map={map}
+      setHoverCardId={setHoverCardId}
+    />
+  );
 };
 
-export default BeachCard;
+export default BeachCardWithContext;

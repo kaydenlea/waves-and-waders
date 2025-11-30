@@ -955,6 +955,12 @@ export default function NearbyBeaches({
   const [statsByBeach, setStatsByBeach] = useState<
     Record<string, BeachStatsSnapshot>
   >({});
+  const decoratedCacheRef = useRef<
+    Record<
+      string,
+      { base: UIBeach; snapshot?: BeachStatsSnapshot | null; decorated: UIBeach }
+    >
+  >({});
 
   const effectiveDate = useMemo(() => {
     if (date instanceof Date) return date;
@@ -1034,13 +1040,31 @@ export default function NearbyBeaches({
     loadBeaches();
   }, [missingStatIds, currentItems]);
 
-  const renderedItems = useMemo(
-    () =>
-      currentItems.map((beach) =>
-        decorateBeachWithStats(beach, statsByBeach[String(beach.id)])
-      ),
-    [currentItems, statsByBeach]
-  );
+  const renderedItems = useMemo(() => {
+    const cache = decoratedCacheRef.current;
+    const next: UIBeach[] = [];
+    const presentIds = new Set<string>();
+
+    currentItems.forEach((beach) => {
+      const id = String(beach.id);
+      presentIds.add(id);
+      const snapshot = statsByBeach[id];
+      const cached = cache[id];
+      if (cached && cached.base === beach && cached.snapshot === snapshot) {
+        next.push(cached.decorated);
+        return;
+      }
+      const decorated = decorateBeachWithStats(beach, snapshot);
+      cache[id] = { base: beach, snapshot, decorated };
+      next.push(decorated);
+    });
+
+    Object.keys(cache).forEach((id) => {
+      if (!presentIds.has(id)) delete cache[id];
+    });
+
+    return next;
+  }, [currentItems, statsByBeach]);
 
   const handlePrev = () => setPage((p) => Math.max(1, p - 1));
   const handleNext = () => setPage((p) => Math.min(totalPages, p + 1));
