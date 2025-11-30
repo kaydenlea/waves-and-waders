@@ -146,6 +146,8 @@ const clampIntensity = (value: number, max: number): number => {
   return Math.min(100, Math.round((value / max) * 100));
 };
 
+const normalizeHour = (value: number) => ((value % 24) + 24) % 24;
+
 const SURF_HEIGHT_CAP = 12;
 const WIND_SPEED_CAP = 40;
 const TEMP_CAP = 100; // For temperature circles
@@ -200,7 +202,8 @@ const dateKey = (value?: Date) => {
 };
 async function computeBeachStatsSnapshot(
   beachId: string,
-  targetDate?: Date
+  targetDate?: Date,
+  targetHour?: number | null
 ): Promise<BeachStatsSnapshot | null> {
   try {
     const resolved = await fetchBeachByIdLoose(beachId);
@@ -231,8 +234,29 @@ async function computeBeachStatsSnapshot(
       return null;
     }
 
-    const base = targetDate ? forecast[0] : current ?? forecast[0];
-    const renderData = base ?? current ?? null;
+    const targetHourNormalized =
+      typeof targetHour === "number"
+        ? normalizeHour(targetHour)
+        : targetDate instanceof Date
+        ? 12
+        : normalizeHour(new Date().getHours());
+
+    const baseRow =
+      forecast.length > 0
+        ? forecast.reduce((best, row) => {
+            const rowHour = normalizeHour(new Date(row.timestamp).getHours());
+            const bestHour = normalizeHour(
+              new Date(best.timestamp).getHours()
+            );
+            const diff = Math.abs(rowHour - targetHourNormalized);
+            const bestDiff = Math.abs(bestHour - targetHourNormalized);
+            const wrappedDiff = diff > 12 ? 24 - diff : diff;
+            const wrappedBest = bestDiff > 12 ? 24 - bestDiff : bestDiff;
+            return wrappedDiff < wrappedBest ? row : best;
+          }, forecast[0])
+        : null;
+
+    const renderData = baseRow ?? current ?? forecast[0] ?? null;
     const stats: SummaryStat[] = [];
 
     const heightMins = forecast
@@ -400,10 +424,10 @@ async function computeBeachStatsSnapshot(
     }
     if (
       currentTideHeight == null &&
-      base?.conditions.tideLevel != null &&
-      Number.isFinite(base.conditions.tideLevel)
+      renderData?.conditions.tideLevel != null &&
+      Number.isFinite(renderData.conditions.tideLevel)
     ) {
-      currentTideHeight = Number(base.conditions.tideLevel.toFixed(1));
+      currentTideHeight = Number(renderData.conditions.tideLevel.toFixed(1));
     }
 
     let sunrise: string | undefined;
@@ -567,11 +591,21 @@ async function computeBeachStatsSnapshot(
 
 async function getBeachStatsCached(
   beachId: string,
-  targetDate?: Date
+  targetDate?: Date,
+  targetHour?: number | null
 ): Promise<BeachStatsSnapshot | null> {
-  const key = `${beachId}:${dateKey(targetDate)}`;
+  const hourKey =
+    typeof targetHour === "number"
+      ? normalizeHour(targetHour)
+      : targetDate instanceof Date
+      ? "midday"
+      : "now";
+  const key = `${beachId}:${dateKey(targetDate)}:${hourKey}`;
   if (!beachStatsCache.has(key)) {
-    beachStatsCache.set(key, computeBeachStatsSnapshot(beachId, targetDate));
+    beachStatsCache.set(
+      key,
+      computeBeachStatsSnapshot(beachId, targetDate, targetHour)
+    );
   }
   return beachStatsCache.get(key)!;
 }
@@ -590,6 +624,8 @@ export default function NearbyBeaches({
     map,
     beaches: sharedBeaches,
     setBeaches: setSharedBeaches,
+    selectedDate,
+    selectedHour,
   } = useMapFilters();
   const filterCount = filters?.size ?? 0;
   const initialList: UIBeach[] = useMemo(
@@ -920,9 +956,19 @@ export default function NearbyBeaches({
     Record<string, BeachStatsSnapshot>
   >({});
 
+  const effectiveDate = useMemo(() => {
+    if (date instanceof Date) return date;
+    if (selectedDate instanceof Date) return selectedDate;
+    return null;
+  }, [date, selectedDate]);
+
+  const effectiveHour =
+    typeof selectedHour === "number" ? selectedHour : null;
+
   const loadStats = async (beaches: UIBeach[]) => {
     if (!beaches.length) return null;
-    const targetDate = date instanceof Date ? new Date(date) : undefined;
+    const targetDate =
+      effectiveDate instanceof Date ? new Date(effectiveDate) : undefined;
 
     const entries = await Promise.all(
       beaches.map(async (beach) => {
@@ -930,7 +976,8 @@ export default function NearbyBeaches({
           if (!beach?.id) return null;
           const snapshot = await getBeachStatsCached(
             String(beach.id),
-            targetDate
+            targetDate,
+            effectiveHour
           );
           if (!snapshot) return null;
           return [String(beach.id), snapshot] as const;
@@ -956,11 +1003,17 @@ export default function NearbyBeaches({
       .filter((id) => !statsByBeach[id]);
   }, [currentItems, statsByBeach]);
 
-  const dateKey = date instanceof Date ? date.getTime() : null;
+  const dateKey = effectiveDate instanceof Date ? effectiveDate.getTime() : null;
+  const hourKey =
+    effectiveHour != null
+      ? normalizeHour(effectiveHour)
+      : effectiveDate instanceof Date
+      ? 12
+      : "now";
 
   useEffect(() => {
     setStatsByBeach({});
-  }, [dateKey]);
+  }, [dateKey, hourKey]);
 
   useEffect(() => {
     if (!missingStatIds.length) return;
