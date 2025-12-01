@@ -807,13 +807,18 @@ function getMoonPhaseInfo(raw: string | number): {
   lines: [string, string];
 } {
   const toKindFromNumber = (n: number): MoonKind => {
-    if (n === 0) return "new";
-    if (n > 0 && n < 0.25) return "waxing_crescent";
-    if (n === 0.25) return "first_quarter";
-    if (n > 0.25 && n < 0.5) return "waxing_gibbous";
-    if (n === 0.5) return "full";
-    if (n > 0.5 && n < 0.75) return "waning_gibbous";
-    if (n === 0.75) return "last_quarter";
+    const phase = ((n % 1) + 1) % 1; // normalize 0..1
+    const isNear = (target: number, eps = 0.03) =>
+      Math.abs(phase - target) <= eps || Math.abs(phase - (target + 1)) <= eps;
+
+    if (isNear(0) || isNear(1)) return "new";
+    if (isNear(0.25)) return "first_quarter";
+    if (isNear(0.5)) return "full";
+    if (isNear(0.75)) return "last_quarter";
+
+    if (phase < 0.25) return "waxing_crescent";
+    if (phase < 0.5) return "waxing_gibbous";
+    if (phase < 0.75) return "waning_gibbous";
     return "waning_crescent"; // 0.75 - 1
   };
 
