@@ -156,6 +156,32 @@ DatePickerProps) => {
 
   const scrollBy = 3;
 
+  // Reuse expensive formatters instead of recreating them per row
+  const pacificFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/Los_Angeles",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }),
+    []
+  );
+  const pacificNoonFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/Los_Angeles",
+        hour: "2-digit",
+        hour12: false,
+      }),
+    []
+  );
+
+  const storageKey = useMemo(
+    () => (beachId ? `date-picker-cache:${beachId}` : null),
+    [beachId]
+  );
+
   const handleNext = () => {
     if (!api) return;
     const nextIndex = Math.min(
@@ -173,6 +199,52 @@ DatePickerProps) => {
 
   useEffect(() => {
     let active = true;
+
+    const reviveSummaries = (raw: Record<string, DaySummary>) => {
+      const next: Record<string, DaySummary> = {};
+      Object.entries(raw).forEach(([key, summary]) => {
+        next[key] = {
+          ...summary,
+          // sessionStorage strips Dayjs, so ensure we rehydrate
+          date: dayjs((summary as DaySummary).date),
+        };
+      });
+      return next;
+    };
+
+    const hydrateFromSession = () => {
+      if (!storageKey) return null;
+      try {
+        const raw = sessionStorage.getItem(storageKey);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw) as {
+          data: Record<string, DaySummary>;
+          keys: string[];
+        };
+        if (parsed?.data && parsed?.keys?.length) {
+          setSummaries(reviveSummaries(parsed.data));
+          setOrderedKeys(parsed.keys);
+          return { ...parsed, data: reviveSummaries(parsed.data) };
+        }
+      } catch (err) {
+        console.warn("Failed to read cached forecast", err);
+      }
+      return null;
+    };
+
+    const cachedSessionData = hydrateFromSession();
+    if (
+      cachedSessionData &&
+      !selectedDate &&
+      !(value instanceof Date) &&
+      cachedSessionData.keys.length > 0
+    ) {
+      const firstKey = cachedSessionData.keys[0];
+      const first = cachedSessionData.data[firstKey]?.date ?? dayjs(firstKey);
+      setSelectedDate(first);
+      onSelect?.(first.toDate());
+    }
+
     const run = async () => {
       if (!beachId) return;
 
@@ -243,13 +315,7 @@ DatePickerProps) => {
           const d = new Date(iso);
 
           // Get Pacific timezone date for grouping (DST-aware)
-          const formatter = new Intl.DateTimeFormat("en-US", {
-            timeZone: "America/Los_Angeles",
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-          });
-          const parts = formatter.formatToParts(d);
+          const parts = pacificFormatter.formatToParts(d);
           const year = parts.find((p) => p.type === "year")?.value;
           const month = parts.find((p) => p.type === "month")?.value;
           const day = parts.find((p) => p.type === "day")?.value;
@@ -266,12 +332,9 @@ DatePickerProps) => {
             // Create a Date for midnight in Pacific timezone
             const noonUTC = Date.UTC(yearNum, monthNum, dayNum, 12, 0, 0, 0);
             const noonDate = new Date(noonUTC);
-            const noonFormatter = new Intl.DateTimeFormat("en-US", {
-              timeZone: "America/Los_Angeles",
-              hour: "2-digit",
-              hour12: false,
-            });
-            const pacificNoonHour = parseInt(noonFormatter.format(noonDate));
+            const pacificNoonHour = parseInt(
+              pacificNoonFormatter.format(noonDate)
+            );
             const offsetHours = pacificNoonHour - 12;
             const midnightUTC = new Date(
               Date.UTC(yearNum, monthNum, dayNum, -offsetHours, 0, 0, 0)
@@ -353,6 +416,16 @@ DatePickerProps) => {
             data: limitedGroups,
             keys: limitedKeys,
           };
+          if (storageKey) {
+            try {
+              sessionStorage.setItem(
+                storageKey,
+                JSON.stringify({ data: limitedGroups, keys: limitedKeys })
+              );
+            } catch (err) {
+              console.warn("Failed to cache forecast", err);
+            }
+          }
 
           // initialize selection: prefer controlled value; else first key
           if (value instanceof Date) {
@@ -378,7 +451,7 @@ DatePickerProps) => {
     return () => {
       active = false;
     };
-  }, [beachId, value]);
+  }, [beachId, value, pacificFormatter, pacificNoonFormatter, storageKey]);
 
 
 
