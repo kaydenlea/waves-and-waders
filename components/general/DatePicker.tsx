@@ -553,6 +553,16 @@ DatePickerProps) => {
       clearTimeout(dateSelectionTimerRef.current);
     }
 
+    const datesEqual = (a: Date[] | null, b: Date[] | null) => {
+      if (a === b) return true;
+      if (!a || !b) return false;
+      if (a.length !== b.length) return false;
+      for (let i = 0; i < a.length; i++) {
+        if (a[i].getTime() !== b[i].getTime()) return false;
+      }
+      return true;
+    };
+
     dateSelectionTimerRef.current = setTimeout(() => {
       const daysRange: Date[] = [];
       orderedKeys.forEach((key, index) => {
@@ -562,7 +572,7 @@ DatePickerProps) => {
           daysRange.push(day.toDate());
         }
       });
-      setSelectedDays(daysRange);
+      setSelectedDays((prev) => (datesEqual(prev, daysRange) ? prev : daysRange));
 
       const targetKey = selectedDate
         ? selectedDate.format("YYYY-MM-DD")
@@ -597,9 +607,10 @@ DatePickerProps) => {
           if (minRounded === maxRounded) {
             minRounded = Math.max(0, maxRounded - 1);
           }
-          setSurfRange(`${minRounded}-${maxRounded}`);
+          const nextRange = `${minRounded}-${maxRounded}`;
+          setSurfRange((prev) => (prev === nextRange ? prev : nextRange));
         } else {
-          setSurfRange(null);
+          setSurfRange((prev) => (prev === null ? prev : null));
         }
       } else {
         setSurfIntensityForDate(null);

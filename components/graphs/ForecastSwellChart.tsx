@@ -91,6 +91,15 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
   const [isAtRightEdge, setIsAtRightEdge] = useState(false);
   const { selected: selectedDate } = useDateContext();
 
+  // Normalize and sort incoming days so fetch windows stay aligned
+  const normalizedDays = useMemo(() => {
+    if (!days || days.length === 0) return null;
+    return [...days]
+      .filter((d): d is Date => d instanceof Date && !Number.isNaN(d.getTime()))
+      .sort((a, b) => a.getTime() - b.getTime());
+  }, [days]);
+  const displayDays = normalizedDays ?? days ?? null;
+
   // Pointer & animation refs
   const currentTranslateRef = useRef(0);
   const pointerStateRef = useRef<{
@@ -100,10 +109,12 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
   } | null>(null);
   const rafRef = useRef<number | null>(null);
 
-  // Derived dimensions - use days prop length if available
+  // Derived dimensions - use normalized days length if available
   const totalFetchedDays = useMemo(() => {
-    return days && days.length > 0 ? days.length : VISIBLE_DAYS;
-  }, [days]);
+    return normalizedDays && normalizedDays.length > 0
+      ? normalizedDays.length
+      : VISIBLE_DAYS;
+  }, [normalizedDays]);
   const dayPx = useMemo(() => {
     if (!containerWidth) return MIN_DAY_PX;
     const fillPerDay = containerWidth / VISIBLE_DAYS;
@@ -315,14 +326,20 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
   useEffect(() => {
     let cancelled = false;
     const hydrateSun = async () => {
-      const totalDays = days && days.length > 0 ? days.length : VISIBLE_DAYS;
+      const totalDays =
+        normalizedDays && normalizedDays.length > 0
+          ? normalizedDays.length
+          : VISIBLE_DAYS;
       if (!beachId || totalDays <= 0) {
         setDayAreas([]);
         setNightAreas([]);
         return;
       }
 
-      const baseDate = days && days.length > 0 ? days[0] : new Date();
+      const baseDate =
+        normalizedDays && normalizedDays.length > 0
+          ? normalizedDays[0]
+          : new Date();
       const startDate = getPacificMidnightUTC(baseDate);
 
       try {
@@ -349,7 +366,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
     return () => {
       cancelled = true;
     };
-  }, [beachId, days, getSunData]);
+  }, [beachId, normalizedDays, getSunData]);
 
   // Build swell series from forecast rows
   React.useEffect(() => {
@@ -377,8 +394,13 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
         }
 
         const numDaysToFetch =
-          days && days.length > 0 ? days.length : VISIBLE_DAYS;
-        const baseDateValue = days && days.length > 0 ? days[0] : new Date();
+          normalizedDays && normalizedDays.length > 0
+            ? normalizedDays.length
+            : VISIBLE_DAYS;
+        const baseDateValue =
+          normalizedDays && normalizedDays.length > 0
+            ? normalizedDays[0]
+            : new Date();
         const start = getPacificMidnightUTC(baseDateValue);
         const end = new Date(
           start.getTime() + numDaysToFetch * 24 * 60 * 60 * 1000
@@ -524,7 +546,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
     return () => {
       cancelled = true;
     };
-  }, [beachId, days]);
+  }, [beachId, normalizedDays]);
 
   const dayStats = React.useMemo(() => {
     if (!swellData.length) return [];
@@ -557,8 +579,8 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
   }, [swellData, totalFetchedDays]);
 
   const dayLabels =
-    Array.isArray(days) && days.length > 0
-      ? days.map((d) =>
+    Array.isArray(displayDays) && displayDays.length > 0
+      ? displayDays.map((d) =>
           d.toLocaleDateString("en-US", {
             weekday: "short",
             month: "short",
@@ -789,7 +811,10 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                 {/* Selected hour marker */}
                 {(() => {
                   try {
-                    const base = days && days.length > 0 ? days[0] : null;
+                    const base =
+                      displayDays && displayDays.length > 0
+                        ? displayDays[0]
+                        : null;
                     if (!base || !selectedDate) return null;
                     const baseMid = new Date(
                       base.getFullYear(),
@@ -819,7 +844,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                 })()}
                 {/* Hover indicator line */}
                 <HoverReferenceLine
-                  days={days}
+                  days={displayDays}
                   selectedDate={selectedDate}
                   selectedHour={selectedHour}
                 />
