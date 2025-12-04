@@ -723,11 +723,11 @@ const WeatherStat = ({
     if (label === "water")
       return <Droplets className="w-5 h-5" color="#1CACD4" />;
     if (code == null)
-      return <Sun className="w-5 h-5" strokeWidth={3} color="#f79e55ff" />;
+      return <Sun className="w-5 h-5" strokeWidth={3} color="#fbbf24" />;
 
     // WMO code groupings
     if (code === 0)
-      return <Sun className="w-5 h-5" strokeWidth={3} color="#f79e55ff" />; // Clear
+      return <Sun className="w-5 h-5" strokeWidth={3} color="#fbbf24" />; // Clear - yellow sun
     if ([1, 2, 3].includes(code))
       return <CloudSun className="w-5 h-5" color="#bdbdbdff" />; // Partly cloudy/overcast
     if ([45, 48].includes(code))

@@ -85,7 +85,7 @@ type SummaryStat =
       }[];
     };
 type TidePointValue = { x: number; tide: number };
-type TidePeak = { kind: "high" | "low"; time: Date; level: number };
+type TidePeak = { kind: "high" | "low"; time: Date; level: number | null };
 
 type ApiBeach = {
   id: string | number;

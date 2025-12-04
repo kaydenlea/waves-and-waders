@@ -91,8 +91,8 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   const { hour: selectedHour, setHoveredHour } = useDateContext();
   const { getSunData } = useSunData();
   const hoveredHour = useHoveredHour();
-  const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
-  const [nightAreas, setNightAreas] = useState<{ x1: number; x2: number }[]>(
+  const [dayAreas, setDayAreas] = useState<{ x1: number; x2?: number }[]>([]);
+  const [nightAreas, setNightAreas] = useState<{ x1: number; x2?: number }[]>(
     []
   );
   const { rows: forecastRows, start: windowStart } = useForecastWindowData({

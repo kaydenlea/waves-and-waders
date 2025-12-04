@@ -36,6 +36,12 @@ export function PathProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      // Default overview pages to the overview tab when no saved state exists
+      if (pathname.includes("/overview") && selectedTab !== "overview") {
+        setSelectedTab("overview");
+        return;
+      }
+
       // Default forecast pages to the forecast tab when no saved state exists
       if (pathname.includes("/forecast") && selectedTab !== "forecast") {
         setSelectedTab("forecast");

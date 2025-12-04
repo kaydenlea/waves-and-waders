@@ -19,30 +19,14 @@ export default async function RootLayout({
 }>) {
   const supabase = await getServerSupabase();
 
-  // Use getUser() instead of getSession() for secure authentication
-  const { data: userData, error: userError } = await supabase.auth.getUser();
+  // Get the actual session data which includes access tokens
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
-  const user = userData.user ?? null;
-
-  // Session can be derived from user data if needed
-  let session = null;
-  if (user) {
-    // If you need session data, you can access it from the authenticated user
-    // For most cases, the user object is sufficient
-    session = user;
+  if (sessionError) {
+    console.error("Failed to load session", sessionError);
   }
 
-  if (userError) {
-    console.error("Failed to load authenticated user", userError);
-  }
-
-  const initialSession =
-    user && session
-      ? {
-          ...session,
-          user: user,
-        }
-      : null;
+  const initialSession = session;
 
   return (
     <html lang="en" suppressHydrationWarning>

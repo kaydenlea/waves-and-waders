@@ -1174,7 +1174,6 @@ const InteractiveMap = ({ beachId, loggedIn }: Props) => {
           boxShadow: "0px 0px 5px rgba(0,0,0,0.2)",
         }}
         mapStyle={MAP_STYLE_URL}
-        antialias={false}
         fadeDuration={0}
         maxZoom={16}
         minZoom={3}

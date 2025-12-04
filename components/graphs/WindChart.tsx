@@ -107,8 +107,8 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   const { hour: selectedHour, setHoveredHour } = useDateContext();
   const { getSunData } = useSunData();
   const hoveredHour = useHoveredHour();
-  const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
-  const [nightAreas, setNightAreas] = useState<{ x1: number; x2: number }[]>(
+  const [dayAreas, setDayAreas] = useState<{ x1: number; x2?: number }[]>([]);
+  const [nightAreas, setNightAreas] = useState<{ x1: number; x2?: number }[]>(
     []
   );
   const [buffer, setBuffer] = useState<number>(0);
@@ -329,12 +329,12 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           <ReferenceArea
             key={`day-${idx}`}
             x1={a.x1}
-            x2={a.x2}
+            x2={a.x2 ?? hours}
             ifOverflow="extendDomain"
             shape={makeAreaShape(
               "#FFE58F",
               closeTo(a.x1, domainStart),
-              closeTo(a.x2, domainEnd)
+              closeTo(a.x2 ?? hours, domainEnd)
             )}
           />
         ))}
@@ -342,12 +342,12 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           <ReferenceArea
             key={`night-${idx}`}
             x1={a.x1}
-            x2={a.x2}
+            x2={a.x2 ?? hours}
             ifOverflow="extendDomain"
             shape={makeAreaShape(
               "#ccc1ffff",
               closeTo(a.x1, domainStart),
-              closeTo(a.x2, domainEnd)
+              closeTo(a.x2 ?? hours, domainEnd)
             )}
           />
         ))}
