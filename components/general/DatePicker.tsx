@@ -28,7 +28,6 @@ import {
 } from "lucide-react";
 import {
   fetchBeachForecast,
-  fetchForecastRange,
   type ForecastData,
 } from "@/lib/supabase";
 import { fetchSurfIntensityAPI } from "@/lib/api";
@@ -267,20 +266,11 @@ DatePickerProps) => {
 
       setLoading(true);
       try {
-        // Determine available range in DB for this beach
-        const range = await fetchForecastRange(beachId);
-        let data: ForecastData[] = [];
-        if (range) {
-          const start = new Date(range.start);
-          const end = new Date(range.end);
-          data = await fetchBeachForecast(beachId, start, end);
-        } else {
-          // Fallback: wide window around now
-          const now = new Date();
-          const start = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
-          const end = new Date(now.getTime() + 21 * 24 * 60 * 60 * 1000);
-          data = await fetchBeachForecast(beachId, start, end);
-        }
+        // Fetch a wide enough window in one request (avoids extra range query)
+        const now = new Date();
+        const start = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+        const end = new Date(now.getTime() + 21 * 24 * 60 * 60 * 1000);
+        const data: ForecastData[] = await fetchBeachForecast(beachId, start, end);
 
         // Group by local YYYY-MM-DD using a robust timestamp parse
         const groups: Record<string, DaySummary> = {};
@@ -451,7 +441,7 @@ DatePickerProps) => {
     return () => {
       active = false;
     };
-  }, [beachId, value, pacificFormatter, pacificNoonFormatter, storageKey]);
+  }, [beachId, pacificFormatter, pacificNoonFormatter, storageKey]);
 
 
 

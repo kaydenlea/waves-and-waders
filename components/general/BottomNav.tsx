@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
   User,
@@ -179,8 +179,39 @@ export default function BottomNav() {
     return <Waves className="w-6 h-6 text-sky-300 opacity-70" />;
   };
 
+  const [expandedSections, setExpandedSections] = useState<
+    Record<string, boolean>
+  >(() => {
+    const initial: Record<string, boolean> = {};
+    Object.keys(FEATURE_CATEGORIES).forEach((key) => {
+      initial[key] = false; // start collapsed by default
+    });
+    return initial;
+  });
+
   // temporary, uncommitted filters
   const [tempFilters, setTempFilters] = useState<Set<string>>(new Set(filters));
+
+  const featureSections = useMemo(
+    () =>
+      Object.entries(FEATURE_CATEGORIES).map(([key, cat]) => ({
+        key,
+        label: (cat as any).label || key,
+        features: (cat as any).features as string[],
+      })),
+    []
+  );
+
+  const sectionSelections = useMemo(() => {
+    const result: Record<string, number> = {};
+    featureSections.forEach((section) => {
+      result[section.key] = section.features.reduce(
+        (count, key) => count + (tempFilters.has(key) ? 1 : 0),
+        0
+      );
+    });
+    return result;
+  }, [featureSections, tempFilters]);
 
   useEffect(() => {
     if (openPanel === "filters") {
@@ -204,6 +235,12 @@ export default function BottomNav() {
     setFilters(new Set(newFilters));
     // optionally trigger data refresh or re-fetch
   };
+
+  const toggleSection = (key: string) =>
+    setExpandedSections((prev) => ({
+      ...prev,
+      [key]: !(prev?.[key] ?? true),
+    }));
 
   return (
     <>
@@ -274,41 +311,27 @@ export default function BottomNav() {
         )}
       </div>
 
-      <AnimatePresence>
-        {openPanel === "filters" && (
-          <>
-            {/* Dimmed background */}
-            <motion.div
-              className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setOpenPanel(null)}
-            />
+      {/* Filters overlay + sheet (always mounted to avoid flicker) */}
+      <>
+        <div
+          className={cn(
+            "fixed inset-0 z-50 bg-black/30 backdrop-blur-sm transition-opacity duration-150",
+            openPanel === "filters"
+              ? "opacity-100 pointer-events-auto"
+              : "opacity-0 pointer-events-none"
+          )}
+          onClick={() => setOpenPanel(null)}
+        />
 
-            {/* Responsive Sheet / Modal */}
-            <motion.div
-              key="filters"
-              initial={{ y: "100%", opacity: 0, scale: 1 }}
-              animate={{
-                y: 0,
-                opacity: 1,
-                scale: 1,
-              }}
-              exit={{ y: "100%", opacity: 0 }}
-              transition={{ type: "spring", stiffness: 260, damping: 28 }}
-              // drag="y"
-              dragConstraints={{ top: 0, bottom: 0 }}
-              dragElastic={0.15}
-              onDragEnd={(_, info) => {
-                if (info.offset.y > 80) setOpenPanel(null); // only draggable down
-              }}
-              style={{ touchAction: "pan-y" }}
-              className={cn(
-                "fixed bottom-0 left-0 right-0 z-50 flex flex-col bg-background/95 backdrop-blur-lg rounded-t-3xl border-t border-border/30 shadow-[0_-12px_40px_rgba(2,6,23,0.08)] max-h-[85vh] transition-all duration-300",
-                "@min-4xl:bottom-auto @min-4xl:left-1/2 @min-4xl:top-1/2 @min-4xl:right-auto @min-4xl:-translate-x-1/2 @min-4xl:-translate-y-1/2 @min-4xl:rounded-3xl @min-4xl:border @min-4xl:shadow-2xl @min-4xl:max-h-[80vh] @min-4xl:w-[800px] @min-4xl:drag-none"
-              )}
-            >
+        {/* Responsive Sheet / Modal */}
+        <div
+          style={{ touchAction: "pan-y" }}
+          className={cn(
+            "fixed bottom-0 left-0 right-0 z-50 flex flex-col bg-background/95 rounded-t-3xl border-t border-border/30 shadow-[0_-12px_40px_rgba(2,6,23,0.08)] max-h-[85vh] transition-all duration-200 will-change-transform translate-y-4 opacity-0 pointer-events-none",
+            openPanel === "filters" && "translate-y-0 opacity-100 pointer-events-auto",
+            "@min-4xl:bottom-auto @min-4xl:left-1/2 @min-4xl:top-1/2 @min-4xl:right-auto @min-4xl:-translate-x-1/2 @min-4xl:-translate-y-1/2 @min-4xl:rounded-3xl @min-4xl:border @min-4xl:shadow-2xl @min-4xl:max-h-[80vh] @min-4xl:w-[800px]"
+          )}
+        >
               {/* Header */}
               <div className="flex items-center justify-between px-5 py-3 border-b border-border/20">
                 <div className="flex items-center gap-2">
@@ -336,51 +359,90 @@ export default function BottomNav() {
                 className="overflow-y-auto px-5 py-4 space-y-4"
                 style={{ WebkitOverflowScrolling: "touch" }}
               >
-                {Object.entries(FEATURE_CATEGORIES).map(([catKey, cat]) => {
-                  const label = (cat as any).label || catKey;
+                {featureSections.map((section) => {
+                  const catKey = section.key;
+                  const label = section.label;
+                  const selectedCount = sectionSelections[catKey] ?? 0;
+                  const isOpen = expandedSections[catKey] ?? true;
                   return (
                     <section key={catKey} aria-labelledby={`cat-${catKey}`}>
                       {/* Section header */}
-                      <div className="flex items-center gap-1 mb-2 bg-highlight-5 rounded-2xl p-1">
-                        <div className="w-9 h-9 flex items-center justify-center">
-                          {getSectionIcon(label)}
+                      <button
+                        type="button"
+                        aria-expanded={isOpen}
+                        aria-controls={`filters-cat-${catKey}`}
+                        onClick={() => toggleSection(catKey)}
+                        className="flex w-full items-center justify-between gap-2 mb-2 bg-highlight-5 rounded-2xl px-2 py-2 hover:bg-highlight-4 transition"
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="w-9 h-9 flex items-center justify-center">
+                            {getSectionIcon(label)}
+                          </div>
+                          <div className="flex flex-col items-start text-left">
+                            <h3
+                              id={`cat-${catKey}`}
+                              className="text-base font-semibold text-foreground leading-tight"
+                            >
+                              {label}
+                            </h3>
+                            {selectedCount > 0 && (
+                              <span className="text-xs text-muted-foreground">
+                                {selectedCount} selected
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <h3
-                          id={`cat-${catKey}`}
-                          className="text-base font-semibold text-foreground leading-tight"
-                        >
-                          {label}
-                        </h3>
-                      </div>
+                        <div className="p-1 rounded-full bg-background/60 text-muted-foreground">
+                          {isOpen ? (
+                            <ChevronUp className="w-4 h-4" />
+                          ) : (
+                            <ChevronDown className="w-4 h-4" />
+                          )}
+                        </div>
+                      </button>
 
                       {/* Filter options */}
-                      <div className="grid grid-cols-1 gap-1">
-                        {(cat as any).features.map((key: string) => {
-                          const checked = tempFilters.has(key); // use tempFilters for uncommitted state
-                          const display = getFeatureDisplayName(key) || key;
-                          return (
-                            <label
-                              key={key}
-                              className={cn(
-                                "flex items-center gap-3 px-3 py-1.5 rounded-lg cursor-pointer select-none transition-colors border border-transparent",
-                                checked
-                                  ? "bg-sky-50 dark:bg-sky-900/30 text-foreground border-sky-100 dark:border-sky-800"
-                                  : "hover:bg-highlight-5 text-muted-foreground"
-                              )}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={checked}
-                                onChange={() => handleTempToggle(key)} // toggles in tempFilters
-                                className="w-4 h-4 accent-sky-300 rounded-sm flex-shrink-0"
-                              />
-                              <span className="text-[13px] leading-tight text-foreground">
-                                {display}
-                              </span>
-                            </label>
-                          );
-                        })}
-                      </div>
+                      <AnimatePresence initial={false}>
+                        {isOpen && (
+                          <motion.div
+                            id={`filters-cat-${catKey}`}
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.12, ease: "easeInOut" }}
+                            className="overflow-hidden"
+                          >
+                            <div className="grid grid-cols-1 gap-1">
+                              {section.features.map((key: string) => {
+                                const checked = tempFilters.has(key); // use tempFilters for uncommitted state
+                                const display =
+                                  getFeatureDisplayName(key) || key;
+                                return (
+                                  <label
+                                    key={key}
+                                    className={cn(
+                                      "flex items-center gap-3 px-3 py-1.5 rounded-lg cursor-pointer select-none transition-colors border border-transparent",
+                                      checked
+                                        ? "bg-sky-50 dark:bg-sky-900/30 text-foreground border-sky-100 dark:border-sky-800"
+                                        : "hover:bg-highlight-5 text-muted-foreground"
+                                    )}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={checked}
+                                      onChange={() => handleTempToggle(key)} // toggles in tempFilters
+                                      className="w-4 h-4 accent-sky-300 rounded-sm flex-shrink-0"
+                                    />
+                                    <span className="text-[13px] leading-tight text-foreground">
+                                      {display}
+                                    </span>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </section>
                   );
                 })}
@@ -412,10 +474,8 @@ export default function BottomNav() {
                   Apply Filters
                 </button>
               </div>
-            </motion.div>
+            </div>
           </>
-        )}
-      </AnimatePresence>
 
       {/* floating day / hour mode button */}
       {/* {selectedTab !== "forecast" && fullMapPage && !landingPage && (
