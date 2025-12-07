@@ -30,6 +30,7 @@ import {
   buildSunSegments,
   parseSunTimeToHour,
 } from "@/components/graphs/sunSegments";
+import { getPacificMidnightUTC } from "@/lib/utils";
 
 const HOURS_TO_MS = 60 * 60 * 1000;
 
@@ -303,7 +304,8 @@ const TideChart: React.FC<TideChartProps> = ({
           const isLow =
             (!prev || curr.tide <= prev.tide) &&
             (!next || curr.tide <= next.tide) &&
-            ((prev && curr.tide < prev.tide) || (next && curr.tide < next.tide));
+            ((prev && curr.tide < prev.tide) ||
+              (next && curr.tide < next.tide));
 
           if (isHigh || isLow) {
             // Look ahead for consecutive peaks with same tide value
@@ -313,7 +315,8 @@ const TideChart: React.FC<TideChartProps> = ({
             while (j < annotated.length) {
               const nextPt = annotated[j];
               const nextPrev = annotated[j - 1];
-              const nextNext = j < annotated.length - 1 ? annotated[j + 1] : null;
+              const nextNext =
+                j < annotated.length - 1 ? annotated[j + 1] : null;
 
               // Check if next point is also a peak
               const nextIsHigh =
@@ -796,8 +799,7 @@ const TideChart: React.FC<TideChartProps> = ({
               if (!markerType) return null;
               const safeX = typeof props.x === "number" ? props.x : 0;
 
-              const IconComponent =
-                markerType === "sunrise" ? Sunrise : Sunset;
+              const IconComponent = markerType === "sunrise" ? Sunrise : Sunset;
               return (
                 <g>
                   <IconComponent

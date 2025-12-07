@@ -1,15 +1,11 @@
 import type { Metadata } from "next";
-import PageTabs from "@/components/general/PageTabs";
 import NearbyBeaches from "@/components/beaches/NearbyBeaches";
-import { fetchAllBeaches } from "@/lib/supabase";
-import BackToMapButton from "@/components/general/BackToMapButton";
 import { getServerSupabase } from "@/lib/supabaseServer";
 import BottomNav from "@/components/general/BottomNav";
 import NavBar from "@/components/general/NavBar";
 import { LazyLoadMap } from "@/components/general/LazyLoad/LazyLoadMap";
 import PathStyleWrapper from "@/components/general/PathStyleWrapper";
 import Footer from "@/components/general/Footer";
-import { redirect } from "next/navigation";
 import FavoriteIdsHydrator from "@/components/general/FavoriteIdsHydrator";
 
 export const metadata: Metadata = {
@@ -18,8 +14,6 @@ export const metadata: Metadata = {
 };
 
 export default async function BeachesPage() {
-  const beaches = await fetchAllBeaches();
-
   const supabase = await getServerSupabase();
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError) {
@@ -65,11 +59,11 @@ export default async function BeachesPage() {
                   Surf spots
                 </h1>
                 <span className="text-xs @min-4xl/main:text-sm text-muted-foreground">
-                  Explore nearby beaches on the map
+                Explore nearby beaches on the map
                 </span>
               </header>
             </div>
-            <NearbyBeaches beaches={beaches as any} favoriteIds={favoriteIds} />
+            <NearbyBeaches />
           </div>
         </PathStyleWrapper>
       </main>

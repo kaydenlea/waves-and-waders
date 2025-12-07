@@ -3,6 +3,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase, FEATURE_COLUMNS } from '@/lib/supabase'
 
+export const revalidate = 300;
+
 export async function GET(request: NextRequest) {
   try {
     // Build select with common columns + feature flags
@@ -76,16 +78,15 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    console.log('Beaches API returning', beaches.length, 'beaches');
-    console.log('Fetched in', page, 'page(s)');
-    if (beaches.length > 0) {
-      console.log('Sample beach ID:', beaches[0]?.id, 'type:', typeof beaches[0]?.id);
-    }
-
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       data: beaches
     })
+    response.headers.set(
+      'Cache-Control',
+      'public, s-maxage=300, stale-while-revalidate=600'
+    )
+    return response
   } catch (error: any) {
     console.error('Error fetching beaches:', error)
     console.error('Error details:', error?.message, error?.stack)

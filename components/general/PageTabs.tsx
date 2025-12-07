@@ -119,7 +119,7 @@ const PageTabs = ({
           : "mx-auto flex gap-1 @min-sm:gap-2 w-full justify-center",
         placement === "default" &&
           (beachPage
-            ? "@min-xl:absolute @min-xl:right-0 @min-xl:justify-end"
+            ? "hidden @min-4xl:block absolute left-0 top-0 shadow-lg bg-highlight-3/80 backdrop-blur z-[1000]"
             : "@min-3xl:absolute @min-3xl:right-0 @min-3xl:justify-end"),
         className
       )}
@@ -191,7 +191,7 @@ const PageTabs = ({
             ? "w-full"
             : "w-fit",
           beachPage &&
-            "hidden @min-4xl:block absolute left-3 top-3 shadow-lg bg-highlight-3/80 backdrop-blur"
+            "hidden @min-4xl:block absolute left-3 top-3 shadow-lg bg-highlight-3/80 backdrop-blur z-[1000]"
         )}
       >
         {tabs.map((tab) => {

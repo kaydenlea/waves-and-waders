@@ -2,34 +2,118 @@
 // Client-side API wrappers to reduce Supabase egress
 // These functions call Next.js API routes instead of Supabase directly
 
-import type { ForecastData, TidePoint, DailyConditions } from './supabase'
+import type {
+  ForecastData,
+  TidePoint,
+  DailyConditions,
+  Beach,
+} from "./supabase";
+import type { BeachStatsSnapshot } from "./beachStatsShared";
+
+export type ApiBeachRecord = {
+  id: string | number;
+  name?: string;
+  Name?: string;
+  county?: string;
+  COUNTY?: string;
+  latitude?: number;
+  LATITUDE?: number;
+  longitude?: number;
+  LONGITUDE?: number;
+  grid_id?: number | null;
+  features?: Record<string, boolean>;
+};
 
 /**
  * Fetch beach forecast data via API route (cached)
  * Replaces direct calls to fetchBeachForecast from @/lib/supabase
  */
+const normalizeBaseUrl = (value?: string | null): string | null => {
+  if (!value) return null;
+  if (/^https?:\/\//i.test(value)) {
+    return value;
+  }
+  return `https://${value}`;
+};
+
+let cachedServerBaseUrl: string | null = null;
+const getServerBaseUrl = () => {
+  if (cachedServerBaseUrl) {
+    return cachedServerBaseUrl;
+  }
+
+  const candidateEnv = [
+    process.env.NEXT_PUBLIC_SITE_URL,
+    process.env.SITE_URL,
+    process.env.NEXT_PUBLIC_VERCEL_URL,
+    process.env.VERCEL_URL,
+    process.env.NEXT_PUBLIC_APP_BASE_URL,
+    process.env.APP_BASE_URL,
+    process.env.URL,
+    process.env.HOST,
+  ];
+
+  for (const value of candidateEnv) {
+    const normalized = normalizeBaseUrl(value);
+    if (normalized) {
+      cachedServerBaseUrl = normalized.replace(/\/+$/, "");
+      return cachedServerBaseUrl;
+    }
+  }
+
+  const port = Number.parseInt(
+    process.env.PORT ?? process.env.NEXT_PUBLIC_PORT ?? "",
+    10
+  );
+  cachedServerBaseUrl = `http://127.0.0.1:${
+    Number.isFinite(port) ? port : 3000
+  }`;
+  return cachedServerBaseUrl;
+};
+
+function resolveApiUrl(pathname: string) {
+  if (/^https?:\/\//i.test(pathname)) {
+    return pathname;
+  }
+
+  if (typeof window !== "undefined") {
+    return pathname;
+  }
+
+  const base = getServerBaseUrl();
+
+  try {
+    return new URL(pathname, base).toString();
+  } catch (error) {
+    const normalizedBase = base.endsWith("/") ? base.slice(0, -1) : base;
+    const normalizedPath = pathname.startsWith("/") ? pathname : `/${pathname}`;
+    console.warn("resolveApiUrl fallback", { pathname, base, error });
+    return `${normalizedBase}${normalizedPath}`;
+  }
+}
+
 export async function fetchBeachForecastAPI(
   beachId: string,
   startDate?: Date,
   endDate?: Date
 ): Promise<ForecastData[]> {
-  const params = new URLSearchParams({ beachId })
-  if (startDate) params.append('startDate', startDate.toISOString())
-  if (endDate) params.append('endDate', endDate.toISOString())
+  const params = new URLSearchParams({ beachId });
+  if (startDate) params.append("startDate", startDate.toISOString());
+  if (endDate) params.append("endDate", endDate.toISOString());
 
-  const res = await fetch(`/api/forecast?${params.toString()}`)
+  const res = await fetch(resolveApiUrl(`/api/forecast?${params.toString()}`));
 
   if (!res.ok) {
-    throw new Error(`Failed to fetch forecast: ${res.status}`)
+    throw new Error(`Failed to fetch forecast: ${res.status}`);
   }
 
-  const json = await res.json()
+  const json = await res.json();
 
   if (!json.success) {
-    throw new Error(json.error || 'Failed to fetch forecast')
+    throw new Error(json.error || "Failed to fetch forecast");
   }
 
-  return json.data as ForecastData[]
+  return json.data as ForecastData[];
 }
 
 /**
@@ -41,23 +125,23 @@ export async function fetchBeachTidesAPI(
   startDate?: Date,
   endDate?: Date
 ): Promise<TidePoint[]> {
-  const params = new URLSearchParams({ beachId })
-  if (startDate) params.append('startDate', startDate.toISOString())
-  if (endDate) params.append('endDate', endDate.toISOString())
+  const params = new URLSearchParams({ beachId });
+  if (startDate) params.append("startDate", startDate.toISOString());
+  if (endDate) params.append("endDate", endDate.toISOString());
 
-  const res = await fetch(`/api/tides?${params.toString()}`)
+  const res = await fetch(resolveApiUrl(`/api/tides?${params.toString()}`));
 
   if (!res.ok) {
-    throw new Error(`Failed to fetch tides: ${res.status}`)
+    throw new Error(`Failed to fetch tides: ${res.status}`);
   }
 
-  const json = await res.json()
+  const json = await res.json();
 
   if (!json.success) {
-    throw new Error(json.error || 'Failed to fetch tides')
+    throw new Error(json.error || "Failed to fetch tides");
   }
 
-  return json.data as TidePoint[]
+  return json.data as TidePoint[];
 }
 
 /**
@@ -68,22 +152,24 @@ export async function fetchDailyConditionsAPI(
   county: string,
   date?: Date
 ): Promise<DailyConditions | null> {
-  const params = new URLSearchParams({ county })
-  if (date) params.append('date', date.toISOString())
+  const params = new URLSearchParams({ county });
+  if (date) params.append("date", date.toISOString());
 
-  const res = await fetch(`/api/daily-conditions?${params.toString()}`)
+  const res = await fetch(
+    resolveApiUrl(`/api/daily-conditions?${params.toString()}`)
+  );
 
   if (!res.ok) {
-    throw new Error(`Failed to fetch daily conditions: ${res.status}`)
+    throw new Error(`Failed to fetch daily conditions: ${res.status}`);
   }
 
-  const json = await res.json()
+  const json = await res.json();
 
   if (!json.success) {
-    throw new Error(json.error || 'Failed to fetch daily conditions')
+    throw new Error(json.error || "Failed to fetch daily conditions");
   }
 
-  return json.data as DailyConditions | null
+  return json.data as DailyConditions | null;
 }
 
 /**
@@ -93,18 +179,168 @@ export async function fetchDailyConditionsAPI(
 export async function fetchSurfIntensityAPI(
   date: Date
 ): Promise<Record<string, number>> {
-  const dateStr = date.toISOString().split('T')[0]
-  const res = await fetch(`/api/surf-intensity?date=${dateStr}`)
+  const dateStr = date.toISOString().split("T")[0];
+  const res = await fetch(resolveApiUrl(`/api/surf-intensity?date=${dateStr}`));
 
   if (!res.ok) {
-    throw new Error(`Failed to fetch surf intensity: ${res.status}`)
+    throw new Error(`Failed to fetch surf intensity: ${res.status}`);
   }
 
-  const json = await res.json()
+  const json = await res.json();
 
   if (!json.success) {
-    throw new Error(json.error || 'Failed to fetch surf intensity')
+    throw new Error(json.error || "Failed to fetch surf intensity");
   }
 
-  return json.data as Record<string, number>
+  return json.data as Record<string, number>;
+}
+
+export async function fetchAllBeachesAPI(): Promise<ApiBeachRecord[]> {
+  const res = await fetch(resolveApiUrl("/api/beaches"), {
+    next: { revalidate: 300 },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch beaches: ${res.status}`);
+  }
+
+  const json = await res.json();
+
+  if (!json.success || !Array.isArray(json.data)) {
+    throw new Error(json.error || "Failed to fetch beaches");
+  }
+
+  return json.data as ApiBeachRecord[];
+}
+
+export async function fetchBeachStatsBatchAPI(
+  beachIds: Array<string | number>,
+  options?: { date?: Date; hour?: number | null }
+): Promise<Record<string, BeachStatsSnapshot | null>> {
+  if (!Array.isArray(beachIds) || beachIds.length === 0) {
+    return {};
+  }
+
+  const payload: {
+    beachIds: Array<string | number>;
+    date?: string;
+    hour?: number;
+  } = {
+    beachIds,
+  };
+
+  if (options?.date instanceof Date && !Number.isNaN(options.date.getTime())) {
+    payload.date = options.date.toISOString();
+  }
+  if (typeof options?.hour === "number" && Number.isFinite(options.hour)) {
+    payload.hour = options.hour;
+  }
+
+  const res = await fetch(resolveApiUrl("/api/beach-stats"), {
+    method: "POST",
+    cache: "no-store",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch beach stats: ${res.status}`);
+  }
+
+  const json = await res.json();
+
+  if (!json.success || typeof json.data !== "object" || json.data === null) {
+    throw new Error(json.error || "Failed to fetch beach stats");
+  }
+
+  return json.data as Record<string, BeachStatsSnapshot | null>;
+}
+
+export type BoundsRequest = {
+  south: number;
+  west: number;
+  north: number;
+  east: number;
+  crossesAntimeridian?: boolean;
+  limit?: number;
+  filters?: string[];
+  favoriteIds?: Array<string | number>;
+};
+
+export async function fetchBeachesInBoundsAPI(
+  bounds: BoundsRequest,
+  signal?: AbortSignal
+): Promise<ApiBeachRecord[]> {
+  const params = new URLSearchParams({
+    south: bounds.south.toString(),
+    west: bounds.west.toString(),
+    north: bounds.north.toString(),
+    east: bounds.east.toString(),
+  });
+  if (bounds.crossesAntimeridian) {
+    params.set("crosses", "true");
+  }
+  if (typeof bounds.limit === "number" && Number.isFinite(bounds.limit)) {
+    params.set("limit", Math.max(1, bounds.limit).toString());
+  }
+  if (Array.isArray(bounds.filters) && bounds.filters.length) {
+    bounds.filters.forEach((filterKey) => {
+      if (!filterKey) return;
+      const normalized = String(filterKey).trim().toUpperCase();
+      if (normalized) {
+        params.append("filter", normalized);
+      }
+    });
+  }
+  if (Array.isArray(bounds.favoriteIds) && bounds.favoriteIds.length) {
+    bounds.favoriteIds.forEach((id) => {
+      if (id == null) return;
+      params.append("favoriteId", String(id));
+    });
+  }
+
+  const res = await fetch(
+    resolveApiUrl(`/api/beaches/viewport?${params.toString()}`),
+    { signal }
+  );
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch viewport beaches: ${res.status}`);
+  }
+
+  const json = await res.json();
+  if (!json.success || !Array.isArray(json.data)) {
+    throw new Error(json.error || "Failed to fetch viewport beaches");
+  }
+
+  return json.data as ApiBeachRecord[];
+}
+
+export async function fetchCurrentConditionsAPI(
+  beachId: string
+): Promise<ForecastData | null> {
+  if (!beachId) {
+    throw new Error("Beach ID required");
+  }
+
+  const res = await fetch(
+    resolveApiUrl(`/api/forecast/${encodeURIComponent(beachId)}/current`)
+  );
+
+  if (!res.ok) {
+    if (res.status === 404) {
+      return null;
+    }
+    throw new Error(`Failed to fetch current conditions: ${res.status}`);
+  }
+
+  const json = await res.json();
+
+  if (!json.success) {
+    throw new Error(json.error || "Failed to fetch current conditions");
+  }
+
+  return json.data as ForecastData;
 }

@@ -1,15 +1,13 @@
 import React from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  fetchCurrentConditions,
-  fetchBeachByIdLoose,
-  fetchBeachDetails,
-} from "../supabase";
+import { fetchBeachByIdLoose, fetchBeachDetails } from "../supabase";
 import {
   getForecastCached,
   getTidesCached,
   getDailyConditionsCached,
 } from "../dataCache";
+import { fetchCurrentConditionsAPI } from "../api";
+import { getPacificDayRange } from "../utils";
 
 export function useBeachForecast(
   beachId: string | null,
@@ -33,7 +31,7 @@ export function useCurrentConditions(beachId: string | null, enabled: boolean = 
     queryKey: ["current-conditions", beachId],
     queryFn: () => {
       if (!beachId) throw new Error("Beach ID required");
-      return fetchCurrentConditions(beachId);
+      return fetchCurrentConditionsAPI(beachId);
     },
     enabled: enabled && !!beachId,
     staleTime: 2 * 60 * 1000, // Current conditions are more time-sensitive
@@ -112,10 +110,7 @@ export function usePrefetchAdjacentHours(
     const prefetchHour = (hour: number) => {
       if (!beachId || !date || hour < 0 || hour > 21) return;
 
-      const d = new Date(date);
-      d.setHours(0, 0, 0, 0);
-      const startWindow = d;
-      const endWindow = new Date(d.getTime() + 24 * 60 * 60 * 1000);
+      const { start: startWindow, end: endWindow } = getPacificDayRange(date);
 
       // Prefetch forecast data for this hour
       queryClient.prefetchQuery({
@@ -149,10 +144,9 @@ export function usePrefetchAdjacentDates(
     const prefetchDate = (daysOffset: number) => {
       const targetDate = new Date(selectedDate);
       targetDate.setDate(targetDate.getDate() + daysOffset);
-      targetDate.setHours(0, 0, 0, 0);
 
-      const startWindow = targetDate;
-      const endWindow = new Date(targetDate.getTime() + 24 * 60 * 60 * 1000);
+      const { start: startWindow, end: endWindow } =
+        getPacificDayRange(targetDate);
 
       // Prefetch forecast data for this date
       queryClient.prefetchQuery({

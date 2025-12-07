@@ -6,11 +6,38 @@ import {
 } from "./api";
 
 type CacheEntry<T> = {
+  /**
+   * The in-flight or cached promise for this key.
+   * We store the promise instead of its resolved value so that duplicate requests
+   * during the TTL share the same network call.
+   */
   promise: Promise<T>;
+  /**
+   * Absolute expiration timestamp (ms since epoch). Entries are considered fresh
+   * if expiresAt > Date.now().
+   */
   expiresAt: number;
 };
 
-const DEFAULT_TTL_MS = 5 * 60 * 1000; // 5 minutes
+/**
+ * Default fallback TTL used when a more specific TTL isn't provided.
+ * (Primarily useful when callers pass a custom ttl argument.)
+ */
+const DEFAULT_TTL_MS = 5 * 60 * 1000;
+/**
+ * Forecast data changes frequently and near-term accuracy matters,
+ * so cache for only 2 minutes by default.
+ */
+const FORECAST_TTL_MS = 2 * 60 * 1000;
+/**
+ * Tides change slowly and are predictable; a 10-minute TTL avoids redundant calls
+ * without causing stale values for most interactions.
+ */
+const TIDE_TTL_MS = 10 * 60 * 1000;
+/**
+ * Sunrise/sunset values change once per day, so they can be cached for 6 hours.
+ */
+const DAILY_TTL_MS = 6 * 60 * 60 * 1000;
 
 const forecastCache = new Map<string, CacheEntry<ForecastData[]>>();
 const tideCache = new Map<string, CacheEntry<TidePoint[]>>();
@@ -42,9 +69,12 @@ export const getForecastCached = (
   beachId: string,
   start: Date,
   end: Date,
-  ttl = DEFAULT_TTL_MS
+  ttl = FORECAST_TTL_MS
 ) => {
-  const key = `${beachId}:${start.toISOString()}:${end.toISOString()}`;
+  /**
+   * Cache key schema: forecast:<beachId>:<isoStart>:<isoEnd>
+   */
+  const key = `forecast:${beachId}:${start.toISOString()}:${end.toISOString()}`;
   return getOrCreate(forecastCache, key, () =>
     fetchBeachForecastAPI(beachId, start, end)
   , ttl);
@@ -54,9 +84,12 @@ export const getTidesCached = (
   beachId: string,
   start: Date,
   end: Date,
-  ttl = DEFAULT_TTL_MS
+  ttl = TIDE_TTL_MS
 ) => {
-  const key = `${beachId}:${start.toISOString()}:${end.toISOString()}`;
+  /**
+   * Cache key schema: tide:<beachId>:<isoStart>:<isoEnd>
+   */
+  const key = `tide:${beachId}:${start.toISOString()}:${end.toISOString()}`;
   return getOrCreate(tideCache, key, () =>
     fetchBeachTidesAPI(beachId, start, end)
   , ttl);
@@ -65,11 +98,14 @@ export const getTidesCached = (
 export const getDailyConditionsCached = (
   county: string,
   date?: Date,
-  ttl = DEFAULT_TTL_MS
+  ttl = DAILY_TTL_MS
 ) => {
+  /**
+   * Cache key schema: daily:<county>:<yyyy-mm-dd or today>
+   */
   const key = date
-    ? `${county}:${date.toISOString().split("T")[0]}`
-    : `${county}:today`;
+    ? `daily:${county}:${date.toISOString().split("T")[0]}`
+    : `daily:${county}:today`;
   return getOrCreate(dailyCache, key, () =>
     fetchDailyConditionsAPI(county, date)
   , ttl);

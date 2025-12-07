@@ -1,5 +1,6 @@
 // lib/supabase.ts
 import { createClient } from "@supabase/supabase-js";
+import { getPacificMidnightUTC } from "./utils";
 
 // Utility function to generate URL-friendly slug from beach name
 export function generateBeachSlug(beachName: string): string {
@@ -165,6 +166,7 @@ export interface Beach {
   LATITUDE: number;
   LONGITUDE: number;
   grid_id?: number | null;
+  features?: Record<string, boolean>;
 
   // RESTORED: Optional feature flags that can be populated by fetchBeachDetails
   // Access & Fees
@@ -891,69 +893,84 @@ export async function fetchBeachDetails(id: string): Promise<Beach | null> {
   return beachWithFeatures;
 }
 
-function resolveInternalApiUrl(pathname: string) {
-  const explicit =
-    process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || null;
-  if (explicit) {
-    try {
-      return new URL(pathname, explicit).toString();
-    } catch {
-      // ignore
-    }
+const BEACH_BASE_COLUMNS = ["id", "Name", "COUNTY", "LATITUDE", "LONGITUDE", "grid_id"];
+const BEACH_SELECT_COLUMNS = `${BEACH_BASE_COLUMNS.join(", ")}, ${FEATURE_COLUMNS.join(", ")}`;
+const ALL_BEACHES_CACHE_MS = 5 * 60 * 1000;
+let cachedAllBeaches: { timestamp: number; data: Beach[] } | null = null;
+
+const normalizeOptimizedRow = (row: Record<string, any>): Beach | null => {
+  const rawLat = Number(row.LATITUDE);
+  const rawLon = Number(row.LONGITUDE);
+  if (
+    !row.id ||
+    typeof row.Name !== "string" ||
+    Number.isNaN(rawLat) ||
+    Number.isNaN(rawLon)
+  ) {
+    return null;
   }
-  const vercelUrl = process.env.VERCEL_URL;
-  if (vercelUrl) {
-    return `https://${vercelUrl}${pathname}`;
+
+  const features: Record<string, boolean> = {};
+  for (const key of FEATURE_COLUMNS) {
+    features[key] = Boolean(row[key]);
   }
-  return null;
-}
+
+  return {
+    id: String(row.id),
+    Name: row.Name,
+    COUNTY: row.COUNTY ?? "",
+    LATITUDE: rawLat,
+    LONGITUDE: rawLon,
+    grid_id:
+      typeof row.grid_id === "number"
+        ? row.grid_id
+        : row.grid_id != null && !Number.isNaN(Number(row.grid_id))
+        ? Number(row.grid_id)
+        : null,
+    features,
+  } as Beach;
+};
 
 export async function fetchAllBeaches(): Promise<Beach[]> {
-  const endpoint = resolveInternalApiUrl("/api/beaches");
-  if (endpoint) {
-    try {
-      const res = await fetch(endpoint, { next: { revalidate: 300 } });
-      if (res.ok) {
-        const json = await res.json();
-        if (json?.success && Array.isArray(json.data)) {
-          return (json.data as any[]).map((beach) => ({
-            id: beach.id,
-            Name: beach.name ?? beach.Name,
-            LATITUDE: Number(beach.latitude ?? beach.LATITUDE),
-            LONGITUDE: Number(beach.longitude ?? beach.LONGITUDE),
-            COUNTY: beach.county ?? beach.COUNTY ?? "",
-          }));
-        }
-      }
-    } catch (error) {
-      console.warn("Failed to fetch beaches via API, falling back", error);
+  const now = Date.now();
+  if (cachedAllBeaches && now - cachedAllBeaches.timestamp < ALL_BEACHES_CACHE_MS) {
+    return cachedAllBeaches.data;
+  }
+
+  const PAGE_SIZE = 1000;
+  const beaches: Beach[] = [];
+  let page = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    const { data, error } = await supabase
+      .from("beaches_optimized")
+      .select(BEACH_SELECT_COLUMNS)
+      .or("INLND_AREA.is.null,INLND_AREA.neq.Yes")
+      .order("Name")
+      .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+
+    if (error) {
+      console.error("Failed to fetch beaches:", error);
+      break;
     }
+
+    if (!data || data.length === 0) {
+      hasMore = false;
+      break;
+    }
+
+    const normalized = data
+      .map((row) => normalizeOptimizedRow(row))
+      .filter((row): row is Beach => Boolean(row));
+
+    beaches.push(...normalized);
+    hasMore = data.length === PAGE_SIZE;
+    page += 1;
   }
 
-  const { data, error } = await supabase
-    .from("beaches")
-    .select("id, Name, LATITUDE, LONGITUDE, COUNTY")
-    .order("Name")
-    .limit(10000)
-    .returns<Beach[]>();
-
-  if (error) {
-    console.error("Error fetching beaches:", {
-      message: error.message,
-      code: (error as any).code,
-      details: (error as any).details,
-      hint: (error as any).hint,
-    });
-    throw error; // let the page show the real cause
-  }
-
-  return (data ?? []).filter(
-    (b) =>
-      b.LATITUDE != null &&
-      b.LONGITUDE != null &&
-      !Number.isNaN(Number(b.LATITUDE)) &&
-      !Number.isNaN(Number(b.LONGITUDE))
-  );
+  cachedAllBeaches = { timestamp: now, data: beaches };
+  return beaches;
 }
 
 export async function fetchBeachByIdLoose(id: string): Promise<Beach | null> {
@@ -1312,7 +1329,7 @@ export async function fetchDailyConditions(
 export async function fetchTodaysForecast(
   beachId: string
 ): Promise<ForecastData[]> {
-  const start = pacificMidnightUTC();
+  const start = getPacificMidnightUTC();
   const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
   return fetchBeachForecast(beachId, start, end);
 }
@@ -1321,7 +1338,7 @@ export async function fetchWeeklyForecast(
   beachId: string,
   beforeOffset?: number
 ): Promise<ForecastData[]> {
-  const start = pacificMidnightUTC();
+  const start = getPacificMidnightUTC();
   // for forecast wave energy offset by 3 hours
   const startWithOffset = beforeOffset
     ? new Date(start.getTime() - beforeOffset * 60 * 60 * 1000)
@@ -1333,62 +1350,6 @@ export async function fetchWeeklyForecast(
     : new Date(startWithOffset.getTime() + 7 * 24 * 60 * 60 * 1000);
   console.log("RAW ENERGY TIMES", startWithOffset, endWithOffset);
   return fetchBeachForecast(beachId, startWithOffset, endWithOffset);
-}
-
-// Helper: compute the UTC Date corresponding to today's 00:00 in America/Los_Angeles
-// This properly handles DST transitions using Intl.DateTimeFormat
-function pacificMidnightUTC(base: Date = new Date()): Date {
-  const timeZone = "America/Los_Angeles";
-
-  // Get Pacific timezone date components using Intl API (DST-aware)
-  const formatter = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  });
-
-  const parts = formatter.formatToParts(base);
-  const year = parseInt(parts.find((p) => p.type === "year")?.value || "0");
-  const month = parseInt(parts.find((p) => p.type === "month")?.value || "1") - 1;
-  const day = parseInt(parts.find((p) => p.type === "day")?.value || "1");
-
-  // Create a date string for midnight in Pacific time
-  // Format: YYYY-MM-DDTHH:MM:SS (we want midnight)
-  const yearStr = String(year);
-  const monthStr = String(month + 1).padStart(2, "0");
-  const dayStr = String(day).padStart(2, "0");
-  const pacificMidnightStr = `${yearStr}-${monthStr}-${dayStr}T00:00:00`;
-
-  // Parse this as if it were in Pacific timezone to get the correct UTC timestamp
-  // We'll use the offset at noon of that day to avoid DST transition edge cases
-  const noonThatDay = new Date(`${yearStr}-${monthStr}-${dayStr}T12:00:00`);
-  const noonFormatter = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  });
-
-  const noonParts = noonFormatter.formatToParts(noonThatDay);
-  const noonHour = parseInt(noonParts.find((p) => p.type === "hour")?.value || "12");
-
-  // Calculate the offset: if Pacific noon is showing as 12:00 but UTC shows 20:00, offset is -8 hours
-  const utcNoonHour = noonThatDay.getUTCHours();
-  const offsetHours = noonHour - utcNoonHour;
-
-  // Create midnight in UTC by adding the offset
-  const midnightUTC = new Date(Date.UTC(year, month, day, -offsetHours, 0, 0, 0));
-
-  return midnightUTC;
 }
 
 // Returns the earliest and latest timestamps available for a beach's forecast data

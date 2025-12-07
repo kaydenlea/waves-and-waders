@@ -82,8 +82,8 @@ type Props = {
   loggedIn?: boolean;
 };
 
-const InteractiveMap = dynamic<React.ComponentProps<any>>(
-  () => import("../../visuals/InteractiveMap"),
+const LeafletMap = dynamic<React.ComponentProps<any>>(
+  () => import("../../visuals/LeafletMap"),
   {
     ssr: false,
     loading: () => <Loading />,
@@ -91,5 +91,5 @@ const InteractiveMap = dynamic<React.ComponentProps<any>>(
 );
 
 export const LazyLoadMap: React.FC<Props> = (props) => {
-  return <InteractiveMap {...props} />;
+  return <LeafletMap {...props} />;
 };

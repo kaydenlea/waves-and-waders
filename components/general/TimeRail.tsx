@@ -56,9 +56,11 @@ const TimeRail: React.FC<Props> = ({
         setHourChanged(true);
       });
     }
+    debouncedSetSelectedHour(newHour);
   };
 
   const handleHourCommit = (newHour: number) => {
+    debouncedSetSelectedHour.cancel();
     // Apply selected hour immediately on commit to keep everything in sync
     startTransition(() => {
       setHour(newHour);
@@ -72,8 +74,9 @@ const TimeRail: React.FC<Props> = ({
         cancelAnimationFrame(hourRafRef.current);
         hourRafRef.current = null;
       }
+      debouncedSetSelectedHour.cancel();
     };
-  }, []);
+  }, [debouncedSetSelectedHour]);
 
   // Reset animation after it completes
   useEffect(() => {

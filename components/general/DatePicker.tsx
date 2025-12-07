@@ -26,15 +26,14 @@ import {
   CloudLightning,
   Snowflake,
 } from "lucide-react";
-import {
-  fetchBeachForecast,
-  type ForecastData,
-} from "@/lib/supabase";
+import { fetchBeachForecast, type ForecastData } from "@/lib/supabase";
 import { fetchSurfIntensityAPI } from "@/lib/api";
 import { useSurfIntensity } from "@/lib/hooks/useSurfIntensity";
 import { useDateContext } from "../context/DateContext";
 import { useMapFilters } from "../context/MapFilterContext";
 import { useClientPath } from "../context/PathContext";
+import { getForecastCached } from "@/lib/dataCache";
+import { getPacificDayRange } from "@/lib/utils";
 
 type DatePickerProps = {
   beachId: string;
@@ -270,7 +269,11 @@ DatePickerProps) => {
         const now = new Date();
         const start = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
         const end = new Date(now.getTime() + 21 * 24 * 60 * 60 * 1000);
-        const data: ForecastData[] = await fetchBeachForecast(beachId, start, end);
+        const data: ForecastData[] = await fetchBeachForecast(
+          beachId,
+          start,
+          end
+        );
 
         // Group by local YYYY-MM-DD using a robust timestamp parse
         const groups: Record<string, DaySummary> = {};
@@ -443,9 +446,6 @@ DatePickerProps) => {
     };
   }, [beachId, pacificFormatter, pacificNoonFormatter, storageKey]);
 
-
-
-
   // Keep internal selection in sync with controlled value
   useEffect(() => {
     if (value instanceof Date) {
@@ -562,7 +562,9 @@ DatePickerProps) => {
           daysRange.push(day.toDate());
         }
       });
-      setSelectedDays((prev) => (datesEqual(prev, daysRange) ? prev : daysRange));
+      setSelectedDays((prev) =>
+        datesEqual(prev, daysRange) ? prev : daysRange
+      );
 
       const targetKey = selectedDate
         ? selectedDate.format("YYYY-MM-DD")
@@ -606,8 +608,7 @@ DatePickerProps) => {
         setSurfIntensityForDate(null);
         setSurfRange(null);
       }
-
-    }, 50);  // 50ms debounce
+    }, 50); // 50ms debounce
 
     return () => {
       if (dateSelectionTimerRef.current) {
@@ -773,6 +774,3 @@ DatePickerProps) => {
 };
 
 export default DatePicker;
-
-
-

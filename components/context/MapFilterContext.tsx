@@ -3,6 +3,30 @@
 import React from "react";
 import type { Map } from "maplibre-gl";
 
+export type BeachPoint = {
+  id: string | number;
+  name: string;
+  county: string;
+  latitude: number;
+  longitude: number;
+  features?: Record<string, boolean>;
+};
+
+type MapViewState = {
+  zoom: number;
+  center: { longitude: number; latitude: number };
+};
+
+type ViewportStatus = "idle" | "loading" | "success" | "error";
+
+export type VisibleMapBounds = {
+  south: number;
+  north: number;
+  west: number;
+  east: number;
+  crossesAntimeridian: boolean;
+} | null;
+
 type Ctx = {
   openPanel: "filters" | "legend" | null;
   setOpenPanel: React.Dispatch<
@@ -31,30 +55,24 @@ type Ctx = {
   setSelectedHour: React.Dispatch<React.SetStateAction<number | null>>;
   surfIntensityForDate: number | null;
   setSurfIntensityForDate: React.Dispatch<React.SetStateAction<number | null>>;
-  beaches: Array<{
-    id: string | number;
-    name: string;
-    county: string;
-    latitude: number;
-    longitude: number;
-    features?: Record<string, boolean>;
-  }>;
-  setBeaches: React.Dispatch<
-    React.SetStateAction<
-      Array<{
-        id: string | number;
-        name: string;
-        county: string;
-        latitude: number;
-        longitude: number;
-        features?: Record<string, boolean>;
-      }>
-    >
-  >;
+  beaches: BeachPoint[];
+  setBeaches: React.Dispatch<React.SetStateAction<BeachPoint[]>>;
   favoriteIds: Set<string>;
   setFavoriteIds: React.Dispatch<React.SetStateAction<Set<string>>>;
   hoverCardId: string | null;
   setHoverCardId: React.Dispatch<React.SetStateAction<string | null>>;
+  mapView: MapViewState;
+  setMapView: React.Dispatch<React.SetStateAction<MapViewState>>;
+  visibleBounds: VisibleMapBounds;
+  setVisibleBounds: React.Dispatch<React.SetStateAction<VisibleMapBounds>>;
+  visibleIds: Set<string>;
+  setVisibleIds: React.Dispatch<React.SetStateAction<Set<string>>>;
+  viewportRequestId: number;
+  setViewportRequestId: React.Dispatch<React.SetStateAction<number>>;
+  viewportStatus: ViewportStatus;
+  setViewportStatus: React.Dispatch<React.SetStateAction<ViewportStatus>>;
+  allowViewportCommit: boolean;
+  setAllowViewportCommit: React.Dispatch<React.SetStateAction<boolean>>;
 };
 
 const MapFilterContext = React.createContext<Ctx | null>(null);
@@ -86,20 +104,23 @@ export function MapFilterProvider({ children }: { children: React.ReactNode }) {
   const [surfIntensityForDate, setSurfIntensityForDate] = React.useState<
     number | null
   >(null);
-  const [beaches, setBeaches] = React.useState<
-    Array<{
-      id: string | number;
-      name: string;
-      county: string;
-      latitude: number;
-      longitude: number;
-      features?: Record<string, boolean>;
-    }>
-  >([]);
+  const [beaches, setBeaches] = React.useState<BeachPoint[]>([]);
   const [favoriteIds, setFavoriteIds] = React.useState<Set<string>>(
     () => new Set()
   );
   const [hoverCardId, setHoverCardId] = React.useState<string | null>(null);
+  const [mapView, setMapView] = React.useState<MapViewState>({
+    zoom: 6,
+    center: { longitude: -122.4, latitude: 37.8 },
+  });
+  const [visibleBounds, setVisibleBounds] =
+    React.useState<VisibleMapBounds>(null);
+  const [visibleIds, setVisibleIds] = React.useState<Set<string>>(new Set());
+  const [viewportRequestId, setViewportRequestId] = React.useState(0);
+  const [viewportStatus, setViewportStatus] =
+    React.useState<ViewportStatus>("idle");
+  const [allowViewportCommit, setAllowViewportCommit] =
+    React.useState<boolean>(true);
   const value = React.useMemo(
     () => ({
       openPanel,
@@ -128,6 +149,18 @@ export function MapFilterProvider({ children }: { children: React.ReactNode }) {
       setFavoriteIds,
       hoverCardId,
       setHoverCardId,
+      mapView,
+      setMapView,
+      visibleBounds,
+      setVisibleBounds,
+      visibleIds,
+      setVisibleIds,
+      viewportRequestId,
+      setViewportRequestId,
+      viewportStatus,
+      setViewportStatus,
+      allowViewportCommit,
+      setAllowViewportCommit,
     }),
     [
       openPanel,
@@ -143,6 +176,12 @@ export function MapFilterProvider({ children }: { children: React.ReactNode }) {
       beaches,
       favoriteIds,
       hoverCardId,
+      mapView,
+      visibleBounds,
+      visibleIds,
+      viewportRequestId,
+      viewportStatus,
+      allowViewportCommit,
     ]
   );
   return (

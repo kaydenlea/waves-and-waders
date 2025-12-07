@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useMemo, useRef } from "react";
 import dynamic from "next/dynamic";
-import { cn } from "@/lib/utils";
+import { cn, getPacificDayRange } from "@/lib/utils";
 import SwellStat from "../general/Stats/SwellStat";
 
 import {
@@ -1265,37 +1265,9 @@ const Highlights = ({
 }) => {
   // Calculate time windows (DST-aware for Pacific timezone)
   const { startWindow, endWindow } = useMemo(() => {
-    const now = new Date();
-    let start = now;
-    let end = new Date(now.getTime() + 6 * 60 * 60 * 1000);
-    if (date instanceof Date) {
-      // Get midnight in Pacific timezone (DST-aware)
-      const formatter = new Intl.DateTimeFormat("en-US", {
-        timeZone: "America/Los_Angeles",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      });
-      const parts = formatter.formatToParts(date);
-      const year = parseInt(parts.find((p) => p.type === "year")?.value || "0");
-      const month =
-        parseInt(parts.find((p) => p.type === "month")?.value || "1") - 1;
-      const day = parseInt(parts.find((p) => p.type === "day")?.value || "1");
-
-      // Calculate UTC timestamp for Pacific midnight using offset at noon
-      const noonUTC = Date.UTC(year, month, day, 12, 0, 0, 0);
-      const noonDate = new Date(noonUTC);
-      const noonFormatter = new Intl.DateTimeFormat("en-US", {
-        timeZone: "America/Los_Angeles",
-        hour: "2-digit",
-        hour12: false,
-      });
-      const pacificNoonHour = parseInt(noonFormatter.format(noonDate));
-      const offsetHours = pacificNoonHour - 12;
-
-      start = new Date(Date.UTC(year, month, day, -offsetHours, 0, 0, 0));
-      end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
-    }
+    const { start, end } = getPacificDayRange(
+      date instanceof Date ? date : undefined
+    );
     return { startWindow: start, endWindow: end };
   }, [date]);
 

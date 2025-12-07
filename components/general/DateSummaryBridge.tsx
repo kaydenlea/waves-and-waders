@@ -37,7 +37,7 @@ import Link from "next/link";
 import { Pencil, TrendingUp, TrendingDown } from "lucide-react";
 import { getTidesCached } from "@/lib/dataCache";
 import { useCachedForecast } from "@/lib/hooks/useCachedForecast";
-import { getPacificMidnightUTC } from "@/lib/utils";
+import { getPacificDayRange } from "@/lib/utils";
 import SurfIntensityMarker from "./SurfIntensityMarker";
 import { ForecastDataProvider } from "../context/ForecastDataContext";
 import { useTideWindowData } from "@/lib/hooks/useTideWindow";
@@ -55,8 +55,6 @@ type RangeStats = {
   min: string | null;
   max: string | null;
 };
-
-const FORECAST_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 const HeaderVisual = ({
   unit,
@@ -109,12 +107,9 @@ const TideStatsHeader = ({
         const HOURS_TO_MS = 60 * 60 * 1000;
         const hours = 24;
 
-        let start = new Date();
-        let end = new Date(start.getTime() + hours * HOURS_TO_MS);
-        if (date instanceof Date) {
-          start = getPacificMidnightUTC(date);
-          end = new Date(start.getTime() + hours * HOURS_TO_MS);
-        }
+        const { start, end } = getPacificDayRange(
+          date instanceof Date ? date : undefined
+        );
 
         const BUFFER_HOURS = 6;
         const tideFetchStart = new Date(
@@ -241,12 +236,7 @@ const DateSummaryBridge: React.FC<Props> = ({
   const supabase = useSupabaseClient();
   const { session } = useSessionContext();
   const statsRange = React.useMemo(() => {
-    let start = new Date();
-    if (selected instanceof Date) {
-      start = getPacificMidnightUTC(selected);
-    }
-    const end = new Date(start.getTime() + FORECAST_WINDOW_MS);
-    return { start, end };
+    return getPacificDayRange(selected instanceof Date ? selected : undefined);
   }, [selected]);
   const statsStartMs = statsRange.start.getTime();
   const { prefetchSunData, getSunData } = useSunData();
@@ -400,7 +390,12 @@ const DateSummaryBridge: React.FC<Props> = ({
     };
   }, [forecastRows]);
 
-  const { setSelectedDate, setSelectedHour } = useMapFilters();
+  const {
+    setSelectedDate,
+    setSelectedHour,
+    selectedDate: mapSelectedDate,
+    selectedHour: mapSelectedHour,
+  } = useMapFilters();
   const [, startMapSyncTransition] = React.useTransition();
 
   // Set mounted and initialize time on client
@@ -570,15 +565,30 @@ const DateSummaryBridge: React.FC<Props> = ({
 
   // Sync selected date and hour with context
   React.useEffect(() => {
+    const nextDate = selected ?? null;
+    const mapTime = mapSelectedDate ? mapSelectedDate.getTime() : null;
+    const nextTime = nextDate ? nextDate.getTime() : null;
+    if (mapTime === nextTime) {
+      return;
+    }
     startMapSyncTransition(() => {
-      setSelectedDate(selected ?? null);
+      setSelectedDate(nextDate);
     });
-  }, [selected, setSelectedDate, startMapSyncTransition]);
+  }, [
+    selected,
+    mapSelectedDate,
+    setSelectedDate,
+    startMapSyncTransition,
+  ]);
   React.useEffect(() => {
+    const nextHour = hour ?? null;
+    if (mapSelectedHour === nextHour) {
+      return;
+    }
     startMapSyncTransition(() => {
-      setSelectedHour(hour ?? null);
+      setSelectedHour(nextHour);
     });
-  }, [hour, setSelectedHour, startMapSyncTransition]);
+  }, [hour, mapSelectedHour, setSelectedHour, startMapSyncTransition]);
 
   const visibleRows = React.useMemo(
     () =>

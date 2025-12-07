@@ -37,7 +37,12 @@ type BeachCardProps = {
   isFav: boolean;
   map?: any;
   setHoverCardId?: (id: string | null) => void;
+  loadingStats?: boolean;
+  priorityImage?: boolean;
 };
+
+const IMAGE_PLACEHOLDER =
+  "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4IiBoZWlnaHQ9IjgiPjxyZWN0IHdpZHRoPSI4IiBoZWlnaHQ9IjgiIGZpbGw9IiNkYmVhZmUiLz48L3N2Zz4=";
 
 const BeachCard = React.memo(
   ({
@@ -46,12 +51,19 @@ const BeachCard = React.memo(
     isFav,
     map,
     setHoverCardId = () => {},
+    loadingStats = false,
+    priorityImage = false,
   }: BeachCardProps) => {
     const router = useRouter();
     const tagsRowRef = React.useRef<HTMLDivElement | null>(null);
     const [fitCount, setFitCount] = React.useState<number>(0);
     const measureTagRefs = React.useRef<Array<HTMLDivElement | null>>([]);
     const moreMeasureRef = React.useRef<HTMLDivElement | null>(null);
+    const [imageLoaded, setImageLoaded] = React.useState(false);
+
+    React.useEffect(() => {
+      setImageLoaded(false);
+    }, [b.image]);
 
     const distance =
       b.distanceKm != null
@@ -125,15 +137,14 @@ const BeachCard = React.memo(
       };
     }, [b.features]);
 
-    return (
-      <article
-      onMouseEnter={() => {
-        setHoverCardId(b.id);
-        if (!map) return;
-        try {
-          const coord: [number, number] = [b.coords[1], b.coords[0]]; // lon, lat
-          const pt = (map as any).project(coord);
-          const pad = 6;
+    const handleMouseEnter = React.useCallback(() => {
+      setHoverCardId(b.id);
+      if (!map) return;
+      try {
+        const coord: [number, number] = [b.coords[1], b.coords[0]];
+        const pt = (map as any).project(coord);
+        const pad = 6;
+        if (map?.getLayer?.("unclustered-point")) {
           (map as any).queryRenderedFeatures(
             [
               [pt.x - pad, pt.y - pad],
@@ -141,39 +152,63 @@ const BeachCard = React.memo(
             ],
             { layers: ["unclustered-point"] }
           );
-        } catch {}
-      }}
-      onMouseLeave={() => {
-        setHoverCardId(null);
-      }}
-      onClick={goToOverview}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          goToOverview();
         }
-      }}
+      } catch {}
+    }, [b.coords, b.id, map, setHoverCardId]);
+
+    const handleMouseLeave = React.useCallback(() => {
+      setHoverCardId(null);
+    }, [setHoverCardId]);
+
+    const handleClick = React.useCallback(
+      (event: React.MouseEvent | React.KeyboardEvent) => {
+        if ("key" in event) {
+          if (event.key !== "Enter" && event.key !== " ") {
+            return;
+          }
+          event.preventDefault();
+        }
+        goToOverview();
+      },
+      [goToOverview]
+    );
+
+    return (
+      <article
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        onClick={handleClick}
+        onKeyDown={handleClick}
       role="link"
       tabIndex={0}
       id={`beach-${b.id}`}
       className="hover:cursor-pointer transition-all duration-300 p-1.5 ease-out hover:translate-y-0.5 hover:bg-highlight-5/40 group overflow-hidden rounded-3xl border border-border/50 bg-highlight-7/60 shadow-even hover:shadow-lg backdrop-blur focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-400"
+      aria-busy={loadingStats}
     >
-      <section className="rounded-2xl relative w-full p-3 aspect-auto bg-gradient-to-br from-blue-50 to-blue-100">
-        <div className="rounded-2xl h-35 w-full">
-          <Image
-            src={`/beach_pictures/${b.id}.png`}
-            alt={`Map view of ${b.name}`}
+        <section className="rounded-2xl relative w-full p-3 aspect-auto bg-gradient-to-br from-blue-50 to-blue-100">
+          <div className="rounded-2xl h-35 w-full">
+            <Image
+              src={`/beach_pictures/${b.id}.png`}
+              alt={`Map view of ${b.name}`}
             fill
             className="object-cover rounded-2xl"
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            unoptimized
-            onError={(e) => {
-              e.currentTarget.style.display = "none";
-            }}
-          />
-        </div>
-        <header className="flex gap-1 truncate absolute top-0.5 left-1 w-[73%] bg-slate-900/0 p-2 text-black backdrop-blur-none transition rounded-4xl">
-          <div className={cn("min-w-1.5 rounded-full", color)} />
+              placeholder="blur"
+              blurDataURL={IMAGE_PLACEHOLDER}
+              priority={priorityImage}
+              loading={priorityImage ? "eager" : undefined}
+              onLoadingComplete={() => setImageLoaded(true)}
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+                setImageLoaded(true);
+              }}
+            />
+          </div>
+          {!imageLoaded && (
+            <div className="pointer-events-none absolute inset-0 rounded-2xl bg-background/40 backdrop-blur-sm transition-opacity duration-200" />
+          )}
+          <header className="flex gap-1 truncate absolute top-0.5 left-1 w-[73%] bg-slate-900/0 p-2 text-black backdrop-blur-none transition rounded-4xl">
+            <div className={cn("min-w-1.5 rounded-full", color)} />
           <div className="min-w-0">
             <h3 className="truncate text-md font-semibold leading-tight -mb-0.5">
               {b.name}
@@ -287,6 +322,11 @@ const BeachCard = React.memo(
             stopPropagation
           />
         </div>
+        {loadingStats && (
+          <div className="pointer-events-none absolute inset-0 rounded-2xl bg-background/40 backdrop-blur-[2px]">
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse rounded-2xl" />
+          </div>
+        )}
       </section>
     </article>
   );
@@ -536,6 +576,7 @@ const BeachCardWithContext = ({
   b,
   useMiles,
   isFav,
+  loadingStats,
 }: Omit<BeachCardProps, "map" | "setHoverCardId">) => {
   const { map, setHoverCardId } = useMapFilters();
   return (
@@ -545,6 +586,7 @@ const BeachCardWithContext = ({
       isFav={isFav}
       map={map}
       setHoverCardId={setHoverCardId}
+      loadingStats={loadingStats}
     />
   );
 };

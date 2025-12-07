@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { cn, getPacificMidnightUTC } from "@/lib/utils";
+import { cn, getPacificDayRange } from "@/lib/utils";
 import GradientCircle from "../general/Stats/GradientCircle";
 import Tag from "../general/Tag";
 import WindStat from "../general/Stats/WindStat";
@@ -244,8 +244,7 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
   const targetDateValue = date instanceof Date ? date : undefined;
 
   const timeWindow = useMemo(() => {
-    const start = targetDateValue ? getPacificMidnightUTC(targetDateValue) : new Date();
-    const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+    const { start, end } = getPacificDayRange(targetDateValue);
     const tideBuffer = 6 * 60 * 60 * 1000;
     return {
       dayStart: start,

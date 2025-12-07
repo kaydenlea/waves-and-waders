@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import { useRouter, usePathname } from "next/navigation";
@@ -29,6 +29,39 @@ const DEFAULT_MAP_STYLE =
   "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
 const MAP_STYLE_URL =
   process.env.NEXT_PUBLIC_MAP_STYLE_URL ?? DEFAULT_MAP_STYLE;
+const MAP_POINT_LAYER_IDS = [
+  "clusters",
+  "cluster-count",
+  "clusters-hover",
+  "unclustered-point",
+  "unclustered-point-label",
+];
+const DETAIL_LAYER_KEYWORDS = [
+  "building",
+  "structure",
+  "street",
+  "highway",
+  "rail",
+  "transit",
+  "poi",
+  "landuse",
+  "landcover",
+  "park",
+  "aeroway",
+];
+const DETAIL_LAYER_ALWAYS_VISIBLE = [
+  "background",
+  "road",
+  "label",
+  "place",
+  "water",
+  "ocean",
+  "sea",
+  "lake",
+  "river",
+  "coast",
+  "shore",
+];
 import { cn } from "@/lib/utils";
 import {
   ArrowLeftFromLine,
@@ -48,12 +81,12 @@ import {
 } from "lucide-react";
 import { SwellRings, WindRing } from "./DirectionRings";
 import { useMapFilters } from "../context/MapFilterContext";
+import { useViewportBeachesContext } from "../context/ViewportBeachesContext";
 import {
   MAP_FOCUS_EVENT,
   type MapFocusEventDetail,
 } from "../general/mapEvents";
 import { motion, AnimatePresence } from "framer-motion";
-import FocusMapButton from "../general/FocusMapButton";
 import { useSearchContext } from "../context/SearchContext";
 import { useClientPath } from "../context/PathContext";
 import PageTabs from "../general/PageTabs";
@@ -78,25 +111,102 @@ type BeachPoint = {
   surfIntensity?: number;
 };
 
+type VisibleMapBounds = {
+  south: number;
+  north: number;
+  west: number;
+  east: number;
+  crossesAntimeridian: boolean;
+};
+
 type SwellDirectionSet = {
   primary: number | null;
   secondary: number | null;
   tertiary: number | null;
 };
 
-type Props = { beachId?: string | number; loggedIn?: boolean };
+type OverlayLabels = {
+  primary: string | null;
+  secondary: string | null;
+  tertiary: string | null;
+  wind: string | null;
+} | null;
 
-const InteractiveMap = ({ beachId, loggedIn }: Props) => {
+const normalizeLon = (lon: number) => {
+  let value = lon;
+  if (value > 180) value -= 360;
+  if (value < -180) value += 360;
+  return value;
+};
+
+const BOUNDS_DELTA_THRESHOLD = 0.0005;
+const MIN_BOUNDS_INTERVAL_MS = 120;
+const logPerf = (label: string, startTs: number | null) => {
+  if (
+    startTs == null ||
+    typeof performance === "undefined" ||
+    process.env.NODE_ENV === "production"
+  ) {
+    return;
+  }
+  const duration = performance.now() - startTs;
+  // eslint-disable-next-line no-console
+  console.log(`[MapPerf] ${label}: ${duration.toFixed(1)}ms`);
+};
+
+type Props = {
+  beachId?: string | number;
+  loggedIn?: boolean;
+  initialBeach?: BeachPoint | null;
+};
+
+const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
+  const { favoriteIds, hoverCardId } = useMapFilters();
   const {
-    beaches: beaches,
-    setBeaches,
-    favoriteIds,
-    hoverCardId,
-  } = useMapFilters();
+    beaches: viewportBeaches,
+    status: viewportStatus,
+    onCameraChange,
+    camera,
+  } = useViewportBeachesContext();
+  const [mapIsMoving, setMapIsMoving] = React.useState(false);
+  const [renderBeaches, setRenderBeaches] =
+    React.useState<BeachPoint[]>(viewportBeaches);
+  React.useEffect(() => {
+    if (viewportBeaches === renderBeaches) {
+      return;
+    }
+    setRenderBeaches(viewportBeaches);
+  }, [viewportBeaches, renderBeaches]);
+  const beaches = React.useMemo(() => {
+    if (!initialBeach) {
+      return renderBeaches;
+    }
+    const latitude = Number(initialBeach.latitude);
+    const longitude = Number(initialBeach.longitude);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      return renderBeaches;
+    }
+    const hasPinned = renderBeaches.some(
+      (beach) => String(beach.id) === String(initialBeach.id)
+    );
+    if (hasPinned) {
+      return renderBeaches;
+    }
+    return [
+      ...renderBeaches,
+      {
+        ...initialBeach,
+        latitude,
+        longitude,
+      },
+    ];
+  }, [renderBeaches, initialBeach]);
 
   // Debug: Log beaches count whenever it changes
   React.useEffect(() => {
-    console.log(`🏖️ Beaches from context: ${beaches.length} beaches`);
+    if (process.env.NODE_ENV !== "production") {
+      console.log(`Beaches from context: ${beaches.length} beaches`);
+    }
   }, [beaches]);
   const { selectedTab } = useClientPath();
   const [selected, setSelected] = React.useState<BeachPoint | null>(null);
@@ -116,16 +226,33 @@ const InteractiveMap = ({ beachId, loggedIn }: Props) => {
     setMap,
     filters,
     setFilters,
+    setVisibleBounds,
     selectedDate,
     selectedHour,
     showMap,
     setShowMap,
+    setViewportRequestId,
+    setAllowViewportCommit,
   } = useMapFilters();
   const [located, setLocated] = React.useState<boolean>(false);
   const [showFilters, setShowFilters] = React.useState<boolean>(false);
   const [surfIntensity, setSurfIntensity] = React.useState<
     Record<string | number, number>
   >({});
+  const filterBeachesSync = React.useCallback(() => {
+    if (!renderBeaches.length) return [];
+    const filterList = Array.from(filters ?? []);
+    return renderBeaches.filter((beach) => {
+      if (beach.features?.INLND_AREA) return false;
+      if (!filterList.length) return true;
+      const feats = beach.features ?? {};
+      return filterList.every((key) => feats[key]);
+    });
+  }, [filters, renderBeaches]);
+
+  const [workerFilteredBeaches, setWorkerFilteredBeaches] = React.useState<
+    BeachPoint[]
+  >(filterBeachesSync());
   // Cache surf intensity data for multiple dates
   const surfIntensityCacheRef = React.useRef<
     Record<string, Record<string | number, number>>
@@ -134,14 +261,86 @@ const InteractiveMap = ({ beachId, loggedIn }: Props) => {
     React.useState<SwellDirectionSet | null>(null);
   const [windDirection, setWindDirection] = React.useState<number | null>(null);
   const [zoom, setZoom] = React.useState<number>(6);
-  const zoomRafRef = React.useRef<number | null>(null);
   const lastHoverInternalIdRef = React.useRef<number | null>(null);
   // Map ref must be declared before helpers that depend on it
   const mapRef = React.useRef<MapRef>(null);
+  const persistViewTimeoutRef = React.useRef<number | null>(null);
+  const lastPublishedBoundsRef = React.useRef<VisibleMapBounds | null>(null);
+  const lastPublishTsRef = React.useRef<number>(0);
   // Manage a single smooth camera transition once the map/container are ready
   const centerRafRef = React.useRef<number | null>(null);
   const readinessRafRef = React.useRef<number | null>(null);
+  const detailLayerStoreRef = React.useRef<Map<string, string>>(
+    new globalThis.Map<string, string>()
+  );
+  const filterWorkerRef = React.useRef<Worker | null>(null);
+  const overlayLayerIds = React.useMemo(
+    () => new Set<string>(MAP_POINT_LAYER_IDS),
+    []
+  );
+  const shouldTrackDetailLayer = React.useCallback(
+    (layer: any) => {
+      if (!layer || typeof layer.id !== "string") return false;
+      if (overlayLayerIds.has(layer.id)) return false;
+      if (layer.source === "beaches") return false;
+      const layerId = layer.id.toLowerCase();
+      if (
+        DETAIL_LAYER_ALWAYS_VISIBLE.some((keyword) => layerId.includes(keyword))
+      ) {
+        return false;
+      }
+      if (layer.type === "symbol") {
+        return true;
+      }
+      return DETAIL_LAYER_KEYWORDS.some((keyword) => layerId.includes(keyword));
+    },
+    [overlayLayerIds]
+  );
+  const captureDetailLayers = React.useCallback(
+    (mapInstance: any) => {
+      if (!mapInstance || typeof mapInstance.getStyle !== "function") return;
+      try {
+        const style = mapInstance.getStyle();
+        const layers = style?.layers;
+        if (!Array.isArray(layers)) return;
+        const next = new globalThis.Map<string, string>();
+        layers.forEach((layer: any) => {
+          if (!shouldTrackDetailLayer(layer)) return;
+          const visibility =
+            typeof layer?.layout?.visibility === "string"
+              ? (layer.layout.visibility as string)
+              : "visible";
+          next.set(layer.id, visibility);
+        });
+        detailLayerStoreRef.current = next;
+      } catch {}
+    },
+    [shouldTrackDetailLayer]
+  );
+  const hideDetailLayers = React.useCallback((mapInstance: any) => {
+    if (!mapInstance || typeof mapInstance.setLayoutProperty !== "function") {
+      return;
+    }
+    detailLayerStoreRef.current.forEach((_, layerId) => {
+      try {
+        mapInstance.setLayoutProperty(layerId, "visibility", "none");
+      } catch {}
+    });
+  }, []);
   // Removed static offset; compute exact center using symmetric pixel bounds
+
+  React.useEffect(() => {
+    return () => {
+      if (persistViewTimeoutRef.current != null) {
+        const anyWindow = window as any;
+        if (typeof anyWindow.cancelIdleCallback === "function") {
+          anyWindow.cancelIdleCallback(persistViewTimeoutRef.current);
+        } else {
+          window.clearTimeout(persistViewTimeoutRef.current);
+        }
+      }
+    };
+  }, []);
 
   const easeToWhenReady = React.useCallback(
     (
@@ -198,6 +397,85 @@ const InteractiveMap = ({ beachId, loggedIn }: Props) => {
     [mapRef]
   );
   const hoverRafRef = React.useRef<number | null>(null);
+  const scheduleMapViewPersistence = React.useCallback(
+    (payload: { longitude: number; latitude: number; zoom: number }) => {
+      if (typeof window === "undefined") return;
+      if (persistViewTimeoutRef.current != null) {
+        const anyWindow = window as any;
+        if (typeof anyWindow.cancelIdleCallback === "function") {
+          anyWindow.cancelIdleCallback(persistViewTimeoutRef.current);
+        } else {
+          window.clearTimeout(persistViewTimeoutRef.current);
+        }
+      }
+      const run = () => {
+        try {
+          window.localStorage.setItem(
+            "ww:last-map-view",
+            JSON.stringify(payload)
+          );
+        } catch {}
+        persistViewTimeoutRef.current = null;
+      };
+      const anyWindow = window as any;
+      if (typeof anyWindow.requestIdleCallback === "function") {
+        persistViewTimeoutRef.current = anyWindow.requestIdleCallback(run, {
+          timeout: 1000,
+        });
+      } else {
+        persistViewTimeoutRef.current = window.setTimeout(run, 250);
+      }
+    },
+    []
+  );
+  const readCurrentBounds = React.useCallback((): VisibleMapBounds | null => {
+    try {
+      const ref = mapRef.current as any;
+      const mapInstance: any = ref?.getMap?.() ?? ref;
+      if (!mapInstance || typeof mapInstance.getBounds !== "function") {
+        return null;
+      }
+      const bounds = mapInstance.getBounds?.();
+      if (!bounds) return null;
+      const sw = bounds.getSouthWest();
+      const ne = bounds.getNorthEast();
+      return {
+        south: sw.lat,
+        north: ne.lat,
+        west: sw.lng,
+        east: ne.lng,
+        crossesAntimeridian: sw.lng > ne.lng,
+      };
+    } catch {
+      return null;
+    }
+  }, []);
+  const emitCameraUpdate = React.useCallback(() => {
+    const bounds = readCurrentBounds();
+    if (!bounds) return;
+    const start = typeof performance !== "undefined" ? performance.now() : null;
+    const ref = mapRef.current as any;
+    const mapInstance: any = ref?.getMap?.() ?? ref;
+    const center = mapInstance?.getCenter?.();
+    const zoomValue = mapInstance?.getZoom?.();
+    onCameraChange({
+      bounds,
+      zoom: typeof zoomValue === "number" ? zoomValue : camera.zoom,
+      center: center
+        ? { longitude: center.lng, latitude: center.lat }
+        : camera.center,
+    });
+    setVisibleBounds(bounds);
+    setViewportRequestId((id) => id + 1);
+    logPerf("setVisibleBounds", start);
+  }, [
+    camera.center,
+    camera.zoom,
+    onCameraChange,
+    readCurrentBounds,
+    setVisibleBounds,
+    setViewportRequestId,
+  ]);
   const lastHoverFeatureIdRef = React.useRef<string | number | null>(null);
   const suppressCountsRef = React.useRef(0);
   const mapLastHoverInternalIdRef = React.useRef<number | null>(null);
@@ -227,10 +505,53 @@ const InteractiveMap = ({ beachId, loggedIn }: Props) => {
   //   setOpenPanel((prev) => (prev === panel ? null : panel));
   // };
 
-  const mapToId: Record<
-    string,
-    { id: number; longitude: number; latitude: number; properties: any }
-  > = React.useMemo(() => ({}), []);
+  const mapToIdRef = React.useRef<
+    Record<
+      string,
+      { id: number; longitude: number; latitude: number; properties: any }
+    >
+  >({});
+  const mapToId = mapToIdRef.current;
+  const beachGeoJSONRef = React.useRef({
+    type: "FeatureCollection",
+    features: [] as any[],
+  });
+  const applyBeachDataToSource = React.useCallback(
+    (geojson: { type: string; features: any[] }) => {
+      const start =
+        typeof performance !== "undefined" ? performance.now() : null;
+      const ref = mapRef.current as any;
+      const mapInstance: any = ref?.getMap?.() ?? ref;
+      const source: any = mapInstance?.getSource?.("beaches") ?? null;
+      if (source && typeof source.setData === "function") {
+        source.setData(geojson);
+        logPerf("beachSource:setData", start);
+      }
+    },
+    []
+  );
+  const resumeCommitTimeoutRef = React.useRef<number | null>(null);
+  React.useEffect(() => {
+    return () => {
+      if (resumeCommitTimeoutRef.current != null) {
+        window.clearTimeout(resumeCommitTimeoutRef.current);
+        resumeCommitTimeoutRef.current = null;
+      }
+    };
+  }, []);
+  const cancelCommitResume = React.useCallback(() => {
+    if (resumeCommitTimeoutRef.current != null) {
+      window.clearTimeout(resumeCommitTimeoutRef.current);
+      resumeCommitTimeoutRef.current = null;
+    }
+  }, []);
+  const scheduleCommitResume = React.useCallback(() => {
+    cancelCommitResume();
+    resumeCommitTimeoutRef.current = window.setTimeout(() => {
+      setAllowViewportCommit(true);
+      resumeCommitTimeoutRef.current = null;
+    }, 150);
+  }, [cancelCommitResume, setAllowViewportCommit]);
 
   // Queue refocus requests if the map isn't ready yet
   const pendingRefocusRef = React.useRef<MapFocusEventDetail | null>(null);
@@ -345,67 +666,6 @@ const InteractiveMap = ({ beachId, loggedIn }: Props) => {
 
     return () => window.removeEventListener("resize", handleResize);
   }, []);
-
-  React.useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      try {
-        console.log("Loading beaches from API...");
-        // If beaches are already loaded in context, skip fetching
-        if (beaches && beaches.length > 0) {
-          return;
-        }
-        const res = await fetch("/api/beaches");
-
-        // Check if response is ok
-        if (!res.ok) {
-          console.error(
-            "Failed to load beaches - HTTP error:",
-            res.status,
-            res.statusText
-          );
-          return;
-        }
-
-        const json = await res.json();
-        console.log("Beaches API response:", json);
-
-        if (!cancelled && json?.success && Array.isArray(json.data)) {
-          console.log("InteractiveMap: loaded beaches", json.data.length);
-          if (json.data.length > 0) {
-            console.log("Sample beach:", json.data[0]);
-
-            // Check how many beaches have grid_id
-            const beachesWithGridId = json.data.filter(
-              (b: any) => b.grid_id != null
-            ).length;
-            console.log(
-              `Beaches with grid_id: ${beachesWithGridId} / ${json.data.length}`
-            );
-          }
-          setBeaches(json.data as BeachPoint[]);
-        } else {
-          // Only log error if response is not empty - empty {} might mean API is still initializing
-          if (Object.keys(json || {}).length > 0 && json.length > 0) {
-            console.error(
-              "Failed to load beaches - invalid response structure:",
-              json
-            );
-          } else {
-            console.warn(
-              "Beaches API returned empty response - API may still be initializing"
-            );
-          }
-        }
-      } catch (e) {
-        console.error("Failed to load beaches for map", e);
-      }
-    };
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [beaches, setBeaches]);
 
   // Highlight marker or cluster when hovering a beach card (without opening popup)
   React.useEffect(() => {
@@ -543,7 +803,7 @@ const InteractiveMap = ({ beachId, loggedIn }: Props) => {
         } catch {}
       }
     } catch {}
-  }, [hoverCardId, mapToId]);
+  }, [hoverCardId]);
 
   // Determine if selected point is visible based on zoom level
   // Points get clustered when zoom < clusterMaxZoom (12)
@@ -577,12 +837,12 @@ const InteractiveMap = ({ beachId, loggedIn }: Props) => {
 
       // Check cache first
       if (surfIntensityCacheRef.current[dateStr]) {
-        console.log(`💾 Using cached surf intensity for ${dateStr}`);
+        console.log(`Using cached surf intensity for ${dateStr}`);
         return surfIntensityCacheRef.current[dateStr];
       }
 
       try {
-        console.log(`🗺️  Fetching surf intensity for date: ${dateStr}`);
+        console.log(`Fetching surf intensity for date: ${dateStr}`);
         const res = await fetch(`/api/surf-intensity?date=${dateStr}`);
 
         if (!res.ok) {
@@ -596,7 +856,7 @@ const InteractiveMap = ({ beachId, loggedIn }: Props) => {
           // Cache the result
           surfIntensityCacheRef.current[dateStr] = json.data;
           console.log(
-            `✅ Loaded and cached surf intensity for ${dateStr} (${
+            `G£à Loaded and cached surf intensity for ${dateStr} (${
               Object.keys(json.data).length
             } beaches)`
           );
@@ -618,7 +878,7 @@ const InteractiveMap = ({ beachId, loggedIn }: Props) => {
         setSurfIntensity(currentData);
       }
 
-      // Preload adjacent dates in the background (±3 days)
+      // Preload adjacent dates in the background (-¦3 days)
       const preloadDates: Date[] = [];
       for (let i = -3; i <= 3; i++) {
         if (i === 0) continue; // Skip current date (already loaded)
@@ -737,61 +997,73 @@ const InteractiveMap = ({ beachId, loggedIn }: Props) => {
     []
   );
 
-  const filteredBeaches = React.useMemo(() => {
-    console.log(
-      "Filtering beaches - total:",
-      beaches.length,
-      "filters:",
-      filters.size
-    );
-
-    if (beaches.length === 0) {
-      console.warn("⚠️ beaches array is empty! Map will show no dots.");
+  React.useEffect(() => {
+    if (typeof window === "undefined" || typeof Worker === "undefined") {
+      filterWorkerRef.current = null;
+      setWorkerFilteredBeaches(filterBeachesSync());
+      return;
     }
-    let baseFiltered = beaches.filter((b) => {
-      if (b.features?.INLND_AREA) return false;
-      if (!filters.size) {
-        return true;
-      }
-      // always make selected beach visible regardless of filters
-      if (selected?.id === b.id) return true;
-      const f = b.features || {};
-      for (const key of filters) {
-        if (!f[key]) return false;
-      }
-      return true;
-    });
-    if (selectedTab === "saved") {
-      baseFiltered = baseFiltered.filter((b) => favoriteIds.has(String(b.id)));
-    }
-    console.log("Filtered beaches:", baseFiltered.length);
-    return baseFiltered;
-  }, [beaches, filters, selected, selectedTab, favoriteIds]);
-
-  const beachesGeoJSON = React.useMemo(() => {
-    console.log("=== Building GeoJSON ===");
-    console.log(
-      "surfIntensity object has",
-      Object.keys(surfIntensity).length,
-      "entries"
-    );
-    console.log("filteredBeaches has", filteredBeaches.length, "beaches");
-
-    // Sample the first few beach IDs and check if they have intensity
-    const firstFiveBeaches = filteredBeaches.slice(0, 5);
-    console.log("First 5 beach IDs and their intensities:");
-    firstFiveBeaches.forEach((b) => {
-      const intensity = surfIntensity[b.id];
-      console.log(
-        `  Beach ${b.id}: ${
-          intensity !== undefined ? intensity : "undefined (will use 0)"
-        }`
+    try {
+      const worker = new Worker(
+        new URL("../../lib/workers/beachFilterWorker.ts", import.meta.url),
+        { type: "module" }
       );
-    });
+      worker.onmessage = (event: MessageEvent<{ beaches: BeachPoint[] }>) => {
+        setWorkerFilteredBeaches(event.data?.beaches ?? []);
+      };
+      worker.onerror = () => {
+        filterWorkerRef.current = null;
+        setWorkerFilteredBeaches(filterBeachesSync());
+        worker.terminate();
+      };
+      filterWorkerRef.current = worker;
+      worker.postMessage({
+        beaches: renderBeaches,
+        filters: Array.from(filters ?? []),
+      });
+      return () => {
+        worker.terminate();
+        filterWorkerRef.current = null;
+      };
+    } catch {
+      filterWorkerRef.current = null;
+      setWorkerFilteredBeaches(filterBeachesSync());
+    }
+  }, []); // initialize once
 
+  React.useEffect(() => {
+    const worker = filterWorkerRef.current;
+    if (worker) {
+      worker.postMessage({
+        beaches: renderBeaches,
+        filters: Array.from(filters ?? []),
+      });
+    } else {
+      setWorkerFilteredBeaches(filterBeachesSync());
+    }
+  }, [renderBeaches, filters, filterBeachesSync]);
+
+  const filteredBeaches = React.useMemo(() => {
+    if (!workerFilteredBeaches.length) {
+      return [];
+    }
+    if (
+      selected &&
+      !workerFilteredBeaches.some((b) => String(b.id) === String(selected.id))
+    ) {
+      return [...workerFilteredBeaches, selected];
+    }
+    return workerFilteredBeaches;
+  }, [workerFilteredBeaches, selected]);
+
+  React.useEffect(() => {
+    const buildStart =
+      typeof performance !== "undefined" ? performance.now() : null;
+    const registry = mapToIdRef.current;
+    Object.keys(registry).forEach((key) => delete registry[key]);
     const features = filteredBeaches.map((b, idx) => {
       const intensity = surfIntensity[b.id] || 0;
-      mapToId[b.id] = {
+      registry[b.id] = {
         id: idx,
         longitude: b.longitude,
         latitude: b.latitude,
@@ -814,37 +1086,14 @@ const InteractiveMap = ({ beachId, loggedIn }: Props) => {
         },
       };
     });
-    console.log("BUILD ID MAP", mapToId);
-    console.log("Generated GeoJSON with", features.length, "features");
-
-    // Debug: Count features by intensity range
-    const intensityCounts = {
-      noData: features.filter((f) => f.properties.surfIntensity === 0).length,
-      small: features.filter(
-        (f) => f.properties.surfIntensity > 0 && f.properties.surfIntensity < 3
-      ).length,
-      moderate: features.filter(
-        (f) => f.properties.surfIntensity >= 3 && f.properties.surfIntensity < 6
-      ).length,
-      big: features.filter((f) => f.properties.surfIntensity >= 6).length,
-    };
-    console.log("Surf intensity distribution:", intensityCounts);
-
-    return {
+    const geojson = {
       type: "FeatureCollection",
       features,
-    } as any;
-  }, [filteredBeaches, surfIntensity, mapToId]);
-
-  // Helper function to determine marker color based on surf intensity (in feet)
-  const getMarkerColor = (intensity: number): string => {
-    if (intensity === 0) return "#9ca3af"; // gray for no data
-    if (intensity < 2) return "#60a5fa"; // light blue for small (< 2ft)
-    if (intensity < 4) return "#3b82f6"; // blue for moderate (2-4ft)
-    if (intensity < 6) return "#f59e0b"; // orange for good (4-6ft)
-    if (intensity < 8) return "#ef4444"; // red for excellent (6-8ft)
-    return "#dc2626"; // dark red for epic (8ft+)
-  };
+    };
+    beachGeoJSONRef.current = geojson;
+    applyBeachDataToSource(geojson);
+    logPerf("build-beach-geojson", buildStart);
+  }, [filteredBeaches, surfIntensity, applyBeachDataToSource]);
 
   // After beaches load, align map to page context (selected beach if provided, otherwise fit to all)
   React.useEffect(() => {
@@ -914,14 +1163,14 @@ const InteractiveMap = ({ beachId, loggedIn }: Props) => {
 
     // If page context identifies a beach, center and zoom to it
     if (effectiveId != null) {
-      console.log("InteractiveMap: Looking for beach with ID:", effectiveId);
+      // console.log("InteractiveMap: Looking for beach with ID:", effectiveId);
       const match = findBeachMatch(effectiveId);
       if (match) {
-        console.log(
-          "InteractiveMap: Found beach match, zooming to:",
-          match,
-          match.name
-        );
+        // console.log(
+        //   "InteractiveMap: Found beach match, zooming to:",
+        //   match,
+        //   match.name
+        // );
         suppressMoveRef.current = true;
         easeToWhenReady(
           { longitude: match.longitude, latitude: match.latitude },
@@ -936,10 +1185,10 @@ const InteractiveMap = ({ beachId, loggedIn }: Props) => {
         prevEffectiveIdRef.current = effectiveKey;
         return;
       } else {
-        console.log(
-          "InteractiveMap: No beach match found for ID:",
-          effectiveId
-        );
+        // console.log(
+        //   "InteractiveMap: No beach match found for ID:",
+        //   effectiveId
+        // );
       }
     }
 
@@ -1061,15 +1310,15 @@ const InteractiveMap = ({ beachId, loggedIn }: Props) => {
   // }
 
   React.useEffect(() => {
-    console.log(
-      "FIXING BUG: CLICK CARD",
-      popupData,
-      popupId.current,
-      popupRef,
-      popupInfo,
-      popupId.current ? mapToId[popupId.current].id : null,
-      popupRef?.current?.id
-    );
+    // console.log(
+    //   "FIXING BUG: CLICK CARD",
+    //   popupData,
+    //   popupId.current,
+    //   popupRef,
+    //   popupInfo,
+    //   popupId.current ? mapToId[popupId.current].id : null,
+    //   popupRef?.current?.id
+    // );
     if (popupData) {
       // if (
       //   popupId.current &&
@@ -1125,6 +1374,9 @@ const InteractiveMap = ({ beachId, loggedIn }: Props) => {
   }, [showMap, selected, easeToWhenReady]);
 
   const filterCount = filters?.size ?? 0;
+  const overlaysHidden = mapIsMoving;
+  const showUpdateBanner =
+    mapIsMoving || viewportStatus === "dirty" || viewportStatus === "loading";
 
   // Show legend by default on non-/beaches pages (overview/forecast)
   React.useEffect(() => {
@@ -1179,13 +1431,7 @@ const InteractiveMap = ({ beachId, loggedIn }: Props) => {
         minZoom={3}
         dragRotate={false}
         attributionControl={false}
-        interactiveLayerIds={[
-          "clusters",
-          "cluster-count",
-          "clusters-hover",
-          "unclustered-point",
-          "unclustered-point-label",
-        ]}
+        interactiveLayerIds={MAP_POINT_LAYER_IDS}
         onMouseEnter={(e) => {
           const map = e.target;
           if (e.features?.length) {
@@ -1210,6 +1456,15 @@ const InteractiveMap = ({ beachId, loggedIn }: Props) => {
             setMap(map);
           } catch {}
           resizeMapViewport();
+          emitCameraUpdate();
+          captureDetailLayers(map);
+          hideDetailLayers(map);
+          try {
+            const source: any = map.getSource("beaches");
+            if (source && typeof source.setData === "function") {
+              source.setData(beachGeoJSONRef.current);
+            }
+          } catch {}
 
           // Load the default marker image
           if (!map.hasImage("marker-icon")) {
@@ -1229,32 +1484,42 @@ const InteractiveMap = ({ beachId, loggedIn }: Props) => {
             }
           };
 
-          map.on("movestart", hideCounts);
+          map.on("movestart", () => {
+            hideCounts();
+            setMapIsMoving(true);
+            if (!suppressMoveRef.current) {
+              setAllowViewportCommit(false);
+              cancelCommitResume();
+            }
+          });
 
           map.on("moveend", () => {
+            setMapIsMoving(false);
+            scheduleCommitResume();
             if ((suppressCountsRef.current ?? 0) === 0) {
               showCounts();
             }
             try {
               const c = map.getCenter();
               const z = map.getZoom();
-              window.localStorage.setItem(
-                "ww:last-map-view",
-                JSON.stringify({ longitude: c.lng, latitude: c.lat, zoom: z })
-              );
+              scheduleMapViewPersistence({
+                longitude: c.lng,
+                latitude: c.lat,
+                zoom: z,
+              });
             } catch {}
+            emitCameraUpdate();
           });
 
-          // Track zoom level for ring scaling
-          map.on("zoom", () => {
-            const z = map.getZoom();
-            if (zoomRafRef.current != null) {
-              cancelAnimationFrame(zoomRafRef.current as any);
-            }
-            zoomRafRef.current = requestAnimationFrame(() => {
+          // Track zoom level for ring scaling, but only after zoom settles
+          map.on("zoomend", () => {
+            setMapIsMoving(false);
+            scheduleCommitResume();
+            try {
+              const z = map.getZoom();
               setZoom(z);
-              zoomRafRef.current = null;
-            });
+            } catch {}
+            emitCameraUpdate();
           });
 
           map.on("movestart", () => {
@@ -1326,9 +1591,16 @@ const InteractiveMap = ({ beachId, loggedIn }: Props) => {
             clusterHandlersBoundRef.current = true;
           };
 
+          const handleStyleData = () => {
+            bindClusterHandlers();
+            captureDetailLayers(map);
+            hideDetailLayers(map);
+          };
           // Attempt immediate bind; also re-attempt on style/sources ready
           bindClusterHandlers();
-          map.on("styledata", bindClusterHandlers);
+          captureDetailLayers(map);
+          hideDetailLayers(map);
+          map.on("styledata", handleStyleData);
           map.on("sourcedata", bindClusterHandlers);
           map.on("idle", bindClusterHandlers);
 
@@ -1339,11 +1611,11 @@ const InteractiveMap = ({ beachId, loggedIn }: Props) => {
 
           map.on("mouseleave", "unclustered-point", () => {
             map.getCanvas().style.cursor = "";
-            console.log(
-              "FIXING BUG: mouse leave",
-              popupId.current,
-              popupRef.current
-            );
+            // console.log(
+            //   "FIXING BUG: mouse leave",
+            //   popupId.current,
+            //   popupRef.current
+            // );
             // Always clear hover state for the last hovered feature, regardless of popup state
             try {
               if (map.getSource("beaches")) {
@@ -1516,9 +1788,9 @@ const InteractiveMap = ({ beachId, loggedIn }: Props) => {
                   duration: 200,
                 });
               } catch {}
-              try {
-                console.info("cluster click ->", { clusterId, coords });
-              } catch {}
+              // try {
+              //   console.info("cluster click ->", { clusterId, coords });
+              // } catch {}
               (source as any).getClusterExpansionZoom(
                 clusterId,
                 (err: any, expansionZoom: number) => {
@@ -1548,7 +1820,7 @@ const InteractiveMap = ({ beachId, loggedIn }: Props) => {
             latitude: (feature.geometry as any).coordinates[1],
           };
 
-          console.log("ENTER CLICK SELECTED BEACH 1");
+          // console.log("ENTER CLICK SELECTED BEACH 1");
           setSelected(point);
 
           // Always navigate to the clicked beach
@@ -1594,315 +1866,171 @@ const InteractiveMap = ({ beachId, loggedIn }: Props) => {
           }}
         />
 
-        {/* Clustered beach points */}
-        {filteredBeaches.length > 0 && (
-          <Source
-            key={`beaches-${Object.keys(surfIntensity).length}`}
-            id="beaches"
-            type="geojson"
-            data={beachesGeoJSON}
-            cluster={true}
-            clusterMaxZoom={12}
-            clusterRadius={40}
-          >
-            <Layer
-              id="clusters"
-              type="circle"
-              filter={["has", "point_count"] as any}
-              paint={{
-                "circle-color": [
-                  "case",
-                  ["boolean", ["feature-state", "hover"], false],
-                  "#176cff",
-                  [
-                    "step",
-                    ["get", "point_count"],
-                    "#9ed5ff",
-                    50,
-                    "#69b7ff",
-                    100,
-                    "#3f9bff",
-                  ],
-                ],
-                "circle-radius": [
-                  "case",
-                  ["boolean", ["feature-state", "hover"], false],
-                  [
-                    "+",
-                    ["step", ["get", "point_count"], 12, 50, 16, 100, 20],
-                    2,
-                  ],
-                  ["step", ["get", "point_count"], 12, 50, 16, 100, 20],
-                ],
-                "circle-stroke-width": [
-                  "case",
-                  ["boolean", ["feature-state", "hover"], false],
-                  3,
-                  1,
-                ],
-                "circle-stroke-color": "#ffffff",
-              }}
-            />
-            <Layer
-              id="clusters-hover"
-              type="circle"
-              filter={
-                [
-                  "all",
-                  ["has", "point_count"],
-                  ["==", ["get", "cluster_id"], hoverClusterId ?? -1],
-                ] as any
-              }
-              paint={{
-                "circle-color": "#176cff",
-                "circle-radius": [
-                  "+",
-                  ["step", ["get", "point_count"], 12, 50, 16, 100, 20],
-                  4,
-                ],
-                "circle-stroke-width": 3,
-                "circle-stroke-color": "#ffffff",
-              }}
-            />
-            <Layer
-              id="cluster-count"
-              type="symbol"
-              filter={["has", "point_count"] as any}
-              layout={{
-                // use the raw point_count (exact) and convert to string to avoid layout/abbrev races
-                "text-field": ["to-string", ["get", "point_count"]],
-                "text-size": 12,
-                // critical — allow overlap & ignore placement so the label renders immediately
-                "text-allow-overlap": true,
-                "text-ignore-placement": true,
-                // optionally specify a bold system font or style available in your style
-                "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
-              }}
-              paint={{
-                "text-color": "#1f2937",
-                "text-halo-color": "#ffffff",
-                "text-halo-width": 1,
-              }}
-            />
-            <Layer
-              id="unclustered-point"
-              type="circle"
-              filter={["!has", "point_count"] as any}
-              paint={{
-                "circle-radius": [
-                  "case",
-                  ["boolean", ["feature-state", "hover"], false],
-                  9,
-                  8,
-                ],
-                "circle-color": [
-                  "case",
-                  ["boolean", ["feature-state", "hover"], false],
-                  "#176cffff",
-                  [
-                    "step",
-                    ["get", "surfIntensity"],
-                    "#e5e7eb", // gray-200 for no data (bg-highlight-3)
-                    0.1,
-                    "#4ade80", // green-400 for small (< 3ft)
-                    3,
-                    "#fb923c", // orange-400 for moderate (3-6ft)
-                    6,
-                    "#f87171", // red-400 for big (>= 6ft)
-                  ],
-                ],
-                "circle-stroke-width": [
-                  "case",
-                  ["boolean", ["feature-state", "hover"], false],
-                  3,
-                  2,
-                ],
-                "circle-stroke-color": "#ffffffff",
-              }}
-            />
-            <Layer
-              id="unclustered-point-label"
-              type="symbol"
-              filter={["!has", "point_count"] as any}
-              layout={{
-                "text-field": ["get", "name"],
-                "text-offset": [0, 1.8],
-                "text-size": 10,
-                "text-anchor": "top",
-                visibility: "visible",
-              }}
-              paint={{
-                "text-color": "#1f2937",
-                "text-halo-color": "#ffffff",
-                "text-halo-width": 1,
-                "text-opacity": selected
-                  ? ["case", ["==", ["get", "name"], selected.name], 0, 1]
-                  : 1,
-              }}
-            />
-          </Source>
+        {showUpdateBanner && (
+          <div className="pointer-events-none absolute left-1/2 top-3 z-[70] -translate-x-1/2">
+            <div className="rounded-full border border-border/60 bg-background/90 px-3 py-1 text-xs font-semibold text-foreground shadow">
+              {viewportStatus === "loading"
+                ? "Updating map…"
+                : "Refreshing area…"}
+            </div>
+          </div>
         )}
-
-        {selected &&
-          swellDirections &&
-          [
-            swellDirections.primary,
-            swellDirections.secondary,
-            swellDirections.tertiary,
-          ].some((d) => typeof d === "number") &&
-          (() => {
-            // Calculate scale based on zoom level
-            // Hide rings when the point is not visible (clustered or off-screen)
-            if (!selectedPointVisible) {
-              return null;
+        {/* Clustered beach points */}
+        <Source
+          id="beaches"
+          type="geojson"
+          data={beachGeoJSONRef.current}
+          cluster={true}
+          clusterMaxZoom={12}
+          clusterRadius={40}
+        >
+          <Layer
+            id="clusters"
+            type="circle"
+            filter={["has", "point_count"] as any}
+            layout={{ visibility: overlaysHidden ? "none" : "visible" }}
+            paint={{
+              "circle-color": [
+                "case",
+                ["boolean", ["feature-state", "hover"], false],
+                "#176cff",
+                [
+                  "step",
+                  ["get", "point_count"],
+                  "#9ed5ff",
+                  50,
+                  "#69b7ff",
+                  100,
+                  "#3f9bff",
+                ],
+              ],
+              "circle-radius": [
+                "case",
+                ["boolean", ["feature-state", "hover"], false],
+                ["+", ["step", ["get", "point_count"], 12, 50, 16, 100, 20], 2],
+                ["step", ["get", "point_count"], 12, 50, 16, 100, 20],
+              ],
+              "circle-stroke-width": [
+                "case",
+                ["boolean", ["feature-state", "hover"], false],
+                3,
+                1,
+              ],
+              "circle-stroke-color": "#ffffff",
+            }}
+          />
+          <Layer
+            id="clusters-hover"
+            type="circle"
+            filter={
+              [
+                "all",
+                ["has", "point_count"],
+                ["==", ["get", "cluster_id"], hoverClusterId ?? -1],
+              ] as any
             }
-            // Also hide rings below zoom 9 for cleaner view
-            if (zoom < 9) {
-              return null;
-            }
+            layout={{ visibility: overlaysHidden ? "none" : "visible" }}
+            paint={{
+              "circle-color": "#176cff",
+              "circle-radius": [
+                "+",
+                ["step", ["get", "point_count"], 12, 50, 16, 100, 20],
+                4,
+              ],
+              "circle-stroke-width": 3,
+              "circle-stroke-color": "#ffffff",
+            }}
+          />
+          <Layer
+            id="cluster-count"
+            type="symbol"
+            filter={["has", "point_count"] as any}
+            layout={{
+              // use the raw point_count (exact) and convert to string to avoid layout/abbrev races
+              "text-field": ["to-string", ["get", "point_count"]],
+              "text-size": 12,
+              // critical GÇö allow overlap & ignore placement so the label renders immediately
+              "text-allow-overlap": true,
+              "text-ignore-placement": true,
+              // optionally specify a bold system font or style available in your style
+              "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+              visibility: overlaysHidden ? "none" : "visible",
+            }}
+            paint={{
+              "text-color": "#1f2937",
+              "text-halo-color": "#ffffff",
+              "text-halo-width": 1,
+            }}
+          />
+          <Layer
+            id="unclustered-point"
+            type="circle"
+            filter={["!has", "point_count"] as any}
+            layout={{ visibility: overlaysHidden ? "none" : "visible" }}
+            paint={{
+              "circle-radius": [
+                "case",
+                ["boolean", ["feature-state", "hover"], false],
+                9,
+                8,
+              ],
+              "circle-color": [
+                "case",
+                ["boolean", ["feature-state", "hover"], false],
+                "#176cffff",
+                [
+                  "step",
+                  ["get", "surfIntensity"],
+                  "#e5e7eb",
+                  0.1,
+                  "#4ade80",
+                  3,
+                  "#fb923c",
+                  6,
+                  "#f87171",
+                ],
+              ],
+              "circle-stroke-width": [
+                "case",
+                ["boolean", ["feature-state", "hover"], false],
+                3,
+                2,
+              ],
+              "circle-stroke-color": "#ffffffff",
+            }}
+          />
+          <Layer
+            id="unclustered-point-label"
+            type="symbol"
+            filter={["!has", "point_count"] as any}
+            layout={{
+              "text-field": ["get", "name"],
+              "text-offset": [0, 1.8],
+              "text-size": 10,
+              "text-anchor": "top",
+              visibility: overlaysHidden ? "none" : "visible",
+            }}
+            paint={{
+              "text-color": "#1f2937",
+              "text-halo-color": "#ffffff",
+              "text-halo-width": 1,
+              "text-opacity": selected
+                ? ["case", ["==", ["get", "name"], selected.name], 0, 1]
+                : 1,
+            }}
+          />
+        </Source>
 
-            const scale = zoom >= 14 ? 1 : zoom / 14;
-            const ringSize = 160 * scale;
-            const outerRadius =
-              (typeof windDirection === "number" ? 110 : 76) * scale;
-            // Integrate compass labels inside the overlay near the center
-            const labelDistance = 130 * scale;
-            const centerOffset = ringSize / 2;
-            const blurOuter = outerRadius;
-            const markerHole = 8 * scale;
-            const haloPadding = Math.max(blurOuter - ringSize / 2, 0);
-            const blurMask = `radial-gradient(circle ${blurOuter}px at center, transparent 0, transparent ${markerHole}px, black ${
-              markerHole + 2 * scale
-            }px, black ${blurOuter}px, transparent ${blurOuter + 1}px)`;
-            const cardinalLabels = [
-              {
-                id: "N" as const,
-                style: {
-                  top: `${centerOffset - labelDistance}px`,
-                  left: `${centerOffset}px`,
-                  transform: "translate(-50%, -50%)",
-                },
-              },
-              {
-                id: "S" as const,
-                style: {
-                  top: `${centerOffset + labelDistance}px`,
-                  left: `${centerOffset}px`,
-                  transform: "translate(-50%, -50%)",
-                },
-              },
-              {
-                id: "E" as const,
-                style: {
-                  top: `${centerOffset}px`,
-                  left: `${centerOffset + labelDistance}px`,
-                  transform: "translate(-50%, -50%)",
-                },
-              },
-              {
-                id: "W" as const,
-                style: {
-                  top: `${centerOffset}px`,
-                  left: `${centerOffset - labelDistance}px`,
-                  transform: "translate(-50%, -50%)",
-                },
-              },
-            ];
-
-            return (
-              <Marker
-                longitude={selected.longitude}
-                latitude={selected.latitude}
-                anchor="center"
-              >
-                <div className="pointer-events-none relative flex flex-col items-center justify-center overflow-visible">
-                  <div
-                    className={cn(
-                      "absolute bg-background rounded-lg border border-border px-3 py-1.5 shadow-lg whitespace-nowrap z-10",
-                      openPanel === "legend" ? "-top-26" : "-top-19"
-                    )}
-                  >
-                    <span className="text-sm font-semibold text-foreground antialiased">
-                      {selected.name}
-                    </span>
-                  </div>
-                  <div
-                    className="relative flex items-center justify-center"
-                    style={{ width: ringSize, height: ringSize }}
-                  >
-                    <div
-                      className="pointer-events-none absolute rounded-full bg-white/15 shadow-[0_8px_28px_rgba(0,0,0,0.08)] border border-border/40"
-                      aria-hidden="true"
-                      style={{
-                        top: -haloPadding,
-                        left: -haloPadding,
-                        right: -haloPadding,
-                        bottom: -haloPadding,
-                        backdropFilter: "blur(1px)",
-                        WebkitBackdropFilter: "blur(1px)",
-                        maskImage: blurMask,
-                        WebkitMaskImage: blurMask,
-                      }}
-                    />
-                    <div
-                      className="pointer-events-none absolute rounded-full border border-border/45"
-                      aria-hidden="true"
-                      style={{
-                        top: -haloPadding * 0.6,
-                        left: -haloPadding * 0.6,
-                        right: -haloPadding * 0.6,
-                        bottom: -haloPadding * 0.6,
-                      }}
-                    />
-                    {/* Compass ring removed; integrated labels sit closer to wind ring */}
-                    <div
-                      className="pointer-events-none absolute inset-0"
-                      aria-hidden="true"
-                    >
-                      <div className="absolute left-1/2 top-0 h-6 w-[1px] -translate-x-1/2 bg-border/35" />
-                      <div className="absolute left-1/2 bottom-0 h-6 w-[1px] -translate-x-1/2 bg-border/35" />
-                      <div className="absolute top-1/2 left-0 w-6 h-[1px] -translate-y-1/2 bg-border/35" />
-                      <div className="absolute top-1/2 right-0 w-6 h-[1px] -translate-y-1/2 bg-border/35" />
-                    </div>
-                    {/* Basemap place label mask removed to avoid covering marker */}
-                    {openPanel === "legend" && (
-                      <div className="pointer-events-none absolute inset-0">
-                        {cardinalLabels.map(({ id, style }) => (
-                          <span
-                            key={id}
-                            className="absolute rounded-md px-1.5 py-[1px] text-[11px] font-black uppercase text-slate-900 dark:text-slate-100 bg-white/90 dark:bg-slate-900/85 border border-border select-none"
-                            style={style}
-                          >
-                            {id}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    <SwellRings
-                      directions={{
-                        primary: swellDirections.primary,
-                        secondary: swellDirections.secondary,
-                        tertiary: swellDirections.tertiary,
-                      }}
-                      labels={{
-                        primary: overlayLabels?.primary ?? null,
-                        secondary: overlayLabels?.secondary ?? null,
-                        tertiary: overlayLabels?.tertiary ?? null,
-                      }}
-                      scale={scale}
-                      className="absolute inset-0"
-                    />
-                    <WindRing
-                      direction={windDirection}
-                      label={overlayLabels?.wind ?? null}
-                      scale={scale}
-                      className="absolute inset-0"
-                    />
-                  </div>
-                </div>
-              </Marker>
-            );
-          })()}
+        <SelectedBeachMarker
+          selected={selected}
+          swellDirections={swellDirections}
+          windDirection={windDirection}
+          selectedPointVisible={selectedPointVisible}
+          zoom={zoom}
+          overlayLabels={overlayLabels}
+          legendOpen={openPanel === "legend"}
+          overlaysHidden={overlaysHidden}
+        />
 
         {!fullMapPage && (
           <PageTabs
@@ -2353,7 +2481,7 @@ const InteractiveMap = ({ beachId, loggedIn }: Props) => {
             </motion.div>
           )}
         </AnimatePresence> */}
-        {/* FILTER PANEL — slides from bottom */}
+        {/* FILTER PANEL GÇö slides from bottom */}
 
         {/* {(showMap || smallScreen) &&
           selected &&
@@ -2517,3 +2645,181 @@ const InteractiveMap = ({ beachId, loggedIn }: Props) => {
 };
 
 export default InteractiveMap;
+
+type SelectedBeachMarkerProps = {
+  selected: BeachPoint | null;
+  swellDirections: SwellDirectionSet | null;
+  windDirection: number | null;
+  selectedPointVisible: boolean;
+  zoom: number;
+  overlayLabels: OverlayLabels;
+  legendOpen: boolean;
+  overlaysHidden: boolean;
+};
+
+const SelectedBeachMarker = React.memo(
+  ({
+    selected,
+    swellDirections,
+    windDirection,
+    selectedPointVisible,
+    zoom,
+    overlayLabels,
+    legendOpen,
+    overlaysHidden,
+  }: SelectedBeachMarkerProps) => {
+    if (
+      !selected ||
+      !swellDirections ||
+      [
+        swellDirections.primary,
+        swellDirections.secondary,
+        swellDirections.tertiary,
+      ].every((direction) => typeof direction !== "number")
+    ) {
+      return null;
+    }
+    if (!selectedPointVisible || zoom < 9 || overlaysHidden) {
+      return null;
+    }
+
+    const scale = zoom >= 14 ? 1 : zoom / 14;
+    const ringSize = 160 * scale;
+    const outerRadius = (typeof windDirection === "number" ? 110 : 76) * scale;
+    const labelDistance = 130 * scale;
+    const centerOffset = ringSize / 2;
+    const blurOuter = outerRadius;
+    const markerHole = 8 * scale;
+    const haloPadding = Math.max(blurOuter - ringSize / 2, 0);
+    const blurMask = `radial-gradient(circle ${blurOuter}px at center, transparent 0, transparent ${markerHole}px, black ${
+      markerHole + 2 * scale
+    }px, black ${blurOuter}px, transparent ${blurOuter + 1}px)`;
+    const cardinalLabels = [
+      {
+        id: "N" as const,
+        style: {
+          top: `${centerOffset - labelDistance}px`,
+          left: `${centerOffset}px`,
+          transform: "translate(-50%, -50%)",
+        },
+      },
+      {
+        id: "S" as const,
+        style: {
+          top: `${centerOffset + labelDistance}px`,
+          left: `${centerOffset}px`,
+          transform: "translate(-50%, -50%)",
+        },
+      },
+      {
+        id: "E" as const,
+        style: {
+          top: `${centerOffset}px`,
+          left: `${centerOffset + labelDistance}px`,
+          transform: "translate(-50%, -50%)",
+        },
+      },
+      {
+        id: "W" as const,
+        style: {
+          top: `${centerOffset}px`,
+          left: `${centerOffset - labelDistance}px`,
+          transform: "translate(-50%, -50%)",
+        },
+      },
+    ];
+
+    return (
+      <Marker
+        longitude={selected.longitude}
+        latitude={selected.latitude}
+        anchor="center"
+      >
+        <div className="pointer-events-none relative flex flex-col items-center justify-center overflow-visible">
+          <div
+            className={cn(
+              "absolute bg-background rounded-lg border border-border px-3 py-1.5 shadow-lg whitespace-nowrap z-10",
+              legendOpen ? "-top-26" : "-top-19"
+            )}
+          >
+            <span className="text-sm font-semibold text-foreground antialiased">
+              {selected.name}
+            </span>
+          </div>
+          <div
+            className="relative flex items-center justify-center"
+            style={{ width: ringSize, height: ringSize }}
+          >
+            <div
+              className="pointer-events-none absolute rounded-full bg-white/15 shadow-[0_8px_28px_rgba(0,0,0,0.08)] border border-border/40"
+              aria-hidden="true"
+              style={{
+                top: -haloPadding,
+                left: -haloPadding,
+                right: -haloPadding,
+                bottom: -haloPadding,
+                backdropFilter: "blur(1px)",
+                WebkitBackdropFilter: "blur(1px)",
+                maskImage: blurMask,
+                WebkitMaskImage: blurMask,
+              }}
+            />
+            <div
+              className="pointer-events-none absolute rounded-full border border-border/45"
+              aria-hidden="true"
+              style={{
+                top: -haloPadding * 0.6,
+                left: -haloPadding * 0.6,
+                right: -haloPadding * 0.6,
+                bottom: -haloPadding * 0.6,
+              }}
+            />
+            <div
+              className="pointer-events-none absolute inset-0"
+              aria-hidden="true"
+            >
+              <div className="absolute left-1/2 top-0 h-6 w-[1px] -translate-x-1/2 bg-border/35" />
+              <div className="absolute left-1/2 bottom-0 h-6 w-[1px] -translate-x-1/2 bg-border/35" />
+              <div className="absolute top-1/2 left-0 w-6 h-[1px] -translate-y-1/2 bg-border/35" />
+              <div className="absolute top-1/2 right-0 w-6 h-[1px] -translate-y-1/2 bg-border/35" />
+            </div>
+            {legendOpen && (
+              <div className="pointer-events-none absolute inset-0">
+                {cardinalLabels.map(({ id, style }) => (
+                  <span
+                    key={id}
+                    className="absolute rounded-md px-1.5 py-[1px] text-[11px] font-black uppercase text-slate-900 dark:text-slate-100 bg-white/90 dark:bg-slate-900/85 border border-border select-none"
+                    style={style}
+                  >
+                    {id}
+                  </span>
+                ))}
+              </div>
+            )}
+            <SwellRings
+              directions={{
+                primary: swellDirections.primary,
+                secondary: swellDirections.secondary,
+                tertiary: swellDirections.tertiary,
+              }}
+              labels={{
+                primary: overlayLabels?.primary ?? null,
+                secondary: overlayLabels?.secondary ?? null,
+                tertiary: overlayLabels?.tertiary ?? null,
+              }}
+              scale={scale}
+              className="absolute inset-0"
+            />
+            <WindRing
+              direction={windDirection}
+              label={overlayLabels?.wind ?? null}
+              scale={scale}
+              className="absolute inset-0"
+            />
+          </div>
+        </div>
+      </Marker>
+    );
+  }
+);
+SelectedBeachMarker.displayName = "SelectedBeachMarker";

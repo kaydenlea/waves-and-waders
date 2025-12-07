@@ -53,3 +53,9 @@ export function getPacificHour(date: Date | string): number {
   const hour = parseInt(hourStr);
   return Number.isFinite(hour) ? hour : 0;
 }
+
+export function getPacificDayRange(date?: Date, hours = 24) {
+  const start = getPacificMidnightUTC(date ?? new Date());
+  const end = new Date(start.getTime() + hours * 60 * 60 * 1000);
+  return { start, end };
+}

@@ -39,6 +39,21 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
 
   const beachId = resolved.id.toString();
   const beachName = resolved.Name;
+  const initialBeach = (() => {
+    const latitude = resolved.LATITUDE ?? resolved.latitude ?? null;
+    const longitude = resolved.LONGITUDE ?? resolved.longitude ?? null;
+    if (latitude == null || longitude == null) {
+      return null;
+    }
+    return {
+      id: beachId,
+      name: beachName,
+      county: resolved.COUNTY ?? resolved.county ?? "",
+      latitude: Number(latitude),
+      longitude: Number(longitude),
+      features: resolved.features ?? undefined,
+    };
+  })();
 
   const supabase = await getServerSupabase();
   const { data: userData, error: userError } = await supabase.auth.getUser();
@@ -65,7 +80,7 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
         id="main-content"
         className="bg-background-2 min-h-[calc(100vh-4rem)] @min-4xl:flex @min-4xl:flex-1 @min-4xl:mt-[5.5rem] @min-4xl:pb-4"
       >
-        <LazyLoadMap />
+        <LazyLoadMap beachId={beachId} initialBeach={initialBeach ?? undefined} />
         <PathStyleWrapper>
           <div className="@container pb-6 @min-4xl:pb-3 pt-2 @min-4xl:pt-8 px-1 @min-md:px-3">
             <header

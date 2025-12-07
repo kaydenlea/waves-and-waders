@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import React from "react";
-import { cn, getPacificMidnightUTC } from "@/lib/utils";
+import { cn, getPacificDayRange } from "@/lib/utils";
 import { Button } from "../ui/button";
 import {
   ArrowLeft,
@@ -323,7 +323,7 @@ const StatTable = ({
     if (!beachId) return null;
 
     const anchor = requestedDate ?? new Date();
-    const anchorStart = getPacificMidnightUTC(anchor);
+    const { start: anchorStart } = getPacificDayRange(anchor);
     const bufferBefore = requestedDate ? 1 : 0;
     const bufferAfter = requestedDate ? 1 : 0;
 

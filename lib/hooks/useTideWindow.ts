@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getForecastCached, getTidesCached } from "@/lib/dataCache";
 import { fetchBeachByIdLoose } from "@/lib/supabase";
+import { getPacificDayRange } from "@/lib/utils";
 import { useSunData } from "@/components/context/SunDataContext";
 
 const HOURS_TO_MS = 60 * 60 * 1000;
@@ -34,32 +35,6 @@ export type TideWindowData = {
   resolved: boolean;
 };
 
-const resolvePacificMidnightMs = (basis: Date) => {
-  const formatter = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Los_Angeles",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-  const parts = formatter.formatToParts(basis);
-  const year = parseInt(parts.find((p) => p.type === "year")?.value || "0");
-  const month =
-    parseInt(parts.find((p) => p.type === "month")?.value || "1") - 1;
-  const day = parseInt(parts.find((p) => p.type === "day")?.value || "1");
-
-  const noonUTC = Date.UTC(year, month, day, 12, 0, 0, 0);
-  const noonDate = new Date(noonUTC);
-  const noonFormatter = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Los_Angeles",
-    hour: "2-digit",
-    hour12: false,
-  });
-  const pacificNoonHour = parseInt(noonFormatter.format(noonDate));
-  const offsetHours = pacificNoonHour - 12;
-
-  return Date.UTC(year, month, day, -offsetHours, 0, 0, 0);
-};
-
 export function useTideWindowData({
   beachId,
   date,
@@ -88,10 +63,12 @@ export function useTideWindowData({
     () => (date instanceof Date ? date : new Date()),
     [date]
   );
-  const windowStartMs = useMemo(
-    () => resolvePacificMidnightMs(targetDate),
+  const windowRange = useMemo(
+    () => getPacificDayRange(targetDate),
     [targetDate]
   );
+  const windowStartMs = windowRange.start.getTime();
+  const windowEndMs = windowRange.end.getTime();
 
   useEffect(() => {
     if (initialRows?.length) {
@@ -125,16 +102,18 @@ export function useTideWindowData({
       try {
         const resolved = await fetchBeachByIdLoose(beachId);
         const resolvedId = String(resolved?.id ?? beachId);
-        const startDate = new Date(windowStartMs - bufferHours * HOURS_TO_MS);
+        const baseStart = windowRange.start;
+        const baseEnd = windowRange.end;
+        const startDate = new Date(baseStart.getTime() - bufferHours * HOURS_TO_MS);
         const endDate = new Date(
-          windowStartMs + (hours + bufferHours) * HOURS_TO_MS
+          baseEnd.getTime() + bufferHours * HOURS_TO_MS
         );
 
-        const loadSun = getSunData(resolvedId, new Date(windowStartMs))
+        const loadSun = getSunData(resolvedId, new Date(baseStart))
           .then((sunData) => {
             if (!cancelled && requestId === requestIdRef.current) {
               setSunTimes(sunData);
-              setSunWindowStart(windowStartMs);
+              setSunWindowStart(baseStart.getTime());
               setSunStatus("ready");
             }
             return sunData;
@@ -143,7 +122,7 @@ export function useTideWindowData({
             console.warn("Failed to load sun data for tide window", error);
             if (!cancelled && requestId === requestIdRef.current) {
               setSunTimes(null);
-              setSunWindowStart(windowStartMs);
+              setSunWindowStart(baseStart.getTime());
               setSunStatus("failed");
             }
             return null;
@@ -173,7 +152,7 @@ export function useTideWindowData({
         await loadSun;
         if (!cancelled && requestId === requestIdRef.current) {
           setRows(samples);
-          setStartMs(windowStartMs);
+          setStartMs(baseStart.getTime());
           setResolved(true);
         }
       } catch (error) {
@@ -198,7 +177,15 @@ export function useTideWindowData({
     return () => {
       cancelled = true;
     };
-  }, [enabled, beachId, bufferHours, hours, windowStartMs, getSunData]);
+  }, [
+    enabled,
+    beachId,
+    bufferHours,
+    hours,
+    windowStartMs,
+    windowEndMs,
+    getSunData,
+  ]);
 
   return {
     rows,
