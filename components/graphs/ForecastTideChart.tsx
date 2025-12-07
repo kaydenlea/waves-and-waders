@@ -51,15 +51,62 @@ const MIN_DAY_PX = 275; // minimum pixels per day to keep UI usable on tiny scre
 
 type Props = { beachId?: string; date?: Date; days?: Date[] };
 type TidePoint = { hour: number; tide: number; isPeak?: number };
+type ChartState = {
+  data: TidePoint[];
+  dayAreas: { x1: number; x2: number }[];
+  nightAreas: { x1: number; x2?: number }[];
+  sunMarkers: { hour: number; type: "sunrise" | "sunset" }[];
+  tideStats: { dayIndex: number; high: number; low: number }[];
+};
 
 export default React.memo(function ForecastTideChart({
   beachId,
   date,
   days,
 }: Props) {
+  // Compute Pacific midnight for the requested start date once
+  const { startMs, fetchHours } = useMemo(() => {
+    const startInput = date instanceof Date ? new Date(date) : new Date();
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/Los_Angeles",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+    const parts = formatter.formatToParts(startInput);
+    const year = parseInt(parts.find((p) => p.type === "year")?.value || "0");
+    const month =
+      parseInt(parts.find((p) => p.type === "month")?.value || "1") - 1;
+    const day = parseInt(parts.find((p) => p.type === "day")?.value || "1");
+
+    const noonUTC = Date.UTC(year, month, day, 12, 0, 0, 0);
+    const noonDate = new Date(noonUTC);
+    const noonFormatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/Los_Angeles",
+      hour: "2-digit",
+      hour12: false,
+    });
+    const pacificNoonHour = parseInt(noonFormatter.format(noonDate));
+    const offsetHours = pacificNoonHour - 12;
+
+    const start = Date.UTC(year, month, day, -offsetHours, 0, 0, 0);
+    const hours = FETCH_DAYS * HOURS_PER_DAY;
+    return { startMs: start, fetchHours: hours };
+  }, [date]);
+
   const { setPanFraction, subscribePan } = useForecastChartContext();
   const { getSunData } = useSunData();
   const myId = React.useId();
+  const sunCacheRef = useRef<
+    Map<
+      string,
+      {
+        dayAreas: { x1: number; x2: number }[];
+        nightAreas: { x1: number; x2?: number }[];
+        sunMarkers: { hour: number; type: "sunrise" | "sunset" }[];
+      }
+    >
+  >(new Map());
   const {
     selected: selectedDate,
     hour: selectedHour,
@@ -68,17 +115,14 @@ export default React.memo(function ForecastTideChart({
   const hoveredHour = useHoveredHour();
 
   // data loaded for FETCH_DAYS days (hours)
-  const [data, setData] = useState<TidePoint[]>([]);
-  const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
-  const [nightAreas, setNightAreas] = useState<{ x1: number; x2?: number }[]>(
-    []
-  );
-  const [sunMarkers, setSunMarkers] = useState<
-    { hour: number; type: "sunrise" | "sunset" }[]
-  >([]);
-  const [tideStats, setTideStats] = useState<
-    { dayIndex: number; high: number; low: number }[]
-  >([]);
+  const [chartState, setChartState] = useState<ChartState>({
+    data: [],
+    dayAreas: [],
+    nightAreas: [],
+    sunMarkers: [],
+    tideStats: [],
+  });
+  const { data, dayAreas, nightAreas, sunMarkers, tideStats } = chartState;
 
   // which day index (0..totalFetchedDays - VISIBLE_DAYS) is the first visible day
   const [dayOffset, setDayOffset] = useState(0);
@@ -375,63 +419,49 @@ export default React.memo(function ForecastTideChart({
       try {
         const resolved = await fetchBeachByIdLoose(beachId);
         const id = resolved?.id ?? beachId;
-
-        const startInput = date instanceof Date ? new Date(date) : new Date();
-
-        // Get midnight in Pacific timezone (DST-aware)
-        const formatter = new Intl.DateTimeFormat("en-US", {
-          timeZone: "America/Los_Angeles",
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-        });
-        const parts = formatter.formatToParts(startInput);
-        const year = parseInt(
-          parts.find((p) => p.type === "year")?.value || "0"
-        );
-        const month =
-          parseInt(parts.find((p) => p.type === "month")?.value || "1") - 1;
-        const day = parseInt(parts.find((p) => p.type === "day")?.value || "1");
-
-        // Calculate UTC timestamp for Pacific midnight using offset at noon (avoids DST edge cases)
-        const noonUTC = Date.UTC(year, month, day, 12, 0, 0, 0);
-        const noonDate = new Date(noonUTC);
-        const noonFormatter = new Intl.DateTimeFormat("en-US", {
-          timeZone: "America/Los_Angeles",
-          hour: "2-digit",
-          hour12: false,
-        });
-        const pacificNoonHour = parseInt(noonFormatter.format(noonDate));
-        const offsetHours = pacificNoonHour - 12;
-
-        const startMs = Date.UTC(year, month, day, -offsetHours, 0, 0, 0);
-        const fetchHours = FETCH_DAYS * HOURS_PER_DAY;
         const end = new Date(startMs + fetchHours * 60 * 60 * 1000);
-        const points = await getTidesCached(String(id), new Date(startMs), end);
-        let series: TidePoint[] = [];
-        if (!points || points.length === 0) {
-          const rows = await getForecastCached(
+        const seriesRaw = await (async (): Promise<TidePoint[]> => {
+          const points = await getTidesCached(
             String(id),
             new Date(startMs),
             end
           );
-          series = rows.map((r) => ({
-            hour: Math.round(
-              (new Date(r.timestamp).getTime() - startMs) / (60 * 60 * 1000)
-            ),
-            tide: r.conditions.tideLevel ?? 0,
-          }));
-        } else {
-          series = points.map((p) => ({
+          if (!points || points.length === 0) {
+            const rows = await getForecastCached(
+              String(id),
+              new Date(startMs),
+              end
+            );
+            return rows.map((r) => ({
+              hour: Math.round(
+                (new Date(r.timestamp).getTime() - startMs) / (60 * 60 * 1000)
+              ),
+              tide: r.conditions.tideLevel ?? 0,
+            }));
+          }
+          return points.map((p) => ({
             hour:
               (new Date(p.timestamp).getTime() - startMs) / (60 * 60 * 1000),
             tide: p.tideLevelFt ?? 0,
           }));
-        }
+        })();
 
-        series = series
+        let series = (seriesRaw ?? [])
           .filter((p) => p.hour >= 0 && p.hour <= fetchHours)
           .sort((a, b) => a.hour - b.hour);
+
+        if (series.length === 0) {
+          if (!cancelled) {
+            setChartState({
+              data: [],
+              tideStats: [],
+              dayAreas: [],
+              nightAreas: [],
+              sunMarkers: [],
+            });
+          }
+          return;
+        }
 
         // peaks
         const out = series.map((p) => ({ ...p }));
@@ -444,7 +474,6 @@ export default React.memo(function ForecastTideChart({
           else if (b.tide < a.tide && b.tide <= c.tide)
             out[i].isPeak = Number(b.tide.toFixed(1));
         }
-        if (!cancelled) setData(out);
 
         // Calculate tide high/low stats for each day (absolute highest and lowest)
         const tideStatsBuild: {
@@ -468,93 +497,13 @@ export default React.memo(function ForecastTideChart({
         }
 
         if (!cancelled) {
-          setTideStats(tideStatsBuild);
-        }
-
-        // day/night/sun markers
-        const beach = await fetchBeachDetails(String(id));
-        const county = beach?.COUNTY;
-        if (county) {
-          const parseHM = (
-            s: string | null
-          ): { h: number; m: number } | null => {
-            if (!s) return null;
-            const m = /^(\d{1,2}):(\d{2})/.exec(s.trim());
-            if (!m) return null;
-            const h = Number(m[1]);
-            const mm = Number(m[2]);
-            if (!Number.isFinite(h) || !Number.isFinite(mm)) return null;
-            return { h, m: mm };
-          };
-
-          const dayAreasBuild: { x1: number; x2: number }[] = [];
-          const nightAreasBuild: { x1: number; x2?: number }[] = [];
-          const markerTargets: { hour: number; type: "sunrise" | "sunset" }[] =
-            [];
-          let nightStart = 0;
-          const sunResults = await Promise.all(
-            Array.from({ length: FETCH_DAYS }, (_, di) => {
-              const currentDate = new Date(startMs + di * 24 * 60 * 60 * 1000);
-              return getSunData(beachId!, currentDate).catch(() => null);
-            })
-          );
-
-          for (let di = 0; di < FETCH_DAYS; di++) {
-            const sunData = sunResults[di];
-            const rise = parseHM(sunData?.sunrise ?? null);
-            const setv = parseHM(sunData?.sunset ?? null);
-            if (!rise || !setv) {
-              // fallback mark whole day
-              dayAreasBuild.push({ x1: di * 24, x2: di * 24 + 24 });
-              nightAreasBuild.push({ x1: nightStart, x2: di * 24 });
-              nightStart = di * 24 + 24;
-              continue;
-            }
-            const offset = di * 24;
-            const rH = offset + rise.h + rise.m / 60;
-            const sH = offset + setv.h + setv.m / 60;
-            const dayStart = Math.min(rH, sH);
-            const dayEnd = Math.max(rH, sH);
-            dayAreasBuild.push({ x1: dayStart, x2: dayEnd });
-            nightAreasBuild.push({ x1: nightStart, x2: dayStart });
-            nightStart = dayEnd;
-            markerTargets.push({ hour: rH, type: "sunrise" });
-            markerTargets.push({ hour: sH, type: "sunset" });
-          }
-          nightAreasBuild.push({ x1: nightStart });
-
-          // Find the closest data point to each marker target
-          const markers: { hour: number; type: "sunrise" | "sunset" }[] = [];
-          for (const target of markerTargets) {
-            let closest = series[0];
-            let minDiff = Math.abs(series[0].hour - target.hour);
-            for (const point of series) {
-              const diff = Math.abs(point.hour - target.hour);
-              if (diff < minDiff) {
-                minDiff = diff;
-                closest = point;
-              }
-            }
-            // Only add if within reasonable range (10 minutes = 0.17 hours)
-            if (
-              minDiff < 0.17 &&
-              !markers.find((m) => m.hour === closest.hour)
-            ) {
-              markers.push({ hour: closest.hour, type: target.type });
-            }
-          }
-
-          if (!cancelled) {
-            setDayAreas(dayAreasBuild);
-            setNightAreas(nightAreasBuild);
-            setSunMarkers(markers);
-          }
-        } else {
-          if (!cancelled) {
-            setDayAreas([]);
-            setNightAreas([]);
-            setSunMarkers([]);
-          }
+          setChartState({
+            data: out,
+            tideStats: tideStatsBuild,
+            dayAreas: [],
+            nightAreas: [],
+            sunMarkers: [],
+          });
         }
       } catch (e) {
         console.error("ForecastTideChart load error:", e);
@@ -564,7 +513,150 @@ export default React.memo(function ForecastTideChart({
     return () => {
       cancelled = true;
     };
-  }, [beachId, date]);
+  }, [beachId, startMs, fetchHours]);
+
+  // Load sun/shading markers after tide data is ready so lines render sooner
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!beachId) return;
+      const cacheKey = `${beachId}-${startMs}`;
+      const cached = sunCacheRef.current.get(cacheKey);
+      if (cached) {
+        setChartState((prev) => ({
+          ...prev,
+          dayAreas: cached.dayAreas,
+          nightAreas: cached.nightAreas,
+          sunMarkers: cached.sunMarkers,
+        }));
+        return;
+      }
+
+      // Show a provisional daytime/nighttime split while we fetch precise times
+      const approxDayAreas = Array.from({ length: FETCH_DAYS }, (_, di) => ({
+        x1: di * 24 + 6,
+        x2: di * 24 + 18,
+      }));
+      const approxNightAreas: { x1: number; x2?: number }[] = [];
+      for (let di = 0; di < FETCH_DAYS; di++) {
+        approxNightAreas.push({ x1: di * 24, x2: di * 24 + 6 });
+        approxNightAreas.push({ x1: di * 24 + 18, x2: di * 24 + 24 });
+      }
+      setChartState((prev) => ({
+        ...prev,
+        dayAreas: approxDayAreas,
+        nightAreas: approxNightAreas,
+        sunMarkers: [],
+      }));
+
+      try {
+        const parseHM = (
+          s: string | null
+        ): { h: number; m: number } | null => {
+          if (!s) return null;
+          const m = /^(\d{1,2}):(\d{2})/.exec(s.trim());
+          if (!m) return null;
+          const h = Number(m[1]);
+          const mm = Number(m[2]);
+          if (!Number.isFinite(h) || !Number.isFinite(mm)) return null;
+          return { h, m: mm };
+        };
+
+        const dayAreasBuild: { x1: number; x2: number }[] = [];
+        const nightAreasBuild: { x1: number; x2?: number }[] = [];
+        const markerTargets: { hour: number; type: "sunrise" | "sunset" }[] =
+          [];
+        let nightStart = 0;
+        const sunResults = await Promise.all(
+          Array.from({ length: FETCH_DAYS }, (_, di) => {
+            const currentDate = new Date(startMs + di * 24 * 60 * 60 * 1000);
+            return getSunData(beachId, currentDate).catch(() => null);
+          })
+        );
+
+        for (let di = 0; di < FETCH_DAYS; di++) {
+          const sunData = sunResults[di];
+          const rise = parseHM(sunData?.sunrise ?? null);
+          const setv = parseHM(sunData?.sunset ?? null);
+          if (!rise || !setv) {
+            dayAreasBuild.push({ x1: di * 24, x2: di * 24 + 24 });
+            nightAreasBuild.push({ x1: nightStart, x2: di * 24 });
+            nightStart = di * 24 + 24;
+            continue;
+          }
+          const offset = di * 24;
+          const rH = offset + rise.h + rise.m / 60;
+          const sH = offset + setv.h + setv.m / 60;
+          const dayStart = Math.min(rH, sH);
+          const dayEnd = Math.max(rH, sH);
+          dayAreasBuild.push({ x1: dayStart, x2: dayEnd });
+          nightAreasBuild.push({ x1: nightStart, x2: dayStart });
+          nightStart = dayEnd;
+          markerTargets.push({ hour: rH, type: "sunrise" });
+          markerTargets.push({ hour: sH, type: "sunset" });
+        }
+        nightAreasBuild.push({ x1: nightStart });
+
+        const markers: { hour: number; type: "sunrise" | "sunset" }[] = [];
+        if (markerTargets.length) {
+          for (const target of markerTargets) {
+            if (chartState.data.length) {
+              let closest = chartState.data[0];
+              let minDiff = Math.abs(chartState.data[0].hour - target.hour);
+              for (const point of chartState.data) {
+                const diff = Math.abs(point.hour - target.hour);
+                if (diff < minDiff) {
+                  minDiff = diff;
+                  closest = point;
+                }
+              }
+              const withinTolerance = minDiff < 0.17;
+              const alreadyPlaced = markers.find(
+                (m) => m.hour === closest.hour
+              );
+              if (withinTolerance && !alreadyPlaced) {
+                markers.push({ hour: closest.hour, type: target.type });
+                continue;
+              }
+            }
+            // fallback: place at target hour if no tide data yet or outside tolerance
+            markers.push({ hour: target.hour, type: target.type });
+          }
+        }
+
+        if (!cancelled) {
+          setChartState((prev) => {
+            const next = {
+              ...prev,
+              dayAreas: dayAreasBuild,
+              nightAreas: nightAreasBuild,
+              sunMarkers: markers,
+            };
+            sunCacheRef.current.set(cacheKey, next);
+            return next;
+          });
+        }
+      } catch (e) {
+        console.error("ForecastTideChart sun load error:", e);
+        if (!cancelled) {
+          setChartState((prev) => {
+            const cleared = {
+              ...prev,
+              dayAreas: [],
+              nightAreas: [],
+              sunMarkers: [],
+            };
+            sunCacheRef.current.set(cacheKey, cleared);
+            return cleared;
+          });
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [beachId, chartState.data, startMs, getSunData]);
 
   // Prepare day label texts for the *visible 4 days* starting at dayOffset
   // const dayLabels = useMemo(() => {
@@ -598,17 +690,6 @@ export default React.memo(function ForecastTideChart({
           })
         )
       : null;
-
-  // computed visible data (for tooltip & potential optimization)
-  const visibleHourStart = dayOffset * HOURS_PER_DAY;
-  const visibleHourEnd = visibleHourStart + VISIBLE_HOURS - 1;
-  const visibleData = useMemo(
-    () =>
-      data.filter(
-        (d) => d.hour >= visibleHourStart && d.hour <= visibleHourEnd
-      ),
-    [data, visibleHourStart, visibleHourEnd]
-  );
 
   // Compute label positions with collision avoidance
   const labelPositions = useMemo(() => {
@@ -659,7 +740,7 @@ export default React.memo(function ForecastTideChart({
 
   const hourTicks = useMemo(() => {
     const ticks: number[] = [];
-    for (let v = 0; v <= 24 * totalFetchedDays; v += 1) {
+    for (let v = 0; v <= 24 * totalFetchedDays; v += 3) {
       ticks.push(v);
     }
     return ticks;
@@ -872,7 +953,6 @@ export default React.memo(function ForecastTideChart({
 
           {containerWidth > 0 && (
             <ChartContainer
-              key={chartInnerWidth}
               config={
                 { tide: { label: "Tide", color: "#6e6e6eff" } } as ChartConfig
               }

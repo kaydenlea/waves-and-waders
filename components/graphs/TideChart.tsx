@@ -1,17 +1,15 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useReducer } from "react";
 import {
   Line,
   LineChart,
-  CartesianGrid,
   XAxis,
   YAxis,
   ReferenceArea,
   ReferenceLine,
   LabelList,
   LabelProps,
-  Scatter,
 } from "recharts";
 import { Sunrise, Sunset } from "lucide-react";
 import {
@@ -62,12 +60,67 @@ type TideChartProps = {
   };
 };
 
-const formatTime = (timestamp: number) =>
-  new Date(timestamp).toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone: "America/Los_Angeles",
-  });
+// Cached formatter - created once, reused
+const timeFormatter = new Intl.DateTimeFormat("en-US", {
+  hour: "numeric",
+  minute: "2-digit",
+  timeZone: "America/Los_Angeles",
+});
+
+const formatTime = (timestamp: number) => timeFormatter.format(timestamp);
+
+// Consolidated chart state to reduce re-renders
+type ChartState = {
+  chartData: TidePoint[];
+  windowStart: number | null;
+  dayAreas: { x1: number; x2: number }[];
+  nightAreas: { x1: number; x2?: number }[];
+  sunMarkers: { hour: number; type: "sunrise" | "sunset" }[];
+};
+
+type ChartAction =
+  | {
+      type: "SET_TIDE_DATA";
+      chartData: TidePoint[];
+      windowStart: number | null;
+    }
+  | {
+      type: "SET_SUN_DATA";
+      dayAreas: ChartState["dayAreas"];
+      nightAreas: ChartState["nightAreas"];
+      sunMarkers: ChartState["sunMarkers"];
+    }
+  | { type: "RESET" };
+
+const initialChartState: ChartState = {
+  chartData: [],
+  windowStart: null,
+  dayAreas: [],
+  nightAreas: [],
+  sunMarkers: [],
+};
+
+function chartReducer(state: ChartState, action: ChartAction): ChartState {
+  switch (action.type) {
+    case "SET_TIDE_DATA":
+      return {
+        ...state,
+        chartData: action.chartData,
+        windowStart: action.windowStart,
+      };
+    case "SET_SUN_DATA":
+      return {
+        ...state,
+        dayAreas: action.dayAreas,
+        nightAreas: action.nightAreas,
+        sunMarkers: action.sunMarkers,
+      };
+    case "RESET":
+      return initialChartState;
+    default:
+      return state;
+  }
+}
 
 const formatHourTick = (value: number) => {
   const normalized = ((value % 24) + 24) % 24;
@@ -76,11 +129,6 @@ const formatHourTick = (value: number) => {
     : "";
 };
 
-const isSameDay = (a: Date, b: Date) =>
-  a.getFullYear() === b.getFullYear() &&
-  a.getMonth() === b.getMonth() &&
-  a.getDate() === b.getDate();
-
 const TideChart: React.FC<TideChartProps> = ({
   beachId,
   hours = 24,
@@ -88,17 +136,15 @@ const TideChart: React.FC<TideChartProps> = ({
   date,
   sunSegments,
 }) => {
+  const tideCacheRef = React.useRef<
+    Map<string, { chartData: TidePoint[]; windowStart: number | null }>
+  >(new Map());
   const { hour: selectedHour, setHoveredHour } = useDateContext();
   const hoveredHour = useHoveredHour();
-  const [chartData, setChartData] = useState<TidePoint[]>([]);
-  const [windowStart, setWindowStart] = useState<number | null>(null);
-  const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
-  const [nightAreas, setNightAreas] = useState<{ x1: number; x2?: number }[]>(
-    []
-  );
-  const [sunMarkers, setSunMarkers] = useState<
-    { hour: number; type: "sunrise" | "sunset" }[]
-  >([]);
+
+  // Consolidated state with reducer for fewer re-renders
+  const [state, dispatch] = useReducer(chartReducer, initialChartState);
+  const { chartData, windowStart, dayAreas, nightAreas, sunMarkers } = state;
 
   const tideContext = useTideData();
   const tideWindow = useTideWindowData({
@@ -119,59 +165,8 @@ const TideChart: React.FC<TideChartProps> = ({
   const tideResolved = tideContext?.resolved ?? tideWindow.resolved;
   const tideLoading = tideContext?.loading ?? tideWindow.loading;
 
-  // Reduce render payload while preserving peaks and sun markers.
-  const renderData = useMemo(() => {
-    const target = 350;
-    if (chartData.length <= target) return chartData;
-
-    const peaks = chartData.filter((p) => p.isPeak != null);
-
-    // Optimized: find closest points to sun markers using binary search approach
-    const markerPoints: TidePoint[] = [];
-    for (const marker of sunMarkers) {
-      if (!chartData.length) break;
-      let closest = chartData[0];
-      let minDiff = Math.abs(chartData[0].hour - marker.hour);
-
-      // Binary search for closest hour
-      let left = 0;
-      let right = chartData.length - 1;
-      while (left <= right) {
-        const mid = Math.floor((left + right) / 2);
-        const diff = Math.abs(chartData[mid].hour - marker.hour);
-        if (diff < minDiff) {
-          minDiff = diff;
-          closest = chartData[mid];
-        }
-        if (chartData[mid].hour < marker.hour) {
-          left = mid + 1;
-        } else {
-          right = mid - 1;
-        }
-      }
-      markerPoints.push(closest);
-    }
-
-    const important = new Set<number>();
-    [chartData[0], chartData[chartData.length - 1], ...peaks, ...markerPoints]
-      .filter(Boolean)
-      .forEach((p) => important.add(p.timestamp));
-
-    const step = Math.ceil(chartData.length / target);
-    const merged = new Map<number, TidePoint>();
-
-    // Single pass: add sampled and important points
-    for (let idx = 0; idx < chartData.length; idx++) {
-      const p = chartData[idx];
-      if (idx % step === 0 || important.has(p.timestamp)) {
-        merged.set(p.timestamp, p);
-      }
-    }
-
-    return Array.from(merged.values()).sort(
-      (a, b) => a.timestamp - b.timestamp
-    );
-  }, [chartData, sunMarkers]);
+  // Keep native resolution (≈6 minute spacing) for accuracy; no downsampling.
+  const renderData = useMemo(() => chartData, [chartData]);
 
   const peakPoints = useMemo(
     () => renderData.filter((p) => p.isPeak != null),
@@ -237,126 +232,43 @@ const TideChart: React.FC<TideChartProps> = ({
     >;
   }, [renderData, sunMarkers]);
 
-  // Memoized buildPoints function to avoid re-computing on every render
+  // Simplified buildPoints - fast peak detection like ForecastTideChart
   const buildPoints = useMemo(
     () =>
       (
         rows: ExternalTidePoint[],
         startMs: number,
-        windowHours: number,
-        isToday: boolean = false
+        windowHours: number
       ): TidePoint[] => {
-        const sorted = rows
-          .map((row) => {
-            const timestamp = typeof row.x === "number" ? row.x : Number(row.x);
-            const hour = (timestamp - startMs) / HOURS_TO_MS;
-            return {
+        // Fast path: map and filter in single pass
+        const sorted: TidePoint[] = [];
+        for (const row of rows) {
+          const timestamp = typeof row.x === "number" ? row.x : Number(row.x);
+          const hour = (timestamp - startMs) / HOURS_TO_MS;
+          if (Number.isFinite(hour) && hour >= 0 && hour <= windowHours) {
+            sorted.push({
               timestamp,
               hour,
               tide: row.tide,
               isPeak: row.isPeak,
-            } as TidePoint;
-          })
-          .filter((p) => Number.isFinite(p.hour))
-          .sort((a, b) => a.timestamp - b.timestamp);
-
-        // Mark peaks for all points including endpoints
-        const annotated = sorted.map((p) => ({ ...p }));
-
-        // Optimized single-pass peak detection with deduplication
-        const uniquePeaks = new Set<number>();
-        let i = 0;
-        while (i < annotated.length) {
-          const prev = i > 0 ? annotated[i - 1] : null;
-          const curr = annotated[i];
-          const next = i < annotated.length - 1 ? annotated[i + 1] : null;
-
-          // Skip if we don't have both neighbors (unless it's an endpoint within the window)
-          const isStartEdge = curr.hour === 0;
-          const isEndEdge = curr.hour === windowHours;
-
-          // Special case: For today, don't mark the start edge (12 AM) as a peak
-          if (isToday && isStartEdge && !prev) {
-            i++;
-            continue;
+            });
           }
+        }
+        sorted.sort((a, b) => a.timestamp - b.timestamp);
 
-          // For points in the middle, require both neighbors
-          if (!isStartEdge && !isEndEdge && (!prev || !next)) {
-            i++;
-            continue;
-          }
-
-          // Must have at least one neighbor
-          if (!prev && !next) {
-            i++;
-            continue;
-          }
-
-          // Check if it's a high tide (local maximum)
-          const isHigh =
-            (!prev || curr.tide >= prev.tide) &&
-            (!next || curr.tide >= next.tide) &&
-            ((prev && curr.tide > prev.tide) ||
-              (next && curr.tide > next.tide));
-
-          // Check if it's a low tide (local minimum)
-          const isLow =
-            (!prev || curr.tide <= prev.tide) &&
-            (!next || curr.tide <= next.tide) &&
-            ((prev && curr.tide < prev.tide) ||
-              (next && curr.tide < next.tide));
-
-          if (isHigh || isLow) {
-            // Look ahead for consecutive peaks with same tide value
-            let j = i + 1;
-            const sameTidePeaks = [i];
-
-            while (j < annotated.length) {
-              const nextPt = annotated[j];
-              const nextPrev = annotated[j - 1];
-              const nextNext =
-                j < annotated.length - 1 ? annotated[j + 1] : null;
-
-              // Check if next point is also a peak
-              const nextIsHigh =
-                nextPt.tide >= nextPrev.tide &&
-                (!nextNext || nextPt.tide >= nextNext.tide) &&
-                (nextPt.tide > nextPrev.tide ||
-                  (nextNext && nextPt.tide > nextNext.tide));
-              const nextIsLow =
-                nextPt.tide <= nextPrev.tide &&
-                (!nextNext || nextPt.tide <= nextNext.tide) &&
-                (nextPt.tide < nextPrev.tide ||
-                  (nextNext && nextPt.tide < nextNext.tide));
-
-              if (
-                (nextIsHigh || nextIsLow) &&
-                Math.abs(curr.tide - nextPt.tide) < 0.1
-              ) {
-                sameTidePeaks.push(j);
-                j++;
-              } else {
-                break;
-              }
-            }
-
-            // Keep the middle peak if multiple
-            const middleIndex = Math.floor(sameTidePeaks.length / 2);
-            uniquePeaks.add(sameTidePeaks[middleIndex]);
-            i = j; // Skip all processed peaks
-          } else {
-            i++;
+        // Simple peak detection (same as ForecastTideChart)
+        for (let i = 1; i < sorted.length - 1; i++) {
+          const prev = sorted[i - 1];
+          const curr = sorted[i];
+          const next = sorted[i + 1];
+          if (curr.tide > prev.tide && curr.tide >= next.tide) {
+            sorted[i] = { ...curr, isPeak: Number(curr.tide.toFixed(1)) };
+          } else if (curr.tide < prev.tide && curr.tide <= next.tide) {
+            sorted[i] = { ...curr, isPeak: Number(curr.tide.toFixed(1)) };
           }
         }
 
-        // Mark the unique peaks
-        uniquePeaks.forEach((idx) => {
-          annotated[idx].isPeak = Number(annotated[idx].tide.toFixed(1));
-        });
-
-        // Filter to only return points within the window
-        return annotated.filter((p) => p.hour >= 0 && p.hour <= windowHours);
+        return sorted;
       },
     []
   );
@@ -394,8 +306,25 @@ const TideChart: React.FC<TideChartProps> = ({
   }, []);
 
   useEffect(() => {
-    // Optimized: synchronous processing, batch state updates
+    // Optimized: synchronous processing, single dispatch
     try {
+      const cacheKeyParts = [
+        beachId ?? "default",
+        hours,
+        chartDataProp?.[0]?.x ?? tideStartMs ?? "",
+      ];
+      const cacheKey = cacheKeyParts.join("|");
+
+      const cached = tideCacheRef.current.get(cacheKey);
+      if (!chartData.length && cached) {
+        dispatch({
+          type: "SET_TIDE_DATA",
+          chartData: cached.chartData,
+          windowStart: cached.windowStart,
+        });
+        return;
+      }
+
       if (chartDataProp && chartDataProp.length > 0) {
         const sorted = chartDataProp
           .map((row) => ({
@@ -405,55 +334,66 @@ const TideChart: React.FC<TideChartProps> = ({
           }))
           .filter((row) => Number.isFinite(row.x));
         if (!sorted.length) {
-          setChartData([]);
-          setWindowStart(null);
+          dispatch({ type: "SET_TIDE_DATA", chartData: [], windowStart: null });
           return;
         }
         const firstTimestamp = sorted[0].x;
         const baseDate = new Date(firstTimestamp);
         const startMs = resolveStartMs(baseDate);
-        const built = buildPoints(
-          sorted,
-          startMs,
-          hours,
-          isSameDay(baseDate, new Date())
-        );
-        // Batch state updates using startTransition for better performance
-        React.startTransition(() => {
-          setWindowStart(startMs);
-          setChartData(built);
+        const built = buildPoints(sorted, startMs, hours);
+        tideCacheRef.current.set(cacheKey, {
+          chartData: built,
+          windowStart: startMs,
+        });
+        dispatch({
+          type: "SET_TIDE_DATA",
+          chartData: built,
+          windowStart: startMs,
         });
         return;
       }
 
-      if (tideRows.length && tideStartMs != null) {
-        const baseDate =
-          date instanceof Date ? new Date(date) : new Date(tideStartMs);
+      const effectiveStartMs =
+        tideStartMs ??
+        (tideRows.length
+          ? resolveStartMs(
+              new Date(
+                Number(tideRows[0].x ?? tideRows[0].timestamp ?? Date.now())
+              )
+            )
+          : null);
+
+      if (tideRows.length && effectiveStartMs != null) {
         const built = buildPoints(
           tideRows.map((row) => ({
             x: typeof row.x === "number" ? row.x : Number(row.x),
             tide: row.tide,
           })),
-          tideStartMs,
-          hours,
-          isSameDay(baseDate, new Date())
+          effectiveStartMs,
+          hours
         );
-        // Batch state updates
-        React.startTransition(() => {
-          setWindowStart(tideStartMs);
-          setChartData(built);
+        tideCacheRef.current.set(cacheKey, {
+          chartData: built,
+          windowStart: effectiveStartMs,
+        });
+        dispatch({
+          type: "SET_TIDE_DATA",
+          chartData: built,
+          windowStart: effectiveStartMs,
         });
         return;
       }
 
       if (!tideLoading && tideResolved) {
-        setChartData([]);
-        setWindowStart(tideStartMs ?? null);
+        dispatch({
+          type: "SET_TIDE_DATA",
+          chartData: [],
+          windowStart: tideStartMs ?? null,
+        });
       }
     } catch (error) {
       console.error("Failed to load tide data", error);
-      setChartData([]);
-      setWindowStart(null);
+      dispatch({ type: "SET_TIDE_DATA", chartData: [], windowStart: null });
     }
   }, [
     beachId,
@@ -496,7 +436,7 @@ const TideChart: React.FC<TideChartProps> = ({
   );
 
   useEffect(() => {
-    // Optimized: synchronous processing
+    // Optimized: synchronous processing, single dispatch
     if (
       sunSegments &&
       (sunSegments.dayAreas?.length ||
@@ -529,11 +469,11 @@ const TideChart: React.FC<TideChartProps> = ({
         }
       }
 
-      // Batch state updates
-      React.startTransition(() => {
-        setDayAreas(sunSegments.dayAreas ?? []);
-        setNightAreas(sunSegments.nightAreas ?? []);
-        setSunMarkers(markers);
+      dispatch({
+        type: "SET_SUN_DATA",
+        dayAreas: sunSegments.dayAreas ?? [],
+        nightAreas: sunSegments.nightAreas ?? [],
+        sunMarkers: markers,
       });
       return;
     }
@@ -548,10 +488,11 @@ const TideChart: React.FC<TideChartProps> = ({
       const setHourRaw = parseSunTimeToHour(tideSunTimes.sunset ?? null);
 
       if (riseHourRaw == null || setHourRaw == null) {
-        React.startTransition(() => {
-          setDayAreas([]);
-          setNightAreas([{ x1: 0, x2: hours }]);
-          setSunMarkers([]);
+        dispatch({
+          type: "SET_SUN_DATA",
+          dayAreas: [],
+          nightAreas: [{ x1: 0, x2: hours }],
+          sunMarkers: [],
         });
         return;
       }
@@ -582,10 +523,11 @@ const TideChart: React.FC<TideChartProps> = ({
         }
       }
 
-      React.startTransition(() => {
-        setDayAreas(segments.dayAreas);
-        setNightAreas(segments.nightAreas);
-        setSunMarkers(markers);
+      dispatch({
+        type: "SET_SUN_DATA",
+        dayAreas: segments.dayAreas,
+        nightAreas: segments.nightAreas,
+        sunMarkers: markers,
       });
       return;
     }
@@ -594,9 +536,12 @@ const TideChart: React.FC<TideChartProps> = ({
       return;
     }
 
-    setDayAreas([]);
-    setNightAreas([{ x1: 0, x2: hours }]);
-    setSunMarkers([]);
+    dispatch({
+      type: "SET_SUN_DATA",
+      dayAreas: [],
+      nightAreas: [{ x1: 0, x2: hours }],
+      sunMarkers: [],
+    });
   }, [
     chartData,
     hours,
@@ -610,7 +555,7 @@ const TideChart: React.FC<TideChartProps> = ({
 
   const hourTicks = useMemo(() => {
     const ticks: number[] = [];
-    for (let v = 0; v <= hours; v += 1) {
+    for (let v = 0; v <= hours; v += 3) {
       ticks.push(v);
     }
     return ticks;

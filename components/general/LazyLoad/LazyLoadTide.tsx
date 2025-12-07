@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import dynamic from "next/dynamic";
 import type { SharedSunSegments } from "@/components/graphs/sharedSunSegments";
 
@@ -11,13 +11,26 @@ type Props = {
   sunSegments?: SharedSunSegments;
 };
 
-const TideChartLazy = dynamic<Props>(() => import("../../graphs/TideChart"), {
+// Preload the chunk as soon as this module loads
+const tideChartImport = () => import("../../graphs/TideChart");
+
+const TideChartLazy = dynamic<Props>(tideChartImport, {
   ssr: false,
   loading: () => (
     <div className="animate-pulse bg-highlight-5 rounded-2xl h-[250px] w-full" />
   ),
 });
 
+// Preload on module initialization
+if (typeof window !== "undefined") {
+  tideChartImport();
+}
+
 export const LazyLoadTide: React.FC<Props> = (props) => {
+  // Also trigger preload on mount as a fallback
+  useEffect(() => {
+    tideChartImport();
+  }, []);
+
   return <TideChartLazy {...props} />;
 };
