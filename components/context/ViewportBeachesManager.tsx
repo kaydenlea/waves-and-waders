@@ -3,19 +3,18 @@
 import * as React from "react";
 import { useViewportBeaches } from "@/lib/hooks/useViewportBeaches";
 import { useMapFilters } from "./MapFilterContext";
+import { useMapViewport } from "./MapViewportContext";
 import { useClientPath } from "./PathContext";
 import { useViewportBeachesContext } from "./ViewportBeachesContext";
 
 const ViewportBeachesManager = () => {
+  const { filters, favoriteIds, setBeaches } = useMapFilters();
   const {
     visibleBounds,
-    filters,
-    favoriteIds,
-    setBeaches,
     viewportRequestId,
     setViewportStatus,
     allowViewportCommit,
-  } = useMapFilters();
+  } = useMapViewport();
   const {
     pendingBounds,
     committedBounds,

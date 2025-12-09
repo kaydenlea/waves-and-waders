@@ -10,11 +10,9 @@ import React, {
 import * as Collapsible from "@radix-ui/react-collapsible";
 import { Calendar, TimerReset } from "lucide-react";
 import { useDateContext } from "../context/DateContext";
-import { useMapFilters } from "../context/MapFilterContext";
 import { LazyLoadDatePicker } from "./LazyLoad/LazyLoadDatePicker";
 import { LazyLoadHourSlider } from "./LazyLoad/LazyLoadHourSlider";
 import { cn } from "@/lib/utils";
-import { debounce } from "@/lib/utils/debounce";
 
 type Props = {
   beachId: string;
@@ -28,22 +26,9 @@ const TimeRail: React.FC<Props> = ({
   trailingActions,
 }) => {
   const { selected, setSelected, hour, setHour } = useDateContext();
-  const { setSelectedDate, setSelectedHour } = useMapFilters();
   const [hourChanged, setHourChanged] = useState(false);
 
-  // Debounce only the expensive data-fetching state update
-  const debouncedSetSelectedHour = useMemo(
-    () =>
-      debounce((newHour: number) => {
-        startTransition(() => {
-          setSelectedHour(newHour);
-        });
-      }, 150),
-    [setSelectedHour]
-  );
-
-  // Handler that updates UI immediately but debounces data fetching
-  // Throttle UI updates to animation frames for smoothness
+  // Handler that updates UI immediately with rAF throttling for smoothness
   const hourRafRef = useRef<number | null>(null);
   const nextHourRef = useRef<number>(hour);
   const handleHourChange = (newHour: number) => {
@@ -56,15 +41,12 @@ const TimeRail: React.FC<Props> = ({
         setHourChanged(true);
       });
     }
-    debouncedSetSelectedHour(newHour);
   };
 
   const handleHourCommit = (newHour: number) => {
-    debouncedSetSelectedHour.cancel();
     // Apply selected hour immediately on commit to keep everything in sync
     startTransition(() => {
       setHour(newHour);
-      setSelectedHour(newHour);
     });
   };
 
@@ -74,9 +56,8 @@ const TimeRail: React.FC<Props> = ({
         cancelAnimationFrame(hourRafRef.current);
         hourRafRef.current = null;
       }
-      debouncedSetSelectedHour.cancel();
     };
-  }, [debouncedSetSelectedHour]);
+  }, []);
 
   // Reset animation after it completes
   useEffect(() => {
@@ -93,9 +74,7 @@ const TimeRail: React.FC<Props> = ({
     const rounded = Math.max(0, Math.min(21, Math.round(currentHour / 3) * 3));
     startTransition(() => {
       setSelected(dateOnly);
-      setSelectedDate(dateOnly);
       setHour(rounded);
-      setSelectedHour(rounded);
     });
   };
 
@@ -239,14 +218,13 @@ const TimeRail: React.FC<Props> = ({
             "data-[state=closed]:max-h-0 data-[state=open]:max-h-[520px] data-[state=closed]:pointer-events-none data-[state=closed]:opacity-0 data-[state=open]:opacity-100"
           )}
         >
-          <LazyLoadDatePicker
-            beachId={beachId}
-            value={selected ?? undefined}
-            onSelect={(d) => {
-              setSelected(d);
-              setSelectedDate(d);
-            }}
-          />
+            <LazyLoadDatePicker
+              beachId={beachId}
+              value={selected ?? undefined}
+              onSelect={(d) => {
+                setSelected(d);
+              }}
+            />
         </Collapsible.Content>
       </Collapsible.Root>
     </div>

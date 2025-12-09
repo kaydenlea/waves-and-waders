@@ -26,7 +26,6 @@ import {
   type WidgetMeta,
 } from "./dashboardLayout";
 import { LazyLoadSummary } from "./LazyLoad/LazyLoadSummary";
-import { useMapFilters } from "../context/MapFilterContext";
 import { useDateContext } from "../context/DateContext";
 import { useClientPath } from "../context/PathContext";
 import { ForecastChartProvider } from "../context/ForecastChartContext";
@@ -390,12 +389,6 @@ const DateSummaryBridge: React.FC<Props> = ({
     };
   }, [forecastRows]);
 
-  const {
-    setSelectedDate,
-    setSelectedHour,
-    selectedDate: mapSelectedDate,
-    selectedHour: mapSelectedHour,
-  } = useMapFilters();
   const [, startMapSyncTransition] = React.useTransition();
 
   // Set mounted and initialize time on client
@@ -484,7 +477,6 @@ const DateSummaryBridge: React.FC<Props> = ({
         now.getDate()
       );
       setSelected(dateOnly);
-      setSelectedDate(dateOnly);
     }
   }, []);
 
@@ -562,33 +554,6 @@ const DateSummaryBridge: React.FC<Props> = ({
       cancelled = true;
     };
   }, [storageMetaKey, storageRowsKey, supabase, session]);
-
-  // Sync selected date and hour with context
-  React.useEffect(() => {
-    const nextDate = selected ?? null;
-    const mapTime = mapSelectedDate ? mapSelectedDate.getTime() : null;
-    const nextTime = nextDate ? nextDate.getTime() : null;
-    if (mapTime === nextTime) {
-      return;
-    }
-    startMapSyncTransition(() => {
-      setSelectedDate(nextDate);
-    });
-  }, [
-    selected,
-    mapSelectedDate,
-    setSelectedDate,
-    startMapSyncTransition,
-  ]);
-  React.useEffect(() => {
-    const nextHour = hour ?? null;
-    if (mapSelectedHour === nextHour) {
-      return;
-    }
-    startMapSyncTransition(() => {
-      setSelectedHour(nextHour);
-    });
-  }, [hour, mapSelectedHour, setSelectedHour, startMapSyncTransition]);
 
   const visibleRows = React.useMemo(
     () =>

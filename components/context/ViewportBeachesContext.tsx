@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import type { BeachPoint, VisibleMapBounds } from "@/components/context/MapFilterContext";
+import type { BeachPoint } from "@/components/context/MapFilterContext";
+import type { VisibleMapBounds } from "@/components/context/MapViewportContext";
 
 export type VisibleViewportBounds = {
   south: number;

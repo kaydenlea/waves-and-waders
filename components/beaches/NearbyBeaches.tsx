@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import { useMapFilters } from "@/components/context/MapFilterContext";
+import { useDateContext } from "@/components/context/DateContext";
 import {
   Pagination,
   PaginationContent,
@@ -127,19 +128,15 @@ const decorateBeachWithStats = (
 };
 
 export default function NearbyBeaches() {
-  const {
-    filters,
-    beaches: sharedBeaches,
-    selectedDate,
-    selectedHour,
-    favoriteIds: favoriteIdsSet,
-  } = useMapFilters();
+  const { filters, beaches: sharedBeaches, favoriteIds: favoriteIdsSet } =
+    useMapFilters();
+  const { selected: selectedDate, hour } = useDateContext();
   const filterCount = filters?.size ?? 0;
   const effectiveDate = useMemo(() => {
     if (selectedDate instanceof Date) return selectedDate;
     return null;
   }, [selectedDate]);
-  const effectiveHour = typeof selectedHour === "number" ? selectedHour : null;
+  const effectiveHour = Number.isFinite(hour) ? hour : null;
   const resolveDateKey = useCallback((value: Date | null) => {
     if (value instanceof Date && !Number.isNaN(value.getTime())) {
       const day = new Date(

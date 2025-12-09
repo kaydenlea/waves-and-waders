@@ -17,12 +17,14 @@ import {
   generateBeachUrl,
   extractBeachId,
 } from "@/lib/supabase";
-import type {
-  BeachPoint,
-  VisibleMapBounds,
-} from "@/components/context/MapFilterContext";
+import type { BeachPoint } from "@/components/context/MapFilterContext";
 import { useMapFilters } from "@/components/context/MapFilterContext";
+import {
+  VisibleMapBounds,
+  useMapViewport,
+} from "@/components/context/MapViewportContext";
 import { useViewportBeachesContext } from "@/components/context/ViewportBeachesContext";
+import { useDateContext } from "@/components/context/DateContext";
 import {
   MAP_FOCUS_EVENT,
   type MapFocusEventDetail,
@@ -970,10 +972,6 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
   const router = useRouter();
   const pathname = usePathname() ?? "";
   const {
-    setVisibleBounds,
-    setViewportRequestId,
-    setAllowViewportCommit,
-    allowViewportCommit,
     showMap,
     setShowMap,
     filters,
@@ -982,11 +980,12 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     setOpenPanel,
     togglePanel,
     favoriteIds,
-    selectedDate,
-    selectedHour,
     hoverCardId,
   } = useMapFilters();
-  const [, startAllowTransition] = React.useTransition();
+  const { setVisibleBounds, setViewportRequestId, setAllowViewportCommit } =
+    useMapViewport();
+  const { selected: selectedDate, hour } = useDateContext();
+  const selectedHour = Number.isFinite(hour) ? hour : null;
   const {
     beaches: viewportBeaches,
     status: viewportStatus,
@@ -1008,7 +1007,6 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
   }>({ card: null, marker: null });
   const appliedHoverIdRef = React.useRef<string | null>(null);
   const hoveredClusterRef = React.useRef<any>(null);
-  const moveStartRafRef = React.useRef<number | null>(null);
   const updateClusterHighlight = React.useCallback((cluster: any | null) => {
     const prev = hoveredClusterRef.current;
     if (prev && prev !== cluster) {
@@ -1025,13 +1023,10 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       }
     }
   }, []);
-  const pendingCommitBlockRef = React.useRef(false);
   const persistViewTimeoutRef = React.useRef<number | null>(null);
   const resumeCommitTimeoutRef = React.useRef<number | null>(null);
   const resizeTimeoutRef = React.useRef<number | null>(null);
   const resizeRafRef = React.useRef<number | null>(null);
-  const resizeActiveRef = React.useRef(false);
-  const awaitingCommitRef = React.useRef(false);
   const containerResizeObserverRef = React.useRef<ResizeObserver | null>(null);
   const interactionsReadyRef = React.useRef(false);
   const pendingAutoCenterRef = React.useRef<string | null>(null);
@@ -1041,31 +1036,11 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     bounds: VisibleMapBounds | null;
     ts: number;
   }>({ bounds: null, ts: 0 });
-  const pendingCameraRef = React.useRef<{
-    bounds: VisibleMapBounds;
-    zoom: number;
-    center: { longitude: number; latitude: number };
-  } | null>(null);
-  const cameraPublishBlockedRef = React.useRef(false);
   const callbacksRef = React.useRef({
     onCameraChange,
     setVisibleBounds,
     setViewportRequestId,
-    setAllowViewportCommit,
   });
-  const applyAllowViewportCommit = React.useCallback(
-    (next: boolean) => {
-      if (allowViewportCommitRef.current === next) {
-        return;
-      }
-      allowViewportCommitRef.current = next;
-      startAllowTransition(() => {
-        callbacksRef.current.setAllowViewportCommit(next);
-      });
-    },
-    [startAllowTransition]
-  );
-  const allowViewportCommitRef = React.useRef(allowViewportCommit);
   const focusContextRef = React.useRef<{
     findBeachMatch: (
       value: string | number | null | undefined
@@ -1085,7 +1060,6 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     (value) => value + 1,
     0
   );
-  const cameraUpdateFrameRef = React.useRef<number | null>(null);
 
   const fullMapPage = !pathname.endsWith("/beaches");
   const editPage = pathname.includes("edit");
@@ -1197,18 +1171,8 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       onCameraChange,
       setVisibleBounds,
       setViewportRequestId,
-      setAllowViewportCommit,
     };
-  }, [
-    onCameraChange,
-    setVisibleBounds,
-    setViewportRequestId,
-    setAllowViewportCommit,
-  ]);
-
-  React.useEffect(() => {
-    allowViewportCommitRef.current = allowViewportCommit;
-  }, [allowViewportCommit]);
+  }, [onCameraChange, setVisibleBounds, setViewportRequestId]);
 
   React.useEffect(() => {
     const lookup: Record<string, BeachPoint> = {};
@@ -1225,36 +1189,17 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       setShowMap,
     };
   }, [findBeachMatch, fullMapPage, setShowMap]);
-  const beginResizeHold = React.useCallback(() => {
-    cameraPublishBlockedRef.current = true;
-    applyAllowViewportCommit(false);
-    if (cameraUpdateFrameRef.current != null) {
-      window.cancelAnimationFrame(cameraUpdateFrameRef.current);
-      cameraUpdateFrameRef.current = null;
-    }
-    if (resumeCommitTimeoutRef.current != null) {
-      window.clearTimeout(resumeCommitTimeoutRef.current);
-      resumeCommitTimeoutRef.current = null;
-    }
-    awaitingCommitRef.current = false;
-    resizeActiveRef.current = true;
-  }, [applyAllowViewportCommit]);
-
   const publishCameraSnapshot = React.useCallback(
-    (
-      snapshot: {
-        bounds: VisibleMapBounds;
-        zoom: number;
-        center: { longitude: number; latitude: number };
-      },
-      force: boolean = false
-    ) => {
+    (snapshot: {
+      bounds: VisibleMapBounds;
+      zoom: number;
+      center: { longitude: number; latitude: number };
+    }) => {
       if (!snapshot?.bounds) return;
       const now =
         typeof performance !== "undefined" ? performance.now() : Date.now();
       const previous = cameraThrottleRef.current;
       if (
-        !force &&
         previous.bounds &&
         now - previous.ts < CAMERA_MIN_INTERVAL &&
         boundsWithinThreshold(snapshot.bounds, previous.bounds)
@@ -1278,69 +1223,34 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     []
   );
 
-  const emitCameraUpdate = React.useCallback(
-    (force: boolean = false) => {
-      const map = mapRef.current;
-      if (!map) return;
-      const bounds = normalizeBoundsToWorld(readBounds(map));
-      const center = map.getCenter();
-      if (!center) return;
-      const zoom = map.getZoom();
-      const payload = {
-        bounds,
-        zoom,
-        center: { longitude: center.lng, latitude: center.lat },
-      };
-      pendingCameraRef.current = payload;
-      if (cameraPublishBlockedRef.current && !force) {
-        return;
-      }
-      publishCameraSnapshot(payload, force);
-    },
-    [publishCameraSnapshot]
-  );
-
-  const flushPendingCameraUpdate = React.useCallback(
-    (force: boolean = false) => {
-      cameraPublishBlockedRef.current = false;
-      const snapshot = pendingCameraRef.current;
-      if (snapshot) {
-        publishCameraSnapshot(snapshot, force);
-        return;
-      }
-      emitCameraUpdate(force);
-    },
-    [emitCameraUpdate, publishCameraSnapshot]
-  );
-
-  const scheduleCameraUpdate = React.useCallback(() => {
-    if (cameraUpdateFrameRef.current != null) return;
-    cameraUpdateFrameRef.current = window.requestAnimationFrame(() => {
-      cameraUpdateFrameRef.current = null;
-      emitCameraUpdate();
+  const emitCameraUpdate = React.useCallback(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const bounds = normalizeBoundsToWorld(readBounds(map));
+    const center = map.getCenter();
+    if (!center) return;
+    const zoom = map.getZoom();
+    publishCameraSnapshot({
+      bounds,
+      zoom,
+      center: { longitude: center.lng, latitude: center.lat },
     });
-  }, [emitCameraUpdate]);
+  }, [publishCameraSnapshot]);
 
-  const scheduleCommitResume = React.useCallback(() => {
-    awaitingCommitRef.current = true;
+  const cancelCommitResume = React.useCallback(() => {
     if (resumeCommitTimeoutRef.current != null) {
       window.clearTimeout(resumeCommitTimeoutRef.current);
+      resumeCommitTimeoutRef.current = null;
     }
+  }, []);
+
+  const scheduleCommitResume = React.useCallback(() => {
+    cancelCommitResume();
     resumeCommitTimeoutRef.current = window.setTimeout(() => {
-      awaitingCommitRef.current = false;
-      applyAllowViewportCommit(true);
-      scheduleCameraUpdate();
+      setAllowViewportCommit(true);
       resumeCommitTimeoutRef.current = null;
     }, COMMIT_IDLE_DELAY);
-  }, [applyAllowViewportCommit, scheduleCameraUpdate]);
-
-  const finalizeResizeHold = React.useCallback(() => {
-    if (resizeActiveRef.current) {
-      resizeActiveRef.current = false;
-    }
-    flushPendingCameraUpdate(true);
-    scheduleCommitResume();
-  }, [flushPendingCameraUpdate, scheduleCommitResume]);
+  }, [cancelCommitResume, setAllowViewportCommit]);
 
   const normalizeMapCenter = React.useCallback(() => {
     const map = mapRef.current;
@@ -1357,7 +1267,6 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
   const scheduleResizeRecompute = React.useCallback(() => {
     const map = mapRef.current;
     if (!map) return;
-    beginResizeHold();
     if (resizeTimeoutRef.current != null) {
       window.clearTimeout(resizeTimeoutRef.current);
       resizeTimeoutRef.current = null;
@@ -1372,7 +1281,6 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
         resizeRafRef.current = null;
         const activeMap = mapRef.current;
         if (!activeMap) {
-          finalizeResizeHold();
           return;
         }
         try {
@@ -1391,13 +1299,10 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
         appliedHoverIdRef.current = null;
         updateClusterHighlight(null);
         emitCameraUpdate();
-        finalizeResizeHold();
       });
     }, RESIZE_SETTLE_DELAY);
   }, [
-    beginResizeHold,
     emitCameraUpdate,
-    finalizeResizeHold,
     normalizeMapCenter,
     requestMarkerRebuild,
     updateClusterHighlight,
@@ -1405,9 +1310,9 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
 
   React.useEffect(() => {
     if (!mapReady) return;
-    scheduleCameraUpdate();
+    emitCameraUpdate();
     requestMarkerRebuild();
-  }, [mapReady, scheduleCameraUpdate, requestMarkerRebuild]);
+  }, [mapReady, emitCameraUpdate, requestMarkerRebuild]);
 
   React.useEffect(() => {
     if (!mapReady) return;
@@ -1415,14 +1320,6 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     scheduleResizeRecompute();
   }, [mapReady, smallScreen, scheduleResizeRecompute]);
 
-  React.useEffect(() => {
-    return () => {
-      if (cameraUpdateFrameRef.current != null) {
-        window.cancelAnimationFrame(cameraUpdateFrameRef.current);
-        cameraUpdateFrameRef.current = null;
-      }
-    };
-  }, []);
   React.useEffect(() => {
     return () => {
       if (resizeTimeoutRef.current != null) {
@@ -1770,33 +1667,16 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       inertiaDeceleration: 2500,
       zoomAnimation: true,
     });
-    const containerEl = containerRef.current;
-    if (containerEl) {
-      containerEl.style.transform = "translateZ(0)";
-      containerEl.style.backfaceVisibility = "hidden";
-    }
     const tileLayer = L.tileLayer(DEFAULT_TILE_URL, {
       attribution: DEFAULT_ATTRIBUTION,
       detectRetina: true,
       reuseTiles: true,
-      updateWhenIdle: true,
-      updateWhenZooming: false,
-      updateInterval: 100,
-      keepBuffer: 4,
+      updateWhenIdle: false,
+      updateWhenZooming: true,
+      updateInterval: 50,
+      keepBuffer: 2,
     }).addTo(map);
     tileLayerRef.current = tileLayer;
-    const tilePane = map.getPane("tilePane");
-    if (tilePane) {
-      tilePane.style.willChange = "transform";
-      tilePane.style.transform = "translateZ(0)";
-      tilePane.style.backfaceVisibility = "hidden";
-    }
-    const mapPane = map.getPane("mapPane");
-    if (mapPane) {
-      mapPane.style.willChange = "transform";
-      mapPane.style.transform = "translateZ(0)";
-      mapPane.style.backfaceVisibility = "hidden";
-    }
     mapRef.current = map;
     if (!map.getPane(OVERLAY_PANE_ID)) {
       const pane = map.createPane(OVERLAY_PANE_ID);
@@ -1824,44 +1704,22 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     normalizeMapCenter();
     emitCameraUpdate();
 
-    const handleMove = () => {
-      if (!awaitingCommitRef.current) return;
-      if (pendingCommitBlockRef.current) {
-        pendingCommitBlockRef.current = false;
-        applyAllowViewportCommit(false);
+    const handleMoveStart = () => {
+      if (suppressUserMoveRef.current) {
+        suppressUserMoveRef.current = false;
+        return;
       }
-      emitCameraUpdate();
+      cancelCommitResume();
+      setAllowViewportCommit(false);
+      if (hoverStateRef.current.marker) {
+        setHoveredMarkerSource("marker", null);
+      }
     };
     const handleResizeEvent = () => {
       scheduleResizeRecompute();
     };
 
-    const handleDragStart = () => {
-      if (moveStartRafRef.current != null) {
-        return;
-      }
-      moveStartRafRef.current = window.requestAnimationFrame(() => {
-        moveStartRafRef.current = null;
-        pendingCommitBlockRef.current = true;
-        if (hoverStateRef.current.marker) {
-          setHoveredMarkerSource("marker", null);
-        }
-        cameraPublishBlockedRef.current = true;
-        if (cameraUpdateFrameRef.current != null) {
-          window.cancelAnimationFrame(cameraUpdateFrameRef.current);
-          cameraUpdateFrameRef.current = null;
-        }
-        if (resumeCommitTimeoutRef.current != null) {
-          window.clearTimeout(resumeCommitTimeoutRef.current);
-          resumeCommitTimeoutRef.current = null;
-        }
-        awaitingCommitRef.current = false;
-        suppressUserMoveRef.current = false;
-      });
-    };
-
     const handleInteractionEnd = () => {
-      pendingCommitBlockRef.current = false;
       try {
         const center = map.getCenter();
         const zoom = map.getZoom();
@@ -1874,30 +1732,21 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       } catch {
         // ignore persistence failures
       }
-      flushPendingCameraUpdate(true);
+      emitCameraUpdate();
       scheduleCommitResume();
     };
 
-    map.on("dragstart", handleDragStart);
+    map.on("movestart", handleMoveStart);
     map.on("moveend", handleInteractionEnd);
     map.on("zoomend", handleInteractionEnd);
-    map.on("move", handleMove);
     map.on("resize", handleResizeEvent);
 
     return () => {
       map.off("resize", handleResizeEvent);
-      map.off("move", handleMove);
-      map.off("dragstart", handleDragStart);
+      map.off("movestart", handleMoveStart);
       map.off("moveend", handleInteractionEnd);
       map.off("zoomend", handleInteractionEnd);
-      if (moveStartRafRef.current != null) {
-        window.cancelAnimationFrame(moveStartRafRef.current);
-        moveStartRafRef.current = null;
-      }
-      if (resumeCommitTimeoutRef.current != null) {
-        window.clearTimeout(resumeCommitTimeoutRef.current);
-        resumeCommitTimeoutRef.current = null;
-      }
+      cancelCommitResume();
       zoomControlRef.current?.remove();
       zoomControlRef.current = null;
       if (clusterLayerRef.current) {
@@ -1918,13 +1767,14 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     emitCameraUpdate,
     scheduleMapViewPersistence,
     clearHoverState,
-    scheduleCameraUpdate,
     scheduleCommitResume,
     scheduleResizeRecompute,
     normalizeMapCenter,
     showMap,
     initialBeach,
-    applyAllowViewportCommit,
+    setAllowViewportCommit,
+    cancelCommitResume,
+    setHoveredMarkerSource,
   ]);
   React.useEffect(() => {
     if (!mapReady || !selectedBeachId || !selectedBeach) return;
@@ -2044,32 +1894,11 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
   React.useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    const handlePointerDown = () => {
-      const mapInstance = mapRef.current as any;
-      if (!mapInstance) return;
-      const panAnim = mapInstance?._panAnim;
-      const zoomAnim = mapInstance?._zoomAnim;
-      const animating =
-        (panAnim && panAnim._inProgress) ||
-        (zoomAnim && zoomAnim._inProgress) ||
-        (typeof mapInstance?.isMoving === "function"
-          ? mapInstance.isMoving()
-          : false);
-      if (animating && typeof mapInstance.stop === "function") {
-        try {
-          mapInstance.stop();
-        } catch {
-          // ignore stop errors
-        }
-      }
-    };
     const handleLeave = () => {
       setHoveredMarkerSource("marker", null);
     };
-    container.addEventListener("pointerdown", handlePointerDown);
     container.addEventListener("mouseleave", handleLeave);
     return () => {
-      container.removeEventListener("pointerdown", handlePointerDown);
       container.removeEventListener("mouseleave", handleLeave);
     };
   }, [setHoveredMarkerSource, smallScreen]);

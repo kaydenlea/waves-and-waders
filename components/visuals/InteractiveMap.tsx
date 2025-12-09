@@ -81,7 +81,9 @@ import {
 } from "lucide-react";
 import { SwellRings, WindRing } from "./DirectionRings";
 import { useMapFilters } from "../context/MapFilterContext";
+import { useMapViewport } from "../context/MapViewportContext";
 import { useViewportBeachesContext } from "../context/ViewportBeachesContext";
+import { useDateContext } from "../context/DateContext";
 import {
   MAP_FOCUS_EVENT,
   type MapFocusEventDetail,
@@ -226,14 +228,13 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
     setMap,
     filters,
     setFilters,
-    setVisibleBounds,
-    selectedDate,
-    selectedHour,
     showMap,
     setShowMap,
-    setViewportRequestId,
-    setAllowViewportCommit,
   } = useMapFilters();
+  const { setVisibleBounds, setViewportRequestId, setAllowViewportCommit } =
+    useMapViewport();
+  const { selected: selectedDate, hour } = useDateContext();
+  const selectedHour = Number.isFinite(hour) ? hour : null;
   const [located, setLocated] = React.useState<boolean>(false);
   const [showFilters, setShowFilters] = React.useState<boolean>(false);
   const [surfIntensity, setSurfIntensity] = React.useState<

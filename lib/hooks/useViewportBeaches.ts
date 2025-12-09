@@ -5,10 +5,8 @@ import {
   fetchBeachesInBoundsAPI,
   type ApiBeachRecord,
 } from "@/lib/api";
-import type {
-  BeachPoint,
-  VisibleMapBounds,
-} from "@/components/context/MapFilterContext";
+import type { BeachPoint } from "@/components/context/MapFilterContext";
+import type { VisibleMapBounds } from "@/components/context/MapViewportContext";
 
 type Status = "idle" | "loading" | "success" | "error";
 
