@@ -999,7 +999,7 @@ const EnergyStat = ({
         {data.value}
         <span className="text-sm font-normal ml-1">{data.unit}</span>
       </span>
-      <div className="w-full mt-1">
+      <div className="w-full mt-1 max-w-40">
         <SegmentedGauge
           className="w-full"
           valuePct={valuePct}
@@ -1088,7 +1088,7 @@ const TideStat = ({
         {typeof data.value === "number" ? data.value : String(data.value)}
         <span className="text-sm font-normal ml-1">{data.unit}</span>
       </span>
-      <div className="w-full mt-1">
+      <div className="w-full mt-1 max-w-40">
         <SegmentedGauge
           className="w-full"
           valuePct={valuePct}
@@ -1534,7 +1534,7 @@ const Highlights = ({
                 content = stat.primary && stat.secondary && (
                   <div
                     className={cn(
-                      "flex justify-between items-center px-3 gap-0 @min-lg:w-full @min-2xl:w-auto",
+                      "flex justify-between items-center gap-0 @min-lg:w-full @min-2xl:w-auto",
                       !isFull && "@min-5xl:w-full"
                     )}
                   >

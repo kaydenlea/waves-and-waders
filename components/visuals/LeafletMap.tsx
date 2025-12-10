@@ -1477,7 +1477,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       background: "var(--highlight-7)",
       opacity: "0.8",
       borderRadius: "30px",
-      padding: "7px",
+      padding: "5px",
       marginTop: !fullMapPage ? "70px" : smallScreen ? "260px" : "0px",
       marginBottom: !fullMapPage
         ? smallScreen
@@ -1486,7 +1486,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
         : smallScreen
         ? "80px"
         : "70px",
-      marginLeft: "0.7rem",
+      marginLeft: "0.8rem",
       boxShadow: "0px 0px 15px rgba(0, 0, 0, 0.2)",
     });
     const zoomButtons = zoomContainer.querySelectorAll("a");
@@ -1654,12 +1654,15 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     if (!containerRef.current || mapRef.current) {
       return;
     }
+    if (typeof window !== "undefined" && L?.Browser?.any3d) {
+      (L.Browser as any).any3d = false;
+    }
     const initialView = resolveInitialView(initialBeach);
     const map = L.map(containerRef.current, {
       center: [initialView.latitude, initialView.longitude],
       zoom: initialView.zoom,
       zoomControl: false,
-      preferCanvas: true,
+      preferCanvas: false,
       minZoom: 3,
       maxZoom: 18,
       worldCopyJump: true,
@@ -1671,10 +1674,6 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       attribution: DEFAULT_ATTRIBUTION,
       detectRetina: true,
       reuseTiles: true,
-      updateWhenIdle: false,
-      updateWhenZooming: true,
-      updateInterval: 50,
-      keepBuffer: 2,
     }).addTo(map);
     tileLayerRef.current = tileLayer;
     mapRef.current = map;
@@ -2166,9 +2165,6 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
           borderRadius: !smallScreen ? "18px" : "0px",
           boxShadow: "0px 0px 5px rgba(0, 0, 0, 0.2)",
           overflow: "hidden",
-          willChange: "transform",
-          transform: "translateZ(0)",
-          backfaceVisibility: "hidden",
         }}
       >
         <div
@@ -2176,8 +2172,6 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
           style={{
             width: "100%",
             height: "100%",
-            transform: "translateZ(0)",
-            willChange: "transform",
           }}
         />
         {!showMap && fullMapPage && !smallScreen && (
@@ -2282,7 +2276,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
             type="button"
             aria-label={`${showMap ? "Minimize" : "Maximize"} map`}
             className={cn(
-              "absolute left-3 bottom-3 bg-highlight-7/80 rounded-full p-3 shadow-lg border border-border hover:bg-blue-200 dark:hover:bg-blue-400 text-sm font-medium flex items-center gap-2 active:scale-95 transition",
+              "z-[1000] absolute left-3 bottom-3 bg-highlight-7/80 rounded-full p-3 shadow-lg border border-border hover:bg-blue-200 dark:hover:bg-blue-400 text-sm font-medium flex items-center gap-2 active:scale-95 transition",
               blurDisabled ? "" : "backdrop-blur"
             )}
             onClick={() => {
