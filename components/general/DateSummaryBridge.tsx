@@ -43,6 +43,21 @@ import { useTideWindowData } from "@/lib/hooks/useTideWindow";
 import { TideDataProvider } from "../context/TideDataContext";
 import { buildSunSegments } from "@/components/graphs/sunSegments";
 import type { SharedSunSegments } from "@/components/graphs/sharedSunSegments";
+import { ChartLoadingCover } from "../graphs/ChartLoadingCover";
+import {
+  ForecastChartsLoadingProvider,
+  useForecastChartsLoadingState,
+} from "../context/ForecastChartsLoadingContext";
+
+const ForecastChartsOverlay = ({ baseVisible }: { baseVisible: boolean }) => {
+  const chartsBusy = useForecastChartsLoadingState();
+  return (
+    <ChartLoadingCover
+      show={baseVisible || chartsBusy}
+      message="Loading forecast charts"
+    />
+  );
+};
 
 type Props = {
   beachId: string;
@@ -314,6 +329,41 @@ const DateSummaryBridge: React.FC<Props> = ({
     date: selected ?? undefined,
     hours: 24,
   });
+  const chartsReady =
+    !forecastLoading &&
+    forecastRows.length > 0 &&
+    !tideWindow.loading &&
+    (tideWindow.rows?.length ?? 0) > 0;
+  const forecastChartsReady = !forecastLoading && forecastRows.length > 0;
+  const [overlayVisible, setOverlayVisible] = React.useState(true);
+  const [overlayLockedOff, setOverlayLockedOff] = React.useState(false);
+  const [forecastOverlayVisible, setForecastOverlayVisible] =
+    React.useState(true);
+
+  // Avoid flicker by keeping the overlay up until everything is ready,
+  // and only hiding it after a brief settle delay.
+  React.useEffect(() => {
+    if (overlayLockedOff) return;
+    if (!chartsReady) {
+      setOverlayVisible(true);
+      return;
+    }
+    const timeout = setTimeout(() => {
+      setOverlayVisible(false);
+      setOverlayLockedOff(true);
+    }, 500);
+    return () => clearTimeout(timeout);
+  }, [chartsReady, overlayLockedOff]);
+
+  React.useEffect(() => {
+    if (!forecastChartsReady) {
+      setForecastOverlayVisible(true);
+      return;
+    }
+    // Keep forecast overlay visible until the chart loading provider reports ready.
+    // The provider will hide it when all forecast charts call setReady(true).
+    setForecastOverlayVisible(false);
+  }, [forecastChartsReady]);
   const { windStats, surfStats, swellStats, energyStats } = React.useMemo(() => {
     const makeEmptyRange = () => ({ min: null, max: null });
     const toRange = (values: number[], fractionDigits: number): RangeStats => {
@@ -773,55 +823,66 @@ const DateSummaryBridge: React.FC<Props> = ({
 
         {/* Overview content - hidden when forecast is active */}
         <div className={isOverview ? "" : "hidden"}>
-          {visibleRows.length === 0 ? (
-            <p className="mx-2 mt-6 text-sm text-muted-foreground">
-              All widgets are hidden. Use the edit screen to enable widgets.
-            </p>
-          ) : (
-            visibleRows.map((row, index) => {
-              const visibleItems = row.items.filter(
-                (id) => layoutMeta[id]?.visible !== false
-              );
-              if (!visibleItems.length) return null;
-              const spacing = index === 0 ? "mt-4" : "mt-5";
-              const isFull = visibleItems.length === 1;
-              if (isFull) {
-                const content = renderWidget(visibleItems[0], isFull);
-                if (!content) return null;
+          <div className="relative">
+            <ChartLoadingCover
+              show={overlayVisible}
+              message="Loading charts"
+            />
+            {visibleRows.length === 0 ? (
+              <p className="mx-2 mt-6 text-sm text-muted-foreground">
+                All widgets are hidden. Use the edit screen to enable widgets.
+              </p>
+            ) : (
+              visibleRows.map((row, index) => {
+                const visibleItems = row.items.filter(
+                  (id) => layoutMeta[id]?.visible !== false
+                );
+                if (!visibleItems.length) return null;
+                const spacing = index === 0 ? "mt-4" : "mt-5";
+                const isFull = visibleItems.length === 1;
+                if (isFull) {
+                  const content = renderWidget(visibleItems[0], isFull);
+                  if (!content) return null;
+                  return (
+                    <div key={row.id} className={`${spacing} w-full`}>
+                      {content}
+                    </div>
+                  );
+                }
+
                 return (
-                  <div key={row.id} className={`${spacing} w-full`}>
-                    {content}
+                  <div
+                    key={row.id}
+                    className={`${spacing} w-full flex flex-col @min-3xl:flex-row gap-5`}
+                  >
+                    {visibleItems.map((id) => {
+                      const content = renderWidget(id, isFull);
+                      if (!content) return null;
+                      return <React.Fragment key={id}>{content}</React.Fragment>;
+                    })}
                   </div>
                 );
-              }
-
-              return (
-                <div
-                  key={row.id}
-                  className={`${spacing} w-full flex flex-col @min-3xl:flex-row gap-5`}
-                >
-                  {visibleItems.map((id) => {
-                    const content = renderWidget(id, isFull);
-                    if (!content) return null;
-                    return <React.Fragment key={id}>{content}</React.Fragment>;
-                  })}
-                </div>
-              );
-            })
-          )}
+              })
+            )}
+          </div>
         </div>
 
         {/* Forecast content - hidden when overview is active */}
         <div className={isOverview ? "hidden" : ""}>
-          <SunDataProvider>
-            <ForecastChartProvider>
-              <ForecastBridge
-                beachId={beachId}
-                hideHeader
-                onWindowStringChange={setForecastWindow}
-              />
-            </ForecastChartProvider>
-          </SunDataProvider>
+          <div className="relative">
+            <ForecastChartsLoadingProvider>
+              <ForecastChartsOverlay baseVisible={forecastOverlayVisible} />
+              <SunDataProvider>
+                <ForecastChartProvider>
+                  <ForecastBridge
+                    beachId={beachId}
+                    hideHeader
+                    onWindowStringChange={setForecastWindow}
+                  />
+                </ForecastChartProvider>
+              </SunDataProvider>
+            </ForecastChartsLoadingProvider>
+          </div>
         </div>
       </section>
         </>

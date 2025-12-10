@@ -37,6 +37,11 @@ import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
 import { buildYAxisTicks } from "@/components/graphs/yAxisTicks";
 import { useSunData } from "@/components/context/SunDataContext";
 import { buildSunSegmentsForRange } from "@/components/graphs/sunSegments";
+import { ChartLoadingCover } from "./ChartLoadingCover";
+import {
+  useForecastChartLoading,
+  useForecastChartsLoadingState,
+} from "../context/ForecastChartsLoadingContext";
 
 const chartConfig = {
   surf: {
@@ -61,6 +66,8 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
   const myId = React.useId();
   const { hour: selectedHour, setHoveredHour } = useDateContext();
   const { getSunData } = useSunData();
+  const [loading, setLoading] = useState(true);
+  const [sunReady, setSunReady] = useState(false);
   const [surfData, setSurfData] = useState<SurfPoint[]>([]);
   const [baseStartMs, setBaseStartMs] = useState<number | null>(null);
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
@@ -379,12 +386,16 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
           setNightAreas([{ x1: 0, x2: totalDays * HOURS_PER_DAY }]);
         }
       }
+      if (!cancelled) {
+        setSunReady(true);
+      }
     };
 
     void hydrateSun();
 
     return () => {
       cancelled = true;
+      setSunReady(false);
     };
   }, [beachId, getSunData, normalizedDays]);
 
@@ -395,6 +406,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
     let cancelled = false;
 
     const load = async () => {
+      setLoading(true);
       try {
         if (!beachId) {
           if (!cancelled) {
@@ -578,6 +590,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
 
         if (!cancelled) {
           setSurfData(series);
+          setLoading(series.length === 0);
         }
       } catch (e) {
         console.error("Failed to load surf data", e);
@@ -586,6 +599,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
           setBaseStartMs(null);
           setDayAreas([]);
           setNightAreas([]);
+          setLoading(true);
         }
       }
     };
@@ -673,6 +687,12 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
     setHoveredHour(null);
   }, [setHoveredHour]);
 
+  const { setReady } = useForecastChartLoading("forecast-surf");
+  useEffect(() => {
+    setReady(!loading && sunReady);
+  }, [loading, sunReady, setReady]);
+  const globalLoading = useForecastChartsLoadingState();
+
   return (
     <div className="w-full">
       <div
@@ -686,6 +706,11 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
           willChange: "transform",
         }}
       >
+        <ChartLoadingCover
+          show={(loading || !sunReady) && !globalLoading}
+          message="Loading surf forecast"
+          className="rounded-xl"
+        />
         {/* prev/next buttons */}
         <button
           aria-label="Back one day"
