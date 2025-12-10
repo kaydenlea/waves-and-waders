@@ -35,6 +35,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
+import { ChartLoadingCover } from "./ChartLoadingCover";
 import { cn } from "@/lib/utils";
 import {
   useDateContext,
@@ -42,6 +43,8 @@ import {
 } from "@/components/context/DateContext";
 import { useForecastChartContext } from "@/components/context/ForecastChartContext";
 import { useSunData } from "@/components/context/SunDataContext";
+import { useForecastChartLoading } from "../context/ForecastChartsLoadingContext";
+import { useForecastChartsLoadingState } from "../context/ForecastChartsLoadingContext";
 
 const VISIBLE_DAYS = 4;
 const HOURS_PER_DAY = 24;
@@ -113,6 +116,8 @@ export default React.memo(function ForecastTideChart({
     setHoveredHour,
   } = useDateContext();
   const hoveredHour = useHoveredHour();
+  const [loading, setLoading] = useState(true);
+  const { setReady } = useForecastChartLoading("forecast-tide");
 
   // data loaded for FETCH_DAYS days (hours)
   const [chartState, setChartState] = useState<ChartState>({
@@ -123,6 +128,14 @@ export default React.memo(function ForecastTideChart({
     tideStats: [],
   });
   const { data, dayAreas, nightAreas, sunMarkers, tideStats } = chartState;
+  const shadingReady = dayAreas.length > 0 || nightAreas.length > 0;
+  useEffect(() => {
+    setLoading(data.length === 0);
+  }, [data]);
+  useEffect(() => {
+    setReady(!loading && shadingReady);
+  }, [loading, shadingReady, setReady]);
+  const globalLoading = useForecastChartsLoadingState();
 
   // which day index (0..totalFetchedDays - VISIBLE_DAYS) is the first visible day
   const [dayOffset, setDayOffset] = useState(0);
@@ -835,6 +848,11 @@ export default React.memo(function ForecastTideChart({
           willChange: "transform",
         }}
       >
+        <ChartLoadingCover
+          show={(loading || !shadingReady) && !globalLoading}
+          message="Loading tide forecast"
+          className="rounded-xl"
+        />
         {/* prev/next buttons */}
         <button
           aria-label="Back one day"

@@ -39,6 +39,11 @@ import { useForecastChartContext } from "@/components/context/ForecastChartConte
 import HoverReferenceLine from "@/components/graphs/HoverReferenceLine";
 import { useSunData } from "@/components/context/SunDataContext";
 import { buildSunSegmentsForRange } from "@/components/graphs/sunSegments";
+import { ChartLoadingCover } from "./ChartLoadingCover";
+import {
+  useForecastChartLoading,
+  useForecastChartsLoadingState,
+} from "../context/ForecastChartsLoadingContext";
 
 const chartConfig = {
   primary: {
@@ -76,6 +81,8 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
   const myId = React.useId();
   const { hour: selectedHour, setHoveredHour } = useDateContext();
   const { getSunData } = useSunData();
+  const [loading, setLoading] = useState(true);
+  const [sunReady, setSunReady] = useState(false);
   const [swellData, setSwellData] = useState<SwellPoint[]>([]);
   const [baseStartMs, setBaseStartMs] = useState<number | null>(null);
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
@@ -359,12 +366,16 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
           setNightAreas([{ x1: 0, x2: totalDays * HOURS_PER_DAY }]);
         }
       }
+      if (!cancelled) {
+        setSunReady(true);
+      }
     };
 
     void hydrateSun();
 
     return () => {
       cancelled = true;
+      setSunReady(false);
     };
   }, [beachId, normalizedDays, getSunData]);
 
@@ -373,6 +384,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
     let cancelled = false;
 
     const load = async () => {
+      setLoading(true);
       try {
         if (!beachId) {
           if (!cancelled) {
@@ -479,6 +491,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
         series.sort((a, b) => a.hour - b.hour);
         if (!cancelled) {
           setSwellData(series);
+          setLoading(series.length === 0);
         }
 
         const shadingStartDate = days ? days[0] : new Date();
@@ -538,6 +551,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
           setBaseStartMs(null);
           setDayAreas([]);
           setNightAreas([]);
+          setLoading(true);
         }
       }
     };
@@ -625,6 +639,12 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
     setHoveredHour(null);
   }, [setHoveredHour]);
 
+  const { setReady } = useForecastChartLoading("forecast-swell");
+  React.useEffect(() => {
+    setReady(!loading && sunReady);
+  }, [loading, sunReady, setReady]);
+  const globalLoading = useForecastChartsLoadingState();
+
   return (
     <div className="w-full">
       <div
@@ -638,6 +658,11 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
           willChange: "transform",
         }}
       >
+        <ChartLoadingCover
+          show={(loading || !sunReady) && !globalLoading}
+          message="Loading swell forecast"
+          className="rounded-xl"
+        />
         {/* prev/next buttons */}
         <button
           aria-label="Back one day"

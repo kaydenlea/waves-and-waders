@@ -35,6 +35,11 @@ import HoverReferenceLine from "@/components/graphs/HoverReferenceLine";
 import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
 import { buildYAxisTicks } from "@/components/graphs/yAxisTicks";
 import { useSunData } from "@/components/context/SunDataContext";
+import { ChartLoadingCover } from "./ChartLoadingCover";
+import {
+  useForecastChartLoading,
+  useForecastChartsLoadingState,
+} from "../context/ForecastChartsLoadingContext";
 import { buildSunSegmentsForRange } from "@/components/graphs/sunSegments";
 
 const chartConfig = {
@@ -61,6 +66,8 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
   const myId = React.useId();
   const { hour: selectedHour, setHoveredHour } = useDateContext();
   const { getSunData } = useSunData();
+  const [loading, setLoading] = useState(true);
+  const [sunReady, setSunReady] = useState(false);
   const [windData, setWindData] = useState<WindPoint[]>([]);
   const [baseStartMs, setBaseStartMs] = useState<number | null>(null);
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
@@ -85,6 +92,16 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
   const [containerWidth, setContainerWidth] = useState(0);
   const [isAtRightEdge, setIsAtRightEdge] = useState(false);
   const { selected: selectedDate } = useDateContext();
+
+  useEffect(() => {
+    setLoading(windData.length === 0);
+  }, [windData]);
+
+  const { setReady } = useForecastChartLoading("forecast-wind");
+  useEffect(() => {
+    setReady(!loading && sunReady);
+  }, [loading, sunReady, setReady]);
+  const globalLoading = useForecastChartsLoadingState();
 
   // Normalize and sort provided days to keep fetch ranges stable
   const normalizedDays = useMemo(() => {
@@ -381,12 +398,16 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
           setNightAreas([{ x1: 0, x2: totalDays * HOURS_PER_DAY }]);
         }
       }
+      if (!cancelled) {
+        setSunReady(true);
+      }
     };
 
     void hydrateSun();
 
     return () => {
       cancelled = true;
+      setSunReady(false);
     };
   }, [beachId, normalizedDays, getSunData]);
 
@@ -647,6 +668,11 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
           willChange: "transform",
         }}
       >
+        <ChartLoadingCover
+          show={(loading || !sunReady) && !globalLoading}
+          message="Loading wind forecast"
+          className="rounded-xl"
+        />
         {/* prev/next buttons */}
         <button
           aria-label="Back one day"

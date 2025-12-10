@@ -42,6 +42,8 @@ import HoverReferenceLine from "@/components/graphs/HoverReferenceLine";
 import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
 import { useSunData } from "@/components/context/SunDataContext";
 import { buildSunSegmentsForRange } from "@/components/graphs/sunSegments";
+import { ChartLoadingCover } from "./ChartLoadingCover";
+import { useForecastChartLoading } from "../context/ForecastChartsLoadingContext";
 
 const chartConfig = {
   energy: {
@@ -101,12 +103,22 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
   const myId = React.useId();
   const { hour: selectedHour, setHoveredHour } = useDateContext();
   const { getSunData } = useSunData();
+  const [loading, setLoading] = useState(true);
+  const [sunReady, setSunReady] = useState(false);
   const [energyData, setEnergyData] = useState<WavePoint[]>([]);
   const [baseStartMs, setBaseStartMs] = useState<number | null>(null);
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
   const [nightAreas, setNightAreas] = useState<{ x1: number; x2?: number }[]>(
     []
   );
+  useEffect(() => {
+    setLoading(energyData.length === 0);
+  }, [energyData]);
+
+  const { setReady } = useForecastChartLoading("forecast-energy");
+  useEffect(() => {
+    setReady(!loading && sunReady);
+  }, [loading, sunReady, setReady]);
 
   // Scrollable state
   const [dayOffset, setDayOffset] = useState(0);
@@ -385,12 +397,16 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
           setNightAreas([{ x1: 0, x2: totalDays * HOURS_PER_DAY }]);
         }
       }
+      if (!cancelled) {
+        setSunReady(true);
+      }
     };
 
     void hydrateSun();
 
     return () => {
       cancelled = true;
+      setSunReady(false);
     };
   }, [beachId, normalizedDays, getSunData]);
 
@@ -646,6 +662,11 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
           willChange: "transform",
         }}
       >
+        <ChartLoadingCover
+          show={loading || !sunReady}
+          message="Loading energy forecast"
+          className="rounded-xl"
+        />
         {/* prev/next buttons */}
         <button
           aria-label="Back one day"
