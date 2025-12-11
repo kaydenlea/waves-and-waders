@@ -35,7 +35,6 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { ChartLoadingCover } from "./ChartLoadingCover";
 import { cn } from "@/lib/utils";
 import {
   useDateContext,
@@ -43,8 +42,10 @@ import {
 } from "@/components/context/DateContext";
 import { useForecastChartContext } from "@/components/context/ForecastChartContext";
 import { useSunData } from "@/components/context/SunDataContext";
-import { useForecastChartLoading } from "../context/ForecastChartsLoadingContext";
-import { useForecastChartsLoadingState } from "../context/ForecastChartsLoadingContext";
+import {
+  useForecastChartLoading,
+  useForecastChartsBusyState,
+} from "../context/ForecastChartsLoadingContext";
 
 const VISIBLE_DAYS = 4;
 const HOURS_PER_DAY = 24;
@@ -117,7 +118,11 @@ export default React.memo(function ForecastTideChart({
   } = useDateContext();
   const hoveredHour = useHoveredHour();
   const [loading, setLoading] = useState(true);
+  const [stableSelectedHour, setStableSelectedHour] = useState<number | null>(
+    null
+  );
   const { setReady } = useForecastChartLoading("forecast-tide");
+  const dashboardBusy = useForecastChartsBusyState();
 
   // data loaded for FETCH_DAYS days (hours)
   const [chartState, setChartState] = useState<ChartState>({
@@ -132,10 +137,23 @@ export default React.memo(function ForecastTideChart({
   useEffect(() => {
     setLoading(data.length === 0);
   }, [data]);
+  // Mark this widget as not ready whenever its local loading flag is true.
   useEffect(() => {
-    setReady(!loading && shadingReady);
+    if (loading) {
+      setReady(false);
+    }
+  }, [loading, setReady]);
+  // Mark ready only after data and shading are fully ready.
+  useEffect(() => {
+    if (!loading && shadingReady) {
+      setReady(true);
+    }
   }, [loading, shadingReady, setReady]);
-  const globalLoading = useForecastChartsLoadingState();
+  useEffect(() => {
+    if (!dashboardBusy) {
+      setStableSelectedHour(selectedHour ?? null);
+    }
+  }, [dashboardBusy, selectedHour]);
 
   // which day index (0..totalFetchedDays - VISIBLE_DAYS) is the first visible day
   const [dayOffset, setDayOffset] = useState(0);
@@ -528,6 +546,8 @@ export default React.memo(function ForecastTideChart({
     };
   }, [beachId, startMs, fetchHours]);
 
+  // TODO(overview-perf): Align this sun/shading pipeline with buildSunSegmentsForRange so
+  // tide lines and night/day shading load together and reuse the same multi-day segments.
   // Load sun/shading markers after tide data is ready so lines render sooner
   useEffect(() => {
     let cancelled = false;
@@ -848,11 +868,6 @@ export default React.memo(function ForecastTideChart({
           willChange: "transform",
         }}
       >
-        <ChartLoadingCover
-          show={(loading || !shadingReady) && !globalLoading}
-          message="Loading tide forecast"
-          className="rounded-xl"
-        />
         {/* prev/next buttons */}
         <button
           aria-label="Back one day"
@@ -1061,8 +1076,11 @@ export default React.memo(function ForecastTideChart({
                 {/* Selected hour marker */}
                 {(() => {
                   try {
+                    const effectiveHour =
+                      stableSelectedHour ?? selectedHour ?? null;
                     const base = days && days.length > 0 ? days[0] : null;
-                    if (!base || !selectedDate) return null;
+                    if (!base || !selectedDate || effectiveHour == null)
+                      return null;
                     const baseMid = new Date(
                       base.getFullYear(),
                       base.getMonth(),
@@ -1076,7 +1094,7 @@ export default React.memo(function ForecastTideChart({
                     const dayDelta = Math.floor(
                       (selMid - baseMid) / (24 * 3600 * 1000)
                     );
-                    const x = dayDelta * 24 + (selectedHour ?? 0);
+                    const x = dayDelta * 24 + effectiveHour;
                     if (x < 0 || x > totalFetchedDays * 24) return null;
                     return (
                       <ReferenceLine

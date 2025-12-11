@@ -9,7 +9,7 @@ type Props = { beachId?: string; date?: Date; sunSegments?: SharedSunSegments };
 const SwellChartLazy = dynamic<Props>(() => import("../../graphs/SwellChart"), {
   ssr: false,
   loading: () => (
-    <div className="animate-pulse bg-highlight-5 rounded-2xl touch-pan-y @min-lg:aspect-auto h-[200px] @min-lg:h-[300px] w-full" />
+    <div className="animate-pulse bg-highlight-5 rounded-2xl h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px] w-full" />
   ),
 });
 

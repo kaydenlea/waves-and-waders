@@ -36,28 +36,19 @@ import Link from "next/link";
 import { Pencil, TrendingUp, TrendingDown } from "lucide-react";
 import { getTidesCached } from "@/lib/dataCache";
 import { useCachedForecast } from "@/lib/hooks/useCachedForecast";
-import { getPacificDayRange } from "@/lib/utils";
+import { getPacificDayRange, getPacificMidnightUTC } from "@/lib/utils";
 import SurfIntensityMarker from "./SurfIntensityMarker";
 import { ForecastDataProvider } from "../context/ForecastDataContext";
 import { useTideWindowData } from "@/lib/hooks/useTideWindow";
 import { TideDataProvider } from "../context/TideDataContext";
-import { buildSunSegments } from "@/components/graphs/sunSegments";
+import {
+  buildSunSegments,
+  buildSunSegmentsForRange,
+} from "@/components/graphs/sunSegments";
 import type { SharedSunSegments } from "@/components/graphs/sharedSunSegments";
-import { ChartLoadingCover } from "../graphs/ChartLoadingCover";
 import {
   ForecastChartsLoadingProvider,
-  useForecastChartsLoadingState,
 } from "../context/ForecastChartsLoadingContext";
-
-const ForecastChartsOverlay = ({ baseVisible }: { baseVisible: boolean }) => {
-  const chartsBusy = useForecastChartsLoadingState();
-  return (
-    <ChartLoadingCover
-      show={baseVisible || chartsBusy}
-      message="Loading forecast charts"
-    />
-  );
-};
 
 type Props = {
   beachId: string;
@@ -221,11 +212,12 @@ const DateSummaryBridge: React.FC<Props> = ({
   beachParam,
   isFavorite = false,
 }) => {
-  const { id, selected, setSelected, hour, setHour } = useDateContext();
-  id.current = beachId;
-  const { selectedTab } = useClientPath();
-  const isOverview =
-    selectedTab === "overview" || selectedTab === "" || selectedTab == null;
+    const { id, selected, setSelected, hour, setHour, selectedDays } =
+      useDateContext();
+    id.current = beachId;
+    const { selectedTab } = useClientPath();
+    const isOverview = selectedTab === "overview";
+  const isForecastTab = selectedTab === "forecast";
   const [mounted, setMounted] = React.useState(false);
   const [currentTime, setCurrentTime] = React.useState<string>("");
   const overviewDefaults = React.useMemo(
@@ -238,6 +230,7 @@ const DateSummaryBridge: React.FC<Props> = ({
   const [layoutRows, setLayoutRows] = React.useState<Row[]>(
     () => overviewDefaults.rows
   );
+  const [layoutHydrated, setLayoutHydrated] = React.useState(false);
   const [forecastWindow, setForecastWindow] = React.useState("Select range");
   const storageMetaKey = React.useMemo(
     () => getDashboardStorageKey("overview", "meta"),
@@ -253,18 +246,59 @@ const DateSummaryBridge: React.FC<Props> = ({
     return getPacificDayRange(selected instanceof Date ? selected : undefined);
   }, [selected]);
   const statsStartMs = statsRange.start.getTime();
+  const FORECAST_VISIBLE_DAYS = 4;
+
+  const forecastTabRange = React.useMemo(() => {
+    const HOURS_PER_DAY = 24;
+    const normalizedDays =
+      Array.isArray(selectedDays) && selectedDays.length > 0
+        ? [...selectedDays].sort((a, b) => a.getTime() - b.getTime())
+        : null;
+
+    if (normalizedDays && normalizedDays.length > 0) {
+      const start = getPacificMidnightUTC(normalizedDays[0]);
+      const lastMidnight = getPacificMidnightUTC(
+        normalizedDays[normalizedDays.length - 1]
+      );
+      const end = new Date(
+        lastMidnight.getTime() + HOURS_PER_DAY * 60 * 60 * 1000
+      );
+      return { start, end };
+    }
+
+    const base =
+      selected instanceof Date && !Number.isNaN(selected.getTime())
+        ? selected
+        : new Date();
+    const start = getPacificMidnightUTC(base);
+    const end = new Date(
+      start.getTime() + FORECAST_VISIBLE_DAYS * HOURS_PER_DAY * 60 * 60 * 1000
+    );
+    return { start, end };
+  }, [selected, selectedDays, FORECAST_VISIBLE_DAYS]);
+
   const { prefetchSunData, getSunData } = useSunData();
   React.useEffect(() => {
     if (!beachId) return;
     void prefetchSunData(beachId, [new Date(statsStartMs)]);
   }, [beachId, statsStartMs, prefetchSunData]);
 
+  // TODO(overview-perf): Promote this daily forecast fetch into a shared overview data hook/context
+  // so Summary, Highlights, charts, and tables all reuse the exact same rows and loading state.
   const { data: forecastRows, loading: forecastLoading } = useCachedForecast({
     beachId,
     start: statsRange.start,
     end: statsRange.end,
     enabled: Boolean(beachId),
   });
+
+  const { data: forecastTabRows, loading: forecastTabLoading } =
+    useCachedForecast({
+      beachId,
+      start: forecastTabRange.start,
+      end: forecastTabRange.end,
+      enabled: Boolean(beachId && isForecastTab),
+    });
 
   const [sharedSunSegments, setSharedSunSegments] =
     React.useState<SharedSunSegments>({
@@ -274,7 +308,13 @@ const DateSummaryBridge: React.FC<Props> = ({
       sunset: null,
       baseDate: null,
     });
+  const [forecastSunSegments, setForecastSunSegments] = React.useState<{
+    dayAreas: { x1: number; x2: number }[];
+    nightAreas: { x1: number; x2?: number }[];
+  } | null>(null);
 
+  // TODO(overview-perf): Tie shared sun segments into a unified loading gate with forecastRows
+  // so overview charts only render once both data and day/night shading are ready.
   React.useEffect(() => {
     let cancelled = false;
     const load = async () => {
@@ -324,120 +364,192 @@ const DateSummaryBridge: React.FC<Props> = ({
     };
   }, [beachId, getSunData, selected]);
 
+  React.useEffect(() => {
+    if (!beachId || !isForecastTab) {
+      setForecastSunSegments(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const hydrateForecastSun = async () => {
+      try {
+        const totalMs =
+          forecastTabRange.end.getTime() - forecastTabRange.start.getTime();
+        const HOURS_PER_DAY = 24;
+        const totalDays = Math.max(
+          1,
+          Math.round(totalMs / (HOURS_PER_DAY * 60 * 60 * 1000))
+        );
+
+        const segments = await buildSunSegmentsForRange({
+          fetchSun: (date) => getSunData(String(beachId), date),
+          startDate: forecastTabRange.start,
+          days: totalDays,
+          hourSnap: 3,
+        });
+
+        if (!cancelled) {
+          setForecastSunSegments({
+            dayAreas: segments.dayAreas,
+            nightAreas: segments.nightAreas,
+          });
+        }
+      } catch {
+        if (!cancelled) {
+          const HOURS_PER_DAY = 24;
+          const totalMs =
+            forecastTabRange.end.getTime() - forecastTabRange.start.getTime();
+          const totalDays = Math.max(
+            1,
+            Math.round(totalMs / (HOURS_PER_DAY * 60 * 60 * 1000))
+          );
+
+          setForecastSunSegments({
+            dayAreas: [],
+            nightAreas: [{ x1: 0, x2: totalDays * HOURS_PER_DAY }],
+          });
+        }
+      }
+    };
+
+    void hydrateForecastSun();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    beachId,
+    getSunData,
+    isForecastTab,
+    forecastTabRange.start,
+    forecastTabRange.end,
+  ]);
+
   const tideWindow = useTideWindowData({
     beachId,
     date: selected ?? undefined,
     hours: 24,
   });
-  const chartsReady =
-    !forecastLoading &&
-    forecastRows.length > 0 &&
-    !tideWindow.loading &&
-    (tideWindow.rows?.length ?? 0) > 0;
-  const forecastChartsReady = !forecastLoading && forecastRows.length > 0;
-  const [overlayVisible, setOverlayVisible] = React.useState(true);
-  const [overlayLockedOff, setOverlayLockedOff] = React.useState(false);
-  const [forecastOverlayVisible, setForecastOverlayVisible] =
-    React.useState(true);
+  const overviewChartsLoading =
+    !layoutHydrated ||
+    !beachId ||
+    forecastLoading ||
+    forecastRows.length === 0 ||
+    tideWindow.loading ||
+    (tideWindow.rows?.length ?? 0) === 0 ||
+    sharedSunSegments.baseDate == null;
 
-  // Avoid flicker by keeping the overlay up until everything is ready,
-  // and only hiding it after a brief settle delay.
+  const [overlayVisible, setOverlayVisible] = React.useState(true);
+
+  // Keep per-widget loading overlays in sync with data/layout readiness,
+  // including subsequent date changes. A small delay avoids flicker when
+  // loads complete very quickly.
   React.useEffect(() => {
-    if (overlayLockedOff) return;
-    if (!chartsReady) {
+    if (overviewChartsLoading) {
       setOverlayVisible(true);
       return;
     }
     const timeout = setTimeout(() => {
       setOverlayVisible(false);
-      setOverlayLockedOff(true);
-    }, 500);
+    }, 200);
     return () => clearTimeout(timeout);
-  }, [chartsReady, overlayLockedOff]);
+  }, [overviewChartsLoading]);
 
+  // When switching back to the overview tab, briefly show the overlay so
+  // the transition feels consistent with the forecast tab, even if data
+  // is already cached and ready.
+  const prevIsOverviewRef = React.useRef(isOverview);
   React.useEffect(() => {
-    if (!forecastChartsReady) {
-      setForecastOverlayVisible(true);
-      return;
+    const prev = prevIsOverviewRef.current;
+    prevIsOverviewRef.current = isOverview;
+    if (!prev && isOverview && !overviewChartsLoading) {
+      setOverlayVisible(true);
+      const timeout = setTimeout(() => {
+        setOverlayVisible(false);
+      }, 180);
+      return () => clearTimeout(timeout);
     }
-    // Keep forecast overlay visible until the chart loading provider reports ready.
-    // The provider will hide it when all forecast charts call setReady(true).
-    setForecastOverlayVisible(false);
-  }, [forecastChartsReady]);
-  const { windStats, surfStats, swellStats, energyStats } = React.useMemo(() => {
-    const makeEmptyRange = () => ({ min: null, max: null });
-    const toRange = (values: number[], fractionDigits: number): RangeStats => {
-      if (!values.length) {
-        return makeEmptyRange();
-      }
-      const max = Math.max(...values);
-      const min = Math.min(...values);
-      return {
-        min: min.toFixed(fractionDigits),
-        max: max.toFixed(fractionDigits),
-      };
-    };
-    const isValidNumber = (value: unknown): value is number =>
-      typeof value === "number" && Number.isFinite(value);
+  }, [isOverview, overviewChartsLoading]);
 
-    if (!forecastRows.length) {
-      return {
-        windStats: makeEmptyRange(),
-        surfStats: makeEmptyRange(),
-        swellStats: makeEmptyRange(),
-        energyStats: makeEmptyRange(),
-      };
-    }
-
-    const energyValues = forecastRows
-      .map((row) => row.surf.waveEnergy)
-      .filter(isValidNumber);
-    const windValues = forecastRows
-      .map((row) => row.conditions.windSpeed)
-      .filter(isValidNumber);
-    const swellValues = forecastRows
-      .map((row) => row.swell.primary.height)
-      .filter(isValidNumber);
-    const surfValues = forecastRows
-      .map((row) => {
-        const h1 = row.swell.primary.height ?? 0;
-        const p1 = row.swell.primary.period ?? 10;
-        const h2 = row.swell.secondary.height ?? 0;
-        const p2 = row.swell.secondary.period ?? 10;
-        const h3 = row.swell.tertiary?.height ?? 0;
-        const p3 = row.swell.tertiary?.period ?? 10;
-        const s1 = h1 * Math.sqrt(Math.max(0, p1) / 10);
-        const s2 = h2 * Math.sqrt(Math.max(0, p2) / 10);
-        const s3 = h3 * Math.sqrt(Math.max(0, p3) / 10);
-        const w1 = 1.0;
-        const w2 = 0.6;
-        const w3 = 0.3;
-        const combined = Math.sqrt(
-          Math.pow(w1 * s1, 2) + Math.pow(w2 * s2, 2) + Math.pow(w3 * s3, 2)
-        );
-        const wind = row.conditions.windSpeed ?? 0;
-        const windPenalty = Math.min(0.5, Math.max(0, (wind - 5) / 35));
-        const effective = Math.max(0, combined * (1 - windPenalty));
-        const min = row.surf.heightMin ?? 0;
-        const max = row.surf.heightMax ?? 0;
-        const estimate = min > 0 && max > 0 ? (min + max) / 2 : max;
-        let representative = effective;
-        if (!Number.isFinite(representative) || representative <= 0) {
-          representative = estimate > 0 ? estimate : 0;
-        } else if (estimate > 0) {
-          representative = representative * 0.7 + estimate * 0.3;
+  const { windStats, surfStats, swellStats, energyStats } =
+    React.useMemo(() => {
+      const makeEmptyRange = () => ({ min: null, max: null });
+      const toRange = (
+        values: number[],
+        fractionDigits: number
+      ): RangeStats => {
+        if (!values.length) {
+          return makeEmptyRange();
         }
-        return Math.max(0, representative);
-      })
-      .filter(isValidNumber);
+        const max = Math.max(...values);
+        const min = Math.min(...values);
+        return {
+          min: min.toFixed(fractionDigits),
+          max: max.toFixed(fractionDigits),
+        };
+      };
+      const isValidNumber = (value: unknown): value is number =>
+        typeof value === "number" && Number.isFinite(value);
 
-    return {
-      windStats: toRange(windValues, 0),
-      surfStats: toRange(surfValues, 1),
-      swellStats: toRange(swellValues, 1),
-      energyStats: toRange(energyValues, 0),
-    };
-  }, [forecastRows]);
+      if (!forecastRows.length) {
+        return {
+          windStats: makeEmptyRange(),
+          surfStats: makeEmptyRange(),
+          swellStats: makeEmptyRange(),
+          energyStats: makeEmptyRange(),
+        };
+      }
+
+      const energyValues = forecastRows
+        .map((row) => row.surf.waveEnergy)
+        .filter(isValidNumber);
+      const windValues = forecastRows
+        .map((row) => row.conditions.windSpeed)
+        .filter(isValidNumber);
+      const swellValues = forecastRows
+        .map((row) => row.swell.primary.height)
+        .filter(isValidNumber);
+      const surfValues = forecastRows
+        .map((row) => {
+          const h1 = row.swell.primary.height ?? 0;
+          const p1 = row.swell.primary.period ?? 10;
+          const h2 = row.swell.secondary.height ?? 0;
+          const p2 = row.swell.secondary.period ?? 10;
+          const h3 = row.swell.tertiary?.height ?? 0;
+          const p3 = row.swell.tertiary?.period ?? 10;
+          const s1 = h1 * Math.sqrt(Math.max(0, p1) / 10);
+          const s2 = h2 * Math.sqrt(Math.max(0, p2) / 10);
+          const s3 = h3 * Math.sqrt(Math.max(0, p3) / 10);
+          const w1 = 1.0;
+          const w2 = 0.6;
+          const w3 = 0.3;
+          const combined = Math.sqrt(
+            Math.pow(w1 * s1, 2) + Math.pow(w2 * s2, 2) + Math.pow(w3 * s3, 2)
+          );
+          const wind = row.conditions.windSpeed ?? 0;
+          const windPenalty = Math.min(0.5, Math.max(0, (wind - 5) / 35));
+          const effective = Math.max(0, combined * (1 - windPenalty));
+          const min = row.surf.heightMin ?? 0;
+          const max = row.surf.heightMax ?? 0;
+          const estimate = min > 0 && max > 0 ? (min + max) / 2 : max;
+          let representative = effective;
+          if (!Number.isFinite(representative) || representative <= 0) {
+            representative = estimate > 0 ? estimate : 0;
+          } else if (estimate > 0) {
+            representative = representative * 0.7 + estimate * 0.3;
+          }
+          return Math.max(0, representative);
+        })
+        .filter(isValidNumber);
+
+      return {
+        windStats: toRange(windValues, 0),
+        surfStats: toRange(surfValues, 1),
+        swellStats: toRange(swellValues, 1),
+        energyStats: toRange(energyValues, 0),
+      };
+    }, [forecastRows]);
 
   const [, startMapSyncTransition] = React.useTransition();
 
@@ -541,6 +653,7 @@ const DateSummaryBridge: React.FC<Props> = ({
       if (cancelled) return;
       setLayoutMeta(nextMeta);
       setLayoutRows(nextRows);
+      setLayoutHydrated(true);
     };
 
     const loadFromLocalStorage = () => {
@@ -613,12 +726,18 @@ const DateSummaryBridge: React.FC<Props> = ({
     [layoutRows, layoutMeta]
   );
 
+  // TODO(overview-perf): Centralize widget loading/skeleton handling here so all cards
+  // transition from placeholder to real charts/tables in sync using shared loading state.
   const renderWidget = React.useCallback(
     (id: WidgetId, isFull: boolean) => {
       switch (id) {
         case "stats":
           return (
-            <VisualWrapper label={label} unit={timeDisplay}>
+            <VisualWrapper
+              label={label}
+              unit={timeDisplay}
+              loading={overlayVisible}
+            >
               <Highlights
                 beachId={beachId}
                 date={selected ?? undefined}
@@ -635,6 +754,7 @@ const DateSummaryBridge: React.FC<Props> = ({
             <VisualWrapper
               label="Tide"
               unit="ft"
+              loading={overlayVisible}
               headerContent={
                 <TideStatsHeader
                   beachId={beachId}
@@ -654,9 +774,8 @@ const DateSummaryBridge: React.FC<Props> = ({
             <VisualWrapper
               label="Wind"
               unit="mph"
-              headerContent={
-                <WindStatsHeader stats={windStats} />
-              }
+              loading={overlayVisible}
+              headerContent={<WindStatsHeader stats={windStats} />}
             >
               <LazyLoadWind
                 beachId={beachId}
@@ -670,9 +789,8 @@ const DateSummaryBridge: React.FC<Props> = ({
             <VisualWrapper
               label="Swell"
               unit="ft"
-              headerContent={
-                <SwellStatsHeader stats={swellStats} />
-              }
+              loading={overlayVisible}
+              headerContent={<SwellStatsHeader stats={swellStats} />}
             >
               <LazyLoadSwell
                 beachId={beachId}
@@ -686,9 +804,8 @@ const DateSummaryBridge: React.FC<Props> = ({
             <VisualWrapper
               label="Surf"
               unit="ft"
-              headerContent={
-                <SurfStatsHeader stats={surfStats} />
-              }
+              loading={overlayVisible}
+              headerContent={<SurfStatsHeader stats={surfStats} />}
             >
               <LazyLoadSurf
                 beachId={beachId}
@@ -702,9 +819,8 @@ const DateSummaryBridge: React.FC<Props> = ({
             <VisualWrapper
               label="Energy"
               unit="kJ"
-              headerContent={
-                <WaveEnergyStatsHeader stats={energyStats} />
-              }
+              loading={overlayVisible}
+              headerContent={<WaveEnergyStatsHeader stats={energyStats} />}
             >
               <LazyLoadEnergy
                 beachId={beachId}
@@ -715,7 +831,11 @@ const DateSummaryBridge: React.FC<Props> = ({
           );
         case "table":
           return (
-            <VisualWrapper label="Daily" unit="3 hrs">
+            <VisualWrapper
+              label="Daily"
+              unit="3 hrs"
+              loading={overlayVisible}
+            >
               <LazyLoadTable
                 beachId={beachId}
                 numHours={8}
@@ -738,6 +858,7 @@ const DateSummaryBridge: React.FC<Props> = ({
       surfStats,
       swellStats,
       energyStats,
+      overlayVisible,
     ]
   );
 
@@ -757,134 +878,150 @@ const DateSummaryBridge: React.FC<Props> = ({
     >
       <TideDataProvider value={tideWindow}>
         <>
-      {/* Summary header */}
-      <section className="mb-8">
-        <header className="mb-4 ml-3 flex gap-2 items-center">
-          <SurfIntensityMarker />
-          <h2 className="text-muted-foreground text-lg">
-            {selected
-              ? selected.toLocaleDateString(undefined, {
-                  weekday: "long",
-                  month: "long",
-                  day: "numeric",
-                })
-              : "Select a day"}
-          </h2>
-        </header>
-        <Summary beachId={beachId} date={selected ?? undefined} />
-        {/* <LazyLoadSummary beachId={beachId} date={selected ?? undefined} /> */}
-      </section>
-
-      <section
-        id={sectionId}
-        className="mt-10 flex flex-col gap-1 w-full scroll-mt-35"
-      >
-        <header className="mx-2 flex flex-col gap-3 @min-xl:flex-row @min-xl:items-start @min-xl:justify-between">
-          <div className="flex items-start justify-between gap-2 w-full">
-            <div className="space-y-0 min-w-0">
-              <h2 className="text-3xl font-semibold truncate">{headerTitle}</h2>
-              <p className="text-base text-muted-foreground truncate">
-                {headerSubtitle}
-              </p>
-            </div>
-            {/* Mobile edit button (hidden on wide screens) */}
-            <Link
-              href={
-                selectedTab === "forecast"
-                  ? `/${beachId}/forecast/edit#forecast-content`
-                  : `/${beachId}/overview/edit#overview-content`
-              }
-              className="@min-xl:hidden inline-flex bg-highlight-5 hover:bg-highlight-3 items-center rounded-full p-3 @min-sm:py-2.5 gap-1.5 @min-sm:px-4 shrink-0"
-              aria-label={`Edit ${
-                selectedTab === "forecast" ? "forecast" : "overview"
-              } dashboard`}
-            >
-              <Pencil className="stroke-[2.5px] w-4.5 h-4.5 @min-sm:mb-0.5" />
-              <span className="font-medium hidden @min-sm:inline-block text-[15px]">
-                Edit
-              </span>
-            </Link>
-          </div>
-          <div className="shrink-0 @min-xl:ml-auto w-full @min-xl:w-auto">
-            <PageTabs
-              beach={beachParam}
+          {/* Summary header */}
+          <section className="mb-8">
+            <header className="mb-4 ml-3 flex gap-2 items-center">
+              <SurfIntensityMarker />
+              <h2 className="text-muted-foreground text-lg">
+                {selected
+                  ? selected.toLocaleDateString(undefined, {
+                      weekday: "long",
+                      month: "long",
+                      day: "numeric",
+                    })
+                  : "Select a day"}
+              </h2>
+            </header>
+            <Summary
               beachId={beachId}
-              tabs={["overview", "forecast"]}
-              isFavorite={isFavorite}
-              overviewPage
-              forecastPage={selectedTab === "forecast"}
-              placement="inline"
-              buttons
-              responsiveFull
+              date={selected ?? undefined}
+              forecastRows={forecastRows}
+              forecastLoading={forecastLoading}
             />
-          </div>
-        </header>
-        {/* Tabs now live inside header for all breakpoints */}
+            {/* <LazyLoadSummary beachId={beachId} date={selected ?? undefined} /> */}
+          </section>
 
-        {/* Overview content - hidden when forecast is active */}
-        <div className={isOverview ? "" : "hidden"}>
-          <div className="relative">
-            <ChartLoadingCover
-              show={overlayVisible}
-              message="Loading charts"
-            />
-            {visibleRows.length === 0 ? (
-              <p className="mx-2 mt-6 text-sm text-muted-foreground">
-                All widgets are hidden. Use the edit screen to enable widgets.
-              </p>
-            ) : (
-              visibleRows.map((row, index) => {
-                const visibleItems = row.items.filter(
-                  (id) => layoutMeta[id]?.visible !== false
-                );
-                if (!visibleItems.length) return null;
-                const spacing = index === 0 ? "mt-4" : "mt-5";
-                const isFull = visibleItems.length === 1;
-                if (isFull) {
-                  const content = renderWidget(visibleItems[0], isFull);
-                  if (!content) return null;
-                  return (
-                    <div key={row.id} className={`${spacing} w-full`}>
-                      {content}
-                    </div>
-                  );
-                }
+          <section
+            id={sectionId}
+            className="mt-10 flex flex-col gap-1 w-full scroll-mt-35"
+          >
+            <header className="mx-2 flex flex-col gap-3 @min-xl:flex-row @min-xl:items-start @min-xl:justify-between">
+              <div className="flex items-start justify-between gap-2 w-full">
+                <div className="space-y-0 min-w-0">
+                  <h2 className="text-3xl font-semibold truncate">
+                    {headerTitle}
+                  </h2>
+                  <p className="text-base text-muted-foreground truncate">
+                    {headerSubtitle}
+                  </p>
+                </div>
+                {/* Mobile edit button (hidden on wide screens) */}
+                <Link
+                  href={
+                    selectedTab === "forecast"
+                      ? `/${beachId}/forecast/edit#forecast-content`
+                      : `/${beachId}/overview/edit#overview-content`
+                  }
+                  className="@min-xl:hidden inline-flex bg-highlight-5 hover:bg-highlight-3 items-center rounded-full p-3 @min-sm:py-2.5 gap-1.5 @min-sm:px-4 shrink-0"
+                  aria-label={`Edit ${
+                    selectedTab === "forecast" ? "forecast" : "overview"
+                  } dashboard`}
+                >
+                  <Pencil className="stroke-[2.5px] w-4.5 h-4.5 @min-sm:mb-0.5" />
+                  <span className="font-medium hidden @min-sm:inline-block text-[15px]">
+                    Edit
+                  </span>
+                </Link>
+              </div>
+              <div className="shrink-0 @min-xl:ml-auto w-full @min-xl:w-auto">
+                <PageTabs
+                  beach={beachParam}
+                  beachId={beachId}
+                  tabs={["overview", "forecast"]}
+                  isFavorite={isFavorite}
+                  overviewPage
+                  forecastPage={selectedTab === "forecast"}
+                  placement="inline"
+                  buttons
+                  responsiveFull
+                />
+              </div>
+            </header>
+            {/* Tabs now live inside header for all breakpoints */}
 
-                return (
-                  <div
-                    key={row.id}
-                    className={`${spacing} w-full flex flex-col @min-3xl:flex-row gap-5`}
-                  >
-                    {visibleItems.map((id) => {
-                      const content = renderWidget(id, isFull);
+            {/* Overview content - hidden when forecast is active */}
+            <div className={isOverview ? "" : "hidden"}>
+              <div className="relative min-h-[640px]">
+                {!layoutHydrated ? (
+                  <div className="mt-4 w-full h-full min-h-[640px] rounded-2xl bg-highlight-4 border border-border/40 animate-pulse" />
+                ) : visibleRows.length === 0 ? (
+                  <p className="mx-2 mt-6 text-sm text-muted-foreground">
+                    All widgets are hidden. Use the edit screen to enable
+                    widgets.
+                  </p>
+                ) : (
+                  visibleRows.map((row, index) => {
+                    const visibleItems = row.items.filter(
+                      (id) => layoutMeta[id]?.visible !== false
+                    );
+                    if (!visibleItems.length) return null;
+                    const spacing = index === 0 ? "mt-4" : "mt-5";
+                    const isFull = visibleItems.length === 1;
+                    if (isFull) {
+                      const content = renderWidget(visibleItems[0], isFull);
                       if (!content) return null;
-                      return <React.Fragment key={id}>{content}</React.Fragment>;
-                    })}
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
+                      return (
+                        <div key={row.id} className={`${spacing} w-full`}>
+                          {content}
+                        </div>
+                      );
+                    }
 
-        {/* Forecast content - hidden when overview is active */}
-        <div className={isOverview ? "hidden" : ""}>
-          <div className="relative">
-            <ForecastChartsLoadingProvider>
-              <ForecastChartsOverlay baseVisible={forecastOverlayVisible} />
-              <SunDataProvider>
-                <ForecastChartProvider>
-                  <ForecastBridge
-                    beachId={beachId}
-                    hideHeader
-                    onWindowStringChange={setForecastWindow}
-                  />
-                </ForecastChartProvider>
-              </SunDataProvider>
-            </ForecastChartsLoadingProvider>
-          </div>
-        </div>
-      </section>
+                    return (
+                      <div
+                        key={row.id}
+                        className={`${spacing} w-full flex flex-col @min-3xl:flex-row gap-5`}
+                      >
+                        {visibleItems.map((id) => {
+                          const content = renderWidget(id, isFull);
+                          if (!content) return null;
+                          return (
+                            <React.Fragment key={id}>{content}</React.Fragment>
+                          );
+                        })}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* Forecast content - hidden when overview is active */}
+            <div className={isOverview ? "hidden" : ""}>
+              <div className="relative">
+                <ForecastChartsLoadingProvider>
+                  <SunDataProvider>
+                    <ForecastChartProvider>
+                      <ForecastDataProvider
+                        value={{
+                          rows: forecastTabRows ?? null,
+                          start: forecastTabRange.start,
+                          end: forecastTabRange.end,
+                          loading: forecastTabLoading,
+                        }}
+                      >
+                        <ForecastBridge
+                          beachId={beachId}
+                          hideHeader
+                          onWindowStringChange={setForecastWindow}
+                        />
+                      </ForecastDataProvider>
+                    </ForecastChartProvider>
+                  </SunDataProvider>
+                </ForecastChartsLoadingProvider>
+              </div>
+            </div>
+          </section>
         </>
       </TideDataProvider>
     </ForecastDataProvider>

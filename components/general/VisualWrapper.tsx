@@ -1,5 +1,6 @@
 import React from "react";
 import { cn } from "@/lib/utils";
+import { ChartLoadingCover } from "../graphs/ChartLoadingCover";
 
 import {
   Atom,
@@ -63,12 +64,14 @@ const VisualWrapper = ({
   unit,
   extraPadding,
   headerContent,
+  loading,
 }: {
   children: React.ReactNode;
   label: string;
   unit?: string;
   extraPadding?: boolean;
   headerContent?: React.ReactNode;
+  loading?: boolean;
 }) => {
   const { showSecondarySwells, setShowSecondarySwells } = useDateContext();
   const lowerCaseLabel = label.toLowerCase();
@@ -141,7 +144,7 @@ const VisualWrapper = ({
         </div>
         <div
           className={cn(
-            "px-2 pb-3 pt-3 -mt-4.5 overflow-x-hidden touch-pan-y",
+            "px-2 pb-3 pt-3 -mt-4.5 overflow-x-hidden touch-pan-y relative",
             label !== "Current" &&
               label !== "Historical" &&
               label !== "Forecast" &&
@@ -150,7 +153,16 @@ const VisualWrapper = ({
             extraPadding && "px-4"
           )}
         >
-          {children}
+          <div className="relative">
+            <ChartLoadingCover
+              show={Boolean(loading)}
+              message={`Loading ${label.toLowerCase()} data`}
+              className="rounded-2xl"
+            />
+            <div className={cn("", loading && "opacity-0 pointer-events-none")}>
+              {children}
+            </div>
+          </div>
         </div>
       </div>
     </figure>

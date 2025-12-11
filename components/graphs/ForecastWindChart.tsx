@@ -29,18 +29,18 @@ import {
 import { getWindDirection } from "@/lib/supabase";
 import { cn, getPacificHour, getPacificMidnightUTC } from "@/lib/utils";
 import { getForecastCached } from "@/lib/dataCache";
+import { useForecastData } from "@/components/context/ForecastDataContext";
 import { useDateContext } from "@/components/context/DateContext";
 import { useForecastChartContext } from "@/components/context/ForecastChartContext";
 import HoverReferenceLine from "@/components/graphs/HoverReferenceLine";
 import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
 import { buildYAxisTicks } from "@/components/graphs/yAxisTicks";
 import { useSunData } from "@/components/context/SunDataContext";
-import { ChartLoadingCover } from "./ChartLoadingCover";
+import { buildSunSegmentsForRange } from "@/components/graphs/sunSegments";
 import {
   useForecastChartLoading,
-  useForecastChartsLoadingState,
+  useForecastChartsBusyState,
 } from "../context/ForecastChartsLoadingContext";
-import { buildSunSegmentsForRange } from "@/components/graphs/sunSegments";
 
 const chartConfig = {
   wind: {
@@ -68,6 +68,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
   const { getSunData } = useSunData();
   const [loading, setLoading] = useState(true);
   const [sunReady, setSunReady] = useState(false);
+  const { rows: sharedRows } = useForecastData();
   const [windData, setWindData] = useState<WindPoint[]>([]);
   const [baseStartMs, setBaseStartMs] = useState<number | null>(null);
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
@@ -97,11 +98,31 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
     setLoading(windData.length === 0);
   }, [windData]);
 
+  const [stableSelectedHour, setStableSelectedHour] = useState<number | null>(
+    null
+  );
   const { setReady } = useForecastChartLoading("forecast-wind");
+  const dashboardBusy = useForecastChartsBusyState();
+
+  // Mark this widget as not ready whenever its local loading flag is true.
   useEffect(() => {
-    setReady(!loading && sunReady);
+    if (loading) {
+      setReady(false);
+    }
+  }, [loading, setReady]);
+
+  // Mark ready only after data and sun/shading are fully ready.
+  useEffect(() => {
+    if (!loading && sunReady) {
+      setReady(true);
+    }
   }, [loading, sunReady, setReady]);
-  const globalLoading = useForecastChartsLoadingState();
+
+  useEffect(() => {
+    if (!dashboardBusy) {
+      setStableSelectedHour(selectedHour ?? null);
+    }
+  }, [dashboardBusy, selectedHour]);
 
   // Normalize and sort provided days to keep fetch ranges stable
   const normalizedDays = useMemo(() => {
@@ -437,7 +458,41 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
         const end = new Date(
           start.getTime() + numDaysToFetch * 24 * 60 * 60 * 1000
         );
-        const rows = await getForecastCached(String(beachId), start, end);
+        const startMs = start.getTime();
+        const endMs = end.getTime();
+        const coverageToleranceMs = 3 * 60 * 60 * 1000;
+
+        const filterSharedRows = () => {
+          if (!sharedRows?.length) {
+            return [] as typeof sharedRows;
+          }
+          const filtered =
+            sharedRows
+              .filter((row) => {
+                const ts = new Date(row.timestamp).getTime();
+                return ts >= startMs && ts <= endMs;
+              })
+              .sort(
+                (a, b) =>
+                  new Date(a.timestamp).getTime() -
+                  new Date(b.timestamp).getTime()
+              ) ?? [];
+          if (!filtered.length) {
+            return [];
+          }
+          const firstTs = new Date(filtered[0].timestamp).getTime();
+          const lastTs = new Date(
+            filtered[filtered.length - 1].timestamp
+          ).getTime();
+          const coversStart = firstTs <= startMs + coverageToleranceMs;
+          const coversEnd = lastTs >= endMs - coverageToleranceMs;
+          return coversStart && coversEnd ? filtered : [];
+        };
+
+        let rows = filterSharedRows();
+        if (!rows?.length) {
+          rows = await getForecastCached(String(beachId), start, end);
+        }
 
         if (!rows || !rows.length) {
           if (!cancelled) {
@@ -447,7 +502,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
           return;
         }
 
-        rows.sort(
+        (rows as any[]).sort(
           (a: any, b: any) =>
             new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
         );
@@ -524,7 +579,6 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
         if (!cancelled) {
           setWindData(series);
         }
-
       } catch (e) {
         console.error("Failed to load wind data", e);
         if (!cancelled) {
@@ -657,22 +711,17 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
 
   return (
     <div className="w-full">
-      <div
-        ref={containerRef}
-        className="relative w-full"
-        style={{
-          height: 300,
-          overflow: "hidden",
-          background: "transparent",
-          contain: "layout style paint",
-          willChange: "transform",
-        }}
-      >
-        <ChartLoadingCover
-          show={(loading || !sunReady) && !globalLoading}
-          message="Loading wind forecast"
-          className="rounded-xl"
-        />
+        <div
+          ref={containerRef}
+          className="relative w-full"
+          style={{
+            height: 300,
+            overflow: "hidden",
+            background: "transparent",
+            contain: "layout style paint",
+            willChange: "transform",
+          }}
+        >
         {/* prev/next buttons */}
         <button
           aria-label="Back one day"
@@ -885,11 +934,14 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
                 {/* Selected hour marker */}
                 {(() => {
                   try {
+                    const effectiveHour =
+                      stableSelectedHour ?? selectedHour ?? null;
                     const base =
                       displayDays && displayDays.length > 0
                         ? displayDays[0]
                         : null;
-                    if (!base || !selectedDate) return null;
+                    if (!base || !selectedDate || effectiveHour == null)
+                      return null;
                     const baseMid = new Date(
                       base.getFullYear(),
                       base.getMonth(),
@@ -903,7 +955,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
                     const dayDelta = Math.floor(
                       (selMid - baseMid) / (24 * 3600 * 1000)
                     );
-                    const x = dayDelta * 24 + (selectedHour ?? 0);
+                    const x = dayDelta * 24 + effectiveHour;
                     if (x < 0 || x > totalFetchedDays * 24) return null;
                     return (
                       <ReferenceLine

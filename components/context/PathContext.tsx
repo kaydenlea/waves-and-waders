@@ -14,7 +14,14 @@ const PathContext = createContext<Ctx | null>(null);
 export function PathProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [selectedTab, setSelectedTab] = useState("");
+  const initialTab = useMemo(() => {
+    const qp = searchParams?.get("tab");
+    if (qp) return qp;
+    if (pathname?.includes("/forecast")) return "forecast";
+    if (pathname?.includes("/overview")) return "overview";
+    return "";
+  }, [pathname, searchParams]);
+  const [selectedTab, setSelectedTab] = useState(initialTab);
   // Restore persisted tab per-path on mount/path change
   useEffect(() => {
     try {

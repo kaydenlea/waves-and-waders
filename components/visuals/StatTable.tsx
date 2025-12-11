@@ -28,6 +28,11 @@ import { getForecastCached } from "@/lib/dataCache";
 import { useDateContext } from "../context/DateContext";
 import { usePathname } from "next/navigation";
 import { useClientPath } from "../context/PathContext";
+import { useForecastData } from "../context/ForecastDataContext";
+import {
+  useOptionalForecastChartLoading,
+  useOptionalForecastChartsBusyState,
+} from "../context/ForecastChartsLoadingContext";
 
 // Simple cache for forecast data to avoid refetching
 const forecastCache = new Map<
@@ -294,13 +299,16 @@ const StatTable = ({
   header = false,
   beachId,
   date,
-}: {
-  numDays: number;
-  numHours: number;
-  header?: boolean;
-  beachId?: string;
-  date?: Date;
-}) => {
+  }: {
+    numDays: number;
+    numHours: number;
+    header?: boolean;
+    beachId?: string;
+    date?: Date;
+  }) => {
+    // TODO(overview-perf): Ideally drive this loading state from a shared forecast context
+    // when available so both overview and forecast tables stay in sync with other widgets.
+  const [loading, setLoading] = React.useState<boolean>(false);
   const [data, setData] = React.useState<TableDay[]>([]);
   const {
     selectedDays,
@@ -311,6 +319,37 @@ const StatTable = ({
   const pathname = usePathname();
   const { selectedTab } = useClientPath();
   const forecastPage = selectedTab === "forecast";
+  const { rows: sharedRows } = useForecastData();
+  const { setReady } = useOptionalForecastChartLoading("forecast-table");
+  const dashboardBusy = useOptionalForecastChartsBusyState();
+  const [stableSelectedHour, setStableSelectedHour] =
+    React.useState<number | null>(null);
+
+  // Forecast dashboard readiness reporting for the table: mark not ready
+  // whenever the table is loading, and ready once data is present.
+  React.useEffect(() => {
+    if (!forecastPage) return;
+    if (loading) {
+      setReady(false);
+    }
+  }, [forecastPage, loading, setReady]);
+
+  React.useEffect(() => {
+    if (!forecastPage) return;
+    if (!loading && data.length > 0) {
+      setReady(true);
+    }
+  }, [forecastPage, loading, data.length, setReady]);
+
+  React.useEffect(() => {
+    if (!forecastPage) {
+      setStableSelectedHour(null);
+      return;
+    }
+    if (!dashboardBusy) {
+      setStableSelectedHour(selectedHour ?? null);
+    }
+  }, [forecastPage, dashboardBusy, selectedHour]);
 
   // Extract requestedDate at component level so it's accessible throughout
   const requestedDate = React.useMemo(
@@ -355,11 +394,47 @@ const StatTable = ({
 
     const load = async () => {
       try {
-        if (!beachId || !dateRange) return;
+        if (!beachId || !dateRange) {
+          setData([]);
+          setLoading(false);
+          return;
+        }
+        setLoading(true);
+        const { rangeStart, rangeEnd } = dateRange;
+
+        const rangeStartMs = rangeStart.getTime();
+        const rangeEndMs = rangeEnd.getTime();
+        const coverageToleranceMs = 3 * 60 * 60 * 1000;
+
+        const filterSharedRows = () => {
+          if (!sharedRows?.length) {
+            return [] as ForecastData[];
+          }
+          const filtered =
+            sharedRows
+              .filter((row) => {
+                const ts = new Date(row.timestamp).getTime();
+                return ts >= rangeStartMs && ts <= rangeEndMs;
+              })
+              .sort(
+                (a, b) =>
+                  new Date(a.timestamp).getTime() -
+                  new Date(b.timestamp).getTime()
+              ) ?? [];
+          if (!filtered.length) {
+            return [];
+          }
+          const firstTs = new Date(filtered[0].timestamp).getTime();
+          const lastTs = new Date(
+            filtered[filtered.length - 1].timestamp
+          ).getTime();
+          const coversStart = firstTs <= rangeStartMs + coverageToleranceMs;
+          const coversEnd = lastTs >= rangeEndMs - coverageToleranceMs;
+          return coversStart && coversEnd ? filtered : [];
+        };
+
         const resolved = await fetchBeachByIdLoose(beachId);
         const resolvedId = resolved?.id ?? beachId;
-
-        const { rangeStart, rangeEnd } = dateRange;
 
         // Check cache first
         const cacheKey = `${resolvedId}:${rangeStart.getTime()}:${rangeEnd.getTime()}`;
@@ -367,7 +442,10 @@ const StatTable = ({
         const now = Date.now();
 
         let weekly: ForecastData[];
-        if (cached && now - cached.timestamp < CACHE_DURATION) {
+        const shared = filterSharedRows();
+        if (shared.length) {
+          weekly = shared;
+        } else if (cached && now - cached.timestamp < CACHE_DURATION) {
           weekly = cached.data;
         } else {
           weekly = await getForecastCached(
@@ -386,7 +464,9 @@ const StatTable = ({
           }
         }
 
-        if (cancelled) return;
+        if (cancelled) {
+          return;
+        }
 
         // Group by date using Pacific timezone (matches chart processing)
         const byDay = new Map<string, ForecastData[]>();
@@ -445,19 +525,18 @@ const StatTable = ({
         } else if (onlyKey) {
           if (onlyKey && dayKeys.includes(onlyKey)) {
             allowedKeys = new Set([onlyKey]);
-          } else {
-            if (requestedDate) {
-              const prev = getDayKey(
-                new Date(requestedDate.getTime() - DAY_MS).toISOString()
-              );
-              const next = getDayKey(
-                new Date(requestedDate.getTime() + DAY_MS).toISOString()
-              );
-              const cands = [prev, next].filter((k) => dayKeys.includes(k));
-              if (cands.length) allowedKeys = new Set([cands[0]]);
-            }
+          } else if (requestedDate) {
+            const prev = getDayKey(
+              new Date(requestedDate.getTime() - DAY_MS).toISOString()
+            );
+            const next = getDayKey(
+              new Date(requestedDate.getTime() + DAY_MS).toISOString()
+            );
+            const cands = [prev, next].filter((k) => dayKeys.includes(k));
+            if (cands.length) allowedKeys = new Set([cands[0]]);
           }
         }
+
         for (const [dayKey, rows] of entriesByDay) {
           if (allowedKeys && !allowedKeys.has(dayKey)) continue;
           rows.sort(
@@ -676,10 +755,12 @@ const StatTable = ({
 
         if (!cancelled) {
           setData(finalDays);
+          setLoading(false);
         }
       } catch (e) {
         if (!cancelled) {
           console.error("Failed to load StatTable data", e);
+          setLoading(false);
         }
       }
     };
@@ -688,7 +769,7 @@ const StatTable = ({
     return () => {
       cancelled = true;
     };
-  }, [dateRange, beachId, numDays, numHours]);
+  }, [dateRange, beachId, numDays, numHours, sharedRows]);
   // Note: Removed selectedDays from deps since it's now in dateRange memo
 
   const COLUMNS = [
@@ -713,7 +794,6 @@ const StatTable = ({
     );
   }, [showSecondarySwells]);
 
-  const [visibleCols, setVisibleCols] = React.useState(0);
   const [width, setWidth] = React.useState(0);
   const [columnPages, setColumnPages] = React.useState([COLUMNS]);
   const [currentPage, setCurrentPage] = React.useState(0);
@@ -736,25 +816,21 @@ const StatTable = ({
       const cols = filteredColumns;
       if (widthNow < 600) {
         if (showSecondarySwells) {
-          setVisibleCols(3);
           newPages = [
             [cols[0], cols[2], cols[1]],
             cols.slice(3, 5),
             cols.slice(5, cols.length),
           ];
         } else {
-          setVisibleCols(3);
           newPages = [[cols[0], cols[2], cols[1]], cols.slice(3, cols.length)];
         }
       } else if (widthNow < 800) {
         if (showSecondarySwells) {
-          setVisibleCols(5);
           newPages = [
             [cols[0], cols[2], cols[5], cols[6], cols[1]],
             [cols[3], cols[4], cols[7], cols[8]].filter(Boolean),
           ];
         } else {
-          setVisibleCols(4);
           newPages = [
             [cols[0], cols[2], cols[3], cols[1]],
             cols.slice(3, cols.length),
@@ -762,31 +838,31 @@ const StatTable = ({
         }
       } else if (widthNow < 1150) {
         if (showSecondarySwells) {
-          setVisibleCols(4);
           newPages = [
             [cols[0], cols[2], cols[3], cols[4], cols[1]].filter(Boolean),
             cols.slice(5, cols.length),
           ];
         } else {
-          setVisibleCols(7);
           newPages = [
             [cols[0], cols[2], cols[3], cols[4], cols[5], cols[6], cols[1]],
           ];
         }
       } else {
         if (showSecondarySwells) {
-          setVisibleCols(6);
-          const firstPage = [
-            cols[0],
-            cols[2],
-            cols[3],
-            cols[4],
-            cols[1],
-          ].filter(Boolean);
-          const secondPage = cols.slice(5, cols.length);
-          newPages = [firstPage.concat(secondPage)];
+          newPages = [
+            [
+              cols[0],
+              cols[2],
+              cols[3],
+              cols[4],
+              cols[5],
+              cols[6],
+              cols[7],
+              cols[8],
+              cols[1],
+            ],
+          ];
         } else {
-          setVisibleCols(7);
           newPages = [
             [cols[0], cols[2], cols[3], cols[4], cols[5], cols[6], cols[1]],
           ];
@@ -1058,7 +1134,7 @@ const StatTable = ({
             <Pager />
           </div>
         </div>
-      )}
+        )}
       <div
         className={cn(
           "transition-opacity duration-150 ease-in-out",
@@ -1083,176 +1159,200 @@ const StatTable = ({
               })}
             </tr>
           </thead>
-          <tbody>
-            {visibleDays.map((day, i) => {
-              const content = day.vals.map((entry, rowIdx) => {
-                let isSelectedHour = false;
-                // Determine selection per page context
-                if (forecastPage) {
-                  // Highlight only within the selected day and matching interval bucket
-                  const sel = selected instanceof Date ? selected : null;
-                  const sameDay = sel
-                    ? new Date(
-                        sel.getFullYear(),
-                        sel.getMonth(),
-                        sel.getDate()
-                      ).getTime() === day.dateMs
-                    : false;
-                  if (sameDay) {
-                    const hours = day.vals
-                      .map((v) => v.index)
-                      .sort((a, b) => a - b);
-                    // pick the last hour <= selectedHour, otherwise first
-                    let bucket = hours[0];
-                    for (const h of hours) {
-                      if (h <= selectedHour) bucket = h;
-                    }
-                    isSelectedHour = entry.index === bucket;
-                  }
-                } else {
-                  // Overview behavior: exact hour match
-                  isSelectedHour = entry.index === selectedHour;
-                }
-                return (
+            <tbody>
+            {loading && !visibleDays.length
+                ? Array.from({ length: Math.max(numHours, 8) }).map((_, idx) => (
                   <tr
-                    key={`${i}-${entry.index}`}
-                    className={cn(
-                      rowIdx !== day.vals.length - 1 &&
-                        "border-b border-border/20",
-                      isSelectedHour &&
-                        "ring-1 ring-muted-foreground/80 rounded-sm"
-                    )}
+                    key={`skeleton-${idx}`}
+                    className="border-b border-border/20 last:border-b-0"
                   >
-                    <th
-                      scope="row"
-                      className="relative w-5 h-14 border-r border-border/40 p-0"
-                    >
-                      <span className="-translate-x-1/2 -translate-y-1/2 transform absolute top-1/2 left-1/2 -rotate-90 text-xs">
-                        {entry.index % 12 === 0 ? 12 : entry.index % 12}
-                        <span className="font-medium text-[0.6rem]">
-                          {entry.index >= 12 ? "PM" : "AM"}
-                        </span>
-                      </span>
-                    </th>
-                    {visibleColumns.map((col, colIdx) => {
-                      // Functional color coding for surf ranges (matches DatePicker)
-                      const getSurfLevel = (height: string) => {
-                        if (height === "-") return "bg-highlight-3";
-                        const match = height.match(/(\d+)-?(\d+)?/);
-                        if (!match) return "bg-highlight-3";
-                        // Use the max value from the range (e.g., "2-4" -> 4)
-                        const maxHeight = match[2]
-                          ? parseInt(match[2])
-                          : parseInt(match[1]);
-                        if (maxHeight >= 6)
-                          return "bg-red-300 dark:bg-orange-700";
-                        if (maxHeight >= 3)
-                          return "bg-orange-300 dark:bg-yellow-600";
-                        return "bg-green-300 dark:bg-green-700";
-                      };
-
-                      let content;
-                      switch (col.label) {
-                        case "Wind":
-                          content = <WindStat data={entry.wind} />;
-                          break;
-                        case "Weather":
-                          content = (
-                            <WeatherStat
-                              data={entry.weather}
-                              level="bg-highlight-2"
-                            />
-                          );
-                          break;
-                        case "Surf":
-                          content = (
-                            <GeneralStat
-                              val={entry.surf.height}
-                              unit="ft"
-                              level={getSurfLevel(entry.surf.height)}
-                            />
-                          );
-                          break;
-                        case "Primary Swell":
-                          {
-                            content = (
-                              <SwellStat
-                                primary
-                                data={entry.swell?.primary as any}
-                              />
-                            );
-                            break;
-                          }
-                          break;
-                        case "Secondary Swell": {
-                          const s0 = entry.swell?.secondary?.[0];
-                          content = <SwellStat data={s0 as any} />;
-                          break;
-                        }
-                        case "Tertiary Swell": {
-                          const s1 = entry.swell?.secondary?.[1];
-                          content = <SwellStat data={s1 as any} />;
-                          break;
-                        }
-                        case "Pressure":
-                          content = (
-                            <GeneralStat
-                              val={entry.pressure.value}
-                              unit="in"
-                              level="bg-highlight-2"
-                            />
-                          );
-                          break;
-                        case "Water":
-                          content = (
-                            <WeatherStat
-                              water={entry.water.temp}
-                              level="bg-highlight-2"
-                            />
-                          );
-                          break;
-                        case "Energy":
-                          content = (
-                            <GeneralStat
-                              val={entry.energy.value}
-                              unit="kJ"
-                              level="bg-highlight-2"
-                            />
-                          );
-                          break;
-                      }
-                      return (
-                        <td
-                          key={`${col.id}-${entry.index}`}
-                          className={cn(
-                            "px-1",
-                            colIdx !== visibleColumns.length - 1 &&
-                              "border-r border-border/20"
-                          )}
-                        >
-                          {content}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                );
-              });
-              return (
-                <React.Fragment key={i}>
-                  {header && (
-                    <tr key={`${i}-date`}>
+                    <th className="relative w-5 h-14 border-r border-border/40 p-0" />
+                    {visibleColumns.map((col) => (
                       <td
-                        colSpan={10}
-                        className="p-3 bg-highlight-5 font-semibold rounded-sm shadow-even"
+                        key={`skeleton-${col.id}-${idx}`}
+                        className={cn(
+                          "px-1",
+                          "border-r border-border/20 last:border-r-0"
+                        )}
                       >
-                        {day.date}
+                        <div className="h-10 w-full rounded bg-highlight-3 animate-pulse" />
                       </td>
-                    </tr>
-                  )}
-                  {content}
-                </React.Fragment>
-              );
-            })}
+                    ))}
+                  </tr>
+                ))
+              : visibleDays.map((day, i) => {
+                    const content = day.vals.map((entry, rowIdx) => {
+                    let isSelectedHour = false;
+                      // Determine selection per page context
+                      if (forecastPage) {
+                        // Highlight only within the selected day and matching interval bucket
+                        const sel = selected instanceof Date ? selected : null;
+                      const sameDay = sel
+                        ? new Date(
+                            sel.getFullYear(),
+                            sel.getMonth(),
+                            sel.getDate()
+                            ).getTime() === day.dateMs
+                          : false;
+                        if (sameDay) {
+                          const hours = day.vals
+                            .map((v) => v.index)
+                            .sort((a, b) => a - b);
+                        // pick the last hour <= selected hour, otherwise first
+                          const effectiveHour =
+                            stableSelectedHour ?? selectedHour ?? null;
+                          if (effectiveHour != null) {
+                            let bucket = hours[0];
+                            for (const h of hours) {
+                              if (h <= effectiveHour) bucket = h;
+                            }
+                            isSelectedHour = entry.index === bucket;
+                          }
+                        }
+                      } else {
+                        // Overview behavior: exact hour match
+                      isSelectedHour = entry.index === selectedHour;
+                      }
+                    return (
+                      <tr
+                        key={`${i}-${entry.index}`}
+                        className={cn(
+                          rowIdx !== day.vals.length - 1 &&
+                            "border-b border-border/20",
+                          isSelectedHour &&
+                            "ring-1 ring-muted-foreground/80 rounded-sm"
+                        )}
+                      >
+                        <th
+                          scope="row"
+                          className="relative w-5 h-14 border-r border-border/40 p-0"
+                        >
+                          <span className="-translate-x-1/2 -translate-y-1/2 transform absolute top-1/2 left-1/2 -rotate-90 text-xs">
+                            {entry.index % 12 === 0 ? 12 : entry.index % 12}
+                            <span className="font-medium text-[0.6rem]">
+                              {entry.index >= 12 ? "PM" : "AM"}
+                            </span>
+                          </span>
+                        </th>
+                        {visibleColumns.map((col, colIdx) => {
+                          // Functional color coding for surf ranges (matches DatePicker)
+                          const getSurfLevel = (height: string) => {
+                            if (height === "-") return "bg-highlight-3";
+                            const match = height.match(/(\d+)-?(\d+)?/);
+                            if (!match) return "bg-highlight-3";
+                            // Use the max value from the range (e.g., "2-4" -> 4)
+                            const maxHeight = match[2]
+                              ? parseInt(match[2])
+                              : parseInt(match[1]);
+                            if (maxHeight >= 6)
+                              return "bg-red-300 dark:bg-orange-700";
+                            if (maxHeight >= 3)
+                              return "bg-orange-300 dark:bg-yellow-600";
+                            return "bg-green-300 dark:bg-green-700";
+                          };
+
+                          let content;
+                          switch (col.label) {
+                            case "Wind":
+                              content = <WindStat data={entry.wind} />;
+                              break;
+                            case "Weather":
+                              content = (
+                                <WeatherStat
+                                  data={entry.weather}
+                                  level="bg-highlight-2"
+                                />
+                              );
+                              break;
+                            case "Surf":
+                              content = (
+                                <GeneralStat
+                                  val={entry.surf.height}
+                                  unit="ft"
+                                  level={getSurfLevel(entry.surf.height)}
+                                />
+                              );
+                              break;
+                            case "Primary Swell":
+                              {
+                                content = (
+                                  <SwellStat
+                                    primary
+                                    data={entry.swell?.primary as any}
+                                  />
+                                );
+                                break;
+                              }
+                              break;
+                            case "Secondary Swell": {
+                              const s0 = entry.swell?.secondary?.[0];
+                              content = <SwellStat data={s0 as any} />;
+                              break;
+                            }
+                            case "Tertiary Swell": {
+                              const s1 = entry.swell?.secondary?.[1];
+                              content = <SwellStat data={s1 as any} />;
+                              break;
+                            }
+                            case "Pressure":
+                              content = (
+                                <GeneralStat
+                                  val={entry.pressure.value}
+                                  unit="in"
+                                  level="bg-highlight-2"
+                                />
+                              );
+                              break;
+                            case "Water":
+                              content = (
+                                <WeatherStat
+                                  water={entry.water.temp}
+                                  level="bg-highlight-2"
+                                />
+                              );
+                              break;
+                            case "Energy":
+                              content = (
+                                <GeneralStat
+                                  val={entry.energy.value}
+                                  unit="kJ"
+                                  level="bg-highlight-2"
+                                />
+                              );
+                              break;
+                          }
+                          return (
+                            <td
+                              key={`${col.id}-${entry.index}`}
+                              className={cn(
+                                "px-1",
+                                colIdx !== visibleColumns.length - 1 &&
+                                  "border-r border-border/20"
+                              )}
+                            >
+                              {content}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  });
+                  return (
+                    <React.Fragment key={i}>
+                      {header && (
+                        <tr key={`${i}-date`}>
+                          <td
+                            colSpan={10}
+                            className="p-3 bg-highlight-5 font-semibold rounded-sm shadow-even"
+                          >
+                            {day.date}
+                          </td>
+                        </tr>
+                      )}
+                      {content}
+                    </React.Fragment>
+                  );
+                })}
           </tbody>
         </table>
       </div>

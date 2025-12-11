@@ -1277,6 +1277,8 @@ const Highlights = ({
 
   // Fetch all data with React Query
   const { data: current } = useCurrentConditions(resolvedId ?? null);
+  // TODO(overview-perf): When ForecastDataContext is present, rely on the shared daily forecast
+  // rows instead of starting a separate React Query forecast pipeline here.
   const hasPrefetched = Boolean(forecastRows?.length);
   const { data: fetchedForecast = [] } = useBeachForecast(
     resolvedId ?? null,
@@ -1517,7 +1519,7 @@ const Highlights = ({
     <div className="w-full max-w-7xl mx-auto p-1.5">
       <ul
         className={cn(
-          "grid grid-cols-2 @min-md:grid-cols-3 @min-2xl:grid-cols-4 gap-2.5",
+          "grid grid-cols-2 @min-md:grid-cols-3 @min-3xl:grid-cols-4 gap-2.5",
           !isFull && "@min-3xl:grid-cols-3",
           isFull && "@min-4xl:grid-cols-4 @min-6xl:grid-cols-8"
         )}
@@ -1534,13 +1536,13 @@ const Highlights = ({
                 content = stat.primary && stat.secondary && (
                   <div
                     className={cn(
-                      "flex justify-between items-center gap-0 @min-lg:w-full @min-2xl:w-auto",
+                      "flex justify-between items-center gap-0 @min-lg:w-full @min-3xl:w-auto",
                       !isFull && "@min-5xl:w-full"
                     )}
                   >
                     <HighlightCard
                       className={cn(
-                        "@min-lg:w-47 @min-2xl:w-auto",
+                        "@min-lg:w-47 @min-3xl:w-auto",
                         !isFull && "@min-5xl:w-47"
                       )}
                       label={stat.label}
@@ -1572,7 +1574,7 @@ const Highlights = ({
                     </HighlightCard>
                     <div
                       className={cn(
-                        "relative shadow-even border border-border/20 font-semibold @container hidden @min-lg:block @min-2xl:hidden -mt-2 bg-highlight-6 py-3 px-3 flex-1 rounded-md text-center max-w-40",
+                        "relative shadow-even border border-border/20 font-semibold @container hidden @min-lg:block @min-3xl:hidden -mt-2 bg-highlight-6 py-3 px-3 flex-1 rounded-md text-center max-w-40",
                         isFull ? "@min-6xl:hidden" : "@min-5xl:block"
                       )}
                     >
@@ -1682,7 +1684,7 @@ const Highlights = ({
                   "relative highlight-card shadow-even min-h-22 @min-3xl:min-h-20 @min-4xl:min-h-22",
                   isFull && "@min-4xl:min-h-25",
                   stat.label === "swell" &&
-                    "col-span-1 @min-md:col-span-2 @min-2xl:col-span-1",
+                    "col-span-1 @min-md:col-span-2 @min-3xl:col-span-1",
                   stat.label === "swell" && !isFull && "@min-3xl:col-span-2",
                   stat.label === "swell" && isFull && "@min-md:col-span-2",
                   !isHydrated && "animate-pulse"

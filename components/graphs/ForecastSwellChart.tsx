@@ -33,16 +33,16 @@ import {
 import { fetchBeachByIdLoose, getWindDirection } from "@/lib/supabase";
 import { cn, getPacificMidnightUTC } from "@/lib/utils";
 import { getForecastCached } from "@/lib/dataCache";
+import { useForecastData } from "@/components/context/ForecastDataContext";
 import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
 import { useDateContext } from "@/components/context/DateContext";
 import { useForecastChartContext } from "@/components/context/ForecastChartContext";
 import HoverReferenceLine from "@/components/graphs/HoverReferenceLine";
 import { useSunData } from "@/components/context/SunDataContext";
 import { buildSunSegmentsForRange } from "@/components/graphs/sunSegments";
-import { ChartLoadingCover } from "./ChartLoadingCover";
 import {
   useForecastChartLoading,
-  useForecastChartsLoadingState,
+  useForecastChartsBusyState,
 } from "../context/ForecastChartsLoadingContext";
 
 const chartConfig = {
@@ -83,6 +83,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
   const { getSunData } = useSunData();
   const [loading, setLoading] = useState(true);
   const [sunReady, setSunReady] = useState(false);
+  const { rows: sharedRows } = useForecastData();
   const [swellData, setSwellData] = useState<SwellPoint[]>([]);
   const [baseStartMs, setBaseStartMs] = useState<number | null>(null);
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
@@ -394,17 +395,6 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
           return;
         }
 
-        const resolved = await fetchBeachByIdLoose(beachId);
-        const id = resolved?.id ?? beachId;
-
-        if (!id) {
-          if (!cancelled) {
-            setSwellData([]);
-            setBaseStartMs(null);
-          }
-          return;
-        }
-
         const numDaysToFetch =
           normalizedDays && normalizedDays.length > 0
             ? normalizedDays.length
@@ -417,7 +407,52 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
         const end = new Date(
           start.getTime() + numDaysToFetch * 24 * 60 * 60 * 1000
         );
-        const rows = await getForecastCached(String(id), start, end);
+        const startMs = start.getTime();
+        const endMs = end.getTime();
+        const coverageToleranceMs = 3 * 60 * 60 * 1000;
+
+        const filterSharedRows = () => {
+          if (!sharedRows?.length) {
+            return [] as typeof sharedRows;
+          }
+          const filtered =
+            sharedRows
+              .filter((row) => {
+                const ts = new Date(row.timestamp).getTime();
+                return ts >= startMs && ts <= endMs;
+              })
+              .sort(
+                (a, b) =>
+                  new Date(a.timestamp).getTime() -
+                  new Date(b.timestamp).getTime()
+              ) ?? [];
+          if (!filtered.length) {
+            return [];
+          }
+          const firstTs = new Date(filtered[0].timestamp).getTime();
+          const lastTs = new Date(
+            filtered[filtered.length - 1].timestamp
+          ).getTime();
+          const coversStart = firstTs <= startMs + coverageToleranceMs;
+          const coversEnd = lastTs >= endMs - coverageToleranceMs;
+          return coversStart && coversEnd ? filtered : [];
+        };
+
+        let rows = filterSharedRows();
+        if (!rows?.length) {
+          const resolved = await fetchBeachByIdLoose(beachId);
+          const id = resolved?.id ?? beachId;
+
+          if (!id) {
+            if (!cancelled) {
+              setSwellData([]);
+              setBaseStartMs(null);
+            }
+            return;
+          }
+
+          rows = await getForecastCached(String(id), start, end);
+        }
 
         if (!rows || !rows.length) {
           if (!cancelled) {
@@ -428,7 +463,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
         }
 
         // Sort rows
-        rows.sort(
+        (rows as any[]).sort(
           (a: any, b: any) =>
             new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
         );
@@ -493,57 +528,6 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
           setSwellData(series);
           setLoading(series.length === 0);
         }
-
-        const shadingStartDate = days ? days[0] : new Date();
-
-        // Get midnight in Pacific timezone (DST-aware)
-        const startFormatter = new Intl.DateTimeFormat("en-US", {
-          timeZone: "America/Los_Angeles",
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-        });
-        const startParts = startFormatter.formatToParts(shadingStartDate);
-        const startYear = parseInt(
-          startParts.find((p) => p.type === "year")?.value || "0"
-        );
-        const startMonth =
-          parseInt(startParts.find((p) => p.type === "month")?.value || "1") -
-          1;
-        const startDay = parseInt(
-          startParts.find((p) => p.type === "day")?.value || "1"
-        );
-
-        const startNoonUTC = Date.UTC(
-          startYear,
-          startMonth,
-          startDay,
-          12,
-          0,
-          0,
-          0
-        );
-        const startNoonDate = new Date(startNoonUTC);
-        const startNoonFormatter = new Intl.DateTimeFormat("en-US", {
-          timeZone: "America/Los_Angeles",
-          hour: "2-digit",
-          hour12: false,
-        });
-        const startPacificNoonHour = parseInt(
-          startNoonFormatter.format(startNoonDate)
-        );
-        const startOffsetHours = startPacificNoonHour - 12;
-
-        const startMs = Date.UTC(
-          startYear,
-          startMonth,
-          startDay,
-          -startOffsetHours,
-          0,
-          0,
-          0
-        );
-
       } catch (e) {
         console.error("Failed to load swell data", e);
         if (!cancelled) {
@@ -639,11 +623,31 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
     setHoveredHour(null);
   }, [setHoveredHour]);
 
+  const [stableSelectedHour, setStableSelectedHour] = useState<number | null>(
+    null
+  );
   const { setReady } = useForecastChartLoading("forecast-swell");
-  React.useEffect(() => {
-    setReady(!loading && sunReady);
+  const dashboardBusy = useForecastChartsBusyState();
+
+  // Mark this widget as not ready whenever its local loading flag is true.
+  useEffect(() => {
+    if (loading) {
+      setReady(false);
+    }
+  }, [loading, setReady]);
+
+  // Mark ready only after data and sun/shading are fully ready.
+  useEffect(() => {
+    if (!loading && sunReady) {
+      setReady(true);
+    }
   }, [loading, sunReady, setReady]);
-  const globalLoading = useForecastChartsLoadingState();
+
+  useEffect(() => {
+    if (!dashboardBusy) {
+      setStableSelectedHour(selectedHour ?? null);
+    }
+  }, [dashboardBusy, selectedHour]);
 
   return (
     <div className="w-full">
@@ -658,11 +662,6 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
           willChange: "transform",
         }}
       >
-        <ChartLoadingCover
-          show={(loading || !sunReady) && !globalLoading}
-          message="Loading swell forecast"
-          className="rounded-xl"
-        />
         {/* prev/next buttons */}
         <button
           aria-label="Back one day"
@@ -836,11 +835,14 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                 {/* Selected hour marker */}
                 {(() => {
                   try {
+                    const effectiveHour =
+                      stableSelectedHour ?? selectedHour ?? null;
                     const base =
                       displayDays && displayDays.length > 0
                         ? displayDays[0]
                         : null;
-                    if (!base || !selectedDate) return null;
+                    if (!base || !selectedDate || effectiveHour == null)
+                      return null;
                     const baseMid = new Date(
                       base.getFullYear(),
                       base.getMonth(),
@@ -854,7 +856,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                     const dayDelta = Math.floor(
                       (selMid - baseMid) / (24 * 3600 * 1000)
                     );
-                    const x = dayDelta * 24 + (selectedHour ?? 0);
+                    const x = dayDelta * 24 + effectiveHour;
                     if (x < 0 || x > totalFetchedDays * 24) return null;
                     return (
                       <ReferenceLine

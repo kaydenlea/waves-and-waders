@@ -446,6 +446,18 @@ export default function Dashboard({
     [rows, meta]
   );
 
+  if (!hydrated) {
+    return (
+      <div className="mt-3 overflow-hidden @container">
+        <div className="mx-1 my-2 relative min-h-[640px] rounded-2xl bg-highlight-4 border border-border/40">
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="h-10 w-10 rounded-full border-4 border-highlight-5 border-t-transparent animate-spin" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   /* ---------------------------- DnD Handlers ---------------------------- */
   function onDragStart(e: DragStartEvent) {
     const id = String(e.active.id);

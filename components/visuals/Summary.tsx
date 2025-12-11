@@ -225,7 +225,19 @@ const createInitialStats = (): SummaryStat[] => [
   { type: "features", tags: [] },
 ];
 
-const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
+import type { ForecastData } from "@/lib/supabase";
+
+const Summary = ({
+  beachId,
+  date,
+  forecastRows,
+  forecastLoading,
+}: {
+  beachId?: string;
+  date?: Date;
+  forecastRows?: ForecastData[] | null;
+  forecastLoading?: boolean;
+}) => {
   const [stats, setStats] = useState<SummaryStat[] | null>(null);
   const statsRef = useRef<SummaryStat[] | null>(null);
   const [showAllFeatures, setShowAllFeatures] = useState(false);
@@ -254,16 +266,31 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
     };
   }, [targetDateValue]);
 
+  const hasExternalForecast = Array.isArray(forecastRows);
+
+  // TODO(overview-perf): When a shared daily `ForecastDataContext` is present (as on `/[beach]/overview`),
+  // prefer reusing those rows here instead of starting an independent `useBeachForecast` query for the
+  // same day range, so Summary stays in lockstep with Highlights and the overview charts.
   const {
-    data: forecast = [],
-    isSuccess: forecastSuccess,
-    isError: forecastError,
+    data: forecastFromQuery = [],
+    isSuccess: forecastSuccessRaw,
+    isError: forecastErrorRaw,
   } = useBeachForecast(
     beachId ?? null,
     timeWindow.dayStart,
     timeWindow.dayEnd,
-    Boolean(beachId)
+    Boolean(beachId) && !hasExternalForecast
   );
+
+  const forecast: ForecastData[] = hasExternalForecast
+    ? forecastRows ?? []
+    : (forecastFromQuery as ForecastData[]);
+
+  const forecastSuccess =
+    (hasExternalForecast && !forecastLoading && forecast.length > 0) ||
+    (!hasExternalForecast && forecastSuccessRaw);
+
+  const forecastError = !hasExternalForecast && forecastErrorRaw ? true : false;
   const { data: current } = useCurrentConditions(
     beachId ?? null,
     Boolean(beachId)
@@ -317,13 +344,22 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
 
     const heightMins = forecast
       .map((row) => row?.surf?.heightMin)
-      .filter((value): value is number => typeof value === "number" && !Number.isNaN(value));
+      .filter(
+        (value): value is number =>
+          typeof value === "number" && !Number.isNaN(value)
+      );
     const heightMaxes = forecast
       .map((row) => row?.surf?.heightMax)
-      .filter((value): value is number => typeof value === "number" && !Number.isNaN(value));
+      .filter(
+        (value): value is number =>
+          typeof value === "number" && !Number.isNaN(value)
+      );
     const periods = forecast
       .map((row) => row?.swell?.primary?.period)
-      .filter((value): value is number => typeof value === "number" && !Number.isNaN(value));
+      .filter(
+        (value): value is number =>
+          typeof value === "number" && !Number.isNaN(value)
+      );
 
     const avgHeightMin = average(heightMins);
     const avgHeightMax = average(heightMaxes);
@@ -367,13 +403,22 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
 
     const windSpeeds = forecast
       .map((row) => row?.conditions?.windSpeed)
-      .filter((value): value is number => typeof value === "number" && !Number.isNaN(value));
+      .filter(
+        (value): value is number =>
+          typeof value === "number" && !Number.isNaN(value)
+      );
     const windGusts = forecast
       .map((row) => row?.conditions?.windGust)
-      .filter((value): value is number => typeof value === "number" && !Number.isNaN(value));
+      .filter(
+        (value): value is number =>
+          typeof value === "number" && !Number.isNaN(value)
+      );
     const windDirections = forecast
       .map((row) => row?.conditions?.windDirection)
-      .filter((value): value is number => typeof value === "number" && !Number.isNaN(value));
+      .filter(
+        (value): value is number =>
+          typeof value === "number" && !Number.isNaN(value)
+      );
 
     const avgWindSpeed = average(windSpeeds);
     const avgWindGust = average(windGusts);
@@ -387,10 +432,7 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
       avgWindDirection != null ? Math.round(avgWindDirection) : undefined;
 
     if (resolvedWindSpeed != null) {
-      const windIntensity = clampIntensity(
-        resolvedWindSpeed,
-        WIND_SPEED_CAP
-      );
+      const windIntensity = clampIntensity(resolvedWindSpeed, WIND_SPEED_CAP);
 
       nextStats.push({
         type: "wind",
@@ -506,7 +548,9 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
         : new Date(targetDateValue ?? timeWindow.dayStart);
       const formatClock = (raw: string | null | undefined) => {
         if (!raw) return undefined;
-        const match = /^([0-9]{1,2}):([0-9]{2})(?::([0-9]{2}))?/.exec(raw.trim());
+        const match = /^([0-9]{1,2}):([0-9]{2})(?::([0-9]{2}))?/.exec(
+          raw.trim()
+        );
         if (!match) return undefined;
         const h = Number(match[1]);
         const m = Number(match[2]);
@@ -543,10 +587,16 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
 
     const waterTemps = forecast
       .map((row) => row?.conditions?.waterTemp)
-      .filter((value): value is number => typeof value === "number" && !Number.isNaN(value));
+      .filter(
+        (value): value is number =>
+          typeof value === "number" && !Number.isNaN(value)
+      );
     const airTemps = forecast
       .map((row) => row?.conditions?.airTemp)
-      .filter((value): value is number => typeof value === "number" && !Number.isNaN(value));
+      .filter(
+        (value): value is number =>
+          typeof value === "number" && !Number.isNaN(value)
+      );
 
     const waterTempHigh =
       waterTemps.length > 0 ? Math.round(Math.max(...waterTemps)) : undefined;
@@ -559,7 +609,10 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
 
     const weatherCodes = forecast
       .map((row) => row?.conditions?.weather)
-      .filter((value): value is number => typeof value === "number" && !Number.isNaN(value));
+      .filter(
+        (value): value is number =>
+          typeof value === "number" && !Number.isNaN(value)
+      );
 
     let dominantWeatherCode: number | null = null;
     if (weatherCodes.length > 0) {
@@ -585,9 +638,13 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
         airTempHigh,
         airTempLow,
         waterTempPercent:
-          waterTempHigh != null ? clampIntensity(waterTempHigh, TEMP_CAP) : undefined,
+          waterTempHigh != null
+            ? clampIntensity(waterTempHigh, TEMP_CAP)
+            : undefined,
         airTempPercent:
-          airTempHigh != null ? clampIntensity(airTempHigh, TEMP_CAP) : undefined,
+          airTempHigh != null
+            ? clampIntensity(airTempHigh, TEMP_CAP)
+            : undefined,
         weatherCode: dominantWeatherCode,
       });
     }
@@ -602,7 +659,14 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
       const keys: string[] =
         typeof FEATURE_COLUMNS !== "undefined" && Array.isArray(FEATURE_COLUMNS)
           ? (FEATURE_COLUMNS as string[])
-          : ["FISHING", "RESTROOMS", "PARKING", "DOG_FRIEND", "SNDY_BEACH", "LIFEGUARD"];
+          : [
+              "FISHING",
+              "RESTROOMS",
+              "PARKING",
+              "DOG_FRIEND",
+              "SNDY_BEACH",
+              "LIFEGUARD",
+            ];
       for (const key of keys) {
         const val = (beachDetails as any)[key];
         if (val === true) {
@@ -623,9 +687,7 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
     }
     const topTags = featureTags.slice(0, 5);
     setTags(topTags);
-    if (topTags.length > 0) {
-      nextStats.push({ type: "features", tags: topTags });
-    }
+    nextStats.push({ type: "features", tags: topTags });
 
     if (nextStats.length > 0) {
       statsRef.current = nextStats;
@@ -1130,7 +1192,7 @@ const Summary = ({ beachId, date }: { beachId?: string; date?: Date }) => {
                   "animate-pulse",
                 stat.type === "features"
                   ? "col-span-2 @min-md:col-span-3 @min-4xl:col-span-6"
-                  : "min-h-35"
+                  : "min-h-43"
               )}
             >
               <div className="flex items-start justify-between">

@@ -15,6 +15,8 @@ const StatTable = dynamic<React.ComponentProps<any>>(
   () => import("../../visuals/StatTable").then((m) => m.default),
   {
     ssr: false,
+    // TODO(overview-perf): Keep this skeleton in sync with StatTable's eventual height
+    // and row count across daily/weekly modes to minimize layout shifts when data loads.
     loading: () => (
       <div className="rounded-2xl border border-border bg-highlight-2 p-4">
         <ul>

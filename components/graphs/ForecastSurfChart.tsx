@@ -37,10 +37,9 @@ import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
 import { buildYAxisTicks } from "@/components/graphs/yAxisTicks";
 import { useSunData } from "@/components/context/SunDataContext";
 import { buildSunSegmentsForRange } from "@/components/graphs/sunSegments";
-import { ChartLoadingCover } from "./ChartLoadingCover";
 import {
   useForecastChartLoading,
-  useForecastChartsLoadingState,
+  useForecastChartsBusyState,
 } from "../context/ForecastChartsLoadingContext";
 
 const chartConfig = {
@@ -687,30 +686,45 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
     setHoveredHour(null);
   }, [setHoveredHour]);
 
+  const [stableSelectedHour, setStableSelectedHour] = useState<number | null>(
+    null
+  );
   const { setReady } = useForecastChartLoading("forecast-surf");
+  const dashboardBusy = useForecastChartsBusyState();
+
+  // Mark this widget as not ready whenever its local loading flag is true.
   useEffect(() => {
-    setReady(!loading && sunReady);
+    if (loading) {
+      setReady(false);
+    }
+  }, [loading, setReady]);
+
+  // Mark ready only after data and sun/shading are fully ready.
+  useEffect(() => {
+    if (!loading && sunReady) {
+      setReady(true);
+    }
   }, [loading, sunReady, setReady]);
-  const globalLoading = useForecastChartsLoadingState();
+
+  useEffect(() => {
+    if (!dashboardBusy) {
+      setStableSelectedHour(selectedHour ?? null);
+    }
+  }, [dashboardBusy, selectedHour]);
 
   return (
     <div className="w-full">
-      <div
-        ref={containerRef}
-        className="relative w-full"
-        style={{
-          height: 300,
-          overflow: "hidden",
-          background: "transparent",
-          contain: "layout style paint",
-          willChange: "transform",
-        }}
-      >
-        <ChartLoadingCover
-          show={(loading || !sunReady) && !globalLoading}
-          message="Loading surf forecast"
-          className="rounded-xl"
-        />
+        <div
+          ref={containerRef}
+          className="relative w-full"
+          style={{
+            height: 300,
+            overflow: "hidden",
+            background: "transparent",
+            contain: "layout style paint",
+            willChange: "transform",
+          }}
+        >
         {/* prev/next buttons */}
         <button
           aria-label="Back one day"
@@ -923,11 +937,14 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                 {/* Selected hour marker */}
                 {(() => {
                   try {
+                    const effectiveHour =
+                      stableSelectedHour ?? selectedHour ?? null;
                     const base =
                       normalizedDays && normalizedDays.length > 0
                         ? normalizedDays[0]
                         : null;
-                    if (!base || !selectedDate) return null;
+                    if (!base || !selectedDate || effectiveHour == null)
+                      return null;
                     const baseMid = new Date(
                       base.getFullYear(),
                       base.getMonth(),
@@ -941,7 +958,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                     const dayDelta = Math.floor(
                       (selMid - baseMid) / (24 * 3600 * 1000)
                     );
-                    const x = dayDelta * 24 + (selectedHour ?? 0);
+                    const x = dayDelta * 24 + effectiveHour;
                     if (x < 0 || x > totalFetchedDays * 24) return null;
                     return (
                       <ReferenceLine

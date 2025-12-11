@@ -7,9 +7,6 @@ import { usePathname } from "next/navigation";
 
 const Loading = () => {
   const [smallScreen, setSmallScreen] = React.useState<boolean | null>(null);
-  const mobileMapHeight = "calc(100dvh)";
-
-  // 3xl - 768px
 
   React.useEffect(() => {
     const handleResize = () => {
@@ -28,52 +25,38 @@ const Loading = () => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  const pathName = usePathname() ?? "";
-  if (pathName.endsWith("/edit")) return;
-
   const isDesktop = smallScreen === false;
+  const wrapperHeight = smallScreen
+    ? {
+        minHeight: "calc(100dvh)",
+        height: "calc(100dvh)",
+      }
+    : {
+        minHeight: "28rem",
+      };
+
+  const pathName = usePathname() ?? "";
+  if (pathName.endsWith("/edit")) return null;
 
   return (
-    // <div
-    //   className={cn(
-    //     "pl-3 py-3 w-full h-full @min-3xl:h-[calc(100vh-5.5rem)]",
-    //     !pathName.endsWith("/beaches") && "max-w-200"
-    //   )}
-    // >
-    //   <div
-    //     className={cn(
-    //       "fixed @min-3xl:sticky w-full h-full @min-3xl:h-[calc(100vh-5.5rem)] animate-pulse bg-highlight-5 rounded-2xl"
-    //     )}
-    //   />
-    // </div>
-    // <div
-    //   className={cn(
-    //     "fixed @min-3xl:sticky @min-3xl:flex-1 h-full w-full @min-3xl:h-[calc(100vh-7rem)] @min-3xl:mt-3 animate-pulse bg-highlight-5 @min-3xl:rounded-2xl",
-    //     !pathName.endsWith("/beaches") && "max-w-200"
-    //   )}
-    // />
-    <div
+    <aside
+      id="map-container"
       className={cn(
-        "relative w-full min-h-[calc(100dvh-6.25rem)] @min-4xl:flex-1 @min-4xl:sticky @min-4xl:top-[5.5rem] @min-4xl:h-[calc(100vh-5.5rem)] @min-4xl:pl-3 @min-4xl:pt-3 bg-highlight-5 animate-pulse rounded-none @min-4xl:rounded-2xl transition-all duration-300"
-        // !(pathName.endsWith("/beaches") || pathName.endsWith("/overview")) &&
-        //   "@min-3xl:max-w-200"
+        "fixed w-full mx-auto max-w-screen transition-all duration-300",
+        "@min-4xl:sticky @min-4xl:top-[7.5rem] @min-4xl:flex-1 @min-4xl:py-3 @min-4xl:pl-5 @min-4xl:pr-3 @min-4xl:h-[calc(100vh-8rem)] flex"
       )}
-      style={
-        isDesktop
-          ? undefined
-          : {
-              minHeight: mobileMapHeight,
-              height: mobileMapHeight,
-            }
-      }
-    />
-    // <div
-    //   className={cn(
-    //     "relative w-full h-[320px] sm:h-[380px] @min-3xl:flex-1 @min-3xl:sticky @min-3xl:top-[5.5rem] @min-3xl:h-[calc(100vh-5.5rem)] @min-3xl:pl-3 @min-3xl:pt-3 bg-highlight-5 animate-pulse rounded-2xl transition-all duration-300",
-    //     !(pathName.endsWith("/beaches") || pathName.endsWith("/overview")) &&
-    //       "@min-3xl:max-w-200"
-    //   )}
-    // />
+      style={isDesktop ? undefined : wrapperHeight}
+    >
+      <div
+        className="relative w-full h-full animate-pulse bg-highlight-5"
+        style={{
+          ...wrapperHeight,
+          borderRadius: !smallScreen ? "18px" : "0px",
+          boxShadow: "0px 0px 5px rgba(0, 0, 0, 0.2)",
+          overflow: "hidden",
+        }}
+      />
+    </aside>
   );
 };
 

@@ -17,7 +17,7 @@ const tideChartImport = () => import("../../graphs/TideChart");
 const TideChartLazy = dynamic<Props>(tideChartImport, {
   ssr: false,
   loading: () => (
-    <div className="animate-pulse bg-highlight-5 rounded-2xl h-[250px] w-full" />
+    <div className="animate-pulse bg-highlight-5 rounded-2xl h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px] w-full" />
   ),
 });
 

@@ -33,6 +33,8 @@ import {
   type WidgetId,
   type WidgetMeta,
 } from "./dashboardLayout";
+import { useForecastData } from "../context/ForecastDataContext";
+import { useForecastChartsLoadingState } from "../context/ForecastChartsLoadingContext";
 
 // ------------------------------------------------------
 
@@ -69,6 +71,8 @@ const ForecastBridge: React.FC<Props> = ({
   // whether the picker is visible in the viewport; default true so compact bar is NOT shown on SSR/initial render.
   const [, setIsPickerVisible] = useState<boolean>(true);
 
+  // TODO(overview-perf): Introduce a shared multi-day forecast data context alongside this layout
+  // state so all forecast charts and tables can reuse the same rows instead of fetching per-widget.
   const forecastDefaults = useMemo(() => getDefaultLayout("forecast"), []);
   const [layoutMeta, setLayoutMeta] = useState<
     Partial<Record<WidgetId, WidgetMeta>>
@@ -76,6 +80,7 @@ const ForecastBridge: React.FC<Props> = ({
   const [layoutRows, setLayoutRows] = useState<Row[]>(
     () => forecastDefaults.rows
   );
+  const [layoutHydrated, setLayoutHydrated] = useState(false);
   const storageMetaKey = useMemo(
     () => getDashboardStorageKey("forecast", "meta"),
     []
@@ -87,6 +92,9 @@ const ForecastBridge: React.FC<Props> = ({
   const supabase = useSupabaseClient();
   const { session } = useSessionContext();
   const { prefetchSunData } = useSunData();
+  const { rows: forecastRows, loading: forecastLoading } = useForecastData();
+  const chartsLoading = useForecastChartsLoadingState();
+
 
   useEffect(() => {
     setIsMounted(true);
@@ -142,6 +150,7 @@ const ForecastBridge: React.FC<Props> = ({
       if (cancelled) return;
       setLayoutMeta(nextMeta);
       setLayoutRows(nextRows);
+      setLayoutHydrated(true);
     };
 
     const loadFromLocalStorage = () => {
@@ -248,7 +257,7 @@ const ForecastBridge: React.FC<Props> = ({
 
     return {
       stats: (
-        <VisualWrapper label="Forecast Overview">
+        <VisualWrapper label="Forecast Overview" loading={chartsLoading}>
           <div className="space-y-2 text-sm text-muted-foreground">
             <p className="font-medium text-foreground">{windowString}</p>
             <p>
@@ -259,7 +268,12 @@ const ForecastBridge: React.FC<Props> = ({
         </VisualWrapper>
       ),
       tide: (
-        <VisualWrapper label="Tide" extraPadding unit="ft">
+        <VisualWrapper
+          label="Tide"
+          extraPadding
+          unit="ft"
+          loading={chartsLoading}
+        >
           <LazyLoadForecastTide
             beachId={beachId}
             date={firstDay}
@@ -268,32 +282,51 @@ const ForecastBridge: React.FC<Props> = ({
         </VisualWrapper>
       ),
       surf: (
-        <VisualWrapper extraPadding label="Surf" unit="ft">
+        <VisualWrapper
+          extraPadding
+          label="Surf"
+          unit="ft"
+          loading={chartsLoading}
+        >
           <LazyLoadForecastSurf beachId={beachId} days={selectedDays} />
         </VisualWrapper>
       ),
       wind: (
-        <VisualWrapper extraPadding label="Wind" unit="mph">
+        <VisualWrapper
+          extraPadding
+          label="Wind"
+          unit="mph"
+          loading={chartsLoading}
+        >
           <LazyLoadForecastWind beachId={beachId} days={selectedDays} />
         </VisualWrapper>
       ),
       surfAndWind: (
         <div className="w-full flex flex-col @min-2xl:flex-row gap-6">
-          <VisualWrapper label="Wind" unit="mph">
+          <VisualWrapper label="Wind" unit="mph" loading={chartsLoading}>
             <LazyLoadForecastWind beachId={beachId} days={selectedDays} />
           </VisualWrapper>
-          <VisualWrapper label="Surf" unit="ft">
+          <VisualWrapper label="Surf" unit="ft" loading={chartsLoading}>
             <LazyLoadForecastSurf beachId={beachId} days={selectedDays} />
           </VisualWrapper>
         </div>
       ),
       energy: (
-        <VisualWrapper extraPadding label="Energy" unit="kJ">
+        <VisualWrapper
+          extraPadding
+          label="Energy"
+          unit="kJ"
+          loading={chartsLoading}
+        >
           <LazyLoadForecastWaveEnergy beachId={beachId} days={selectedDays} />
         </VisualWrapper>
       ),
       table: (
-        <VisualWrapper label="Daily" unit="12 hrs">
+        <VisualWrapper
+          label="Daily"
+          unit="12 hrs"
+          loading={chartsLoading}
+        >
           <LazyLoadTable
             beachId={beachId}
             numHours={3}
@@ -304,12 +337,17 @@ const ForecastBridge: React.FC<Props> = ({
         </VisualWrapper>
       ),
       swell: (
-        <VisualWrapper extraPadding label="Swell" unit="ft">
+        <VisualWrapper
+          extraPadding
+          label="Swell"
+          unit="ft"
+          loading={chartsLoading}
+        >
           <LazyLoadForecastSwell beachId={beachId} days={selectedDays} />
         </VisualWrapper>
       ),
     } as const;
-  }, [beachId, selected, selectedDays, windowString]);
+  }, [beachId, selected, selectedDays, windowString, chartsLoading]);
 
   return (
     <section
@@ -362,7 +400,9 @@ const ForecastBridge: React.FC<Props> = ({
           </Link>
         </div> */}
         <div className="flex flex-col">
-          {visibleRows.length === 0 ? (
+          {!layoutHydrated ? (
+            <div className="mx-2 mt-4 mb-4 w-full min-h-[720px] rounded-2xl bg-highlight-4 border border-border/40 animate-pulse" />
+          ) : visibleRows.length === 0 ? (
             <p className="mx-2 mt-4 text-sm text-muted-foreground">
               All widgets are hidden. Use the edit page to re-enable panels for
               the forecast view.
