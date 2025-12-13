@@ -75,6 +75,16 @@ type Props = { beachId?: string; days?: Date[] | null };
 const HOURS_PER_DAY = 24;
 const VISIBLE_DAYS = 4;
 const MIN_DAY_PX = 275; // minimum pixels per day to keep UI usable
+const CHART_LEFT_MARGIN = 0;
+const CHART_RIGHT_MARGIN = 15;
+const Y_AXIS_WIDTH = 30;
+const DAY_LABEL_INSET = 6;
+const Y_AXIS_OFFSET_VAR = "--forecast-y-axis-offset";
+const Y_AXIS_TICK = {
+  fill: "var(--foreground)",
+  fontWeight: 700,
+  filter: "drop-shadow(0 0 4px var(--background))",
+} as const;
 
 const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
   const { setPanFraction, subscribePan } = useForecastChartContext();
@@ -138,6 +148,10 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
     () => Math.min(containerWidth || 0, dayPx * VISIBLE_DAYS),
     [containerWidth, dayPx]
   );
+  const dataAreaWidth = chartInnerWidth - CHART_LEFT_MARGIN - CHART_RIGHT_MARGIN - Y_AXIS_WIDTH;
+  const dayLabelLeftOffset = CHART_LEFT_MARGIN + Y_AXIS_WIDTH;
+  const dayLabelColumnWidth = dataAreaWidth / totalFetchedDays;
+  const dayLabelAvailableWidth = totalFetchedDays * dayLabelColumnWidth;
 
   // helpers: clamp translate (px)
   const clampTranslatePx = useCallback(
@@ -158,6 +172,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
       } else {
         node.style.transition = "none";
       }
+      node.style.setProperty(Y_AXIS_OFFSET_VAR, `${px}px`);
       node.style.transform = `translate3d(-${px}px,0,0)`;
       currentTranslateRef.current = px;
     },
@@ -705,13 +720,14 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
         >
           {/* Day label bar */}
           <div
-            className="w-[95.5%] flex justify-between"
             style={{
               position: "absolute",
               zIndex: 40,
-              left: "3%",
+              left: dayLabelLeftOffset,
               top: -65,
-              boxSizing: "border-box",
+              width: dayLabelAvailableWidth,
+              display: "grid",
+              gridTemplateColumns: `repeat(${totalFetchedDays}, ${dayLabelColumnWidth}px)`,
               pointerEvents: "none",
             }}
           >
@@ -719,18 +735,17 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
               <div
                 key={idx}
                 style={{
-                  flex: 1,
-                  minWidth: 0,
-                  textAlign: "center",
-                  borderRadius: 8,
-                  padding: "6px 6px",
+                  boxSizing: "border-box",
+                  width: "100%",
+                  display: "flex",
+                  justifyContent: "center",
                   fontWeight: 700,
                   fontSize: 13,
                   color: "var(--foreground)",
                   pointerEvents: "none",
                 }}
               >
-                <div className="flex justify-between whitespace-nowrap px-3 py-2 rounded-lg bg-highlight-5">
+                <div className="flex justify-between whitespace-nowrap px-3 py-2 rounded-lg bg-highlight-5" style={{ width: "95%" }}>
                   <span className="flex flex-col items-start">
                     <span className="text-xs font-medium">
                       {label.split(",")[1]}
@@ -778,7 +793,12 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                 accessibilityLayer={false}
                 width={chartInnerWidth}
                 data={swellData}
-                margin={{ left: -25, right: 15, bottom: 5, top: 0 }}
+                margin={{
+                  left: CHART_LEFT_MARGIN,
+                  right: 15,
+                  bottom: 5,
+                  top: 0,
+                }}
                 syncId="allCharts"
                 syncMethod={syncToNearestThirdHour}
                 onMouseMove={handleMouseMove}
@@ -876,12 +896,21 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                   selectedHour={selectedHour}
                 />
                 <YAxis
+                  width={Y_AXIS_WIDTH}
                   allowDecimals={false}
                   tickLine={false}
-                  axisLine={false}
+                  axisLine={{
+                    stroke: "var(--border)",
+                    strokeWidth: 1.25,
+                    opacity: 0.85,
+                  }}
                   tickMargin={8}
                   fontSize={11}
+                  tick={Y_AXIS_TICK}
                   domain={[0, (dataMax: number) => Math.ceil(dataMax + 2)]}
+                  style={{
+                    transform: `translateX(var(${Y_AXIS_OFFSET_VAR}, 0px))`,
+                  }}
                 />
                 {/* <ChartLegend content={<ChartLegendContent />} /> */}
                 <ChartTooltip

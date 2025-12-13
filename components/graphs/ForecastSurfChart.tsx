@@ -59,6 +59,16 @@ type Props = { beachId?: string; days?: Date[] | null };
 const HOURS_PER_DAY = 24;
 const VISIBLE_DAYS = 4;
 const MIN_DAY_PX = 275;
+const CHART_LEFT_MARGIN = 0;
+const CHART_RIGHT_MARGIN = 15;
+const Y_AXIS_WIDTH = 30;
+const DAY_LABEL_INSET = 6;
+const Y_AXIS_OFFSET_VAR = "--forecast-y-axis-offset";
+const Y_AXIS_TICK = {
+  fill: "var(--foreground)",
+  fontWeight: 700,
+  filter: "drop-shadow(0 0 4px var(--background))",
+} as const;
 
 const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
   const { setPanFraction, subscribePan } = useForecastChartContext();
@@ -149,6 +159,14 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
     () => Math.min(containerWidth || 0, dayPx * VISIBLE_DAYS),
     [containerWidth, dayPx]
   );
+  const xAxisLeftPadding = useMemo(
+    () => Math.max(6, axisPadding / 2),
+    [axisPadding]
+  );
+  const dayLabelLeftOffset = CHART_LEFT_MARGIN + Y_AXIS_WIDTH;
+  const dataAreaWidth = chartInnerWidth - CHART_LEFT_MARGIN - CHART_RIGHT_MARGIN - Y_AXIS_WIDTH;
+  const dayLabelColumnWidth = dataAreaWidth / totalFetchedDays;
+  const dayLabelAvailableWidth = totalFetchedDays * dayLabelColumnWidth;
 
   // helpers: clamp translate (px)
   const clampTranslatePx = useCallback(
@@ -169,6 +187,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
       } else {
         node.style.transition = "none";
       }
+      node.style.setProperty(Y_AXIS_OFFSET_VAR, `${px}px`);
       node.style.transform = `translate3d(-${px}px,0,0)`;
       currentTranslateRef.current = px;
     },
@@ -768,13 +787,14 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
         >
           {/* Day label bar */}
           <div
-            className="w-[95.5%] flex justify-between"
             style={{
               position: "absolute",
               zIndex: 40,
-              left: "3%",
+              left: dayLabelLeftOffset,
               top: -65,
-              boxSizing: "border-box",
+              width: dayLabelAvailableWidth,
+              display: "grid",
+              gridTemplateColumns: `repeat(${totalFetchedDays}, ${dayLabelColumnWidth}px)`,
               pointerEvents: "none",
             }}
           >
@@ -782,18 +802,17 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
               <div
                 key={idx}
                 style={{
-                  flex: 1,
-                  minWidth: 0,
-                  textAlign: "center",
-                  borderRadius: 8,
-                  padding: "6px 6px",
+                  boxSizing: "border-box",
+                  width: "100%",
+                  display: "flex",
+                  justifyContent: "center",
                   fontWeight: 700,
                   fontSize: 13,
                   color: "var(--foreground)",
                   pointerEvents: "none",
                 }}
               >
-                <div className="flex justify-between whitespace-nowrap px-3 py-2 rounded-lg bg-highlight-5">
+                <div className="flex justify-between whitespace-nowrap px-3 py-2 rounded-lg bg-highlight-5" style={{ width: "95%" }}>
                   <span className="flex flex-col items-start">
                     <span className="text-xs font-medium">
                       {label.split(",")[1]}
@@ -841,7 +860,12 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                 accessibilityLayer={false}
                 width={chartInnerWidth}
                 data={surfData}
-                margin={{ left: -25, right: 15, bottom: 5, top: 0 }}
+                margin={{
+                  left: CHART_LEFT_MARGIN,
+                  right: 15,
+                  bottom: 5,
+                  top: 0,
+                }}
                 syncId="allCharts"
                 syncMethod={syncToNearestThirdHour}
                 onMouseMove={handleMouseMove}
@@ -862,15 +886,19 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                   }
                 })}
                 {dayAreas.map((a, idx) => {
-                  const extendLeft = idx === 0 && a.x1 <= 0 + 1e-3;
+                  const extendLeft = idx === 0 && a.x1 <= 1e-3;
                   const extendRight =
                     idx === dayAreas.length - 1 &&
                     Math.abs(a.x2 - hoursSpan) <= 1e-3;
+                  const x1 = extendLeft
+                    ? Math.max(-edgePadHours * 0.6, a.x1 - edgePadHours)
+                    : a.x1;
+                  const x2 = extendRight ? a.x2 + edgePadHours : a.x2;
                   return (
                     <ReferenceArea
                       key={`day-${idx}`}
-                      x1={extendLeft ? a.x1 - edgePadHours : a.x1}
-                      x2={extendRight ? a.x2 + edgePadHours : a.x2}
+                      x1={x1}
+                      x2={x2}
                       fill="#FFE58F"
                       fillOpacity={0.2}
                       ifOverflow="visible"
@@ -882,14 +910,18 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                   const isLast = idx === nightAreas.length - 1;
                   const x1 = isFirst ? 0 : a.x1 ?? 0;
                   const x2 = isLast ? hoursSpan : a.x2 ?? hoursSpan;
-                  const extendLeft = isFirst && x1 <= 0 + 1e-3;
+                  const extendLeft = isFirst && x1 <= 1e-3;
                   const extendRight =
                     isLast && Math.abs(x2 - hoursSpan) <= 1e-3;
+                  const safeX1 = extendLeft
+                    ? Math.max(-edgePadHours * 0.6, x1 - edgePadHours)
+                    : x1;
+                  const safeX2 = extendRight ? x2 + edgePadHours : x2;
                   return (
                     <ReferenceArea
                       key={`night-${idx}`}
-                      x1={extendLeft ? x1 - edgePadHours : x1}
-                      x2={extendRight ? x2 + edgePadHours : x2}
+                      x1={safeX1}
+                      x2={safeX2}
                       fill="#ccc1ffff"
                       fillOpacity={0.2}
                       ifOverflow="visible"
@@ -906,21 +938,33 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                   fontSize={11}
                   domain={[0, totalFetchedDays * 24]}
                   ticks={hourTicks}
-                  padding={{ left: axisPadding, right: axisPadding }}
+                  padding={{
+                    left: Math.max(6, axisPadding / 2),
+                    right: axisPadding,
+                  }}
                   tickFormatter={(v: number) =>
                     v % 3 === 0 ? String(v % 12 === 0 ? 12 : v % 12) : ""
                   }
                 />
                 <YAxis
+                  width={Y_AXIS_WIDTH}
                   tickLine={false}
-                  axisLine={false}
+                  axisLine={{
+                    stroke: "var(--border)",
+                    strokeWidth: 1.25,
+                    opacity: 0.85,
+                  }}
                   tickMargin={8}
                   fontSize={11}
+                  tick={Y_AXIS_TICK}
                   domain={[
                     surfTicks[0] ?? 0,
                     surfTicks[surfTicks.length - 1] ?? 6,
                   ]}
                   ticks={surfTicks}
+                  style={{
+                    transform: `translateX(var(${Y_AXIS_OFFSET_VAR}, 0px))`,
+                  }}
                 />
                 <ChartTooltip
                   content={<ChartTooltipContent />}

@@ -52,6 +52,16 @@ const HOURS_PER_DAY = 24;
 const VISIBLE_HOURS = VISIBLE_DAYS * HOURS_PER_DAY;
 const FETCH_DAYS = VISIBLE_DAYS; // fetch one extra day to allow forward pan
 const MIN_DAY_PX = 275; // minimum pixels per day to keep UI usable on tiny screens
+const CHART_LEFT_MARGIN = 0;
+const CHART_RIGHT_MARGIN = 15;
+const Y_AXIS_WIDTH = 30;
+const DAY_LABEL_INSET = 6;
+const Y_AXIS_OFFSET_VAR = "--forecast-y-axis-offset";
+const Y_AXIS_TICK = {
+  fill: "var(--foreground)",
+  fontWeight: 700,
+  filter: "drop-shadow(0 0 4px var(--background))",
+} as const;
 
 type Props = { beachId?: string; date?: Date; days?: Date[] };
 type TidePoint = { hour: number; tide: number; isPeak?: number };
@@ -177,6 +187,10 @@ export default React.memo(function ForecastTideChart({
     () => totalFetchedDays * dayPx,
     [totalFetchedDays, dayPx]
   );
+  const dataAreaWidth = chartInnerWidth - CHART_LEFT_MARGIN - CHART_RIGHT_MARGIN - Y_AXIS_WIDTH;
+  const dayLabelLeftOffset = CHART_LEFT_MARGIN + Y_AXIS_WIDTH;
+  const dayLabelColumnWidth = dataAreaWidth / totalFetchedDays;
+  const dayLabelAvailableWidth = totalFetchedDays * dayLabelColumnWidth;
   const viewportWidth = useMemo(
     () => Math.min(containerWidth || 0, dayPx * VISIBLE_DAYS),
     [containerWidth, dayPx]
@@ -211,6 +225,7 @@ export default React.memo(function ForecastTideChart({
       } else {
         node.style.transition = "none";
       }
+      node.style.setProperty(Y_AXIS_OFFSET_VAR, `${px}px`);
       node.style.transform = `translate3d(-${px}px,0,0)`;
       currentTranslateRef.current = px;
       // IMPORTANT: intentionally do NOT call setIsAtRightEdge here to avoid re-renders per-frame
@@ -910,43 +925,34 @@ export default React.memo(function ForecastTideChart({
             touchAction: "pan-y",
           }}
         >
-          {/* Day label bar (4 filled boxes) — fixed in viewport and aligned to visible days */}
+          {/* Day label bar (4 filled boxes) - fixed in viewport and aligned to visible days */}
           <div
-            className="w-[95.5%] flex justify-between"
             style={{
               position: "absolute",
               zIndex: 40,
-              left: "3%",
+              left: dayLabelLeftOffset,
               top: -65,
-              boxSizing: "border-box",
+              width: dayLabelAvailableWidth,
+              display: "grid",
+              gridTemplateColumns: `repeat(${totalFetchedDays}, ${dayLabelColumnWidth}px)`,
               pointerEvents: "none",
             }}
           >
             {dayLabels?.map((label, idx) => (
               <div
                 key={idx}
-                className=""
                 style={{
-                  flex: 1,
-                  minWidth: 0,
-                  textAlign: "center",
-                  borderRadius: 8,
-                  padding: "6px 6px",
+                  boxSizing: "border-box",
+                  width: "100%",
+                  display: "flex",
+                  justifyContent: "center",
                   fontWeight: 700,
                   fontSize: 13,
                   color: "var(--foreground)",
                   pointerEvents: "none",
                 }}
               >
-                {/* <div className="flex flex-col @min-sm:whitespace-nowrap max-w-15 mx-auto p-1 pt-1.5 rounded-xl bg-highlight-5">
-                  <span className="text-xs font-medium">
-                    {label.split(",")[1]}
-                  </span>
-                  <span className="text-sm font-bold">
-                    {label.split(",")[0]}
-                  </span>
-                </div> */}
-                <div className="flex justify-between @min-sm:whitespace-nowrap px-3 py-2 rounded-lg bg-highlight-5">
+                <div className="flex justify-between whitespace-nowrap px-3 py-2 rounded-lg bg-highlight-5" style={{ width: "95%" }}>
                   <span className="flex flex-col items-start">
                     <span className="text-xs font-medium">
                       {label.split(",")[1]}
@@ -996,7 +1002,12 @@ export default React.memo(function ForecastTideChart({
                 width={chartInnerWidth}
                 // height={200}
                 data={data}
-                margin={{ left: -25, right: 15, bottom: 5, top: 0 }}
+                margin={{
+                  left: CHART_LEFT_MARGIN,
+                  right: CHART_RIGHT_MARGIN,
+                  bottom: 5,
+                  top: 0,
+                }}
                 syncId="allCharts"
                 syncMethod="value"
                 onMouseMove={handleMouseMove}
@@ -1060,10 +1071,16 @@ export default React.memo(function ForecastTideChart({
                 />
                 <YAxis
                   dataKey="tide"
+                  width={Y_AXIS_WIDTH}
                   tickLine={false}
-                  axisLine={false}
+                  axisLine={{
+                    stroke: "var(--border)",
+                    strokeWidth: 1.25,
+                    opacity: 0.85,
+                  }}
                   tickMargin={8}
                   fontSize={11}
+                  tick={Y_AXIS_TICK}
                   domain={[
                     (dataMin: number) =>
                       Number.isFinite(dataMin) ? Math.floor(dataMin) - 4 : 0,
@@ -1072,6 +1089,9 @@ export default React.memo(function ForecastTideChart({
                         ? Math.max(Math.ceil(dataMax) + 4, 8)
                         : 8,
                   ]}
+                  style={{
+                    transform: `translateX(var(${Y_AXIS_OFFSET_VAR}, 0px))`,
+                  }}
                 />
                 {/* Selected hour marker */}
                 {(() => {

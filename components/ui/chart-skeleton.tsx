@@ -12,6 +12,16 @@ export const ChartSkeleton: React.FC<ChartSkeletonProps> = ({
   showControls = true,
   height = "h-64",
 }) => {
+  // Deterministic heights prevent hydration jitter/layout shifts between renders
+  const barHeights = React.useMemo(
+    () =>
+      Array.from({ length: 24 }, (_, i) => {
+        const wave = Math.sin(i * 0.35) * 30 + 50; // 20% - 80% range with a smooth wave
+        return Math.min(80, Math.max(20, Math.round(wave)));
+      }),
+    []
+  );
+
   return (
     <div className={cn("w-full space-y-4 animate-pulse", className)}>
       {/* Chart area */}
@@ -25,16 +35,13 @@ export const ChartSkeleton: React.FC<ChartSkeletonProps> = ({
 
         {/* Chart bars/lines skeleton */}
         <div className="absolute left-14 right-4 top-4 bottom-12 flex items-end justify-around gap-1">
-          {[...Array(24)].map((_, i) => {
-            const randomHeight = Math.random() * 60 + 20; // 20-80% height
-            return (
-              <div
-                key={i}
-                className="flex-1 bg-muted rounded-t"
-                style={{ height: `${randomHeight}%` }}
-              />
-            );
-          })}
+          {barHeights.map((height, i) => (
+            <div
+              key={i}
+              className="flex-1 bg-muted rounded-t"
+              style={{ height: `${height}%` }}
+            />
+          ))}
         </div>
 
         {/* X-axis labels skeleton */}
