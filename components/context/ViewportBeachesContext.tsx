@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import type { BeachPoint } from "@/components/context/MapFilterContext";
-import type { VisibleMapBounds } from "@/components/context/MapViewportContext";
 
 export type VisibleViewportBounds = {
   south: number;
@@ -61,11 +60,11 @@ export const ViewportBeachesProvider = ({
 }) => {
   const [camera, setCamera] = React.useState<ViewportCamera>(DEFAULT_CAMERA);
   const [pendingBounds, setPendingBounds] =
-    React.useState<VisibleMapBounds>(null);
+    React.useState<VisibleViewportBounds>(null);
   const [committedBounds, setCommittedBounds] =
-    React.useState<VisibleMapBounds>(null);
+    React.useState<VisibleViewportBounds>(null);
   const [searchBounds, setSearchBounds] =
-    React.useState<VisibleMapBounds>(null);
+    React.useState<VisibleViewportBounds>(null);
   const [status, setStatus] = React.useState<ViewportStatus>("idle");
   const [beaches, setBeaches] = React.useState<BeachPoint[]>([]);
   const [error, setError] = React.useState<Error | null>(null);
@@ -80,7 +79,7 @@ export const ViewportBeachesProvider = ({
   }, []);
 
   const boundsEqual = React.useCallback(
-    (a: VisibleMapBounds, b: VisibleMapBounds) => {
+    (a: VisibleViewportBounds, b: VisibleViewportBounds) => {
       if (!a || !b) return false;
       return (
         a.south === b.south &&
@@ -111,7 +110,7 @@ export const ViewportBeachesProvider = ({
       zoom,
       center,
     }: {
-      bounds: VisibleMapBounds;
+      bounds: VisibleViewportBounds;
       zoom: number;
       center?: { longitude: number; latitude: number };
     }) => {
@@ -157,7 +156,6 @@ export const ViewportBeachesProvider = ({
       pendingBounds,
       committedBounds,
       searchBounds,
-      searchBounds,
       status,
       beaches,
       error,
@@ -173,7 +171,6 @@ export const ViewportBeachesProvider = ({
       camera,
       pendingBounds,
       committedBounds,
-      searchBounds,
       searchBounds,
       status,
       beaches,

@@ -43,6 +43,7 @@ import {
   useSwellDirections,
   usePrefetchAdjacentDates,
 } from "@/lib/hooks/useBeachData";
+import { fetchSurfIntensityAPI } from "@/lib/api";
 
 type Props = {
   beachId?: string | number;
@@ -119,43 +120,138 @@ const createMarkerIcon = ({
   selected: boolean;
   hovered?: boolean;
 }) => {
-  const size = selected ? 26 : hovered ? 24 : 20;
+  // Selected marker: keep a clean circle so it works well
+  // with the direction rings overlay on the overview page.
+  const size = hovered ? 28 : 24;
   const border = favorite || hovered ? 3 : 2;
-  const borderColor = favorite ? "#facc15" : hovered ? "#60a5fa" : "#ffffff";
+  const borderColor = favorite ? "#facc15" : "#ffffff";
+  const color = getIntensityColor(intensity);
   const html = `
-    <div style="
-      width:${size}px;
-      height:${size}px;
-      border-radius:50%;
-      border:${border}px solid ${borderColor};
-      background:${getIntensityColor(intensity)};
-      box-shadow:${
-        selected
-          ? "0 0 12px rgba(23,108,255,0.45)"
-          : hovered
-          ? "0 0 10px rgba(23,108,255,0.35)"
-          : "0 1px 4px rgba(15,23,42,0.35)"
-      };
-    "></div>
-  `;
+      <div
+        class="ww-marker-circle"
+        style="
+          width:${size}px;
+          height:${size}px;
+          border-radius:999px;
+          border:${border}px solid ${borderColor};
+          background:${color};
+          box-shadow:${
+            hovered
+              ? "0 0 12px rgba(37,99,235,0.6)"
+              : "0 1px 4px rgba(15,23,42,0.35)"
+          };
+        "
+      ></div>
+    `;
   return L.divIcon({
     className: "ww-leaflet-point-icon",
     html,
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
   });
+
+  // Non-selected marker: map-style pin with a slightly larger
+  // interactive area, but visually centered on the location.
+  // const headSize = hovered ? 22 : 20;
+  // const pinWidth = 30;
+  // const pinHeight = 40;
+  // const border = favorite || hovered ? 3 : 2;
+  // const borderColor = favorite ? "#facc15" : hovered ? "#60a5fa" : "#ffffff";
+  // const color = getIntensityColor(intensity);
+  // const html = `
+  //   <div style="width:${pinWidth}px;height:${pinHeight}px;display:flex;align-items:flex-start;justify-content:center;">
+  //     <div style="position:relative;width:${headSize}px;height:${pinHeight}px;">
+  //       <div
+  //         style="
+  //           position:absolute;
+  //           left:50%;
+  //           top:0;
+  //           transform:translateX(-50%);
+  //           width:${headSize}px;
+  //           height:${headSize}px;
+  //           border-radius:999px;
+  //           border:${border}px solid ${borderColor};
+  //           background:${color};
+  //           box-shadow:${
+  //             hovered
+  //               ? "0 0 10px rgba(37,99,235,0.45)"
+  //               : "0 1px 4px rgba(15,23,42,0.35)"
+  //           };
+  //         "
+  //       ></div>
+  //       <div
+  //         style="
+  //           position:absolute;
+  //           left:50%;
+  //           top:${headSize - 2}px;
+  //           transform:translateX(-50%);
+  //           width:${headSize * 0.4}px;
+  //           height:${pinHeight - headSize}px;
+  //           border-radius:999px 999px 4px 4px;
+  //           background:${color};
+  //           filter:brightness(0.96);
+  //         "
+  //       ></div>
+  //     </div>
+  //   </div>
+  // `;
+  // return L.divIcon({
+  //   className: "ww-leaflet-point-icon",
+  //   html,
+  //   iconSize: [pinWidth, pinHeight],
+  //   iconAnchor: [pinWidth / 2, pinHeight / 2],
+  // });
 };
 
-const createClusterIcon = (count: number) => {
-  let background = "#9ed5ff";
+const createClusterIcon = (cluster: any) => {
+  const count = cluster.getChildCount();
   let size = 40;
   if (count >= 100) {
-    background = "#3f9bff";
     size = 52;
   } else if (count >= 50) {
-    background = "#69b7ff";
     size = 46;
   }
+
+  const markers: any[] = cluster.getAllChildMarkers
+    ? cluster.getAllChildMarkers()
+    : [];
+  const intensities: number[] = [];
+  markers.forEach((marker) => {
+    const v = (marker.options as any)?.wwIntensity;
+    if (typeof v === "number" && Number.isFinite(v)) {
+      intensities.push(v);
+    }
+  });
+
+  let maxIntensity = 0;
+  intensities.forEach((v) => {
+    if (v > maxIntensity) maxIntensity = v;
+  });
+
+  const hasHigh = intensities.some((v) => v >= 6);
+  const hasMed = intensities.some((v) => v >= 3 && v < 6);
+  const hasLow = intensities.some((v) => v > 0.1 && v < 3);
+
+  const segmentColors: string[] = [];
+  if (hasLow) segmentColors.push(getIntensityColor(1));
+  if (hasMed) segmentColors.push(getIntensityColor(4));
+  if (hasHigh) segmentColors.push(getIntensityColor(7));
+
+  let backgroundStyle = "#eff6ff";
+  if (segmentColors.length > 0) {
+    const step = 360 / segmentColors.length;
+    const stops: string[] = [];
+    segmentColors.forEach((color, index) => {
+      const start = index * step;
+      const end = (index + 1) * step;
+      stops.push(`${color} ${start}deg ${end}deg`);
+    });
+    const conic = `conic-gradient(${stops.join(", ")})`;
+    const radial =
+      "radial-gradient(circle at center, #eff6ff 0 62%, transparent 62%)";
+    backgroundStyle = `${radial}, ${conic}`;
+  }
+
   const html = `
     <div
       class="ww-cluster-inner"
@@ -163,9 +259,9 @@ const createClusterIcon = (count: number) => {
         width:${size}px;
         height:${size}px;
         border-radius:50%;
-        background:${background};
-        border:2px solid #ffffff;
-        color:#1f2937;
+        position:relative;
+        background:${backgroundStyle};
+        color:#0f172a;
         font-size:14px;
         font-weight:600;
         display:flex;
@@ -174,7 +270,39 @@ const createClusterIcon = (count: number) => {
         box-shadow:0 4px 12px rgba(15,23,42,0.25);
       "
     >
-      ${count}
+      <span>${count}</span>
+      <div
+        style="
+          position:absolute;
+          bottom:6px;
+          left:50%;
+          transform:translateX(-50%);
+          display:flex;
+          gap:2px;
+        "
+      >
+        ${
+          hasLow
+            ? `<span style="width:6px;height:6px;border-radius:999px;background:${getIntensityColor(
+                1
+              )};"></span>`
+            : ""
+        }
+        ${
+          hasMed
+            ? `<span style="width:6px;height:6px;border-radius:999px;background:${getIntensityColor(
+                4
+              )};"></span>`
+            : ""
+        }
+        ${
+          hasHigh
+            ? `<span style="width:6px;height:6px;border-radius:999px;background:${getIntensityColor(
+                7
+              )};"></span>`
+            : ""
+        }
+      </div>
     </div>
   `;
   return L.divIcon({
@@ -545,14 +673,10 @@ const useSurfIntensityData = (selectedDate: Date | null) => {
         return cacheRef.current[key];
       }
       try {
-        const res = await fetch(`/api/surf-intensity?date=${key}`);
-        if (!res.ok) return {};
-        const json = await res.json();
-        if (json?.success && json.data) {
-          cacheRef.current[key] = json.data;
-          return json.data;
-        }
-        return {};
+        const record = await fetchSurfIntensityAPI(date);
+        const normalized = record ?? {};
+        cacheRef.current[key] = normalized;
+        return normalized;
       } catch {
         return {};
       }
@@ -1674,6 +1798,10 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       attribution: DEFAULT_ATTRIBUTION,
       detectRetina: true,
       reuseTiles: true,
+      // Keep a small buffer of tiles around the viewport so
+      // quick zooms/pans re-use already-loaded imagery.
+      keepBuffer: 2,
+      updateWhenIdle: false,
     }).addTo(map);
     tileLayerRef.current = tileLayer;
     mapRef.current = map;
@@ -1694,8 +1822,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       chunkedLoading: true,
       chunkDelay: 5,
       chunkInterval: 80,
-      iconCreateFunction: (cluster) =>
-        createClusterIcon(cluster.getChildCount()),
+      iconCreateFunction: (cluster) => createClusterIcon(cluster),
     });
     clusterLayerRef.current = clusterGroup;
     clusterGroup.addTo(map);
@@ -1710,15 +1837,14 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       }
       cancelCommitResume();
       setAllowViewportCommit(false);
-      if (hoverStateRef.current.marker) {
-        setHoveredMarkerSource("marker", null);
-      }
+      clearHoverState();
     };
     const handleResizeEvent = () => {
       scheduleResizeRecompute();
     };
 
     const handleInteractionEnd = () => {
+      clearHoverState();
       try {
         const center = map.getCenter();
         const zoom = map.getZoom();
@@ -1735,7 +1861,12 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       scheduleCommitResume();
     };
 
+    const handleZoomStart = () => {
+      clearHoverState();
+    };
+
     map.on("movestart", handleMoveStart);
+    map.on("zoomstart", handleZoomStart);
     map.on("moveend", handleInteractionEnd);
     map.on("zoomend", handleInteractionEnd);
     map.on("resize", handleResizeEvent);
@@ -1743,6 +1874,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     return () => {
       map.off("resize", handleResizeEvent);
       map.off("movestart", handleMoveStart);
+      map.off("zoomstart", handleZoomStart);
       map.off("moveend", handleInteractionEnd);
       map.off("zoomend", handleInteractionEnd);
       cancelCommitResume();
@@ -1894,13 +2026,13 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     const container = containerRef.current;
     if (!container) return;
     const handleLeave = () => {
-      setHoveredMarkerSource("marker", null);
+      clearHoverState();
     };
     container.addEventListener("mouseleave", handleLeave);
     return () => {
       container.removeEventListener("mouseleave", handleLeave);
     };
-  }, [setHoveredMarkerSource, smallScreen]);
+  }, [clearHoverState, smallScreen]);
   React.useEffect(() => {
     const group = clusterLayerRef.current;
     if (!group || !mapReady) return;
@@ -1954,6 +2086,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
           changed = true;
         }
         if (changed) {
+          (existing.marker.options as any).wwIntensity = iconIntensity;
           refreshMarkerIcon(existing, false);
         }
         if (
@@ -1976,7 +2109,10 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
           }),
           keyboard: false,
           bubblingMouseEvents: false,
-        }
+          // Store intensity so cluster icons can reflect the
+          // distribution of underlying marker intensities.
+          wwIntensity: iconIntensity,
+        } as any
       );
       marker.bindPopup(buildPopupHtml(beach, intensity), {
         closeButton: false,
@@ -2330,6 +2466,9 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
           />
         )}
         <style jsx global>{`
+          .ww-leaflet-point-icon {
+            cursor: pointer;
+          }
           .ww-leaflet-cluster-icon {
             cursor: pointer;
             transition: transform 120ms ease, box-shadow 120ms ease;

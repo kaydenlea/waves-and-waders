@@ -20,7 +20,7 @@ export const ChartLoadingCover: React.FC<ChartLoadingCoverProps> = ({
   return (
     <div
       className={cn(
-        "absolute inset-0 z-20 flex items-center justify-center rounded-2xl bg-background/80 backdrop-blur-sm",
+        "absolute inset-0 z-20 flex items-center justify-center rounded-2xl bg-highlight-5/80 backdrop-blur-sm",
         className
       )}
       aria-live="polite"

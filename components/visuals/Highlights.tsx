@@ -1051,7 +1051,7 @@ const PressureStat = ({
   return (
     <HighlightCard label={label}>
       <div className="w-full flex items-center justify-center">
-        <ClientPressureDial
+        <PressureDial
           value={data.value}
           min={effMin}
           max={effMax}
@@ -1197,6 +1197,7 @@ import {
 import type { ForecastData } from "@/lib/supabase";
 import GradientCircle from "../general/Stats/GradientCircle";
 import { clampIntensity } from "./Summary";
+import PressureDial from "./PressureDial";
 
 type HighlightScales = any;
 
@@ -1528,7 +1529,7 @@ const Highlights = ({
           let content;
           if (!isHydrated) {
             content = (
-              <div className="w-full h-16 rounded-xl bg-highlight-6/70" />
+              <div className="w-full h-[59px] rounded-xl bg-highlight-6/70" />
             );
           } else {
             switch (stat.label) {
@@ -1536,7 +1537,7 @@ const Highlights = ({
                 content = stat.primary && stat.secondary && (
                   <div
                     className={cn(
-                      "flex justify-between items-center gap-0 @min-lg:w-full @min-3xl:w-auto",
+                      "flex justify-between items-center gap-0 @min-2xl:px-7 @min-3xl:px-0 @min-lg:w-full @min-3xl:w-auto",
                       !isFull && "@min-5xl:w-full"
                     )}
                   >
