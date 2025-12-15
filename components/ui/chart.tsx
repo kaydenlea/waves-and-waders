@@ -194,7 +194,7 @@ function ChartTooltipContent({
   return (
     <div
       className={cn(
-        "border-border/50 bg-background grid min-w-[10rem] items-start gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs shadow-xl",
+        "border-border/50 bg-background grid min-w-[12rem] items-start gap-1.5 rounded-lg border px-3 py-2 text-xs shadow-xl",
         className
       )}
     >
@@ -204,6 +204,13 @@ function ChartTooltipContent({
           const key = `${nameKey || item.name || item.dataKey || "value"}`;
           const itemConfig = getPayloadConfigFromPayload(config, item, key);
           const indicatorColor = color || item.payload.fill || item.color;
+          const formattedValue =
+            formatter && item?.value !== undefined && item.name
+              ? formatter(item.value, item.name, item, index, item.payload)
+              : null;
+          const showFormatted =
+            formattedValue !== null && formattedValue !== undefined;
+
           return (
             <div
               key={item.dataKey}
@@ -212,72 +219,72 @@ function ChartTooltipContent({
                 indicator === "dot" && "items-center"
               )}
             >
-              {formatter && item?.value !== undefined && item.name ? (
-                formatter(item.value, item.name, item, index, item.payload)
+              {itemConfig?.icon ? (
+                <itemConfig.icon />
               ) : (
-                <>
-                  {itemConfig?.icon ? (
-                    <itemConfig.icon />
-                  ) : (
-                    !hideIndicator && (
-                      <div
-                        className={cn(
-                          "shrink-0 rounded-[2px] border-(--color-border) bg-(--color-bg)",
-                          {
-                            "h-2.5 w-2.5": indicator === "dot",
-                            "w-1": indicator === "line",
-                            "w-0 border-[1.5px] border-dashed bg-transparent":
-                              indicator === "dashed",
-                            "my-0.5": nestLabel && indicator === "dashed",
-                          }
-                        )}
-                        style={
-                          {
-                            "--color-bg": indicatorColor,
-                            "--color-border": indicatorColor,
-                          } as React.CSSProperties
-                        }
-                      />
-                    )
-                  )}
+                !hideIndicator && (
                   <div
                     className={cn(
-                      "flex flex-1 justify-between leading-none",
-                      nestLabel ? "items-end" : "items-center"
+                      "shrink-0 rounded-[2px] border-(--color-border) bg-(--color-bg)",
+                      {
+                        "h-2.5 w-2.5": indicator === "dot",
+                        "w-1": indicator === "line",
+                        "w-0 border-[1.5px] border-dashed bg-transparent":
+                          indicator === "dashed",
+                        "my-0.5": nestLabel && indicator === "dashed",
+                      }
                     )}
-                  >
-                    <div className="grid gap-1.5">
-                      {nestLabel ? tooltipLabel : null}
-                      <span className="text-muted-foreground">
-                        {itemConfig?.label || item.name}
-                      </span>
-                    </div>
-                    {item.value && (
-                      <span className="text-foreground font-medium tabular-nums">
-                        {`${
-                          item.value.toString().includes(".")
-                            ? Number(item.value).toFixed(1).toLocaleString()
-                            : item.value.toLocaleString()
-                        } ${
-                          key === "tide" ||
-                          key === "surf" ||
-                          key === "tide1" ||
-                          key === "tide2" ||
-                          key === "tide3"
-                            ? "ft"
-                            : key === "energy"
-                            ? "kJ"
-                            : key === "wind1" ||
-                              key === "wind2" ||
-                              key === "wind3"
-                            ? "mph"
-                            : ""
-                        }`}
-                      </span>
-                    )}
-                  </div>
-                </>
+                    style={
+                      {
+                        "--color-bg": indicatorColor,
+                        "--color-border": indicatorColor,
+                      } as React.CSSProperties
+                    }
+                  />
+                )
               )}
+              <div
+                className={cn(
+                  "flex flex-1 justify-between leading-none",
+                  nestLabel ? "items-end" : "items-center"
+                )}
+              >
+                <div className="grid gap-1.5">
+                  {nestLabel ? tooltipLabel : null}
+                  <span className="text-muted-foreground">
+                    {itemConfig?.label || item.name}
+                  </span>
+                </div>
+                {showFormatted ? (
+                  <div className="text-foreground font-medium tabular-nums text-right">
+                    {formattedValue}
+                  </div>
+                ) : (
+                  item.value && (
+                    <span className="text-foreground font-medium tabular-nums">
+                      {`${
+                        item.value.toString().includes(".")
+                          ? Number(item.value).toFixed(1).toLocaleString()
+                          : item.value.toLocaleString()
+                      } ${
+                        key === "tide" ||
+                        key === "surf" ||
+                        key === "tide1" ||
+                        key === "tide2" ||
+                        key === "tide3"
+                          ? "ft"
+                          : key === "energy"
+                          ? "kJ"
+                          : key === "wind1" ||
+                            key === "wind2" ||
+                            key === "wind3"
+                          ? "mph"
+                          : ""
+                      }`}
+                    </span>
+                  )
+                )}
+              </div>
             </div>
           );
         })}

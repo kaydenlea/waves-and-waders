@@ -30,7 +30,10 @@ const getFallbackIndex = (
   return tooltipTicks.length > 0 ? 0 : -1;
 };
 
-const createNearestIncrementSyncMethod = (incrementHours: number) => {
+const createNearestIncrementSyncMethod = (
+  incrementHours: number,
+  offsetHours = 0
+) => {
   return (tooltipTicks: TooltipTick[] = [], data?: SyncPayload): number => {
     if (!tooltipTicks.length) {
       return getFallbackIndex(tooltipTicks, data);
@@ -41,7 +44,9 @@ const createNearestIncrementSyncMethod = (incrementHours: number) => {
       return getFallbackIndex(tooltipTicks, data);
     }
 
-    const quantized = Math.round(labelNumber / incrementHours) * incrementHours;
+    const quantized =
+      Math.round((labelNumber - offsetHours) / incrementHours) *
+      incrementHours;
     let exactMatch = -1;
     let closestIndex = -1;
     let smallestDiff = Number.POSITIVE_INFINITY;
@@ -72,3 +77,7 @@ const createNearestIncrementSyncMethod = (incrementHours: number) => {
 };
 
 export const syncToNearestThirdHour = createNearestIncrementSyncMethod(3);
+export const syncToNearestThirdHourBarCenter = createNearestIncrementSyncMethod(
+  3,
+  1.5
+);

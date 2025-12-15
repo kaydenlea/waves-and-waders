@@ -126,6 +126,8 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
       ? normalizedDays.length
       : VISIBLE_DAYS;
   }, [normalizedDays]);
+  const domainMin = -HALF_STEP_HOURS;
+  const domainMax = totalFetchedDays * HOURS_PER_DAY + HALF_STEP_HOURS;
 
   const dayPx = useMemo(() => {
     if (!containerWidth) return MIN_DAY_PX;
@@ -533,13 +535,13 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
           setBaseStartMs(baseMs);
         }
 
-        // Create data points every 3 hours, centered within each 3-hour window
+        // Create data points every 3 hours at the window start
         const series: SurfPoint[] = [];
         const maxHour = numDaysToFetch * 24;
 
         for (
           let windowStart = 0;
-          windowStart < maxHour;
+          windowStart <= maxHour;
           windowStart += DATA_STEP_HOURS
         ) {
           const centerHour = windowStart + HALF_STEP_HOURS;
@@ -609,7 +611,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
             }
 
             series.push({
-              hour: centerHour,
+              hour: windowStart,
               surf: Number(Math.max(0, representative).toFixed(1)),
             });
           }
@@ -683,11 +685,24 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
   const hourTicks = useMemo(() => {
     const ticks: number[] = [];
     const totalHours = totalFetchedDays * HOURS_PER_DAY;
-    for (let start = 0; start < totalHours; start += DATA_STEP_HOURS) {
-      ticks.push(start + HALF_STEP_HOURS);
+    for (let start = 0; start <= totalHours; start += DATA_STEP_HOURS) {
+      ticks.push(start);
     }
     return ticks;
   }, [totalFetchedDays]);
+  const formatHourLabel = useCallback((label: unknown, payload: any[]) => {
+    let hour = payload?.[0]?.payload?.hour;
+    if (typeof hour !== "number" && typeof label === "number") {
+      hour = label;
+    }
+    if (typeof hour !== "number") return "";
+    const nearestSlot =
+      Math.round(hour / DATA_STEP_HOURS) * DATA_STEP_HOURS;
+    const normalized = ((nearestSlot % 24) + 24) % 24;
+    const displayHour = normalized % 12 === 0 ? 12 : normalized % 12;
+    const ampm = normalized >= 12 ? "PM" : "AM";
+    return `${displayHour} ${ampm}`;
+  }, []);
 
   // Hover sync handlers
   const lastHoveredRef = useRef<number | null>(null);
@@ -899,14 +914,8 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                   }
                 })}
                 {dayAreas.map((a, idx) => {
-                  const extendLeft = idx === 0 && a.x1 <= 1e-3;
-                  const extendRight =
-                    idx === dayAreas.length - 1 &&
-                    Math.abs(a.x2 - hoursSpan) <= 1e-3;
-                  const x1 = extendLeft
-                    ? Math.max(-edgePadHours * 0.6, a.x1 - edgePadHours)
-                    : a.x1;
-                  const x2 = extendRight ? a.x2 + edgePadHours : a.x2;
+                  const x1 = Math.max(domainMin, a.x1);
+                  const x2 = Math.min(domainMax, a.x2);
                   return (
                     <ReferenceArea
                       key={`day-${idx}`}
@@ -914,22 +923,15 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                       x2={x2}
                       fill="#FFE58F"
                       fillOpacity={0.2}
-                      ifOverflow="visible"
+                      ifOverflow="extendDomain"
                     />
                   );
                 })}
                 {nightAreas.map((a, idx) => {
                   const isFirst = idx === 0;
                   const isLast = idx === nightAreas.length - 1;
-                  const x1 = isFirst ? 0 : a.x1 ?? 0;
-                  const x2 = isLast ? hoursSpan : a.x2 ?? hoursSpan;
-                  const extendLeft = isFirst && x1 <= 1e-3;
-                  const extendRight =
-                    isLast && Math.abs(x2 - hoursSpan) <= 1e-3;
-                  const safeX1 = extendLeft
-                    ? Math.max(-edgePadHours * 0.6, x1 - edgePadHours)
-                    : x1;
-                  const safeX2 = extendRight ? x2 + edgePadHours : x2;
+                  const x1 = isFirst ? domainMin : a.x1 ?? domainMin;
+                  const x2 = isLast ? domainMax : a.x2 ?? domainMax;
                   return (
                     <ReferenceArea
                       key={`night-${idx}`}
@@ -937,7 +939,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                       x2={x2}
                       fill="#ccc1ffff"
                       fillOpacity={0.2}
-                      ifOverflow="visible"
+                      ifOverflow="extendDomain"
                     />
                   );
                 })}
@@ -949,19 +951,24 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                   tickMargin={8}
                   minTickGap={0}
                   fontSize={11}
-                  domain={[0, totalFetchedDays * 24]}
+                  domain={[
+                    -HALF_STEP_HOURS,
+                    totalFetchedDays * 24 + HALF_STEP_HOURS,
+                  ]}
                   ticks={hourTicks}
                   tickFormatter={(value: number) => {
-                    const baseHour = Math.round(value - HALF_STEP_HOURS);
-                    const normalized =
-                      ((baseHour % 24) + 24) % 24;
+                    const nearestSlot =
+                      Math.round(value / DATA_STEP_HOURS) * DATA_STEP_HOURS;
+                    const normalized = ((nearestSlot % 24) + 24) % 24;
                     const labelHour =
                       normalized % 12 === 0 ? 12 : normalized % 12;
                     return String(labelHour);
                   }}
                 />
                 <ChartTooltip
-                  content={<ChartTooltipContent />}
+                  content={
+                    <ChartTooltipContent labelFormatter={formatHourLabel} />
+                  }
                   cursor={{
                     fill: "transparent",
                     stroke: "var(--foreground)",
@@ -969,6 +976,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                     strokeDasharray: "3 3",
                     strokeOpacity: 0.5,
                   }}
+                  allowEscapeViewBox={{ x: true, y: true }}
                   animationDuration={0}
                   isAnimationActive={false}
                 />

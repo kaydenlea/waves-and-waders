@@ -124,18 +124,17 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     date,
   });
   const windowStartMs = windowStart.getTime();
+  const domainStart = 0;
+  const domainEnd = hours;
+  const domainMin = -HALF_STEP_HOURS;
+  const domainMax = domainEnd + HALF_STEP_HOURS;
 
   const placeholderData = useMemo(() => {
-    const count = Math.max(1, Math.ceil(hours / DATA_STEP_HOURS));
-    const maxCenter = Math.max(HALF_STEP_HOURS, hours - HALF_STEP_HOURS);
+    const count = Math.max(1, Math.ceil(hours / DATA_STEP_HOURS) + 1);
     return Array.from({ length: count }, (_, idx) => {
-      const rawHour = idx * DATA_STEP_HOURS;
-      const centered = Math.min(
-        maxCenter,
-        Math.max(HALF_STEP_HOURS, rawHour + HALF_STEP_HOURS)
-      );
+      const rawHour = Math.min(hours, idx * DATA_STEP_HOURS);
       return {
-        hour: centered,
+        hour: rawHour,
         wind: Number(
           Math.max(
             0,
@@ -165,22 +164,24 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       return [];
     }
 
-    const maxCenter = Math.max(HALF_STEP_HOURS, hours - HALF_STEP_HOURS);
-
-    return trimmedRows.map((row) => {
-      const centeredHour = Math.min(
-        maxCenter,
-        Math.max(
-          HALF_STEP_HOURS,
-          getPacificHour(row.timestamp) + HALF_STEP_HOURS
-        )
-      );
+    const mapped = trimmedRows.map((row) => {
+      const roundedHour =
+        Math.round(getPacificHour(row.timestamp) / DATA_STEP_HOURS) *
+        DATA_STEP_HOURS;
+      const centeredHour = Math.min(hours, Math.max(0, roundedHour));
       return {
         hour: centeredHour,
         wind: Math.round(row.conditions.windSpeed ?? 0),
         direction: row.conditions.windDirection ?? undefined,
       };
     });
+
+    const last = mapped[mapped.length - 1];
+    if (last && last.hour < hours) {
+      mapped.push({ ...last, hour: hours });
+    }
+
+    return mapped;
   }, [beachId, forecastRows, hours, placeholderData]);
 
   // Function to get color based on wind speed intensity
@@ -258,33 +259,23 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     };
   }, [beachId, getSunData, hours, sunSegments, windowStartMs]);
 
-  const domainStart = 0;
-  const domainEnd = hours;
-
   const hourTicks = useMemo(() => {
-    const ticks: number[] = [];
-    const maxCenter = Math.max(HALF_STEP_HOURS, hours - HALF_STEP_HOURS);
-    for (let v = 0; v < hours; v += DATA_STEP_HOURS) {
-      const base = v + HALF_STEP_HOURS;
-      const centered = Math.min(maxCenter, Math.max(HALF_STEP_HOURS, base));
-      ticks.push(centered);
-    }
-    if (!ticks.length) {
-      ticks.push(
-        Math.min(maxCenter, Math.max(HALF_STEP_HOURS, HALF_STEP_HOURS))
-      );
-    }
-    return ticks;
+    return Array.from(
+      { length: Math.floor(hours / DATA_STEP_HOURS) + 1 },
+      (_, i) => Math.min(hours, i * DATA_STEP_HOURS)
+    );
   }, [hours]);
 
   const centerDomainHour = useCallback(
     (hour: number | null) => {
       if (hour == null) return null;
-      const minX = domainStart + HALF_STEP_HOURS;
-      const maxX = Math.max(minX, domainEnd - HALF_STEP_HOURS);
-      return Math.min(maxX, Math.max(minX, hour + HALF_STEP_HOURS));
+      const quantized =
+        Math.round(hour / DATA_STEP_HOURS) * DATA_STEP_HOURS;
+      const minX = domainMin + HALF_STEP_HOURS;
+      const maxX = Math.max(minX, domainMax - HALF_STEP_HOURS);
+      return Math.min(maxX, Math.max(minX, quantized + HALF_STEP_HOURS));
     },
-    [domainStart, domainEnd]
+    [domainMin, domainMax]
   );
 
   const centeredSelectedHour = centerDomainHour(selectedHour);
@@ -304,6 +295,39 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         10
       ),
     [chartData]
+  );
+  const formatHourLabel = useCallback((label: unknown, payload: any[]) => {
+    let hour = payload?.[0]?.payload?.hour;
+    if (typeof hour !== "number" && typeof label === "number") {
+      hour = label;
+    }
+    if (typeof hour !== "number") return "";
+    const nearestSlot =
+      Math.round(hour / DATA_STEP_HOURS) * DATA_STEP_HOURS;
+    const normalized = ((nearestSlot % 24) + 24) % 24;
+    const displayHour = normalized % 12 === 0 ? 12 : normalized % 12;
+    const ampm = normalized >= 12 ? "PM" : "AM";
+    return `${displayHour} ${ampm}`;
+  }, []);
+  const formatWindTooltipValue = useCallback(
+    (value: number, _name: string, item: any) => {
+      const direction = item?.payload?.direction;
+      const directionLabel = getWindDirection(
+        typeof direction === "number" ? direction : 0
+      );
+      const dirText =
+        typeof direction === "number"
+          ? `${directionLabel} (${Math.round(direction)}°)`
+          : directionLabel;
+      const speed = Number.isFinite(value) ? Math.round(value) : value ?? "--";
+      return (
+        <div className="flex flex-col items-end gap-0.5 text-right">
+          <span className="font-semibold">{`${speed} mph`}</span>
+          <span className="text-[0.72rem] text-muted-foreground">{dirText}</span>
+        </div>
+      );
+    },
+    [getWindDirection]
   );
   const makeAreaShape = (
     color: string,
@@ -401,26 +425,32 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
       >
-        {dayAreas.map((a, idx) => (
-          <ReferenceArea
-            key={`day-${idx}`}
-            x1={a.x1}
-            x2={a.x2 ?? hours}
-            fill="#FFE58F"
-            fillOpacity={0.2}
-            ifOverflow="visible"
-          />
-        ))}
-        {nightAreas.map((a, idx) => (
-          <ReferenceArea
-            key={`night-${idx}`}
-            x1={a.x1}
-            x2={a.x2 ?? hours}
-            fill="#ccc1ffff"
-            fillOpacity={0.2}
-            ifOverflow="visible"
-          />
-        ))}
+        {dayAreas.map((area, idx) => {
+          const x1 = area.x1 <= 0 ? domainMin : area.x1;
+          const x2 = (area.x2 ?? hours) >= hours ? domainMax : (area.x2 ?? hours);
+          return (
+            <ReferenceArea
+              key={`day-${idx}`}
+              x1={x1}
+              x2={x2}
+              fill="#FFE58F"
+              fillOpacity={0.2}
+            />
+          );
+        })}
+        {nightAreas.map((area, idx) => {
+          const x1 = area.x1 <= 0 ? domainMin : area.x1;
+          const x2 = (area.x2 ?? hours) >= hours ? domainMax : (area.x2 ?? hours);
+          return (
+            <ReferenceArea
+              key={`night-${idx}`}
+              x1={x1}
+              x2={x2}
+              fill="#ccc1ffff"
+              fillOpacity={0.2}
+            />
+          );
+        })}
         {/* <CartesianGrid
           strokeDasharray="3 3"
           stroke="var(--foreground)"
@@ -437,14 +467,15 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           fontSize={11}
           axisLine={false}
           // padding={{ left: buffer, right: buffer }}
-          domain={[domainStart, domainEnd]}
+          domain={[domainMin, domainMax]}
           ticks={hourTicks}
           scale="linear"
           tickFormatter={(value: number) => {
             const num = Number(value);
             if (!Number.isFinite(num)) return "";
-            const baseHour = num - HALF_STEP_HOURS;
-            const normalized = ((baseHour % 24) + 24) % 24;
+            const nearestSlot =
+              Math.round(num / DATA_STEP_HOURS) * DATA_STEP_HOURS;
+            const normalized = ((nearestSlot % 24) + 24) % 24;
             const labelHour = normalized % 12 === 0 ? 12 : normalized % 12;
             return String(labelHour);
           }}
@@ -459,38 +490,14 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           ticks={windTicks}
         />
         <ChartTooltip
-          content={({ active, payload }) => {
-            if (!active || !payload || payload.length === 0) return null;
-
-            const data = payload[0].payload;
-            const windSpeed = data.wind;
-            const direction = data.direction ?? 0;
-            const directionLabel = getWindDirection(direction);
-
-            return (
-              <div className="rounded-lg border bg-background p-2 shadow-sm">
-                <div className="grid gap-2">
-                  <div className="flex flex-col">
-                    <span className="text-[0.70rem] uppercase text-muted-foreground">
-                      Wind Speed
-                    </span>
-                    <span className="font-bold text-muted-foreground">
-                      {Math.round(windSpeed)} mph
-                    </span>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-[0.70rem] uppercase text-muted-foreground">
-                      Direction
-                    </span>
-                    <span className="font-bold text-muted-foreground">
-                      {directionLabel} ({Math.round(direction)}°)
-                    </span>
-                  </div>
-                </div>
-              </div>
-            );
-          }}
-          cursor={renderTooltipCursor}
+          content={
+            <ChartTooltipContent
+              className="min-w-[14rem]"
+              labelFormatter={formatHourLabel}
+              formatter={formatWindTooltipValue as any}
+            />
+          }
+          cursor={renderTooltipCursor as any}
           animationDuration={0}
         />
         {/* Hour indicator line */}

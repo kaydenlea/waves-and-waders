@@ -105,6 +105,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
   const [containerWidth, setContainerWidth] = useState(0);
   const [isAtRightEdge, setIsAtRightEdge] = useState(false);
   const { selected: selectedDate } = useDateContext();
+  const domainMin = -HALF_STEP_HOURS;
 
   useEffect(() => {
     setLoading(windData.length === 0);
@@ -160,6 +161,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
       ? normalizedDays.length
       : VISIBLE_DAYS;
   }, [normalizedDays]);
+  const domainMax = totalFetchedDays * HOURS_PER_DAY + HALF_STEP_HOURS;
 
   const dayPx = useMemo(() => {
     if (!containerWidth) return MIN_DAY_PX;
@@ -564,13 +566,13 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
           setBaseStartMs(baseMs);
         }
 
-        // Create data points every 3 hours, centered within each 3-hour window
+        // Create data points every 3 hours at the window start
         const series: WindPoint[] = [];
         const maxHour = numDaysToFetch * 24;
 
         for (
           let windowStart = 0;
-          windowStart < maxHour;
+          windowStart <= maxHour;
           windowStart += DATA_STEP_HOURS
         ) {
           const centerHour = windowStart + HALF_STEP_HOURS;
@@ -597,7 +599,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
 
           if (closest && closest.row) {
             series.push({
-              hour: centerHour,
+              hour: windowStart,
               wind: Math.round(closest.row.conditions.windSpeed ?? 0),
               direction: closest.row.conditions.windDirection ?? 0,
             });
@@ -670,11 +672,44 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
   const hourTicks = useMemo(() => {
     const ticks: number[] = [];
     const totalHours = totalFetchedDays * HOURS_PER_DAY;
-    for (let start = 0; start < totalHours; start += DATA_STEP_HOURS) {
-      ticks.push(start + HALF_STEP_HOURS);
+    for (let start = 0; start <= totalHours; start += DATA_STEP_HOURS) {
+      ticks.push(start);
     }
     return ticks;
   }, [totalFetchedDays]);
+  const formatHourLabel = useCallback((label: unknown, payload: any[]) => {
+    let hour = payload?.[0]?.payload?.hour;
+    if (typeof hour !== "number" && typeof label === "number") {
+      hour = label;
+    }
+    if (typeof hour !== "number") return "";
+    const nearestSlot =
+      Math.round(hour / DATA_STEP_HOURS) * DATA_STEP_HOURS;
+    const normalized = ((nearestSlot % 24) + 24) % 24;
+    const displayHour = normalized % 12 === 0 ? 12 : normalized % 12;
+    const ampm = normalized >= 12 ? "PM" : "AM";
+    return `${displayHour} ${ampm}`;
+  }, []);
+  const formatWindTooltipValue = useCallback(
+    (value: number, _name: string, item: any) => {
+      const direction = item?.payload?.direction;
+      const directionLabel = getWindDirection(
+        typeof direction === "number" ? direction : 0
+      );
+      const dirText =
+        typeof direction === "number"
+          ? `${directionLabel} (${Math.round(direction)}°)`
+          : directionLabel;
+      const speed = Number.isFinite(value) ? Math.round(value) : value ?? "--";
+      return (
+        <div className="flex flex-col items-end gap-0.5 text-right">
+          <span className="font-semibold">{`${speed} mph`}</span>
+          <span className="text-[0.72rem] text-muted-foreground">{dirText}</span>
+        </div>
+      );
+    },
+    [getWindDirection]
+  );
 
   // Hover sync handlers
   const lastHoveredRef = React.useRef<number | null>(null);
@@ -700,43 +735,6 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
     lastHoveredRef.current = null;
     setHoveredHour(null);
   }, [setHoveredHour]);
-
-  // Memoize tooltip content to prevent re-renders
-  const tooltipContent = React.useMemo(
-    () =>
-      ({ active, payload }: any) => {
-        if (!active || !payload || payload.length === 0) return null;
-
-        const data = payload[0].payload;
-        const windSpeed = data.wind;
-        const direction = data.direction ?? 0;
-        const directionLabel = getWindDirection(direction);
-
-        return (
-          <div className="rounded-lg border bg-background p-2 shadow-sm">
-            <div className="grid gap-2">
-              <div className="flex flex-col">
-                <span className="text-[0.70rem] uppercase text-muted-foreground">
-                  Wind Speed
-                </span>
-                <span className="font-bold text-muted-foreground">
-                  {Math.round(windSpeed)} mph
-                </span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[0.70rem] uppercase text-muted-foreground">
-                  Direction
-                </span>
-                <span className="font-bold text-muted-foreground">
-                  {directionLabel} ({Math.round(direction)}°)
-                </span>
-              </div>
-            </div>
-          </div>
-        );
-      },
-    []
-  );
 
   return (
     <div className="w-full">
@@ -896,14 +894,8 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
                   }
                 })}
                 {dayAreas.map((a, idx) => {
-                  const extendLeft = idx === 0 && a.x1 <= 1e-3;
-                  const extendRight =
-                    idx === dayAreas.length - 1 &&
-                    Math.abs(a.x2 - hoursSpan) <= 1e-3;
-                  const x1 = extendLeft
-                    ? Math.max(-edgePadHours * 0.6, a.x1 - edgePadHours)
-                    : a.x1;
-                  const x2 = extendRight ? a.x2 + edgePadHours : a.x2;
+                  const x1 = Math.max(domainMin, a.x1);
+                  const x2 = Math.min(domainMax, a.x2);
                   return (
                     <ReferenceArea
                       key={`day-${idx}`}
@@ -911,22 +903,15 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
                       x2={x2}
                       fill="#FFE58F"
                       fillOpacity={0.2}
-                      ifOverflow="visible"
+                      ifOverflow="extendDomain"
                     />
                   );
                 })}
                 {nightAreas.map((a, idx) => {
                   const isFirst = idx === 0;
                   const isLast = idx === nightAreas.length - 1;
-                  const x1 = isFirst ? 0 : a.x1 ?? 0;
-                  const x2 = isLast ? hoursSpan : a.x2 ?? hoursSpan;
-                  const extendLeft = isFirst && x1 <= 1e-3;
-                  const extendRight =
-                    isLast && Math.abs(x2 - hoursSpan) <= 1e-3;
-                  const safeX1 = extendLeft
-                    ? Math.max(-edgePadHours * 0.6, x1 - edgePadHours)
-                    : x1;
-                  const safeX2 = extendRight ? x2 + edgePadHours : x2;
+                  const x1 = isFirst ? domainMin : a.x1 ?? domainMin;
+                  const x2 = isLast ? domainMax : a.x2 ?? domainMax;
                   return (
                     <ReferenceArea
                       key={`night-${idx}`}
@@ -934,7 +919,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
                       x2={x2}
                       fill="#ccc1ffff"
                       fillOpacity={0.2}
-                      ifOverflow="visible"
+                      ifOverflow="extendDomain"
                     />
                   );
                 })}
@@ -946,19 +931,28 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
                   tickMargin={8}
                   minTickGap={0}
                   fontSize={11}
-                  domain={[0, totalFetchedDays * 24]}
+                  domain={[
+                    -HALF_STEP_HOURS,
+                    totalFetchedDays * 24 + HALF_STEP_HOURS,
+                  ]}
                   ticks={hourTicks}
                   tickFormatter={(value: number) => {
-                    const baseHour = Math.round(value - HALF_STEP_HOURS);
-                    const normalized =
-                      ((baseHour % 24) + 24) % 24;
+                    const nearestSlot =
+                      Math.round(value / DATA_STEP_HOURS) * DATA_STEP_HOURS;
+                    const normalized = ((nearestSlot % 24) + 24) % 24;
                     const labelHour =
                       normalized % 12 === 0 ? 12 : normalized % 12;
                     return String(labelHour);
                   }}
                 />
                 <ChartTooltip
-                  content={tooltipContent}
+                  content={
+                    <ChartTooltipContent
+                      className="min-w-[14rem]"
+                      labelFormatter={formatHourLabel}
+                      formatter={formatWindTooltipValue as any}
+                    />
+                  }
                   cursor={{
                     fill: "transparent",
                     stroke: "var(--foreground)",

@@ -46,6 +46,7 @@ import {
   useForecastChartLoading,
   useForecastChartsBusyState,
 } from "../context/ForecastChartsLoadingContext";
+import { ForecastChartSkeleton } from "./ForecastChartSkeleton";
 
 const VISIBLE_DAYS = 4;
 const HOURS_PER_DAY = 24;
@@ -196,6 +197,7 @@ export default React.memo(function ForecastTideChart({
     () => Math.min(containerWidth || 0, dayPx * VISIBLE_DAYS),
     [containerWidth, dayPx]
   );
+  const showSkeleton = loading || !shadingReady || containerWidth === 0;
 
   // Pointer & animation refs (imperative values to avoid re-renders)
   const currentTranslateRef = useRef(0); // px
@@ -792,6 +794,20 @@ export default React.memo(function ForecastTideChart({
     }
     return ticks;
   }, [totalFetchedDays]);
+  const formatHourLabel = useCallback((label: unknown, payload: any[]) => {
+    let hour = payload?.[0]?.payload?.hour;
+    if (typeof hour !== "number" && typeof label === "number") {
+      hour = label;
+    }
+    if (typeof hour !== "number") return "";
+    const wholeHour = Math.floor(hour);
+    const minutes = Math.round((hour - wholeHour) * 60);
+    const displayHour = wholeHour % 12 === 0 ? 12 : wholeHour % 12;
+    const ampm = wholeHour % 24 >= 12 ? "PM" : "AM";
+    return minutes > 0
+      ? `${displayHour}:${minutes.toString().padStart(2, "0")} ${ampm}`
+      : `${displayHour} ${ampm}`;
+  }, []);
 
   // Hover sync handlers - DateContext handles RAF batching
   const lastHoveredRef = React.useRef<number | null>(null);
@@ -821,39 +837,6 @@ export default React.memo(function ForecastTideChart({
     setHoveredHour(null);
   }, [setHoveredHour]);
 
-  // Memoize tooltip content to prevent recreation on every render
-  const tooltipContent = React.useMemo(
-    () =>
-      ({ active, payload }: any) => {
-        if (!active || !payload || !payload.length) return null;
-
-        const dataPoint = payload[0].payload;
-        const h = dataPoint.hour;
-
-        // Format time
-        const wholeHour = Math.floor(h);
-        const minutes = Math.round((h - wholeHour) * 60);
-        const displayHour = wholeHour % 12 === 0 ? 12 : wholeHour % 12;
-        const ampm = wholeHour % 24 >= 12 ? "PM" : "AM";
-        const timeLabel =
-          minutes > 0
-            ? `${displayHour}:${minutes.toString().padStart(2, "0")} ${ampm}`
-            : `${displayHour} ${ampm}`;
-
-        // Format tide value
-        const tideValue =
-          dataPoint.tide != null ? dataPoint.tide.toFixed(1) : "N/A";
-
-        return (
-          <div className="rounded-lg border bg-background p-2 shadow-sm">
-            <div className="text-xs font-medium">{timeLabel}</div>
-            <div className="text-sm font-bold">{tideValue} ft</div>
-          </div>
-        );
-      },
-    []
-  );
-
   // Memoize hover line to prevent unnecessary re-renders
   const hoverLine = React.useMemo(() => {
     if (hoveredHour === null) return null;
@@ -882,27 +865,36 @@ export default React.memo(function ForecastTideChart({
           willChange: "transform",
         }}
       >
-        {/* prev/next buttons */}
-        <button
-          aria-label="Back one day"
-          onClick={handleBack}
+        {showSkeleton && (
+          <ForecastChartSkeleton className="absolute inset-0 z-50 h-full w-full" />
+        )}
+        <div
           className={cn(
-            "absolute left-4 top-[55%] -translate-y-1/2 z-50 rounded-full bg-highlight-7/90 p-1 shadow border border-border/30 shadow-even backdrop-blur-xl",
-            dayOffset === 0 && "hidden"
+            "h-full transition-opacity duration-200",
+            showSkeleton ? "opacity-0" : "opacity-100"
           )}
         >
-          <ChevronLeft className="w-5 h-5" />
-        </button>
-        <button
-          aria-label="Next one day"
-          onClick={handleNext}
-          className={cn(
-            "absolute right-4 top-[55%] -translate-y-1/2 z-50 rounded-full bg-highlight-7/90 p-1 shadow border border-border/30 shadow-even backdrop-blur-xl",
-            isAtRightEdge && "hidden"
-          )}
-        >
-          <ChevronRight className="w-5 h-5" />
-        </button>
+          {/* prev/next buttons */}
+          <button
+            aria-label="Back one day"
+            onClick={handleBack}
+            className={cn(
+              "absolute left-4 top-[55%] -translate-y-1/2 z-50 rounded-full bg-highlight-7/90 p-1 shadow border border-border/30 shadow-even backdrop-blur-xl",
+              dayOffset === 0 && "hidden"
+            )}
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <button
+            aria-label="Next one day"
+            onClick={handleNext}
+            className={cn(
+              "absolute right-4 top-[55%] -translate-y-1/2 z-50 rounded-full bg-highlight-7/90 p-1 shadow border border-border/30 shadow-even backdrop-blur-xl",
+              isAtRightEdge && "hidden"
+            )}
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
 
         {/* moving inner (chart + day separators) */}
         <div
@@ -1132,8 +1124,15 @@ export default React.memo(function ForecastTideChart({
                 {/* Hover indicator line */}
                 {hoverLine}
                 <ChartTooltip
-                  content={tooltipContent}
-                  cursor={false}
+                  content={
+                    <ChartTooltipContent labelFormatter={formatHourLabel} />
+                  }
+                  cursor={{
+                    stroke: "var(--foreground)",
+                    strokeWidth: 1,
+                    strokeDasharray: "3 3",
+                    strokeOpacity: 0.5,
+                  }}
                   animationDuration={0}
                   isAnimationActive={false}
                 />
@@ -1278,6 +1277,7 @@ export default React.memo(function ForecastTideChart({
             pointerEvents: "none",
           }}
         />
+        </div>
       </div>
     </div>
   );

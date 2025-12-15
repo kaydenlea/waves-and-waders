@@ -147,12 +147,10 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       return [];
     }
 
-    const clampCenteredHour = (rawHour: number) => {
-      const maxCenter = Math.max(HALF_STEP_HOURS, hours - HALF_STEP_HOURS);
-      return Math.min(
-        maxCenter,
-        Math.max(HALF_STEP_HOURS, rawHour + HALF_STEP_HOURS)
-      );
+    const quantizeHour = (rawHour: number) => {
+      const rounded =
+        Math.round(rawHour / DATA_STEP_HOURS) * DATA_STEP_HOURS;
+      return Math.min(hours, Math.max(0, rounded));
     };
 
     const formatSurfRange = (
@@ -205,7 +203,7 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       };
     };
 
-    return trimmedRows.map((r) => {
+    const mapped = trimmedRows.map((r) => {
       const h1 = r.swell.primary.height ?? 0;
       const p1 = r.swell.primary.period ?? 10;
       const h2 = r.swell.secondary.height ?? 0;
@@ -238,7 +236,7 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         representative = representative * 0.7 + estimate * 0.3;
       }
 
-      const centeredHour = clampCenteredHour(getPacificHour(r.timestamp));
+      const centeredHour = quantizeHour(getPacificHour(r.timestamp));
 
       return {
         hour: centeredHour,
@@ -248,6 +246,14 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         rangeLabel: label,
       };
     });
+
+    // Ensure we have a terminal slot at the window end so midnight renders
+    const last = mapped[mapped.length - 1];
+    if (last && last.hour < hours) {
+      mapped.push({ ...last, hour: hours });
+    }
+
+    return mapped;
   }, [beachId, forecastRows, hours]);
 
   // Function to get color based on surf height intensity
@@ -329,6 +335,8 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
 
   const domainStart = 0;
   const domainEnd = hours;
+  const domainMin = -HALF_STEP_HOURS;
+  const domainMax = domainEnd + HALF_STEP_HOURS;
   const surfTicks = useMemo(
     () =>
       buildYAxisTicks(
@@ -343,16 +351,8 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
 
   const hourTicks = useMemo(() => {
     const ticks: number[] = [];
-    const maxCenter = Math.max(HALF_STEP_HOURS, hours - HALF_STEP_HOURS);
-    for (let v = 0; v < hours; v += DATA_STEP_HOURS) {
-      const base = v + HALF_STEP_HOURS;
-      const centered = Math.min(maxCenter, Math.max(HALF_STEP_HOURS, base));
-      ticks.push(centered);
-    }
-    if (!ticks.length) {
-      ticks.push(
-        Math.min(maxCenter, Math.max(HALF_STEP_HOURS, HALF_STEP_HOURS))
-      );
+    for (let v = 0; v <= hours; v += DATA_STEP_HOURS) {
+      ticks.push(v);
     }
     return ticks;
   }, [hours]);
@@ -360,11 +360,13 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   const centerDomainHour = useCallback(
     (hour: number | null) => {
       if (hour == null) return null;
-      const minX = domainStart + HALF_STEP_HOURS;
-      const maxX = Math.max(minX, domainEnd - HALF_STEP_HOURS);
-      return Math.min(maxX, Math.max(minX, hour + HALF_STEP_HOURS));
+      const quantized =
+        Math.round(hour / DATA_STEP_HOURS) * DATA_STEP_HOURS;
+      const minX = domainMin + HALF_STEP_HOURS;
+      const maxX = Math.max(minX, domainMax - HALF_STEP_HOURS);
+      return Math.min(maxX, Math.max(minX, quantized + HALF_STEP_HOURS));
     },
-    [domainStart, domainEnd]
+    [domainMin, domainMax]
   );
 
   const centeredSelectedHour = centerDomainHour(selectedHour);
@@ -478,26 +480,32 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
       >
-        {dayAreas.map((a, idx) => (
-          <ReferenceArea
-            key={`day-${idx}`}
-            x1={a.x1}
-            x2={a.x2}
-            fill="#FFE58F"
-            fillOpacity={0.2}
-            ifOverflow="visible"
-          />
-        ))}
-        {nightAreas.map((a, idx) => (
-          <ReferenceArea
-            key={`night-${idx}`}
-            x1={a.x1}
-            x2={a.x2}
-            fill="#ccc1ffff"
-            fillOpacity={0.2}
-            ifOverflow="visible"
-          />
-        ))}
+        {dayAreas.map((area, idx) => {
+          const x1 = area.x1 <= 0 ? domainMin : area.x1;
+          const x2 = area.x2 >= hours ? domainMax : area.x2;
+          return (
+            <ReferenceArea
+              key={`day-${idx}`}
+              x1={x1}
+              x2={x2}
+              fill="#FFE58F"
+              fillOpacity={0.2}
+            />
+          );
+        })}
+        {nightAreas.map((area, idx) => {
+          const x1 = area.x1 <= 0 ? domainMin : area.x1;
+          const x2 = (area.x2 ?? hours) >= hours ? domainMax : (area.x2 ?? hours);
+          return (
+            <ReferenceArea
+              key={`night-${idx}`}
+              x1={x1}
+              x2={x2}
+              fill="#ccc1ffff"
+              fillOpacity={0.2}
+            />
+          );
+        })}
         {/* <CartesianGrid
           strokeDasharray="3 3"
           stroke="var(--foreground)"
@@ -513,19 +521,16 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           fontSize={11}
           axisLine={false}
           // padding={{ left: buffer, right: buffer }}
-          domain={[domainStart, domainEnd]}
+          domain={[domainMin, domainMax]}
           ticks={hourTicks}
           scale="linear"
           tickFormatter={(value: number) => {
             const num = Number(value);
-
             if (!Number.isFinite(num)) return "";
-
-            const baseHour = num - HALF_STEP_HOURS;
-            const normalized = ((baseHour % 24) + 24) % 24;
-
+            const nearestSlot =
+              Math.round(num / DATA_STEP_HOURS) * DATA_STEP_HOURS;
+            const normalized = ((nearestSlot % 24) + 24) % 24;
             const labelHour = normalized % 12 === 0 ? 12 : normalized % 12;
-
             return String(labelHour);
           }}
         />
@@ -540,7 +545,7 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         />
         <ChartTooltip
           content={<ChartTooltipContent />}
-          cursor={renderTooltipCursor}
+          cursor={renderTooltipCursor as any}
           animationDuration={0}
         />
         {/* Hour indicator line */}

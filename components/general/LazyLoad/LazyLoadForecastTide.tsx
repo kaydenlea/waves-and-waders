@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import React, { useEffect } from "react";
+import { ForecastChartSkeleton } from "@/components/graphs/ForecastChartSkeleton";
 
 type Props = { beachId?: string; date?: Date; days?: Date[] };
 
@@ -12,9 +13,7 @@ const ForecastTideChart = dynamic<React.ComponentProps<any>>(
   forecastTideImport,
   {
     ssr: false,
-    loading: () => (
-      <div className="animate-pulse bg-highlight-5 rounded-2xl h-[300px] w-full" />
-    ),
+    loading: () => <ForecastChartSkeleton />,
   }
 );
 

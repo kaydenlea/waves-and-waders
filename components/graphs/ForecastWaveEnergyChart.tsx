@@ -613,6 +613,20 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
     }
     return ticks;
   }, [totalFetchedDays]);
+  const formatHourLabel = useCallback((label: unknown, payload: any[]) => {
+    let hour = payload?.[0]?.payload?.hour;
+    if (typeof hour !== "number" && typeof label === "number") {
+      hour = label;
+    }
+    if (typeof hour !== "number") return "";
+    const wholeHour = Math.floor(hour);
+    const minutes = Math.round((hour - wholeHour) * 60);
+    const displayHour = wholeHour % 12 === 0 ? 12 : wholeHour % 12;
+    const ampm = wholeHour % 24 >= 12 ? "PM" : "AM";
+    return minutes > 0
+      ? `${displayHour}:${minutes.toString().padStart(2, "0")} ${ampm}`
+      : `${displayHour} ${ampm}`;
+  }, []);
 
   // Calculate high/low energy per day
   const dayStats = React.useMemo(() => {
@@ -888,7 +902,9 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
                   animationBegin={0}
                 />
                 <ChartTooltip
-                  content={<ChartTooltipContent />}
+                  content={
+                    <ChartTooltipContent labelFormatter={formatHourLabel} />
+                  }
                   cursor={{
                     stroke: "var(--foreground)",
                     strokeWidth: 1,
@@ -961,7 +977,9 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
                   }}
                 />
                 <ChartTooltip
-                  content={<ChartTooltipContent />}
+                  content={
+                    <ChartTooltipContent labelFormatter={formatHourLabel} />
+                  }
                   cursor={{
                     stroke: "var(--foreground)",
                     strokeWidth: 1,

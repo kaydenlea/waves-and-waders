@@ -22,6 +22,7 @@ import {
   ChartTooltip,
   ChartLegend,
   ChartLegendContent,
+  ChartTooltipContent,
 } from "@/components/ui/chart";
 import {
   MousePointer2 as ArrowIcon,
@@ -612,6 +613,39 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
     }
     return ticks;
   }, [totalFetchedDays]);
+  const formatHourLabel = useCallback((label: unknown, payload: any[]) => {
+    let hour = payload?.[0]?.payload?.hour;
+    if (typeof hour !== "number" && typeof label === "number") {
+      hour = label;
+    }
+    if (typeof hour !== "number") return "";
+    const wholeHour = Math.floor(hour);
+    const minutes = Math.round((hour - wholeHour) * 60);
+    const displayHour = wholeHour % 12 === 0 ? 12 : wholeHour % 12;
+    const ampm = wholeHour % 24 >= 12 ? "PM" : "AM";
+    return minutes > 0
+      ? `${displayHour}:${minutes.toString().padStart(2, "0")} ${ampm}`
+      : `${displayHour} ${ampm}`;
+  }, []);
+  const formatSwellTooltipValue = useCallback(
+    (value: number, _name: string, item: any) => {
+      const dirKey = `${item?.dataKey}Dir`;
+      const direction = item?.payload?.[dirKey];
+      const dirLabel =
+        typeof direction === "number"
+          ? `${getWindDirection(direction)} (${Math.round(direction)}°)`
+          : "N/A";
+      const height =
+        typeof value === "number" ? `${value.toFixed(1)} ft` : `${value ?? ""}`;
+      return (
+        <div className="flex flex-col items-end gap-0.5 text-right">
+          <span>{height}</span>
+          <span className="text-[0.7rem] text-muted-foreground">{dirLabel}</span>
+        </div>
+      );
+    },
+    [getWindDirection]
+  );
 
   // Hover sync handlers
   const lastHoveredRef = React.useRef<number | null>(null);
@@ -918,52 +952,12 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                 />
                 {/* <ChartLegend content={<ChartLegendContent />} /> */}
                 <ChartTooltip
-                  content={({ active, payload }) => {
-                    if (!active || !payload || payload.length === 0)
-                      return null;
-
-                    const data = payload[0].payload;
-
-                    return (
-                      <div className="rounded-lg border bg-background p-2 shadow-sm">
-                        <div className="grid gap-2">
-                          {payload.map((entry, index) => {
-                            const dirKey =
-                              `${entry.dataKey}Dir` as keyof SwellPoint;
-                            const direction = data[dirKey] as
-                              | number
-                              | undefined;
-                            const dirLabel =
-                              direction != null
-                                ? getWindDirection(direction)
-                                : "N/A";
-
-                            return (
-                              <div key={index} className="flex flex-col">
-                                <span className="text-[0.70rem] uppercase text-muted-foreground">
-                                  {entry.name}
-                                </span>
-                                <span
-                                  className="font-bold"
-                                  style={{ color: entry.color }}
-                                >
-                                  {typeof entry.value === "number"
-                                    ? entry.value.toFixed(1)
-                                    : entry.value}{" "}
-                                  ft
-                                </span>
-                                {direction != null && (
-                                  <span className="text-[0.65rem] text-muted-foreground">
-                                    {dirLabel} ({Math.round(direction)}°)
-                                  </span>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  }}
+                  content={
+                    <ChartTooltipContent
+                      labelFormatter={formatHourLabel}
+                      formatter={formatSwellTooltipValue as any}
+                    />
+                  }
                   cursor={{
                     stroke: "var(--foreground)",
                     strokeWidth: 1,
