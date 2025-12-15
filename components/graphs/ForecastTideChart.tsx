@@ -53,7 +53,7 @@ const VISIBLE_HOURS = VISIBLE_DAYS * HOURS_PER_DAY;
 const FETCH_DAYS = VISIBLE_DAYS; // fetch one extra day to allow forward pan
 const MIN_DAY_PX = 275; // minimum pixels per day to keep UI usable on tiny screens
 const CHART_LEFT_MARGIN = 0;
-const CHART_RIGHT_MARGIN = 15;
+const CHART_RIGHT_MARGIN = 0;
 const Y_AXIS_WIDTH = 30;
 const DAY_LABEL_INSET = 6;
 const Y_AXIS_OFFSET_VAR = "--forecast-y-axis-offset";
@@ -187,7 +187,8 @@ export default React.memo(function ForecastTideChart({
     () => totalFetchedDays * dayPx,
     [totalFetchedDays, dayPx]
   );
-  const dataAreaWidth = chartInnerWidth - CHART_LEFT_MARGIN - CHART_RIGHT_MARGIN - Y_AXIS_WIDTH;
+  const dataAreaWidth =
+    chartInnerWidth - CHART_LEFT_MARGIN - CHART_RIGHT_MARGIN - Y_AXIS_WIDTH;
   const dayLabelLeftOffset = CHART_LEFT_MARGIN + Y_AXIS_WIDTH;
   const dayLabelColumnWidth = dataAreaWidth / totalFetchedDays;
   const dayLabelAvailableWidth = totalFetchedDays * dayLabelColumnWidth;
@@ -598,9 +599,7 @@ export default React.memo(function ForecastTideChart({
       }));
 
       try {
-        const parseHM = (
-          s: string | null
-        ): { h: number; m: number } | null => {
+        const parseHM = (s: string | null): { h: number; m: number } | null => {
           if (!s) return null;
           const m = /^(\d{1,2}):(\d{2})/.exec(s.trim());
           if (!m) return null;
@@ -952,7 +951,10 @@ export default React.memo(function ForecastTideChart({
                   pointerEvents: "none",
                 }}
               >
-                <div className="flex justify-between whitespace-nowrap px-3 py-2 rounded-lg bg-highlight-5" style={{ width: "95%" }}>
+                <div
+                  className="flex justify-between whitespace-nowrap px-3 py-2 rounded-lg bg-highlight-5"
+                  style={{ width: "95%" }}
+                >
                   <span className="flex flex-col items-start">
                     <span className="text-xs font-medium">
                       {label.split(",")[1]}

@@ -1,6 +1,10 @@
 import type { ForecastData } from "./supabase";
 
-export type TidePeak = { kind: "high" | "low"; time: Date; level: number | null };
+export type TidePeak = {
+  kind: "high" | "low";
+  time: Date;
+  level: number | null;
+};
 
 export type SummaryStat =
   | {
@@ -71,4 +75,78 @@ export const reviveStatsMap = (
     result[key] = reviveBeachStatsSnapshot(snapshot);
   });
   return result;
+};
+
+export type DailySurfWindStats = {
+  surfHeight: string | null;
+  surfIntensity: number | null;
+  windSpeed: number | null;
+  windDirection: number | null;
+};
+
+export const extractDailySurfWindStats = (
+  snapshot: BeachStatsSnapshot | null
+): DailySurfWindStats => {
+  if (!snapshot) {
+    return {
+      surfHeight: null,
+      surfIntensity: null,
+      windSpeed: null,
+      windDirection: null,
+    };
+  }
+
+  const surfStat = snapshot.summary.find(
+    (stat): stat is Extract<SummaryStat, { type: "surf" }> =>
+      stat.type === "surf"
+  );
+  const windStat = snapshot.summary.find(
+    (stat): stat is Extract<SummaryStat, { type: "wind" }> =>
+      stat.type === "wind"
+  );
+
+  return {
+    surfHeight: surfStat?.surf.height ?? null,
+    surfIntensity:
+      typeof surfStat?.surf.intensity === "number"
+        ? surfStat.surf.intensity
+        : null,
+    windSpeed:
+      typeof windStat?.wind.speed === "number" ? windStat.wind.speed : null,
+    windDirection:
+      typeof windStat?.wind.direction === "number"
+        ? windStat.wind.direction
+        : null,
+  };
+};
+
+export type BeachConditionsLike = {
+  surf: string;
+  wind: string;
+  windDir: number;
+  rating: number;
+};
+
+export const mergeDailyStatsIntoConditions = (
+  base: BeachConditionsLike,
+  stats: DailySurfWindStats | null
+): BeachConditionsLike => {
+  if (!stats) {
+    return base;
+  }
+  const resolvedWind =
+    stats.windSpeed != null ? String(Math.round(stats.windSpeed)) : base.wind;
+  return {
+    ...base,
+    surf: stats.surfHeight ?? base.surf,
+    wind: resolvedWind,
+    windDir:
+      typeof stats.windDirection === "number"
+        ? stats.windDirection
+        : base.windDir,
+    rating:
+      typeof stats.surfIntensity === "number"
+        ? stats.surfIntensity
+        : base.rating,
+  };
 };

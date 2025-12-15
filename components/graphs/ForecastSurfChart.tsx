@@ -60,7 +60,9 @@ const HOURS_PER_DAY = 24;
 const VISIBLE_DAYS = 4;
 const MIN_DAY_PX = 275;
 const CHART_LEFT_MARGIN = 0;
-const CHART_RIGHT_MARGIN = 15;
+const CHART_RIGHT_MARGIN = 0;
+const DATA_STEP_HOURS = 3;
+const HALF_STEP_HOURS = DATA_STEP_HOURS / 2;
 const Y_AXIS_WIDTH = 30;
 const DAY_LABEL_INSET = 6;
 const Y_AXIS_OFFSET_VAR = "--forecast-y-axis-offset";
@@ -164,7 +166,8 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
     [axisPadding]
   );
   const dayLabelLeftOffset = CHART_LEFT_MARGIN + Y_AXIS_WIDTH;
-  const dataAreaWidth = chartInnerWidth - CHART_LEFT_MARGIN - CHART_RIGHT_MARGIN - Y_AXIS_WIDTH;
+  const dataAreaWidth =
+    chartInnerWidth - CHART_LEFT_MARGIN - CHART_RIGHT_MARGIN - Y_AXIS_WIDTH;
   const dayLabelColumnWidth = dataAreaWidth / totalFetchedDays;
   const dayLabelAvailableWidth = totalFetchedDays * dayLabelColumnWidth;
 
@@ -530,16 +533,22 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
           setBaseStartMs(baseMs);
         }
 
-        // Create data points every 3 hours
+        // Create data points every 3 hours, centered within each 3-hour window
         const series: SurfPoint[] = [];
         const maxHour = numDaysToFetch * 24;
 
-        for (let hour = 0; hour <= maxHour; hour += 3) {
-          // Filter rows close to this hour (within 1.5 hours)
+        for (
+          let windowStart = 0;
+          windowStart < maxHour;
+          windowStart += DATA_STEP_HOURS
+        ) {
+          const centerHour = windowStart + HALF_STEP_HOURS;
+
+          // Filter rows close to this 3-hour window center (within 1.5 hours)
           const nearbyRows = rows.filter((r: any) => {
             const ts = new Date(r.timestamp).getTime();
             const rowHour = Math.round((ts - baseMs) / 3600000);
-            return Math.abs(rowHour - hour) <= 1.5;
+            return Math.abs(rowHour - centerHour) <= HALF_STEP_HOURS;
           });
 
           if (nearbyRows.length === 0) continue;
@@ -548,7 +557,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
           const closest = nearbyRows.reduce((best: any, cur: any) => {
             const ts = new Date(cur.timestamp).getTime();
             const rowHour = Math.round((ts - baseMs) / 3600000);
-            const dist = Math.abs(rowHour - hour);
+            const dist = Math.abs(rowHour - centerHour);
             if (!best || dist < best.dist) {
               return { dist, row: cur };
             }
@@ -600,7 +609,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
             }
 
             series.push({
-              hour,
+              hour: centerHour,
               surf: Number(Math.max(0, representative).toFixed(1)),
             });
           }
@@ -670,11 +679,12 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
         )
       : null;
 
-  // Generate hour ticks
+  // Generate hour ticks centered beneath each bar
   const hourTicks = useMemo(() => {
     const ticks: number[] = [];
-    for (let v = 0; v <= 24 * totalFetchedDays; v += 1) {
-      ticks.push(v);
+    const totalHours = totalFetchedDays * HOURS_PER_DAY;
+    for (let start = 0; start < totalHours; start += DATA_STEP_HOURS) {
+      ticks.push(start + HALF_STEP_HOURS);
     }
     return ticks;
   }, [totalFetchedDays]);
@@ -733,17 +743,17 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
 
   return (
     <div className="w-full">
-        <div
-          ref={containerRef}
-          className="relative w-full"
-          style={{
-            height: 300,
-            overflow: "hidden",
-            background: "transparent",
-            contain: "layout style paint",
-            willChange: "transform",
-          }}
-        >
+      <div
+        ref={containerRef}
+        className="relative w-full"
+        style={{
+          height: 300,
+          overflow: "hidden",
+          background: "transparent",
+          contain: "layout style paint",
+          willChange: "transform",
+        }}
+      >
         {/* prev/next buttons */}
         <button
           aria-label="Back one day"
@@ -812,7 +822,10 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                   pointerEvents: "none",
                 }}
               >
-                <div className="flex justify-between whitespace-nowrap px-3 py-2 rounded-lg bg-highlight-5" style={{ width: "95%" }}>
+                <div
+                  className="flex justify-between whitespace-nowrap px-3 py-2 rounded-lg bg-highlight-5"
+                  style={{ width: "95%" }}
+                >
                   <span className="flex flex-col items-start">
                     <span className="text-xs font-medium">
                       {label.split(",")[1]}
@@ -862,7 +875,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                 data={surfData}
                 margin={{
                   left: CHART_LEFT_MARGIN,
-                  right: 15,
+                  right: 0,
                   bottom: 5,
                   top: 0,
                 }}
@@ -920,8 +933,8 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                   return (
                     <ReferenceArea
                       key={`night-${idx}`}
-                      x1={safeX1}
-                      x2={safeX2}
+                      x1={x1}
+                      x2={x2}
                       fill="#ccc1ffff"
                       fillOpacity={0.2}
                       ifOverflow="visible"
@@ -938,32 +951,13 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                   fontSize={11}
                   domain={[0, totalFetchedDays * 24]}
                   ticks={hourTicks}
-                  padding={{
-                    left: Math.max(6, axisPadding / 2),
-                    right: axisPadding,
-                  }}
-                  tickFormatter={(v: number) =>
-                    v % 3 === 0 ? String(v % 12 === 0 ? 12 : v % 12) : ""
-                  }
-                />
-                <YAxis
-                  width={Y_AXIS_WIDTH}
-                  tickLine={false}
-                  axisLine={{
-                    stroke: "var(--border)",
-                    strokeWidth: 1.25,
-                    opacity: 0.85,
-                  }}
-                  tickMargin={8}
-                  fontSize={11}
-                  tick={Y_AXIS_TICK}
-                  domain={[
-                    surfTicks[0] ?? 0,
-                    surfTicks[surfTicks.length - 1] ?? 6,
-                  ]}
-                  ticks={surfTicks}
-                  style={{
-                    transform: `translateX(var(${Y_AXIS_OFFSET_VAR}, 0px))`,
+                  tickFormatter={(value: number) => {
+                    const baseHour = Math.round(value - HALF_STEP_HOURS);
+                    const normalized =
+                      ((baseHour % 24) + 24) % 24;
+                    const labelHour =
+                      normalized % 12 === 0 ? 12 : normalized % 12;
+                    return String(labelHour);
                   }}
                 />
                 <ChartTooltip
@@ -1085,6 +1079,26 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                     fill="black"
                   />
                 </Bar>
+                <YAxis
+                  width={Y_AXIS_WIDTH}
+                  tickLine={false}
+                  axisLine={{
+                    stroke: "var(--border)",
+                    strokeWidth: 1.25,
+                    opacity: 0.85,
+                  }}
+                  tickMargin={8}
+                  fontSize={11}
+                  tick={Y_AXIS_TICK}
+                  domain={[
+                    surfTicks[0] ?? 0,
+                    surfTicks[surfTicks.length - 1] ?? 6,
+                  ]}
+                  ticks={surfTicks}
+                  style={{
+                    transform: `translateX(var(${Y_AXIS_OFFSET_VAR}, 0px))`,
+                  }}
+                />
               </BarChart>
             </ChartContainer>
           )}

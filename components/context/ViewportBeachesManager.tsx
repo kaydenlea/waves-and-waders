@@ -7,6 +7,7 @@ import { useMapViewport } from "./MapViewportContext";
 import { useClientPath } from "./PathContext";
 import { useViewportBeachesContext } from "./ViewportBeachesContext";
 
+const MAX_VIEWPORT_BEACHES = 600;
 const ViewportBeachesManager = () => {
   const { filters, favoriteIds, setBeaches } = useMapFilters();
   const {
@@ -35,8 +36,8 @@ const ViewportBeachesManager = () => {
     favoriteIds,
     selectedTab,
     requestId: viewportRequestId,
+    limit: MAX_VIEWPORT_BEACHES,
   });
-
   React.useEffect(() => {
     if (!pendingBounds && !committedBounds) return;
     requestSearch();
@@ -78,7 +79,6 @@ const ViewportBeachesManager = () => {
     setViewportContextBeaches,
     commitPending,
   ]);
-
   React.useEffect(() => {
     if (allowViewportCommit && pendingBeachesRef.current) {
       setViewportContextBeaches(pendingBeachesRef.current);

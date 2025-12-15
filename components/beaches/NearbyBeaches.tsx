@@ -7,6 +7,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useTransition,
 } from "react";
 import { useMapFilters } from "@/components/context/MapFilterContext";
 import { useDateContext } from "@/components/context/DateContext";
@@ -31,8 +32,8 @@ import {
 import { Spinner } from "../ui/spinner";
 import { AnimatePresence, motion } from "motion/react";
 import { useClientPath } from "../context/PathContext";
+import { useViewportBeachesContext } from "../context/ViewportBeachesContext";
 import { useBeachStatsCache } from "@/components/context/BeachStatsCacheContext";
-import { fetchBeachStatsBatchAPI } from "@/lib/api";
 import {
   getForecastCached,
   getTidesCached,
@@ -41,8 +42,9 @@ import {
 
 import {
   type BeachStatsSnapshot,
-  type SummaryStat,
   normalizeHour,
+  extractDailySurfWindStats,
+  mergeDailyStatsIntoConditions,
 } from "@/lib/beachStatsShared";
 
 type DbBeach = {
@@ -101,35 +103,28 @@ const decorateBeachWithStats = (
   beach: UIBeach,
   snapshot?: BeachStatsSnapshot | null
 ): UIBeach => {
-  if (!snapshot || !snapshot.summary) return beach;
-  const surfStat = snapshot.summary.find(
-    (stat): stat is Extract<SummaryStat, { type: "surf" }> =>
-      stat.type === "surf"
+  const dailyStats = snapshot ? extractDailySurfWindStats(snapshot) : null;
+  const mergedConditions = mergeDailyStatsIntoConditions(
+    {
+      surf: beach.conditions.surf,
+      wind: beach.conditions.wind,
+      windDir: beach.conditions.windDir,
+      rating: beach.conditions.rating ?? 0,
+    },
+    dailyStats
   );
-  const windStat = snapshot.summary.find(
-    (stat): stat is Extract<SummaryStat, { type: "wind" }> =>
-      stat.type === "wind"
-  );
-
   return {
     ...beach,
-    conditions: {
-      ...beach.conditions,
-      rating: surfStat?.surf.intensity ?? beach.conditions.rating ?? 0,
-      surf: surfStat?.surf.height ?? beach.conditions.surf,
-      windDir: windStat?.wind.direction ?? beach.conditions.windDir,
-      wind:
-        windStat?.wind.speed != null
-          ? String(windStat.wind.speed)
-          : beach.conditions.wind,
-    },
-    current: snapshot.current ?? beach.current,
+    conditions: mergedConditions,
+    current: snapshot?.current ?? beach.current,
   };
 };
 
 export default function NearbyBeaches() {
   const { filters, beaches: sharedBeaches, favoriteIds: favoriteIdsSet } =
     useMapFilters();
+  const { status: viewportStatus } = useViewportBeachesContext();
+  const deferredBeaches = useDeferredValue(sharedBeaches);
   const { selected: selectedDate, hour } = useDateContext();
   const filterCount = filters?.size ?? 0;
   const effectiveDate = useMemo(() => {
@@ -159,7 +154,7 @@ export default function NearbyBeaches() {
       : "now";
   const filteredRawBeaches = useMemo(
     () =>
-      (sharedBeaches || []).filter((beach) => {
+      (deferredBeaches || []).filter((beach) => {
         if (!filters.size) return true;
         const feats = beach.features ?? {};
         for (const k of filters) {
@@ -167,7 +162,7 @@ export default function NearbyBeaches() {
         }
         return true;
       }),
-    [sharedBeaches, filters]
+    [deferredBeaches, filters]
   );
 
   const baseUiBeaches: UIBeach[] = useMemo(
@@ -191,7 +186,7 @@ export default function NearbyBeaches() {
     [filteredRawBeaches]
   );
 
-  const hasViewportBeaches = (sharedBeaches?.length ?? 0) > 0;
+  const hasCommittedBeaches = (deferredBeaches?.length ?? 0) > 0;
 
   const favoriteSet = useMemo(
     () => new Set(Array.from(favoriteIdsSet ?? new Set()).map(String)),
@@ -199,18 +194,25 @@ export default function NearbyBeaches() {
   );
 
   const [sorted, setSorted] = useState<UIBeach[]>(baseUiBeaches);
+  const [isSortingPending, startSortingTransition] = useTransition();
   useEffect(() => {
-    setSorted(baseUiBeaches);
-  }, [baseUiBeaches]);
+    startSortingTransition(() => {
+      setSorted(baseUiBeaches);
+    });
+  }, [baseUiBeaches, startSortingTransition]);
 
   useEffect(() => {
     if (!baseUiBeaches.length) {
-      setSorted([]);
+      startSortingTransition(() => {
+        setSorted([]);
+      });
       return;
     }
     let cancelled = false;
     if (!navigator?.geolocation) {
-      setSorted(baseUiBeaches);
+      startSortingTransition(() => {
+        setSorted(baseUiBeaches);
+      });
       return;
     }
     navigator.geolocation.getCurrentPosition(
@@ -231,11 +233,15 @@ export default function NearbyBeaches() {
             return aDist - bDist;
           })
           .map((entry) => entry.beach);
-        setSorted(ordered);
+        startSortingTransition(() => {
+          setSorted(ordered);
+        });
       },
       () => {
         if (!cancelled) {
-          setSorted(baseUiBeaches);
+          startSortingTransition(() => {
+            setSorted(baseUiBeaches);
+          });
         }
       },
       { enableHighAccuracy: true, timeout: 8000 }
@@ -243,11 +249,10 @@ export default function NearbyBeaches() {
     return () => {
       cancelled = true;
     };
-  }, [baseUiBeaches]);
+  }, [baseUiBeaches, startSortingTransition]);
 
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
-  const statsLoadingRef = useRef<boolean>(false);
   const { selectedTab } = useClientPath();
 
   const [open, setOpen] = useState(false);
@@ -258,7 +263,7 @@ export default function NearbyBeaches() {
         dropdownRef.current &&
         !dropdownRef.current.contains(e.target as Node)
       ) {
-        if (!statsLoadingRef.current) setOpen(false);
+        setOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -294,12 +299,7 @@ export default function NearbyBeaches() {
     const start = (page - 1) * perPage;
     return visibleList.slice(start, start + perPage);
   }, [visibleList, page, perPage]);
-  const prefetchWindowIds = useMemo(() => {
-    if (!visibleList.length) return [];
-    return visibleList.slice(0, perPage * 2).map((beach) => String(beach.id));
-  }, [visibleList, perPage]);
-
-  const { getSnapshot, primeSnapshots } = useBeachStatsCache();
+  const { getSnapshot, prefetchSnapshots } = useBeachStatsCache();
   const decoratedCacheRef = useRef<
     Record<
       string,
@@ -321,120 +321,29 @@ export default function NearbyBeaches() {
     return map;
   }, [currentItems, getSnapshot, statsDateKey, statsHourKey]);
 
-  const missingStatIds = useMemo(() => {
-    const ids: string[] = [];
-    snapshotMap.forEach((snapshot, id) => {
-      if (snapshot === undefined) {
-        ids.push(id);
-      }
-    });
-    return ids;
-  }, [snapshotMap]);
-
-  const inFlightStatsRef = useRef<Set<string>>(new Set());
-  const [inFlightVersion, setInFlightVersion] = useState(0);
-  const updateInFlightStats = useCallback((ids: string[], add: boolean) => {
-    if (!ids.length) return;
-    setInFlightVersion((prev) => prev + 1);
-    const next = new Set(inFlightStatsRef.current);
-    ids.forEach((id) => {
-      if (add) {
-        next.add(id);
-      } else {
-        next.delete(id);
-      }
-    });
-    inFlightStatsRef.current = next;
-  }, []);
-
-  const pendingStatIdsSet = useMemo(() => {
-    const set = new Set<string>(missingStatIds);
-    inFlightStatsRef.current.forEach((id) => set.add(id));
-    return set;
-  }, [missingStatIds, inFlightVersion]);
-
-  const loadSnapshots = useCallback(
-    async (ids: string[]) => {
-      if (!ids.length) return;
-      updateInFlightStats(ids, true);
-      try {
-        const data = await fetchBeachStatsBatchAPI(ids, {
-          date: effectiveDate instanceof Date ? effectiveDate : undefined,
-          hour: effectiveHour ?? undefined,
-        });
-        primeSnapshots(data, statsDateKey, statsHourKey);
-      } catch (error) {
-        console.error("Failed to fetch beach stats batch", error);
-      } finally {
-        updateInFlightStats(ids, false);
-      }
-    },
-    [
-      updateInFlightStats,
-      effectiveDate,
-      effectiveHour,
-      primeSnapshots,
-      statsDateKey,
-      statsHourKey,
-    ]
-  );
-
   useEffect(() => {
-    if (!missingStatIds.length) return;
-    let cancelled = false;
-    const run = () => {
-      if (cancelled) return;
-      statsLoadingRef.current = true;
-      loadSnapshots(missingStatIds).finally(() => {
-        if (!cancelled) {
-          statsLoadingRef.current = false;
-        }
-      });
-    };
-    if (typeof window !== "undefined") {
-      if ("requestIdleCallback" in window) {
-        const handle = window.requestIdleCallback(run, { timeout: 250 });
-        return () => {
-          cancelled = true;
-          window.cancelIdleCallback(handle);
-        };
-      }
-      const timeout = window.setTimeout(run, 100);
-      return () => {
-        cancelled = true;
-        window.clearTimeout(timeout);
-      };
-    }
-    run();
-    return () => {
-      cancelled = true;
-    };
-  }, [missingStatIds, loadSnapshots]);
-
-  useEffect(() => {
-    if (!prefetchWindowIds.length) return;
-    const run = () => {
-      const missing = prefetchWindowIds.filter(
-        (id) => getSnapshot(id, statsDateKey, statsHourKey) === undefined
-      );
-      if (!missing.length) return;
-      loadSnapshots(missing);
-    };
-    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
-      const handle = window.requestIdleCallback(run, { timeout: 500 });
-      return () => window.cancelIdleCallback(handle);
-    }
-    const id = setTimeout(run, 200);
-    return () => clearTimeout(id);
+    if (!currentItems.length) return;
+    const missing = currentItems
+      .map((beach) => String(beach.id))
+      .filter((id) => snapshotMap.get(id) === undefined);
+    if (!missing.length) return;
+    prefetchSnapshots(missing, {
+      date: effectiveDate instanceof Date ? effectiveDate : undefined,
+      hour: effectiveHour ?? undefined,
+    }).catch((error) => {
+      console.error("Failed to prefetch card stats", error);
+    });
   }, [
-    prefetchWindowIds,
-    getSnapshot,
-    statsDateKey,
-    statsHourKey,
-    loadSnapshots,
+    currentItems,
+    snapshotMap,
+    prefetchSnapshots,
+    effectiveDate,
+    effectiveHour,
   ]);
 
   const renderedItems = useMemo(() => {
+    const startTs =
+      typeof performance !== "undefined" ? performance.now() : null;
     const cache = decoratedCacheRef.current;
     const next: UIBeach[] = [];
     const presentIds = new Set<string>();
@@ -466,6 +375,20 @@ export default function NearbyBeaches() {
     Object.keys(cache).forEach((id) => {
       if (!presentIds.has(id)) delete cache[id];
     });
+
+    if (
+      startTs != null &&
+      typeof performance !== "undefined" &&
+      process.env.NODE_ENV !== "production"
+    ) {
+      const duration = performance.now() - startTs;
+      // eslint-disable-next-line no-console
+      console.log(
+        `[BeachesPerf] decorate-cards page=${page} count=${next.length} duration=${duration.toFixed(
+          1
+        )}ms`
+      );
+    }
 
     return next;
   }, [currentItems, snapshotMap]);
@@ -508,7 +431,7 @@ export default function NearbyBeaches() {
   };
 
   const PageOptions = () => {
-    const disabled = statsLoadingRef.current;
+    const disabled = false;
     const toggle = () => {
       if (disabled) return; // Prevent open while loading to avoid flicker
       setOpen((v) => !v);
@@ -589,6 +512,18 @@ export default function NearbyBeaches() {
     );
   };
 
+  const viewportBusy =
+    viewportStatus === "idle" ||
+    viewportStatus === "loading" ||
+    viewportStatus === "dirty";
+  const hasVisibleItems = visibleList.length > 0;
+  const showGlobalLoading = !hasCommittedBeaches && viewportBusy;
+  const showListLoading = !hasVisibleItems && hasCommittedBeaches && viewportBusy;
+  const showSortingLoading = !hasVisibleItems && isSortingPending;
+  const showLoadingState =
+    showGlobalLoading || showListLoading || showSortingLoading;
+  const showEmptyState = !hasVisibleItems && !showLoadingState;
+
   // console.log("FINAL BEACHES", currentItems);
   return (
     <>
@@ -628,56 +563,53 @@ export default function NearbyBeaches() {
       {/* <PageOptions /> */}
       {/* </div> */}
 
-      {hasViewportBeaches ? (
-        visibleList.length === 0 ? (
-          filterCount > 0 ? (
-            <section className="text-center pt-10 pb-100 flex flex-col justify-center items-center gap-3">
-              <SearchX className="w-10 h-10" />
-              <span className="text-lg">No beaches found...</span>
-            </section>
-          ) : (
-            <section className="text-center pt-10 pb-100 flex flex-col justify-center items-center gap-3">
-              <SearchX className="w-10 h-10" />
-              <span className="text-lg">
-                {selectedTab === "saved"
-                  ? "No saved beaches in the current map view."
-                  : "No beaches in the current map view."}
-              </span>
-              <span className="text-sm text-muted-foreground">
-                Pan or zoom the map to see beaches here.
-              </span>
-            </section>
-          )
-        ) : (
-          <section
-            className="grid grid-cols-1 gap-3 @min-4xl/main:gap-4 @min-md/beaches:grid-cols-2 px-0.5 pb-4"
-            style={{
-              contentVisibility: "auto",
-              contain: "layout paint style",
-            }}
-          >
-            {renderedItems.map((b, idx) => {
-              const id = String(b.id);
-              const snapshotRaw = snapshotMap.get(id);
-              const hasCachedStats = snapshotRaw !== undefined;
-              const loadingStats = !hasCachedStats && pendingStatIdsSet.has(id);
-              const priorityImage = page === 1 && idx < 4;
-              return (
-                <BeachCard
-                  key={b.id}
-                  b={b}
-                  isFav={favoriteSet.has(id)}
-                  loadingStats={loadingStats}
-                  priorityImage={priorityImage}
-                />
-              );
-            })}
-          </section>
-        )
-      ) : (
+      {showLoadingState ? (
         <section className="text-center pt-10 pb-100 flex flex-col justify-center items-center gap-3">
           <span className="text-lg">Loading beaches...</span>
           <Spinner />
+        </section>
+      ) : showEmptyState ? (
+        filterCount > 0 ? (
+          <section className="text-center pt-10 pb-100 flex flex-col justify-center items-center gap-3">
+            <SearchX className="w-10 h-10" />
+            <span className="text-lg">No beaches found...</span>
+          </section>
+        ) : (
+          <section className="text-center pt-10 pb-100 flex flex-col justify-center items-center gap-3">
+            <SearchX className="w-10 h-10" />
+            <span className="text-lg">
+              {selectedTab === "saved"
+                ? "No saved beaches in the current map view."
+                : "No beaches in the current map view."}
+            </span>
+            <span className="text-sm text-muted-foreground">
+              Pan or zoom the map to see beaches here.
+            </span>
+          </section>
+        )
+      ) : (
+        <section
+          className="grid grid-cols-1 gap-3 @min-4xl/main:gap-4 @min-md/beaches:grid-cols-2 px-0.5 pb-4"
+          style={{
+            contentVisibility: "auto",
+            contain: "layout paint style",
+          }}
+        >
+          {renderedItems.map((b, idx) => {
+            const id = String(b.id);
+            const snapshotRaw = snapshotMap.get(id);
+              const loadingStats = snapshotRaw === undefined;
+            const priorityImage = page === 1 && idx < 4;
+            return (
+              <BeachCard
+                key={b.id}
+                b={b}
+                isFav={favoriteSet.has(id)}
+                loadingStats={loadingStats}
+                priorityImage={priorityImage}
+              />
+            );
+          })}
         </section>
       )}
 

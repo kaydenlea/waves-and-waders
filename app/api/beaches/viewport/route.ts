@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase, FEATURE_COLUMNS } from "@/lib/supabase";
+import { getBeachStatsBatch } from "@/lib/beachStats";
 
-const MAX_ROWS = 1000;
+const PAGE_SIZE = 1000;
+const MAX_RESULTS = 4000;
 
 type Bounds = {
   south: number;
@@ -79,6 +81,38 @@ const parseFavoriteIds = (values: string[] | null) => {
   return values.map((value) => value?.trim()).filter((value) => value);
 };
 
+const parseDateParam = (value: string | null) => {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const fetchPagedResults = async (
+  buildQuery: () => any,
+  totalLimit: number
+) => {
+  const rows: Record<string, any>[] = [];
+  let offset = 0;
+  while (rows.length < totalLimit) {
+    const chunkSize = Math.min(PAGE_SIZE, totalLimit - rows.length);
+    const rangeStart = offset;
+    const rangeEnd = offset + chunkSize - 1;
+    const { data, error } = await buildQuery().range(rangeStart, rangeEnd);
+    if (error) {
+      throw error;
+    }
+    if (!data?.length) {
+      break;
+    }
+    rows.push(...data);
+    if (data.length < chunkSize) {
+      break;
+    }
+    offset += chunkSize;
+  }
+  return rows;
+};
+
 export async function GET(request: NextRequest) {
   try {
     const params = request.nextUrl.searchParams;
@@ -89,8 +123,19 @@ export async function GET(request: NextRequest) {
     const crossesAntimeridian = params.get("crosses") === "true" || west > east;
     const limitParam = Number.parseInt(params.get("limit") ?? "", 10);
     const limit = Number.isFinite(limitParam)
-      ? Math.min(Math.max(limitParam, 1), MAX_ROWS)
-      : MAX_ROWS;
+      ? Math.min(Math.max(limitParam, 1), MAX_RESULTS)
+      : MAX_RESULTS;
+    const includeStats = params.get("includeStats") === "1";
+    const statsLimitParam = Number.parseInt(params.get("statsLimit") ?? "", 10);
+    const statsLimit = Number.isFinite(statsLimitParam)
+      ? Math.max(1, Math.min(statsLimitParam, limit))
+      : 0;
+    const statsDateParam = parseDateParam(params.get("date"));
+    const statsHourParam = params.get("hour");
+    const statsHour =
+      statsHourParam != null && statsHourParam !== ""
+        ? Number.parseInt(statsHourParam, 10)
+        : null;
 
     const bounds = normalizeBounds({ south, west, north, east });
     const selectCols = buildSelectColumns();
@@ -122,31 +167,27 @@ export async function GET(request: NextRequest) {
 
     const collectResults = async () => {
       if (!crossesAntimeridian) {
-        const { data, error } = await baseQuery()
-          .gte("LONGITUDE", bounds.west)
-          .lte("LONGITUDE", bounds.east)
-          .limit(limit);
-
-        if (error) throw error;
-        return data ?? [];
+        return fetchPagedResults(
+          () =>
+            baseQuery()
+              .gte("LONGITUDE", bounds.west)
+              .lte("LONGITUDE", bounds.east),
+          limit
+        );
       }
 
-      const eastwardQuery = baseQuery()
-        .gte("LONGITUDE", bounds.west)
-        .limit(limit);
-      const westwardQuery = baseQuery()
-        .lte("LONGITUDE", bounds.east)
-        .limit(limit);
+      const [eastData, westData] = await Promise.all([
+        fetchPagedResults(
+          () => baseQuery().gte("LONGITUDE", bounds.west),
+          limit
+        ),
+        fetchPagedResults(
+          () => baseQuery().lte("LONGITUDE", bounds.east),
+          limit
+        ),
+      ]);
 
-      const [
-        { data: eastData, error: eastError },
-        { data: westData, error: westError },
-      ] = await Promise.all([eastwardQuery, westwardQuery]);
-
-      if (eastError) throw eastError;
-      if (westError) throw westError;
-
-      return [...(eastData ?? []), ...(westData ?? [])];
+      return [...eastData, ...westData];
     };
 
     const rows = await collectResults();
@@ -159,6 +200,29 @@ export async function GET(request: NextRequest) {
       if (deduped.size >= limit) break;
     }
 
+    let statsPayload: Record<string, any> | null = null;
+    if (includeStats && statsLimit > 0 && deduped.size) {
+      const ids = Array.from(deduped.keys()).slice(0, statsLimit);
+      if (ids.length) {
+        statsPayload = await getBeachStatsBatch(ids, {
+          targetDate: statsDateParam ?? undefined,
+          targetHour:
+            typeof statsHour === "number" && Number.isFinite(statsHour)
+              ? statsHour
+              : undefined,
+        });
+      }
+    }
+
+    if (includeStats) {
+      return NextResponse.json({
+        success: true,
+        data: {
+          beaches: Array.from(deduped.values()),
+          stats: statsPayload,
+        },
+      });
+    }
     return NextResponse.json({
       success: true,
       data: Array.from(deduped.values()),

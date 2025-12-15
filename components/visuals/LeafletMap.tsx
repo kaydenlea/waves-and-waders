@@ -36,6 +36,7 @@ import {
   ArrowRightFromLine,
   Minimize2,
   MapIcon,
+  CalendarDays,
 } from "lucide-react";
 import PageTabs from "../general/PageTabs";
 import { SwellRings, WindRing } from "./DirectionRings";
@@ -44,6 +45,16 @@ import {
   usePrefetchAdjacentDates,
 } from "@/lib/hooks/useBeachData";
 import { fetchSurfIntensityAPI } from "@/lib/api";
+import { useBeachStatsCache } from "@/components/context/BeachStatsCacheContext";
+import {
+  extractDailySurfWindStats,
+  normalizeHour,
+} from "@/lib/beachStatsShared";
+import {
+  setMapInteractionCamera,
+  setMapInteractionHover,
+  setMapInteractionSelection,
+} from "@/lib/mapInteractionStore";
 
 type Props = {
   beachId?: string | number;
@@ -69,6 +80,19 @@ const BOUNDS_DELTA_THRESHOLD = 0.0005;
 const MIN_OVERLAY_ZOOM = 15;
 const AUTO_FOCUS_ZOOM = 16;
 const OVERLAY_PANE_ID = "ww-overlay-pane";
+
+const logLeafletPerf = (label: string, startTs: number | null) => {
+  if (
+    startTs == null ||
+    typeof performance === "undefined" ||
+    process.env.NODE_ENV === "production"
+  ) {
+    return;
+  }
+  const duration = performance.now() - startTs;
+  // eslint-disable-next-line no-console
+  console.log(`[LeafletPerf] ${label}: ${duration.toFixed(1)}ms`);
+};
 
 type StoredViewState = {
   longitude: number;
@@ -107,6 +131,29 @@ const getIntensityColor = (value: number) => {
   if (value >= 3) return "#fb923c";
   if (value >= 0.1) return "#4ade80";
   return "#e5e7eb";
+};
+
+const hexToRgb = (hex: string) => {
+  const normalized = hex.replace("#", "");
+  if (normalized.length !== 6) return null;
+  const r = Number.parseInt(normalized.slice(0, 2), 16);
+  const g = Number.parseInt(normalized.slice(2, 4), 16);
+  const b = Number.parseInt(normalized.slice(4, 6), 16);
+  if ([r, g, b].some((channel) => Number.isNaN(channel))) {
+    return null;
+  }
+  return { r, g, b };
+};
+
+const mixHexColors = (colorA: string, colorB: string, weight = 0.5) => {
+  const rgbA = hexToRgb(colorA);
+  const rgbB = hexToRgb(colorB);
+  if (!rgbA || !rgbB) return colorA;
+  const ratio = Math.min(Math.max(weight, 0), 1);
+  const r = Math.round(rgbA.r * (1 - ratio) + rgbB.r * ratio);
+  const g = Math.round(rgbA.g * (1 - ratio) + rgbB.g * ratio);
+  const b = Math.round(rgbA.b * (1 - ratio) + rgbB.b * ratio);
+  return `rgb(${r}, ${g}, ${b})`;
 };
 
 const createMarkerIcon = ({
@@ -228,28 +275,84 @@ const createClusterIcon = (cluster: any) => {
     if (v > maxIntensity) maxIntensity = v;
   });
 
-  const hasHigh = intensities.some((v) => v >= 6);
-  const hasMed = intensities.some((v) => v >= 3 && v < 6);
-  const hasLow = intensities.some((v) => v > 0.1 && v < 3);
+  let lowCount = 0;
+  let medCount = 0;
+  let highCount = 0;
+  intensities.forEach((value) => {
+    if (value >= 6) {
+      highCount++;
+    } else if (value >= 3) {
+      medCount++;
+    } else if (value > 0.1) {
+      lowCount++;
+    }
+  });
 
-  const segmentColors: string[] = [];
-  if (hasLow) segmentColors.push(getIntensityColor(1));
-  if (hasMed) segmentColors.push(getIntensityColor(4));
-  if (hasHigh) segmentColors.push(getIntensityColor(7));
+  const hasHigh = highCount > 0;
+  const hasMed = medCount > 0;
+  const hasLow = lowCount > 0;
+
+  const buckets: Array<{ color: string; count: number }> = [];
+  if (hasLow) {
+    buckets.push({ color: getIntensityColor(1), count: lowCount });
+  }
+  if (hasMed) {
+    buckets.push({ color: getIntensityColor(4), count: medCount });
+  }
+  if (hasHigh) {
+    buckets.push({ color: getIntensityColor(7), count: highCount });
+  }
+
+  const smoothingBias = 0.06;
+  const totalWeight =
+    buckets.reduce((sum, entry) => sum + entry.count, 0) +
+    smoothingBias * buckets.length;
+  const weightedSegments: Array<{ color: string; ratio: number }> =
+    totalWeight > 0
+      ? buckets.map((entry) => ({
+          color: entry.color,
+          ratio: (entry.count + smoothingBias) / totalWeight,
+        }))
+      : [];
 
   let backgroundStyle = "#eff6ff";
-  if (segmentColors.length > 0) {
-    const step = 360 / segmentColors.length;
+  if (weightedSegments.length > 0) {
     const stops: string[] = [];
-    segmentColors.forEach((color, index) => {
-      const start = index * step;
-      const end = (index + 1) * step;
-      stops.push(`${color} ${start}deg ${end}deg`);
+    let cursor = 0;
+    weightedSegments.forEach((segment, index) => {
+      const span = segment.ratio * 360;
+      const start = cursor;
+      const end = start + span;
+      const pad = weightedSegments.length > 1 ? Math.min(10, span * 0.2) : 0;
+      const fillEnd = Math.max(start, end - pad);
+      stops.push(
+        `${segment.color} ${start.toFixed(2)}deg ${fillEnd.toFixed(2)}deg`
+      );
+      if (pad > 0) {
+        const nextColor =
+          weightedSegments[(index + 1) % weightedSegments.length]?.color ??
+          segment.color;
+        const blended = mixHexColors(segment.color, nextColor, 0.5);
+        stops.push(`${blended} ${fillEnd.toFixed(2)}deg ${end.toFixed(2)}deg`);
+      } else {
+        stops.push(
+          `${segment.color} ${start.toFixed(2)}deg ${end.toFixed(2)}deg`
+        );
+      }
+      cursor = end;
     });
+    if (cursor < 360) {
+      const lastColor =
+        weightedSegments[weightedSegments.length - 1]?.color ?? "#dbeafe";
+      stops.push(`${lastColor} ${cursor.toFixed(2)}deg 360deg`);
+    }
+
     const conic = `conic-gradient(${stops.join(", ")})`;
     const radial =
-      "radial-gradient(circle at center, #eff6ff 0 62%, transparent 62%)";
-    backgroundStyle = `${radial}, ${conic}`;
+      "radial-gradient(circle at center, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.82) 44%, rgba(255,255,255,0.45) 57%, rgba(255,255,255,0.12) 63%, transparent 70%)";
+    const halo =
+      "radial-gradient(circle at center, transparent 62%, rgba(96,165,250,0.1) 72%, rgba(37,99,235,0.04) 85%, transparent 94%)";
+    backgroundStyle = `${radial}, ${halo}, ${conic}`;
   }
 
   const html = `
@@ -482,14 +585,44 @@ const escapeHtml = (value: string) =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
-const buildPopupHtml = (beach: BeachPoint, intensity: number | null) => {
+const buildPopupHtml = (
+  beach: BeachPoint,
+  stats: {
+    surfHeight: string | null;
+    surfIntensity: number | null;
+    windSpeed: number | null;
+    windDirection: number | null;
+  }
+) => {
   const safeName = escapeHtml(beach.name ?? "Unnamed beach");
   const safeCounty = escapeHtml(beach.county ?? "");
   const numericIntensity =
-    intensity != null && Number.isFinite(Number(intensity))
-      ? Number(intensity)
+    stats.surfIntensity != null && Number.isFinite(stats.surfIntensity)
+      ? stats.surfIntensity
       : null;
-  const rating = numericIntensity != null ? numericIntensity.toFixed(1) : "--";
+  const surfReady =
+    typeof stats.surfHeight === "string" && stats.surfHeight.length > 0;
+  const surfText = surfReady ? escapeHtml(stats.surfHeight as string) : "--";
+  const windSpeedValue =
+    stats.windSpeed != null && Number.isFinite(stats.windSpeed)
+      ? Math.round(stats.windSpeed)
+      : null;
+  const windReady = windSpeedValue != null;
+  const windText = windReady ? String(windSpeedValue) : "--";
+  const windDirection =
+    stats.windDirection != null && Number.isFinite(stats.windDirection)
+      ? stats.windDirection
+      : null;
+  const windArrowRotation =
+    windDirection != null ? (windDirection - 315 + 360) % 360 : null;
+  const windArrow =
+    windArrowRotation != null
+      ? `<span class="ww-leaflet-popup__wind-arrow" style="transform:rotate(${windArrowRotation}deg);">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4.037 4.688a.495.495 0 0 1 .651-.651l16 6.5a.5.5 0 0 1-.063.947l-6.124 1.58a2 2 0 0 0-1.438 1.435l-1.579 6.126a.5.5 0 0 1-.947.063z"/>
+          </svg>
+        </span>`
+      : "";
   const color = getIntensityColor(
     numericIntensity != null ? numericIntensity : 0
   );
@@ -508,14 +641,22 @@ const buildPopupHtml = (beach: BeachPoint, intensity: number | null) => {
         <div class="ww-leaflet-popup__icon">${wavesSvg}</div>
         <div class="ww-leaflet-popup__metric-text">
           <span>Surf</span>
-          <strong>${rating}<span>ft</span></strong>
+          <strong>${
+            surfReady
+              ? `${surfText}<span>ft</span>`
+              : `<span class="ww-leaflet-popup__placeholder ww-leaflet-popup__placeholder--wide" aria-hidden="true"></span>`
+          }</strong>
         </div>
       </div>
       <div class="ww-leaflet-popup__metric">
         <div class="ww-leaflet-popup__icon">${windSvg}</div>
         <div class="ww-leaflet-popup__metric-text">
           <span>Wind</span>
-          <strong>--<span>mph</span></strong>
+          <strong>${
+            windReady
+              ? `${windText}<span>mph</span>${windArrow}`
+              : `<span class="ww-leaflet-popup__placeholder ww-leaflet-popup__placeholder--wide" aria-hidden="true"></span>`
+          }</strong>
         </div>
       </div>
     </div>
@@ -1092,6 +1233,85 @@ const LegendPanel: React.FC<{ onClose: () => void; disableBlur: boolean }> = ({
     </div>
   </div>
 );
+const MapDateOverlay: React.FC<{
+  onClose: () => void;
+  disableBlur: boolean;
+  selectedDate: Date | null;
+  onSelectDate: (next: Date) => void;
+}> = ({ onClose, disableBlur, selectedDate, onSelectDate }) => {
+  const dateOptions = React.useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return Array.from({ length: 7 }, (_, idx) => {
+      const date = new Date(today);
+      date.setDate(today.getDate() + idx);
+      return date;
+    });
+  }, []);
+  const normalize = (date: Date | null) => {
+    if (!date) return null;
+    const copy = new Date(date);
+    copy.setHours(0, 0, 0, 0);
+    return copy.getTime();
+  };
+  const selectedKey = normalize(selectedDate);
+  return (
+    <div className="absolute right-3 @min-4xl:left-18 top-3 @min-4xl:top-auto @min-4xl:bottom-3 z-[1010] w-50 @min-4xl:w-90 pointer-events-none">
+      <div
+        className={cn(
+          "rounded-2xl border border-border/70 bg-highlight-7/85 shadow-lg pointer-events-auto px-2.5 py-2.5",
+          disableBlur ? "" : "backdrop-blur"
+        )}
+      >
+        <div className="flex items-center justify-between pb-1">
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-foreground">
+            Pick map date
+          </span>
+          <button
+            className="text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+            onClick={onClose}
+          >
+            Close
+          </button>
+        </div>
+        <div className="grid grid-cols-2 @min-4xl:grid-cols-4 gap-1.5">
+          {dateOptions.map((date) => {
+            const key = normalize(date);
+            const isSelected = key === selectedKey;
+            const isToday = date.toDateString() === new Date().toDateString();
+            return (
+              <button
+                key={key ?? String(date.getTime())}
+                type="button"
+                className={cn(
+                  "flex flex-col items-start gap-0.5 rounded-xl border border-border/60 bg-background/85 px-2.5 py-1.5 text-left transition-colors shadow-sm",
+                  "hover:bg-highlight-5/80 hover:border-border/80",
+                  isSelected &&
+                    "border-border bg-highlight-3 dark:bg-highlight-5 text-blue-900 dark:text-blue-100"
+                )}
+                onClick={() => onSelectDate(date)}
+              >
+                <span className="text-[10px] font-semibold uppercase tracking-wide">
+                  {isToday
+                    ? "Today"
+                    : date.toLocaleDateString(undefined, {
+                        weekday: "short",
+                      })}
+                </span>
+                <span className="text-base font-semibold">
+                  {date.toLocaleDateString(undefined, {
+                    month: "short",
+                    day: "numeric",
+                  })}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};
 const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
   const router = useRouter();
   const pathname = usePathname() ?? "";
@@ -1108,13 +1328,22 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
   } = useMapFilters();
   const { setVisibleBounds, setViewportRequestId, setAllowViewportCommit } =
     useMapViewport();
-  const { selected: selectedDate, hour } = useDateContext();
+  const {
+    selected: selectedDate,
+    setSelected: setSelectedDate,
+    hour,
+  } = useDateContext();
   const selectedHour = Number.isFinite(hour) ? hour : null;
   const {
     beaches: viewportBeaches,
     status: viewportStatus,
     onCameraChange,
   } = useViewportBeachesContext();
+  const {
+    getSnapshot: getStatsSnapshot,
+    prefetchSnapshots,
+    version: statsVersion,
+  } = useBeachStatsCache();
   const [smallScreen, setSmallScreen] = React.useState<boolean | null>(null);
   const [navigationPending, setNavigationPending] = React.useState(false);
   const containerRef = React.useRef<HTMLDivElement | null>(null);
@@ -1180,6 +1409,9 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
   const [selectedBeachId, setSelectedBeachId] = React.useState<
     string | number | null
   >(null);
+  React.useEffect(() => {
+    setMapInteractionSelection({ beachId: selectedBeachId ?? null });
+  }, [selectedBeachId]);
   const [markerRevision, forceMarkerRevision] = React.useReducer(
     (value) => value + 1,
     0
@@ -1232,6 +1464,37 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
   }, [filteredBeaches, combinedBeaches, selectedBeachId]);
 
   const surfIntensity = useSurfIntensityData(selectedDate);
+  const effectiveStatsDate = React.useMemo(
+    () => (selectedDate instanceof Date ? selectedDate : null),
+    [selectedDate]
+  );
+  const statsDateKey = React.useMemo(() => {
+    if (effectiveStatsDate instanceof Date) {
+      const day = new Date(
+        effectiveStatsDate.getFullYear(),
+        effectiveStatsDate.getMonth(),
+        effectiveStatsDate.getDate()
+      );
+      return day.toISOString().split("T")[0];
+    }
+    return "today";
+  }, [effectiveStatsDate]);
+  const statsHourKey = React.useMemo(() => {
+    if (typeof selectedHour === "number") {
+      return normalizeHour(selectedHour);
+    }
+    if (effectiveStatsDate instanceof Date) {
+      return "midday";
+    }
+    return "now";
+  }, [effectiveStatsDate, selectedHour]);
+  const handleMapDateSelect = React.useCallback(
+    (next: Date) => {
+      if (!(next instanceof Date) || Number.isNaN(next.getTime())) return;
+      setSelectedDate(next);
+    },
+    [setSelectedDate]
+  );
   const favoriteSet = React.useMemo(
     () => new Set(Array.from(favoriteIds ?? []).map(String)),
     [favoriteIds]
@@ -1263,7 +1526,13 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
 
   React.useEffect(() => {
     requestMarkerRebuild();
-  }, [filteredBeaches, surfIntensity, favoriteSet, requestMarkerRebuild]);
+  }, [
+    filteredBeaches,
+    surfIntensity,
+    favoriteSet,
+    statsVersion,
+    requestMarkerRebuild,
+  ]);
 
   const interactionsReady = mapReady && filteredBeaches.length > 0;
   React.useEffect(() => {
@@ -1320,8 +1589,9 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       center: { longitude: number; latitude: number };
     }) => {
       if (!snapshot?.bounds) return;
-      const now =
-        typeof performance !== "undefined" ? performance.now() : Date.now();
+      const supportsPerformance = typeof performance !== "undefined";
+      const now = supportsPerformance ? performance.now() : Date.now();
+      const startTs = supportsPerformance ? (now as number) : null;
       const previous = cameraThrottleRef.current;
       if (
         previous.bounds &&
@@ -1343,6 +1613,12 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       });
       latestSetBounds(snapshot.bounds);
       latestSetRequest((id) => id + 1);
+      setMapInteractionCamera({
+        zoom: snapshot.zoom,
+        center: snapshot.center,
+        bounds: snapshot.bounds,
+      });
+      logLeafletPerf(`camera-update zoom=${snapshot.zoom.toFixed(1)}`, startTs);
     },
     []
   );
@@ -1581,6 +1857,39 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     });
     pendingAutoCenterRef.current = candidate;
   }, [beachId, initialBeach, pathname, selectedBeachId]);
+  const updateZoomButtonState = React.useCallback(() => {
+    const map = mapRef.current;
+    const zoom = map?.getZoom?.();
+    const min = map?.getMinZoom?.();
+    const max = map?.getMaxZoom?.();
+    const container = zoomControlRef.current?.getContainer?.();
+    if (!map || zoom == null || min == null || max == null || !container) {
+      return;
+    }
+    const zoomInButton = container.querySelector<HTMLAnchorElement>(
+      ".leaflet-control-zoom-in"
+    );
+    const zoomOutButton = container.querySelector<HTMLAnchorElement>(
+      ".leaflet-control-zoom-out"
+    );
+    const disableZoomIn = zoom >= max - 1e-6;
+    const disableZoomOut = zoom <= min + 1e-6;
+    if (zoomInButton) {
+      zoomInButton.classList.toggle("is-disabled", disableZoomIn);
+      zoomInButton.setAttribute(
+        "aria-disabled",
+        disableZoomIn ? "true" : "false"
+      );
+    }
+    if (zoomOutButton) {
+      zoomOutButton.classList.toggle("is-disabled", disableZoomOut);
+      zoomOutButton.setAttribute(
+        "aria-disabled",
+        disableZoomOut ? "true" : "false"
+      );
+    }
+  }, []);
+
   const refreshZoomControl = React.useCallback(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -1602,7 +1911,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       opacity: "0.8",
       borderRadius: "30px",
       padding: "5px",
-      marginTop: !fullMapPage ? "70px" : smallScreen ? "260px" : "0px",
+      marginTop: !fullMapPage ? "121px" : smallScreen ? "260px" : "0px",
       marginBottom: !fullMapPage
         ? smallScreen
           ? "0px"
@@ -1617,10 +1926,14 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     zoomButtons.forEach((button) => {
       Object.assign(button.style, {
         background: "transparent",
-        color: "var(--foreground)",
+        border: "none",
+        textDecoration: "none",
       });
+      button.removeAttribute("href");
+      button.setAttribute("role", "button");
     });
-  }, [fullMapPage, smallScreen]);
+    updateZoomButtonState();
+  }, [fullMapPage, smallScreen, updateZoomButtonState]);
 
   React.useEffect(() => {
     refreshZoomControl();
@@ -1664,6 +1977,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     const prevId = appliedHoverIdRef.current;
     hoverStateRef.current = { card: null, marker: null };
     appliedHoverIdRef.current = null;
+    setMapInteractionHover({ cardId: null, markerId: null });
     if (prevId) {
       const prevEntry = registry[prevId];
       if (prevEntry) {
@@ -1704,13 +2018,95 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     [updateClusterHighlight]
   );
 
+  const ensureStatsForBeachId = React.useCallback(
+    (beachId: string | number | null | undefined) => {
+      if (beachId == null) return;
+      const snapshot = getStatsSnapshot(
+        String(beachId),
+        statsDateKey,
+        statsHourKey
+      );
+      if (snapshot !== undefined) return;
+      prefetchSnapshots([beachId], {
+        date: effectiveStatsDate ?? undefined,
+        hour: typeof selectedHour === "number" ? selectedHour : undefined,
+      }).catch(() => {
+        // ignore fetch errors; popups will show "--" until data available
+      });
+    },
+    [
+      getStatsSnapshot,
+      statsDateKey,
+      statsHourKey,
+      prefetchSnapshots,
+      effectiveStatsDate,
+      selectedHour,
+    ]
+  );
+
+  const prefetchVisibleMarkerStats = React.useCallback(() => {
+    const map = mapRef.current;
+    const group: any = clusterLayerRef.current;
+    if (!map || !group || typeof map.getBounds !== "function") {
+      return;
+    }
+    const bounds = map.getBounds();
+    if (!bounds) return;
+    const pending: Array<string | number> = [];
+    Object.values(markerRegistryRef.current).forEach((entry) => {
+      if (!entry?.marker) return;
+      const latLng = entry.marker.getLatLng?.();
+      if (!latLng || !bounds.contains(latLng)) {
+        return;
+      }
+      const parent =
+        typeof group.getVisibleParent === "function"
+          ? group.getVisibleParent(entry.marker)
+          : null;
+      if (parent && parent !== entry.marker) {
+        return;
+      }
+      const beachId = entry.beach?.id;
+      if (beachId == null) return;
+      const snapshot = getStatsSnapshot(
+        String(beachId),
+        statsDateKey,
+        statsHourKey
+      );
+      if (snapshot === undefined) {
+        pending.push(beachId);
+      }
+    });
+    if (!pending.length) return;
+    prefetchSnapshots(pending, {
+      date: effectiveStatsDate ?? undefined,
+      hour: typeof selectedHour === "number" ? selectedHour : undefined,
+    }).catch(() => {
+      // ignore background errors
+    });
+  }, [
+    getStatsSnapshot,
+    statsDateKey,
+    statsHourKey,
+    prefetchSnapshots,
+    effectiveStatsDate,
+    selectedHour,
+  ]);
+
   const setHoveredMarkerSource = React.useCallback(
     (source: "marker" | "card", nextId: string | null) => {
       if (!interactionsReadyRef.current) return;
       hoverStateRef.current[source] = nextId;
+      setMapInteractionHover({
+        cardId: hoverStateRef.current.card,
+        markerId: hoverStateRef.current.marker,
+      });
       const nextHoverId =
         hoverStateRef.current.card ?? hoverStateRef.current.marker;
       const previousId = appliedHoverIdRef.current;
+      if (nextHoverId) {
+        ensureStatsForBeachId(nextHoverId);
+      }
       if (previousId === nextHoverId) {
         if (nextHoverId) {
           const entry = markerRegistryRef.current[nextHoverId];
@@ -1772,12 +2168,89 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
         updateClusterHighlight(null);
       }
     },
-    [refreshMarkerIcon, updateClusterHighlight, highlightClusterForBeach]
+    [
+      refreshMarkerIcon,
+      updateClusterHighlight,
+      highlightClusterForBeach,
+      ensureStatsForBeachId,
+    ]
   );
+
+  type MapLifecycleCallbacks = {
+    refreshZoomControl: () => void;
+    emitCameraUpdate: () => void;
+    scheduleMapViewPersistence: (payload: StoredViewState) => void;
+    clearHoverState: () => void;
+    scheduleCommitResume: () => void;
+    scheduleResizeRecompute: () => void;
+    normalizeMapCenter: () => void;
+    setAllowViewportCommit: (value: boolean) => void;
+    cancelCommitResume: () => void;
+    setHoveredMarkerSource: (
+      source: "marker" | "card",
+      nextId: string | null
+    ) => void;
+    primeVisibleMarkerStats: () => void;
+  };
+
+  const mapLifecycleCallbacksRef = React.useRef<MapLifecycleCallbacks | null>(
+    null
+  );
+
   React.useEffect(() => {
+    mapLifecycleCallbacksRef.current = {
+      refreshZoomControl,
+      emitCameraUpdate,
+      scheduleMapViewPersistence,
+      clearHoverState,
+      scheduleCommitResume,
+      scheduleResizeRecompute,
+      normalizeMapCenter,
+      setAllowViewportCommit,
+      cancelCommitResume,
+      setHoveredMarkerSource,
+      primeVisibleMarkerStats: prefetchVisibleMarkerStats,
+      updateZoomButtons: updateZoomButtonState,
+    };
+  }, [
+    refreshZoomControl,
+    emitCameraUpdate,
+    scheduleMapViewPersistence,
+    clearHoverState,
+    scheduleCommitResume,
+    scheduleResizeRecompute,
+    normalizeMapCenter,
+    setAllowViewportCommit,
+    cancelCommitResume,
+    setHoveredMarkerSource,
+    prefetchVisibleMarkerStats,
+    updateZoomButtonState,
+  ]);
+
+  React.useEffect(() => {
+    if (!showMap) {
+      return;
+    }
     if (!containerRef.current || mapRef.current) {
       return;
     }
+    const lifecycle = mapLifecycleCallbacksRef.current;
+    if (!lifecycle) {
+      return;
+    }
+    const {
+      refreshZoomControl: latestRefreshZoomControl,
+      emitCameraUpdate: latestEmitCameraUpdate,
+      scheduleMapViewPersistence: latestScheduleMapViewPersistence,
+      clearHoverState: latestClearHoverState,
+      scheduleCommitResume: latestScheduleCommitResume,
+      scheduleResizeRecompute: latestScheduleResizeRecompute,
+      normalizeMapCenter: latestNormalizeMapCenter,
+      setAllowViewportCommit: latestSetAllowViewportCommit,
+      cancelCommitResume: latestCancelCommitResume,
+      updateZoomButtons: latestUpdateZoomButtons = () => {},
+      primeVisibleMarkerStats: latestPrimeVisibleMarkerStats = () => {},
+    } = lifecycle;
     if (typeof window !== "undefined" && L?.Browser?.any3d) {
       (L.Browser as any).any3d = false;
     }
@@ -1810,7 +2283,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       pane.style.zIndex = "750";
       pane.style.pointerEvents = "none";
     }
-    refreshZoomControl();
+    latestRefreshZoomControl();
     const clusterGroup = L.markerClusterGroup({
       disableClusteringAtZoom: 18,
       maxClusterRadius: 30,
@@ -1827,42 +2300,46 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     clusterLayerRef.current = clusterGroup;
     clusterGroup.addTo(map);
     setMapReady(true);
-    normalizeMapCenter();
-    emitCameraUpdate();
+    latestNormalizeMapCenter();
+    latestEmitCameraUpdate();
+    latestPrimeVisibleMarkerStats();
+    latestUpdateZoomButtons();
 
     const handleMoveStart = () => {
       if (suppressUserMoveRef.current) {
         suppressUserMoveRef.current = false;
         return;
       }
-      cancelCommitResume();
-      setAllowViewportCommit(false);
-      clearHoverState();
+      latestCancelCommitResume();
+      latestSetAllowViewportCommit(false);
+      latestClearHoverState();
     };
     const handleResizeEvent = () => {
-      scheduleResizeRecompute();
+      latestScheduleResizeRecompute();
     };
 
     const handleInteractionEnd = () => {
-      clearHoverState();
+      latestClearHoverState();
       try {
         const center = map.getCenter();
         const zoom = map.getZoom();
-        scheduleMapViewPersistence({
+        latestScheduleMapViewPersistence({
           longitude: center.lng,
           latitude: center.lat,
           zoom,
         });
-        normalizeMapCenter();
+        latestNormalizeMapCenter();
       } catch {
         // ignore persistence failures
       }
-      emitCameraUpdate();
-      scheduleCommitResume();
+      latestEmitCameraUpdate();
+      latestScheduleCommitResume();
+      latestPrimeVisibleMarkerStats();
+      latestUpdateZoomButtons();
     };
 
     const handleZoomStart = () => {
-      clearHoverState();
+      latestClearHoverState();
     };
 
     map.on("movestart", handleMoveStart);
@@ -1877,7 +2354,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       map.off("zoomstart", handleZoomStart);
       map.off("moveend", handleInteractionEnd);
       map.off("zoomend", handleInteractionEnd);
-      cancelCommitResume();
+      latestCancelCommitResume();
       zoomControlRef.current?.remove();
       zoomControlRef.current = null;
       if (clusterLayerRef.current) {
@@ -1891,22 +2368,9 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       map.remove();
       mapRef.current = null;
       setMapReady(false);
-      clearHoverState();
+      latestClearHoverState();
     };
-  }, [
-    refreshZoomControl,
-    emitCameraUpdate,
-    scheduleMapViewPersistence,
-    clearHoverState,
-    scheduleCommitResume,
-    scheduleResizeRecompute,
-    normalizeMapCenter,
-    showMap,
-    initialBeach,
-    setAllowViewportCommit,
-    cancelCommitResume,
-    setHoveredMarkerSource,
-  ]);
+  }, [showMap]);
   React.useEffect(() => {
     if (!mapReady || !selectedBeachId || !selectedBeach) return;
     const targetId = pendingAutoCenterRef.current;
@@ -2033,149 +2497,254 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       container.removeEventListener("mouseleave", handleLeave);
     };
   }, [clearHoverState, smallScreen]);
+
+  const getSnapshotForBeach = React.useCallback(
+    (beach: BeachPoint) =>
+      getStatsSnapshot(String(beach.id), statsDateKey, statsHourKey),
+    [getStatsSnapshot, statsDateKey, statsHourKey]
+  );
+
+  const applyMarkerDiff = React.useCallback(
+    (group: L.MarkerClusterGroup, startTs: number | null) => {
+      const registry = markerRegistryRef.current;
+      const incomingIds = new Set(
+        filteredBeaches.map((beach) => String(beach.id))
+      );
+
+      let removed = false;
+      let removedCount = 0;
+      Object.entries(registry).forEach(([id, entry]) => {
+        if (!incomingIds.has(id)) {
+          group.removeLayer(entry.marker);
+          entry.marker.off();
+          delete registry[id];
+          removed = true;
+          removedCount += 1;
+          return;
+        }
+        if (typeof (group as any).hasLayer === "function") {
+          if (!(group as any).hasLayer(entry.marker)) {
+            enqueueMarkerAdd(entry.marker);
+          }
+        } else {
+          enqueueMarkerAdd(entry.marker);
+        }
+      });
+      if (removed) {
+        hoverStateRef.current = { card: null, marker: null };
+        appliedHoverIdRef.current = null;
+        updateClusterHighlight(null);
+      }
+
+      let addedCount = 0;
+      let updatedCount = 0;
+      filteredBeaches.forEach((beach) => {
+        const id = String(beach.id);
+        console.log("ID", id);
+        const snapshot = getSnapshotForBeach(beach) ?? null;
+        console.log("SNAPSHOT", snapshot);
+        const dailyStats = extractDailySurfWindStats(snapshot);
+        const statsIntensity =
+          typeof dailyStats.surfIntensity === "number"
+            ? dailyStats.surfIntensity
+            : null;
+        const resolved =
+          statsIntensity != null
+            ? statsIntensity
+            : resolveSurfIntensity(surfIntensity, beach);
+        const intensity = Number.isFinite(resolved as number)
+          ? (resolved as number)
+          : null;
+        const iconIntensity = intensity ?? 0;
+        const favorite = favoriteSet.has(id);
+        const popupStats = {
+          surfHeight: dailyStats.surfHeight,
+          surfIntensity: intensity,
+          windSpeed: dailyStats.windSpeed,
+          windDirection: dailyStats.windDirection,
+        };
+        const existing = registry[id];
+        if (existing) {
+          let changed = false;
+          if (existing.intensity !== iconIntensity) {
+            existing.intensity = iconIntensity;
+            changed = true;
+          }
+          if (existing.favorite !== favorite) {
+            existing.favorite = favorite;
+            changed = true;
+          }
+          // Always keep popup HTML in sync with latest stats so we don't
+          // get stuck showing "--" after stats prefetch completes.
+          const popupHtml = buildPopupHtml(beach, popupStats);
+          const popup = existing.marker.getPopup();
+          if (popup) {
+            popup.setContent(popupHtml);
+          } else {
+            existing.marker.bindPopup(popupHtml, {
+              closeButton: false,
+              autoPan: false,
+            });
+          }
+          if (changed) {
+            (existing.marker.options as any).wwIntensity = iconIntensity;
+            refreshMarkerIcon(existing, false);
+            updatedCount += 1;
+          }
+          if (
+            typeof (group as any).hasLayer !== "function" ||
+            !(group as any).hasLayer(existing.marker)
+          ) {
+            enqueueMarkerAdd(existing.marker);
+          }
+          return;
+        }
+        const marker = L.marker(
+          [Number(beach.latitude), Number(beach.longitude)],
+          {
+            icon: createMarkerIcon({
+              intensity: iconIntensity,
+              favorite,
+              selected:
+                selectedBeachId != null &&
+                String(selectedBeachId) === String(beach.id),
+            }),
+            keyboard: false,
+            bubblingMouseEvents: false,
+            // Store intensity so cluster icons can reflect the
+            // distribution of underlying marker intensities.
+            wwIntensity: iconIntensity,
+          } as any
+        );
+        marker.bindPopup(buildPopupHtml(beach, popupStats), {
+          closeButton: false,
+          autoPan: false,
+        });
+        const entry: MarkerEntry = {
+          marker,
+          beach,
+          intensity,
+          favorite,
+        };
+        markerRegistryRef.current[id] = entry;
+        const handleClick = () => {
+          if (!interactionsReadyRef.current) return;
+          const normalizedId = String(beach.id);
+          if (selectedBeachId && String(selectedBeachId) === normalizedId) {
+            marker.openPopup();
+          } else {
+            setSelectedBeachId(beach.id);
+            pendingAutoCenterRef.current = normalizedId;
+            marker.openPopup();
+          }
+          const destination = `${generateBeachUrl(
+            beach.name,
+            beach.id
+          )}/overview#content`;
+          if (router) {
+            setNavigationPending(true);
+            router.push(destination);
+          }
+        };
+        const handleMouseOver = () => {
+          setHoveredMarkerSource("marker", String(beach.id));
+        };
+        const handleMouseOut = () => {
+          if (hoverStateRef.current.marker === String(beach.id)) {
+            setHoveredMarkerSource("marker", null);
+          }
+          marker.closePopup();
+        };
+        marker.on("click", handleClick);
+        marker.on("mouseover", handleMouseOver);
+        marker.on("mouseout", handleMouseOut);
+        enqueueMarkerAdd(marker);
+        addedCount += 1;
+      });
+      try {
+        group.refreshClusters();
+      } catch {
+        // ignore refresh errors
+      }
+      logLeafletPerf(
+        `marker-rebuild add=${addedCount} update=${updatedCount} remove=${removedCount} total=${
+          Object.keys(markerRegistryRef.current).length
+        }`,
+        startTs
+      );
+    },
+    [
+      enqueueMarkerAdd,
+      favoriteSet,
+      filteredBeaches,
+      refreshMarkerIcon,
+      router,
+      selectedBeachId,
+      setHoveredMarkerSource,
+      setSelectedBeachId,
+      surfIntensity,
+      statsDateKey,
+      statsHourKey,
+      getSnapshotForBeach,
+      updateClusterHighlight,
+    ]
+  );
+
+  React.useEffect(() => {
+    if (!mapReady) return;
+    const registry = markerRegistryRef.current;
+    Object.values(registry).forEach((entry) => {
+      const snapshot = getSnapshotForBeach(entry.beach) ?? null;
+      const dailyStats = extractDailySurfWindStats(snapshot);
+      const statsIntensity =
+        typeof dailyStats.surfIntensity === "number"
+          ? dailyStats.surfIntensity
+          : null;
+      const resolved =
+        statsIntensity != null
+          ? statsIntensity
+          : resolveSurfIntensity(surfIntensity, entry.beach);
+      const intensity = Number.isFinite(resolved as number)
+        ? (resolved as number)
+        : null;
+      const popupHtml = buildPopupHtml(entry.beach, {
+        surfHeight: dailyStats.surfHeight,
+        surfIntensity: intensity,
+        windSpeed: dailyStats.windSpeed,
+        windDirection: dailyStats.windDirection,
+      });
+      const popup = entry.marker.getPopup();
+      if (popup) {
+        popup.setContent(popupHtml);
+      } else {
+        entry.marker.bindPopup(popupHtml, {
+          closeButton: false,
+          autoPan: false,
+        });
+      }
+    });
+  }, [
+    mapReady,
+    statsVersion,
+    statsDateKey,
+    statsHourKey,
+    surfIntensity,
+    getSnapshotForBeach,
+  ]);
+
   React.useEffect(() => {
     const group = clusterLayerRef.current;
     if (!group || !mapReady) return;
     if (!rebuildMarkersRef.current) return;
     rebuildMarkersRef.current = false;
-    const registry = markerRegistryRef.current;
-    const incomingIds = new Set(
-      filteredBeaches.map((beach) => String(beach.id))
-    );
-
-    let removed = false;
-    Object.entries(registry).forEach(([id, entry]) => {
-      if (!incomingIds.has(id)) {
-        group.removeLayer(entry.marker);
-        entry.marker.off();
-        delete registry[id];
-        removed = true;
-        return;
-      }
-      if (typeof (group as any).hasLayer === "function") {
-        if (!(group as any).hasLayer(entry.marker)) {
-          enqueueMarkerAdd(entry.marker);
-        }
-      } else {
-        enqueueMarkerAdd(entry.marker);
-      }
-    });
-    if (removed) {
-      hoverStateRef.current = { card: null, marker: null };
-      appliedHoverIdRef.current = null;
-      updateClusterHighlight(null);
-    }
-
-    filteredBeaches.forEach((beach) => {
-      const id = String(beach.id);
-      const resolved = resolveSurfIntensity(surfIntensity, beach);
-      const intensity = Number.isFinite(resolved as number)
-        ? (resolved as number)
-        : null;
-      const iconIntensity = intensity ?? 0;
-      const favorite = favoriteSet.has(id);
-      const existing = registry[id];
-      if (existing) {
-        let changed = false;
-        if (existing.intensity !== iconIntensity) {
-          existing.intensity = iconIntensity;
-          changed = true;
-        }
-        if (existing.favorite !== favorite) {
-          existing.favorite = favorite;
-          changed = true;
-        }
-        if (changed) {
-          (existing.marker.options as any).wwIntensity = iconIntensity;
-          refreshMarkerIcon(existing, false);
-        }
-        if (
-          typeof (group as any).hasLayer !== "function" ||
-          !(group as any).hasLayer(existing.marker)
-        ) {
-          enqueueMarkerAdd(existing.marker);
-        }
-        return;
-      }
-      const marker = L.marker(
-        [Number(beach.latitude), Number(beach.longitude)],
-        {
-          icon: createMarkerIcon({
-            intensity: iconIntensity,
-            favorite,
-            selected:
-              selectedBeachId != null &&
-              String(selectedBeachId) === String(beach.id),
-          }),
-          keyboard: false,
-          bubblingMouseEvents: false,
-          // Store intensity so cluster icons can reflect the
-          // distribution of underlying marker intensities.
-          wwIntensity: iconIntensity,
-        } as any
-      );
-      marker.bindPopup(buildPopupHtml(beach, intensity), {
-        closeButton: false,
-        autoPan: false,
-      });
-      const entry: MarkerEntry = {
-        marker,
-        beach,
-        intensity,
-        favorite,
-      };
-      markerRegistryRef.current[id] = entry;
-      const handleClick = () => {
-        if (!interactionsReadyRef.current) return;
-        const normalizedId = String(beach.id);
-        if (selectedBeachId && String(selectedBeachId) === normalizedId) {
-          marker.openPopup();
-        } else {
-          setSelectedBeachId(beach.id);
-          pendingAutoCenterRef.current = normalizedId;
-          marker.openPopup();
-        }
-        const destination = `${generateBeachUrl(
-          beach.name,
-          beach.id
-        )}/overview#content`;
-        if (router) {
-          setNavigationPending(true);
-          router.push(destination);
-        }
-      };
-      const handleMouseOver = () => {
-        setHoveredMarkerSource("marker", String(beach.id));
-      };
-      const handleMouseOut = () => {
-        if (hoverStateRef.current.marker === String(beach.id)) {
-          setHoveredMarkerSource("marker", null);
-        }
-        marker.closePopup();
-      };
-      marker.on("click", handleClick);
-      marker.on("mouseover", handleMouseOver);
-      marker.on("mouseout", handleMouseOut);
-      enqueueMarkerAdd(marker);
-    });
-    try {
-      group.refreshClusters();
-    } catch {
-      // ignore refresh errors
-    }
-  }, [
-    filteredBeaches,
-    surfIntensity,
-    selectedBeachId,
-    mapReady,
-    router,
-    favoriteSet,
-    setHoveredMarkerSource,
-    updateClusterHighlight,
-    refreshMarkerIcon,
-    enqueueMarkerAdd,
-    markerRevision,
-  ]);
+    const startTs =
+      typeof performance !== "undefined" ? performance.now() : null;
+    applyMarkerDiff(group, startTs);
+  }, [mapReady, applyMarkerDiff, markerRevision]);
+  React.useEffect(() => {
+    if (!mapReady) return;
+    prefetchVisibleMarkerStats();
+  }, [mapReady, markerRevision, prefetchVisibleMarkerStats]);
   React.useEffect(() => {
     const hoveredId = appliedHoverIdRef.current;
     Object.values(markerRegistryRef.current).forEach((entry) => {
@@ -2406,7 +2975,20 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
             )}
           </div>
         )}
-
+        {!fullMapPage && (
+          <button
+            type="button"
+            aria-label="select date"
+            onClick={() => togglePanel("date")}
+            className={cn(
+              "z-[1000] absolute left-3 top-17 @min-4xl:top-auto @min-4xl:bottom-27 bg-highlight-7/80 hover:bg-blue-200 dark:hover:bg-blue-400 rounded-full border border-border shadow-lg p-3 text-sm font-medium flex items-center gap-2 active:scale-95 transition",
+              blurDisabled ? "" : "backdrop-blur",
+              openPanel === "date" && "bg-blue-300"
+            )}
+          >
+            <CalendarDays className="w-5 h-5 mx-auto" />
+          </button>
+        )}
         {fullMapPage && !smallScreen && (
           <button
             type="button"
@@ -2427,14 +3009,14 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
             )}
           </button>
         )}
-        {/* {fullMapPage && openPanel === "filters" && (
-          <FilterPanel
-            filters={filters}
-            setFilters={setFilters}
+        {!fullMapPage && openPanel === "date" && (
+          <MapDateOverlay
+            selectedDate={effectiveStatsDate}
+            onSelectDate={handleMapDateSelect}
             onClose={() => setOpenPanel(null)}
             disableBlur={blurDisabled}
           />
-        )} */}
+        )}
         {fullMapPage && openPanel === "legend" && (
           <LegendPanel
             onClose={() => setOpenPanel(null)}
@@ -2533,7 +3115,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
             align-items: center;
           }
           .ww-leaflet-popup__dot {
-            width: 7px;
+            min-width: 7px;
             height: 30px;
             border-radius: 999px;
             display: inline-block;
@@ -2593,12 +3175,104 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
             font-size: 0.75rem;
             color: var(--muted-foreground);
           }
+          .ww-leaflet-popup__placeholder {
+            display: inline-block;
+            height: 1em;
+            border-radius: 999px;
+            background: linear-gradient(
+              120deg,
+              rgba(148, 163, 184, 0.25) 0%,
+              rgba(148, 163, 184, 0.6) 45%,
+              rgba(148, 163, 184, 0.25) 100%
+            );
+            background-size: 180% 100%;
+            animation: ww-leaflet-popup-shimmer 1.2s ease-in-out infinite;
+            vertical-align: middle;
+          }
+          .ww-leaflet-popup__placeholder--wide {
+            width: 4.2ch;
+          }
+          .ww-leaflet-popup__placeholder--medium {
+            width: 3.2ch;
+          }
+          @keyframes ww-leaflet-popup-shimmer {
+            0% {
+              background-position: 0% 50%;
+            }
+            100% {
+              background-position: -180% 50%;
+            }
+          }
+          .ww-leaflet-popup__wind-arrow {
+            display: inline-flex;
+            margin-left: 8px;
+            width: 0.8rem;
+            height: 0.8rem;
+            align-items: center;
+            justify-content: center;
+            transform-origin: center;
+            color: var(--foreground);
+            vertical-align: -2px;
+          }
+          .ww-leaflet-popup__wind-arrow svg {
+            width: 100%;
+            height: 100%;
+            transform-origin: center;
+            transform-box: fill-box;
+          }
           .leaflet-popup-content-wrapper {
             border-radius: 10px;
             background: var(--background);
           }
           .leaflet-popup .leaflet-popup-tip {
             background: var(--background);
+          }
+          .leaflet-control-zoom {
+            border: none;
+            background: transparent;
+          }
+          .leaflet-control-zoom a {
+            width: 34px;
+            height: 34px;
+            border-radius: 999px;
+            border: 1px solid rgba(148, 163, 184, 0.5);
+            margin: 4px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 1rem;
+            color: var(--foreground);
+            background: rgba(255, 255, 255, 0.7);
+            transition: background 140ms ease, color 140ms ease,
+              box-shadow 140ms ease, opacity 140ms ease;
+            text-decoration: none;
+            cursor: pointer;
+            position: relative;
+          }
+          .leaflet-control-zoom a:not(.is-disabled):hover,
+          .leaflet-control-zoom a:not(.is-disabled):focus-visible {
+            color: #6d6d6dff;
+            outline: none;
+          }
+          // .leaflet-control-zoom a:not(.is-disabled):active {
+          //   transform: scale(0.95);
+          // }
+          .leaflet-control-zoom a + a::before {
+            content: "";
+            position: absolute;
+            top: -1px;
+            left: 10%;
+            right: 10%;
+            height: 1px;
+            background: rgba(148, 163, 184, 0.6);
+            opacity: 0.85;
+          }
+          .leaflet-control-zoom a.is-disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            pointer-events: none;
+            box-shadow: none;
           }
         `}</style>
       </div>

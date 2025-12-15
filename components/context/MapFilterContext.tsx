@@ -12,12 +12,12 @@ export type BeachPoint = {
   features?: Record<string, boolean>;
 };
 
+type PanelKey = "filters" | "legend" | "date";
+
 type Ctx = {
-  openPanel: "filters" | "legend" | null;
-  setOpenPanel: React.Dispatch<
-    React.SetStateAction<"filters" | "legend" | null>
-  >;
-  togglePanel: (panel: "filters" | "legend") => void;
+  openPanel: PanelKey | null;
+  setOpenPanel: React.Dispatch<React.SetStateAction<PanelKey | null>>;
+  togglePanel: (panel: PanelKey) => void;
   showMap: boolean;
   setShowMap: React.Dispatch<React.SetStateAction<boolean>>;
   popupId: React.RefObject<string | null>;
@@ -47,10 +47,8 @@ type Ctx = {
 const MapFilterContext = React.createContext<Ctx | null>(null);
 
 export function MapFilterProvider({ children }: { children: React.ReactNode }) {
-  const [openPanel, setOpenPanel] = React.useState<"filters" | "legend" | null>(
-    null
-  );
-  const togglePanel = React.useCallback((panel: "filters" | "legend") => {
+  const [openPanel, setOpenPanel] = React.useState<PanelKey | null>(null);
+  const togglePanel = React.useCallback((panel: PanelKey) => {
     setOpenPanel((prev) => (prev === panel ? null : panel));
   }, []);
   const [showMap, setShowMap] = React.useState(true);

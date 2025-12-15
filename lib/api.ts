@@ -258,6 +258,18 @@ export async function fetchBeachStatsBatchAPI(
   return json.data as Record<string, BeachStatsSnapshot | null>;
 }
 
+export type ViewportBeachesStatsPayload = Record<
+  string | number,
+  BeachStatsSnapshot | null
+>;
+
+export type ViewportBeachesResponse =
+  | ApiBeachRecord[]
+  | {
+      beaches: ApiBeachRecord[];
+      stats: ViewportBeachesStatsPayload | null;
+    };
+
 export type BoundsRequest = {
   south: number;
   west: number;
@@ -267,12 +279,16 @@ export type BoundsRequest = {
   limit?: number;
   filters?: string[];
   favoriteIds?: Array<string | number>;
+  includeStats?: boolean;
+  statsLimit?: number;
+  statsDate?: Date | null;
+  statsHour?: number | null;
 };
 
 export async function fetchBeachesInBoundsAPI(
   bounds: BoundsRequest,
   signal?: AbortSignal
-): Promise<ApiBeachRecord[]> {
+): Promise<ViewportBeachesResponse> {
   const params = new URLSearchParams({
     south: bounds.south.toString(),
     west: bounds.west.toString(),
@@ -300,6 +316,24 @@ export async function fetchBeachesInBoundsAPI(
       params.append("favoriteId", String(id));
     });
   }
+  if (bounds.includeStats) {
+    params.set("includeStats", "1");
+    if (
+      typeof bounds.statsLimit === "number" &&
+      Number.isFinite(bounds.statsLimit)
+    ) {
+      params.set("statsLimit", Math.max(1, bounds.statsLimit).toString());
+    }
+    if (bounds.statsDate instanceof Date && !Number.isNaN(bounds.statsDate.getTime())) {
+      params.set("date", bounds.statsDate.toISOString());
+    }
+    if (
+      typeof bounds.statsHour === "number" &&
+      Number.isFinite(bounds.statsHour)
+    ) {
+      params.set("hour", bounds.statsHour.toString());
+    }
+  }
 
   const res = await fetch(
     resolveApiUrl(`/api/beaches/viewport?${params.toString()}`),
@@ -311,7 +345,28 @@ export async function fetchBeachesInBoundsAPI(
   }
 
   const json = await res.json();
-  if (!json.success || !Array.isArray(json.data)) {
+  if (!json.success) {
+    throw new Error(json.error || "Failed to fetch viewport beaches");
+  }
+  if (bounds.includeStats) {
+    const payload = json.data;
+    if (
+      !payload ||
+      typeof payload !== "object" ||
+      !Array.isArray((payload as any).beaches)
+    ) {
+      throw new Error("Malformed viewport beaches response");
+    }
+    return {
+      beaches: (payload as any).beaches as ApiBeachRecord[],
+      stats:
+        (payload as any).stats && typeof (payload as any).stats === "object"
+          ? ((payload as any)
+              .stats as ViewportBeachesStatsPayload | null)
+          : null,
+    };
+  }
+  if (!Array.isArray(json.data)) {
     throw new Error(json.error || "Failed to fetch viewport beaches");
   }
 

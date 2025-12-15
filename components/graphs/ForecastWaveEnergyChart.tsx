@@ -66,7 +66,7 @@ const HOURS_PER_DAY = 24;
 const VISIBLE_DAYS = 4;
 const MIN_DAY_PX = 275;
 const CHART_LEFT_MARGIN = 0;
-const CHART_RIGHT_MARGIN = 15;
+const CHART_RIGHT_MARGIN = 0;
 const Y_AXIS_WIDTH = 30;
 const DAY_LABEL_INSET = 6;
 const Y_AXIS_OFFSET_VAR = "--forecast-y-axis-offset";
@@ -202,7 +202,8 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
     () => Math.min(containerWidth || 0, dayPx * VISIBLE_DAYS),
     [containerWidth, dayPx]
   );
-  const dataAreaWidth = chartInnerWidth - CHART_LEFT_MARGIN - CHART_RIGHT_MARGIN - Y_AXIS_WIDTH;
+  const dataAreaWidth =
+    chartInnerWidth - CHART_LEFT_MARGIN - CHART_RIGHT_MARGIN - Y_AXIS_WIDTH;
   const dayLabelLeftOffset = CHART_LEFT_MARGIN + Y_AXIS_WIDTH;
   const dayLabelColumnWidth = dataAreaWidth / totalFetchedDays;
   const dayLabelAvailableWidth = totalFetchedDays * dayLabelColumnWidth;
@@ -674,17 +675,17 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
 
   return (
     <div className="w-full">
-        <div
-          ref={containerRef}
-          className="relative w-full"
-          style={{
-            height: 300,
-            overflow: "hidden",
-            background: "transparent",
-            contain: "layout style paint",
-            willChange: "transform",
-          }}
-        >
+      <div
+        ref={containerRef}
+        className="relative w-full"
+        style={{
+          height: 300,
+          overflow: "hidden",
+          background: "transparent",
+          contain: "layout style paint",
+          willChange: "transform",
+        }}
+      >
         {/* prev/next buttons */}
         <button
           aria-label="Back one day"
@@ -753,7 +754,10 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
                   pointerEvents: "none",
                 }}
               >
-                <div className="flex justify-between whitespace-nowrap px-3 py-2 rounded-lg bg-highlight-5" style={{ width: "95%" }}>
+                <div
+                  className="flex justify-between whitespace-nowrap px-3 py-2 rounded-lg bg-highlight-5"
+                  style={{ width: "95%" }}
+                >
                   <span className="flex flex-col items-start">
                     <span className="text-xs font-medium">
                       {label.split(",")[1]}
@@ -860,6 +864,29 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
                     v % 3 === 0 ? String(v % 12 === 0 ? 12 : v % 12) : ""
                   }
                 />
+                <defs>
+                  <linearGradient id="splitColor" x1="0" y1="0" x2="1" y2="0">
+                    {stops.map((s, i) => (
+                      <stop
+                        key={i}
+                        offset={s.offset}
+                        stopColor={s.color}
+                        stopOpacity={0.8}
+                      />
+                    ))}
+                  </linearGradient>
+                </defs>
+                <Area
+                  type="monotone"
+                  dataKey="energy"
+                  stackId="1"
+                  stroke="#818181ff"
+                  fill="url(#splitColor)"
+                  fillOpacity={1}
+                  isAnimationActive={false}
+                  animationDuration={0}
+                  animationBegin={0}
+                />
                 <ChartTooltip
                   content={<ChartTooltipContent />}
                   cursor={{
@@ -943,29 +970,6 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
                   }}
                   animationDuration={0}
                   isAnimationActive={false}
-                />
-                <defs>
-                  <linearGradient id="splitColor" x1="0" y1="0" x2="1" y2="0">
-                    {stops.map((s, i) => (
-                      <stop
-                        key={i}
-                        offset={s.offset}
-                        stopColor={s.color}
-                        stopOpacity={0.8}
-                      />
-                    ))}
-                  </linearGradient>
-                </defs>
-                <Area
-                  type="monotone"
-                  dataKey="energy"
-                  stackId="1"
-                  stroke="#818181ff"
-                  fill="url(#splitColor)"
-                  fillOpacity={1}
-                  isAnimationActive={false}
-                  animationDuration={0}
-                  animationBegin={0}
                 />
               </AreaChart>
             </ChartContainer>

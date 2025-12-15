@@ -51,6 +51,9 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
+const DATA_STEP_HOURS = 3;
+const HALF_STEP_HOURS = DATA_STEP_HOURS / 2;
+
 export const WindStatsHeader = ({
   beachId,
   hours = 24,
@@ -122,32 +125,63 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   });
   const windowStartMs = windowStart.getTime();
 
-  const placeholderData = useMemo(
-    () =>
-      Array.from({ length: hours + 1 }, (_, h) => ({
-        hour: h,
+  const placeholderData = useMemo(() => {
+    const count = Math.max(1, Math.ceil(hours / DATA_STEP_HOURS));
+    const maxCenter = Math.max(HALF_STEP_HOURS, hours - HALF_STEP_HOURS);
+    return Array.from({ length: count }, (_, idx) => {
+      const rawHour = idx * DATA_STEP_HOURS;
+      const centered = Math.min(
+        maxCenter,
+        Math.max(HALF_STEP_HOURS, rawHour + HALF_STEP_HOURS)
+      );
+      return {
+        hour: centered,
         wind: Number(
-          Math.max(0, 3 + Math.sin((h / 24) * Math.PI * 2) * 2).toFixed(1)
+          Math.max(
+            0,
+            3 + Math.sin(((rawHour % 24) / 24) * Math.PI * 2) * 2
+          ).toFixed(1)
         ),
-        direction: (h * 15) % 360,
-      })),
-    [hours]
-  );
+        direction: (rawHour * 15) % 360,
+      };
+    });
+  }, [hours]);
 
-  const chartData = useMemo(
-    () =>
-      !beachId
-        ? placeholderData
-        : forecastRows.length === 0
-        ? []
-        : forecastRows.map((row, index, arr) => ({
-            hour:
-              index === arr.length - 1 ? hours : getPacificHour(row.timestamp),
-            wind: Math.round(row.conditions.windSpeed ?? 0),
-            direction: row.conditions.windDirection ?? undefined,
-          })),
-    [beachId, forecastRows, hours, placeholderData]
-  );
+  const chartData = useMemo(() => {
+    if (!beachId) {
+      return placeholderData;
+    }
+    if (!forecastRows.length) {
+      return [];
+    }
+
+    const trimmedRows =
+      forecastRows.length > 1 &&
+      getPacificHour(forecastRows[forecastRows.length - 1].timestamp) === 0
+        ? forecastRows.slice(0, -1)
+        : forecastRows;
+
+    if (!trimmedRows.length) {
+      return [];
+    }
+
+    const maxCenter = Math.max(HALF_STEP_HOURS, hours - HALF_STEP_HOURS);
+
+    return trimmedRows.map((row) => {
+      const centeredHour = Math.min(
+        maxCenter,
+        Math.max(
+          HALF_STEP_HOURS,
+          getPacificHour(row.timestamp) + HALF_STEP_HOURS
+        )
+      );
+      return {
+        hour: centeredHour,
+        wind: Math.round(row.conditions.windSpeed ?? 0),
+        direction: row.conditions.windDirection ?? undefined,
+      };
+    });
+  }, [beachId, forecastRows, hours, placeholderData]);
 
   // Function to get color based on wind speed intensity
   const getWindColor = (value: number): string => {
@@ -165,13 +199,7 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     const adjustData = () => {
       const width = chart.clientWidth;
       setWidth(width);
-      if (width < 450) {
-        setBuffer(20);
-      } else if (width < 800) {
-        setBuffer(40);
-      } else {
-        setBuffer(65);
-      }
+      setBuffer(0);
     };
 
     const observer = new ResizeObserver(adjustData);
@@ -234,13 +262,17 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   const domainEnd = hours;
 
   const hourTicks = useMemo(() => {
-    const step = 3;
     const ticks: number[] = [];
-    for (let v = 0; v <= hours; v += step) {
-      ticks.push(v);
+    const maxCenter = Math.max(HALF_STEP_HOURS, hours - HALF_STEP_HOURS);
+    for (let v = 0; v < hours; v += DATA_STEP_HOURS) {
+      const base = v + HALF_STEP_HOURS;
+      const centered = Math.min(maxCenter, Math.max(HALF_STEP_HOURS, base));
+      ticks.push(centered);
     }
-    if (ticks[ticks.length - 1] !== hours) {
-      ticks.push(hours);
+    if (!ticks.length) {
+      ticks.push(
+        Math.min(maxCenter, Math.max(HALF_STEP_HOURS, HALF_STEP_HOURS))
+      );
     }
     return ticks;
   }, [hours]);
@@ -292,12 +324,14 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
 
   const handleMouseMove = (e: any) => {
     if (e && e.activeLabel !== undefined) {
-      const hour = Number(e.activeLabel);
-      if (!isNaN(hour)) {
-        // Only update if the hour changed (throttle updates)
-        if (lastHoveredRef.current !== hour) {
-          lastHoveredRef.current = hour;
-          setHoveredHour(hour);
+      const labelValue = Number(e.activeLabel);
+      if (!isNaN(labelValue)) {
+        const normalized =
+          Math.round(labelValue / DATA_STEP_HOURS) * DATA_STEP_HOURS;
+        const clamped = Math.min(domainEnd, Math.max(domainStart, normalized));
+        if (lastHoveredRef.current !== clamped) {
+          lastHoveredRef.current = clamped;
+          setHoveredHour(clamped);
         }
       }
     }
@@ -330,12 +364,9 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
             key={`day-${idx}`}
             x1={a.x1}
             x2={a.x2 ?? hours}
-            ifOverflow="extendDomain"
-            shape={makeAreaShape(
-              "#FFE58F",
-              closeTo(a.x1, domainStart),
-              closeTo(a.x2 ?? hours, domainEnd)
-            )}
+            fill="#FFE58F"
+            fillOpacity={0.2}
+            ifOverflow="visible"
           />
         ))}
         {nightAreas.map((a, idx) => (
@@ -343,12 +374,9 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
             key={`night-${idx}`}
             x1={a.x1}
             x2={a.x2 ?? hours}
-            ifOverflow="extendDomain"
-            shape={makeAreaShape(
-              "#ccc1ffff",
-              closeTo(a.x1, domainStart),
-              closeTo(a.x2 ?? hours, domainEnd)
-            )}
+            fill="#ccc1ffff"
+            fillOpacity={0.2}
+            ifOverflow="visible"
           />
         ))}
         {/* <CartesianGrid
@@ -366,14 +394,15 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           tickMargin={10}
           fontSize={11}
           axisLine={false}
-          padding={{ left: buffer, right: buffer }}
+          // padding={{ left: buffer, right: buffer }}
           domain={[domainStart, domainEnd]}
           ticks={hourTicks}
           scale="linear"
           tickFormatter={(value: number) => {
             const num = Number(value);
             if (!Number.isFinite(num)) return "";
-            const normalized = ((num % 24) + 24) % 24;
+            const baseHour = num - HALF_STEP_HOURS;
+            const normalized = ((baseHour % 24) + 24) % 24;
             const labelHour = normalized % 12 === 0 ? 12 : normalized % 12;
             return String(labelHour);
           }}
@@ -436,7 +465,7 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           strokeDasharray="3 3"
         />
         {/* Hover indicator line - always rendered to avoid re-mount */}
-        <ReferenceLine
+        {/* <ReferenceLine
           x={hoveredHour ?? 0}
           stroke="var(--foreground)"
           strokeWidth={1}
@@ -444,7 +473,7 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
             hoveredHour !== null && hoveredHour !== selectedHour ? 0.5 : 0
           }
           strokeDasharray="5 5"
-        />
+        /> */}
         <Bar
           dataKey="wind"
           fill="var(--color-wind)"

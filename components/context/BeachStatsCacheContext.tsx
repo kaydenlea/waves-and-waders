@@ -31,6 +31,13 @@ type BeachStatsCacheContextValue = {
     dateKey: string,
     hourKey: string | number
   ) => void;
+  /**
+   * Monotonically increasing version that bumps whenever the cache
+   * contents change (either via prefetchSnapshots or primeSnapshots).
+   * Consumers can subscribe to this to react to stats availability
+   * without triggering additional fetches.
+   */
+  version: number;
 };
 
 const BeachStatsCacheContext =
@@ -55,6 +62,20 @@ const makeCacheKey = (
   dateKey: string,
   hourKey: string | number
 ) => `${beachId}:${dateKey}:${hourKey}`;
+const PREFETCH_BATCH_SIZE = 100;
+const PREFETCH_CONCURRENCY = 4;
+const makeInflightKey = (
+  beachId: string | number,
+  dateKey: string,
+  hourKey: string | number
+) => `${beachId}:${dateKey}:${hourKey}`;
+const chunkQueue = (input: string[], size: number) => {
+  const queue: string[][] = [];
+  for (let i = 0; i < input.length; i += size) {
+    queue.push(input.slice(i, i + size));
+  }
+  return queue;
+};
 
 export function BeachStatsCacheProvider({
   children,
@@ -62,6 +83,7 @@ export function BeachStatsCacheProvider({
   children: React.ReactNode;
 }) {
   const [cache, setCache] = React.useState<Record<string, CacheEntry>>({});
+  const [version, setVersion] = React.useState(0);
   const inFlightRef = React.useRef<Record<string, Promise<void>>>({});
 
   const getSnapshot = React.useCallback(
@@ -77,40 +99,65 @@ export function BeachStatsCacheProvider({
       const { dateKey, hourKey } = resolveKeys(options);
       const missing = ids
         .map((id) => String(id))
-        .filter(
-          (id) => !cache[makeCacheKey(id, dateKey, hourKey)]
-        );
+        .filter((id) => {
+          const cacheKey = makeCacheKey(id, dateKey, hourKey);
+          if (cache[cacheKey]) return false;
+          if (inFlightRef.current[makeInflightKey(id, dateKey, hourKey)]) {
+            return false;
+          }
+          return true;
+        });
       if (!missing.length) return;
 
-      const inflightKey = `${missing.sort().join("|")}:${dateKey}:${hourKey}`;
-      if (inFlightRef.current[inflightKey]) {
-        await inFlightRef.current[inflightKey];
-        return;
-      }
-
-      const request = fetchBeachStatsBatchAPI(missing, {
-        date: options?.date ?? undefined,
-        hour: typeof options?.hour === "number" ? options.hour : undefined,
-      })
-        .then((data) => {
-          setCache((prev) => {
-            const next = { ...prev };
-            missing.forEach((id) => {
-              next[makeCacheKey(id, dateKey, hourKey)] = {
-                data: data?.[id] ?? null,
-                dateKey,
-                hourKey,
-              };
+      const chunks = chunkQueue(missing, PREFETCH_BATCH_SIZE);
+      const workerCount = Math.min(PREFETCH_CONCURRENCY, chunks.length);
+      const runWorker = async () => {
+        while (chunks.length) {
+          const chunk = chunks.shift();
+          if (!chunk?.length) continue;
+          const sortedChunk = [...chunk].sort();
+          const inflightKeys = sortedChunk.map((id) =>
+            makeInflightKey(id, dateKey, hourKey)
+          );
+          const inflightPromises = inflightKeys
+            .map((key) => inFlightRef.current[key])
+            .filter(Boolean);
+          if (inflightPromises.length) {
+            await Promise.all(inflightPromises);
+            continue;
+          }
+          const request = fetchBeachStatsBatchAPI(sortedChunk, {
+            date: options?.date ?? undefined,
+            hour: typeof options?.hour === "number" ? options.hour : undefined,
+          })
+            .then((data) => {
+              setCache((prev) => {
+                const next = { ...prev };
+                sortedChunk.forEach((id) => {
+                  next[makeCacheKey(id, dateKey, hourKey)] = {
+                    data: data?.[id] ?? null,
+                    dateKey,
+                    hourKey,
+                  };
+              });
+              return next;
             });
-            return next;
+            setVersion((prev) => prev + 1);
+          })
+            .finally(() => {
+              inflightKeys.forEach((key) => {
+                delete inFlightRef.current[key];
+              });
+            });
+          inflightKeys.forEach((key) => {
+            inFlightRef.current[key] = request;
           });
-        })
-        .finally(() => {
-          delete inFlightRef.current[inflightKey];
-        });
-
-      inFlightRef.current[inflightKey] = request;
-      await request;
+          await request;
+        }
+      };
+      await Promise.all(
+        Array.from({ length: workerCount || 1 }, () => runWorker())
+      );
     },
     [cache]
   );
@@ -126,7 +173,6 @@ export function BeachStatsCacheProvider({
         const next = { ...prev };
         Object.entries(data).forEach(([id, snapshot]) => {
           const key = makeCacheKey(id, dateKey, hourKey);
-          if (next[key]) return;
           next[key] = {
             data: snapshot ?? null,
             dateKey,
@@ -135,6 +181,7 @@ export function BeachStatsCacheProvider({
         });
         return next;
       });
+      setVersion((prev) => prev + 1);
     },
     []
   );
@@ -145,6 +192,7 @@ export function BeachStatsCacheProvider({
         getSnapshot,
         prefetchSnapshots,
         primeSnapshots,
+        version,
       }}
     >
       {children}

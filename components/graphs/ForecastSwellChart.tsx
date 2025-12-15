@@ -76,7 +76,7 @@ const HOURS_PER_DAY = 24;
 const VISIBLE_DAYS = 4;
 const MIN_DAY_PX = 275; // minimum pixels per day to keep UI usable
 const CHART_LEFT_MARGIN = 0;
-const CHART_RIGHT_MARGIN = 15;
+const CHART_RIGHT_MARGIN = 0;
 const Y_AXIS_WIDTH = 30;
 const DAY_LABEL_INSET = 6;
 const Y_AXIS_OFFSET_VAR = "--forecast-y-axis-offset";
@@ -148,7 +148,8 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
     () => Math.min(containerWidth || 0, dayPx * VISIBLE_DAYS),
     [containerWidth, dayPx]
   );
-  const dataAreaWidth = chartInnerWidth - CHART_LEFT_MARGIN - CHART_RIGHT_MARGIN - Y_AXIS_WIDTH;
+  const dataAreaWidth =
+    chartInnerWidth - CHART_LEFT_MARGIN - CHART_RIGHT_MARGIN - Y_AXIS_WIDTH;
   const dayLabelLeftOffset = CHART_LEFT_MARGIN + Y_AXIS_WIDTH;
   const dayLabelColumnWidth = dataAreaWidth / totalFetchedDays;
   const dayLabelAvailableWidth = totalFetchedDays * dayLabelColumnWidth;
@@ -745,7 +746,10 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                   pointerEvents: "none",
                 }}
               >
-                <div className="flex justify-between whitespace-nowrap px-3 py-2 rounded-lg bg-highlight-5" style={{ width: "95%" }}>
+                <div
+                  className="flex justify-between whitespace-nowrap px-3 py-2 rounded-lg bg-highlight-5"
+                  style={{ width: "95%" }}
+                >
                   <span className="flex flex-col items-start">
                     <span className="text-xs font-medium">
                       {label.split(",")[1]}
@@ -795,7 +799,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                 data={swellData}
                 margin={{
                   left: CHART_LEFT_MARGIN,
-                  right: 15,
+                  right: 0,
                   bottom: 5,
                   top: 0,
                 }}
