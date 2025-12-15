@@ -993,11 +993,20 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
                     const dayDelta = Math.floor(
                       (selMid - baseMid) / (24 * 3600 * 1000)
                     );
-                    const x = dayDelta * 24 + effectiveHour;
-                    if (x < 0 || x > totalFetchedDays * 24) return null;
+                    const baseX = dayDelta * 24 + effectiveHour;
+                    if (baseX < 0 || baseX > totalFetchedDays * 24) return null;
+                    const minX = HALF_STEP_HOURS;
+                    const maxX = Math.max(
+                      minX,
+                      totalFetchedDays * 24 - HALF_STEP_HOURS
+                    );
+                    const centeredX = Math.min(
+                      maxX,
+                      Math.max(minX, baseX + HALF_STEP_HOURS)
+                    );
                     return (
                       <ReferenceLine
-                        x={x}
+                        x={centeredX}
                         stroke="var(--foreground)"
                         strokeDasharray="3 3"
                       />
@@ -1011,6 +1020,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
                   days={displayDays}
                   selectedDate={selectedDate}
                   selectedHour={selectedHour}
+                  alignmentOffset={HALF_STEP_HOURS}
                 />
                 <Bar
                   dataKey="wind"

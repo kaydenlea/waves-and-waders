@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -277,6 +277,20 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     return ticks;
   }, [hours]);
 
+  const centerDomainHour = useCallback(
+    (hour: number | null) => {
+      if (hour == null) return null;
+      const minX = domainStart + HALF_STEP_HOURS;
+      const maxX = Math.max(minX, domainEnd - HALF_STEP_HOURS);
+      return Math.min(maxX, Math.max(minX, hour + HALF_STEP_HOURS));
+    },
+    [domainStart, domainEnd]
+  );
+
+  const centeredSelectedHour = centerDomainHour(selectedHour);
+  const centeredHoveredHour =
+    hoveredHour !== null ? centerDomainHour(hoveredHour) : null;
+
   // const EDGE_GUTTER_PX = 35;
   const closeTo = (a: number, b: number, tolerance = 0.05) =>
     Math.abs(a - b) <= tolerance;
@@ -341,6 +355,34 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     lastHoveredRef.current = null;
     setHoveredHour(null);
   };
+
+  const renderTooltipCursor = useCallback((cursorProps: any) => {
+    if (!cursorProps) return null;
+    const baseX =
+      typeof cursorProps.x === "number"
+        ? cursorProps.x
+        : cursorProps?.points?.[0]?.x;
+    const width = typeof cursorProps.width === "number" ? cursorProps.width : 0;
+    const y = typeof cursorProps.y === "number" ? cursorProps.y : 0;
+    const height =
+      typeof cursorProps.height === "number" ? cursorProps.height : 0;
+    if (typeof baseX !== "number" || height <= 0) {
+      return null;
+    }
+    const cx = baseX + width / 2;
+    return (
+      <line
+        x1={cx}
+        x2={cx}
+        y1={y}
+        y2={y + height}
+        stroke="var(--foreground)"
+        strokeWidth={0.75}
+        strokeDasharray="3 3"
+        strokeOpacity={0.5}
+      />
+    );
+  }, []);
 
   return (
     <ChartContainer
@@ -448,32 +490,32 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
               </div>
             );
           }}
-          cursor={{
-            fill: "transparent",
-            stroke: "var(--foreground)",
-            strokeWidth: 0.75,
-            strokeDasharray: "3 3",
-            strokeOpacity: 0.5,
-          }}
+          cursor={renderTooltipCursor}
           animationDuration={0}
         />
         {/* Hour indicator line */}
-        <ReferenceLine
-          x={selectedHour}
-          stroke="var(--foreground)"
-          // strokeWidth={2}
-          strokeDasharray="3 3"
-        />
+        {centeredSelectedHour !== null && (
+          <ReferenceLine
+            x={centeredSelectedHour}
+            stroke="var(--foreground)"
+            strokeDasharray="3 3"
+          />
+        )}
         {/* Hover indicator line - always rendered to avoid re-mount */}
-        {/* <ReferenceLine
-          x={hoveredHour ?? 0}
-          stroke="var(--foreground)"
-          strokeWidth={1}
-          strokeOpacity={
-            hoveredHour !== null && hoveredHour !== selectedHour ? 0.5 : 0
-          }
-          strokeDasharray="5 5"
-        /> */}
+        {centeredHoveredHour !== null && (
+          <ReferenceLine
+            x={centeredHoveredHour}
+            stroke="var(--foreground)"
+            strokeWidth={1}
+            strokeOpacity={
+              centeredSelectedHour === null ||
+              centeredHoveredHour !== centeredSelectedHour
+                ? 0.5
+                : 0
+            }
+            strokeDasharray="5 5"
+          />
+        )}
         <Bar
           dataKey="wind"
           fill="var(--color-wind)"
