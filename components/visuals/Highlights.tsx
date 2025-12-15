@@ -1529,7 +1529,7 @@ const Highlights = ({
           let content;
           if (!isHydrated) {
             content = (
-              <div className="w-full h-[59px] rounded-xl bg-highlight-6/70" />
+              <div className="w-full h-[62.5px] rounded-xl bg-highlight-6/70" />
             );
           } else {
             switch (stat.label) {

@@ -1,3 +1,5 @@
+'use client';
+
 import React from "react";
 import { cn } from "@/lib/utils";
 import { ChartLoadingCover } from "../graphs/ChartLoadingCover";
@@ -159,7 +161,12 @@ const VisualWrapper = ({
               message={`Loading ${label.toLowerCase()} data`}
               className="rounded-2xl"
             />
-            <div className={cn("", loading && "opacity-0 pointer-events-none")}>
+            <div
+              className={cn(
+                "transition-opacity duration-150",
+                loading && "opacity-0 pointer-events-none"
+              )}
+            >
               {children}
             </div>
           </div>

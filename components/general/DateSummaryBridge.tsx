@@ -49,6 +49,7 @@ import type { SharedSunSegments } from "@/components/graphs/sharedSunSegments";
 import {
   ForecastChartsLoadingProvider,
 } from "../context/ForecastChartsLoadingContext";
+import { useStableOverlay } from "../hooks/useStableOverlay";
 
 type Props = {
   beachId: string;
@@ -440,37 +441,41 @@ const DateSummaryBridge: React.FC<Props> = ({
     (tideWindow.rows?.length ?? 0) === 0 ||
     sharedSunSegments.baseDate == null;
 
-  const [overlayVisible, setOverlayVisible] = React.useState(true);
+  const [tabOverlayActive, setTabOverlayActive] = React.useState(false);
+  const prevTabRef = React.useRef<string | null>(null);
+  const prevLoadingRef = React.useRef<boolean>(false);
 
-  // Keep per-widget loading overlays in sync with data/layout readiness,
-  // including subsequent date changes. A small delay avoids flicker when
-  // loads complete very quickly.
   React.useEffect(() => {
-    if (overviewChartsLoading) {
-      setOverlayVisible(true);
-      return;
+    const prev = prevTabRef.current;
+    if (isOverview && prev !== "overview") {
+      setTabOverlayActive(true);
+    } else if (!isOverview) {
+      setTabOverlayActive(false);
     }
-    const timeout = setTimeout(() => {
-      setOverlayVisible(false);
-    }, 200);
-    return () => clearTimeout(timeout);
-  }, [overviewChartsLoading]);
+    prevTabRef.current = selectedTab;
+  }, [isOverview, selectedTab]);
 
-  // When switching back to the overview tab, briefly show the overlay so
-  // the transition feels consistent with the forecast tab, even if data
-  // is already cached and ready.
-  const prevIsOverviewRef = React.useRef(isOverview);
   React.useEffect(() => {
-    const prev = prevIsOverviewRef.current;
-    prevIsOverviewRef.current = isOverview;
-    if (!prev && isOverview && !overviewChartsLoading) {
-      setOverlayVisible(true);
-      const timeout = setTimeout(() => {
-        setOverlayVisible(false);
-      }, 180);
-      return () => clearTimeout(timeout);
+    if (!isOverview) return;
+    const wasLoading = prevLoadingRef.current;
+    if (!wasLoading && overviewChartsLoading) {
+      setTabOverlayActive(true);
     }
+    prevLoadingRef.current = overviewChartsLoading;
   }, [isOverview, overviewChartsLoading]);
+
+  React.useEffect(() => {
+    if (!isOverview) return;
+    if (!tabOverlayActive) return;
+    if (overviewChartsLoading) return;
+    const timeout = window.setTimeout(() => setTabOverlayActive(false), 250);
+    return () => window.clearTimeout(timeout);
+  }, [isOverview, tabOverlayActive, overviewChartsLoading]);
+
+  const overlayVisible = useStableOverlay(
+    overviewChartsLoading || tabOverlayActive,
+    250
+  );
 
   const { windStats, surfStats, swellStats, energyStats } =
     React.useMemo(() => {
@@ -831,11 +836,7 @@ const DateSummaryBridge: React.FC<Props> = ({
           );
         case "table":
           return (
-            <VisualWrapper
-              label="Daily"
-              unit="3 hrs"
-              loading={overlayVisible}
-            >
+            <VisualWrapper label="Daily" unit="3 hrs" loading={overlayVisible}>
               <LazyLoadTable
                 beachId={beachId}
                 numHours={8}

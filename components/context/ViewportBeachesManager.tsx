@@ -7,7 +7,7 @@ import { useMapViewport } from "./MapViewportContext";
 import { useClientPath } from "./PathContext";
 import { useViewportBeachesContext } from "./ViewportBeachesContext";
 
-const MAX_VIEWPORT_BEACHES = 600;
+const MAX_VIEWPORT_BEACHES = 1500;
 const ViewportBeachesManager = () => {
   const { filters, favoriteIds, setBeaches } = useMapFilters();
   const {
@@ -86,7 +86,12 @@ const ViewportBeachesManager = () => {
       commitPending();
       pendingBeachesRef.current = null;
     }
-  }, [allowViewportCommit, setBeaches, setViewportContextBeaches, commitPending]);
+  }, [
+    allowViewportCommit,
+    setBeaches,
+    setViewportContextBeaches,
+    commitPending,
+  ]);
 
   return null;
 };

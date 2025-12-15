@@ -35,6 +35,7 @@ import {
 } from "./dashboardLayout";
 import { useForecastData } from "../context/ForecastDataContext";
 import { useForecastChartsLoadingState } from "../context/ForecastChartsLoadingContext";
+import { useStableOverlay } from "../hooks/useStableOverlay";
 
 // ------------------------------------------------------
 
@@ -251,13 +252,18 @@ const ForecastBridge: React.FC<Props> = ({
     [layoutRows, layoutMeta]
   );
 
+  const widgetLoading = chartsLoading || !layoutHydrated || forecastLoading;
+
   // Memoize individual widgets to prevent unnecessary re-renders
+  const rawWidgetLoading = chartsLoading || !layoutHydrated || forecastLoading;
+  const stableWidgetLoading = useStableOverlay(rawWidgetLoading, 220);
+
   const widgets = useMemo(() => {
     const firstDay = selectedDays?.[0] ?? undefined;
 
     return {
       stats: (
-        <VisualWrapper label="Forecast Overview" loading={chartsLoading}>
+        <VisualWrapper label="Forecast Overview" loading={stableWidgetLoading}>
           <div className="space-y-2 text-sm text-muted-foreground">
             <p className="font-medium text-foreground">{windowString}</p>
             <p>
@@ -272,7 +278,7 @@ const ForecastBridge: React.FC<Props> = ({
           label="Tide"
           extraPadding
           unit="ft"
-          loading={chartsLoading}
+          loading={stableWidgetLoading}
         >
           <LazyLoadForecastTide
             beachId={beachId}
@@ -286,7 +292,7 @@ const ForecastBridge: React.FC<Props> = ({
           extraPadding
           label="Surf"
           unit="ft"
-          loading={chartsLoading}
+          loading={stableWidgetLoading}
         >
           <LazyLoadForecastSurf beachId={beachId} days={selectedDays} />
         </VisualWrapper>
@@ -296,17 +302,17 @@ const ForecastBridge: React.FC<Props> = ({
           extraPadding
           label="Wind"
           unit="mph"
-          loading={chartsLoading}
+          loading={stableWidgetLoading}
         >
           <LazyLoadForecastWind beachId={beachId} days={selectedDays} />
         </VisualWrapper>
       ),
       surfAndWind: (
         <div className="w-full flex flex-col @min-2xl:flex-row gap-6">
-          <VisualWrapper label="Wind" unit="mph" loading={chartsLoading}>
+          <VisualWrapper label="Wind" unit="mph" loading={stableWidgetLoading}>
             <LazyLoadForecastWind beachId={beachId} days={selectedDays} />
           </VisualWrapper>
-          <VisualWrapper label="Surf" unit="ft" loading={chartsLoading}>
+          <VisualWrapper label="Surf" unit="ft" loading={stableWidgetLoading}>
             <LazyLoadForecastSurf beachId={beachId} days={selectedDays} />
           </VisualWrapper>
         </div>
@@ -316,7 +322,7 @@ const ForecastBridge: React.FC<Props> = ({
           extraPadding
           label="Energy"
           unit="kJ"
-          loading={chartsLoading}
+          loading={stableWidgetLoading}
         >
           <LazyLoadForecastWaveEnergy beachId={beachId} days={selectedDays} />
         </VisualWrapper>
@@ -325,7 +331,7 @@ const ForecastBridge: React.FC<Props> = ({
         <VisualWrapper
           label="Daily"
           unit="12 hrs"
-          loading={chartsLoading}
+          loading={stableWidgetLoading}
         >
           <LazyLoadTable
             beachId={beachId}
@@ -341,13 +347,13 @@ const ForecastBridge: React.FC<Props> = ({
           extraPadding
           label="Swell"
           unit="ft"
-          loading={chartsLoading}
+          loading={stableWidgetLoading}
         >
           <LazyLoadForecastSwell beachId={beachId} days={selectedDays} />
         </VisualWrapper>
       ),
     } as const;
-  }, [beachId, selected, selectedDays, windowString, chartsLoading]);
+  }, [beachId, selected, selectedDays, windowString, stableWidgetLoading]);
 
   return (
     <section

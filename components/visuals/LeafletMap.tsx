@@ -1910,8 +1910,8 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       background: "var(--highlight-7)",
       opacity: "0.8",
       borderRadius: "30px",
-      padding: "5px",
-      marginTop: !fullMapPage ? "121px" : smallScreen ? "260px" : "0px",
+      padding: "0px 5px",
+      marginTop: !fullMapPage ? "125px" : smallScreen ? "260px" : "0px",
       marginBottom: !fullMapPage
         ? smallScreen
           ? "0px"
@@ -2981,7 +2981,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
             aria-label="select date"
             onClick={() => togglePanel("date")}
             className={cn(
-              "z-[1000] absolute left-3 top-17 @min-4xl:top-auto @min-4xl:bottom-27 bg-highlight-7/80 hover:bg-blue-200 dark:hover:bg-blue-400 rounded-full border border-border shadow-lg p-3 text-sm font-medium flex items-center gap-2 active:scale-95 transition",
+              "z-[1000] absolute left-3 top-17 @min-4xl:top-auto @min-4xl:bottom-25 bg-highlight-7/80 hover:bg-blue-200 dark:hover:bg-blue-400 rounded-full border border-border shadow-lg p-3 text-sm font-medium flex items-center gap-2 active:scale-95 transition",
               blurDisabled ? "" : "backdrop-blur",
               openPanel === "date" && "bg-blue-300"
             )}

@@ -42,9 +42,9 @@ export function ForecastChartsLoadingProvider({
   }, []);
 
   const rawLoading = React.useMemo(() => {
-    // If nothing has registered yet, treat as "not loading" so we don't
-    // constantly pulse overlays while widgets mount/unmount.
-    if (statusMap.size === 0) return false;
+    if (statusMap.size === 0) {
+      return true;
+    }
     for (const ready of statusMap.values()) {
       if (!ready) return true;
     }
@@ -121,6 +121,7 @@ export function useForecastChartLoading(name?: string) {
   const idRef = React.useRef<string>(makeId(name));
 
   React.useEffect(() => {
+    ctx.reportStatus(idRef.current, false);
     return () => {
       ctx.unregister(idRef.current);
     };
@@ -142,6 +143,7 @@ export function useOptionalForecastChartLoading(name?: string) {
 
   React.useEffect(() => {
     if (!ctx) return;
+    ctx.reportStatus(idRef.current, false);
     return () => {
       ctx.unregister(idRef.current);
     };
