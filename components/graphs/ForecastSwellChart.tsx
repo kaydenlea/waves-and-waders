@@ -36,15 +36,15 @@ import { cn, getPacificMidnightUTC } from "@/lib/utils";
 import { getForecastCached } from "@/lib/dataCache";
 import { useForecastData } from "@/components/context/ForecastDataContext";
 import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
-import { useDateContext } from "@/components/context/DateContext";
+import { useDateContext, useHoveredHour } from "@/components/context/DateContext";
 import { useForecastChartContext } from "@/components/context/ForecastChartContext";
-import HoverReferenceLine from "@/components/graphs/HoverReferenceLine";
 import { useSunData } from "@/components/context/SunDataContext";
 import { buildSunSegmentsForRange } from "@/components/graphs/sunSegments";
 import {
   useForecastChartLoading,
   useForecastChartsBusyState,
 } from "../context/ForecastChartsLoadingContext";
+import { useChartTheme } from "@/components/graphs/useChartTheme";
 
 const chartConfig = {
   primary: {
@@ -91,7 +91,9 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
   const { setPanFraction, subscribePan } = useForecastChartContext();
   const myId = React.useId();
   const { hour: selectedHour, setHoveredHour } = useDateContext();
+  const hoveredHour = useHoveredHour();
   const { getSunData } = useSunData();
+  const chartTheme = useChartTheme();
   const [loading, setLoading] = useState(true);
   const [sunReady, setSunReady] = useState(false);
   const { rows: sharedRows } = useForecastData();
@@ -861,8 +863,8 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                     key={`day-${idx}`}
                     x1={a.x1}
                     x2={a.x2}
-                    fill="#FFE58F"
-                    fillOpacity={0.2}
+                    fill={chartTheme.dayShading}
+                    fillOpacity={chartTheme.shadingOpacity}
                     ifOverflow="extendDomain"
                   />
                 ))}
@@ -871,8 +873,8 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                     key={`night-${idx}`}
                     x1={idx === 0 ? undefined : a.x1}
                     x2={idx === nightAreas.length - 1 ? undefined : a.x2}
-                    fill="#ccc1ffff"
-                    fillOpacity={0.2}
+                    fill={chartTheme.nightShading}
+                    fillOpacity={chartTheme.shadingOpacity}
                     ifOverflow="extendDomain"
                   />
                 ))}
@@ -928,11 +930,15 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                   }
                 })()}
                 {/* Hover indicator line */}
-                <HoverReferenceLine
-                  days={displayDays}
-                  selectedDate={selectedDate}
-                  selectedHour={selectedHour}
-                />
+                {hoveredHour !== null && (
+                  <ReferenceLine
+                    x={hoveredHour}
+                    stroke="var(--foreground)"
+                    strokeWidth={1}
+                    strokeOpacity={0.75}
+                    strokeDasharray="5 5"
+                  />
+                )}
                 <YAxis
                   width={Y_AXIS_WIDTH}
                   allowDecimals={false}
@@ -962,7 +968,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                     stroke: "var(--foreground)",
                     strokeWidth: 1,
                     strokeDasharray: "3 3",
-                    strokeOpacity: 0.5,
+                    strokeOpacity: 0.75,
                   }}
                   animationDuration={0}
                   isAnimationActive={false}

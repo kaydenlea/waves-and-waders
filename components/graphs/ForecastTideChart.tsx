@@ -47,6 +47,7 @@ import {
   useForecastChartsBusyState,
 } from "../context/ForecastChartsLoadingContext";
 import { ForecastChartSkeleton } from "./ForecastChartSkeleton";
+import { useChartTheme } from "@/components/graphs/useChartTheme";
 
 const VISIBLE_DAYS = 4;
 const HOURS_PER_DAY = 24;
@@ -79,6 +80,8 @@ export default React.memo(function ForecastTideChart({
   date,
   days,
 }: Props) {
+  const chartTheme = useChartTheme();
+
   // Compute Pacific midnight for the requested start date once
   const { startMs, fetchHours } = useMemo(() => {
     const startInput = date instanceof Date ? new Date(date) : new Date();
@@ -845,7 +848,7 @@ export default React.memo(function ForecastTideChart({
         x={hoveredHour}
         stroke="var(--foreground)"
         strokeWidth={1}
-        strokeOpacity={0.5}
+        strokeOpacity={0.75}
         strokeDasharray="5 5"
       />
     );
@@ -1012,8 +1015,8 @@ export default React.memo(function ForecastTideChart({
                     key={`day-${idx}`}
                     x1={a.x1}
                     x2={a.x2}
-                    fill="#FFE58F"
-                    fillOpacity={0.18}
+                    fill={chartTheme.dayShading}
+                    fillOpacity={chartTheme.shadingOpacity}
                     ifOverflow="extendDomain"
                   />
                 ))}
@@ -1022,8 +1025,8 @@ export default React.memo(function ForecastTideChart({
                     key={`night-${idx}`}
                     x1={idx === 0 ? undefined : a.x1}
                     x2={idx === nightAreas.length - 1 ? undefined : a.x2}
-                    fill="#ccc1ffff"
-                    fillOpacity={0.12}
+                    fill={chartTheme.nightShading}
+                    fillOpacity={chartTheme.shadingOpacity}
                     ifOverflow="extendDomain"
                   />
                 ))}
@@ -1131,7 +1134,7 @@ export default React.memo(function ForecastTideChart({
                     stroke: "var(--foreground)",
                     strokeWidth: 1,
                     strokeDasharray: "3 3",
-                    strokeOpacity: 0.5,
+                    strokeOpacity: 0.75,
                   }}
                   animationDuration={0}
                   isAnimationActive={false}

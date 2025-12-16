@@ -9,6 +9,9 @@ type HoverReferenceLineProps = {
   selectedDate: Date | null;
   selectedHour: number | null;
   alignmentOffset?: number;
+  strokeWidth?: number;
+  strokeOpacity?: number;
+  strokeDasharray?: string;
 };
 
 function getSelectedHourPosition(
@@ -45,6 +48,9 @@ const HoverReferenceLine: React.FC<HoverReferenceLineProps> = ({
   selectedDate,
   selectedHour,
   alignmentOffset = 0,
+  strokeWidth = 1,
+  strokeOpacity: strokeOpacityProp,
+  strokeDasharray = "5 5",
 }) => {
   const hoveredHour = useHoveredHour();
   const selectedX = React.useMemo(
@@ -62,17 +68,19 @@ const HoverReferenceLine: React.FC<HoverReferenceLineProps> = ({
     hoveredHour !== null ? hoveredHour + alignmentOffset : null;
 
   const strokeOpacity =
-    hoverX !== null && (selectedX === null || hoverX !== selectedX)
-      ? 0.5
-      : 0;
+    typeof strokeOpacityProp === "number"
+      ? strokeOpacityProp
+      : hoverX !== null && (selectedX === null || hoverX !== selectedX)
+        ? 0.75
+        : 0;
 
   return (
     <ReferenceLine
       x={hoverX ?? 0}
       stroke="var(--foreground)"
-      strokeWidth={1}
+      strokeWidth={strokeWidth}
       strokeOpacity={strokeOpacity}
-      strokeDasharray="5 5"
+      strokeDasharray={strokeDasharray}
     />
   );
 };

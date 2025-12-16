@@ -24,6 +24,7 @@ import { useSunData } from "@/components/context/SunDataContext";
 import { buildSunSegments } from "@/components/graphs/sunSegments";
 import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
 import { useForecastWindowData } from "@/lib/hooks/useForecastWindow";
+import { useChartTheme } from "@/components/graphs/useChartTheme";
 import type { SharedSunSegments } from "./sharedSunSegments";
 
 const chartConfig = {
@@ -91,6 +92,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   const { hour: selectedHour, setHoveredHour } = useDateContext();
   const { getSunData } = useSunData();
   const hoveredHour = useHoveredHour();
+  const chartTheme = useChartTheme();
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2?: number }[]>([]);
   const [nightAreas, setNightAreas] = useState<{ x1: number; x2?: number }[]>(
     []
@@ -240,8 +242,8 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
             key={`day-${idx}`}
             x1={area.x1}
             x2={area.x2}
-            fill="#FFE58F"
-            fillOpacity={0.2}
+            fill={chartTheme.dayShading}
+            fillOpacity={chartTheme.shadingOpacity}
           />
         ))}
         {nightAreas.map((area, idx) => (
@@ -249,8 +251,8 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
             key={`night-${idx}`}
             x1={area.x1}
             x2={area.x2}
-            fill="#ccc1ffff"
-            fillOpacity={0.2}
+            fill={chartTheme.nightShading}
+            fillOpacity={chartTheme.shadingOpacity}
           />
         ))}
         {/* <CartesianGrid
@@ -283,7 +285,17 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           fontSize={11}
           domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.5)]}
         />
-        <ChartTooltip content={<ChartTooltipContent />} />
+        <ChartTooltip
+          content={<ChartTooltipContent />}
+          cursor={{
+            stroke: "var(--foreground)",
+            strokeWidth: 1,
+            strokeDasharray: "3 3",
+            strokeOpacity: 0.5,
+          }}
+          animationDuration={0}
+          isAnimationActive={false}
+        />
         <defs>
           <linearGradient id="splitColor" x1="0" y1="0" x2="1" y2="0">
             {/* <stop offset={off} stopColor="green" stopOpacity={1} />

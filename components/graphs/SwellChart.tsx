@@ -25,6 +25,7 @@ import {
   TrendingUp,
   TrendingDown,
 } from "lucide-react";
+import { useChartTheme } from "@/components/graphs/useChartTheme";
 
 const chartConfig = {
   primary: {
@@ -127,6 +128,7 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   const { hour: selectedHour, setHoveredHour } = useDateContext();
   const { getSunData } = useSunData();
   const hoveredHour = useHoveredHour();
+  const chartTheme = useChartTheme();
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
   const [nightAreas, setNightAreas] = useState<{ x1: number; x2?: number }[]>(
     []
@@ -313,8 +315,8 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
             key={`day-${idx}`}
             x1={a.x1}
             x2={a.x2}
-            fill="#FFE58F"
-            fillOpacity={0.2}
+            fill={chartTheme.dayShading}
+            fillOpacity={chartTheme.shadingOpacity}
           />
         ))}
         {nightAreas.map((a, idx) => (
@@ -322,8 +324,8 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
             key={`night-${idx}`}
             x1={a.x1}
             x2={a.x2}
-            fill="#ccc1ffff"
-            fillOpacity={0.2}
+            fill={chartTheme.nightShading}
+            fillOpacity={chartTheme.shadingOpacity}
           />
         ))}
         {/* <CartesianGrid

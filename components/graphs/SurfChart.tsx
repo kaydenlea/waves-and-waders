@@ -31,6 +31,7 @@ import { useSunData } from "@/components/context/SunDataContext";
 import { buildSunSegments } from "@/components/graphs/sunSegments";
 import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
 import { buildYAxisTicks } from "@/components/graphs/yAxisTicks";
+import { useChartTheme } from "@/components/graphs/useChartTheme";
 import type { SharedSunSegments } from "./sharedSunSegments";
 
 type Props = {
@@ -117,6 +118,7 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   const { hour: selectedHour, setHoveredHour } = useDateContext();
   const { getSunData } = useSunData();
   const hoveredHour = useHoveredHour();
+  const chartTheme = useChartTheme();
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]); // sunrise-sunset (hours)
   const [nightAreas, setNightAreas] = useState<{ x1: number; x2?: number }[]>(
     []
@@ -430,33 +432,30 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     setHoveredHour(null);
   };
 
-  const renderTooltipCursor = useCallback((cursorProps: any) => {
-    if (!cursorProps) return null;
-    const baseX =
-      typeof cursorProps.x === "number"
-        ? cursorProps.x
-        : cursorProps?.points?.[0]?.x;
-    const width = typeof cursorProps.width === "number" ? cursorProps.width : 0;
-    const y = typeof cursorProps.y === "number" ? cursorProps.y : 0;
-    const height =
-      typeof cursorProps.height === "number" ? cursorProps.height : 0;
-    if (typeof baseX !== "number" || height <= 0) {
-      return null;
-    }
-    const cx = baseX + width / 2;
-    return (
-      <line
-        x1={cx}
-        x2={cx}
-        y1={y}
-        y2={y + height}
-        stroke="var(--foreground)"
-        strokeWidth={0.75}
-        strokeDasharray="3 3"
-        strokeOpacity={0.5}
-      />
-    );
-  }, []);
+  const renderTooltipCursor = useCallback(
+    (cursorProps: any) => {
+      if (!cursorProps) return null;
+      const x = typeof cursorProps.x === "number" ? cursorProps.x : 0;
+      const y = typeof cursorProps.y === "number" ? cursorProps.y : 0;
+      const width =
+        typeof cursorProps.width === "number" ? cursorProps.width : 0;
+      const height =
+        typeof cursorProps.height === "number" ? cursorProps.height : 0;
+      if (height <= 0) return null;
+      // Dark shading rectangle only, no dotted line for bar charts
+      return (
+        <rect
+          x={x}
+          y={y}
+          width={width}
+          height={height}
+          fill="var(--foreground)"
+          fillOpacity={chartTheme.hoverOpacity}
+        />
+      );
+    },
+    [chartTheme.hoverOpacity]
+  );
 
   return (
     <ChartContainer
@@ -488,8 +487,8 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
               key={`day-${idx}`}
               x1={x1}
               x2={x2}
-              fill="#FFE58F"
-              fillOpacity={0.2}
+              fill={chartTheme.dayShading}
+              fillOpacity={chartTheme.shadingOpacity}
             />
           );
         })}
@@ -501,8 +500,8 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
               key={`night-${idx}`}
               x1={x1}
               x2={x2}
-              fill="#ccc1ffff"
-              fillOpacity={0.2}
+              fill={chartTheme.nightShading}
+              fillOpacity={chartTheme.shadingOpacity}
             />
           );
         })}
@@ -554,21 +553,6 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
             x={centeredSelectedHour}
             stroke="var(--foreground)"
             strokeDasharray="3 3"
-          />
-        )}
-        {/* Hover indicator line - always rendered to avoid re-mount */}
-        {centeredHoveredHour !== null && (
-          <ReferenceLine
-            x={centeredHoveredHour}
-            stroke="var(--foreground)"
-            strokeWidth={1}
-            strokeOpacity={
-              centeredSelectedHour === null ||
-              centeredHoveredHour !== centeredSelectedHour
-                ? 0.5
-                : 0
-            }
-            strokeDasharray="5 5"
           />
         )}
         <Bar

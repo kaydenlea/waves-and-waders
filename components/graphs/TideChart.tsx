@@ -29,6 +29,7 @@ import {
   parseSunTimeToHour,
 } from "@/components/graphs/sunSegments";
 import { getPacificMidnightUTC } from "@/lib/utils";
+import { useChartTheme } from "@/components/graphs/useChartTheme";
 
 const HOURS_TO_MS = 60 * 60 * 1000;
 
@@ -141,6 +142,7 @@ const TideChart: React.FC<TideChartProps> = ({
   >(new Map());
   const { hour: selectedHour, setHoveredHour } = useDateContext();
   const hoveredHour = useHoveredHour();
+  const chartTheme = useChartTheme();
 
   // Consolidated state with reducer for fewer re-renders
   const [state, dispatch] = useReducer(chartReducer, initialChartState);
@@ -639,8 +641,8 @@ const TideChart: React.FC<TideChartProps> = ({
             key={`day-${idx}`}
             x1={area.x1}
             x2={area.x2}
-            fill="#FFE58F"
-            fillOpacity={0.2}
+            fill={chartTheme.dayShading}
+            fillOpacity={chartTheme.shadingOpacity}
           />
         ))}
         {nightAreas.map((area, idx) => (
@@ -648,8 +650,8 @@ const TideChart: React.FC<TideChartProps> = ({
             key={`night-${idx}`}
             x1={area.x1}
             x2={area.x2}
-            fill="#ccc1ffff"
-            fillOpacity={0.2}
+            fill={chartTheme.nightShading}
+            fillOpacity={chartTheme.shadingOpacity}
           />
         ))}
         {/* <CartesianGrid
@@ -683,12 +685,20 @@ const TideChart: React.FC<TideChartProps> = ({
         />
         <ChartTooltip
           content={<ChartTooltipContent />}
+          cursor={{
+            stroke: "var(--foreground)",
+            strokeWidth: 1,
+            strokeDasharray: "3 3",
+            strokeOpacity: 0.5,
+          }}
           labelFormatter={(_, payload) => {
             const entry = Array.isArray(payload)
               ? (payload[0]?.payload as TidePoint | undefined)
               : undefined;
             return entry ? formatTime(entry.timestamp) : "";
           }}
+          animationDuration={0}
+          isAnimationActive={false}
         />
         <Line
           dataKey="tide"

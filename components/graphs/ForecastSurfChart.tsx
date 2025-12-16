@@ -41,6 +41,7 @@ import {
   useForecastChartLoading,
   useForecastChartsBusyState,
 } from "../context/ForecastChartsLoadingContext";
+import { useChartTheme } from "@/components/graphs/useChartTheme";
 
 const chartConfig = {
   surf: {
@@ -77,6 +78,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
   const myId = React.useId();
   const { hour: selectedHour, setHoveredHour } = useDateContext();
   const { getSunData } = useSunData();
+  const chartTheme = useChartTheme();
   const [loading, setLoading] = useState(true);
   const [sunReady, setSunReady] = useState(false);
   const [surfData, setSurfData] = useState<SurfPoint[]>([]);
@@ -730,6 +732,31 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
     setHoveredHour(null);
   }, [setHoveredHour]);
 
+  const renderTooltipCursor = useCallback(
+    (cursorProps: any) => {
+      if (!cursorProps) return null;
+      const x = typeof cursorProps.x === "number" ? cursorProps.x : 0;
+      const y = typeof cursorProps.y === "number" ? cursorProps.y : 0;
+      const width =
+        typeof cursorProps.width === "number" ? cursorProps.width : 0;
+      const height =
+        typeof cursorProps.height === "number" ? cursorProps.height : 0;
+      if (height <= 0) return null;
+      // Dark shading rectangle only, no dotted line for bar charts
+      return (
+        <rect
+          x={x}
+          y={y}
+          width={width}
+          height={height}
+          fill="var(--foreground)"
+          fillOpacity={chartTheme.hoverOpacity}
+        />
+      );
+    },
+    [chartTheme.hoverOpacity]
+  );
+
   const [stableSelectedHour, setStableSelectedHour] = useState<number | null>(
     null
   );
@@ -921,8 +948,8 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                       key={`day-${idx}`}
                       x1={x1}
                       x2={x2}
-                      fill="#FFE58F"
-                      fillOpacity={0.2}
+                      fill={chartTheme.dayShading}
+                      fillOpacity={chartTheme.shadingOpacity}
                       ifOverflow="extendDomain"
                     />
                   );
@@ -937,8 +964,8 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                       key={`night-${idx}`}
                       x1={x1}
                       x2={x2}
-                      fill="#ccc1ffff"
-                      fillOpacity={0.2}
+                      fill={chartTheme.nightShading}
+                      fillOpacity={chartTheme.shadingOpacity}
                       ifOverflow="extendDomain"
                     />
                   );
@@ -969,13 +996,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                   content={
                     <ChartTooltipContent labelFormatter={formatHourLabel} />
                   }
-                  cursor={{
-                    fill: "transparent",
-                    stroke: "var(--foreground)",
-                    strokeWidth: 1,
-                    strokeDasharray: "3 3",
-                    strokeOpacity: 0.5,
-                  }}
+                  cursor={renderTooltipCursor as any}
                   allowEscapeViewBox={{ x: true, y: true }}
                   animationDuration={0}
                   isAnimationActive={false}
