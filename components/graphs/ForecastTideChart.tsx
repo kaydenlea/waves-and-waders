@@ -516,7 +516,7 @@ export default React.memo(function ForecastTideChart({
           }));
         })();
 
-        let series = (seriesRaw ?? [])
+        const series = (seriesRaw ?? [])
           .filter((p) => p.hour >= 0 && p.hour <= fetchHours)
           .sort((a, b) => a.hour - b.hour);
 
@@ -1269,23 +1269,45 @@ export default React.memo(function ForecastTideChart({
                           const yOffset =
                             labelPositions.get(props.index) ?? -32;
 
+                          // Calculate boundaries - Y-axis is approximately 30px wide
+                          const Y_AXIS_WIDTH = 30;
+                          const LEFT_BOUNDARY = Y_AXIS_WIDTH + 5; // Just past Y-axis
+                          const LABEL_HALF_WIDTH = 35; // Approximate half-width of label text
+
+                          // Determine text anchor and adjusted x position based on boundaries
+                          let textAnchor: "start" | "middle" | "end" = "middle";
+                          let adjustedX = safeX;
+
+                          // Check if label would bleed off the left edge (Y-axis wall)
+                          if (safeX - LABEL_HALF_WIDTH < LEFT_BOUNDARY) {
+                            textAnchor = "start";
+                            adjustedX = Math.max(safeX, LEFT_BOUNDARY);
+                          }
+                          // Check if label would bleed off the right edge
+                          else {
+                            const hourMod24 = h % 24;
+                            if (hourMod24 >= 23) {
+                              textAnchor = "end";
+                            }
+                          }
+
                           return (
                             <g>
                               <text
-                                x={safeX}
+                                x={adjustedX}
                                 y={safeY + yOffset}
                                 fill="var(--foreground)"
-                                textAnchor="middle"
+                                textAnchor={textAnchor}
                                 dominantBaseline="middle"
                                 fontSize={10}
                               >
                                 {lbl}
                               </text>
                               <text
-                                x={safeX}
+                                x={adjustedX}
                                 y={safeY + yOffset + 15}
                                 fill="var(--foreground)"
-                                textAnchor="middle"
+                                textAnchor={textAnchor}
                                 fontWeight="bold"
                                 fontSize={12}
                               >
