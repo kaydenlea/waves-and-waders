@@ -137,6 +137,7 @@ export default React.memo(function ForecastTideChart({
   );
   const { setReady } = useForecastChartLoading("forecast-tide");
   const dashboardBusy = useForecastChartsBusyState();
+  const wasBusyRef = useRef(dashboardBusy);
 
   // data loaded for FETCH_DAYS days (hours)
   const [chartState, setChartState] = useState<ChartState>({
@@ -164,9 +165,10 @@ export default React.memo(function ForecastTideChart({
     }
   }, [loading, shadingReady, setReady]);
   useEffect(() => {
-    if (!dashboardBusy) {
+    if (!dashboardBusy && wasBusyRef.current) {
       setStableSelectedHour(selectedHour ?? null);
     }
+    wasBusyRef.current = dashboardBusy;
   }, [dashboardBusy, selectedHour]);
 
   // which day index (0..totalFetchedDays - VISIBLE_DAYS) is the first visible day

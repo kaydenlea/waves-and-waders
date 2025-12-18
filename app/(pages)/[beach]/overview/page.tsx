@@ -11,6 +11,14 @@ import NavBar from "@/components/general/NavBar";
 import { LazyLoadMap } from "@/components/general/LazyLoad/LazyLoadMap";
 import PathStyleWrapper from "@/components/general/PathStyleWrapper";
 import Footer from "@/components/general/Footer";
+import {
+  getDefaultLayout,
+  normalizeMeta,
+  normalizeRows,
+  type WidgetMeta,
+  type Row,
+  type WidgetId,
+} from "@/components/general/dashboardLayout";
 
 export const metadata: Metadata = {
   title: "Surf Daily Forecast | Waves and Waders",
@@ -73,6 +81,62 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
     isFav = Boolean(favorite);
   }
 
+  let initialOverviewMeta: Partial<Record<WidgetId, WidgetMeta>> | null = null;
+  let initialOverviewRows: Row[] | null = null;
+  let initialForecastMeta: Partial<Record<WidgetId, WidgetMeta>> | null = null;
+  let initialForecastRows: Row[] | null = null;
+
+  if (user) {
+    try {
+      const { data: settings, error: settingsError } = await supabase
+        .from("user_dashboard_settings")
+        .select(
+          "overview_meta, overview_rows, forecast_meta, forecast_rows"
+        )
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (!settingsError && settings) {
+        const overviewMeta = normalizeMeta("overview", settings.overview_meta);
+        const overviewRows = normalizeRows(
+          "overview",
+          settings.overview_rows,
+          overviewMeta
+        );
+        initialOverviewMeta = overviewMeta;
+        initialOverviewRows = overviewRows;
+
+        const forecastMeta = normalizeMeta(
+          "forecast",
+          settings.forecast_meta
+        );
+        const forecastRows = normalizeRows(
+          "forecast",
+          settings.forecast_rows,
+          forecastMeta
+        );
+        initialForecastMeta = forecastMeta;
+        initialForecastRows = forecastRows;
+      }
+    } catch (err) {
+      console.warn("Failed to load initial overview layout on server", err);
+    }
+  }
+
+  // Always provide a concrete initial layout (default) so the page has
+  // a stable structure on first paint, even when signed out.
+  if (!initialOverviewMeta || !initialOverviewRows) {
+    const fallback = getDefaultLayout("overview");
+    initialOverviewMeta = fallback.meta;
+    initialOverviewRows = fallback.rows;
+  }
+
+  if (!initialForecastMeta || !initialForecastRows) {
+    const fallback = getDefaultLayout("forecast");
+    initialForecastMeta = fallback.meta;
+    initialForecastRows = fallback.rows;
+  }
+
   return (
     <>
       <NavBar />
@@ -106,6 +170,11 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
                 beachId={beachId}
                 beachParam={beach}
                 isFavorite={isFav}
+                loggedIn={Boolean(user)}
+                initialOverviewMeta={initialOverviewMeta}
+                initialOverviewRows={initialOverviewRows}
+                initialForecastMeta={initialForecastMeta}
+                initialForecastRows={initialForecastRows}
               />
             </SunDataProvider>
           </div>

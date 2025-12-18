@@ -762,6 +762,15 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
   );
   const { setReady } = useForecastChartLoading("forecast-surf");
   const dashboardBusy = useForecastChartsBusyState();
+  const wasBusyRef = useRef(dashboardBusy);
+
+  // When the visible day range changes (user adjusts the forecast date range),
+  // pessimistically mark this widget as not ready so the global forecast
+  // overlay turns on before any of the day headers or hour highlights change.
+  useEffect(() => {
+    if (!days) return;
+    setReady(false);
+  }, [days, setReady]);
 
   // Mark this widget as not ready whenever its local loading flag is true.
   useEffect(() => {
@@ -778,9 +787,12 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
   }, [loading, sunReady, setReady]);
 
   useEffect(() => {
-    if (!dashboardBusy) {
+    // Only update the stable selection after a busy period has finished so
+    // that the visible hour highlight doesn't move before the overlay shows.
+    if (!dashboardBusy && wasBusyRef.current) {
       setStableSelectedHour(selectedHour ?? null);
     }
+    wasBusyRef.current = dashboardBusy;
   }, [dashboardBusy, selectedHour]);
 
   return (

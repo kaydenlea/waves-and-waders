@@ -308,7 +308,7 @@ const StatTable = ({
   }) => {
     // TODO(overview-perf): Ideally drive this loading state from a shared forecast context
     // when available so both overview and forecast tables stay in sync with other widgets.
-  const [loading, setLoading] = React.useState<boolean>(false);
+  const [loading, setLoading] = React.useState<boolean>(true);
   const [data, setData] = React.useState<TableDay[]>([]);
   const {
     selectedDays,
@@ -324,6 +324,7 @@ const StatTable = ({
   const dashboardBusy = useOptionalForecastChartsBusyState();
   const [stableSelectedHour, setStableSelectedHour] =
     React.useState<number | null>(null);
+  const wasBusyRef = React.useRef(dashboardBusy);
 
   // Forecast dashboard readiness reporting for the table: mark not ready
   // whenever the table is loading, and ready once data is present.
@@ -346,9 +347,10 @@ const StatTable = ({
       setStableSelectedHour(null);
       return;
     }
-    if (!dashboardBusy) {
+    if (!dashboardBusy && wasBusyRef.current) {
       setStableSelectedHour(selectedHour ?? null);
     }
+    wasBusyRef.current = dashboardBusy;
   }, [forecastPage, dashboardBusy, selectedHour]);
 
   // Extract requestedDate at component level so it's accessible throughout
@@ -1159,27 +1161,49 @@ const StatTable = ({
               })}
             </tr>
           </thead>
-            <tbody>
+          <tbody>
             {loading && !visibleDays.length
-                ? Array.from({ length: Math.max(numHours, 8) }).map((_, idx) => (
-                  <tr
-                    key={`skeleton-${idx}`}
-                    className="border-b border-border/20 last:border-b-0"
-                  >
-                    <th className="relative w-5 h-14 border-r border-border/40 p-0" />
-                    {visibleColumns.map((col) => (
-                      <td
-                        key={`skeleton-${col.id}-${idx}`}
-                        className={cn(
-                          "px-1",
-                          "border-r border-border/20 last:border-r-0"
+              ? (() => {
+                  const daysForSkeleton = Math.min(
+                    windowSize,
+                    Math.max(numDays, 1)
+                  );
+                  return Array.from({ length: daysForSkeleton }).map(
+                    (_, dayIdx) => (
+                      <React.Fragment key={`skeleton-day-${dayIdx}`}>
+                        {header && (
+                          <tr>
+                            <td
+                              colSpan={visibleColumns.length + 1}
+                              className="p-3 bg-highlight-5 rounded-sm shadow-even"
+                            >
+                              <div className="h-4 w-32 rounded bg-highlight-3 animate-pulse" />
+                            </td>
+                          </tr>
                         )}
-                      >
-                        <div className="h-10 w-full rounded bg-highlight-3 animate-pulse" />
-                      </td>
-                    ))}
-                  </tr>
-                ))
+                        {Array.from({ length: numHours }).map((_, rowIdx) => (
+                          <tr
+                            key={`skeleton-row-${dayIdx}-${rowIdx}`}
+                            className="border-b border-border/20 last:border-b-0"
+                          >
+                            <th className="relative w-5 h-14 border-r border-border/40 p-0" />
+                            {visibleColumns.map((col) => (
+                              <td
+                                key={`skeleton-${col.id}-${dayIdx}-${rowIdx}`}
+                                className={cn(
+                                  "px-1",
+                                  "border-r border-border/20 last:border-r-0"
+                                )}
+                              >
+                                <div className="h-10 w-full rounded bg-highlight-3 animate-pulse" />
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </React.Fragment>
+                    )
+                  );
+                })()
               : visibleDays.map((day, i) => {
                     const content = day.vals.map((entry, rowIdx) => {
                     let isSelectedHour = false;

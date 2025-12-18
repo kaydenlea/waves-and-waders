@@ -154,12 +154,18 @@ const PageTabs = ({
               <span>{`${forecastPage ? 4 : 1} day range`}</span>
             </span>
           </div>
-          {(forecastPage || overviewPage) && (
+          {(forecastPage || overviewPage) && beachId && (
             <Link
               href={
-                selectedTab === "forecast"
-                  ? `/${beachId}/forecast/edit#forecast-content`
-                  : `/${beachId}/overview/edit#overview-content`
+                loggedIn
+                  ? selectedTab === "forecast"
+                    ? `/${beachId}/forecast/edit#forecast-content`
+                    : `/${beachId}/overview/edit#overview-content`
+                  : `/login?next=${encodeURIComponent(
+                      selectedTab === "forecast"
+                        ? `/${beachId}/forecast/edit#forecast-content`
+                        : `/${beachId}/overview/edit#overview-content`
+                    )}`
               }
               className="hidden @min-xl:inline-flex bg-highlight-5 hover:bg-highlight-3 items-center rounded-full p-3 @min-2xl:py-2.5 @min-2xl:px-4 gap-1.5"
               aria-label={`Edit ${
@@ -208,16 +214,38 @@ const PageTabs = ({
           return (
             <button
               onClick={(e) => {
-                const clicked = (e.target as HTMLElement).innerText;
-                console.log("BEACH TEST CLICK", clicked);
-                if (!clicked) return;
-                const next = clicked.toLowerCase();
+                const next = tab.toLowerCase();
                 if (beachPage && next === "saved" && !loggedIn) {
                   // Redirect unauthenticated users to login when selecting Saved on beaches page
                   router.push(`/login?next=${encodeURIComponent("/beaches")}`);
                   return;
                 }
                 setSelectedTab(next);
+
+                // Keep URL/tab state in sync for overview/forecast dashboards to avoid
+                // flicker on refresh and allow deep-linking.
+                if (overviewPage && !beachPage) {
+                  // Combined overview/forecast dashboard on the overview route.
+                  // Keep tab in the query string but avoid hash-based scrolling.
+                  if (!beach) return;
+                  const base = `/${beach}/overview`;
+                  const tabParam = next;
+                  const href = `${base}?tab=${encodeURIComponent(tabParam)}`;
+                  router.push(href, { scroll: false });
+                  return;
+                }
+
+                if (forecastPage && !overviewPage && beach) {
+                  // Dedicated forecast page: switch routes between overview/forecast.
+                  if (next === "overview") {
+                    router.push(`/${beach}/overview`, { scroll: false });
+                    return;
+                  }
+                  if (next === "forecast") {
+                    router.push(`/${beach}/forecast`, { scroll: false });
+                    return;
+                  }
+                }
               }}
               type="button"
               aria-label={`${selectedTab} tab`}
