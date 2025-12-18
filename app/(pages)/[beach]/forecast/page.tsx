@@ -14,6 +14,14 @@ import Footer from "@/components/general/Footer";
 import PathStyleWrapper from "@/components/general/PathStyleWrapper";
 import { LazyLoadMap } from "@/components/general/LazyLoad/LazyLoadMap";
 import NavBar from "@/components/general/NavBar";
+import {
+  getDefaultLayout,
+  normalizeMeta,
+  normalizeRows,
+  type WidgetMeta,
+  type Row,
+  type WidgetId,
+} from "@/components/general/dashboardLayout";
 
 export const metadata: Metadata = {
   title: "Surf Weekly Forecast | Waves and Waders",
@@ -56,6 +64,36 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
     isFav = Boolean(favorite);
   }
 
+  let initialForecastMeta: Partial<Record<WidgetId, WidgetMeta>> | null = null;
+  let initialForecastRows: Row[] | null = null;
+
+  if (user) {
+    try {
+      const { data: settings, error: settingsError } = await supabase
+        .from("user_dashboard_settings")
+        .select("forecast_meta, forecast_rows")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (!settingsError && settings) {
+        const meta = normalizeMeta("forecast", settings.forecast_meta);
+        const rows = normalizeRows("forecast", settings.forecast_rows, meta);
+        initialForecastMeta = meta;
+        initialForecastRows = rows;
+      }
+    } catch (err) {
+      console.warn("Failed to load initial forecast layout on server", err);
+    }
+  }
+
+  // Always provide a concrete initial layout (default) so the page has
+  // a stable structure on first paint, even when signed out.
+  if (!initialForecastMeta || !initialForecastRows) {
+    const fallback = getDefaultLayout("forecast");
+    initialForecastMeta = fallback.meta;
+    initialForecastRows = fallback.rows;
+  }
+
   return (
     <>
       <NavBar />
@@ -76,6 +114,7 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
                 tabs={["overview", "forecast"]}
                 beachId={beachId}
                 isFavorite={isFav}
+                loggedIn={Boolean(user)}
                 forecastPage
               />
               <h1 className="font-semibold text-4xl tracking-tight w-full @min-3xl:w-[calc(100%-400px)]">
@@ -85,7 +124,11 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
             <SunDataProvider>
               <ForecastChartsLoadingProvider>
                 <ForecastChartProvider>
-                  <ForecastBridge beachId={beachId} />
+                  <ForecastBridge
+                    beachId={beachId}
+                    initialMeta={initialForecastMeta}
+                    initialRows={initialForecastRows}
+                  />
                 </ForecastChartProvider>
               </ForecastChartsLoadingProvider>
             </SunDataProvider>

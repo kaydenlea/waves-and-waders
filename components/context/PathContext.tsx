@@ -36,22 +36,25 @@ export function PathProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      const isForecastPath = pathname.includes("/forecast");
+      const isOverviewPath = pathname.includes("/overview");
+
+      // For dedicated forecast/overview routes, the URL semantics win over any
+      // saved local state to avoid tab flicker on refresh.
+      if (isForecastPath && selectedTab !== "forecast") {
+        setSelectedTab("forecast");
+        return;
+      }
+      if (isOverviewPath && selectedTab !== "overview") {
+        setSelectedTab("overview");
+        return;
+      }
+
       const key = `tab:${pathname}`;
       const saved = window.localStorage.getItem(key);
       if (saved && saved !== selectedTab) {
         setSelectedTab(saved);
         return;
-      }
-
-      // Default overview pages to the overview tab when no saved state exists
-      if (pathname.includes("/overview") && selectedTab !== "overview") {
-        setSelectedTab("overview");
-        return;
-      }
-
-      // Default forecast pages to the forecast tab when no saved state exists
-      if (pathname.includes("/forecast") && selectedTab !== "forecast") {
-        setSelectedTab("forecast");
       }
     } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -43,6 +43,8 @@ type Props = {
   beachId: string;
   hideHeader?: boolean;
   onWindowStringChange?: (value: string) => void;
+  initialMeta?: Partial<Record<WidgetId, WidgetMeta>> | null;
+  initialRows?: Row[] | null;
 };
 
 /**
@@ -54,6 +56,8 @@ const ForecastBridge: React.FC<Props> = ({
   beachId,
   hideHeader = false,
   onWindowStringChange,
+  initialMeta = null,
+  initialRows = null,
 }) => {
   // local selected date (kept for the DatePicker's controlled value)
   // const [selected, setSelected] = useState<Date | null>(dayjs().toDate());
@@ -77,11 +81,13 @@ const ForecastBridge: React.FC<Props> = ({
   const forecastDefaults = useMemo(() => getDefaultLayout("forecast"), []);
   const [layoutMeta, setLayoutMeta] = useState<
     Partial<Record<WidgetId, WidgetMeta>>
-  >(() => forecastDefaults.meta);
+  >(() => initialMeta ?? forecastDefaults.meta);
   const [layoutRows, setLayoutRows] = useState<Row[]>(
-    () => forecastDefaults.rows
+    () => initialRows ?? forecastDefaults.rows
   );
-  const [layoutHydrated, setLayoutHydrated] = useState(false);
+  const [layoutHydrated, setLayoutHydrated] = useState(
+    () => !!(initialRows && initialRows.length)
+  );
   const storageMetaKey = useMemo(
     () => getDashboardStorageKey("forecast", "meta"),
     []
@@ -406,9 +412,7 @@ const ForecastBridge: React.FC<Props> = ({
           </Link>
         </div> */}
         <div className="flex flex-col">
-          {!layoutHydrated ? (
-            <div className="mx-2 mt-4 mb-4 w-full min-h-[720px] rounded-2xl bg-highlight-4 border border-border/40 animate-pulse" />
-          ) : visibleRows.length === 0 ? (
+          {visibleRows.length === 0 ? (
             <p className="mx-2 mt-4 text-sm text-muted-foreground">
               All widgets are hidden. Use the edit page to re-enable panels for
               the forecast view.

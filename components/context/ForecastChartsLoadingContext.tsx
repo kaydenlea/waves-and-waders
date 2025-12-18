@@ -51,57 +51,9 @@ export function ForecastChartsLoadingProvider({
     return false;
   }, [statusMap]);
 
-  const [loading, setLoading] = React.useState<boolean>(false);
-  const lastStartRef = React.useRef<number | null>(null);
-  const settleTimerRef = React.useRef<number | null>(null);
-
-  React.useEffect(() => {
-    // Always clear any pending timer before scheduling a new one
-    if (settleTimerRef.current != null) {
-      window.clearTimeout(settleTimerRef.current);
-      settleTimerRef.current = null;
-    }
-
-    if (rawLoading) {
-      // Immediately enter the loading state so that overlays are always
-      // visible for real work, including the very first page load.
-      if (!loading) {
-        lastStartRef.current = performance.now();
-        setLoading(true);
-      }
-      return;
-    }
-
-    // At this point rawLoading is false. If we're not currently showing the
-    // overlay, there's nothing to do.
-    if (!loading) {
-      lastStartRef.current = null;
-      return;
-    }
-
-    const now = performance.now();
-    const minVisibleMs = 220;
-    const sinceStart =
-      lastStartRef.current != null ? now - lastStartRef.current : 0;
-    const remaining = Math.max(0, minVisibleMs - sinceStart);
-    const settleMs = 150;
-    const delay = Math.max(remaining, settleMs);
-
-    settleTimerRef.current = window.setTimeout(() => {
-      setLoading(false);
-      lastStartRef.current = null;
-    }, delay);
-
-    return () => {
-      if (settleTimerRef.current != null) {
-        window.clearTimeout(settleTimerRef.current);
-      }
-    };
-  }, [rawLoading, loading]);
-
   const value = React.useMemo(
-    () => ({ reportStatus, unregister, loading, busy: rawLoading }),
-    [reportStatus, unregister, loading, rawLoading]
+    () => ({ reportStatus, unregister, loading: rawLoading, busy: rawLoading }),
+    [reportStatus, unregister, rawLoading]
   );
 
   return (

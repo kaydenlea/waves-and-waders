@@ -55,6 +55,11 @@ type Props = {
   beachId: string;
   beachParam?: string;
   isFavorite?: boolean;
+  loggedIn?: boolean;
+  initialOverviewMeta?: Partial<Record<WidgetId, WidgetMeta>> | null;
+  initialOverviewRows?: Row[] | null;
+  initialForecastMeta?: Partial<Record<WidgetId, WidgetMeta>> | null;
+  initialForecastRows?: Row[] | null;
 };
 
 type RangeStats = {
@@ -212,6 +217,11 @@ const DateSummaryBridge: React.FC<Props> = ({
   beachId,
   beachParam,
   isFavorite = false,
+  loggedIn = false,
+  initialOverviewMeta = null,
+  initialOverviewRows = null,
+  initialForecastMeta = null,
+  initialForecastRows = null,
 }) => {
     const { id, selected, setSelected, hour, setHour, selectedDays } =
       useDateContext();
@@ -221,17 +231,15 @@ const DateSummaryBridge: React.FC<Props> = ({
   const isForecastTab = selectedTab === "forecast";
   const [mounted, setMounted] = React.useState(false);
   const [currentTime, setCurrentTime] = React.useState<string>("");
-  const overviewDefaults = React.useMemo(
-    () => getDefaultLayout("overview"),
-    []
-  );
   const [layoutMeta, setLayoutMeta] = React.useState<
     Partial<Record<WidgetId, WidgetMeta>>
-  >(() => overviewDefaults.meta);
+  >(() => initialOverviewMeta ?? {});
   const [layoutRows, setLayoutRows] = React.useState<Row[]>(
-    () => overviewDefaults.rows
+    () => initialOverviewRows ?? []
   );
-  const [layoutHydrated, setLayoutHydrated] = React.useState(false);
+  const [layoutHydrated, setLayoutHydrated] = React.useState(
+    () => !!(initialOverviewRows && initialOverviewRows.length)
+  );
   const [forecastWindow, setForecastWindow] = React.useState("Select range");
   const storageMetaKey = React.useMemo(
     () => getDashboardStorageKey("overview", "meta"),
@@ -867,6 +875,13 @@ const DateSummaryBridge: React.FC<Props> = ({
   const showOverviewCopy = isOverview;
   const headerTitle = isOverview ? "Daily Overview" : "Weekly Forecast";
   const headerSubtitle = isOverview ? "Today's surf insights" : forecastWindow;
+  const mobileEditTarget =
+    selectedTab === "forecast"
+      ? `/${beachId}/forecast/edit#forecast-content`
+      : `/${beachId}/overview/edit#overview-content`;
+  const mobileEditHref = loggedIn
+    ? mobileEditTarget
+    : `/login?next=${encodeURIComponent(mobileEditTarget)}`;
 
   return (
     <ForecastDataProvider
@@ -916,13 +931,9 @@ const DateSummaryBridge: React.FC<Props> = ({
                     {headerSubtitle}
                   </p>
                 </div>
-                {/* Mobile edit button (hidden on wide screens) */}
+                {/* Mobile edit button (hidden on wide screens). Signed-out users go to login with return URL. */}
                 <Link
-                  href={
-                    selectedTab === "forecast"
-                      ? `/${beachId}/forecast/edit#forecast-content`
-                      : `/${beachId}/overview/edit#overview-content`
-                  }
+                  href={mobileEditHref}
                   className="@min-xl:hidden inline-flex bg-highlight-5 hover:bg-highlight-3 items-center rounded-full p-3 @min-sm:py-2.5 gap-1.5 @min-sm:px-4 shrink-0"
                   aria-label={`Edit ${
                     selectedTab === "forecast" ? "forecast" : "overview"
@@ -940,6 +951,7 @@ const DateSummaryBridge: React.FC<Props> = ({
                   beachId={beachId}
                   tabs={["overview", "forecast"]}
                   isFavorite={isFavorite}
+                  loggedIn={loggedIn}
                   overviewPage
                   forecastPage={selectedTab === "forecast"}
                   placement="inline"
@@ -953,13 +965,13 @@ const DateSummaryBridge: React.FC<Props> = ({
             {/* Overview content - hidden when forecast is active */}
             <div className={isOverview ? "" : "hidden"}>
               <div className="relative min-h-[640px]">
-                {!layoutHydrated ? (
-                  <div className="mt-4 w-full h-full min-h-[640px] rounded-2xl bg-highlight-4 border border-border/40 animate-pulse" />
-                ) : visibleRows.length === 0 ? (
+                {visibleRows.length === 0 ? (
+                  layoutHydrated ? (
                   <p className="mx-2 mt-6 text-sm text-muted-foreground">
                     All widgets are hidden. Use the edit screen to enable
                     widgets.
                   </p>
+                  ) : null
                 ) : (
                   visibleRows.map((row, index) => {
                     const visibleItems = row.items.filter(
@@ -994,6 +1006,15 @@ const DateSummaryBridge: React.FC<Props> = ({
                     );
                   })
                 )}
+                {/* Subtle overlay while overview layout is hydrating */}
+                {!layoutHydrated && (
+                  <div
+                    className="pointer-events-none absolute inset-0 rounded-2xl border border-border/40 bg-background/40"
+                    aria-hidden="true"
+                  >
+                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-b from-background/40 via-background/20 to-background/40 opacity-80 animate-pulse" />
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1015,6 +1036,8 @@ const DateSummaryBridge: React.FC<Props> = ({
                           beachId={beachId}
                           hideHeader
                           onWindowStringChange={setForecastWindow}
+                          initialMeta={initialForecastMeta ?? undefined}
+                          initialRows={initialForecastRows ?? undefined}
                         />
                       </ForecastDataProvider>
                     </ForecastChartProvider>

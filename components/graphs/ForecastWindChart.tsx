@@ -118,6 +118,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
   );
   const { setReady } = useForecastChartLoading("forecast-wind");
   const dashboardBusy = useForecastChartsBusyState();
+  const wasBusyRef = useRef(dashboardBusy);
 
   // Mark this widget as not ready whenever its local loading flag is true.
   useEffect(() => {
@@ -134,9 +135,10 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
   }, [loading, sunReady, setReady]);
 
   useEffect(() => {
-    if (!dashboardBusy) {
+    if (!dashboardBusy && wasBusyRef.current) {
       setStableSelectedHour(selectedHour ?? null);
     }
+    wasBusyRef.current = dashboardBusy;
   }, [dashboardBusy, selectedHour]);
 
   // Normalize and sort provided days to keep fetch ranges stable
