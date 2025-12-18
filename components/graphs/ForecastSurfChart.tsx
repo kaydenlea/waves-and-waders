@@ -21,12 +21,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import {
-  ChevronLeft,
-  ChevronRight,
-  TrendingDown,
-  TrendingUp,
-} from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn, getPacificHour, getPacificMidnightUTC } from "@/lib/utils";
 import { getForecastCached } from "@/lib/dataCache";
 import { useForecastData } from "@/components/context/ForecastDataContext";
@@ -37,6 +32,7 @@ import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
 import { buildYAxisTicks } from "@/components/graphs/yAxisTicks";
 import { useSunData } from "@/components/context/SunDataContext";
 import { buildSunSegmentsForRange } from "@/components/graphs/sunSegments";
+import { getForecastDayHeaderLayout } from "./forecastDayHeaderLayout";
 import {
   useForecastChartLoading,
   useForecastChartsBusyState,
@@ -172,8 +168,19 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
   const dayLabelLeftOffset = CHART_LEFT_MARGIN + Y_AXIS_WIDTH;
   const dataAreaWidth =
     chartInnerWidth - CHART_LEFT_MARGIN - CHART_RIGHT_MARGIN - Y_AXIS_WIDTH;
-  const dayLabelColumnWidth = dataAreaWidth / totalFetchedDays;
-  const dayLabelAvailableWidth = totalFetchedDays * dayLabelColumnWidth;
+  const dayHeaderLayout = useMemo(
+    () =>
+      getForecastDayHeaderLayout({
+        leftOffsetPx: dayLabelLeftOffset,
+        dataAreaWidthPx: dataAreaWidth,
+        totalDays: totalFetchedDays,
+        domainMinHours: domainMin,
+        domainMaxHours: domainMax,
+        hoursPerDay: HOURS_PER_DAY,
+        includeDomainPaddingInEdgeDays: true,
+      }),
+    [dayLabelLeftOffset, dataAreaWidth, totalFetchedDays, domainMin, domainMax]
+  );
 
   // helpers: clamp translate (px)
   const clampTranslatePx = useCallback(
@@ -698,8 +705,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
       hour = label;
     }
     if (typeof hour !== "number") return "";
-    const nearestSlot =
-      Math.round(hour / DATA_STEP_HOURS) * DATA_STEP_HOURS;
+    const nearestSlot = Math.round(hour / DATA_STEP_HOURS) * DATA_STEP_HOURS;
     const normalized = ((nearestSlot % 24) + 24) % 24;
     const displayHour = normalized % 12 === 0 ? 12 : normalized % 12;
     const ampm = normalized >= 12 ? "PM" : "AM";
@@ -787,10 +793,11 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
   }, [loading, sunReady, setReady]);
 
   useEffect(() => {
-    // Only update the stable selection after a busy period has finished so
-    // that the visible hour highlight doesn't move before the overlay shows.
-    if (!dashboardBusy && wasBusyRef.current) {
+    if (dashboardBusy && !wasBusyRef.current) {
       setStableSelectedHour(selectedHour ?? null);
+    }
+    if (!dashboardBusy && wasBusyRef.current) {
+      setStableSelectedHour(null);
     }
     wasBusyRef.current = dashboardBusy;
   }, [dashboardBusy, selectedHour]);
@@ -838,7 +845,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
           style={{
-            marginTop: 65,
+            marginTop: 60,
             position: "absolute",
             left: 0,
             width: chartInnerWidth,
@@ -851,67 +858,79 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
         >
           {/* Day label bar */}
           <div
+            className="rounded-t-lg overflow-hidden border border-border/20 bg-highlight-5/40 shadow-even backdrop-blur-md"
             style={{
               position: "absolute",
               zIndex: 40,
-              left: dayLabelLeftOffset,
-              top: -65,
-              width: dayLabelAvailableWidth,
+              left: dayHeaderLayout.left,
+              top: -58,
+              width: dayHeaderLayout.width,
               display: "grid",
-              gridTemplateColumns: `repeat(${totalFetchedDays}, ${dayLabelColumnWidth}px)`,
+              gridTemplateColumns: dayHeaderLayout.gridTemplateColumns,
               pointerEvents: "none",
+              backgroundImage: `linear-gradient(to bottom, color-mix(in oklab, ${chartTheme.dayShading} 14%, transparent), hsl(var(--background) / 0.75))`,
             }}
           >
             {dayLabels?.map((label, idx) => (
               <div
                 key={idx}
+                className="h-14 p-1"
                 style={{
                   boxSizing: "border-box",
                   width: "100%",
-                  display: "flex",
-                  justifyContent: "center",
-                  fontWeight: 700,
-                  fontSize: 13,
                   color: "var(--foreground)",
                   pointerEvents: "none",
                 }}
               >
-                <div
-                  className="flex justify-between whitespace-nowrap px-3 py-2 rounded-lg bg-highlight-5"
-                  style={{ width: "95%" }}
-                >
-                  <span className="flex flex-col items-start">
-                    <span className="text-xs font-medium">
-                      {label.split(",")[1]}
-                    </span>
-                    <span className="text-sm font-bold">
-                      {label.split(",")[0]}
-                    </span>
-                  </span>
-                  <div className="grid rounded-md bg-highlight-6 grid-cols-[60px_1fr] grid-rows-2 space-y-0.5 items-center text-xs text-muted-foreground uppercase tracking-wide leading-tight">
-                    <span className="flex gap-2 items-center">
-                      <TrendingUp
-                        fill="#353535ff"
-                        className="stroke-muted-foreground w-4 h-4"
-                      />
-                      <span className="block font-medium">High</span>
-                    </span>
-                    <span className="ml-1 text-foreground normal-case font-medium">
-                      {dayStats[idx]?.high ?? 0}{" "}
-                      <span className="inline-block">ft</span>
-                    </span>
-                    <span className="flex gap-2 items-center">
-                      <TrendingDown
-                        fill="#353535ff"
-                        className="stroke-muted-foreground w-4 h-4"
-                      />
-                      <span className="block -mb-0.5 font-medium">Low</span>
-                    </span>
-                    <span className="ml-1 text-foreground normal-case font-medium">
-                      {dayStats[idx]?.low ?? 0}{" "}
-                      <span className="inline-block">ft</span>
-                    </span>
-                  </div>
+                <div className="flex h-full items-center justify-between gap-3 rounded-md border border-border/30 bg-highlight-7/10 dark:bg-highlight-5/50 px-3 py-2 shadow-sm">
+                  {(() => {
+                    const [weekdayRaw, monthDayRaw] = label.split(",");
+                    const weekday = (weekdayRaw ?? label).trim();
+                    const monthDay = (monthDayRaw ?? "").trim();
+                    const high = dayStats[idx]?.high;
+                    const low = dayStats[idx]?.low;
+
+                    return (
+                      <>
+                        <div className="flex flex-col min-w-0 leading-tight">
+                          <span className="text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">
+                            {weekday}
+                          </span>
+                          <span className="text-sm font-semibold truncate">
+                            {monthDay || label}
+                          </span>
+                        </div>
+                        <div className="flex flex-col items-end gap-0.5 whitespace-nowrap text-[0.72rem] text-muted-foreground">
+                          <div className="grid grid-cols-[14px_18px_32px_16px] items-center gap-x-1 rounded-md bg-foreground/5 px-2 py-0.5 leading-none">
+                            <ArrowUp className="h-3 w-3 text-emerald-500/80" />
+                            <span className="mt-0.5 text-[0.68rem] font-semibold text-muted-foreground">
+                              Hi
+                            </span>
+                            <span className="mt-0.5 tabular-nums text-right text-foreground font-semibold">
+                              {typeof high === "number"
+                                ? high.toFixed(1)
+                                : "--"}
+                            </span>
+                            <span className="text-[0.7rem] text-muted-foreground">
+                              ft
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-[14px_18px_32px_16px] items-center gap-x-1 rounded-md bg-foreground/5 px-2 py-0.5 leading-none">
+                            <ArrowDown className="h-3 w-3 text-rose-500/80" />
+                            <span className="mt-0.5 text-[0.68rem] font-semibold text-muted-foreground">
+                              Lo
+                            </span>
+                            <span className="mt-0.5 tabular-nums text-right text-foreground font-semibold">
+                              {typeof low === "number" ? low.toFixed(1) : "--"}
+                            </span>
+                            <span className="mt-0.5 text-[0.7rem] text-muted-foreground">
+                              ft
+                            </span>
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             ))}
@@ -1016,8 +1035,9 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                 {/* Selected hour marker */}
                 {(() => {
                   try {
-                    const effectiveHour =
-                      stableSelectedHour ?? selectedHour ?? null;
+                    const effectiveHour = dashboardBusy
+                      ? stableSelectedHour ?? selectedHour ?? null
+                      : selectedHour ?? null;
                     const base =
                       normalizedDays && normalizedDays.length > 0
                         ? normalizedDays[0]
@@ -1039,18 +1059,11 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                     );
                     const baseX = dayDelta * 24 + effectiveHour;
                     if (baseX < 0 || baseX > totalFetchedDays * 24) return null;
-                    const minX = HALF_STEP_HOURS;
-                    const maxX = Math.max(
-                      minX,
-                      totalFetchedDays * 24 - HALF_STEP_HOURS
-                    );
-                    const centeredX = Math.min(
-                      maxX,
-                      Math.max(minX, baseX + HALF_STEP_HOURS)
-                    );
+                    const snappedX =
+                      Math.round(baseX / DATA_STEP_HOURS) * DATA_STEP_HOURS;
                     return (
                       <ReferenceLine
-                        x={centeredX}
+                        x={snappedX}
                         stroke="var(--foreground)"
                         strokeDasharray="3 3"
                       />
@@ -1063,8 +1076,10 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                 <HoverReferenceLine
                   days={normalizedDays ?? undefined}
                   selectedDate={selectedDate}
-                  selectedHour={selectedHour}
-                  alignmentOffset={HALF_STEP_HOURS}
+                  selectedHour={
+                    dashboardBusy ? stableSelectedHour : selectedHour
+                  }
+                  alignmentOffset={0}
                 />
                 <Bar
                   dataKey="surf"

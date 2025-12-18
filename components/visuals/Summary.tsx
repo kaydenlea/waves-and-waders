@@ -209,8 +209,8 @@ const createInitialStats = (): SummaryStat[] => [
     type: "tide",
     currentHeight: undefined,
     peaks: [],
-    sunrise: "--:-- AM",
-    sunset: "--:-- PM",
+    sunrise: "-:-- AM",
+    sunset: "-:-- PM",
   },
   {
     type: "temperature",
@@ -710,6 +710,8 @@ const Summary = ({
   ]);
 
   const displayStats = stats ?? statsRef.current;
+  const [overviewText, setOverviewText] = useState<string | null>(null);
+  const overviewTextLockedRef = useRef(false);
 
   useEffect(() => {
     const el = featuresContainerRef.current;
@@ -776,6 +778,8 @@ const Summary = ({
   }, [displayStats, showAllFeatures]);
 
   const statsForRender = displayStats ?? createInitialStats();
+  const isLoading = !forecastReady || !tidesReady || !dailyReady;
+  const overviewStatsReady = !isLoading && displayStats != null;
 
   const surfStat = statsForRender.find(
     (stat): stat is Extract<SummaryStat, { type: "surf" }> =>
@@ -794,8 +798,7 @@ const Summary = ({
       stat.type === "temperature"
   );
 
-  // Generate dynamic overview text based on conditions
-  const getOverviewText = () => {
+  const buildOverviewText = () => {
     const surfHeight = surfStat?.surf?.height || "N/A";
     const windSpeed = windStat?.wind?.speed;
     const airTempHigh = tempStat?.airTempHigh;
@@ -852,6 +855,20 @@ const Summary = ({
 
     return sentence;
   };
+
+  useEffect(() => {
+    overviewTextLockedRef.current = false;
+    setOverviewText(null);
+  }, [beachId, targetDateValue?.getTime()]);
+
+  useEffect(() => {
+    if (!overviewStatsReady) return;
+    if (overviewTextLockedRef.current) return;
+
+    setOverviewText(buildOverviewText());
+    overviewTextLockedRef.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [overviewStatsReady, surfStat, windStat, tempStat]);
 
   const gapPx = 12;
   const moreButtonReservePx = 60;
@@ -998,12 +1015,7 @@ const Summary = ({
   return (
     <ul className="grid grid-cols-2 @min-md:grid-cols-3 @min-4xl:grid-cols-6 gap-3">
       {/* Overview card */}
-      <li
-        className={cn(
-          "highlight-card shadow-even flex flex-col gap-3 xl:gap-0 overflow-hidden col-span-2 min-h-35",
-          getOverviewText().includes("- ft") && "animate-pulse"
-        )}
-      >
+      <li className="highlight-card shadow-even flex flex-col gap-3 xl:gap-0 overflow-hidden col-span-2 min-h-35">
         <div className="flex items-top justify-between flex-shrink-0">
           <h3 className="highlight-title bg-highlight-5 h-1/2 flex items-center px-2 py-1 rounded-xl">
             SUMMARY
@@ -1017,7 +1029,7 @@ const Summary = ({
               <span>Sunrise</span>
             </span>
             <span className="ml-1 text-foreground normal-case font-medium">
-              {tideStat?.sunrise ?? "--"}
+              {tideStat?.sunrise ?? "-:-- AM"}
             </span>
             <span className="flex gap-2 items-center">
               <Sunset
@@ -1027,14 +1039,21 @@ const Summary = ({
               <span className="-mb-0.5">Sunset</span>
             </span>
             <span className="ml-1 text-foreground normal-case font-medium">
-              {tideStat?.sunset ?? "--"}
+              {tideStat?.sunset ?? "-:-- PM"}
             </span>
           </div>
         </div>
         <div className="flex-1 flex items-center gap-1 mt-2 justify-center min-h-0">
-          <p className="text-center text-sm leading-snug">
-            {getOverviewText()}
-          </p>
+          {overviewText ? (
+            <p className="text-center text-sm leading-snug">
+              {overviewText}
+            </p>
+          ) : (
+            <div className="w-full max-w-[26rem] px-4">
+              <div className="mx-auto h-3 w-full rounded-md bg-highlight-6/70 animate-pulse" />
+              <div className="mx-auto mt-2 h-3 w-5/6 rounded-md bg-highlight-6/50 animate-pulse" />
+            </div>
+          )}
         </div>
       </li>
       {statsForRender.map((stat) => {
@@ -1043,7 +1062,7 @@ const Summary = ({
           case "temperature":
             content = (
               <div className="flex gap-6 items-center justify-center w-full px-1">
-                {stat.waterTempHigh != null && (
+                {(stat.waterTempHigh != null || isLoading) && (
                   <div className="flex flex-col gap-1 items-center min-w-0">
                     <span className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap">
                       WATER
@@ -1069,7 +1088,7 @@ const Summary = ({
                     />
                   </div>
                 )}
-                {stat.airTempHigh != null && (
+                {(stat.airTempHigh != null || isLoading) && (
                   <div className="flex flex-col gap-1 items-center min-w-0">
                     <span className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap">
                       AIR

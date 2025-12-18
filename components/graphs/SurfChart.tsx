@@ -366,7 +366,7 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         Math.round(hour / DATA_STEP_HOURS) * DATA_STEP_HOURS;
       const minX = domainMin + HALF_STEP_HOURS;
       const maxX = Math.max(minX, domainMax - HALF_STEP_HOURS);
-      return Math.min(maxX, Math.max(minX, quantized + HALF_STEP_HOURS));
+      return Math.min(maxX, Math.max(minX, quantized));
     },
     [domainMin, domainMax]
   );

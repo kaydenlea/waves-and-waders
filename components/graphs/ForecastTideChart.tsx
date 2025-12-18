@@ -18,13 +18,13 @@ import {
   LabelList,
 } from "recharts";
 import {
+  ArrowDown,
+  ArrowUp,
   ChevronLeft,
   ChevronRight,
   Sun,
   Sunrise,
   Sunset,
-  TrendingUp,
-  TrendingDown,
 } from "lucide-react";
 import { fetchBeachByIdLoose, fetchBeachDetails } from "@/lib/supabase";
 import { getForecastCached, getTidesCached } from "@/lib/dataCache";
@@ -48,6 +48,7 @@ import {
 } from "../context/ForecastChartsLoadingContext";
 import { ForecastChartSkeleton } from "./ForecastChartSkeleton";
 import { useChartTheme } from "@/components/graphs/useChartTheme";
+import { getForecastDayHeaderLayout } from "./forecastDayHeaderLayout";
 
 const VISIBLE_DAYS = 4;
 const HOURS_PER_DAY = 24;
@@ -165,8 +166,11 @@ export default React.memo(function ForecastTideChart({
     }
   }, [loading, shadingReady, setReady]);
   useEffect(() => {
-    if (!dashboardBusy && wasBusyRef.current) {
+    if (dashboardBusy && !wasBusyRef.current) {
       setStableSelectedHour(selectedHour ?? null);
+    }
+    if (!dashboardBusy && wasBusyRef.current) {
+      setStableSelectedHour(null);
     }
     wasBusyRef.current = dashboardBusy;
   }, [dashboardBusy, selectedHour]);
@@ -196,8 +200,20 @@ export default React.memo(function ForecastTideChart({
   const dataAreaWidth =
     chartInnerWidth - CHART_LEFT_MARGIN - CHART_RIGHT_MARGIN - Y_AXIS_WIDTH;
   const dayLabelLeftOffset = CHART_LEFT_MARGIN + Y_AXIS_WIDTH;
-  const dayLabelColumnWidth = dataAreaWidth / totalFetchedDays;
-  const dayLabelAvailableWidth = totalFetchedDays * dayLabelColumnWidth;
+  const domainMin = 0;
+  const domainMax = totalFetchedDays * HOURS_PER_DAY;
+  const dayHeaderLayout = useMemo(
+    () =>
+      getForecastDayHeaderLayout({
+        leftOffsetPx: dayLabelLeftOffset,
+        dataAreaWidthPx: dataAreaWidth,
+        totalDays: totalFetchedDays,
+        domainMinHours: domainMin,
+        domainMaxHours: domainMax,
+        hoursPerDay: HOURS_PER_DAY,
+      }),
+    [dayLabelLeftOffset, dataAreaWidth, totalFetchedDays, domainMax]
+  );
   const viewportWidth = useMemo(
     () => Math.min(containerWidth || 0, dayPx * VISIBLE_DAYS),
     [containerWidth, dayPx]
@@ -901,387 +917,403 @@ export default React.memo(function ForecastTideChart({
             <ChevronRight className="w-5 h-5" />
           </button>
 
-        {/* moving inner (chart + day separators) */}
-        <div
-          ref={innerRef}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={onPointerUp}
-          style={{
-            marginTop: 65,
-            position: "absolute",
-            left: 0,
-            // top: 60, // leave room for label bar
-            width: chartInnerWidth,
-            height: 250,
-            display: "block",
-            willChange: "transform",
-            cursor: "grab",
-            touchAction: "pan-y",
-          }}
-        >
-          {/* Day label bar (4 filled boxes) - fixed in viewport and aligned to visible days */}
+          {/* moving inner (chart + day separators) */}
           <div
+            ref={innerRef}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onPointerCancel={onPointerUp}
             style={{
+              marginTop: 60,
               position: "absolute",
-              zIndex: 40,
-              left: dayLabelLeftOffset,
-              top: -65,
-              width: dayLabelAvailableWidth,
-              display: "grid",
-              gridTemplateColumns: `repeat(${totalFetchedDays}, ${dayLabelColumnWidth}px)`,
-              pointerEvents: "none",
+              left: 0,
+              // top: 60, // leave room for label bar
+              width: chartInnerWidth,
+              height: 250,
+              display: "block",
+              willChange: "transform",
+              cursor: "grab",
+              touchAction: "pan-y",
             }}
           >
-            {dayLabels?.map((label, idx) => (
-              <div
-                key={idx}
-                style={{
-                  boxSizing: "border-box",
-                  width: "100%",
-                  display: "flex",
-                  justifyContent: "center",
-                  fontWeight: 700,
-                  fontSize: 13,
-                  color: "var(--foreground)",
-                  pointerEvents: "none",
-                }}
-              >
+            {/* Day label bar (4 filled boxes) - fixed in viewport and aligned to visible days */}
+            <div
+              className="rounded-t-lg overflow-hidden border border-border/20 bg-highlight-5/40 shadow-even backdrop-blur-md"
+              style={{
+                position: "absolute",
+                zIndex: 40,
+                left: dayHeaderLayout.left,
+                top: -58,
+                width: dayHeaderLayout.width,
+                display: "grid",
+                gridTemplateColumns: dayHeaderLayout.gridTemplateColumns,
+                pointerEvents: "none",
+                backgroundImage: `linear-gradient(to bottom, color-mix(in oklab, ${chartTheme.dayShading} 14%, transparent), hsl(var(--background) / 0.75))`,
+              }}
+            >
+              {dayLabels?.map((label, idx) => (
                 <div
-                  className="flex justify-between whitespace-nowrap px-3 py-2 rounded-lg bg-highlight-5"
-                  style={{ width: "95%" }}
+                  key={idx}
+                  className="h-14 p-1"
+                  style={{
+                    boxSizing: "border-box",
+                    width: "100%",
+                    color: "var(--foreground)",
+                    pointerEvents: "none",
+                  }}
                 >
-                  <span className="flex flex-col items-start">
-                    <span className="text-xs font-medium">
-                      {label.split(",")[1]}
-                    </span>
-                    <span className="text-sm font-bold">
-                      {label.split(",")[0]}
-                    </span>
-                  </span>
-                  <div className="rounded-md bg-highlight-6 grid grid-cols-[60px_1fr] grid-rows-2 space-y-0.5 items-center text-xs text-muted-foreground uppercase tracking-wide leading-tight">
-                    <span className="flex gap-2 items-center">
-                      <TrendingUp
-                        fill="#353535ff"
-                        className="stroke-muted-foreground w-4 h-4"
-                      />
-                      <span className="font-medium">High</span>
-                    </span>
-                    <span className="ml-1 text-foreground normal-case font-medium">
-                      {tideStats[idx]?.high.toFixed(1) ?? "--"}{" "}
-                      <span className="inline-block">ft</span>
-                    </span>
-                    <span className="flex gap-2 items-center">
-                      <TrendingDown
-                        fill="#353535ff"
-                        className="stroke-muted-foreground w-4 h-4"
-                      />
-                      <span className="-mb-0.5 font-medium">Low</span>
-                    </span>
-                    <span className="ml-1 text-foreground normal-case font-medium">
-                      {tideStats[idx]?.low.toFixed(1) ?? "--"}{" "}
-                      <span className="inline-block">ft</span>
-                    </span>
+                  <div className="flex h-full items-center justify-between gap-3 rounded-md border border-border/30 bg-highlight-7/10 dark:bg-highlight-5/50 px-3 py-2 shadow-sm">
+                    {(() => {
+                      const [weekdayRaw, monthDayRaw] = label.split(",");
+                      const weekday = (weekdayRaw ?? label).trim();
+                      const monthDay = (monthDayRaw ?? "").trim();
+                      const high = tideStats[idx]?.high;
+                      const low = tideStats[idx]?.low;
+
+                      return (
+                        <>
+                          <div className="flex flex-col min-w-0 leading-tight">
+                            <span className="text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">
+                              {weekday}
+                            </span>
+                            <span className="text-sm font-semibold truncate">
+                              {monthDay || label}
+                            </span>
+                          </div>
+                          <div className="flex flex-col items-end gap-0.5 whitespace-nowrap text-[0.72rem] text-muted-foreground">
+                            <div className="grid grid-cols-[14px_18px_32px_16px] items-center gap-x-1 rounded-md bg-foreground/5 px-2 py-0.5 leading-none">
+                              <ArrowUp className="h-3 w-3 text-emerald-500/80" />
+                              <span className="mt-0.5 text-[0.68rem] font-semibold text-muted-foreground">
+                                Hi
+                              </span>
+                              <span className="mt-0.5 tabular-nums text-right text-foreground font-semibold">
+                                {typeof high === "number"
+                                  ? high.toFixed(1)
+                                  : "--"}
+                              </span>
+                              <span className="text-[0.7rem] text-muted-foreground">
+                                ft
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-[14px_18px_32px_16px] items-center gap-x-1 rounded-md bg-foreground/5 px-2 py-0.5 leading-none">
+                              <ArrowDown className="h-3 w-3 text-rose-500/80" />
+                              <span className="mt-0.5 text-[0.68rem] font-semibold text-muted-foreground">
+                                Lo
+                              </span>
+                              <span className="mt-0.5 tabular-nums text-right text-foreground font-semibold">
+                                {typeof low === "number"
+                                  ? low.toFixed(1)
+                                  : "--"}
+                              </span>
+                              <span className="mt-0.5 text-[0.7rem] text-muted-foreground">
+                                ft
+                              </span>
+                            </div>
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
 
-          {containerWidth > 0 && (
-            <ChartContainer
-              config={
-                { tide: { label: "Tide", color: "#6e6e6eff" } } as ChartConfig
-              }
-              className="forecast-tide-chart-container aspect-auto h-[235px] w-full"
-            >
-              <LineChart
-                accessibilityLayer={false}
-                width={chartInnerWidth}
-                // height={200}
-                data={data}
-                margin={{
-                  left: CHART_LEFT_MARGIN,
-                  right: CHART_RIGHT_MARGIN,
-                  bottom: 5,
-                  top: 0,
-                }}
-                syncId="allCharts"
-                syncMethod="value"
-                onMouseMove={handleMouseMove}
-                onMouseLeave={handleMouseLeave}
+            {containerWidth > 0 && (
+              <ChartContainer
+                config={
+                  { tide: { label: "Tide", color: "#6e6e6eff" } } as ChartConfig
+                }
+                className="forecast-tide-chart-container aspect-auto h-[235px] w-full"
               >
-                {dayAreas.map((a, idx) => (
-                  <ReferenceArea
-                    key={`day-${idx}`}
-                    x1={a.x1}
-                    x2={a.x2}
-                    fill={chartTheme.dayShading}
-                    fillOpacity={chartTheme.shadingOpacity}
-                    ifOverflow="extendDomain"
-                  />
-                ))}
-                {nightAreas.map((a, idx) => (
-                  <ReferenceArea
-                    key={`night-${idx}`}
-                    x1={idx === 0 ? undefined : a.x1}
-                    x2={idx === nightAreas.length - 1 ? undefined : a.x2}
-                    fill={chartTheme.nightShading}
-                    fillOpacity={chartTheme.shadingOpacity}
-                    ifOverflow="extendDomain"
-                  />
-                ))}
+                <LineChart
+                  accessibilityLayer={false}
+                  width={chartInnerWidth}
+                  // height={200}
+                  data={data}
+                  margin={{
+                    left: CHART_LEFT_MARGIN,
+                    right: CHART_RIGHT_MARGIN,
+                    bottom: 5,
+                    top: 0,
+                  }}
+                  syncId="allCharts"
+                  syncMethod="value"
+                  onMouseMove={handleMouseMove}
+                  onMouseLeave={handleMouseLeave}
+                >
+                  {dayAreas.map((a, idx) => (
+                    <ReferenceArea
+                      key={`day-${idx}`}
+                      x1={a.x1}
+                      x2={a.x2}
+                      fill={chartTheme.dayShading}
+                      fillOpacity={chartTheme.shadingOpacity}
+                      ifOverflow="extendDomain"
+                    />
+                  ))}
+                  {nightAreas.map((a, idx) => (
+                    <ReferenceArea
+                      key={`night-${idx}`}
+                      x1={idx === 0 ? undefined : a.x1}
+                      x2={idx === nightAreas.length - 1 ? undefined : a.x2}
+                      fill={chartTheme.nightShading}
+                      fillOpacity={chartTheme.shadingOpacity}
+                      ifOverflow="extendDomain"
+                    />
+                  ))}
 
-                {/* vertical boundaries every day */}
-                {Array.from({ length: totalFetchedDays + 1 }, (_, i) => {
-                  if (i !== 0 && i !== totalFetchedDays) {
-                    return (
-                      <ReferenceLine
-                        key={`boundary-${i}`}
-                        x={i * 24}
-                        stroke="var(--foreground)"
-                        strokeOpacity={0.25}
-                        strokeWidth={0.5}
-                      />
-                    );
-                  }
-                })}
+                  {/* vertical boundaries every day */}
+                  {Array.from({ length: totalFetchedDays + 1 }, (_, i) => {
+                    if (i !== 0 && i !== totalFetchedDays) {
+                      return (
+                        <ReferenceLine
+                          key={`boundary-${i}`}
+                          x={i * 24}
+                          stroke="var(--foreground)"
+                          strokeOpacity={0.25}
+                          strokeWidth={0.5}
+                        />
+                      );
+                    }
+                  })}
 
-                {/* <CartesianGrid
+                  {/* <CartesianGrid
                 strokeDasharray="3 3"
                 stroke="var(--foreground)"
                 strokeWidth={0.08}
                 vertical={false}
               /> */}
-                <XAxis
-                  dataKey="hour"
-                  type="number"
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={8}
-                  minTickGap={0}
-                  fontSize={11}
-                  domain={[0, totalFetchedDays * 24]}
-                  ticks={hourTicks}
-                  tickFormatter={(v: number) =>
-                    v % 3 === 0 ? String(v % 12 === 0 ? 12 : v % 12) : ""
-                  }
-                />
-                <YAxis
-                  dataKey="tide"
-                  width={Y_AXIS_WIDTH}
-                  tickLine={false}
-                  axisLine={{
-                    stroke: "var(--border)",
-                    strokeWidth: 1.25,
-                    opacity: 0.85,
-                  }}
-                  tickMargin={8}
-                  fontSize={11}
-                  tick={Y_AXIS_TICK}
-                  domain={[
-                    (dataMin: number) =>
-                      Number.isFinite(dataMin) ? Math.floor(dataMin) - 4 : 0,
-                    (dataMax: number) =>
-                      Number.isFinite(dataMax)
-                        ? Math.max(Math.ceil(dataMax) + 4, 8)
-                        : 8,
-                  ]}
-                  style={{
-                    transform: `translateX(var(${Y_AXIS_OFFSET_VAR}, 0px))`,
-                  }}
-                />
-                {/* Selected hour marker */}
-                {(() => {
-                  try {
-                    const effectiveHour =
-                      stableSelectedHour ?? selectedHour ?? null;
-                    const base = days && days.length > 0 ? days[0] : null;
-                    if (!base || !selectedDate || effectiveHour == null)
-                      return null;
-                    const baseMid = new Date(
-                      base.getFullYear(),
-                      base.getMonth(),
-                      base.getDate()
-                    ).getTime();
-                    const selMid = new Date(
-                      selectedDate.getFullYear(),
-                      selectedDate.getMonth(),
-                      selectedDate.getDate()
-                    ).getTime();
-                    const dayDelta = Math.floor(
-                      (selMid - baseMid) / (24 * 3600 * 1000)
-                    );
-                    const x = dayDelta * 24 + effectiveHour;
-                    if (x < 0 || x > totalFetchedDays * 24) return null;
-                    return (
-                      <ReferenceLine
-                        x={x}
-                        stroke="var(--foreground)"
-                        strokeDasharray="3 3"
-                      />
-                    );
-                  } catch {
-                    return null;
-                  }
-                })()}
-                {/* Hover indicator line */}
-                {hoverLine}
-                <ChartTooltip
-                  content={
-                    <ChartTooltipContent labelFormatter={formatHourLabel} />
-                  }
-                  cursor={{
-                    stroke: "var(--foreground)",
-                    strokeWidth: 1,
-                    strokeDasharray: "3 3",
-                    strokeOpacity: 0.75,
-                  }}
-                  animationDuration={0}
-                  isAnimationActive={false}
-                />
-
-                <Line
-                  dataKey="tide"
-                  type="natural"
-                  stroke="var(--color-tide)"
-                  strokeWidth={2}
-                  isAnimationActive={false}
-                  animationDuration={0}
-                  animationBegin={0}
-                  dot={({ payload, cx, cy }: any) => {
-                    const hour = payload.hour as number;
-                    // Exact match for sun markers (no duplicates)
-                    const sunMarker = sunMarkers.find((m) => m.hour === hour);
-                    if (sunMarker) {
-                      return (
-                        <circle
-                          key={hour}
-                          cx={cx}
-                          cy={cy}
-                          r={4}
-                          fill="orange"
-                          stroke="var(--color-tide)"
-                          strokeWidth={1}
-                        />
-                      );
-                    } else if (
-                      payload.isPeak !== undefined &&
-                      payload.isPeak !== null
-                    ) {
-                      const isLow =
-                        typeof payload.isPeak === "number" &&
-                        payload.isPeak <= (payload.tide ?? 0) &&
-                        payload.isPeak <= 0;
-                      return (
-                        <circle
-                          key={hour}
-                          cx={cx}
-                          cy={cy}
-                          r={3}
-                          fill={isLow ? "#ef4444" : "#22c55e"}
-                          stroke="var(--color-tide)"
-                          strokeWidth={1}
-                        />
-                      );
+                  <XAxis
+                    dataKey="hour"
+                    type="number"
+                    tickLine={false}
+                    axisLine={false}
+                    tickMargin={8}
+                    minTickGap={0}
+                    fontSize={11}
+                    domain={[0, totalFetchedDays * 24]}
+                    ticks={hourTicks}
+                    tickFormatter={(v: number) =>
+                      v % 3 === 0 ? String(v % 12 === 0 ? 12 : v % 12) : ""
                     }
-                    return <g key={payload.hour} />;
-                  }}
-                >
-                  <LabelList
+                  />
+                  <YAxis
                     dataKey="tide"
-                    content={(props: any) => {
-                      const safeX = typeof props.x === "number" ? props.x : 0;
-                      const hour = data[props.index ?? -1]?.hour;
-                      const marker = sunMarkers.find((m) => m.hour === hour);
-                      if (!marker) return null;
-
-                      const IconComponent =
-                        marker.type === "sunrise" ? Sunrise : Sunset;
-                      return (
-                        <g>
-                          <IconComponent
-                            size={18}
-                            x={safeX - 9}
-                            y={5}
-                            fill="#ff9946ff"
-                            color="var(--muted-foreground)"
-                          />
-                        </g>
-                      );
+                    width={Y_AXIS_WIDTH}
+                    tickLine={false}
+                    axisLine={{
+                      stroke: "var(--border)",
+                      strokeWidth: 1.25,
+                      opacity: 0.85,
+                    }}
+                    tickMargin={8}
+                    fontSize={11}
+                    tick={Y_AXIS_TICK}
+                    domain={[
+                      (dataMin: number) =>
+                        Number.isFinite(dataMin) ? Math.floor(dataMin) - 4 : 0,
+                      (dataMax: number) =>
+                        Number.isFinite(dataMax)
+                          ? Math.max(Math.ceil(dataMax) + 4, 8)
+                          : 8,
+                    ]}
+                    style={{
+                      transform: `translateX(var(${Y_AXIS_OFFSET_VAR}, 0px))`,
                     }}
                   />
-                  <LabelList
-                    dataKey="isPeak"
-                    content={(props: any) => {
-                      const safeX = typeof props.x === "number" ? props.x : 0;
-                      const safeY = typeof props.y === "number" ? props.y : 0;
-                      if (props.value && typeof props.index === "number") {
-                        const h = data[props.index]?.hour ?? 0;
-                        const wholeHour = Math.floor(h);
-                        const minutes = Math.round((h - wholeHour) * 60);
-                        const displayHour =
-                          wholeHour % 12 === 0 ? 12 : wholeHour % 12;
-                        const ampm = wholeHour % 24 >= 12 ? "PM" : "AM";
-                        // Format time as "8:30 AM" or "8 AM" if no minutes
-                        const lbl =
-                          minutes > 0
-                            ? `${displayHour}:${minutes
-                                .toString()
-                                .padStart(2, "0")} ${ampm}`
-                            : `${displayHour} ${ampm}`;
-                        // Round tide value to 1 decimal place
-                        const tideValue = Number(props.value).toFixed(1);
+                  {/* Selected hour marker */}
+                  {(() => {
+                    try {
+                      const effectiveHour = dashboardBusy
+                        ? stableSelectedHour ?? selectedHour ?? null
+                        : selectedHour ?? null;
+                      const base = days && days.length > 0 ? days[0] : null;
+                      if (!base || !selectedDate || effectiveHour == null)
+                        return null;
+                      const baseMid = new Date(
+                        base.getFullYear(),
+                        base.getMonth(),
+                        base.getDate()
+                      ).getTime();
+                      const selMid = new Date(
+                        selectedDate.getFullYear(),
+                        selectedDate.getMonth(),
+                        selectedDate.getDate()
+                      ).getTime();
+                      const dayDelta = Math.floor(
+                        (selMid - baseMid) / (24 * 3600 * 1000)
+                      );
+                      const x = dayDelta * 24 + effectiveHour;
+                      if (x < 0 || x > totalFetchedDays * 24) return null;
+                      return (
+                        <ReferenceLine
+                          x={x}
+                          stroke="var(--foreground)"
+                          strokeDasharray="3 3"
+                        />
+                      );
+                    } catch {
+                      return null;
+                    }
+                  })()}
+                  {/* Hover indicator line */}
+                  {hoverLine}
+                  <ChartTooltip
+                    content={
+                      <ChartTooltipContent labelFormatter={formatHourLabel} />
+                    }
+                    cursor={{
+                      stroke: "var(--foreground)",
+                      strokeWidth: 1,
+                      strokeDasharray: "3 3",
+                      strokeOpacity: 0.75,
+                    }}
+                    animationDuration={0}
+                    isAnimationActive={false}
+                  />
 
-                        // Get collision-adjusted offset
-                        const yOffset = labelPositions.get(props.index) ?? -32;
-
+                  <Line
+                    dataKey="tide"
+                    type="natural"
+                    stroke="var(--color-tide)"
+                    strokeWidth={2}
+                    isAnimationActive={false}
+                    animationDuration={0}
+                    animationBegin={0}
+                    dot={({ payload, cx, cy }: any) => {
+                      const hour = payload.hour as number;
+                      // Exact match for sun markers (no duplicates)
+                      const sunMarker = sunMarkers.find((m) => m.hour === hour);
+                      if (sunMarker) {
                         return (
-                          <g>
-                            <text
-                              x={safeX}
-                              y={safeY + yOffset}
-                              fill="var(--foreground)"
-                              textAnchor="middle"
-                              dominantBaseline="middle"
-                              fontSize={10}
-                            >
-                              {lbl}
-                            </text>
-                            <text
-                              x={safeX}
-                              y={safeY + yOffset + 15}
-                              fill="var(--foreground)"
-                              textAnchor="middle"
-                              fontWeight="bold"
-                              fontSize={12}
-                            >
-                              {`${tideValue} ft`}
-                            </text>
-                          </g>
+                          <circle
+                            key={hour}
+                            cx={cx}
+                            cy={cy}
+                            r={4}
+                            fill="orange"
+                            stroke="var(--color-tide)"
+                            strokeWidth={1}
+                          />
+                        );
+                      } else if (
+                        payload.isPeak !== undefined &&
+                        payload.isPeak !== null
+                      ) {
+                        const isLow =
+                          typeof payload.isPeak === "number" &&
+                          payload.isPeak <= (payload.tide ?? 0) &&
+                          payload.isPeak <= 0;
+                        return (
+                          <circle
+                            key={hour}
+                            cx={cx}
+                            cy={cy}
+                            r={3}
+                            fill={isLow ? "#ef4444" : "#22c55e"}
+                            stroke="var(--color-tide)"
+                            strokeWidth={1}
+                          />
                         );
                       }
-                      return null;
+                      return <g key={payload.hour} />;
                     }}
-                  />
-                </Line>
-              </LineChart>
-            </ChartContainer>
-          )}
-        </div>
+                  >
+                    <LabelList
+                      dataKey="tide"
+                      content={(props: any) => {
+                        const safeX = typeof props.x === "number" ? props.x : 0;
+                        const hour = data[props.index ?? -1]?.hour;
+                        const marker = sunMarkers.find((m) => m.hour === hour);
+                        if (!marker) return null;
 
-        {/* invisible overlay (visual viewport) to prevent pointer events leaking to inner beyond boundaries */}
-        <div
-          style={{
-            position: "absolute",
-            left: 0,
-            top: 56,
-            width: viewportWidth,
-            height: 220,
-            pointerEvents: "none",
-          }}
-        />
+                        const IconComponent =
+                          marker.type === "sunrise" ? Sunrise : Sunset;
+                        return (
+                          <g>
+                            <IconComponent
+                              size={18}
+                              x={safeX - 9}
+                              y={5}
+                              fill="#ff9946ff"
+                              color="var(--muted-foreground)"
+                            />
+                          </g>
+                        );
+                      }}
+                    />
+                    <LabelList
+                      dataKey="isPeak"
+                      content={(props: any) => {
+                        const safeX = typeof props.x === "number" ? props.x : 0;
+                        const safeY = typeof props.y === "number" ? props.y : 0;
+                        if (props.value && typeof props.index === "number") {
+                          const h = data[props.index]?.hour ?? 0;
+                          const wholeHour = Math.floor(h);
+                          const minutes = Math.round((h - wholeHour) * 60);
+                          const displayHour =
+                            wholeHour % 12 === 0 ? 12 : wholeHour % 12;
+                          const ampm = wholeHour % 24 >= 12 ? "PM" : "AM";
+                          // Format time as "8:30 AM" or "8 AM" if no minutes
+                          const lbl =
+                            minutes > 0
+                              ? `${displayHour}:${minutes
+                                  .toString()
+                                  .padStart(2, "0")} ${ampm}`
+                              : `${displayHour} ${ampm}`;
+                          // Round tide value to 1 decimal place
+                          const tideValue = Number(props.value).toFixed(1);
+
+                          // Get collision-adjusted offset
+                          const yOffset =
+                            labelPositions.get(props.index) ?? -32;
+
+                          return (
+                            <g>
+                              <text
+                                x={safeX}
+                                y={safeY + yOffset}
+                                fill="var(--foreground)"
+                                textAnchor="middle"
+                                dominantBaseline="middle"
+                                fontSize={10}
+                              >
+                                {lbl}
+                              </text>
+                              <text
+                                x={safeX}
+                                y={safeY + yOffset + 15}
+                                fill="var(--foreground)"
+                                textAnchor="middle"
+                                fontWeight="bold"
+                                fontSize={12}
+                              >
+                                {`${tideValue} ft`}
+                              </text>
+                            </g>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                  </Line>
+                </LineChart>
+              </ChartContainer>
+            )}
+          </div>
+
+          {/* invisible overlay (visual viewport) to prevent pointer events leaking to inner beyond boundaries */}
+          <div
+            style={{
+              position: "absolute",
+              left: 0,
+              top: 56,
+              width: viewportWidth,
+              height: 220,
+              pointerEvents: "none",
+            }}
+          />
         </div>
       </div>
     </div>

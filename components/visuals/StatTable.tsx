@@ -347,8 +347,11 @@ const StatTable = ({
       setStableSelectedHour(null);
       return;
     }
-    if (!dashboardBusy && wasBusyRef.current) {
+    if (dashboardBusy && !wasBusyRef.current) {
       setStableSelectedHour(selectedHour ?? null);
+    }
+    if (!dashboardBusy && wasBusyRef.current) {
+      setStableSelectedHour(null);
     }
     wasBusyRef.current = dashboardBusy;
   }, [forecastPage, dashboardBusy, selectedHour]);
@@ -1223,8 +1226,9 @@ const StatTable = ({
                             .map((v) => v.index)
                             .sort((a, b) => a - b);
                         // pick the last hour <= selected hour, otherwise first
-                          const effectiveHour =
-                            stableSelectedHour ?? selectedHour ?? null;
+                          const effectiveHour = dashboardBusy
+                            ? stableSelectedHour ?? selectedHour ?? null
+                            : selectedHour ?? null;
                           if (effectiveHour != null) {
                             let bucket = hours[0];
                             for (const h of hours) {

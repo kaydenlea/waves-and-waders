@@ -627,7 +627,7 @@ const buildPopupHtml = (
     numericIntensity != null ? numericIntensity : 0
   );
   const wavesSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"></path><path d="M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"></path><path d="M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"></path></svg>`;
-  const windSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.7 17a1.7 1.7 0 1 1 1.7 1.7H2"></path><path d="M12.4 13a2.1 2.1 0 1 1 2.1 2.1H2"></path><path d="M15.1 7a2.9 2.9 0 1 0-2.9-2.9"></path><path d="M2 9h12.5"></path></svg>`;
+  const windSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#464646ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.7 17a1.7 1.7 0 1 1 1.7 1.7H2"></path><path d="M12.4 13a2.1 2.1 0 1 1 2.1 2.1H2"></path><path d="M15.1 7a2.9 2.9 0 1 0-2.9-2.9"></path><path d="M2 9h12.5"></path></svg>`;
   return `
     <div class="ww-leaflet-popup">
       <header class="ww-leaflet-popup__header">
@@ -649,7 +649,7 @@ const buildPopupHtml = (
         </div>
       </div>
       <div class="ww-leaflet-popup__metric">
-        <div class="ww-leaflet-popup__icon">${windSvg}</div>
+        <div class="ww-leaflet-popup__icon" style="background:rgba(255, 255, 255, 0.95)">${windSvg}</div>
         <div class="ww-leaflet-popup__metric-text">
           <span>Wind</span>
           <strong>${
@@ -1421,6 +1421,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
   const editPage = pathname.includes("edit");
   const isDesktop = smallScreen === false;
   const layoutVersion = smallScreen === null ? 0 : smallScreen ? 1 : 2;
+  const effectiveShowMap = showMap || smallScreen === true;
 
   const combinedBeaches = React.useMemo(() => {
     if (!initialBeach) {
@@ -1816,7 +1817,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
   }, [scheduleResizeRecompute]);
 
   React.useEffect(() => {
-    if (!showMap || !mapReady) return;
+    if (!effectiveShowMap || !mapReady) return;
     const map = mapRef.current;
     if (map) {
       try {
@@ -1827,7 +1828,12 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     }
     scheduleResizeRecompute();
     requestMarkerRebuild();
-  }, [showMap, mapReady, scheduleResizeRecompute, requestMarkerRebuild]);
+  }, [
+    effectiveShowMap,
+    mapReady,
+    scheduleResizeRecompute,
+    requestMarkerRebuild,
+  ]);
 
   React.useEffect(() => {
     if (!selectedBeach) return;
@@ -2228,7 +2234,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
   ]);
 
   React.useEffect(() => {
-    if (!showMap) {
+    if (!effectiveShowMap) {
       return;
     }
     if (!containerRef.current || mapRef.current) {
@@ -2370,7 +2376,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       setMapReady(false);
       latestClearHoverState();
     };
-  }, [showMap]);
+  }, [effectiveShowMap]);
   React.useEffect(() => {
     if (!mapReady || !selectedBeachId || !selectedBeach) return;
     const targetId = pendingAutoCenterRef.current;
@@ -3154,6 +3160,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
             align-items: center;
             justify-content: center;
             color: #2563eb;
+            border: 1px solid rgba(148, 163, 184, 0.5);
           }
           .ww-leaflet-popup__metric-text {
             display: flex;
@@ -3249,6 +3256,16 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
             text-decoration: none;
             cursor: pointer;
             position: relative;
+            outline: none;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+          }
+          .leaflet-control-zoom a:focus {
+            outline: none;
+          }
+          .leaflet-control-zoom a:focus:not(:focus-visible) {
+            box-shadow: none;
           }
           .leaflet-control-zoom a:not(.is-disabled):hover,
           .leaflet-control-zoom a:not(.is-disabled):focus-visible {
