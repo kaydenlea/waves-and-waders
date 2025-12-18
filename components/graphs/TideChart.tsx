@@ -777,14 +777,23 @@ const TideChart: React.FC<TideChartProps> = ({
               const safeX = typeof props.x === "number" ? props.x : 0;
               const safeY = typeof props.y === "number" ? props.y : 0;
 
-              // Adjust text anchor based on position to prevent labels bleeding off edges
-              const isNearStart = point.hour <= 0;
-              const isNearEnd = point.hour >= hours - 1;
-              const textAnchor = isNearStart
-                ? "start"
-                : isNearEnd
-                ? "end"
-                : "middle";
+              // Calculate boundaries - Y-axis width is approximately 40px from left margin
+              const LEFT_BOUNDARY = 10; // Minimum x position (just past Y-axis)
+              const LABEL_HALF_WIDTH = 35; // Approximate half-width of label text
+
+              // Determine text anchor and adjusted x position based on boundaries
+              let textAnchor: "start" | "middle" | "end" = "middle";
+              let adjustedX = safeX;
+
+              // Check if label would bleed off the left edge
+              if (safeX - LABEL_HALF_WIDTH < LEFT_BOUNDARY) {
+                textAnchor = "start";
+                adjustedX = Math.max(safeX, LEFT_BOUNDARY);
+              }
+              // Check if label would bleed off the right edge (no specific right boundary needed)
+              else if (point.hour >= hours - 0.5) {
+                textAnchor = "end";
+              }
 
               // Optimized: use pre-computed placement map
               const placeBelow = peakPlacementMap.get(point.timestamp) ?? false;
@@ -795,7 +804,7 @@ const TideChart: React.FC<TideChartProps> = ({
               return (
                 <g>
                   <text
-                    x={safeX}
+                    x={adjustedX}
                     y={timeY}
                     fill="var(--foreground)"
                     textAnchor={textAnchor}
@@ -805,7 +814,7 @@ const TideChart: React.FC<TideChartProps> = ({
                     {formatTime(point.timestamp)}
                   </text>
                   <text
-                    x={safeX}
+                    x={adjustedX}
                     y={heightY}
                     fill="var(--foreground)"
                     textAnchor={textAnchor}
