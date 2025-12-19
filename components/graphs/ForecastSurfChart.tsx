@@ -1028,7 +1028,6 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                     <ChartTooltipContent labelFormatter={formatHourLabel} />
                   }
                   cursor={renderTooltipCursor as any}
-                  allowEscapeViewBox={{ x: true, y: true }}
                   animationDuration={0}
                   isAnimationActive={false}
                 />

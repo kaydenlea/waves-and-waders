@@ -251,7 +251,15 @@ const createMarkerIcon = ({
 };
 
 const createClusterIcon = (cluster: any) => {
-  const count = cluster.getChildCount();
+  const safeCall = <T,>(fn: () => T, fallback: T): T => {
+    try {
+      return fn();
+    } catch {
+      return fallback;
+    }
+  };
+
+  const count = safeCall<number>(() => cluster.getChildCount(), 0);
   let size = 40;
   if (count >= 100) {
     size = 52;
@@ -259,9 +267,10 @@ const createClusterIcon = (cluster: any) => {
     size = 46;
   }
 
-  const markers: any[] = cluster.getAllChildMarkers
-    ? cluster.getAllChildMarkers()
-    : [];
+  const markers: any[] =
+    typeof cluster?.getAllChildMarkers === "function"
+      ? safeCall<any[]>(() => cluster.getAllChildMarkers(), [])
+      : [];
   const intensities: number[] = [];
   markers.forEach((marker) => {
     const v = (marker.options as any)?.wwIntensity;
@@ -2775,14 +2784,27 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       if (!map) return;
       const layer = event.layer;
       if (!layer) return;
+      if (!(group as any)?._map) return;
+
       const markers: L.Marker[] =
         typeof layer.getAllChildMarkers === "function"
-          ? layer.getAllChildMarkers()
+          ? (() => {
+              try {
+                return layer.getAllChildMarkers() as L.Marker[];
+              } catch {
+                return [];
+              }
+            })()
           : [];
       if (markers.length === 1) {
         suppressUserMoveRef.current = true;
         const target = markers[0];
-        const latLng = target.getLatLng();
+        let latLng: L.LatLng;
+        try {
+          latLng = target.getLatLng();
+        } catch {
+          return;
+        }
         map.flyTo(
           latLng,
           Math.min(map.getMaxZoom(), Math.max(map.getZoom(), 13)),
@@ -2793,14 +2815,24 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
         setTimeout(() => target.fire("click"), 360);
         return;
       }
-      const bounds = layer.getBounds?.();
+      const bounds = (() => {
+        try {
+          return layer.getBounds?.();
+        } catch {
+          return null;
+        }
+      })();
       if (bounds) {
         suppressUserMoveRef.current = true;
-        map.flyToBounds(bounds, {
-          padding: [60, 60],
-          maxZoom: Math.min(map.getMaxZoom(), map.getZoom() + 2),
-          duration: 0.35,
-        });
+        try {
+          map.flyToBounds(bounds, {
+            padding: [60, 60],
+            maxZoom: Math.min(map.getMaxZoom(), map.getZoom() + 2),
+            duration: 0.35,
+          });
+        } catch {
+          // ignore cluster plugin race conditions
+        }
       }
     };
     group.on("clustermouseover", handleClusterOver);

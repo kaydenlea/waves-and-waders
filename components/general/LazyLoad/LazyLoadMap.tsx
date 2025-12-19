@@ -4,6 +4,7 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
+import type { BeachPoint } from "@/components/context/MapFilterContext";
 
 const Loading = () => {
   const readIsSmallScreen = React.useCallback(() => {
@@ -68,9 +69,10 @@ const Loading = () => {
 type Props = {
   beachId?: string | number;
   loggedIn?: boolean;
+  initialBeach?: BeachPoint | null;
 };
 
-const LeafletMap = dynamic<React.ComponentProps<any>>(
+const LeafletMap = dynamic<Props>(
   () => import("../../visuals/LeafletMap"),
   {
     ssr: false,

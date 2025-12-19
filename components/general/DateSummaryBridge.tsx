@@ -5,10 +5,11 @@ import {
   useSessionContext,
   useSupabaseClient,
 } from "@supabase/auth-helpers-react";
+import { cn } from "@/lib/utils";
 import Summary from "@/components/visuals/Summary";
 import Highlights from "@/components/visuals/Highlights";
 import { LazyLoadDatePicker } from "@/components/general/LazyLoad/LazyLoadDatePicker";
-import VisualWrapper from "@/components/general/VisualWrapper";
+import OverviewWidget from "@/components/general/overview/OverviewWidget";
 import { LazyLoadWind } from "@/components/general/LazyLoad/LazyLoadWind";
 import { LazyLoadTide } from "@/components/general/LazyLoad/LazyLoadTide";
 import { LazyLoadSwell } from "@/components/general/LazyLoad/LazyLoadSwell";
@@ -33,7 +34,13 @@ import { SunDataProvider, useSunData } from "../context/SunDataContext";
 import ForecastBridge from "./ForecastBridge";
 import PageTabs from "./PageTabs";
 import Link from "next/link";
-import { Pencil, TrendingUp, TrendingDown } from "lucide-react";
+import {
+  Pencil,
+  TrendingUp,
+  TrendingDown,
+  ArrowUp,
+  ArrowDown,
+} from "lucide-react";
 import { getTidesCached } from "@/lib/dataCache";
 import { useCachedForecast } from "@/lib/hooks/useCachedForecast";
 import { getPacificDayRange, getPacificMidnightUTC } from "@/lib/utils";
@@ -46,9 +53,7 @@ import {
   buildSunSegmentsForRange,
 } from "@/components/graphs/sunSegments";
 import type { SharedSunSegments } from "@/components/graphs/sharedSunSegments";
-import {
-  ForecastChartsLoadingProvider,
-} from "../context/ForecastChartsLoadingContext";
+import { ForecastChartsLoadingProvider } from "../context/ForecastChartsLoadingContext";
 import { useStableOverlay } from "../hooks/useStableOverlay";
 
 type Props = {
@@ -77,10 +82,10 @@ const HeaderVisual = ({
   max: string | null;
 }) => {
   return (
-    <div className="flex gap-2 rounded-md bg-highlight-5 items-center text-xs text-muted-foreground uppercase tracking-wide leading-tight px-3 py-2">
+    <div className="flex gap-2 rounded-lg bg-highlight-5 items-center text-xs text-muted-foreground uppercase tracking-wide leading-tight px-3 py-2">
       <div className="flex items-center gap-0.5">
         <span className="flex gap-0.5 items-center">
-          <TrendingDown className="fill-muted-foreground stroke-muted-foreground w-4 h-4" />
+          <ArrowDown className="h-4 w-4 text-rose-500/80" />
           <span className="hidden @min-sm:block font-semibold">Lo</span>
         </span>
         <span className="ml-1 text-foreground normal-case font-semibold">
@@ -89,7 +94,7 @@ const HeaderVisual = ({
       </div>
       <div className="flex items-center gap-0.5">
         <span className="flex gap-0.5 items-center">
-          <TrendingUp className="fill-muted-foreground stroke-muted-foreground w-4 h-4" />
+          <ArrowUp className="h-4 w-4 text-emerald-500/80" />
           <span className="hidden @min-sm:block font-semibold">Hi</span>
         </span>
         <span className="ml-1 text-foreground normal-case font-semibold">
@@ -223,11 +228,11 @@ const DateSummaryBridge: React.FC<Props> = ({
   initialForecastMeta = null,
   initialForecastRows = null,
 }) => {
-    const { id, selected, setSelected, hour, setHour, selectedDays } =
-      useDateContext();
-    id.current = beachId;
-    const { selectedTab } = useClientPath();
-    const isOverview = selectedTab === "overview";
+  const { id, selected, setSelected, hour, setHour, selectedDays } =
+    useDateContext();
+  id.current = beachId;
+  const { selectedTab } = useClientPath();
+  const isOverview = selectedTab === "overview";
   const isForecastTab = selectedTab === "forecast";
   const [mounted, setMounted] = React.useState(false);
   const [currentTime, setCurrentTime] = React.useState<string>("");
@@ -746,7 +751,7 @@ const DateSummaryBridge: React.FC<Props> = ({
       switch (id) {
         case "stats":
           return (
-            <VisualWrapper
+            <OverviewWidget
               label={label}
               unit={timeDisplay}
               loading={overlayVisible}
@@ -760,11 +765,11 @@ const DateSummaryBridge: React.FC<Props> = ({
                 isFull={isFull}
                 forecastRows={forecastRows}
               />
-            </VisualWrapper>
+            </OverviewWidget>
           );
         case "tide":
           return (
-            <VisualWrapper
+            <OverviewWidget
               label="Tide"
               unit="ft"
               loading={overlayVisible}
@@ -780,11 +785,11 @@ const DateSummaryBridge: React.FC<Props> = ({
                 date={selected ?? undefined}
                 sunSegments={sharedSunSegments}
               />
-            </VisualWrapper>
+            </OverviewWidget>
           );
         case "wind":
           return (
-            <VisualWrapper
+            <OverviewWidget
               label="Wind"
               unit="mph"
               loading={overlayVisible}
@@ -795,11 +800,11 @@ const DateSummaryBridge: React.FC<Props> = ({
                 date={selected ?? undefined}
                 sunSegments={sharedSunSegments}
               />
-            </VisualWrapper>
+            </OverviewWidget>
           );
         case "swell":
           return (
-            <VisualWrapper
+            <OverviewWidget
               label="Swell"
               unit="ft"
               loading={overlayVisible}
@@ -810,11 +815,11 @@ const DateSummaryBridge: React.FC<Props> = ({
                 date={selected ?? undefined}
                 sunSegments={sharedSunSegments}
               />
-            </VisualWrapper>
+            </OverviewWidget>
           );
         case "surf":
           return (
-            <VisualWrapper
+            <OverviewWidget
               label="Surf"
               unit="ft"
               loading={overlayVisible}
@@ -825,11 +830,11 @@ const DateSummaryBridge: React.FC<Props> = ({
                 date={selected ?? undefined}
                 sunSegments={sharedSunSegments}
               />
-            </VisualWrapper>
+            </OverviewWidget>
           );
         case "energy":
           return (
-            <VisualWrapper
+            <OverviewWidget
               label="Energy"
               unit="kJ"
               loading={overlayVisible}
@@ -840,18 +845,18 @@ const DateSummaryBridge: React.FC<Props> = ({
                 date={selected ?? undefined}
                 sunSegments={sharedSunSegments}
               />
-            </VisualWrapper>
+            </OverviewWidget>
           );
         case "table":
           return (
-            <VisualWrapper label="Daily" unit="3 hrs" loading={overlayVisible}>
+            <OverviewWidget label="Daily" unit="3 hrs" loading={overlayVisible}>
               <LazyLoadTable
                 beachId={beachId}
                 numHours={8}
                 numDays={1}
                 date={selected ?? undefined}
               />
-            </VisualWrapper>
+            </OverviewWidget>
           );
         default:
           return null;
@@ -895,10 +900,10 @@ const DateSummaryBridge: React.FC<Props> = ({
       <TideDataProvider value={tideWindow}>
         <>
           {/* Summary header */}
-          <section className="mb-8">
-            <header className="mb-4 ml-3 flex gap-2 items-center">
+          <section className="mb-10">
+            <header className="px-3 mb-4 mt-1 flex items-center gap-2">
               <SurfIntensityMarker />
-              <h2 className="text-muted-foreground text-lg">
+              <h2 className="font-medium text-muted-foreground leading-none truncate">
                 {selected
                   ? selected.toLocaleDateString(undefined, {
                       weekday: "long",
@@ -913,6 +918,7 @@ const DateSummaryBridge: React.FC<Props> = ({
               date={selected ?? undefined}
               forecastRows={forecastRows}
               forecastLoading={forecastLoading}
+              variant="overview"
             />
             {/* <LazyLoadSummary beachId={beachId} date={selected ?? undefined} /> */}
           </section>
@@ -924,17 +930,22 @@ const DateSummaryBridge: React.FC<Props> = ({
             <header className="mx-2 flex flex-col gap-3 @min-xl:flex-row @min-xl:items-start @min-xl:justify-between">
               <div className="flex items-start justify-between gap-2 w-full">
                 <div className="space-y-0 min-w-0">
-                  <h2 className="text-3xl font-semibold truncate">
+                  <h2 className="text-2xl @min-md:text-3xl font-semibold tracking-tight truncate">
                     {headerTitle}
                   </h2>
-                  <p className="text-base text-muted-foreground truncate">
+                  <p className="text-sm @min-md:text-base text-muted-foreground truncate">
                     {headerSubtitle}
                   </p>
                 </div>
                 {/* Mobile edit button (hidden on wide screens). Signed-out users go to login with return URL. */}
                 <Link
                   href={mobileEditHref}
-                  className="@min-xl:hidden inline-flex bg-highlight-5 hover:bg-highlight-3 items-center rounded-full p-3 @min-sm:py-2.5 gap-1.5 @min-sm:px-4 shrink-0"
+                  className={cn(
+                    "@min-xl:hidden inline-flex items-center rounded-full px-4 py-2.5 gap-1.5 shrink-0",
+                    "border border-border/25 bg-highlight-7/50 hover:bg-highlight-6/60 shadow-even",
+                    "transition-colors duration-200 motion-reduce:transition-none",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0"
+                  )}
                   aria-label={`Edit ${
                     selectedTab === "forecast" ? "forecast" : "overview"
                   } dashboard`}
@@ -967,10 +978,10 @@ const DateSummaryBridge: React.FC<Props> = ({
               <div className="relative min-h-[640px]">
                 {visibleRows.length === 0 ? (
                   layoutHydrated ? (
-                  <p className="mx-2 mt-6 text-sm text-muted-foreground">
-                    All widgets are hidden. Use the edit screen to enable
-                    widgets.
-                  </p>
+                    <p className="mx-2 mt-6 text-sm text-muted-foreground">
+                      All widgets are hidden. Use the edit screen to enable
+                      widgets.
+                    </p>
                   ) : null
                 ) : (
                   visibleRows.map((row, index) => {
@@ -993,7 +1004,7 @@ const DateSummaryBridge: React.FC<Props> = ({
                     return (
                       <div
                         key={row.id}
-                        className={`${spacing} w-full flex flex-col @min-3xl:flex-row gap-5`}
+                        className={`${spacing} w-full flex flex-col @min-3xl:flex-row gap-4`}
                       >
                         {visibleItems.map((id) => {
                           const content = renderWidget(id, isFull);
@@ -1012,7 +1023,7 @@ const DateSummaryBridge: React.FC<Props> = ({
                     className="pointer-events-none absolute inset-0 rounded-2xl border border-border/40 bg-background/40"
                     aria-hidden="true"
                   >
-                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-b from-background/40 via-background/20 to-background/40 opacity-80 animate-pulse" />
+                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-b from-background/40 via-background/20 to-background/40 opacity-80 animate-pulse motion-reduce:animate-none" />
                   </div>
                 )}
               </div>
@@ -1038,6 +1049,7 @@ const DateSummaryBridge: React.FC<Props> = ({
                           onWindowStringChange={setForecastWindow}
                           initialMeta={initialForecastMeta ?? undefined}
                           initialRows={initialForecastRows ?? undefined}
+                          cardVariant="overview"
                         />
                       </ForecastDataProvider>
                     </ForecastChartProvider>

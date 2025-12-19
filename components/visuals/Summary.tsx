@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn, getPacificDayRange } from "@/lib/utils";
 import GradientCircle from "../general/Stats/GradientCircle";
 import Tag from "../general/Tag";
@@ -21,13 +21,7 @@ import {
   useDailyConditions,
   useBeachDetails,
 } from "@/lib/hooks/useBeachData";
-// Optionally import the feature registry if exposed
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
-import { FEATURE_COLUMNS } from "@/lib/supabase";
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
-import { getFeatureDisplayName } from "@/lib/supabase";
+import { FEATURE_COLUMNS, getFeatureDisplayName } from "@/lib/supabase";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 
 type SummaryStat =
@@ -232,12 +226,15 @@ const Summary = ({
   date,
   forecastRows,
   forecastLoading,
+  variant = "default",
 }: {
   beachId?: string;
   date?: Date;
   forecastRows?: ForecastData[] | null;
   forecastLoading?: boolean;
+  variant?: "default" | "overview";
 }) => {
+  const isOverviewVariant = variant === "overview";
   const [stats, setStats] = useState<SummaryStat[] | null>(null);
   const statsRef = useRef<SummaryStat[] | null>(null);
   const [showAllFeatures, setShowAllFeatures] = useState(false);
@@ -668,7 +665,7 @@ const Summary = ({
               "LIFEGUARD",
             ];
       for (const key of keys) {
-        const val = (beachDetails as any)[key];
+        const val = (beachDetails as unknown as Record<string, unknown>)[key];
         if (val === true) {
           const label =
             typeof getFeatureDisplayName === "function"
@@ -711,7 +708,6 @@ const Summary = ({
 
   const displayStats = stats ?? statsRef.current;
   const [overviewText, setOverviewText] = useState<string | null>(null);
-  const overviewTextLockedRef = useRef(false);
 
   useEffect(() => {
     const el = featuresContainerRef.current;
@@ -798,7 +794,9 @@ const Summary = ({
       stat.type === "temperature"
   );
 
-  const buildOverviewText = () => {
+  const computedOverviewText = useMemo(() => {
+    if (!overviewStatsReady) return null;
+
     const surfHeight = surfStat?.surf?.height || "N/A";
     const windSpeed = windStat?.wind?.speed;
     const airTempHigh = tempStat?.airTempHigh;
@@ -854,21 +852,25 @@ const Summary = ({
     }
 
     return sentence;
-  };
+  }, [
+    overviewStatsReady,
+    surfStat?.surf?.height,
+    surfStat?.surf?.intensity,
+    windStat?.wind?.speed,
+    tempStat?.airTempHigh,
+    tempStat?.airTempLow,
+  ]);
 
   useEffect(() => {
-    overviewTextLockedRef.current = false;
-    setOverviewText(null);
-  }, [beachId, targetDateValue?.getTime()]);
-
-  useEffect(() => {
-    if (!overviewStatsReady) return;
-    if (overviewTextLockedRef.current) return;
-
-    setOverviewText(buildOverviewText());
-    overviewTextLockedRef.current = true;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [overviewStatsReady, surfStat, windStat, tempStat]);
+    if (!beachId) {
+      setOverviewText(null);
+      return;
+    }
+    if (!computedOverviewText) return;
+    setOverviewText((prev) =>
+      prev === computedOverviewText ? prev : computedOverviewText
+    );
+  }, [beachId, computedOverviewText]);
 
   const gapPx = 12;
   const moreButtonReservePx = 60;
@@ -884,23 +886,22 @@ const Summary = ({
   const [visibleCount, setVisibleCount] = useState(() => tags.length);
 
   // Create measurement nodes once (keys stable)
-  const measurementNodes = React.useMemo(
+  const measurementNodes = useMemo(
     () =>
       tags.map((t, i) => (
         <div
-          key={t.label ?? i}
+          key={t.label ? `${t.label}-${i}` : String(i)}
           data-measure-index={i}
           style={{ display: "inline-block" }}
         >
           <Tag data={t} />
         </div>
       )),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [tags.map((t) => t.label ?? Math.random()).join("|")] // keep keyed but stable if tags input stable
+    [tags]
   );
 
   // Synchronously measure tag widths in the off-screen measurement container
-  const measureTagWidths = () => {
+  const measureTagWidths = useCallback(() => {
     const measure = measureRef.current;
     if (!measure) return;
     const children = Array.from(measure.children) as HTMLElement[];
@@ -922,10 +923,10 @@ const Summary = ({
       }
       if (changed) setTagWidths(widths);
     }
-  };
+  }, [tagWidths, tags.length]);
 
   // Compute visibleCount from container width and stable tagWidths
-  const computeVisibleCount = () => {
+  const computeVisibleCount = useCallback(() => {
     const container = containerRef.current;
     if (!container) return;
     if (!tagWidths.length) return;
@@ -947,16 +948,16 @@ const Summary = ({
     }
     // update only if different (prevents oscillation)
     setVisibleCount((prev) => (prev !== count ? count : prev));
-  };
+  }, [tagWidths, gapPx, moreButtonReservePx]);
 
   // Schedule compute with RAF (debounce)
-  const scheduleCompute = () => {
+  const scheduleCompute = useCallback(() => {
     if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
     rafRef.current = requestAnimationFrame(() => {
       computeVisibleCount();
       rafRef.current = null;
     });
-  };
+  }, [computeVisibleCount]);
 
   // initial measurement after mount/update of measurement nodes
   React.useLayoutEffect(() => {
@@ -964,8 +965,7 @@ const Summary = ({
     measureTagWidths();
     // compute visible count once widths are known
     scheduleCompute();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [/* run when measurement nodes (tags) change */ tags.length]);
+  }, [measurementNodes, measureTagWidths, scheduleCompute]);
 
   // Recompute when tagWidths change or container size changes
   useEffect(() => {
@@ -1013,14 +1013,37 @@ const Summary = ({
   const hiddenItems = tags.slice(visibleCount);
 
   return (
-    <ul className="grid grid-cols-2 @min-md:grid-cols-3 @min-4xl:grid-cols-6 gap-3">
+    <ul
+      className={cn(
+        "grid grid-cols-2 @min-md:grid-cols-3 @min-4xl:grid-cols-6",
+        isOverviewVariant ? "gap-4 @min-md:gap-4" : "gap-3"
+      )}
+    >
       {/* Overview card */}
-      <li className="highlight-card shadow-even flex flex-col gap-3 xl:gap-0 overflow-hidden col-span-2 min-h-35">
+      <li
+        className={cn(
+          "highlight-card shadow-even flex flex-col gap-3 xl:gap-0 overflow-hidden col-span-2 min-h-35",
+          isOverviewVariant &&
+            "p-4 rounded-[22px] bg-highlight-7/40 border-border/25 backdrop-blur-md transition-shadow duration-200 ease-out motion-reduce:transition-none hover:z-10 hover:shadow-[0_10px_30px_rgba(0,0,0,0.12)] dark:hover:shadow-[0_18px_50px_rgba(0,0,0,0.70),0_0_0_1px_rgba(255,255,255,0.08),0_12px_26px_rgba(255,255,255,0.04)] focus-within:ring-1 focus-within:ring-foreground/10"
+        )}
+      >
         <div className="flex items-top justify-between flex-shrink-0">
-          <h3 className="highlight-title bg-highlight-5 h-1/2 flex items-center px-2 py-1 rounded-xl">
+          <h3
+            className={cn(
+              "highlight-title bg-highlight-5 h-1/2 flex items-center px-2 py-1 rounded-xl",
+              isOverviewVariant &&
+                "bg-foreground/5 text-muted-foreground tracking-wider uppercase"
+            )}
+          >
             SUMMARY
           </h3>
-          <div className="py-1 px-2 rounded-md bg-highlight-6 grid grid-cols-[80px_1fr] grid-rows-2 space-y-0.5 items-center text-xs text-muted-foreground uppercase tracking-wide leading-tight">
+          <div
+            className={cn(
+              "py-1 px-2 rounded-md bg-highlight-6 grid grid-cols-[80px_1fr] grid-rows-2 space-y-0.5 items-center text-xs text-muted-foreground uppercase tracking-wide leading-tight",
+              isOverviewVariant &&
+                "bg-foreground/5 border border-border/25 rounded-xl px-3 py-2"
+            )}
+          >
             <span className="flex gap-2 items-center">
               <Sunrise
                 fill="#ff9f45ff"
@@ -1045,13 +1068,28 @@ const Summary = ({
         </div>
         <div className="flex-1 flex items-center gap-1 mt-2 justify-center min-h-0">
           {overviewText ? (
-            <p className="text-center text-sm leading-snug">
+            <p
+              className={cn(
+                "text-center text-sm leading-snug text-foreground/90",
+                isOverviewVariant && "text-[0.9rem] @min-md:text-sm"
+              )}
+            >
               {overviewText}
             </p>
           ) : (
             <div className="w-full max-w-[26rem] px-4">
-              <div className="mx-auto h-3 w-full rounded-md bg-highlight-6/70 animate-pulse" />
-              <div className="mx-auto mt-2 h-3 w-5/6 rounded-md bg-highlight-6/50 animate-pulse" />
+              <div
+                className={cn(
+                  "mx-auto h-3 w-full rounded-md animate-pulse motion-reduce:animate-none",
+                  isOverviewVariant ? "bg-foreground/12" : "bg-highlight-6/70"
+                )}
+              />
+              <div
+                className={cn(
+                  "mx-auto mt-2 h-3 w-5/6 rounded-md animate-pulse motion-reduce:animate-none",
+                  isOverviewVariant ? "bg-foreground/8" : "bg-highlight-6/50"
+                )}
+              />
             </div>
           )}
         </div>
@@ -1194,28 +1232,36 @@ const Summary = ({
               key={stat.type}
               className={cn(
                 "highlight-card shadow-even flex flex-col overflow-hidden",
+                isOverviewVariant &&
+                  "p-4 rounded-[22px] bg-highlight-7/40 border-border/25 backdrop-blur-md transition-shadow duration-200 ease-out motion-reduce:transition-none hover:z-10 hover:shadow-[0_10px_30px_rgba(0,0,0,0.12)] dark:hover:shadow-[0_18px_50px_rgba(0,0,0,0.70),0_0_0_1px_rgba(255,255,255,0.08),0_12px_26px_rgba(255,255,255,0.04)] focus-within:ring-1 focus-within:ring-foreground/10",
                 stat.type === "surf" &&
                   stat.surf.height === "-" &&
-                  "animate-pulse",
+                  "animate-pulse motion-reduce:animate-none",
                 stat.type === "wind" &&
                   stat.wind.loc === "-" &&
-                  "animate-pulse",
+                  "animate-pulse motion-reduce:animate-none",
                 stat.type === "tide" &&
                   stat.sunrise?.includes("--:--") &&
-                  "animate-pulse",
+                  "animate-pulse motion-reduce:animate-none",
                 stat.type === "temperature" &&
                   !stat.airTempPercent &&
-                  "animate-pulse",
+                  "animate-pulse motion-reduce:animate-none",
                 stat.type === "features" &&
                   stat.tags.length === 0 &&
-                  "animate-pulse",
+                  (isOverviewVariant ? "opacity-70" : "animate-pulse"),
                 stat.type === "features"
                   ? "col-span-2 @min-md:col-span-3 @min-4xl:col-span-6"
                   : "min-h-43"
               )}
             >
               <div className="flex items-start justify-between">
-                <h3 className="highlight-title mt-0.5 bg-highlight-5 px-2 py-1 rounded-xl">
+                <h3
+                  className={cn(
+                    "highlight-title mt-0.5 bg-highlight-5 px-2 py-1 rounded-xl",
+                    isOverviewVariant &&
+                      "bg-foreground/5 text-muted-foreground tracking-wider uppercase"
+                  )}
+                >
                   {stat.type.toUpperCase()}
                 </h3>
                 {/* {stat.type === "features" && featuresOverflowing ? (

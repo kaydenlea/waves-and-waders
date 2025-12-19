@@ -48,17 +48,42 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
   const beachId = resolved.id.toString();
   const beachName = resolved.Name;
   const initialBeach = (() => {
-    const latitude = resolved.LATITUDE ?? resolved.latitude ?? null;
-    const longitude = resolved.LONGITUDE ?? resolved.longitude ?? null;
-    if (latitude == null || longitude == null) {
+    const readLooseField = (key: string): unknown => {
+      if (!Object.prototype.hasOwnProperty.call(resolved, key))
+        return undefined;
+      return (resolved as unknown as Record<string, unknown>)[key];
+    };
+
+    const latitudeRaw = resolved.LATITUDE ?? readLooseField("latitude") ?? null;
+    const longitudeRaw =
+      resolved.LONGITUDE ?? readLooseField("longitude") ?? null;
+
+    const latitude =
+      typeof latitudeRaw === "number"
+        ? latitudeRaw
+        : typeof latitudeRaw === "string"
+        ? Number(latitudeRaw)
+        : Number.NaN;
+    const longitude =
+      typeof longitudeRaw === "number"
+        ? longitudeRaw
+        : typeof longitudeRaw === "string"
+        ? Number(longitudeRaw)
+        : Number.NaN;
+
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
       return null;
     }
+
+    const countyRaw = resolved.COUNTY ?? readLooseField("county");
+    const county = typeof countyRaw === "string" ? countyRaw : "";
+
     return {
       id: beachId,
       name: beachName,
-      county: resolved.COUNTY ?? resolved.county ?? "",
-      latitude: Number(latitude),
-      longitude: Number(longitude),
+      county,
+      latitude,
+      longitude,
       features: resolved.features ?? undefined,
     };
   })();
@@ -90,9 +115,7 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
     try {
       const { data: settings, error: settingsError } = await supabase
         .from("user_dashboard_settings")
-        .select(
-          "overview_meta, overview_rows, forecast_meta, forecast_rows"
-        )
+        .select("overview_meta, overview_rows, forecast_meta, forecast_rows")
         .eq("user_id", user.id)
         .maybeSingle();
 
@@ -106,10 +129,7 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
         initialOverviewMeta = overviewMeta;
         initialOverviewRows = overviewRows;
 
-        const forecastMeta = normalizeMeta(
-          "forecast",
-          settings.forecast_meta
-        );
+        const forecastMeta = normalizeMeta("forecast", settings.forecast_meta);
         const forecastRows = normalizeRows(
           "forecast",
           settings.forecast_rows,
@@ -144,15 +164,18 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
         id="main-content"
         className="bg-background-2 min-h-[calc(100vh-4rem)] @min-4xl:flex @min-4xl:flex-1 @min-4xl:mt-[5.5rem] @min-4xl:pb-4"
       >
-        <LazyLoadMap beachId={beachId} initialBeach={initialBeach ?? undefined} />
+        <LazyLoadMap
+          beachId={beachId}
+          initialBeach={initialBeach ?? undefined}
+        />
         <PathStyleWrapper>
           <div className="@container pb-6 @min-4xl:pb-3 pt-2 @min-4xl:pt-8 px-1 @min-md:px-3">
             <header
               id="content"
-              className="relative w-full flex flex-col gap-6 p-2 pb-0 scroll-mt-30"
+              className="relative w-full flex flex-col gap-5 px-2 pt-3 @min-md:pt-4 pb-0 scroll-mt-30"
             >
               <div className="flex items-center gap-3">
-                <h1 className="pb-0.5 font-semibold text-4xl tracking-tight w-full whitespace-nowrap truncate">
+                <h1 className="pb-0.5 font-semibold text-3xl @min-md:text-4xl tracking-tight w-full whitespace-nowrap truncate">
                   {beachName}
                 </h1>
                 <div className="ml-auto flex items-center gap-2 shrink-0">

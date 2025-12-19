@@ -7,12 +7,14 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { cn } from "@/lib/utils";
 import {
   useSessionContext,
   useSupabaseClient,
 } from "@supabase/auth-helpers-react";
 import { LazyLoadDatePicker } from "@/components/general/LazyLoad/LazyLoadDatePicker";
 import VisualWrapper from "@/components/general/VisualWrapper";
+import OverviewWidget from "@/components/general/overview/OverviewWidget";
 import { LazyLoadForecastTide } from "@/components/general/LazyLoad/LazyLoadForecastTide";
 import { LazyLoadTable } from "@/components/general/LazyLoad/LazyLoadTable";
 import Link from "next/link";
@@ -45,10 +47,11 @@ type Props = {
   onWindowStringChange?: (value: string) => void;
   initialMeta?: Partial<Record<WidgetId, WidgetMeta>> | null;
   initialRows?: Row[] | null;
+  cardVariant?: "default" | "overview";
 };
 
 /**
- * Note: This component intentionally avoids reading any client-only API
+ * Note: This component intentionally avoids reading client-only APIs
  * or client-only context during the server render, to prevent hydration mismatches.
  * It uses `isMounted` and initializes visible state in useEffect (client-only).
  */
@@ -58,7 +61,9 @@ const ForecastBridge: React.FC<Props> = ({
   onWindowStringChange,
   initialMeta = null,
   initialRows = null,
+  cardVariant = "default",
 }) => {
+  const isOverviewCards = cardVariant === "overview";
   // local selected date (kept for the DatePicker's controlled value)
   // const [selected, setSelected] = useState<Date | null>(dayjs().toDate());
 
@@ -265,11 +270,14 @@ const ForecastBridge: React.FC<Props> = ({
   const stableWidgetLoading = useStableOverlay(rawWidgetLoading, 220);
 
   const widgets = useMemo(() => {
+    const Wrapper = (
+      cardVariant === "overview" ? OverviewWidget : VisualWrapper
+    ) as React.ComponentType<React.ComponentProps<typeof VisualWrapper>>;
     const firstDay = selectedDays?.[0] ?? undefined;
 
     return {
       stats: (
-        <VisualWrapper label="Forecast Overview" loading={stableWidgetLoading}>
+        <Wrapper label="Forecast Overview" loading={stableWidgetLoading}>
           <div className="space-y-2 text-sm text-muted-foreground">
             <p className="font-medium text-foreground">{windowString}</p>
             <p>
@@ -277,10 +285,10 @@ const ForecastBridge: React.FC<Props> = ({
               which panels show here.
             </p>
           </div>
-        </VisualWrapper>
+        </Wrapper>
       ),
       tide: (
-        <VisualWrapper
+        <Wrapper
           label="Tide"
           extraPadding
           unit="ft"
@@ -291,50 +299,55 @@ const ForecastBridge: React.FC<Props> = ({
             date={firstDay}
             days={selectedDays ?? undefined}
           />
-        </VisualWrapper>
+        </Wrapper>
       ),
       surf: (
-        <VisualWrapper
+        <Wrapper
           extraPadding
           label="Surf"
           unit="ft"
           loading={stableWidgetLoading}
         >
           <LazyLoadForecastSurf beachId={beachId} days={selectedDays} />
-        </VisualWrapper>
+        </Wrapper>
       ),
       wind: (
-        <VisualWrapper
+        <Wrapper
           extraPadding
           label="Wind"
           unit="mph"
           loading={stableWidgetLoading}
         >
           <LazyLoadForecastWind beachId={beachId} days={selectedDays} />
-        </VisualWrapper>
+        </Wrapper>
       ),
       surfAndWind: (
-        <div className="w-full flex flex-col @min-2xl:flex-row gap-6">
-          <VisualWrapper label="Wind" unit="mph" loading={stableWidgetLoading}>
+        <div
+          className={cn(
+            "w-full flex flex-col @min-2xl:flex-row",
+            isOverviewCards ? "gap-4" : "gap-6"
+          )}
+        >
+          <Wrapper label="Wind" unit="mph" loading={stableWidgetLoading}>
             <LazyLoadForecastWind beachId={beachId} days={selectedDays} />
-          </VisualWrapper>
-          <VisualWrapper label="Surf" unit="ft" loading={stableWidgetLoading}>
+          </Wrapper>
+          <Wrapper label="Surf" unit="ft" loading={stableWidgetLoading}>
             <LazyLoadForecastSurf beachId={beachId} days={selectedDays} />
-          </VisualWrapper>
+          </Wrapper>
         </div>
       ),
       energy: (
-        <VisualWrapper
+        <Wrapper
           extraPadding
           label="Energy"
           unit="kJ"
           loading={stableWidgetLoading}
         >
           <LazyLoadForecastWaveEnergy beachId={beachId} days={selectedDays} />
-        </VisualWrapper>
+        </Wrapper>
       ),
       table: (
-        <VisualWrapper
+        <Wrapper
           label="Daily"
           unit="12 hrs"
           loading={stableWidgetLoading}
@@ -346,20 +359,27 @@ const ForecastBridge: React.FC<Props> = ({
             header
             date={selected ?? undefined}
           />
-        </VisualWrapper>
+        </Wrapper>
       ),
       swell: (
-        <VisualWrapper
+        <Wrapper
           extraPadding
           label="Swell"
           unit="ft"
           loading={stableWidgetLoading}
         >
           <LazyLoadForecastSwell beachId={beachId} days={selectedDays} />
-        </VisualWrapper>
+        </Wrapper>
       ),
     } as const;
-  }, [beachId, selected, selectedDays, windowString, stableWidgetLoading]);
+  }, [
+    beachId,
+    selected,
+    selectedDays,
+    windowString,
+    stableWidgetLoading,
+    cardVariant,
+  ]);
 
   return (
     <section
@@ -446,7 +466,10 @@ const ForecastBridge: React.FC<Props> = ({
               return (
                 <div
                   key={row.id}
-                  className={`${spacingClass} w-full flex flex-col @min-3xl:flex-row gap-5`}
+                  className={cn(
+                    `${spacingClass} w-full flex flex-col @min-3xl:flex-row`,
+                    isOverviewCards ? "gap-4" : "gap-5"
+                  )}
                 >
                   {renderedItems.map((entry) => (
                     <React.Fragment key={entry.id}>
