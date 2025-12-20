@@ -1,24 +1,28 @@
 ﻿"use client";
 
 import React from "react";
+import { createPortal } from "react-dom";
 import { cn, getPacificDayRange } from "@/lib/utils";
 import { Button } from "../ui/button";
 import {
   ArrowLeft,
   ArrowRight,
   MousePointer2 as ArrowIcon,
+  Clock3,
+  ArrowUp,
+  ArrowDown,
+  Minus,
+  CalendarDays,
   Sun,
-  Cloudy,
   Cloud as CloudIcon,
   CloudSun,
   CloudDrizzle,
   CloudRain,
   CloudLightning,
   Snowflake,
-  Eye,
-  EyeOff,
+  ClockFading,
 } from "lucide-react";
-import DaySlider from "../general/DaySlider";
+
 import {
   fetchBeachByIdLoose,
   getWindDirection,
@@ -26,13 +30,292 @@ import {
 } from "@/lib/supabase";
 import { getForecastCached } from "@/lib/dataCache";
 import { useDateContext } from "../context/DateContext";
-import { usePathname } from "next/navigation";
 import { useClientPath } from "../context/PathContext";
 import { useForecastData } from "../context/ForecastDataContext";
 import {
   useOptionalForecastChartLoading,
   useOptionalForecastChartsBusyState,
 } from "../context/ForecastChartsLoadingContext";
+
+type MetricGroup =
+  | "hour"
+  | "surf"
+  | "wind"
+  | "swell"
+  | "weather"
+  | "water"
+  | "energy"
+  | "pressure";
+
+const groupAccentFillClass: Record<MetricGroup, string> = {
+  hour: "bg-foreground/25",
+  surf: "bg-cyan-500/70 dark:bg-cyan-400/70",
+  wind: "bg-sky-500/70 dark:bg-sky-400/70",
+  swell: "bg-indigo-500/70 dark:bg-indigo-400/70",
+  weather: "bg-amber-500/70 dark:bg-amber-400/70",
+  water:
+    "bg-gradient-to-r from-cyan-500/70 to-amber-500/70 dark:from-cyan-400/70 dark:to-amber-400/70",
+  energy:
+    "bg-gradient-to-r from-indigo-500/70 to-cyan-500/70 dark:from-indigo-400/70 dark:to-cyan-400/70",
+  pressure: "bg-violet-500/60 dark:bg-violet-400/60",
+};
+
+const statusGradientTrackClass =
+  "bg-gradient-to-r from-emerald-500/40 via-amber-500/35 to-rose-500/35 dark:from-emerald-400/35 dark:via-amber-400/30 dark:to-rose-400/30";
+
+const WIND_SCALE_MAX_MPH = 40;
+const SURF_SCALE_MAX_FT = 12;
+const ENERGY_SCALE_MAX_KJ = 100;
+
+function getMetricGroupForColumnId(columnId: string): MetricGroup {
+  switch (columnId) {
+    case "surf":
+      return "surf";
+    case "wind":
+      return "wind";
+    case "swellPrimary":
+    case "swellSecondary":
+    case "swellTertiary":
+      return "swell";
+    case "weather":
+      return "weather";
+    case "water":
+      return "water";
+    case "energy":
+      return "energy";
+    case "pressure":
+      return "pressure";
+    default:
+      return "hour";
+  }
+}
+
+function parseSurfMaxFt(range: string): number | null {
+  if (!range || range === "-") return null;
+  const match = range.match(/(\d+)-?(\d+)?/);
+  if (!match) return null;
+  const maxStr = match[2] ?? match[1];
+  const max = Number(maxStr);
+  return Number.isFinite(max) ? max : null;
+}
+
+function clamp01(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(1, value));
+}
+
+function MiniMarkerTrack({
+  value,
+  min,
+  max,
+  trackClassName,
+  markerClassName,
+}: {
+  value: number | null;
+  min: number;
+  max: number;
+  trackClassName: string;
+  markerClassName?: string;
+}) {
+  if (value == null || !Number.isFinite(value) || max <= min) return null;
+  const t = clamp01((value - min) / (max - min));
+  const markerW = "0.375rem"; // w-1.5
+  return (
+    <div
+      aria-hidden="true"
+      className="relative mt-1 h-[3px] w-full overflow-visible"
+    >
+      <div className="relative h-[3px] w-full overflow-hidden rounded-full bg-foreground/10">
+        <div className={cn("absolute inset-0", trackClassName)} />
+      </div>
+      <div
+        className={cn(
+          "absolute top-1/2 h-2 w-1.5 -translate-y-1/2 rounded-full",
+          "bg-highlight-4 shadow-md ring-1 ring-foreground/35 dark:ring-foreground/45",
+          "outline outline-2 outline-background/70",
+          markerClassName
+        )}
+        style={{
+          left: `clamp(0px, calc(${
+            t * 100
+          }% - (${markerW} / 2)), calc(100% - ${markerW}))`,
+        }}
+      />
+    </div>
+  );
+}
+
+function CellSurface({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "mx-auto w-full rounded-lg border border-border/25 bg-foreground/[0.03] dark:bg-foreground/[0.05]",
+        "shadow-[0_1px_0_rgba(0,0,0,0.04)] dark:shadow-[0_1px_0_rgba(0,0,0,0.35)]",
+        "h-14 min-h-14 px-2.5 py-1.5 flex items-center justify-center",
+        className
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+function TimeCell({ time, selected }: { time: string; selected: boolean }) {
+  const parts = time.split(" ");
+  const hour = parts[0] ?? "";
+  const ampm = parts[1] ?? "";
+  return (
+    <div
+      className={cn(
+        "rounded-xl",
+        selected &&
+          "ring-2 ring-sky-500/35 shadow-sm dark:ring-sky-400/30 dark:shadow-[0_8px_16px_rgba(0,0,0,0.35)]"
+      )}
+    >
+      <div className="relative h-14 w-12 overflow-hidden rounded-xl border border-foreground/10 bg-foreground/[0.07] dark:bg-foreground/[0.09]">
+        <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-foreground/30 via-foreground/10 to-transparent dark:from-foreground/30 dark:via-foreground/10" />
+        <div
+          className={cn(
+            "absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full",
+            selected
+              ? "bg-sky-500/60 ring-1 ring-sky-500/30 dark:bg-sky-400/55 dark:ring-sky-400/25"
+              : "bg-foreground/20"
+          )}
+        />
+        <div className="grid h-full place-items-center px-1 text-center">
+          <div>
+            <div className="text-[1rem] font-semibold tabular-nums leading-none">
+              {hour}
+            </div>
+            <div className="mt-1 text-[0.65rem] font-semibold uppercase text-muted-foreground leading-none">
+              {ampm}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DirectionBadge({
+  deg,
+  label,
+}: {
+  deg?: number | null;
+  label?: string | null;
+}) {
+  const rotation = typeof deg === "number" ? deg - 315 : 0;
+  const safeLabel = label ?? "-";
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-border/40 bg-foreground/[0.03] px-1.5 py-0.5">
+      <span
+        aria-hidden="true"
+        style={{ transform: `rotate(${rotation}deg)`, display: "inline-block" }}
+        className="leading-none"
+      >
+        <ArrowIcon
+          size={13}
+          className="fill-foreground/15 text-foreground/45"
+        />
+      </span>
+      <span className="hidden @min-lg:inline-block @min-4xl:hidden @min-5xl:inline-block text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground mt-0.5">
+        {safeLabel}
+      </span>
+    </span>
+  );
+}
+
+function DotScale({
+  value,
+  max,
+  dots = 5,
+  fillClassName,
+}: {
+  value: number | null;
+  max: number;
+  dots?: number;
+  fillClassName: string;
+}) {
+  if (value == null || !Number.isFinite(value) || max <= 0) return null;
+  const t = clamp01(value / max);
+  const filled = Math.max(1, Math.min(dots, Math.round(t * (dots - 1)) + 1));
+  return (
+    <div aria-hidden="true" className="flex items-center justify-center gap-1">
+      {Array.from({ length: dots }).map((_, i) => (
+        <span
+          key={i}
+          className={cn(
+            "h-1.5 w-1.5 rounded-full",
+            i < filled ? fillClassName : "bg-foreground/10"
+          )}
+        />
+      ))}
+    </div>
+  );
+}
+
+function PeriodTicks({ period }: { period: number | null }) {
+  if (period == null || !Number.isFinite(period)) return null;
+  const t = clamp01((period - 6) / 14);
+  const filled = Math.max(1, Math.min(5, Math.round(t * 4) + 1));
+  return (
+    <div
+      aria-hidden="true"
+      className="flex items-center justify-center gap-0.5"
+    >
+      {Array.from({ length: 5 }).map((_, i) => (
+        <span
+          key={i}
+          className={cn(
+            "h-2 w-[3px] rounded-full",
+            i < filled ? groupAccentFillClass.swell : "bg-foreground/10",
+            i >= 3 && "h-2.5"
+          )}
+        />
+      ))}
+    </div>
+  );
+}
+
+function PressureNeedle({
+  value,
+  min,
+  max,
+  className,
+}: {
+  value: number;
+  min: number;
+  max: number;
+  className?: string;
+}) {
+  if (!Number.isFinite(value) || max <= min) return null;
+  const t = clamp01((value - min) / (max - min));
+  const markerH = "0.5rem"; // h-2
+  return (
+    <div
+      aria-hidden="true"
+      className={cn("relative h-7 w-2.5 overflow-visible", className)}
+    >
+      <div className="relative h-7 w-2.5 overflow-hidden rounded-full bg-foreground/10">
+        <div className="absolute inset-0 bg-gradient-to-t from-violet-500/25 to-violet-500/0 dark:from-violet-400/20" />
+      </div>
+      <div
+        className="absolute left-1/2 h-2 w-2 -translate-x-1/2 rounded-full bg-background shadow-md ring-1 ring-foreground/25 dark:ring-foreground/35"
+        style={{
+          bottom: `clamp(0px, calc(${
+            t * 100
+          }% - (${markerH} / 2)), calc(100% - ${markerH}))`,
+        }}
+      />
+    </div>
+  );
+}
 
 // Simple cache for forecast data to avoid refetching
 const forecastCache = new Map<
@@ -58,128 +341,118 @@ const SwellStat = ({
   const dir = data?.dir ?? "-";
   const deg = data?.deg ?? 0;
 
-  // Calculate rotation for arrow (arrow points at 315 degrees by default)
-  const rotation = typeof deg === "number" ? deg - 315 : 0;
+  const periodNumber = typeof data?.period === "number" ? data.period : null;
 
   return (
-    <div
+    <CellSurface
       className={cn(
-        "mx-auto flex-1 flex items-center justify-center space-x-2 rounded-sm p-1 h-10",
-        primary ? "bg-highlight-1" : "bg-highlight-2"
+        primary ? "bg-foreground/[0.04] dark:bg-foreground/[0.06]" : undefined
       )}
     >
-      <div
-        className={cn(
-          "flex items-center mt-0.5",
-          primary ? "gap-1.5" : "gap-1.5"
-        )}
-      >
-        <span className="flex items-baseline justify-center gap-[1px] whitespace-nowrap min-w-10">
-          <span
-            className={cn("font-semibold", primary ? "text-sm" : "text-sm")}
-          >
-            {height}
-          </span>
-          <span className={cn(primary ? "text-[.65rem]" : "text-[.65rem]")}>
-            ft
-          </span>
-        </span>
-        <span className="flex items-baseline gap-[1px] whitespace-nowrap min-w-8 justify-center">
-          <span
-            className={cn("font-semibold", primary ? "text-sm" : "text-sm")}
-          >
-            {period}
-          </span>
-          <span className={cn(primary ? "text-[.65rem]" : "text-[.65rem]")}>
-            s
-          </span>
-        </span>
-        <div
-          style={{
-            transform: `rotate(${rotation}deg)`,
-            display: "inline-block",
-          }}
-          className="mr-2 @min-md:mr-0"
-        >
-          <ArrowIcon
-            size={16}
-            className="fill-foreground/20 text-foreground/50"
-          />
-        </div>
-        <span className="flex items-baseline gap-[1px] whitespace-nowrap min-w-17 justify-center hidden @min-md:flex">
-          <span
-            className={cn("font-semibold", primary ? "text-sm" : "text-sm")}
-          >
-            {dir}
-          </span>
-          <span className={cn(primary ? "text-[.65rem]" : "text-[.65rem]")}>
-            {typeof deg === "number" ? Math.round(deg) : deg}&deg;
-          </span>
-        </span>
-      </div>
-    </div>
-  );
-};
+      <div className="w-full">
+        <div className="flex h-full items-center justify-between gap-2 min-w-0">
+          <div className="flex min-w-0 flex-col items-start">
+            <div className="flex items-baseline gap-1 whitespace-nowrap">
+              <span
+                className={cn(
+                  "tabular-nums leading-none",
+                  primary
+                    ? "text-[0.95rem] font-semibold"
+                    : "text-sm font-semibold"
+                )}
+              >
+                {height}
+              </span>
+              <span className="text-[0.65rem] text-muted-foreground">ft</span>
+            </div>
+            <div className="flex items-center gap-1 whitespace-nowrap text-muted-foreground -mb-1">
+              <ClockFading
+                aria-hidden="true"
+                className="hidden @min-lg:block h-3.5 w-3.5 shrink-0 text-muted-foreground/80"
+              />
+              <span
+                className={cn(
+                  "tabular-nums leading-none",
+                  primary
+                    ? "text-[0.95rem] font-semibold"
+                    : "text-sm font-semibold"
+                )}
+              >
+                {period}
+                <span className="text-[0.65rem] text-muted-foreground ml-0.5">
+                  s
+                </span>
+              </span>
+            </div>
+          </div>
 
-const getWindLevel = (speed?: number | null, gust?: number | null): string => {
-  const maxVal = Math.max(speed ?? 0, gust ?? 0);
-  if (!Number.isFinite(maxVal) || maxVal <= 0) return "bg-highlight-3";
-  if (maxVal >= 25) return "bg-red-300 dark:bg-orange-700";
-  if (maxVal >= 15) return "bg-orange-300 dark:bg-yellow-600";
-  return "bg-green-300 dark:bg-green-700";
+          <div className="flex shrink-0 flex-col items-end justify-center gap-2">
+            <DirectionBadge deg={deg} label={dir} />
+            <div className="pr-1">
+              <PeriodTicks period={periodNumber} />
+            </div>
+          </div>
+        </div>
+      </div>
+    </CellSurface>
+  );
 };
 
 const WindStat = ({
   data,
+  scaleMax = 30,
 }: {
   data: { dir: string; speed: number; max: number; deg?: number };
+  scaleMax?: number;
 }) => {
-  // Calculate rotation for wind arrow (arrow points at 315 degrees by default)
-  const rotation = typeof data.deg === "number" ? data.deg - 315 : 0;
-  const windLevel = getWindLevel(data.speed, data.max);
-
   return (
-    <div className="flex items-center gap-1 justify-center">
-      <div className="shadow-sm border border-border p-1 rounded-md text-center min-w-10 flex flex-col items-center justify-center">
-        <div
-          style={{
-            transform: `rotate(${rotation}deg)`,
-            display: "inline-block",
-          }}
-        >
-          <ArrowIcon
-            size={16}
-            className="fill-foreground/20 text-foreground/50"
+    <CellSurface>
+      <div className="w-full">
+        <div className="flex items-start justify-between gap-2 min-w-0">
+          <DirectionBadge deg={data.deg} label={data.dir} />
+
+          <div className="flex min-w-0 flex-col items-end leading-none">
+            <div className="inline-flex items-baseline gap-1">
+              <span className="inline-flex w-[3ch] justify-end text-[1.05rem] font-semibold tabular-nums leading-none">
+                {data.speed}
+              </span>
+              <span className="text-[0.65rem] text-muted-foreground">mph</span>
+            </div>
+            <div className="mt-0.5 inline-flex items-center gap-1 text-muted-foreground">
+              <ArrowUp
+                aria-hidden="true"
+                className="h-3.5 w-3.5 shrink-0 text-muted-foreground/80"
+              />
+              <span className="inline-flex w-[1.5ch] justify-end text-xs font-medium tabular-nums">
+                {data.max}
+              </span>
+              <span className="sr-only">gust</span>
+            </div>
+          </div>
+        </div>
+        <div className="mt-0.5">
+          <MiniMarkerTrack
+            value={data.speed}
+            min={0}
+            max={scaleMax}
+            trackClassName={statusGradientTrackClass}
           />
         </div>
-        <span className="text-[.6rem] mt-0.5 font-semibold">{data.dir}</span>
       </div>
-      <span
-        className={cn(
-          "flex-1 justify-center flex gap-[3px] rounded-md py-2 @min-[350px]:py-1.5 px-3",
-          windLevel
-        )}
-      >
-        <span className="text-base @min-[350px]:text-lg font-semibold">
-          {data.speed}
-        </span>
-        <span className="hidden @min-[330px]:flex flex-col -space-y-1">
-          <span className="text-[0.7rem] font-medium">{data.max}</span>
-          <span className="hidden @min-sm:block text-[0.6rem]">mph</span>
-        </span>
-      </span>
-    </div>
+    </CellSurface>
   );
 };
 
 const WeatherStat = ({
   data,
-  level,
   water,
+  waterMin,
+  waterMax,
 }: {
   data?: { condition?: string; temp: number; code?: number | null };
   water?: number;
-  level?: string;
+  waterMin?: number;
+  waterMax?: number;
 }) => {
   // Function to get weather icon based on WMO code
   const getWeatherIcon = (code: number | null) => {
@@ -214,41 +487,172 @@ const WeatherStat = ({
     return <CloudIcon className="w-4 h-4" color="#bdbdbdff" />;
   };
 
+  const isWater = water != null;
+  const tempValue = water ?? data?.temp;
+  const waterTemp = typeof water === "number" ? water : null;
+  const waterRangeOk =
+    typeof waterMin === "number" &&
+    typeof waterMax === "number" &&
+    waterMax > waterMin &&
+    waterTemp != null;
+  const waterT = waterRangeOk
+    ? clamp01((waterTemp - waterMin) / (waterMax - waterMin))
+    : null;
+
   return (
-    <div
-      className={cn(
-        "mx-auto w-full flex justify-center items-center gap-0.5 rounded-sm p-1.5 @min-md:p-3 h-10",
-        level
-      )}
-    >
-      {!water && getWeatherIcon(data?.code ?? null)}
-      <span className="inline-flex items-start">
-        <span className="text-base font-semibold">{water ?? data?.temp}</span>
-        <span className="text-xs ml-0.5">&deg;F</span>
-      </span>
-    </div>
+    <CellSurface>
+      <div className="w-full">
+        <div className="flex items-center justify-center gap-1">
+          {!isWater && (
+            <span aria-hidden="true">{getWeatherIcon(data?.code ?? null)}</span>
+          )}
+          <span className="inline-flex items-start gap-0.5">
+            <span className="text-[1.05rem] font-semibold tabular-nums leading-none">
+              {tempValue}
+            </span>
+            <span className="text-[0.7rem] text-muted-foreground">&deg;F</span>
+          </span>
+          {isWater && waterT != null ? (
+            <span
+              aria-hidden="true"
+              className="hidden @min-md:block relative ml-1 h-7 w-2.5 overflow-hidden rounded-full bg-foreground/10"
+            >
+              <span
+                className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-cyan-500/45 to-amber-500/35 dark:from-cyan-400/40 dark:to-amber-400/30"
+                style={{ height: `${Math.max(10, waterT * 100)}%` }}
+              />
+            </span>
+          ) : null}
+        </div>
+      </div>
+    </CellSurface>
   );
 };
 
-const GeneralStat = ({
-  val,
-  unit,
-  level,
+const SurfStat = ({
+  range,
+  maxFt,
+  scaleMax,
 }: {
-  val: number | string;
-  unit: string;
-  level: string;
+  range: string;
+  maxFt: number | null;
+  scaleMax: number;
 }) => {
   return (
-    <span
-      className={cn(
-        "mx-auto text-base font-semibold flex justify-center items-center text-center gap-1 whitespace-nowrap rounded-sm p-1.5 @min-md:p-3 h-10",
-        level
-      )}
-    >
-      {val}
-      <span className="text-xs hidden sm:inline font-normal">{unit}</span>
-    </span>
+    <CellSurface className="px-2">
+      <div className="w-full">
+        <div className="flex items-baseline justify-center gap-1 whitespace-nowrap">
+          <span className="text-[1.05rem] font-semibold tabular-nums leading-none">
+            {range}
+          </span>
+          <span className="text-[0.65rem] text-muted-foreground">ft</span>
+        </div>
+        <MiniMarkerTrack
+          value={maxFt}
+          min={0}
+          max={scaleMax}
+          trackClassName={statusGradientTrackClass}
+        />
+      </div>
+    </CellSurface>
+  );
+};
+
+const EnergyStat = ({
+  value,
+  scaleMax,
+}: {
+  value: number;
+  scaleMax: number;
+}) => {
+  return (
+    <CellSurface>
+      <div className="w-full">
+        <div className="flex items-center justify-center gap-2">
+          <span className="inline-flex items-baseline gap-1 whitespace-nowrap">
+            <span className="text-[1.05rem] font-semibold tabular-nums leading-none">
+              {value}
+            </span>
+            <span className="text-[0.65rem] text-muted-foreground">kJ</span>
+          </span>
+        </div>
+        <DotScale
+          value={value}
+          max={scaleMax}
+          fillClassName={groupAccentFillClass.energy}
+        />
+      </div>
+    </CellSurface>
+  );
+};
+
+type PressureTrend = "up" | "down" | "flat";
+
+function getPressureTrend(delta: number): PressureTrend {
+  if (!Number.isFinite(delta)) return "flat";
+  if (delta > 0) return "up";
+  if (delta < 0) return "down";
+  return "flat";
+}
+
+const PressureStat = ({
+  value,
+  min,
+  max,
+  prev,
+}: {
+  value: number;
+  min: number;
+  max: number;
+  prev: number | null;
+}) => {
+  const delta = prev == null ? 0 : value - prev;
+  const trend = getPressureTrend(delta);
+  const TrendIcon =
+    trend === "up" ? ArrowUp : trend === "down" ? ArrowDown : Minus;
+  const trendClass =
+    trend === "up"
+      ? "text-emerald-600 dark:text-emerald-400"
+      : trend === "down"
+      ? "text-rose-600 dark:text-rose-400"
+      : "text-muted-foreground";
+  const deltaText =
+    prev == null ? "0.00" : `${delta >= 0 ? "+" : ""}${delta.toFixed(2)}`;
+
+  return (
+    <CellSurface className="px-3">
+      <div className="flex w-full items-center justify-center @min-xl:justify-between gap-2">
+        <div className="flex min-w-0 flex-col items-start mt-1">
+          <div className="flex items-baseline gap-1 whitespace-nowrap">
+            <span className="text-[0.9rem] @min-lg:text-[1.05rem] font-semibold tabular-nums leading-none">
+              {value.toFixed(2)}
+            </span>
+            <span className="hidden @min-xs:block text-[0.65rem] text-muted-foreground">
+              in
+            </span>
+          </div>
+          <div
+            className={cn(
+              "inline-flex items-center gap-0.5",
+              "text-[0.65rem] font-semibold tabular-nums",
+              trendClass
+            )}
+          >
+            <TrendIcon
+              className="hidden @min-xs:block h-3.5 w-3.5"
+              aria-hidden="true"
+            />
+            <span>{deltaText}</span>
+          </div>
+        </div>
+        <PressureNeedle
+          className="hidden @min-xl:block"
+          value={value}
+          min={min}
+          max={max}
+        />
+      </div>
+    </CellSurface>
   );
 };
 
@@ -293,21 +697,38 @@ const isValidDate = (value: DateLike): value is Date =>
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+const TABLE_COLUMNS: Array<{ id: string; label: string }> = [
+  { id: "surf", label: "Surf" },
+  { id: "wind", label: "Wind" },
+  { id: "swellPrimary", label: "Primary Swell" },
+  { id: "swellSecondary", label: "Swell 2" },
+  { id: "swellTertiary", label: "Swell 3" },
+  { id: "weather", label: "Weather" },
+  { id: "water", label: "Water" },
+  { id: "energy", label: "Energy" },
+  { id: "pressure", label: "Pressure" },
+];
+
+const SPACER_COLUMN: { id: string; label: string } = {
+  id: "__spacer",
+  label: "",
+};
+
 const StatTable = ({
   numDays,
   numHours,
   header = false,
   beachId,
   date,
-  }: {
-    numDays: number;
-    numHours: number;
-    header?: boolean;
-    beachId?: string;
-    date?: Date;
-  }) => {
-    // TODO(overview-perf): Ideally drive this loading state from a shared forecast context
-    // when available so both overview and forecast tables stay in sync with other widgets.
+}: {
+  numDays: number;
+  numHours: number;
+  header?: boolean;
+  beachId?: string;
+  date?: Date;
+}) => {
+  // TODO(overview-perf): Ideally drive this loading state from a shared forecast context
+  // when available so both overview and forecast tables stay in sync with other widgets.
   const [loading, setLoading] = React.useState<boolean>(true);
   const [data, setData] = React.useState<TableDay[]>([]);
   const {
@@ -316,14 +737,14 @@ const StatTable = ({
     selected,
     showSecondarySwells,
   } = useDateContext();
-  const pathname = usePathname();
   const { selectedTab } = useClientPath();
   const forecastPage = selectedTab === "forecast";
   const { rows: sharedRows } = useForecastData();
   const { setReady } = useOptionalForecastChartLoading("forecast-table");
   const dashboardBusy = useOptionalForecastChartsBusyState();
-  const [stableSelectedHour, setStableSelectedHour] =
-    React.useState<number | null>(null);
+  const [stableSelectedHour, setStableSelectedHour] = React.useState<
+    number | null
+  >(null);
   const wasBusyRef = React.useRef(dashboardBusy);
 
   // Forecast dashboard readiness reporting for the table: mark not ready
@@ -583,10 +1004,7 @@ const StatTable = ({
             }
           }
 
-          const makeEntryFromRow = (
-            r: ForecastData,
-            hour: number
-          ): TableEntry => {
+          const makeEntryFromRow = (r: ForecastData): TableEntry => {
             // Use the ACTUAL hour from the data, not the target hour
             const actualHour = getLocalHour(r.timestamp);
             const displayHour = actualHour % 12 === 0 ? 12 : actualHour % 12;
@@ -684,29 +1102,8 @@ const StatTable = ({
             };
           };
 
-          const makePlaceholder = (hour: number): TableEntry => {
-            const displayHour = hour % 12 === 0 ? 12 : hour % 12;
-            const ampm = hour >= 12 ? "PM" : "AM";
-            return {
-              index: hour,
-              time: `${displayHour} ${ampm}`,
-              wind: { label: "wind", dir: "-", speed: 0, max: 0, deg: 0 },
-              surf: { label: "surf", height: "-" },
-              swell: {
-                label: "swell",
-                primary: { height: 0, period: 0, dir: "-", deg: 0 },
-                secondary: [],
-              },
-              pressure: { label: "pressure", value: 0 },
-              weather: { label: "weather", condition: "clear", temp: 64 },
-              water: { label: "water", temp: 64 },
-              energy: { label: "energy", value: 278 },
-            };
-          };
-
           const entries: TableEntry[] = sampledRows.map((r) => {
-            const actualHour = getLocalHour(r.timestamp);
-            return makeEntryFromRow(r, actualHour);
+            return makeEntryFromRow(r);
           });
 
           const firstTs = rows[0]?.timestamp ?? new Date().toISOString();
@@ -774,52 +1171,108 @@ const StatTable = ({
     return () => {
       cancelled = true;
     };
-  }, [dateRange, beachId, numDays, numHours, sharedRows]);
-  // Note: Removed selectedDays from deps since it's now in dateRange memo
-
-  const COLUMNS = [
-    { id: "surf", label: "Surf" },
-    { id: "wind", label: "Wind" },
-    { id: "swellPrimary", label: "Primary Swell" },
-    { id: "swellSecondary", label: "Secondary Swell" },
-    { id: "swellTertiary", label: "Tertiary Swell" },
-    { id: "weather", label: "Weather" },
-    { id: "water", label: "Water" },
-    { id: "energy", label: "Energy" },
-    { id: "pressure", label: "Pressure" },
-  ];
+  }, [
+    dateRange,
+    beachId,
+    numDays,
+    numHours,
+    sharedRows,
+    forecastPage,
+    requestedDate,
+    selectedDays,
+  ]);
 
   // Filter columns based on toggle state
   const filteredColumns = React.useMemo(() => {
     if (showSecondarySwells) {
-      return COLUMNS;
+      return TABLE_COLUMNS;
     }
-    return COLUMNS.filter(
+    return TABLE_COLUMNS.filter(
       (col) => col.id !== "swellSecondary" && col.id !== "swellTertiary"
     );
   }, [showSecondarySwells]);
 
-  const [width, setWidth] = React.useState(0);
-  const [columnPages, setColumnPages] = React.useState([COLUMNS]);
+  const [columnPages, setColumnPages] = React.useState([TABLE_COLUMNS]);
   const [currentPage, setCurrentPage] = React.useState(0);
-  const [startIndex, setStartIndex] = React.useState(0);
 
-  const tableRef = React.useRef<HTMLDivElement>(null);
-  const [pageChangeToken, setPageChangeToken] = React.useState(0);
-  const [fadeIn, setFadeIn] = React.useState(true);
-  // Page animation: simple fade only (no spring/bounce)
+  const tableRef = React.useRef<HTMLDivElement | null>(null);
+  const [tableEl, setTableEl] = React.useState<HTMLDivElement | null>(null);
+  const assignTableRef = React.useCallback((node: HTMLDivElement | null) => {
+    tableRef.current = node;
+    setTableEl(node);
+  }, []);
+
+  const resizeRafRef = React.useRef<number | null>(null);
+  const measuredWidthRef = React.useRef<number>(0);
+  type LayoutBucket = "lt400" | "lt600" | "lt900" | "lt1150" | "gte1150";
+  const layoutBucketRef = React.useRef<LayoutBucket>("gte1150");
+  const LAYOUT_HYSTERESIS_PX = 20;
 
   React.useEffect(() => {
     const table = tableRef.current;
     if (!table) return;
 
     const adjustData = () => {
-      const widthNow = table.clientWidth;
-      setWidth(widthNow);
+      const widthNow = measuredWidthRef.current || table.clientWidth;
       let newPages: typeof columnPages;
       // Use filtered columns instead of COLUMNS
       const cols = filteredColumns;
-      if (widthNow < 600) {
+
+      const hysteresis = LAYOUT_HYSTERESIS_PX;
+      const up = (edge: number) => edge + hysteresis;
+      const down = (edge: number) => edge - hysteresis;
+      const stepBucket = (bucket: LayoutBucket): LayoutBucket => {
+        switch (bucket) {
+          case "lt400":
+            if (widthNow > up(400)) return "lt600";
+            return "lt400";
+          case "lt600":
+            if (widthNow < down(400)) return "lt400";
+            if (widthNow > up(600)) return "lt900";
+            return "lt600";
+          case "lt900":
+            if (widthNow < down(600)) return "lt600";
+            if (widthNow > up(900)) return "lt1150";
+            return "lt900";
+          case "lt1150":
+            if (widthNow < down(900)) return "lt900";
+            if (widthNow > up(1150)) return "gte1150";
+            return "lt1150";
+          case "gte1150":
+          default:
+            if (widthNow < down(1150)) return "lt1150";
+            return "gte1150";
+        }
+      };
+
+      // Allow large width jumps (tab switches, minimize/maximize) to settle in a
+      // single pass, while still keeping hysteresis near boundaries.
+      let bucket = layoutBucketRef.current;
+      for (let i = 0; i < 4; i += 1) {
+        const next = stepBucket(bucket);
+        if (next === bucket) break;
+        bucket = next;
+      }
+      const nextBucket = bucket;
+
+      layoutBucketRef.current = nextBucket;
+
+      if (nextBucket === "lt400") {
+        if (showSecondarySwells) {
+          newPages = [
+            [cols[0], cols[1]],
+            cols.slice(2, 4),
+            cols.slice(4, 6),
+            cols.slice(6, cols.length),
+          ];
+        } else {
+          newPages = [
+            [cols[0], cols[1]],
+            cols.slice(2, 4),
+            cols.slice(4, cols.length),
+          ];
+        }
+      } else if (nextBucket === "lt600") {
         if (showSecondarySwells) {
           newPages = [
             [cols[0], cols[2], cols[1]],
@@ -829,23 +1282,21 @@ const StatTable = ({
         } else {
           newPages = [[cols[0], cols[2], cols[1]], cols.slice(3, cols.length)];
         }
-      } else if (widthNow < 800) {
+      } else if (nextBucket === "lt900") {
         if (showSecondarySwells) {
           newPages = [
-            [cols[0], cols[2], cols[5], cols[6], cols[1]],
-            [cols[3], cols[4], cols[7], cols[8]].filter(Boolean),
+            [cols[0], cols[2], cols[1]],
+            [cols[3], cols[4]].filter(Boolean),
+            cols.slice(5, cols.length).filter(Boolean),
           ];
         } else {
-          newPages = [
-            [cols[0], cols[2], cols[3], cols[1]],
-            cols.slice(3, cols.length),
-          ];
+          newPages = [[cols[0], cols[2], cols[1]], cols.slice(3, cols.length)];
         }
-      } else if (widthNow < 1150) {
+      } else if (nextBucket === "lt1150") {
         if (showSecondarySwells) {
           newPages = [
             [cols[0], cols[2], cols[3], cols[4], cols[1]].filter(Boolean),
-            cols.slice(5, cols.length),
+            [cols[1], cols[5], cols[6], cols[7], cols[8]].filter(Boolean),
           ];
         } else {
           newPages = [
@@ -884,43 +1335,84 @@ const StatTable = ({
       });
     };
 
-    const observer = new ResizeObserver(adjustData);
+    const scheduleAdjust = () => {
+      if (resizeRafRef.current != null) return;
+      resizeRafRef.current = window.requestAnimationFrame(() => {
+        resizeRafRef.current = null;
+        adjustData();
+      });
+    };
+
+    const observer = new ResizeObserver(() => {
+      const w = table.clientWidth;
+      if (w > 0) measuredWidthRef.current = w;
+      scheduleAdjust();
+    });
     observer.observe(table);
 
+    const onWindowResize = () => {
+      const w = table.clientWidth;
+      if (w > 0) measuredWidthRef.current = w;
+      scheduleAdjust();
+    };
+    window.addEventListener("resize", onWindowResize);
+    window.visualViewport?.addEventListener("resize", onWindowResize);
+
+    measuredWidthRef.current = table.clientWidth;
     adjustData();
 
-    return () => observer.disconnect();
-  }, [filteredColumns]);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", onWindowResize);
+      window.visualViewport?.removeEventListener("resize", onWindowResize);
+      if (resizeRafRef.current != null) {
+        window.cancelAnimationFrame(resizeRafRef.current);
+        resizeRafRef.current = null;
+      }
+    };
+  }, [filteredColumns, showSecondarySwells, selectedTab]);
 
   const handleNext = () => {
-    setFadeIn(false);
     setCurrentPage((prev) => Math.min(prev + 1, columnPages.length - 1));
-    requestAnimationFrame(() => setFadeIn(true));
   };
   const handleBack = () => {
-    setFadeIn(false);
     setCurrentPage((prev) => Math.max(prev - 1, 0));
-    requestAnimationFrame(() => setFadeIn(true));
   };
-
-  // Trigger a subtle fade/slide-in animation on page change
   const visibleColumns = columnPages[currentPage];
 
   const windowSize = 4;
 
-  const handleNextDays = () => {
-    if (startIndex + windowSize < data.length) {
-      setStartIndex((prev) => prev + 1);
-    }
-  };
+  const visibleDays = data.slice(0, windowSize);
 
-  const handleBackDays = () => {
-    if (startIndex > 0) {
-      setStartIndex((prev) => prev - 1);
-    }
-  };
+  const barScales = React.useMemo(() => {
+    let waterMin = Number.POSITIVE_INFINITY;
+    let waterMax = Number.NEGATIVE_INFINITY;
 
-  const visibleDays = data.slice(startIndex, startIndex + windowSize);
+    for (const day of data) {
+      for (const entry of day.vals) {
+        if (Number.isFinite(entry.water.temp)) {
+          waterMin = Math.min(waterMin, entry.water.temp);
+          waterMax = Math.max(waterMax, entry.water.temp);
+        }
+      }
+    }
+
+    if (!Number.isFinite(waterMin) || !Number.isFinite(waterMax)) {
+      waterMin = 50;
+      waterMax = 75;
+    } else if (waterMax - waterMin < 2) {
+      waterMin -= 1;
+      waterMax += 1;
+    }
+
+    return {
+      energyMax: ENERGY_SCALE_MAX_KJ,
+      waterMin,
+      waterMax,
+      pressureMin: 29.4,
+      pressureMax: 30.6,
+    };
+  }, [data]);
 
   // Swipe and horizontal wheel to change column pages
   const touchStartX = React.useRef<number | null>(null);
@@ -951,143 +1443,164 @@ const StatTable = ({
     if (e.deltaX < -8) handleBack();
   };
 
-  // Unified floating/docked pager tied to table bounds
-  const pagerRef = React.useRef<HTMLDivElement | null>(null);
-  const [dockMode, setDockMode] = React.useState<"fixed" | "dock" | "hidden">(
-    "hidden"
-  );
-  const [fixedPos, setFixedPos] = React.useState<{
-    top: number;
+  type PagerMode = "hidden" | "fixed" | "docked";
+  const [pagerMode, setPagerMode] = React.useState<PagerMode>("hidden");
+  const [pagerFrame, setPagerFrame] = React.useState<{
     left: number;
-  } | null>(null);
-
-  // Hysteresis + rAF to prevent flicker when docking at bottom
-  const modeRef = React.useRef(dockMode);
-  React.useEffect(() => {
-    modeRef.current = dockMode;
-  }, [dockMode]);
-  const lastSwitchRef = React.useRef<number>(0);
+    width: number;
+  }>({ left: 0, width: 0 });
+  const [portalTarget, setPortalTarget] = React.useState<HTMLElement | null>(
+    null
+  );
 
   React.useEffect(() => {
-    let rafId: number | null = null;
-    const updateNow = () => {
-      if (columnPages.length <= 1) {
-        setDockMode("hidden");
+    setPortalTarget(document.body);
+  }, []);
+
+  React.useEffect(() => {
+    if (columnPages.length <= 1) {
+      setPagerMode("hidden");
+      return;
+    }
+    if (!tableEl) return;
+    if (typeof window === "undefined") return;
+
+    let raf = 0;
+    const update = () => {
+      raf = 0;
+      const rect = tableEl.getBoundingClientRect();
+      const vh = window.innerHeight || 0;
+      const vw = window.innerWidth || 0;
+
+      const isVisible = rect.bottom > 0 && rect.top < vh;
+      if (!isVisible) {
+        setPagerMode("hidden");
         return;
       }
-      const container = tableRef.current;
-      const pill = pagerRef.current;
-      if (!container) {
-        setDockMode("hidden");
-        return;
-      }
-      const c = container.getBoundingClientRect();
-      const vh = window.innerHeight;
-      const vw = window.innerWidth;
-      const margin = 12;
-      const pillH = pill?.getBoundingClientRect().height ?? 40;
-      if (c.bottom < 0 || c.top > vh) {
-        setDockMode("hidden");
-        return;
-      }
-      const viewportBottomY = vh - margin - pillH;
-      const tableBottomY = c.bottom - margin - pillH;
-      const hysteresis = 0; // px buffer to avoid toggling
-      const now = Date.now();
-      const minInterval = 200; // debounce between mode changes
-      const wantDock =
-        tableBottomY <=
-        viewportBottomY -
-          (modeRef.current === "dock" ? -hysteresis : hysteresis);
-      if (wantDock) {
-        if (modeRef.current !== "dock") {
-          if (now - lastSwitchRef.current < minInterval) return;
-          lastSwitchRef.current = now;
-        }
-        setDockMode("dock");
-        setFixedPos(null);
-        return;
-      }
-      const desiredLeft = Math.min(c.right - margin, vw - margin);
-      const minLeft = c.left + margin + 1;
-      const left = Math.max(minLeft, desiredLeft);
-      const top = vh - margin - pillH;
-      if (modeRef.current !== "fixed") {
-        if (now - lastSwitchRef.current < minInterval) return;
-        lastSwitchRef.current = now;
-      }
-      setFixedPos({ top, left });
-      setDockMode("fixed");
+
+      const visibleLeft = Math.max(0, rect.left);
+      const visibleRight = Math.min(vw, rect.right);
+      const visibleWidth = Math.max(0, visibleRight - visibleLeft);
+      setPagerFrame({ left: visibleLeft, width: visibleWidth });
+
+      // Stick to the viewport while the table extends below the viewport,
+      // then dock to the table bottom once you reach the end of the table.
+      const dockThresholdPx = 12;
+      const shouldDock = rect.bottom <= vh - dockThresholdPx;
+      setPagerMode(shouldDock ? "docked" : "fixed");
     };
+
     const schedule = () => {
-      if (rafId != null) cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(updateNow);
+      if (raf) return;
+      raf = window.requestAnimationFrame(update);
     };
+
     schedule();
     window.addEventListener("scroll", schedule, { passive: true });
     window.addEventListener("resize", schedule);
     return () => {
+      if (raf) window.cancelAnimationFrame(raf);
       window.removeEventListener("scroll", schedule);
       window.removeEventListener("resize", schedule);
-      if (rafId != null) cancelAnimationFrame(rafId);
     };
-  }, [columnPages.length]);
+  }, [columnPages.length, tableEl]);
 
   const Pager = () => (
     <>
       <Button
         aria-label="previous columns"
         size="icon"
-        className="h-7 w-7 border border-gray-100 hover:bg-gray-200 bg-gray-50 rounded-full"
+        className={cn(
+          "h-7 w-7 rounded-full border border-border/60",
+          "bg-background/80 text-muted-foreground shadow-sm",
+          "hover:bg-background focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        )}
         onClick={handleBack}
         disabled={currentPage === 0}
       >
-        <ArrowLeft color="#494949ff" />
+        <ArrowLeft className="h-4 w-4" />
       </Button>
       <div className="flex gap-1">
         {columnPages.map((_, i) => (
           <span
             key={`pager-${i}`}
-            className={`h-2 w-2 rounded-full transition-colors ${
-              i === currentPage ? "bg-foreground" : "bg-gray-300"
-            }`}
+            className={cn(
+              "h-2 w-2 rounded-full transition-colors motion-reduce:transition-none",
+              i === currentPage ? "bg-foreground/80" : "bg-foreground/25"
+            )}
           />
         ))}
       </div>
       <Button
         aria-label="next columns"
         size="icon"
-        className="h-7 w-7 border border-gray-100 hover:bg-gray-200 bg-gray-50 rounded-full"
+        className={cn(
+          "h-7 w-7 rounded-full border border-border/60",
+          "bg-background/80 text-muted-foreground shadow-sm",
+          "hover:bg-background focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        )}
         onClick={handleNext}
         disabled={currentPage === columnPages.length - 1}
       >
-        <ArrowRight color="#494949ff" />
+        <ArrowRight className="h-4 w-4" />
       </Button>
     </>
   );
 
-  return (
+  const pagerShell = (
     <div
-      ref={tableRef}
-      className="relative -mx-1 @min-md:mx-2 @min-2xl:mx-4"
-      onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
-      onTouchEnd={onTouchEnd}
-      onWheel={onWheel}
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (columnPages.length <= 1) return;
-        if (e.key === "ArrowRight") {
-          e.preventDefault();
-          handleNext();
-        } else if (e.key === "ArrowLeft") {
-          e.preventDefault();
-          handleBack();
-        }
-      }}
+      className={cn(
+        "pointer-events-auto flex items-center gap-2",
+        "bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/70",
+        "border border-border/60 rounded-full px-2 py-1 shadow-md"
+      )}
     >
-      {/* Toggle button for secondary/tertiary swells */}
-      {/* <div className="flex justify-end mb-2">
+      <Pager />
+    </div>
+  );
+
+  return (
+    <>
+      {pagerMode === "fixed" && portalTarget
+        ? createPortal(
+            <div
+              className="fixed z-20 flex justify-center pointer-events-none"
+              style={{
+                left: pagerFrame.left,
+                width: pagerFrame.width,
+                bottom: "calc(0.75rem + env(safe-area-inset-bottom))",
+              }}
+            >
+              {pagerShell}
+            </div>,
+            portalTarget
+          )
+        : null}
+      <div
+        ref={assignTableRef}
+        className={cn(
+          "relative -mx-1 @min-md:mx-2 @min-2xl:mx-4",
+          columnPages.length > 1 && "pb-16",
+          "rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        )}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        onWheel={onWheel}
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (columnPages.length <= 1) return;
+          if (e.key === "ArrowRight") {
+            e.preventDefault();
+            handleNext();
+          } else if (e.key === "ArrowLeft") {
+            e.preventDefault();
+            handleBack();
+          }
+        }}
+      >
+        {/* Toggle button for secondary/tertiary swells */}
+        {/* <div className="flex justify-end mb-2">
         <Button
           variant="outline"
           size="sm"
@@ -1107,58 +1620,83 @@ const StatTable = ({
           )}
         </Button>
       </div> */}
-      {dockMode === "fixed" && fixedPos && (
-        <div
-          ref={pagerRef}
-          className={cn(
-            "fixed z-30 flex items-center gap-2",
-            "bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/70",
-            "border border-border/60 rounded-full px-2 py-1 shadow-md"
-          )}
-          style={{
-            top: fixedPos.top,
-            left: fixedPos.left,
-            transform: "translateX(-100%)",
-          }}
-          data-stat-table-pager="floating"
-        >
-          <Pager />
-        </div>
-      )}
-      {dockMode === "dock" && (
-        <div className="pointer-events-none">
+        {pagerMode === "docked" && columnPages.length > 1 ? (
           <div
-            ref={pagerRef}
-            className={cn(
-              "absolute left-1/2 transform -translate-x-1/2 bottom-1 z-20 flex items-center gap-2 pointer-events-auto",
-              "bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/70",
-              "border border-border/60 rounded-full px-2 py-1 shadow-md"
-            )}
-            data-stat-table-pager="docked"
+            className="absolute inset-x-0 z-20 flex justify-center pointer-events-none"
+            style={{ bottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
           >
-            <Pager />
+            {pagerShell}
           </div>
-        </div>
-        )}
-      <div
-        className={cn(
-          "transition-opacity duration-150 ease-in-out",
-          fadeIn ? "opacity-100" : "opacity-0"
-        )}
-      >
-        <table className="w-full table-auto border-separate text-sm">
+        ) : null}
+        <table className="w-full table-fixed border-separate border-spacing-x-2 border-spacing-y-1.5 text-sm">
+          <colgroup>
+            <col className="w-12" />
+            {visibleColumns.map((col) => (
+              <col
+                key={col.id}
+                className={cn(
+                  col.id === "surf" && "w-[clamp(5.25rem,10vw,5.75rem)]",
+                  col.id === "wind" &&
+                    showSecondarySwells &&
+                    "@min-5xl:w-[11rem]",
+                  col.id === "weather" || col.id === "water"
+                    ? showSecondarySwells
+                      ? "@min-[1175px]:w-[clamp(4.5rem,9vw,5.5rem)]"
+                      : "@min-5xl:w-[clamp(4.5rem,9vw,5.5rem)]"
+                    : "",
+                  col.id === "energy"
+                    ? showSecondarySwells
+                      ? "@min-[1175px]:w-[clamp(4.75rem,9vw,5.5rem)]"
+                      : "@min-5xl:w-[clamp(4.75rem,9vw,5.5rem)]"
+                    : "",
+                  col.id === "pressure"
+                    ? showSecondarySwells
+                      ? "@min-[1175px]:w-[clamp(5.25rem,10vw,6.75rem)]"
+                      : "@min-5xl:w-[clamp(5.25rem,10vw,6.75rem)]"
+                    : "",
+                  col.id === "__spacer" && "w-[10rem]"
+                )}
+              />
+            ))}
+          </colgroup>
           <thead>
             <tr>
-              <th className="sticky left-0 z-1 bg-highlight-4" />
+              <th scope="col" className="sticky left-0 z-10 w-12 pb-1">
+                <div className="flex flex-col items-center gap-1">
+                  <div className="flex items-center gap-1 text-[0.7rem] font-medium uppercase tracking-wide text-muted-foreground">
+                    <Clock3 className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>Time</span>
+                  </div>
+                  <span
+                    aria-hidden="true"
+                    className="h-[2px] w-8 rounded-full bg-foreground/20"
+                  />
+                  <span className="sr-only">Time</span>
+                </div>
+              </th>
               {visibleColumns.map((col) => {
+                const group = getMetricGroupForColumnId(col.id);
                 return (
                   <th
                     key={col.id}
+                    scope="col"
                     className={cn(
-                      "px-2 pb-3 text-center font-medium text-xs sm:text-sm"
+                      "pb-1 text-center text-[0.7rem] font-medium uppercase tracking-wide text-muted-foreground sm:text-xs"
                     )}
                   >
-                    {col.label}
+                    <div className="flex flex-col items-center gap-1">
+                      <span className={cn(!col.label && "sr-only")}>
+                        {col.label || "Spacer"}
+                      </span>
+                      <span
+                        aria-hidden="true"
+                        className={cn(
+                          "h-[2px] w-10 rounded-full",
+                          groupAccentFillClass[group],
+                          col.id === "__spacer" ? "opacity-0" : "opacity-60"
+                        )}
+                      />
+                    </div>
                   </th>
                 );
               })}
@@ -1178,27 +1716,39 @@ const StatTable = ({
                           <tr>
                             <td
                               colSpan={visibleColumns.length + 1}
-                              className="p-3 bg-highlight-5 rounded-sm shadow-even"
+                              className="p-0"
                             >
-                              <div className="h-4 w-32 rounded bg-highlight-3 animate-pulse" />
+                              <div className="mx-1 my-4 relative overflow-hidden rounded-2xl border border-border/60 bg-foreground/[0.06] px-4 py-3 shadow-[0_1px_0_rgba(0,0,0,0.04),0_12px_30px_rgba(0,0,0,0.06)] dark:bg-foreground/[0.09] dark:shadow-[0_1px_0_rgba(0,0,0,0.35),0_12px_30px_rgba(0,0,0,0.35)]">
+                                <div className="absolute inset-0 bg-gradient-to-r from-foreground/[0.06] via-transparent to-foreground/[0.02] dark:from-foreground/[0.09] dark:to-foreground/[0.04]" />
+                                <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-foreground/20 to-transparent dark:via-foreground/25" />
+                                <div className="relative flex items-center gap-3">
+                                  <div className="h-8 w-8 shrink-0 rounded-full bg-foreground/10 animate-pulse motion-reduce:animate-none" />
+                                  <div className="min-w-0 flex-1">
+                                    <div className="h-3 w-44 max-w-full rounded bg-foreground/10 animate-pulse motion-reduce:animate-none" />
+                                    <div className="mt-2 h-[2px] w-20 rounded-full bg-foreground/10 animate-pulse motion-reduce:animate-none" />
+                                  </div>
+                                </div>
+                              </div>
                             </td>
                           </tr>
                         )}
                         {Array.from({ length: numHours }).map((_, rowIdx) => (
                           <tr
                             key={`skeleton-row-${dayIdx}-${rowIdx}`}
-                            className="border-b border-border/20 last:border-b-0"
+                            className="transition-colors"
                           >
-                            <th className="relative w-5 h-14 border-r border-border/40 p-0" />
+                            <th
+                              scope="row"
+                              className="sticky left-0 z-10 p-0 align-middle bg-background/70 backdrop-blur supports-[backdrop-filter]:bg-background/50 border-r border-border/40 dark:border-border/50"
+                            >
+                              <div className="h-14 w-12 rounded-xl border border-border/25 bg-foreground/[0.03] dark:bg-foreground/[0.05] animate-pulse motion-reduce:animate-none" />
+                            </th>
                             {visibleColumns.map((col) => (
                               <td
                                 key={`skeleton-${col.id}-${dayIdx}-${rowIdx}`}
-                                className={cn(
-                                  "px-1",
-                                  "border-r border-border/20 last:border-r-0"
-                                )}
+                                className="p-0 align-middle"
                               >
-                                <div className="h-10 w-full rounded bg-highlight-3 animate-pulse" />
+                                <div className="h-14 w-full rounded-lg border border-border/25 bg-foreground/[0.03] dark:bg-foreground/[0.05] animate-pulse motion-reduce:animate-none" />
                               </td>
                             ))}
                           </tr>
@@ -1208,143 +1758,130 @@ const StatTable = ({
                   );
                 })()
               : visibleDays.map((day, i) => {
-                    const content = day.vals.map((entry, rowIdx) => {
+                  const content = day.vals.flatMap((entry, rowIdx) => {
                     let isSelectedHour = false;
-                      // Determine selection per page context
-                      if (forecastPage) {
-                        // Highlight only within the selected day and matching interval bucket
-                        const sel = selected instanceof Date ? selected : null;
+                    // Determine selection per page context
+                    if (forecastPage) {
+                      // Highlight only within the selected day and matching interval bucket
+                      const sel = selected instanceof Date ? selected : null;
                       const sameDay = sel
                         ? new Date(
                             sel.getFullYear(),
                             sel.getMonth(),
                             sel.getDate()
-                            ).getTime() === day.dateMs
-                          : false;
-                        if (sameDay) {
-                          const hours = day.vals
-                            .map((v) => v.index)
-                            .sort((a, b) => a - b);
+                          ).getTime() === day.dateMs
+                        : false;
+                      if (sameDay) {
+                        const hours = day.vals
+                          .map((v) => v.index)
+                          .sort((a, b) => a - b);
                         // pick the last hour <= selected hour, otherwise first
-                          const effectiveHour = dashboardBusy
-                            ? stableSelectedHour ?? selectedHour ?? null
-                            : selectedHour ?? null;
-                          if (effectiveHour != null) {
-                            let bucket = hours[0];
-                            for (const h of hours) {
-                              if (h <= effectiveHour) bucket = h;
-                            }
-                            isSelectedHour = entry.index === bucket;
+                        const effectiveHour = dashboardBusy
+                          ? stableSelectedHour ?? selectedHour ?? null
+                          : selectedHour ?? null;
+                        if (effectiveHour != null) {
+                          let bucket = hours[0];
+                          for (const h of hours) {
+                            if (h <= effectiveHour) bucket = h;
                           }
+                          isSelectedHour = entry.index === bucket;
                         }
-                      } else {
-                        // Overview behavior: exact hour match
-                      isSelectedHour = entry.index === selectedHour;
                       }
-                    return (
+                    } else {
+                      // Overview behavior: exact hour match
+                      isSelectedHour = entry.index === selectedHour;
+                    }
+                    const row = (
                       <tr
                         key={`${i}-${entry.index}`}
-                        className={cn(
-                          rowIdx !== day.vals.length - 1 &&
-                            "border-b border-border/20",
-                          isSelectedHour &&
-                            "ring-1 ring-muted-foreground/80 rounded-sm"
-                        )}
+                        className="transition-colors duration-200 motion-reduce:duration-0"
                       >
                         <th
                           scope="row"
-                          className="relative w-5 h-14 border-r border-border/40 p-0"
+                          className="sticky left-0 z-10 p-0 align-middle bg-background/70 backdrop-blur supports-[backdrop-filter]:bg-background/50"
                         >
-                          <span className="-translate-x-1/2 -translate-y-1/2 transform absolute top-1/2 left-1/2 -rotate-90 text-xs">
-                            {entry.index % 12 === 0 ? 12 : entry.index % 12}
-                            <span className="font-medium text-[0.6rem]">
-                              {entry.index >= 12 ? "PM" : "AM"}
-                            </span>
-                          </span>
+                          <TimeCell
+                            time={entry.time}
+                            selected={isSelectedHour}
+                          />
                         </th>
-                        {visibleColumns.map((col, colIdx) => {
-                          // Functional color coding for surf ranges (matches DatePicker)
-                          const getSurfLevel = (height: string) => {
-                            if (height === "-") return "bg-highlight-3";
-                            const match = height.match(/(\d+)-?(\d+)?/);
-                            if (!match) return "bg-highlight-3";
-                            // Use the max value from the range (e.g., "2-4" -> 4)
-                            const maxHeight = match[2]
-                              ? parseInt(match[2])
-                              : parseInt(match[1]);
-                            if (maxHeight >= 6)
-                              return "bg-red-300 dark:bg-orange-700";
-                            if (maxHeight >= 3)
-                              return "bg-orange-300 dark:bg-yellow-600";
-                            return "bg-green-300 dark:bg-green-700";
-                          };
-
-                          let content;
-                          switch (col.label) {
-                            case "Wind":
-                              content = <WindStat data={entry.wind} />;
-                              break;
-                            case "Weather":
+                        {visibleColumns.map((col) => {
+                          let content: React.ReactNode = null;
+                          switch (col.id) {
+                            case "__spacer":
                               content = (
-                                <WeatherStat
-                                  data={entry.weather}
-                                  level="bg-highlight-2"
-                                />
-                              );
-                              break;
-                            case "Surf":
-                              content = (
-                                <GeneralStat
-                                  val={entry.surf.height}
-                                  unit="ft"
-                                  level={getSurfLevel(entry.surf.height)}
-                                />
-                              );
-                              break;
-                            case "Primary Swell":
-                              {
-                                content = (
-                                  <SwellStat
-                                    primary
-                                    data={entry.swell?.primary as any}
+                                <CellSurface className="bg-transparent dark:bg-transparent border-border/20">
+                                  <span
+                                    aria-hidden="true"
+                                    className="h-2 w-10 rounded-full bg-foreground/10"
                                   />
-                                );
-                                break;
-                              }
+                                </CellSurface>
+                              );
                               break;
-                            case "Secondary Swell": {
-                              const s0 = entry.swell?.secondary?.[0];
-                              content = <SwellStat data={s0 as any} />;
-                              break;
-                            }
-                            case "Tertiary Swell": {
-                              const s1 = entry.swell?.secondary?.[1];
-                              content = <SwellStat data={s1 as any} />;
-                              break;
-                            }
-                            case "Pressure":
+                            case "wind":
                               content = (
-                                <GeneralStat
-                                  val={entry.pressure.value}
-                                  unit="in"
-                                  level="bg-highlight-2"
+                                <WindStat
+                                  data={entry.wind}
+                                  scaleMax={WIND_SCALE_MAX_MPH}
                                 />
                               );
                               break;
-                            case "Water":
+                            case "weather":
+                              content = <WeatherStat data={entry.weather} />;
+                              break;
+                            case "surf":
+                              content = (
+                                <SurfStat
+                                  range={entry.surf.height}
+                                  maxFt={parseSurfMaxFt(entry.surf.height)}
+                                  scaleMax={SURF_SCALE_MAX_FT}
+                                />
+                              );
+                              break;
+                            case "swellPrimary":
+                              content = (
+                                <SwellStat primary data={entry.swell.primary} />
+                              );
+                              break;
+                            case "swellSecondary": {
+                              const s0 = entry.swell.secondary[0];
+                              content = <SwellStat data={s0} />;
+                              break;
+                            }
+                            case "swellTertiary": {
+                              const s1 = entry.swell.secondary[1];
+                              content = <SwellStat data={s1} />;
+                              break;
+                            }
+                            case "pressure":
+                              content = (
+                                <PressureStat
+                                  value={entry.pressure.value}
+                                  min={barScales.pressureMin}
+                                  max={barScales.pressureMax}
+                                  prev={
+                                    rowIdx > 0
+                                      ? day.vals[rowIdx - 1]?.pressure.value ??
+                                        null
+                                      : null
+                                  }
+                                />
+                              );
+                              break;
+                            case "water":
                               content = (
                                 <WeatherStat
                                   water={entry.water.temp}
-                                  level="bg-highlight-2"
+                                  waterMin={barScales.waterMin}
+                                  waterMax={barScales.waterMax}
                                 />
                               );
                               break;
-                            case "Energy":
+                            case "energy":
                               content = (
-                                <GeneralStat
-                                  val={entry.energy.value}
-                                  unit="kJ"
-                                  level="bg-highlight-2"
+                                <EnergyStat
+                                  value={entry.energy.value}
+                                  scaleMax={barScales.energyMax}
                                 />
                               );
                               break;
@@ -1352,28 +1889,67 @@ const StatTable = ({
                           return (
                             <td
                               key={`${col.id}-${entry.index}`}
-                              className={cn(
-                                "px-1",
-                                colIdx !== visibleColumns.length - 1 &&
-                                  "border-r border-border/20"
-                              )}
+                              className="p-0 align-middle"
                             >
-                              {content}
+                              <div
+                                className={cn(
+                                  "rounded-lg",
+                                  isSelectedHour &&
+                                    "ring-2 ring-sky-500/30 shadow-sm dark:ring-sky-400/25 dark:shadow-[0_8px_16px_rgba(0,0,0,0.35)]"
+                                )}
+                              >
+                                {content}
+                              </div>
                             </td>
                           );
                         })}
                       </tr>
                     );
+
+                    const divider =
+                      rowIdx === day.vals.length - 1 ? null : (
+                        <tr
+                          key={`${i}-${entry.index}-divider`}
+                          aria-hidden="true"
+                          className="h-2"
+                        >
+                          <td
+                            colSpan={visibleColumns.length + 1}
+                            className="p-0"
+                          >
+                            <div className="mx-2 h-px bg-foreground/10 dark:bg-foreground/15" />
+                          </td>
+                        </tr>
+                      );
+
+                    return [row, divider].filter(Boolean);
                   });
                   return (
                     <React.Fragment key={i}>
                       {header && (
                         <tr key={`${i}-date`}>
                           <td
-                            colSpan={10}
-                            className="p-3 bg-highlight-5 font-semibold rounded-sm shadow-even"
+                            colSpan={visibleColumns.length + 1}
+                            className="p-0"
                           >
-                            {day.date}
+                            <div className="mx-1 my-4 relative overflow-hidden rounded-2xl border border-border/60 bg-foreground/[0.06] px-4 py-3 shadow-[0_1px_0_rgba(0,0,0,0.04),0_12px_30px_rgba(0,0,0,0.06)] dark:bg-foreground/[0.09] dark:shadow-[0_1px_0_rgba(0,0,0,0.35),0_12px_30px_rgba(0,0,0,0.35)]">
+                              <div className="absolute inset-0 bg-gradient-to-r from-foreground/[0.06] via-transparent to-foreground/[0.02] dark:from-foreground/[0.09] dark:to-foreground/[0.04]" />
+                              <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-foreground/20 to-transparent dark:via-foreground/25" />
+                              <div className="relative flex items-center gap-3">
+                                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border/60 bg-background/70 shadow-sm dark:bg-background/30">
+                                  <CalendarDays
+                                    aria-hidden="true"
+                                    className="h-4 w-4 text-muted-foreground"
+                                  />
+                                </span>
+                                <div className="min-w-0">
+                                  <div className="truncate text-sm font-semibold tracking-tight">
+                                    {day.date}
+                                  </div>
+                                  <div className="mt-1 h-[2px] w-16 rounded-full bg-foreground/15" />
+                                </div>
+                              </div>
+                            </div>
                           </td>
                         </tr>
                       )}
@@ -1384,9 +1960,7 @@ const StatTable = ({
           </tbody>
         </table>
       </div>
-      {/* Reserve space for pager to avoid layout jump and coverage */}
-      {columnPages.length > 1 && <div aria-hidden className="h-12" />}
-    </div>
+    </>
   );
 };
 

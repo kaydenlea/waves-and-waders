@@ -767,7 +767,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
           style={{
-            marginTop: 56,
+            marginTop: 60,
             position: "absolute",
             left: 0,
             width: chartInnerWidth,
@@ -785,7 +785,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
               position: "absolute",
               zIndex: 40,
               left: dayHeaderLayout.left,
-              top: -56,
+              top: -58,
               width: dayHeaderLayout.width,
               display: "grid",
               gridTemplateColumns: dayHeaderLayout.gridTemplateColumns,
