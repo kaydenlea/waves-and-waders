@@ -93,6 +93,15 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   const { getSunData } = useSunData();
   const hoveredHour = useHoveredHour();
   const chartTheme = useChartTheme();
+  const gradientIdRaw = React.useId();
+  const fillGradientId = useMemo(
+    () => `energySplitColor-${gradientIdRaw.replace(/:/g, "")}`,
+    [gradientIdRaw]
+  );
+  const strokeGradientId = useMemo(
+    () => `energySplitColorStroke-${gradientIdRaw.replace(/:/g, "")}`,
+    [gradientIdRaw]
+  );
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2?: number }[]>([]);
   const [nightAreas, setNightAreas] = useState<{ x1: number; x2?: number }[]>(
     []
@@ -194,8 +203,13 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     return ticks;
   }, [hours]);
 
-  const stops = useMemo(
+  const fillStops = useMemo(
     () => buildTrendStops(series, "var(--green)", "var(--red)"),
+    [series]
+  );
+
+  const strokeStops = useMemo(
+    () => buildTrendStops(series, "var(--energy-stroke-inc)", "var(--energy-stroke-dec)"),
     [series]
   );
 
@@ -297,10 +311,10 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           isAnimationActive={false}
         />
         <defs>
-          <linearGradient id="splitColor" x1="0" y1="0" x2="1" y2="0">
+          <linearGradient id={fillGradientId} x1="0" y1="0" x2="1" y2="0">
             {/* <stop offset={off} stopColor="green" stopOpacity={1} />
             <stop offset={off} stopColor="red" stopOpacity={1} /> */}
-            {stops.map((s, i) => (
+            {fillStops.map((s, i) => (
               <stop
                 key={i}
                 offset={s.offset}
@@ -309,14 +323,25 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
               />
             ))}
           </linearGradient>
+          <linearGradient id={strokeGradientId} x1="0" y1="0" x2="1" y2="0">
+            {strokeStops.map((s, i) => (
+              <stop
+                key={i}
+                offset={s.offset}
+                stopColor={s.color}
+                stopOpacity={1}
+              />
+            ))}
+          </linearGradient>
         </defs>
         <Area
           type="monotone"
           dataKey="energy"
           stackId="1"
-          stroke="#818181ff"
+          stroke={`url(#${strokeGradientId})`}
+          strokeWidth={2.5}
           //   fill="#adf1ffff"
-          fill="url(#splitColor)"
+          fill={`url(#${fillGradientId})`}
           fillOpacity={1}
           isAnimationActive={false}
           animationDuration={0}

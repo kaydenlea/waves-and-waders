@@ -156,10 +156,16 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
-  --chart-day-shading: oklch(85% 0.12 90); /* Warmer, more saturated yellow for light mode */
-  --chart-night-shading: oklch(75% 0.1 290); /* More saturated purple for light mode */
+  --chart-day-shading: oklch(
+    85% 0.12 90
+  ); /* Warmer, more saturated yellow for light mode */
+  --chart-night-shading: oklch(
+    75% 0.1 290
+  ); /* More saturated purple for light mode */
   --chart-hover-opacity: 0.15;
   --chart-shading-opacity: 0.35;
+  --energy-stroke-inc: oklch(51.524% 0.13522 142.111 / 0.199);
+  --energy-stroke-dec: oklch(55.855% 0.18038 25.848 / 0.178);
 
   .maplibregl-popup-content {
     background-color: white !important;
@@ -220,10 +226,12 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
-  --chart-day-shading: #FFE58F;
+  --chart-day-shading: #ffe58f;
   --chart-night-shading: #ccc1ffff;
   --chart-hover-opacity: 0.08;
   --chart-shading-opacity: 0.2;
+  --energy-stroke-inc: var(--green);
+  --energy-stroke-dec: var(--red);
 
   .maplibregl-popup-content {
     background-color: oklch(34.893% 0.06737 251.007) !important;

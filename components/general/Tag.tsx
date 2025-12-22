@@ -10,23 +10,34 @@ const Tag = ({
 }) => {
   const iconNode = React.isValidElement<{ className?: string }>(data.icon)
     ? React.cloneElement(data.icon, {
-        className: cn("h-3.5 w-3.5 text-inherit", data.icon.props.className),
+        className: cn("h-4 w-4 text-inherit", data.icon.props.className),
       })
     : data.icon;
 
   return (
     <div
       className={cn(
-        "shrink-0 inline-flex flex-none items-center gap-2 rounded-full border border-border/40 px-3 py-1.5 text-xs font-medium text-foreground shadow-sm transition-colors whitespace-nowrap",
-        "backdrop-blur-sm dark:border-border/30 dark:text-background",
-        data.color,
+        "shrink-0 inline-flex flex-none items-center gap-2 rounded-full px-2.5 py-1.5 text-xs font-medium",
+        "bg-background/60 text-foreground/90 shadow-even backdrop-blur-sm",
+        "dark:bg-foreground/5 dark:text-foreground/90",
         className
       )}
     >
-      <span className="flex items-center text-inherit [&>svg]:text-inherit">
-        {iconNode}
+      <span
+        className={cn(
+          "grid place-items-center size-6 rounded-full border border-border/25",
+          "text-slate-900/80",
+          data.color
+        )}
+        aria-hidden="true"
+      >
+        <span className="flex items-center text-inherit [&>svg]:text-inherit">
+          {iconNode}
+        </span>
       </span>
-      <span className="leading-tight text-inherit whitespace-nowrap">{data.label}</span>
+      <span className="leading-tight text-inherit whitespace-nowrap">
+        {data.label}
+      </span>
     </div>
   );
 };

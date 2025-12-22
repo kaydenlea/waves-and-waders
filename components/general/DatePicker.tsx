@@ -678,18 +678,38 @@ DatePickerProps) => {
                   : surfIntensity >= 3
                   ? "bg-orange-400"
                   : "bg-green-400";
-              const rangeClasses =
-                isInRange && forecast
+              const rangeClasses = forecast
+                ? isInRange
                   ? cn(
-                      "dark:bg-highlight-4/40 bg-highlight-5 ring ring-muted-foreground/40 mx-0",
-                      isRangeStart && "rounded-l-md ml-1",
-                      isRangeEnd && "rounded-r-md mr-1",
-                      !isRangeStart && !isRangeEnd && "rounded-none"
+                      "mx-0 bg-highlight-3/50 dark:bg-highlight-5/20",
+                      "border-y border-border/30 dark:border-border/50",
+                      "shadow-[0_1px_4px_rgba(0,0,0,0.10)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.20)]",
+                      !isRangeStart && "border-l-0",
+                      !isRangeEnd && "border-r-0",
+                      isRangeStart && isRangeEnd && "rounded-xl mx-1",
+                      isRangeStart && !isRangeEnd && "rounded-l-xl ml-1",
+                      isRangeEnd && !isRangeStart && "rounded-r-xl mr-1"
                     )
-                  : forecast
-                  ? "bg-background dark:bg-highlight-4 rounded-md"
-                  : "bg-background dark:bg-highlight-4 rounded-md";
+                  : cn(
+                      "rounded-xl bg-background/70 dark:bg-highlight-4/60",
+                      "border-1 border-border/15",
+                      "shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
+                    )
+                : "bg-background dark:bg-highlight-4 rounded-md";
               const buttonRounding = forecast ? "rounded-none" : "rounded-md";
+              const selectedClasses = forecast
+                ? cn(
+                    "bg-highlight-6 dark:bg-highlight-5/40 hover:bg-highlight-6/95 dark:hover:bg-highlight-5/90",
+                    "ring-inset ring-1 ring-foreground/20 dark:ring-foreground/25",
+                    "shadow-[0_4px_14px_rgba(0,0,0,0.16)]",
+                    "after:absolute after:inset-x-9 after:bottom-1 after:h-px after:rounded-full after:bg-foreground/25 dark:after:bg-foreground/35 after:content-['']"
+                  )
+                : cn(
+                    "bg-highlight-6 dark:bg-highlight-5/85 hover:bg-highlight-6/95 dark:hover:bg-highlight-5/90",
+                    "ring-inset ring-2 ring-foreground/20 dark:ring-foreground/25",
+                    "shadow-[0_4px_14px_rgba(0,0,0,0.16)]",
+                    "after:absolute after:inset-x-9 after:bottom-1 after:h-px after:rounded-full after:bg-foreground/25 dark:after:bg-foreground/35 after:content-['']"
+                  );
               return (
                 <CarouselItem
                   key={index}
@@ -703,12 +723,10 @@ DatePickerProps) => {
                       onSelect?.(day.toDate());
                     }}
                     className={cn(
-                      "mx-1 my-0.5 flex flex-col items-center w-full py-1.5 text-center text-sm font-medium transition-colors dark:hover:bg-highlight-5/60 hover:bg-highlight-5/60 shadow-even border-1 border-border/20",
+                      "relative mx-1 my-0.5 flex flex-col items-center w-full py-1.5 text-center text-sm font-medium transition-colors dark:hover:bg-highlight-5/60 hover:bg-highlight-5/60 shadow-even border-1 border-border/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/25 dark:focus-visible:ring-foreground/30 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                       buttonRounding,
                       rangeClasses,
-                      isSelected &&
-                        "bg-highlight-7 dark:bg-highlight-7 shadow-even",
-                      isSelected && !forecast && "ring-1 ring-muted-foreground"
+                      isSelected && selectedClasses
                     )}
                   >
                     <span className="font-semibold text-[0.7rem] @min-sm:text-[0.7rem] whitespace-nowrap">

@@ -10,8 +10,10 @@ type ChartTheme = {
 };
 
 const defaultLight: ChartTheme = {
-  dayShading: "oklch(85% 0.12 90)",
-  nightShading: "oklch(75% 0.1 290)",
+  // dayShading: "oklch(85% 0.12 90)",
+  // nightShading: "oklch(75% 0.1 290)",
+  dayShading: "#ffe58f7e",
+  nightShading: "#ccc1ffce",
   hoverOpacity: 0.15,
   shadingOpacity: 0.35,
 };

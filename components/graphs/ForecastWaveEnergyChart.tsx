@@ -113,6 +113,14 @@ function buildTrendStops(
 const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
   const { setPanFraction, subscribePan } = useForecastChartContext();
   const myId = React.useId();
+  const fillGradientId = useMemo(
+    () => `energySplitColor-${myId.replace(/:/g, "")}`,
+    [myId]
+  );
+  const strokeGradientId = useMemo(
+    () => `energySplitColorStroke-${myId.replace(/:/g, "")}`,
+    [myId]
+  );
   const { hour: selectedHour, setHoveredHour } = useDateContext();
   const hoveredHour = useHoveredHour();
   const { getSunData } = useSunData();
@@ -674,8 +682,17 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
     return stats;
   }, [energyData, totalFetchedDays]);
 
-  const stops = React.useMemo(
+  const fillStops = React.useMemo(
     () => buildTrendStops(energyData, "var(--green)", "var(--red)"),
+    [energyData]
+  );
+  const strokeStops = React.useMemo(
+    () =>
+      buildTrendStops(
+        energyData,
+        "var(--energy-stroke-inc)",
+        "var(--energy-stroke-dec)"
+      ),
     [energyData]
   );
 
@@ -761,7 +778,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
         >
           {/* Day label bar */}
           <div
-            className="rounded-t-lg overflow-hidden border border-border/20 bg-highlight-5/40 shadow-even backdrop-blur-md"
+            className="rounded-t-md overflow-hidden border border-border/20 bg-highlight-5/40 backdrop-blur-md"
             style={{
               position: "absolute",
               zIndex: 40,
@@ -785,7 +802,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
                   pointerEvents: "none",
                 }}
               >
-                <div className="flex h-full items-center justify-between gap-3 rounded-md border border-border/30 bg-highlight-7/10 dark:bg-highlight-5/50 px-3 py-2 shadow-sm">
+                <div className="flex h-full items-center justify-between gap-3 rounded-md bg-highlight-3/50 dark:bg-highlight-5/90 px-3 py-2">
                   {(() => {
                     const [weekdayRaw, monthDayRaw] = label.split(",");
                     const weekday = (weekdayRaw ?? label).trim();
@@ -803,8 +820,8 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
                             {monthDay || label}
                           </span>
                         </div>
-                        <div className="flex flex-col items-end gap-0.5 whitespace-nowrap text-[0.72rem] text-muted-foreground">
-                          <div className="grid grid-cols-[14px_18px_30px_20px] items-center gap-x-1 rounded-md bg-foreground/5 px-2 py-0.5 leading-none">
+                        <div className="flex flex-col items-end gap-0.5 whitespace-nowrap text-[0.72rem] text-muted-foreground rounded-md bg-foreground/5 pl-1 py-1">
+                          <div className="grid grid-cols-[14px_18px_30px_20px] items-center gap-x-1 leading-none">
                             <ArrowUp className="h-3 w-3 text-emerald-500/80" />
                             <span className="mt-0.5 text-[0.68rem] font-semibold text-muted-foreground">
                               Hi
@@ -816,7 +833,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
                               kJ
                             </span>
                           </div>
-                          <div className="grid grid-cols-[14px_18px_30px_20px] items-center gap-x-1 rounded-md bg-foreground/5 px-2 py-0.5 leading-none">
+                          <div className="grid grid-cols-[14px_18px_30px_20px] items-center gap-x-1 leading-none">
                             <ArrowDown className="h-3 w-3 text-rose-500/80" />
                             <span className="mt-0.5 text-[0.68rem] font-semibold text-muted-foreground">
                               Lo
@@ -907,8 +924,14 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
                   }
                 />
                 <defs>
-                  <linearGradient id="splitColor" x1="0" y1="0" x2="1" y2="0">
-                    {stops.map((s, i) => (
+                  <linearGradient
+                    id={fillGradientId}
+                    x1="0"
+                    y1="0"
+                    x2="1"
+                    y2="0"
+                  >
+                    {fillStops.map((s, i) => (
                       <stop
                         key={i}
                         offset={s.offset}
@@ -917,13 +940,30 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
                       />
                     ))}
                   </linearGradient>
+                  <linearGradient
+                    id={strokeGradientId}
+                    x1="0"
+                    y1="0"
+                    x2="1"
+                    y2="0"
+                  >
+                    {strokeStops.map((s, i) => (
+                      <stop
+                        key={i}
+                        offset={s.offset}
+                        stopColor={s.color}
+                        stopOpacity={1}
+                      />
+                    ))}
+                  </linearGradient>
                 </defs>
                 <Area
                   type="monotone"
                   dataKey="energy"
                   stackId="1"
-                  stroke="#818181ff"
-                  fill="url(#splitColor)"
+                  stroke={`url(#${strokeGradientId})`}
+                  strokeWidth={2}
+                  fill={`url(#${fillGradientId})`}
                   fillOpacity={1}
                   isAnimationActive={false}
                   animationDuration={0}

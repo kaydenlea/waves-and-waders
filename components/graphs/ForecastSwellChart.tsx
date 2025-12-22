@@ -780,7 +780,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
         >
           {/* Day label bar */}
           <div
-            className="rounded-t-lg overflow-hidden border border-border/20 bg-highlight-5/40 shadow-even backdrop-blur-md"
+            className="rounded-t-md overflow-hidden border border-border/20 bg-highlight-5/40 backdrop-blur-md"
             style={{
               position: "absolute",
               zIndex: 40,
@@ -804,7 +804,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                   pointerEvents: "none",
                 }}
               >
-                <div className="flex h-full items-center justify-between gap-3 rounded-md border border-border/30 bg-highlight-7/10 dark:bg-highlight-5/50 px-3 py-2 shadow-sm">
+                <div className="flex h-full items-center justify-between gap-3 rounded-md bg-highlight-3/50 dark:bg-highlight-5/50 px-3 py-2">
                   {(() => {
                     const [weekdayRaw, monthDayRaw] = label.split(",");
                     const weekday = (weekdayRaw ?? label).trim();
@@ -822,8 +822,8 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                             {monthDay || label}
                           </span>
                         </div>
-                        <div className="flex flex-col items-end gap-0.5 whitespace-nowrap text-[0.72rem] text-muted-foreground">
-                          <div className="grid grid-cols-[14px_18px_32px_16px] items-center gap-x-1 rounded-md bg-foreground/5 px-2 py-0.5 leading-none">
+                        <div className="flex flex-col items-end gap-0.5 whitespace-nowrap text-[0.72rem] text-muted-foreground rounded-md py-1 pl-1 bg-foreground/5">
+                          <div className="grid grid-cols-[14px_18px_32px_16px] items-center gap-x-1 leading-none">
                             <ArrowUp className="h-3 w-3 text-emerald-500/80" />
                             <span className="mt-0.5 text-[0.68rem] font-semibold text-muted-foreground">
                               Hi
@@ -837,7 +837,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                               ft
                             </span>
                           </div>
-                          <div className="grid grid-cols-[14px_18px_32px_16px] items-center gap-x-1 rounded-md bg-foreground/5 px-2 py-0.5 leading-none">
+                          <div className="grid grid-cols-[14px_18px_32px_16px] items-center gap-x-1 leading-none">
                             <ArrowDown className="h-3 w-3 text-rose-500/80" />
                             <span className="mt-0.5 text-[0.68rem] font-semibold text-muted-foreground">
                               Lo
@@ -1015,6 +1015,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                   dataKey="primary"
                   activeDot={false}
                   stroke="#023e8a"
+                  strokeWidth={1.5}
                   fill="#0077b6"
                   fillOpacity={0.2}
                   isAnimationActive={false}
@@ -1033,8 +1034,8 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                               size={iconSize}
                               x={-iconSize / 2}
                               y={-iconSize / 2}
-                              fill="var(--swell-primary)"
-                              color="var(--color-highlight-2)"
+                              fill={chartConfig.primary.color}
+                              color={chartConfig.primary.color}
                             />
                           </g>
                         </g>
@@ -1047,6 +1048,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                   dataKey="secondary"
                   activeDot={false}
                   stroke="#0096c7"
+                  strokeWidth={1.5}
                   fill="#48cae4"
                   fillOpacity={0.2}
                   isAnimationActive={false}
@@ -1065,8 +1067,8 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                               size={iconSize}
                               x={-iconSize / 2}
                               y={-iconSize / 2}
-                              fill="var(--swell-primary)"
-                              color="var(--color-highlight-2)"
+                              fill={chartConfig.secondary.color}
+                              color={chartConfig.secondary.color}
                             />
                           </g>
                         </g>
@@ -1079,6 +1081,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                   dataKey="tertiary"
                   activeDot={false}
                   stroke="#70ccebff"
+                  strokeWidth={1.5}
                   fill="#adf1ffff"
                   fillOpacity={0.2}
                   isAnimationActive={false}
@@ -1097,8 +1100,8 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                               size={iconSize}
                               x={-iconSize / 2}
                               y={-iconSize / 2}
-                              fill="var(--swell-primary)"
-                              color="var(--color-highlight-2)"
+                              fill={chartConfig.tertiary.color}
+                              color={chartConfig.tertiary.color}
                             />
                           </g>
                         </g>

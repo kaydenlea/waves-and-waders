@@ -1,13 +1,28 @@
 ﻿"use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { cn, getPacificDayRange } from "@/lib/utils";
 import GradientCircle from "../general/Stats/GradientCircle";
 import Tag from "../general/Tag";
 import WindStat from "../general/Stats/WindStat";
 import SurfStat from "../general/Stats/SurfStat";
 
-import { Sunrise, Sunset } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  Navigation2,
+  Sunrise,
+  Sunset,
+  Thermometer,
+  Waves,
+  Wind,
+} from "lucide-react";
 import {
   BEACH_FEATURE_ICONS,
   DEFAULT_FEATURE_ICON,
@@ -72,6 +87,250 @@ type TidePeak = {
   time: Date | null;
   level: number | null;
 };
+
+const DEGREE = "\u00b0F";
+
+const toTitleCase = (value: string) =>
+  value.length === 0 ? value : `${value[0].toUpperCase()}${value.slice(1)}`;
+
+const toFtRangeLabel = (raw: string) => raw.replace("-", "–");
+
+const toCompass = (deg?: number | null): string | null => {
+  if (deg == null || !Number.isFinite(deg)) return null;
+  const directions = [
+    "N",
+    "NNE",
+    "NE",
+    "ENE",
+    "E",
+    "ESE",
+    "SE",
+    "SSE",
+    "S",
+    "SSW",
+    "SW",
+    "WSW",
+    "W",
+    "WNW",
+    "NW",
+    "NNW",
+  ] as const;
+  const idx = Math.round((((deg % 360) + 360) % 360) / 22.5) % 16;
+  return directions[idx] ?? null;
+};
+
+const averageDirectionDeg = (values: number[]): number | null => {
+  if (!values || values.length === 0) return null;
+  let x = 0;
+  let y = 0;
+  for (const v of values) {
+    if (!Number.isFinite(v)) continue;
+    const r = (v * Math.PI) / 180;
+    x += Math.cos(r);
+    y += Math.sin(r);
+  }
+  if (x === 0 && y === 0) return null;
+  const a = (Math.atan2(y, x) * 180) / Math.PI;
+  return ((a % 360) + 360) % 360;
+};
+
+type HighlightToken = {
+  text: string;
+  className: string;
+};
+
+const emphasizeText = (text: string, tokens: HighlightToken[]) => {
+  if (!tokens.length) return text;
+
+  const remainingTokens = tokens
+    .map((t) => ({ ...t, text: t.text.trim() }))
+    .filter((t) => t.text.length > 0);
+
+  if (!remainingTokens.length) return text;
+
+  const nodes: React.ReactNode[] = [];
+  let cursor = 0;
+
+  while (cursor < text.length) {
+    let nextIndex = -1;
+    let nextToken: HighlightToken | null = null;
+
+    for (const token of remainingTokens) {
+      const idx = text.indexOf(token.text, cursor);
+      if (idx === -1) continue;
+      if (nextIndex === -1 || idx < nextIndex) {
+        nextIndex = idx;
+        nextToken = token;
+      }
+    }
+
+    if (nextIndex === -1 || !nextToken) {
+      nodes.push(text.slice(cursor));
+      break;
+    }
+
+    if (nextIndex > cursor) {
+      nodes.push(text.slice(cursor, nextIndex));
+    }
+
+    nodes.push(
+      <span
+        key={`${nextIndex}-${nextToken.text}`}
+        className={nextToken.className}
+      >
+        {nextToken.text}
+      </span>
+    );
+
+    cursor = nextIndex + nextToken.text.length;
+  }
+
+  return nodes;
+};
+
+const statusGradientTrackClass =
+  "bg-gradient-to-r from-emerald-500/40 via-amber-500/35 to-rose-500/35 dark:from-emerald-400/35 dark:via-amber-400/30 dark:to-rose-400/30";
+
+const clamp01 = (value: number): number => {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(1, value));
+};
+
+const parseSurfMaxFt = (range: string): number | null => {
+  if (!range || range === "-") return null;
+  const match = range.match(/(\d+)-?(\d+)?/);
+  if (!match) return null;
+  const maxStr = match[2] ?? match[1];
+  const max = Number(maxStr);
+  return Number.isFinite(max) ? max : null;
+};
+
+function MiniMarkerTrack({
+  value,
+  min,
+  max,
+  label,
+}: {
+  value: number | null;
+  min: number;
+  max: number;
+  label: string;
+}) {
+  if (value == null || !Number.isFinite(value) || max <= min) return null;
+  const t = clamp01((value - min) / (max - min));
+  const markerW = "0.375rem"; // w-1.5
+  return (
+    <div className="mt-0.5" role="meter" aria-label={label}>
+      <div className="relative h-[4px] w-full overflow-visible">
+        <div className="relative h-[4px] w-full overflow-hidden rounded-full bg-foreground/10">
+          <div className={cn("absolute inset-0", statusGradientTrackClass)} />
+        </div>
+        <div
+          className={cn(
+            "absolute top-1/2 h-[10px] w-1.5 -translate-y-1/2 rounded-full",
+            "bg-highlight-4 shadow-md ring-1 ring-foreground/35 dark:ring-foreground/45",
+            "outline outline-2 outline-background/70"
+          )}
+          style={{
+            left: `clamp(0px, calc(${
+              t * 100
+            }% - (${markerW} / 2)), calc(100% - ${markerW}))`,
+          }}
+        />
+      </div>
+      <span className="sr-only">{`${label}: ${Math.round(t * 100)}%`}</span>
+    </div>
+  );
+}
+
+function SegmentedFillMeter({
+  value,
+  min,
+  max,
+  label,
+  segments = 4,
+}: {
+  value: number | null;
+  min: number;
+  max: number;
+  label: string;
+  segments?: number;
+}) {
+  if (value == null || !Number.isFinite(value) || max <= min) return null;
+  const t = clamp01((value - min) / (max - min));
+  const scaled = t * segments;
+
+  const fillClassName =
+    t <= 0.33
+      ? "bg-gradient-to-r from-emerald-500/85 to-emerald-400/65 dark:from-emerald-400/75 dark:to-emerald-300/55"
+      : t <= 0.66
+      ? "bg-gradient-to-r from-amber-500/85 to-orange-400/65 dark:from-amber-400/75 dark:to-orange-300/55"
+      : "bg-gradient-to-r from-rose-500/85 to-rose-400/65 dark:from-rose-400/75 dark:to-rose-300/55";
+  const segmentBaseClass =
+    "shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.10)]";
+
+  return (
+    <div className="mt-0.5" aria-hidden="true">
+      <div className="flex items-center gap-1" role="meter" aria-label={label}>
+        {Array.from({ length: segments }).map((_, idx) => {
+          const segFill = clamp01(scaled - idx);
+          return (
+            <span
+              key={idx}
+              className={cn(
+                "relative h-2 flex-1 overflow-hidden rounded-[3px]",
+                segmentBaseClass,
+                "bg-foreground/10 dark:bg-foreground/14"
+              )}
+            >
+              {segFill > 0 ? (
+                <span
+                  className={cn("absolute inset-y-0 left-0", fillClassName)}
+                  style={{ width: `${segFill * 100}%` }}
+                />
+              ) : null}
+            </span>
+          );
+        })}
+      </div>
+      <span className="sr-only">{`${label}: ${Math.round(t * 100)}%`}</span>
+    </div>
+  );
+}
+
+function DirectionWidget({
+  rotation,
+  label,
+  ariaLabel,
+}: {
+  rotation: number;
+  label: string | null | undefined;
+  ariaLabel: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "shrink-0 grid place-items-center size-10 @min-md:size-12 rounded-xl @min-md:rounded-2xl",
+        "border border-border/25 bg-foreground/[0.03] shadow-sm",
+        "dark:bg-foreground/[0.07] dark:shadow-[0_12px_30px_rgba(0,0,0,0.25)]"
+      )}
+      aria-label={ariaLabel}
+    >
+      <div className="flex flex-col items-center justify-center gap-0.5 leading-none">
+        <span className="leading-none">
+          <Navigation2
+            className="h-4 w-4 @min-md:h-5 @min-md:w-5 text-foreground/70"
+            style={{ transform: `rotate(${rotation}deg)` }}
+            aria-hidden="true"
+          />
+        </span>
+        <span className="text-[10px] font-semibold tabular-nums text-muted-foreground leading-none">
+          {label ?? "--"}
+        </span>
+      </div>
+    </div>
+  );
+}
 
 const computeTidePeaks = (
   points: TidePointValue[],
@@ -176,6 +435,22 @@ export const clampIntensity = (value: number, max: number): number => {
   return Math.min(100, Math.round((value / max) * 100));
 };
 
+const describeSurf = (intensity?: number) => {
+  if (intensity == null || !Number.isFinite(intensity)) return "calm";
+  if (intensity >= 75) return "huge";
+  if (intensity >= 50) return "pumping";
+  if (intensity >= 25) return "moderate";
+  return "calm";
+};
+
+const describeWind = (speed?: number) => {
+  if (speed == null || !Number.isFinite(speed)) return "light";
+  if (speed >= 25) return "strong";
+  if (speed >= 15) return "moderate";
+  if (speed >= 8) return "gentle";
+  return "light";
+};
+
 const SURF_HEIGHT_CAP = 12;
 const WIND_SPEED_CAP = 40;
 const TEMP_CAP = 100; // For temperature circles
@@ -237,9 +512,6 @@ const Summary = ({
   const isOverviewVariant = variant === "overview";
   const [stats, setStats] = useState<SummaryStat[] | null>(null);
   const statsRef = useRef<SummaryStat[] | null>(null);
-  const [showAllFeatures, setShowAllFeatures] = useState(false);
-  const featuresContainerRef = useRef<HTMLDivElement | null>(null);
-  const [featuresOverflowing, setFeaturesOverflowing] = useState(false);
   const { surfRange } = useDateContext();
   const [tags, setTags] = useState<
     {
@@ -707,71 +979,6 @@ const Summary = ({
   ]);
 
   const displayStats = stats ?? statsRef.current;
-  const [overviewText, setOverviewText] = useState<string | null>(null);
-
-  useEffect(() => {
-    const el = featuresContainerRef.current;
-
-    if (!el) {
-      setFeaturesOverflowing(false);
-
-      return;
-    }
-
-    const measure = () => {
-      const target = featuresContainerRef.current;
-
-      if (!target) return;
-
-      const previousWrap = target.style.flexWrap;
-
-      const previousOverflow = target.style.overflow;
-
-      target.style.flexWrap = "nowrap";
-
-      target.style.overflow = "hidden";
-
-      const isOverflowing = target.scrollWidth > target.clientWidth + 1;
-
-      target.style.flexWrap = previousWrap;
-
-      target.style.overflow = previousOverflow;
-
-      setFeaturesOverflowing(isOverflowing);
-
-      if (!isOverflowing && showAllFeatures) {
-        setShowAllFeatures(false);
-      }
-    };
-
-    const scheduleMeasure = () => {
-      requestAnimationFrame(measure);
-    };
-
-    scheduleMeasure();
-
-    let observer: ResizeObserver | null = null;
-
-    if (typeof ResizeObserver !== "undefined") {
-      observer = new ResizeObserver(() => scheduleMeasure());
-
-      observer.observe(el);
-    }
-
-    const resizeHandler = () => scheduleMeasure();
-
-    if (typeof window !== "undefined") {
-      window.addEventListener("resize", resizeHandler);
-    }
-
-    return () => {
-      observer?.disconnect();
-
-      if (typeof window !== "undefined") {
-        window.removeEventListener("resize", resizeHandler);
-      }
-    };
-  }, [displayStats, showAllFeatures]);
 
   const statsForRender = displayStats ?? createInitialStats();
   const isLoading = !forecastReady || !tidesReady || !dailyReady;
@@ -802,34 +1009,15 @@ const Summary = ({
     const airTempHigh = tempStat?.airTempHigh;
     const airTempLow = tempStat?.airTempLow;
 
-    // Determine surf condition
-    let surfCondition = "calm";
-    if (surfStat?.surf?.intensity) {
-      const intensity = surfStat.surf.intensity;
-      if (intensity >= 75) surfCondition = "huge";
-      else if (intensity >= 50) surfCondition = "pumping";
-      else if (intensity >= 25) surfCondition = "moderate";
-      else surfCondition = "calm";
-    }
+    const surfCondition = describeSurf(surfStat?.surf?.intensity);
 
-    // Determine wind condition
-    let windCondition = "light";
-    let windAction = "blowing";
-    if (windSpeed != null) {
-      if (windSpeed >= 25) {
-        windCondition = "strong";
-        windAction = "whipping";
-      } else if (windSpeed >= 15) {
-        windCondition = "moderate";
-        windAction = "blowing";
-      } else if (windSpeed >= 8) {
-        windCondition = "gentle";
-        windAction = "coming in";
-      } else {
-        windCondition = "light";
-        windAction = "blowing";
-      }
-    }
+    const windCondition = describeWind(windSpeed);
+    const windAction =
+      windSpeed != null && windSpeed >= 25
+        ? "whipping"
+        : windSpeed != null && windSpeed >= 8
+        ? "coming in"
+        : "blowing";
 
     // Build sentence based on conditions
     let sentence = `The waves are ${surfHeight} ft and ${surfCondition}.`;
@@ -846,9 +1034,9 @@ const Summary = ({
 
     // Add temperature information
     if (airTempHigh != null && airTempLow != null) {
-      sentence += ` Temperatures will range from ${airTempLow}°F to ${airTempHigh}°F.`;
+      sentence += ` Temperatures will range from ${airTempLow}${DEGREE} to ${airTempHigh}${DEGREE}.`;
     } else if (airTempHigh != null) {
-      sentence += ` Expect highs around ${airTempHigh}°F.`;
+      sentence += ` Expect highs around ${airTempHigh}${DEGREE}.`;
     }
 
     return sentence;
@@ -860,17 +1048,6 @@ const Summary = ({
     tempStat?.airTempHigh,
     tempStat?.airTempLow,
   ]);
-
-  useEffect(() => {
-    if (!beachId) {
-      setOverviewText(null);
-      return;
-    }
-    if (!computedOverviewText) return;
-    setOverviewText((prev) =>
-      prev === computedOverviewText ? prev : computedOverviewText
-    );
-  }, [beachId, computedOverviewText]);
 
   const gapPx = 12;
   const moreButtonReservePx = 60;
@@ -931,21 +1108,67 @@ const Summary = ({
     if (!container) return;
     if (!tagWidths.length) return;
 
-    const available = Math.max(0, container.clientWidth - moreButtonReservePx);
-    let total = 0;
-    let count = 0;
-
-    for (let i = 0; i < tagWidths.length; i++) {
-      const w = tagWidths[i];
-      const gapAdd = count > 0 ? gapPx : 0;
-      // require the full width to be available before counting the tag
-      if (total + gapAdd + w <= available) {
-        total += gapAdd + w;
-        count++;
-      } else {
-        break;
+    const maxRows = (() => {
+      try {
+        const article = container.closest("article");
+        if (!article) return 2;
+        const end = globalThis.getComputedStyle(article).gridColumnEnd;
+        const match = /span\s+(\d+)/.exec(end);
+        const span = match ? Number(match[1]) : null;
+        return span === 12 ? 1 : 2;
+      } catch {
+        return 2;
       }
+    })();
+    const fullWidth = Math.max(0, container.clientWidth);
+
+    const fits = (visible: number, includeMore: boolean) => {
+      const widths: number[] = tagWidths.slice(0, visible);
+      if (includeMore) widths.push(moreButtonReservePx);
+
+      let row = 0;
+      let rowTotal = 0;
+      let rowCount = 0;
+
+      for (let i = 0; i < widths.length; i++) {
+        const w = widths[i] ?? 0;
+        if (w > fullWidth) return false;
+
+        const gapAdd = rowCount > 0 ? gapPx : 0;
+        if (rowTotal + gapAdd + w <= fullWidth) {
+          rowTotal += gapAdd + w;
+          rowCount += 1;
+          continue;
+        }
+
+        row += 1;
+        if (row >= maxRows) return false;
+        rowTotal = 0;
+        rowCount = 0;
+        i -= 1; // retry this item on the next row
+      }
+
+      return true;
+    };
+
+    // If everything fits without "+n", show everything.
+    if (fits(tagWidths.length, false)) {
+      setVisibleCount((prev) =>
+        prev !== tagWidths.length ? tagWidths.length : prev
+      );
+      return;
     }
+
+    // Otherwise, find max visible such that "+n" also fits (only on the last row).
+    let lo = 0;
+    let hi = tagWidths.length;
+    while (lo < hi) {
+      const mid = Math.ceil((lo + hi) / 2);
+      if (fits(mid, true)) lo = mid;
+      else hi = mid - 1;
+    }
+
+    const count = lo;
     // update only if different (prevents oscillation)
     setVisibleCount((prev) => (prev !== count ? count : prev));
   }, [tagWidths, gapPx, moreButtonReservePx]);
@@ -1012,6 +1235,615 @@ const Summary = ({
   const visibleItems = tags.slice(0, visibleCount);
   const hiddenItems = tags.slice(visibleCount);
 
+  const primarySwellDirection = useMemo(() => {
+    const directions = forecast
+      .map((row) => row?.swell?.primary?.direction)
+      .filter(
+        (value): value is number =>
+          typeof value === "number" && !Number.isNaN(value)
+      );
+    return averageDirectionDeg(directions);
+  }, [forecast]);
+
+  const swellCompass = toCompass(primarySwellDirection);
+  const swellRotation = primarySwellDirection ?? 0;
+
+  const surfCondition = describeSurf(surfStat?.surf?.intensity);
+  const windCondition = describeWind(windStat?.wind?.speed);
+
+  const windCompass = toCompass(windStat?.wind?.direction);
+  const windRotation =
+    windStat?.wind?.direction != null ? windStat.wind.direction : 0;
+
+  const outlookHeadline = overviewStatsReady
+    ? `${toTitleCase(surfCondition)} surf`
+    : null;
+  const surfRangeLabel =
+    surfStat?.surf?.height && surfStat.surf.height !== "-"
+      ? toFtRangeLabel(surfStat.surf.height)
+      : null;
+  const surfPeriod =
+    surfStat?.surf?.period != null ? `${surfStat.surf.period}s` : null;
+  const windGust =
+    windStat?.wind?.gust != null ? `${windStat.wind.gust}` : null;
+
+  const tideNow = tideStat?.currentHeight ?? null;
+  const tidePeaksWithTime = (tideStat?.peaks ?? [])
+    .filter((p): p is TidePeak & { time: Date } => p.time instanceof Date)
+    .sort((a, b) => a.time.getTime() - b.time.getTime());
+  const tideReferenceMs = Date.now();
+  const nextPeaks = (() => {
+    if (!tidePeaksWithTime.length) return [];
+    const upcoming = tidePeaksWithTime.filter(
+      (p) => p.time.getTime() >= tideReferenceMs
+    );
+    const source = upcoming.length ? upcoming : tidePeaksWithTime;
+    return source.slice(0, 2);
+  })();
+  const nextPeak = nextPeaks[0] ?? null;
+  const tideTrend =
+    nextPeak?.kind === "high"
+      ? "rising"
+      : nextPeak?.kind === "low"
+      ? "falling"
+      : null;
+  const tideLevels = [
+    ...(tideStat?.peaks ?? [])
+      .map((p) => p.level)
+      .filter((v): v is number => v != null),
+    ...(tideNow != null ? [tideNow] : []),
+  ];
+  const tideMin = tideLevels.length > 0 ? Math.min(...tideLevels) : null;
+  const tideMax = tideLevels.length > 0 ? Math.max(...tideLevels) : null;
+
+  const cardBase =
+    "rounded-[22px] border border-border/25 bg-highlight-7/40 backdrop-blur-md shadow-even";
+  const cardHover =
+    "transition-shadow duration-200 ease-out motion-reduce:transition-none hover:z-10 hover:shadow-[0_10px_30px_rgba(0,0,0,0.12)] dark:hover:shadow-[0_18px_50px_rgba(0,0,0,0.70),0_0_0_1px_rgba(255,255,255,0.08),0_12px_26px_rgba(255,255,255,0.04)] focus-within:ring-1 focus-within:ring-foreground/10";
+
+  const kickerClass =
+    "text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground";
+
+  const outlookSentences = useMemo(() => {
+    if (!computedOverviewText) return null;
+    const parts = computedOverviewText
+      .split(". ")
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0)
+      .map((p) => (p.endsWith(".") ? p : `${p}.`));
+    return parts.length ? parts : null;
+  }, [computedOverviewText]);
+
+  const surfDayRange = useMemo(() => {
+    const mins = forecast
+      .map((row) => row?.surf?.heightMin)
+      .filter(
+        (value): value is number =>
+          typeof value === "number" && !Number.isNaN(value)
+      );
+    const maxes = forecast
+      .map((row) => row?.surf?.heightMax)
+      .filter(
+        (value): value is number =>
+          typeof value === "number" && !Number.isNaN(value)
+      );
+    if (!mins.length && !maxes.length) return null;
+    const minVal = mins.length ? Math.min(...mins) : Math.min(...maxes);
+    const maxVal = maxes.length ? Math.max(...maxes) : Math.max(...mins);
+    const minRounded = Math.round(minVal);
+    const maxRounded = Math.round(maxVal);
+    return {
+      min: Number.isFinite(minRounded) ? minRounded : null,
+      max: Number.isFinite(maxRounded) ? maxRounded : null,
+    };
+  }, [forecast]);
+
+  const windDayRange = useMemo(() => {
+    const speeds = forecast
+      .map((row) => row?.conditions?.windSpeed)
+      .filter(
+        (value): value is number =>
+          typeof value === "number" && !Number.isNaN(value)
+      );
+    if (!speeds.length) return null;
+    const minVal = Math.round(Math.min(...speeds));
+    const maxVal = Math.round(Math.max(...speeds));
+    return {
+      min: Number.isFinite(minVal) ? minVal : null,
+      max: Number.isFinite(maxVal) ? maxVal : null,
+    };
+  }, [forecast]);
+
+  const surfNarrativeToken =
+    surfStat?.surf?.height && surfStat.surf.height !== "-"
+      ? `${surfStat.surf.height} ft`
+      : null;
+  const windSpeedToken =
+    windStat?.wind?.speed != null ? `${windStat.wind.speed} mph` : null;
+  const tempLowToken =
+    tempStat?.airTempLow != null ? `${tempStat.airTempLow}${DEGREE}` : null;
+  const tempHighToken =
+    tempStat?.airTempHigh != null ? `${tempStat.airTempHigh}${DEGREE}` : null;
+
+  const surfMaxFt = parseSurfMaxFt(surfStat?.surf?.height ?? "");
+
+  if (isOverviewVariant) {
+    return (
+      <div className="grid grid-cols-12 gap-3 @min-md:gap-4">
+        <article
+          className={cn(
+            cardBase,
+            cardHover,
+            "col-span-12 @min-xl:col-span-8 @min-2xl:col-span-7 @min-3xl:col-span-9 @min-5xl:col-span-6 p-4 flex flex-col gap-3 min-h-35 overflow-hidden"
+          )}
+          aria-label="Forecast outlook"
+        >
+          <header className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p className={kickerClass}>Summary</p>
+              {outlookHeadline ? (
+                <h3 className="mt-0.5 text-xl @min-md:text-2xl font-semibold tracking-tight">
+                  {outlookHeadline}
+                </h3>
+              ) : (
+                <div className="mt-2 space-y-2 max-w-[18rem]">
+                  <div className="h-4 w-3/4 rounded-md bg-foreground/12 animate-pulse motion-reduce:animate-none" />
+                  <div className="h-4 w-2/3 rounded-md bg-foreground/8 animate-pulse motion-reduce:animate-none" />
+                </div>
+              )}
+            </div>
+
+            <div className="shrink-0 rounded-xl border border-border/25 bg-foreground/5 px-3 py-2 text-xs text-muted-foreground">
+              <dl className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 items-center">
+                <dt className="flex items-center gap-1.5 uppercase tracking-[0.06em]">
+                  <Sunrise
+                    fill="#ff9f45ff"
+                    className="stroke-muted-foreground w-4 h-4"
+                    aria-hidden="true"
+                  />
+                  <span>Rise</span>
+                </dt>
+                <dd className="text-foreground font-medium">
+                  {tideStat?.sunrise ?? "-:--"}
+                </dd>
+                <dt className="flex items-center gap-1.5 uppercase tracking-[0.06em]">
+                  <Sunset
+                    fill="#ff9f45ff"
+                    className="stroke-muted-foreground w-4 h-4"
+                    aria-hidden="true"
+                  />
+                  <span>Set</span>
+                </dt>
+                <dd className="text-foreground font-medium">
+                  {tideStat?.sunset ?? "-:--"}
+                </dd>
+              </dl>
+            </div>
+          </header>
+
+          <div className="mt-auto">
+            {outlookSentences ? (
+              <ul className="space-y-1">
+                {outlookSentences.map((line, idx) => {
+                  const Icon =
+                    idx === 0 ? Waves : idx === 1 ? Wind : Thermometer;
+
+                  const tokens: HighlightToken[] = [
+                    ...(idx === 0 && surfNarrativeToken
+                      ? [
+                          {
+                            text: surfNarrativeToken,
+                            className: "font-semibold text-foreground",
+                          },
+                        ]
+                      : []),
+                    ...(idx === 0
+                      ? [
+                          {
+                            text: surfCondition,
+                            className: "font-semibold text-foreground",
+                          },
+                        ]
+                      : []),
+                    ...(idx === 1 && windSpeedToken
+                      ? [
+                          {
+                            text: windSpeedToken,
+                            className: "font-semibold text-foreground",
+                          },
+                        ]
+                      : []),
+                    ...(idx === 2 && tempLowToken
+                      ? [
+                          {
+                            text: tempLowToken,
+                            className: "font-semibold text-foreground",
+                          },
+                        ]
+                      : []),
+                    ...(idx === 2 && tempHighToken
+                      ? [
+                          {
+                            text: tempHighToken,
+                            className: "font-semibold text-foreground",
+                          },
+                        ]
+                      : []),
+                  ];
+
+                  return (
+                    <li
+                      key={`${idx}-${line}`}
+                      className="flex items-center gap-2"
+                    >
+                      <span
+                        className="grid place-items-center size-6 rounded-full bg-foreground/5 text-foreground/70"
+                        aria-hidden="true"
+                      >
+                        <Icon className="h-3.5 w-3.5" />
+                      </span>
+                      <p className="text-sm leading-snug text-muted-foreground">
+                        {emphasizeText(line, tokens)}
+                      </p>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <div className="space-y-2">
+                <div className="h-3 w-4/5 rounded-md bg-foreground/8 animate-pulse motion-reduce:animate-none" />
+                <div className="h-3 w-3/5 rounded-md bg-foreground/8 animate-pulse motion-reduce:animate-none" />
+              </div>
+            )}
+          </div>
+        </article>
+
+        <article
+          className={cn(
+            cardBase,
+            cardHover,
+            "col-span-6 @min-xl:col-span-4 @min-2xl:col-span-5 @min-3xl:col-span-3 p-4 flex flex-col min-h-35 overflow-hidden"
+          )}
+          aria-label="Surf summary"
+        >
+          <header className="flex items-baseline justify-between gap-3">
+            <p className={kickerClass}>Surf</p>
+            {overviewStatsReady ? (
+              <span className="rounded-full border border-border/25 bg-foreground/5 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                {toTitleCase(surfCondition)}
+              </span>
+            ) : null}
+          </header>
+
+          <div className="mt-3 flex-1 flex flex-col">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="inline-flex items-baseline gap-1">
+                  <span className="text-2xl font-semibold tabular-nums tracking-tight text-foreground">
+                    {surfRangeLabel ?? "--"}
+                  </span>
+                  <span className="text-xs font-medium text-muted-foreground">
+                    ft
+                  </span>
+                </div>
+                <p className="mt-0 text-xs leading-snug text-muted-foreground">
+                  {surfPeriod ? `${surfPeriod} period` : "\u00a0"}
+                </p>
+              </div>
+              <DirectionWidget
+                rotation={swellRotation}
+                label={swellCompass}
+                ariaLabel="Swell direction"
+              />
+            </div>
+
+            <div className="mt-auto pt-1.5 space-y-1.5">
+              <SegmentedFillMeter
+                label="Surf height"
+                value={surfMaxFt}
+                min={0}
+                max={SURF_HEIGHT_CAP}
+              />
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground tabular-nums">
+                <span>Low</span>
+                <span>High</span>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article
+          className={cn(
+            cardBase,
+            cardHover,
+            "col-span-6 @min-md:col-span-6 @min-2xl:col-span-4 @min-3xl:col-span-4 @min-5xl:col-span-3 p-4 flex flex-col min-h-35 overflow-hidden"
+          )}
+          aria-label="Wind summary"
+        >
+          <header className="flex items-baseline justify-between gap-3">
+            <p className={kickerClass}>Wind</p>
+            {overviewStatsReady ? (
+              <span className="rounded-full border border-border/25 bg-foreground/5 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                {toTitleCase(windCondition)}
+              </span>
+            ) : null}
+          </header>
+
+          <div className="mt-3 flex-1 flex flex-col">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="inline-flex items-baseline gap-1">
+                  <span className="text-2xl font-semibold tabular-nums tracking-tight text-foreground">
+                    {windStat?.wind?.speed ?? "--"}
+                  </span>
+                  <span className="text-xs font-medium text-muted-foreground">
+                    mph
+                  </span>
+                </div>
+                <p className="mt-0 text-xs leading-snug text-muted-foreground">
+                  gust{" "}
+                  <span className="font-medium tabular-nums">
+                    {windGust ?? "--"}
+                  </span>
+                </p>
+              </div>
+              <DirectionWidget
+                rotation={windRotation}
+                label={windCompass}
+                ariaLabel="Wind direction"
+              />
+            </div>
+
+            <div className="mt-auto pt-1.5 space-y-1.5">
+              <SegmentedFillMeter
+                label="Wind speed"
+                value={
+                  windStat?.wind?.speed != null ? windStat.wind.speed : null
+                }
+                min={0}
+                max={WIND_SPEED_CAP}
+              />
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground tabular-nums">
+                <span>Low</span>
+                <span>High</span>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article
+          className={cn(
+            cardBase,
+            cardHover,
+            "col-span-6 @min-xl:col-span-6 @min-2xl:col-span-4 @min-3xl:col-span-5 @min-5xl:col-span-3 @min-6xl:col-span-4 p-4 flex flex-col min-h-35 overflow-hidden"
+          )}
+          aria-label="Tide summary"
+        >
+          <header className="flex items-start justify-between gap-3">
+            <p className={kickerClass}>Tide</p>
+            {tideTrend ? (
+              <span className="inline-flex items-center gap-1 rounded-full border border-border/25 bg-foreground/5 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                {tideTrend === "rising" ? (
+                  <ArrowUp className="h-3.5 w-3.5" aria-hidden="true" />
+                ) : (
+                  <ArrowDown className="h-3.5 w-3.5" aria-hidden="true" />
+                )}
+                {toTitleCase(tideTrend)}
+              </span>
+            ) : null}
+          </header>
+
+          <div className="mt-2 grid grid-cols-1 @min-[240px]:grid-cols-2 gap-x-4 gap-y-3">
+            <div className="min-w-0">
+              <p className="text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
+                Current
+              </p>
+              <p className="mt-0.5 text-2xl font-semibold tracking-tight">
+                {tideNow != null ? `${tideNow}` : "--"}
+                <span className="ml-1 text-sm font-medium text-muted-foreground">
+                  ft
+                </span>
+              </p>
+            </div>
+
+            <div className="min-w-0 @min-[240px]:justify-self-end">
+              <p className="text-end @min-md:text-start text-[11px] uppercase tracking-[0.06em] text-muted-foreground mb-0.5">
+                Next
+              </p>
+              {nextPeaks.length > 0 ? (
+                <div className="grid justify-end grid-cols-[auto_auto] @min-md:grid-cols-[auto_auto_auto] items-baseline gap-x-1 gap-y-0 whitespace-nowrap text-left">
+                  {nextPeaks.map((peak) => (
+                    <div
+                      key={`${peak.kind}-${peak.time.getTime()}`}
+                      className="contents"
+                    >
+                      <span className="hidden @min-md:block text-[11px] font-semibold text-muted-foreground tabular-nums">
+                        {peak.time.toLocaleTimeString([], {
+                          hour: "numeric",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                      <span
+                        className="text-[11px] text-muted-foreground/70"
+                        aria-hidden="true"
+                      >
+                        {peak.kind === "high" ? (
+                          <ArrowUp className="h-3 w-3 text-emerald-500/80 -mb-0.5" />
+                        ) : (
+                          <ArrowDown className="h-3 w-3 text-rose-500/80 -mb-0.5" />
+                        )}
+                      </span>
+                      <span className="text-[11px] font-semibold text-foreground tabular-nums">
+                        {peak.level != null ? `${peak.level} ft` : "--"}
+                      </span>
+                      <span className="sr-only">
+                        {peak.kind === "high" ? "High tide" : "Low tide"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[11px] text-right text-muted-foreground tabular-nums">
+                  --
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-auto pt-3 space-y-2">
+            {tideNow != null && tideMin != null && tideMax != null ? (
+              <MiniMarkerTrack
+                label="Tide level"
+                value={tideNow}
+                min={tideMin}
+                max={tideMax}
+              />
+            ) : (
+              <div className="mt-0.5 h-[4px] w-full rounded-full bg-foreground/10" />
+            )}
+            <div className="mt-1 flex items-center justify-between text-[11px] text-muted-foreground">
+              <span>
+                {tideMin != null ? `${tideMin.toFixed(1)} ft` : "\u00a0"}
+              </span>
+              <span>
+                {tideMax != null ? `${tideMax.toFixed(1)} ft` : "\u00a0"}
+              </span>
+            </div>
+          </div>
+        </article>
+
+        <article
+          className={cn(
+            cardBase,
+            cardHover,
+            "col-span-6 @min-xl:col-span-4 @min-3xl:col-span-3 @min-6xl:col-span-2 p-4 flex flex-col min-h-35 overflow-hidden"
+          )}
+          aria-label="Temperature summary"
+        >
+          <header className="flex items-baseline justify-between gap-3">
+            <p className={kickerClass}>Temperature</p>
+          </header>
+
+          <div className="mt-3 grid grid-cols-2 gap-3 justify-items-center w-full px-0 h-full items-center">
+            {(tempStat?.waterTempHigh != null || isLoading) && (
+              <div className="flex flex-col gap-1 items-center min-w-0">
+                <span className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap">
+                  WATER
+                </span>
+                <GradientCircle
+                  condition="water"
+                  percent={tempStat?.waterTempPercent}
+                  size={54}
+                  strokeWidth={3}
+                  color="bg-background dark:bg-highlight-4"
+                  content={
+                    <div className="flex flex-col items-center leading-tight">
+                      <span className="text-[0.95rem] font-semibold mt-1 flex items-start">
+                        {tempStat?.waterTempHigh ?? "--"}
+                        <span className="text-[0.6rem] mt-0.5">{DEGREE}</span>
+                      </span>
+                      {tempStat?.waterTempLow != null && (
+                        <span className="text-[0.7rem] text-muted-foreground">
+                          {tempStat.waterTempLow}
+                        </span>
+                      )}
+                    </div>
+                  }
+                />
+              </div>
+            )}
+            {(tempStat?.airTempHigh != null || isLoading) && (
+              <div className="flex flex-col gap-1 items-center min-w-0">
+                <span className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap">
+                  AIR
+                </span>
+                <GradientCircle
+                  condition="sun"
+                  percent={tempStat?.airTempPercent}
+                  weatherCode={tempStat?.weatherCode}
+                  size={54}
+                  strokeWidth={3}
+                  color="bg-background dark:bg-highlight-4"
+                  content={
+                    <div className="flex flex-col items-center leading-tight">
+                      <span className="text-[0.95rem] font-semibold mt-1 flex items-start">
+                        {tempStat?.airTempHigh ?? "--"}
+                        <span className="text-[0.6rem] mt-0.5">{DEGREE}</span>
+                      </span>
+                      {tempStat?.airTempLow != null && (
+                        <span className="text-[0.7rem] text-muted-foreground">
+                          {tempStat.airTempLow}
+                        </span>
+                      )}
+                    </div>
+                  }
+                />
+              </div>
+            )}
+          </div>
+        </article>
+
+        <article
+          className={cn(
+            cardBase,
+            cardHover,
+            "col-span-12 @min-xl:col-span-8 @min-2xl:col-span-12 @min-5xl:col-span-6 p-4 overflow-hidden flex flex-col"
+          )}
+          aria-label="Beach features"
+        >
+          <header className="flex items-baseline justify-between gap-3">
+            <div className="min-w-0">
+              <p className={kickerClass}>Features</p>
+            </div>
+          </header>
+
+          <div className="mt-3 flex-1 flex items-start">
+            <div
+              ref={containerRef}
+              className="p-0.5 flex flex-1 min-w-0 flex-wrap items-start content-start overflow-x-hidden overflow-y-visible min-h-10"
+              style={{ gap: `${gapPx}px` }}
+            >
+              {visibleItems.map((tag) => (
+                <Tag key={tag.label} data={tag} />
+              ))}
+
+              {hiddenItems.length > 0 ? (
+                <Popover>
+                  <PopoverTrigger className="more-button shrink-0 px-2.5 py-1.5 rounded-full bg-foreground/5 hover:bg-foreground/8 border border-border/25 text-[13px] text-muted-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0">
+                    +{hiddenItems.length}
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80 touch-pan-y">
+                    <div className="flex flex-wrap gap-2">
+                      {hiddenItems.map((tag) => (
+                        <Tag key={tag.label} data={tag} />
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              ) : null}
+            </div>
+
+            <div
+              ref={measureRef}
+              aria-hidden
+              style={{
+                position: "absolute",
+                left: -9999,
+                top: 0,
+                visibility: "hidden",
+                whiteSpace: "nowrap",
+                display: "inline-block",
+                pointerEvents: "none",
+              }}
+            >
+              {measurementNodes}
+            </div>
+          </div>
+        </article>
+      </div>
+    );
+  }
+
   return (
     <ul
       className={cn(
@@ -1067,14 +1899,14 @@ const Summary = ({
           </div>
         </div>
         <div className="flex-1 flex items-center gap-1 mt-2 justify-center min-h-0">
-          {overviewText ? (
+          {computedOverviewText ? (
             <p
               className={cn(
                 "text-center text-sm leading-snug text-foreground/90",
                 isOverviewVariant && "text-[0.9rem] @min-md:text-sm"
               )}
             >
-              {overviewText}
+              {computedOverviewText}
             </p>
           ) : (
             <div className="w-full max-w-[26rem] px-4">
@@ -1114,7 +1946,9 @@ const Summary = ({
                         <div className="flex flex-col items-center leading-tight">
                           <span className="text-[0.9rem] font-semibold mt-1 flex items-start">
                             {stat.waterTempHigh}
-                            <span className="text-[0.6rem] mt-0.5">°F</span>
+                            <span className="text-[0.6rem] mt-0.5">
+                              {DEGREE}F
+                            </span>
                           </span>
                           {stat.waterTempLow != null && (
                             <span className="text-[0.7rem] text-muted-foreground">
@@ -1141,7 +1975,9 @@ const Summary = ({
                         <div className="flex flex-col items-center leading-tight">
                           <span className="text-[0.9rem] font-semibold mt-1 flex items-start">
                             {stat.airTempHigh}
-                            <span className="text-[0.6rem] mt-0.5">°F</span>
+                            <span className="text-[0.6rem] mt-0.5">
+                              {DEGREE}F
+                            </span>
                           </span>
                           {stat.airTempLow != null && (
                             <span className="text-[0.7rem] text-muted-foreground">
@@ -1264,21 +2100,13 @@ const Summary = ({
                 >
                   {stat.type.toUpperCase()}
                 </h3>
-                {/* {stat.type === "features" && featuresOverflowing ? (
-                  <button
-                    className="text-[11px] px-2 py-0.5 rounded border border-border bg-highlight-5 hover:bg-highlight-4"
-                    onClick={() => setShowAllFeatures((v) => !v)}
-                  >
-                    {showAllFeatures ? "Collapse" : "Show all"}
-                  </button>
-                ) : null} */}
               </div>
               {stat.type === "features" ? (
                 <div>
                   {/* Visible container */}
                   <div
                     ref={containerRef}
-                    className="flex items-center gap-2 overflow-hidden mt-2 p-1 min-h-10"
+                    className="flex flex-1 min-w-0 items-center gap-2 overflow-hidden mt-2 p-1 min-h-10"
                     style={{ gap: `${gapPx}px` }}
                   >
                     {visibleItems.map((tag) => (
@@ -1287,7 +2115,7 @@ const Summary = ({
 
                     {hiddenItems.length > 0 ? (
                       <Popover>
-                        <PopoverTrigger className="more-button shrink-0 px-2 py-1 rounded-full bg-highlight-5 hover:bg-highlight-3 border border-border text-[14px] shadow-sm">
+                        <PopoverTrigger className="more-button shrink-0 px-2.5 py-1.5 rounded-full bg-foreground/5 hover:bg-foreground/8 border border-border/25 text-[13px] text-muted-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0">
                           +{hiddenItems.length}
                         </PopoverTrigger>
                         <PopoverContent className="w-80 touch-pan-y">

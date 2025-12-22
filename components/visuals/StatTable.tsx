@@ -540,8 +540,8 @@ const SurfStat = ({
 }) => {
   return (
     <CellSurface className="px-2">
-      <div className="w-full">
-        <div className="flex items-baseline justify-center gap-1 whitespace-nowrap">
+      <div className="w-full h-full flex flex-col justify-end gap-3">
+        <div className="flex items-baseline justify-start gap-1 whitespace-nowrap">
           <span className="text-[1.05rem] font-semibold tabular-nums leading-none">
             {range}
           </span>
@@ -1300,7 +1300,7 @@ const StatTable = ({
           ];
         } else {
           newPages = [
-            [cols[0], cols[2], cols[3], cols[4], cols[5], cols[6], cols[1]],
+            [cols[0], cols[2], cols[1], cols[3], cols[4], cols[5], cols[6]],
           ];
         }
       } else {
@@ -1320,7 +1320,7 @@ const StatTable = ({
           ];
         } else {
           newPages = [
-            [cols[0], cols[2], cols[3], cols[4], cols[5], cols[6], cols[1]],
+            [cols[0], cols[2], cols[1], cols[3], cols[4], cols[5], cols[6]],
           ];
         }
       }

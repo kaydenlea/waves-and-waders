@@ -134,20 +134,23 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     []
   );
 
-  const formatHourLabel = React.useCallback((label: unknown, payload: any[]) => {
-    let hour = payload?.[0]?.payload?.time;
-    if (typeof hour !== "number" && typeof label === "number") {
-      hour = label;
-    }
-    if (typeof hour !== "number") return "";
-    const wholeHour = Math.floor(hour);
-    const minutes = Math.round((hour - wholeHour) * 60);
-    const displayHour = wholeHour % 12 === 0 ? 12 : wholeHour % 12;
-    const ampm = wholeHour % 24 >= 12 ? "PM" : "AM";
-    return minutes > 0
-      ? `${displayHour}:${minutes.toString().padStart(2, "0")} ${ampm}`
-      : `${displayHour} ${ampm}`;
-  }, []);
+  const formatHourLabel = React.useCallback(
+    (label: unknown, payload: any[]) => {
+      let hour = payload?.[0]?.payload?.time;
+      if (typeof hour !== "number" && typeof label === "number") {
+        hour = label;
+      }
+      if (typeof hour !== "number") return "";
+      const wholeHour = Math.floor(hour);
+      const minutes = Math.round((hour - wholeHour) * 60);
+      const displayHour = wholeHour % 12 === 0 ? 12 : wholeHour % 12;
+      const ampm = wholeHour % 24 >= 12 ? "PM" : "AM";
+      return minutes > 0
+        ? `${displayHour}:${minutes.toString().padStart(2, "0")} ${ampm}`
+        : `${displayHour} ${ampm}`;
+    },
+    []
+  );
 
   const formatSwellTooltipValue = React.useCallback(
     (value: number, _name: string, item: any) => {
@@ -162,7 +165,9 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       return (
         <div className="flex flex-col items-end gap-0.5 text-right">
           <span>{height}</span>
-          <span className="text-[0.7rem] text-muted-foreground">{dirLabel}</span>
+          <span className="text-[0.7rem] text-muted-foreground">
+            {dirLabel}
+          </span>
         </div>
       );
     },
@@ -382,6 +387,7 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           activeDot={false}
           stroke="#023e8a"
           fill="#0077b6"
+          strokeWidth={1.5}
           fillOpacity={0.2}
           isAnimationActive={false}
           animationDuration={0}
@@ -399,8 +405,8 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
                       size={iconSize}
                       x={-iconSize / 2}
                       y={-iconSize / 2}
-                      fill="var(--swell-primary)"
-                      color="var(--color-highlight-2)"
+                      fill={chartConfig.primary.color}
+                      color={chartConfig.primary.color}
                     />
                   </g>
                 </g>
@@ -414,6 +420,7 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           activeDot={false}
           stroke="#0096c7"
           fill="#48cae4"
+          strokeWidth={1.5}
           fillOpacity={0.2}
           isAnimationActive={false}
           animationDuration={0}
@@ -431,8 +438,8 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
                       size={iconSize}
                       x={-iconSize / 2}
                       y={-iconSize / 2}
-                      fill="var(--swell-primary)"
-                      color="var(--color-highlight-2)"
+                      fill={chartConfig.secondary.color}
+                      color={chartConfig.secondary.color}
                     />
                   </g>
                 </g>
@@ -446,6 +453,7 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           activeDot={false}
           stroke="#70ccebff"
           fill="#adf1ffff"
+          strokeWidth={1.5}
           fillOpacity={0.2}
           isAnimationActive={false}
           animationDuration={0}
@@ -463,8 +471,8 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
                       size={iconSize}
                       x={-iconSize / 2}
                       y={-iconSize / 2}
-                      fill="var(--swell-primary)"
-                      color="var(--color-highlight-2)"
+                      fill={chartConfig.tertiary.color}
+                      color={chartConfig.tertiary.color}
                     />
                   </g>
                 </g>

@@ -1,25 +1,16 @@
-"use client";
+﻿"use client";
 
 import React, { useEffect, useState, useMemo, useRef } from "react";
-import dynamic from "next/dynamic";
 import { cn, getPacificDayRange } from "@/lib/utils";
-import SwellStat from "../general/Stats/SwellStat";
 
 import {
   Sun,
-  Droplets,
   MoonStar,
-  Wind,
-  CircleGauge,
-  Waves,
-  Atom,
-  Shell,
   Cloud as CloudIcon,
   CloudSun,
   CloudDrizzle,
   CloudRain,
   CloudLightning,
-  MousePointer2 as ArrowIcon,
   Snowflake,
 } from "lucide-react";
 
@@ -28,6 +19,22 @@ const clamp = (n: number, lo: number, hi: number) =>
   Math.max(lo, Math.min(hi, n));
 const toPct = (v: number, min: number, max: number) =>
   clamp(((v - min) / Math.max(1, max - min)) * 100, 0, 100);
+
+const cubicBezier = (
+  p0: number,
+  p1: number,
+  p2: number,
+  p3: number,
+  t: number
+) => {
+  const mt = 1 - t;
+  return (
+    mt * mt * mt * p0 +
+    3 * mt * mt * t * p1 +
+    3 * mt * t * t * p2 +
+    t * t * t * p3
+  );
+};
 
 type SegmentedGaugeProps = {
   valuePct: number; // 0..100
@@ -699,79 +706,149 @@ function VerticalSegmentedGauge({
   );
 }
 
-type WeatherGaugeConfig = {
-  valuePct: number;
-  segments?: number;
-  showCaret?: boolean;
-} | null;
-
 const WeatherStat = ({
   temp,
-  condition,
   label,
   weatherCode,
-  gaugeConfig = null,
 }: {
   temp: number;
-  condition?: string;
   label: string;
   weatherCode?: number | null;
-  gaugeConfig?: WeatherGaugeConfig;
 }) => {
-  // Function to get weather icon based on WMO code
-  const getWeatherIcon = (code: number | null) => {
-    if (label === "water")
-      return <Droplets className="w-5 h-5" color="#1CACD4" />;
-    if (code == null)
-      return <Sun className="w-5 h-5" strokeWidth={3} color="#fbbf24" />;
-
-    // WMO code groupings
-    if (code === 0)
-      return <Sun className="w-5 h-5" strokeWidth={3} color="#fbbf24" />; // Clear - yellow sun
-    if ([1, 2, 3].includes(code))
-      return <CloudSun className="w-5 h-5" color="#bdbdbdff" />; // Partly cloudy/overcast
-    if ([45, 48].includes(code))
-      return <CloudIcon className="w-5 h-5" color="#bdbdbdff" />; // Fog
-    if ([51, 53, 55].includes(code))
-      return <CloudDrizzle className="w-5 h-5" color="#66a3ffff" />; // Drizzle
-    if ([56, 57].includes(code))
-      return <CloudDrizzle className="w-5 h-5" color="#66a3ffff" />; // Freezing drizzle
-    if ([61, 63, 65].includes(code))
-      return <CloudRain className="w-5 h-5" color="#66a3ffff" />; // Rain
-    if ([66, 67].includes(code))
-      return <CloudRain className="w-5 h-5" color="#66a3ffff" />; // Freezing rain
-    if ([71, 73, 75].includes(code))
-      return <Snowflake className="w-5 h-5" color="#8ecaffff" />; // Snow
-    if (code === 77) return <Snowflake className="w-5 h-5" color="#8ecaffff" />; // Snow grains
-    if ([80, 81, 82].includes(code))
-      return <CloudRain className="w-5 h-5" color="#66a3ffff" />; // Showers
-    if ([85, 86].includes(code))
-      return <Snowflake className="w-5 h-5" color="#8ecaffff" />; // Snow showers
-    if ([95, 96, 99].includes(code))
-      return <CloudLightning className="w-5 h-5" color="#ff8d6bff" />; // Thunderstorm/hail
-
-    return <CloudIcon className="w-5 h-5" color="#bdbdbdff" />;
+  const getWeatherVisual = (code: number | null | undefined) => {
+    if (code == null || code === 0) {
+      return {
+        label: "Clear",
+        icon: (
+          <Sun className="h-5 w-5 stroke-[2.5] text-amber-500 dark:text-amber-400" />
+        ),
+      };
+    }
+    if ([1, 2].includes(code)) {
+      return {
+        label: "Partly Cloudy",
+        icon: <CloudSun className="h-5 w-5 text-foreground/70" />,
+      };
+    }
+    if (code === 3) {
+      return {
+        label: "Overcast",
+        icon: <CloudIcon className="h-5 w-5 text-foreground/65" />,
+      };
+    }
+    if ([45, 48].includes(code)) {
+      return {
+        label: "Fog",
+        icon: <CloudIcon className="h-5 w-5 text-foreground/60" />,
+      };
+    }
+    if ([51, 53, 55, 56, 57].includes(code)) {
+      return {
+        label: "Drizzle",
+        icon: (
+          <CloudDrizzle className="h-5 w-5 text-sky-500/80 dark:text-sky-400/80" />
+        ),
+      };
+    }
+    if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) {
+      return {
+        label: "Rain",
+        icon: (
+          <CloudRain className="h-5 w-5 text-sky-500/85 dark:text-sky-400/85" />
+        ),
+      };
+    }
+    if ([71, 73, 75, 77, 85, 86].includes(code)) {
+      return {
+        label: "Snow",
+        icon: <Snowflake className="h-5 w-5 text-sky-400/85" />,
+      };
+    }
+    if ([95, 96, 99].includes(code)) {
+      return {
+        label: "Storm",
+        icon: (
+          <CloudLightning className="h-5 w-5 text-rose-500/80 dark:text-rose-400/80" />
+        ),
+      };
+    }
+    return {
+      label: "Cloudy",
+      icon: <CloudIcon className="h-5 w-5 text-foreground/65" />,
+    };
   };
 
+  const visual = getWeatherVisual(weatherCode);
   return (
-    <HighlightCard label={label}>
-      <div className="flex items-center justify-center gap-0.5">
-        {getWeatherIcon(weatherCode ?? null)}
-        <span className="text-2xl font-semibold inline-flex items-start">
-          <span>{temp}</span>
-          <span className="text-xs font-normal ml-0.5">&deg;F</span>
+    <HighlightCard
+      label={label}
+      primary={
+        <>
+          <span className="text-[1.3rem] font-semibold tabular-nums tracking-tight">
+            {temp}
+          </span>
+          <span className="text-[0.75rem] font-medium text-muted-foreground">
+            &deg;F
+          </span>
+        </>
+      }
+      secondary={
+        <span className="text-[0.65rem] font-medium text-muted-foreground leading-none">
+          {visual.label}
         </span>
-      </div>
-      {gaugeConfig && label !== "water" && (
-        <div className="w-full px-2 mt-2">
-          <SegmentedGauge
-            valuePct={gaugeConfig.valuePct}
-            segments={gaugeConfig.segments ?? 5}
-            showCaret={gaugeConfig.showCaret ?? true}
-          />
-        </div>
-      )}
-    </HighlightCard>
+      }
+      visual={<VisualSlot>{visual.icon}</VisualSlot>}
+    />
+  );
+};
+
+const WaterStat = ({
+  temp,
+  min,
+  max,
+}: {
+  temp: number;
+  min?: number;
+  max?: number;
+}) => {
+  const lo = Number.isFinite(min) ? (min as number) : 45;
+  const hi = Number.isFinite(max) ? (max as number) : 85;
+  const t = clamp((temp - lo) / Math.max(1, hi - lo), 0, 1);
+  const descriptor =
+    temp < 58 ? "Cold" : temp < 65 ? "Cool" : temp < 72 ? "Mild" : "Warm";
+  const markerH = 8;
+  const top = `clamp(0px, calc(${Math.round((1 - t) * 100)}% - ${
+    markerH / 2
+  }px), calc(100% - ${markerH}px))`;
+  return (
+    <HighlightCard
+      label="water"
+      primary={
+        <>
+          <span className="text-[1.3rem] font-semibold tabular-nums tracking-tight">
+            {temp}
+          </span>
+          <span className="text-[0.75rem] font-medium text-muted-foreground">
+            &deg;F
+          </span>
+        </>
+      }
+      secondary={
+        <span className="text-[0.65rem] font-medium text-muted-foreground">
+          {descriptor}
+        </span>
+      }
+      visual={
+        <VisualSlot>
+          <div className="relative h-8 w-2 rounded-full bg-gradient-to-t from-sky-500/70 via-emerald-400/55 to-amber-400/75">
+            <div
+              className="absolute left-1/2 h-2 w-2 -translate-x-1/2 rounded-full bg-background ring-1 ring-foreground/20 shadow-sm"
+              style={{ top }}
+            />
+          </div>
+        </VisualSlot>
+      }
+    />
   );
 };
 
@@ -783,12 +860,19 @@ const BasicStat = ({
   label: string;
 }) => {
   return (
-    <HighlightCard label={label}>
-      <span className="text-2xl font-semibold rounded-md pb-5">
-        {data.value}
-        <span className="text-sm font-normal">{data.unit}</span>
-      </span>
-    </HighlightCard>
+    <HighlightCard
+      label={label}
+      primary={
+        <>
+          <span className="text-[1.55rem] font-semibold tabular-nums tracking-tight">
+            {data.value}
+          </span>
+          <span className="text-[0.75rem] font-medium text-muted-foreground">
+            {data.unit}
+          </span>
+        </>
+      }
+    />
   );
 };
 
@@ -801,6 +885,30 @@ type MoonKind =
   | "waning_gibbous"
   | "last_quarter"
   | "waning_crescent";
+
+/*
+const getMoonPhaseEmoji = (kind: MoonKind): string => {
+  switch (kind) {
+    case "new":
+      return "🌑";
+    case "waxing_crescent":
+      return "🌒";
+    case "first_quarter":
+      return "🌓";
+    case "waxing_gibbous":
+      return "🌔";
+    case "full":
+      return "🌕";
+    case "waning_gibbous":
+      return "🌖";
+    case "last_quarter":
+      return "🌗";
+    case "waning_crescent":
+      return "🌘";
+  }
+};
+
+*/
 
 function getMoonPhaseInfo(raw: string | number): {
   kind: MoonKind;
@@ -863,7 +971,29 @@ function getMoonPhaseInfo(raw: string | number): {
   return { kind, lines: labelMap[kind] };
 }
 
-const getMoonEmoji = (kind: MoonKind): string => {
+const getMoonPhaseEmoji = (kind: MoonKind): string => {
+  switch (kind) {
+    case "new":
+      return "\u{1F311}";
+    case "waxing_crescent":
+      return "\u{1F312}";
+    case "first_quarter":
+      return "\u{1F313}";
+    case "waxing_gibbous":
+      return "\u{1F314}";
+    case "full":
+      return "\u{1F315}";
+    case "waning_gibbous":
+      return "\u{1F316}";
+    case "last_quarter":
+      return "\u{1F317}";
+    case "waning_crescent":
+      return "\u{1F318}";
+  }
+};
+
+/*
+const getMoonEmojiSafe = (kind: MoonKind): string => {
   switch (kind) {
     case "new":
       return "🌑";
@@ -884,6 +1014,28 @@ const getMoonEmoji = (kind: MoonKind): string => {
   }
 };
 
+const getMoonEmoji = (kind: MoonKind): string => {
+  switch (kind) {
+    case "new":
+      return "🌑";
+    case "waxing_crescent":
+      return "🌒";
+    case "first_quarter":
+      return "🌓";
+    case "waxing_gibbous":
+      return "🌔";
+    case "full":
+      return "🌕";
+    case "waning_gibbous":
+      return "🌖";
+    case "last_quarter":
+      return "🌗";
+    case "waning_crescent":
+      return "🌘";
+  }
+};
+*/
+
 const MoonStat = ({
   label,
   data,
@@ -892,31 +1044,103 @@ const MoonStat = ({
   data: string | number;
 }) => {
   const info = getMoonPhaseInfo(data);
-  const MoonImg = () => {
-    return (
-      <span
-        role="img"
-        aria-label={`${info.lines[0]} ${info.lines[1]}`}
-        style={{ fontSize: 26, lineHeight: 1 }}
-      >
-        {getMoonEmoji(info.kind)}
-      </span>
-    );
-  };
+  const emoji = getMoonPhaseEmoji(info.kind);
+  const phaseFraction = (() => {
+    if (typeof data === "number" && Number.isFinite(data)) {
+      return ((data % 1) + 1) % 1;
+    }
+    const s = String(data ?? "").trim();
+    const num = Number(s);
+    if (!Number.isNaN(num) && Number.isFinite(num)) return ((num % 1) + 1) % 1;
+    const approx: Record<MoonKind, number> = {
+      new: 0,
+      waxing_crescent: 0.125,
+      first_quarter: 0.25,
+      waxing_gibbous: 0.375,
+      full: 0.5,
+      waning_gibbous: 0.625,
+      last_quarter: 0.75,
+      waning_crescent: 0.875,
+    };
+    return approx[info.kind];
+  })();
+  const illumination = 1 - Math.abs(phaseFraction * 2 - 1);
+
   return (
-    <HighlightCard label={label}>
-      <div className="flex items-center justify-center gap-0.5">
-        <MoonImg />
-        <div className="flex flex-col font-semibold">
-          <span className="@min-3xl:text-[0.7rem] text-[0.8rem] @min-4xl:text-[0.8rem] -mb-1">
+    <HighlightCard
+      label={label}
+      primary={
+        <div className="flex flex-col leading-[1.05]">
+          <span className="text-[0.82rem] font-semibold tracking-tight">
             {info.lines[0]}
           </span>
-          <span className="@min-3xl:text-[0.7rem] text-[0.8rem] @min-4xl:text-[0.8rem]">
+          <span className="text-[0.82rem] font-semibold tracking-tight">
             {info.lines[1]}
           </span>
         </div>
-      </div>
-    </HighlightCard>
+      }
+      secondary={
+        <span className="text-[0.72rem] font-medium text-muted-foreground">
+          {Math.round(illumination * 100)}% lit
+        </span>
+      }
+      visual={
+        <VisualSlot>
+          <div className="relative grid size-10 place-items-center">
+            {(() => {
+              const size = 40;
+              const cx = size / 2;
+              const cy = size / 2;
+              const r = 15;
+              const c = 2 * Math.PI * r;
+              const lit = clamp(illumination, 0, 1);
+              const dash = Math.max(0.001, lit) * c;
+              const gap = Math.max(0.001, c - dash);
+              return (
+                <svg
+                  width={size}
+                  height={size}
+                  viewBox={`0 0 ${size} ${size}`}
+                  aria-hidden="true"
+                  className="absolute inset-0 text-violet-600/80 dark:text-violet-400/80"
+                >
+                  <circle
+                    cx={cx}
+                    cy={cy}
+                    r={r}
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    opacity="0.18"
+                  />
+                  <circle
+                    cx={cx}
+                    cy={cy}
+                    r={r}
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeDasharray={`${dash} ${gap}`}
+                    transform={`rotate(-90 ${cx} ${cy})`}
+                    opacity="0.55"
+                  />
+                </svg>
+              );
+            })()}
+            <div className="grid size-9 place-items-center rounded-full bg-foreground/5 ring-1 ring-border/25">
+              <span
+                role="img"
+                aria-label={`${info.lines[0]} ${info.lines[1]}`}
+                className="text-[1.05rem] leading-none"
+              >
+                {emoji}
+              </span>
+            </div>
+          </div>
+        </VisualSlot>
+      }
+    />
   );
 };
 
@@ -929,53 +1153,137 @@ const WindStat = ({
   label: string;
   maxScale?: number;
 }) => {
-  const rotation = typeof data.dir === "number" ? data.dir - 315 : 0;
   const dirLabel = getWindDirection(
     typeof data.dir === "number" && Number.isFinite(data.dir) ? data.dir : 0
   );
-  const valuePct = Math.round(
-    toPct(data.speed, 0, Math.max(1, maxScale ?? 30))
-  );
+  const effMax = Math.max(1, maxScale ?? 30);
+  const speedPct = clamp(data.speed / effMax, 0, 1);
+  const gustPct = clamp(data.max / effMax, 0, 1);
+  const polar = (cx: number, cy: number, r: number, angleDeg: number) => {
+    const a = (Math.PI / 180) * angleDeg;
+    return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
+  };
+  const windColor = (() => {
+    const p = clamp(speedPct, 0, 1);
+    if (p < 0.33) return "#22c55e"; // green
+    if (p < 0.66) return "#f59e0b"; // amber
+    return "#ef4444"; // red
+  })();
+  const arcPath = (cx: number, cy: number, r: number, pct: number) => {
+    const p = clamp(pct, 0, 0.999);
+    if (p <= 0) return "";
+    const startDeg = -90;
+    const endDeg = startDeg + p * 360;
+    const s = polar(cx, cy, r, startDeg);
+    const e = polar(cx, cy, r, endDeg);
+    const laf = p > 0.5 ? 1 : 0;
+    return `M ${s.x} ${s.y} A ${r} ${r} 0 ${laf} 1 ${e.x} ${e.y}`;
+  };
+  const speedD = arcPath(22, 22, 18, speedPct);
+  const gustD = arcPath(22, 22, 19.5, gustPct);
+
   return (
-    <HighlightCard label={label}>
-      <div className="flex items-center w-full px-2 justify-center">
-        <div className="relative w-9 h-9 @min-3xl:w-6.5 @min-3xl:h-6.5 @min-4xl:w-9 @min-4xl:h-9 mb-0.5">
-          <div
-            className="absolute inset-0 rounded-full"
-            style={{
-              background: `conic-gradient(${`hsl(${Math.max(
-                0,
-                Math.min(140, 140 - valuePct * 1.4)
-              )} 75% 45%)`} ${valuePct}%, var(--border) ${valuePct}% 100%)`,
-            }}
-          />
-          <div className="absolute inset-[4px] @min-3xl:inset-[3px] @min-4xl:inset-[4px] rounded-full bg-background dark:bg-highlight-4 flex items-center justify-center">
-            <div className="flex flex-col items-center justify-center leading-none">
-              <div
-                style={{
-                  transform: `rotate(${rotation}deg)`,
-                  display: "inline-block",
-                }}
-              >
-                <ArrowIcon className="w-4 h-4 @min-3xl:w-3.5 @min-3xl:h-3.5 @min-4xl:w-4 @min-4xl:h-4 fill-foreground/20 text-foreground/50" />
-              </div>
-              {/* <span className="text-[0.6rem] font-medium mt-[3px] mb-0.5">
-                {dirLabel}
-              </span> */}
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-0.5 whitespace-nowrap min-w-15 justify-center">
-          <span className="text-[21.5px] font-semibold tabular-nums">
+    <HighlightCard
+      label={label}
+      primary={
+        <>
+          <span className="text-[1.3rem] font-semibold tabular-nums tracking-tight">
             {data.speed}
           </span>
-          <span className="mb-0.5 flex flex-col -space-y-0.5 leading-tight text-left">
-            <span className="text-[0.7rem] font-medium">{data.max}</span>
-            <span className="text-[0.6rem]">mph</span>
+          <span className="text-[0.75rem] font-medium text-muted-foreground">
+            mph
           </span>
-        </div>
-      </div>
-    </HighlightCard>
+        </>
+      }
+      secondary={
+        <span className="text-[0.65rem] font-medium text-muted-foreground">
+          Gust {data.max}
+        </span>
+      }
+      visual={
+        <VisualSlot className="text-foreground/65 dark:text-foreground/60">
+          <div className="relative h-11 w-11">
+            <div className="absolute left-1/2 -top-3 -translate-x-1/2 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground/80 whitespace-nowrap">
+              {dirLabel}
+            </div>
+            <svg
+              className="absolute inset-0"
+              width="44"
+              height="44"
+              viewBox="0 0 44 44"
+              aria-hidden="true"
+            >
+              <circle
+                cx="22"
+                cy="22"
+                r="18"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="3"
+                opacity="0.14"
+              />
+              {gustD ? (
+                <path
+                  d={gustD}
+                  fill="none"
+                  stroke={windColor}
+                  strokeWidth="2.1"
+                  strokeLinecap="round"
+                  opacity="0.24"
+                />
+              ) : null}
+              {speedD ? (
+                <path
+                  d={speedD}
+                  fill="none"
+                  stroke={windColor}
+                  strokeWidth="3.2"
+                  strokeLinecap="round"
+                  opacity="0.92"
+                />
+              ) : null}
+
+              <circle
+                cx="22"
+                cy="22"
+                r="6"
+                fill="currentColor"
+                opacity="0.05"
+              />
+              <circle
+                cx="22"
+                cy="22"
+                r="6"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                opacity="0.22"
+              />
+
+              <g transform={`rotate(${data.dir ?? 0} 22 22)`}>
+                {/* Tail segment (kept off the inner circle) */}
+                <line
+                  x1="22"
+                  y1="37"
+                  x2="22"
+                  y2="31"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  opacity="0.65"
+                  strokeLinecap="round"
+                />
+                {/* Head segment (separated from inner + outer rings) */}
+                <path
+                  d="M22 5.6 L27.6 13.7 Q28.1 14.3 27.3 14.7 L22 12.35 L16.7 14.7 Q15.9 14.3 16.4 13.7 Z"
+                  fill="currentColor"
+                  opacity="0.86"
+                />
+              </g>
+            </svg>
+          </div>
+        </VisualSlot>
+      }
+    />
   );
 };
 
@@ -992,24 +1300,51 @@ const EnergyStat = ({
   // Use 100 kJ as default max (typical range: 0-100 kJ for normal conditions)
   const effectiveMax = maxScale ?? 100;
   const valuePct = Math.round(toPct(data.value, 0, effectiveMax));
+  const p = clamp(valuePct / 100, 0, 1);
+  const descriptor =
+    valuePct < 33 ? "Low" : valuePct < 66 ? "Moderate" : "High";
+  const dots = 5;
+  const filled = Math.max(1, Math.min(dots, Math.round(p * (dots - 1)) + 1));
 
   return (
-    <HighlightCard label={label}>
-      <span className="text-2xl font-semibold rounded-md pb-1">
-        {data.value}
-        <span className="text-sm font-normal ml-1">{data.unit}</span>
-      </span>
-      <div className="w-full mt-1 max-w-40">
-        <SegmentedGauge
-          className="w-full"
-          valuePct={valuePct}
-          segments={5}
-          showCaret
-          colors={["#22c55e", "#84cc16", "#eab308", "#f59e0b", "#ef4444"]}
-          height={8}
-        />
-      </div>
-    </HighlightCard>
+    <HighlightCard
+      label={label}
+      primary={
+        <>
+          <span className="text-[1.3rem] font-semibold tabular-nums tracking-tight">
+            {data.value}
+          </span>
+          <span className="text-[0.75rem] font-medium text-muted-foreground">
+            {data.unit}
+          </span>
+        </>
+      }
+      secondary={
+        <span className="text-[0.65rem] font-medium text-muted-foreground">
+          {descriptor}
+        </span>
+      }
+      visual={
+        <VisualSlot>
+          <div
+            aria-hidden="true"
+            className="flex items-center justify-center gap-0.5"
+          >
+            {Array.from({ length: dots }).map((_, i) => (
+              <span
+                key={i}
+                className={cn(
+                  "h-1.5 w-1.5 rounded-full",
+                  i < filled
+                    ? "bg-gradient-to-r from-indigo-500/75 to-cyan-500/75 dark:from-indigo-400/75 dark:to-cyan-400/75"
+                    : "bg-foreground/10"
+                )}
+              />
+            ))}
+          </div>
+        </VisualSlot>
+      }
+    />
   );
 };
 
@@ -1019,7 +1354,7 @@ const PressureStat = ({
   minScale,
   maxScale,
 }: {
-  data: { value: number; unit: string };
+  data: { value: number; unit: string; trend?: Trend };
   label: string;
   minScale?: number;
   maxScale?: number;
@@ -1037,31 +1372,160 @@ const PressureStat = ({
     return { min: 29.4, max: 30.6 } as const;
   })();
 
-  const effMin = defaults.min;
-  const effMax = defaults.max;
-
-  const ClientPressureDial = useMemo(
-    () =>
-      dynamic(() => import("./PressureDial"), {
-        ssr: false,
-      }),
-    []
+  const effMin = Number.isFinite(minScale)
+    ? (minScale as number)
+    : defaults.min;
+  const effMax = Number.isFinite(maxScale)
+    ? (maxScale as number)
+    : defaults.max;
+  const pct = clamp(
+    (data.value - effMin) / Math.max(1e-6, effMax - effMin),
+    0,
+    1
   );
+  const trend: Trend = data.trend ?? "steady";
+  const trendLabel =
+    trend === "rising" ? "Rising" : trend === "falling" ? "Falling" : "Steady";
+  const displayUnit = unit === "in" ? "inHg" : data.unit;
+  const formattedValue = (() => {
+    if (!Number.isFinite(data.value)) return "-";
+    if (unit.includes("hpa") || unit === "mb" || unit.includes("millibar")) {
+      return String(Math.round(data.value));
+    }
+    return data.value.toFixed(2);
+  })();
+
+  const gauge = (() => {
+    const cx = 22;
+    const cy = 26;
+    const r = 14;
+    const angle = Math.PI - pct * Math.PI; // 180..0 across the top half
+    const tip = {
+      x: cx + (r - 2) * Math.cos(angle),
+      y: cy - (r - 2) * Math.sin(angle),
+    };
+    return { cx, cy, r, angle, tip };
+  })();
 
   return (
-    <HighlightCard label={label}>
-      <div className="w-full flex items-center justify-center">
-        <PressureDial
-          value={data.value}
-          min={effMin}
-          max={effMax}
-          unit={data.unit}
-          size={75}
-          thickness={6}
-          focusDeg={14}
-        />
-      </div>
-    </HighlightCard>
+    <HighlightCard
+      label={label}
+      primary={
+        <>
+          <span className="text-[1.3rem] font-semibold tabular-nums tracking-tight text-foreground/85">
+            {formattedValue}
+          </span>
+          <span className="text-[0.72rem] font-medium text-muted-foreground">
+            {displayUnit}
+          </span>
+        </>
+      }
+      secondary={
+        <span className="text-[0.65rem] font-medium text-muted-foreground">
+          {trendLabel}
+        </span>
+      }
+      visual={
+        <VisualSlot className="text-foreground/70 dark:text-foreground/65">
+          <svg
+            width="44"
+            height="44"
+            viewBox="0 0 44 44"
+            aria-hidden="true"
+            style={{ marginTop: -6 }}
+          >
+            <path
+              d="M8 26 A14 14 0 0 1 36 26"
+              pathLength={100}
+              stroke="currentColor"
+              strokeWidth="3"
+              opacity="0.16"
+              fill="none"
+              strokeLinecap="round"
+            />
+            <path
+              d="M8 26 A14 14 0 0 1 36 26"
+              pathLength={100}
+              stroke="currentColor"
+              strokeWidth="3"
+              opacity="0.45"
+              fill="none"
+              strokeLinecap="round"
+              strokeDasharray={`${pct * 100} 100`}
+            />
+            {Array.from({ length: 9 }, (_, i) => {
+              const a = Math.PI - (i / 8) * Math.PI;
+              const outer = gauge.r + 1;
+              const major = i % 2 === 0;
+              const inner = gauge.r - (major ? 6 : 3.5);
+              const x1 = gauge.cx + outer * Math.cos(a);
+              const y1 = gauge.cy - outer * Math.sin(a);
+              const x2 = gauge.cx + inner * Math.cos(a);
+              const y2 = gauge.cy - inner * Math.sin(a);
+              return (
+                <line
+                  key={i}
+                  x1={x1}
+                  y1={y1}
+                  x2={x2}
+                  y2={y2}
+                  stroke="currentColor"
+                  opacity={major ? 0.32 : 0.22}
+                  strokeWidth={major ? 1.25 : 1}
+                  strokeLinecap="round"
+                />
+              );
+            })}
+            <line
+              x1={gauge.cx}
+              y1={gauge.cy}
+              x2={gauge.tip.x}
+              y2={gauge.tip.y}
+              stroke="currentColor"
+              strokeWidth="2.6"
+              opacity="0.75"
+              strokeLinecap="round"
+            />
+            <circle
+              cx={gauge.cx}
+              cy={gauge.cy}
+              r="2.6"
+              fill="currentColor"
+              opacity="0.6"
+            />
+            <circle
+              cx={gauge.tip.x}
+              cy={gauge.tip.y}
+              r="2.8"
+              fill="currentColor"
+              opacity="0.85"
+            />
+            <text
+              x="10"
+              y="37.5"
+              textAnchor="middle"
+              fontSize="8"
+              fontWeight="700"
+              fill="currentColor"
+              opacity="0.55"
+            >
+              lo
+            </text>
+            <text
+              x="34"
+              y="37.5"
+              textAnchor="middle"
+              fontSize="8"
+              fontWeight="700"
+              fill="currentColor"
+              opacity="0.55"
+            >
+              hi
+            </text>
+          </svg>
+        </VisualSlot>
+      }
+    />
   );
 };
 
@@ -1070,7 +1534,7 @@ const TideStat = ({
   label,
   maxAbs,
 }: {
-  data: { value: number | string; unit: string };
+  data: { value: number | string; unit: string; pct?: number; trend?: Trend };
   label: string;
   maxAbs?: number;
 }) => {
@@ -1079,113 +1543,206 @@ const TideStat = ({
       ? data.value
       : Number(String(data.value).replace(/[^-\d.]/g, ""));
   const magnitude = Number.isFinite(numeric) ? Math.abs(numeric) : 0;
-  const valuePct = Math.round(
-    toPct(magnitude, 0, Math.max(1, maxAbs ?? (magnitude || 1)))
+  const fallbackPct = clamp(
+    toPct(magnitude, 0, Math.max(1, maxAbs ?? (magnitude || 1))) / 100,
+    0,
+    1
   );
+  const pct = clamp(data.pct ?? fallbackPct, 0, 1);
+  const stage = pct < 0.33 ? "Low" : pct < 0.66 ? "Mid" : "High";
+  const trend = data.trend ?? "steady";
+  const trendLabel =
+    trend === "rising" ? "Rising" : trend === "falling" ? "Falling" : "Steady";
+  const tideColor = (() => {
+    // Subtle intensity cue: low -> green, mid -> amber, high -> red.
+    if (pct < 0.33) return "#22c55e"; // green-500
+    if (pct < 0.66) return "#f59e0b"; // amber-500
+    return "#ef4444"; // red-500
+  })();
+  const bandOpacity = 0.06 + pct * 0.16;
+
+  const marker = (() => {
+    const t01 = pct < 0.5 ? pct * 2 : (pct - 0.5) * 2;
+    // Path: M4 24 C10 14, 18 14, 24 24 S38 34, 40 24
+    if (pct < 0.5) {
+      return {
+        x: cubicBezier(4, 10, 18, 24, t01),
+        y: cubicBezier(24, 14, 14, 24, t01),
+      };
+    }
+    // Smooth cubic reflection for "S": control1 is reflection of previous control2 over the join point.
+    // prior: p2=(18,14), join=(24,24) => reflected=(30,34)
+    return {
+      x: cubicBezier(24, 30, 38, 40, t01),
+      y: cubicBezier(24, 34, 34, 24, t01),
+    };
+  })();
+
   return (
-    <HighlightCard label={label}>
-      <span className="text-2xl font-semibold rounded-md pb-1">
-        {typeof data.value === "number" ? data.value : String(data.value)}
-        <span className="text-sm font-normal ml-1">{data.unit}</span>
-      </span>
-      <div className="w-full mt-1 max-w-40">
-        <SegmentedGauge
-          className="w-full"
-          valuePct={valuePct}
-          segments={5}
-          showCaret
-          colors={["#bfdbfe", "#93c5fd", "#60a5fa", "#3b82f6", "#1d4ed8"]}
-          height={8}
-        />
-      </div>
-    </HighlightCard>
+    <HighlightCard
+      label={label}
+      primary={
+        <>
+          <span className="text-[1.3rem] font-semibold tabular-nums tracking-tight">
+            {typeof data.value === "number" ? data.value : String(data.value)}
+          </span>
+          <span className="text-[0.75rem] font-medium text-muted-foreground">
+            {data.unit}
+          </span>
+        </>
+      }
+      secondary={
+        <span className="text-[0.65rem] font-medium text-muted-foreground">
+          {stage} / {trendLabel}
+        </span>
+      }
+      visual={
+        <VisualSlot>
+          <svg
+            width="44"
+            height="44"
+            viewBox="0 0 44 44"
+            aria-hidden="true"
+            style={{ color: tideColor }}
+          >
+            <path
+              d="M4 24 C10 14, 18 14, 24 24 S38 34, 40 24"
+              stroke="currentColor"
+              strokeWidth="2.25"
+              opacity="0.55"
+              fill="none"
+              strokeLinecap="round"
+            />
+            <path
+              d="M4 24 C10 14, 18 14, 24 24 S38 34, 40 24"
+              stroke="currentColor"
+              strokeWidth="5.5"
+              opacity={bandOpacity}
+              fill="none"
+              strokeLinecap="round"
+            />
+            <circle
+              cx={marker.x}
+              cy={marker.y}
+              r="3.1"
+              fill="currentColor"
+              opacity="0.85"
+            />
+            {trend === "rising" ? (
+              <path
+                d="M34 13 l0 7 M34 13 l-3 3 M34 13 l3 3"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                opacity="0.6"
+              />
+            ) : trend === "falling" ? (
+              <path
+                d="M34 20 l0-7 M34 20 l-3-3 M34 20 l3-3"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                opacity="0.6"
+              />
+            ) : (
+              <path
+                d="M31 16 h6"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                opacity="0.45"
+              />
+            )}
+          </svg>
+        </VisualSlot>
+      }
+    />
   );
 };
 
-const HighlightCard = ({
+function VisualSlot({
   children,
-  label,
   className,
-  statVisual,
 }: {
   children: React.ReactNode;
-  label: string;
-  statVisual?: React.ReactNode;
   className?: string;
-}) => {
-  const iconMap: Record<string, { icon: React.ReactNode; bgColor: string }> = {
-    wind: {
-      icon: <Wind size={16} className="text-gray-700" />,
-      bgColor: "bg-gray-50",
-    },
-    water: {
-      icon: <Droplets size={16} className="text-blue-400" />,
-      bgColor: "bg-blue-100",
-    },
-    weather: {
-      icon: <Sun size={16} className="text-orange-500" />,
-      bgColor: "bg-orange-100",
-    },
-    moon: {
-      icon: <MoonStar size={16} className="text-purple-600" />,
-      bgColor: "bg-purple-100",
-    },
-    pressure: {
-      icon: <CircleGauge size={16} className="text-yellow-800" />,
-      bgColor: "bg-yellow-100",
-    },
-    swell: {
-      icon: <Shell size={16} className="text-blue-900" />,
-      bgColor: "bg-blue-200",
-    },
-    tide: {
-      icon: <Waves size={16} className="text-blue-500" />,
-      bgColor: "bg-blue-100",
-    },
-    energy: {
-      icon: <Atom size={16} className="text-red-400" />,
-      bgColor: "bg-red-100",
-    },
-  };
+}) {
   return (
     <div
+      aria-hidden="true"
       className={cn(
-        "flex flex-col gap-4 items-center",
-        (label === "tide" || label === "energy") && "w-full",
+        "grid size-11 place-items-center rounded-xl bg-foreground/5 ring-1 ring-border/25",
+        "shadow-[0_1px_0_rgba(0,0,0,0.04)] dark:shadow-[0_1px_0_rgba(0,0,0,0.35)]",
         className
-        // label === "swell" && "@min-lg:w-full @min-2xl:w-auto @min-5xl:w-full"
       )}
     >
-      <h3 className="absolute top-2 left-2 text-muted-foreground text-[0.7rem] font-medium whitespace-nowrap">
+      {children}
+    </div>
+  );
+}
+
+function HighlightCard({
+  label,
+  primary,
+  secondary,
+  visual,
+  className,
+}: {
+  label: string;
+  primary: React.ReactNode;
+  secondary?: React.ReactNode;
+  visual?: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("relative h-full w-full", className)}>
+      <h3 className="absolute left-0 top-0 text-[0.65rem] font-semibold tracking-wide text-muted-foreground/90">
         {label.toUpperCase()}
       </h3>
-      {/* {statVisual && <div className="absolute top-2 right-1">{statVisual}</div>} */}
-      {/* <div className="p-0.5 rounded-full bg-highlight-5/50 border border-border/40 absolute -top-3 right-1">
-        <div
-          className={cn(
-            "flex justify-center items-center w-8 h-8 rounded-full",
-            iconMap[label].bgColor
-          )}
-        >
-          {iconMap[label].icon}
-        </div>
-      </div> */}
       <div
         className={cn(
-          "w-full px-2",
-          label === "swell" || label === "pressure"
-            ? "mt-3 @min-md:mt-2"
-            : "mt-2",
-          label === "pressure" && "mb-1.5"
+          "grid h-full w-full grid-cols-[1fr_auto] items-center pt-4",
+          secondary && label === "swell"
+            ? "@min-xl:gap-3 @min-3xl:gap-0 @min-6xl:gap-3"
+            : "gap-3"
         )}
       >
-        {children}
+        <div className="min-w-0">
+          <div
+            className={cn(
+              "flex min-w-0 items-baseline gap-1 leading-none",
+              label === "swell" &&
+                "justify-center @min-xl:justify-start @min-3xl:justify-center @min-6xl:justify-start"
+            )}
+          >
+            {primary}
+          </div>
+          {secondary ? (
+            <div
+              className={cn(
+                "mt-1 min-w-0 leading-none",
+                label === "swell" &&
+                  "flex justify-center @min-xl:justify-start @min-3xl:justify-center @min-6xl:justify-start"
+              )}
+            >
+              {secondary}
+            </div>
+          ) : null}
+        </div>
+        {visual ? <div className="shrink-0">{visual}</div> : null}
       </div>
     </div>
   );
-};
+}
 
-import { getWindDirection } from "@/lib/supabase";
+import {
+  getWindDirection,
+  type DailyConditions,
+  type ForecastData,
+  type TidePoint,
+} from "@/lib/supabase";
 import {
   useBeachForecast,
   useCurrentConditions,
@@ -1194,12 +1751,19 @@ import {
   useBeachById,
   usePrefetchAdjacentHours,
 } from "@/lib/hooks/useBeachData";
-import type { ForecastData } from "@/lib/supabase";
-import GradientCircle from "../general/Stats/GradientCircle";
-import { clampIntensity } from "./Summary";
-import PressureDial from "./PressureDial";
 
-type HighlightScales = any;
+type HighlightScales = {
+  windMax: number;
+  energyMax: number;
+  waterMin: number;
+  waterMax: number;
+  pressureMin: number;
+  pressureMax: number;
+  swellMax: number;
+  tideAbsMax: number;
+};
+
+type Trend = "rising" | "falling" | "steady";
 
 type Stat =
   | {
@@ -1219,10 +1783,21 @@ type Stat =
         { height: number; period: number; wind: { dir: string; deg: number } }
       ];
     }
-  | { label: "tide"; tide: { value: number | string; unit: string } }
+  | {
+      label: "tide";
+      tide: {
+        value: number | string;
+        unit: string;
+        pct?: number;
+        trend?: Trend;
+      };
+    }
   | { label: "moon"; phase: string | number }
   | { label: "wind"; wind: { speed: number; max: number; dir: number } }
-  | { label: "pressure"; pressure: { value: number; unit: string } }
+  | {
+      label: "pressure";
+      pressure: { value: number; unit: string; trend?: Trend };
+    }
   | { label: "energy"; energy: { value: number; unit: string } };
 
 const PLACEHOLDER_STATS: Stat[] = [
@@ -1287,8 +1862,9 @@ const Highlights = ({
     endWindow,
     Boolean(resolvedId) && !hasPrefetched
   );
-  const forecast = useMemo(
-    () => (hasPrefetched ? forecastRows ?? [] : fetchedForecast),
+  const forecast = useMemo<ForecastData[]>(
+    () =>
+      hasPrefetched ? forecastRows ?? [] : (fetchedForecast as ForecastData[]),
     [hasPrefetched, forecastRows, fetchedForecast]
   );
   const { data: tides = [], isLoading: tidesLoading } = useBeachTides(
@@ -1301,7 +1877,7 @@ const Highlights = ({
   const { data: daily, isLoading: dailyLoading } = useDailyConditions(
     county,
     date instanceof Date ? date : undefined
-  );
+  ) as { data: DailyConditions | null; isLoading: boolean };
 
   // Dynamic scales from forecast
   const percentile = (arr: number[], p: number) => {
@@ -1315,28 +1891,28 @@ const Highlights = ({
   };
   const computedScales = useMemo<HighlightScales>(() => {
     const winds = forecast
-      .map((r: any) => Number(r?.conditions?.windSpeed ?? 0))
+      .map((r) => Number(r.conditions.windSpeed ?? 0))
       .filter((n) => Number.isFinite(n) && n >= 0);
     const energies = forecast
-      .map((r: any) => Number(r?.surf?.waveEnergy ?? 0))
+      .map((r) => Number(r.surf.waveEnergy ?? 0))
       .filter((n) => Number.isFinite(n) && n >= 0);
     const waters = forecast
-      .map((r: any) => Number(r?.conditions?.waterTemp ?? 0))
+      .map((r) => Number(r.conditions.waterTemp ?? 0))
       .filter((n) => Number.isFinite(n));
     const pressures = forecast
-      .map((r: any) => Number(r?.conditions?.pressure ?? 0))
+      .map((r) => Number(r.conditions.pressure ?? 0))
       .filter((n) => Number.isFinite(n));
     const swellPowers = forecast
-      .map((r: any) => {
-        const h = Number(r?.swell?.primary?.height ?? 0);
-        const p = Number(r?.swell?.primary?.period ?? 0);
+      .map((r) => {
+        const h = Number(r.swell.primary.height ?? 0);
+        const p = Number(r.swell.primary.period ?? 0);
         return h * Math.sqrt(Math.max(0, p));
       })
       .filter((n) => Number.isFinite(n) && n >= 0);
 
     // Tide levels for intensity banding
-    const tideLevels = (tides as any[])
-      .map((t) => Number(t?.tideLevelFt ?? 0))
+    const tideLevels = (tides as TidePoint[])
+      .map((t) => Number(t.tideLevelFt ?? 0))
       .filter((n) => Number.isFinite(n));
     const tideAbs = tideLevels.map((n) => Math.abs(n));
 
@@ -1360,7 +1936,7 @@ const Highlights = ({
   usePrefetchAdjacentHours(resolvedId ?? null, date ?? null, hour ?? 0);
 
   // Memoize expensive calculations
-  const baseRow = useMemo(() => {
+  const baseRow = useMemo<ForecastData | undefined>(() => {
     if (!Array.isArray(forecast) || !forecast.length) return forecast[0];
 
     if (typeof hour === "number") {
@@ -1399,6 +1975,8 @@ const Highlights = ({
 
     // tide - find the tide data point closest to the selected time
     let tideValue = 0;
+    let tidePct: number | undefined;
+    let tideTrend: Trend | undefined;
     if (tides && tides.length > 0) {
       // Get the target timestamp from baseRow or use current time
       const now = new Date();
@@ -1406,16 +1984,36 @@ const Highlights = ({
         ? new Date(baseRow.timestamp).getTime()
         : now.getTime();
 
-      // Find the closest tide data point
-      const closestTide = tides.reduce((closest, tide) => {
+      // Find the closest tide data point (track index for rise/fall cue)
+      let closestIdx = 0;
+      let closestDiff = Number.POSITIVE_INFINITY;
+      tides.forEach((tide, idx) => {
         const diff = Math.abs(new Date(tide.timestamp).getTime() - targetTime);
-        const closestDiff = Math.abs(
-          new Date(closest.timestamp).getTime() - targetTime
-        );
-        return diff < closestDiff ? tide : closest;
-      }, tides[0]);
+        if (diff < closestDiff) {
+          closestDiff = diff;
+          closestIdx = idx;
+        }
+      });
 
-      tideValue = closestTide.tideLevelFt ?? 0;
+      const closestTide = tides[closestIdx];
+      tideValue = Number(closestTide?.tideLevelFt ?? 0);
+
+      const tideLevels = tides
+        .map((t) => Number(t?.tideLevelFt ?? NaN))
+        .filter((n) => Number.isFinite(n));
+      if (tideLevels.length >= 2) {
+        const min = Math.min(...tideLevels);
+        const max = Math.max(...tideLevels);
+        tidePct =
+          max > min ? clamp((tideValue - min) / (max - min), 0, 1) : 0.5;
+      }
+
+      const neighbor =
+        tides[closestIdx + 1] ?? tides[closestIdx - 1] ?? closestTide;
+      const neighborValue = Number(neighbor?.tideLevelFt ?? tideValue);
+      const d = neighborValue - tideValue;
+      const eps = 0.02; // ft
+      tideTrend = Math.abs(d) < eps ? "steady" : d > 0 ? "rising" : "falling";
     }
 
     nextStats.push({
@@ -1423,6 +2021,8 @@ const Highlights = ({
       tide: {
         value: Number(tideValue.toFixed(1)),
         unit: "ft",
+        pct: tidePct,
+        trend: tideTrend,
       },
     });
 
@@ -1480,15 +2080,30 @@ const Highlights = ({
       },
     });
     // moon
-    if (daily?.moon_phase != null) {
-      nextStats.push({ label: "moon", phase: (daily as any).moon_phase });
+    const moonPhase = daily?.moon_phase ?? null;
+    if (moonPhase != null) {
+      nextStats.push({ label: "moon", phase: moonPhase });
     }
     // pressure
+    const pressureValue = Number(base?.conditions.pressure ?? 0);
+    const baseIdx = baseRow ? forecast.indexOf(baseRow) : -1;
+    const nextPressure =
+      baseIdx >= 0 && forecast[baseIdx + 1]
+        ? Number(forecast[baseIdx + 1]?.conditions.pressure ?? pressureValue)
+        : pressureValue;
+    const pressureDelta = nextPressure - pressureValue;
+    const pressureTrend: Trend =
+      Math.abs(pressureDelta) < 0.02
+        ? "steady"
+        : pressureDelta > 0
+        ? "rising"
+        : "falling";
     nextStats.push({
       label: "pressure",
       pressure: {
-        value: Number((base?.conditions.pressure ?? 0).toFixed(2)),
+        value: Number((pressureValue ?? 0).toFixed(2)),
         unit: "in",
+        trend: pressureTrend,
       },
     });
     // energy
@@ -1517,10 +2132,10 @@ const Highlights = ({
   const displayScales = scalesState;
 
   return (
-    <div className="w-full max-w-7xl mx-auto p-1.5">
+    <div className="w-full max-w-7xl mx-auto p-1">
       <ul
         className={cn(
-          "grid grid-cols-2 @min-md:grid-cols-3 @min-3xl:grid-cols-4 gap-2.5",
+          "grid grid-cols-2 @min-xl:grid-cols-3 @min-3xl:grid-cols-4 gap-2",
           !isFull && "@min-3xl:grid-cols-3",
           isFull && "@min-4xl:grid-cols-4 @min-6xl:grid-cols-8"
         )}
@@ -1533,94 +2148,394 @@ const Highlights = ({
             );
           } else {
             switch (stat.label) {
-              case "swell":
-                content = stat.primary && stat.secondary && (
-                  <div
+              case "swell": {
+                if (!stat.primary || !stat.secondary) {
+                  content = null;
+                  break;
+                }
+
+                const SWELL_COLORS = {
+                  primary: "#1d4ed8",
+                  secondary: "#0ea5e9",
+                  tertiary: "#22d3ee",
+                } as const;
+
+                const dirPill = (
+                  dir: string,
+                  deg: number,
+                  primary: boolean = false
+                ) => (
+                  <span
                     className={cn(
-                      "flex justify-between items-center gap-0 @min-2xl:px-7 @min-3xl:px-0 @min-lg:w-full @min-3xl:w-auto",
-                      !isFull && "@min-5xl:w-full"
+                      "grid grid-cols-[10px_35px] @min-md:grid-cols-[10px_35px_20px] items-center justify-center gap-1 rounded-full border border-border/25 px-1.5 py-0.5",
+                      primary ? "bg-foreground/10" : "bg-foreground/5"
                     )}
                   >
-                    <HighlightCard
-                      className={cn(
-                        "@min-lg:w-47 @min-3xl:w-auto",
-                        !isFull && "@min-5xl:w-47"
-                      )}
-                      label={stat.label}
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 12 12"
+                      aria-hidden="true"
+                      className="shrink-0 text-foreground/60"
                     >
-                      <ul>
-                        <li>
-                          <SwellStat
-                            primary
-                            data={stat.primary}
-                            small
-                            isFull={isFull}
-                          />
-                        </li>
-                        <li>
-                          <SwellStat
-                            data={stat.secondary[0]}
-                            small
-                            isFull={isFull}
-                          />
-                        </li>
-                        <li>
-                          <SwellStat
-                            data={stat.secondary[1]}
-                            small
-                            isFull={isFull}
-                          />
-                        </li>
-                      </ul>
-                    </HighlightCard>
-                    <div
+                      <g transform={`rotate(${deg ?? 0} 6 6)`}>
+                        <line
+                          x1="6"
+                          y1="10"
+                          x2="6"
+                          y2="4"
+                          stroke="currentColor"
+                          strokeWidth="1.7"
+                          strokeLinecap="round"
+                          opacity="0.9"
+                        />
+                        <path
+                          d="M6 2 L9 5.5 L6 4.1 L3 5.5 Z"
+                          fill="currentColor"
+                          opacity="0.9"
+                        />
+                      </g>
+                    </svg>
+                    <span
                       className={cn(
-                        "relative shadow-even border border-border/20 font-semibold @container hidden @min-lg:block @min-3xl:hidden -mt-2 bg-highlight-6 py-3 px-3 flex-1 rounded-md text-center max-w-40",
-                        isFull ? "@min-6xl:hidden" : "@min-5xl:block"
+                        "text-[0.6rem] font-semibold uppercase tracking-wide text-center",
+                        primary ? "" : "text-muted-foreground"
                       )}
                     >
-                      <GradientCircle
-                        className="mx-auto @min-[110px]:mx-0"
-                        condition="surf"
-                        data={stat.primary.height}
-                        percentage={clampIntensity(stat.primary.height, 12)}
-                        size={50}
-                        strokeWidth={4}
-                        showIcon={false}
-                        content={
-                          <span className="flex flex-col items-center mt-1">
-                            <span className="text-[0.9rem]">
-                              {stat.primary.height.toFixed(1)}
-                            </span>
-                            <span className="text-[0.55rem] -mt-1">ft</span>
+                      {dir}
+                    </span>
+                    <span
+                      className={cn(
+                        "hidden @min-md:block text-[0.6rem]",
+                        primary ? "" : "text-muted-foreground"
+                      )}
+                    >
+                      {deg.toFixed(0)}&deg;
+                    </span>
+                  </span>
+                );
+
+                content = (
+                  <HighlightCard
+                    label={stat.label}
+                    primary={
+                      <div className="inline-grid min-w-0 grid-cols-[0.375rem_2.3rem_1.8rem_auto] items-center gap-x-1.5">
+                        <span
+                          aria-hidden="true"
+                          className="h-1.5 w-1.5 shrink-0 rounded-full"
+                          style={{ background: SWELL_COLORS.primary }}
+                        />
+                        <span className="inline-flex w-full items-baseline justify-start gap-0.5 whitespace-nowrap tabular-nums">
+                          <span className="text-[0.8rem] font-semibold tabular-nums tracking-tight">
+                            {stat.primary.height.toFixed(1)}
                           </span>
-                        }
-                      />
-                      <span className="hidden @min-[110px]:block text-[0.7rem] absolute right-2.5 bottom-2">
-                        PRIMARY
-                      </span>
-                      <span className="hidden @min-[110px]:block p-0.5 rounded-full bg-highlight-5/50 border border-border/40 absolute -top-3 right-1">
-                        <span className="flex justify-center items-center w-6 h-6 rounded-full bg-blue-100">
-                          <Waves size={16} className="text-blue-500" />
+                          <span className="text-[0.58rem] @min-xs:text-[0.7rem] font-medium text-muted-foreground">
+                            ft
+                          </span>
                         </span>
-                      </span>
-                    </div>
-                  </div>
+                        <span className="inline-flex w-full items-baseline justify-start gap-0.5 whitespace-nowrap">
+                          <span className="text-[0.8rem] font-semibold tabular-nums tracking-tight">
+                            {stat.primary.period}
+                          </span>
+                          <span className="text-[0.7rem] font-medium text-muted-foreground">
+                            s
+                          </span>
+                        </span>
+                        {dirPill(
+                          stat.primary.wind.dir,
+                          stat.primary.wind.deg,
+                          true
+                        )}
+                      </div>
+                    }
+                    secondary={
+                      <div className="-mt-0.5 grid gap-y-0.5">
+                        <div className="inline-grid min-w-0 grid-cols-[0.375rem_2.3rem_1.8rem_auto] items-center gap-x-1.5">
+                          <span
+                            aria-hidden="true"
+                            className="h-1.5 w-1.5 shrink-0 rounded-full"
+                            style={{ background: SWELL_COLORS.secondary }}
+                          />
+                          <span className="inline-flex w-full items-baseline justify-start gap-0.5 whitespace-nowrap tabular-nums">
+                            <span className="text-[0.8rem] font-medium tabular-nums tracking-tight text-foreground/80">
+                              {stat.secondary[0].height.toFixed(1)}
+                            </span>
+                            <span className="text-[0.58rem] @min-xs:text-[0.7rem] font-medium text-muted-foreground">
+                              ft
+                            </span>
+                          </span>
+                          <span className="inline-flex w-full items-baseline justify-start gap-0.5 whitespace-nowrap">
+                            <span className="text-[0.8rem] font-medium tabular-nums tracking-tight text-muted-foreground">
+                              {stat.secondary[0].period}
+                            </span>
+                            <span className="text-[0.7rem] font-medium text-muted-foreground">
+                              s
+                            </span>
+                          </span>
+                          {dirPill(
+                            stat.secondary[0].wind.dir,
+                            stat.secondary[0].wind.deg
+                          )}
+                        </div>
+
+                        <div className="inline-grid min-w-0 grid-cols-[0.375rem_2.3rem_1.8rem_auto] items-center gap-x-1.5">
+                          <span
+                            aria-hidden="true"
+                            className="h-1.5 w-1.5 shrink-0 rounded-full"
+                            style={{ background: SWELL_COLORS.tertiary }}
+                          />
+                          <span className="inline-flex w-full items-baseline justify-start gap-0.5 whitespace-nowrap tabular-nums">
+                            <span className="text-[0.8rem] font-medium tabular-nums tracking-tight text-foreground/80">
+                              {stat.secondary[1].height.toFixed(1)}
+                            </span>
+                            <span className="text-[0.58rem] @min-xs:text-[0.7rem] font-medium text-muted-foreground">
+                              ft
+                            </span>
+                          </span>
+                          <span className="inline-flex w-full items-baseline justify-start gap-0.5 whitespace-nowrap">
+                            <span className="text-[0.8rem] font-medium tabular-nums tracking-tight text-muted-foreground">
+                              {stat.secondary[1].period}
+                            </span>
+                            <span className="text-[0.7rem] font-medium text-muted-foreground">
+                              s
+                            </span>
+                          </span>
+                          {dirPill(
+                            stat.secondary[1].wind.dir,
+                            stat.secondary[1].wind.deg
+                          )}
+                        </div>
+                      </div>
+                    }
+                    visual={
+                      <div
+                        aria-hidden="true"
+                        className={cn(
+                          "hidden @min-xl:block @min-3xl:hidden relative -mt-4 overflow-hidden rounded-xl bg-foreground/5 ring-1 ring-border/25 w-[8rem] @min-xl:w-[8rem] @min-2xl:w-[12rem] @min-6xl:w-[8rem]",
+                          "shadow-[0_1px_0_rgba(0,0,0,0.04)] dark:shadow-[0_1px_0_rgba(0,0,0,0.35)]",
+                          isFull ? "" : "@min-6xl:block"
+                        )}
+                      >
+                        <div className="flex h-full flex-col gap-1.5 px-2 py-2">
+                          <div className="text-[0.65rem] font-semibold tracking-wide text-muted-foreground/90 leading-none">
+                            SWELL MIX
+                          </div>
+                          {(() => {
+                            const swells = [
+                              {
+                                key: "primary",
+                                color: SWELL_COLORS.primary,
+                                height: Math.max(0, stat.primary.height),
+                                period: Math.max(1, stat.primary.period),
+                                size: 7,
+                                opacity: 0.98,
+                              },
+                              {
+                                key: "secondary",
+                                color: SWELL_COLORS.secondary,
+                                height: Math.max(0, stat.secondary[0].height),
+                                period: Math.max(1, stat.secondary[0].period),
+                                size: 7,
+                                opacity: 0.9,
+                              },
+                              {
+                                key: "tertiary",
+                                color: SWELL_COLORS.tertiary,
+                                height: Math.max(0, stat.secondary[1].height),
+                                period: Math.max(1, stat.secondary[1].period),
+                                size: 7,
+                                opacity: 0.86,
+                              },
+                            ] as const;
+
+                            const heightMax = Math.max(
+                              1,
+                              ...swells.map((s) => s.height)
+                            );
+                            const periodMax = Math.max(
+                              1,
+                              ...swells.map((s) => s.period)
+                            );
+
+                            const trackGradient =
+                              "bg-gradient-to-r from-indigo-500/45 via-sky-400/35 to-cyan-300/30 dark:from-indigo-400/35 dark:via-sky-400/25 dark:to-cyan-300/20";
+
+                            const computeDotOffsets = (pcts: number[]) => {
+                              const sorted = pcts
+                                .map((p, i) => ({ p, i }))
+                                .sort((a, b) => a.p - b.p);
+                              const thresholdPct = 4;
+                              const collide01 =
+                                Math.abs(sorted[1]!.p - sorted[0]!.p) <
+                                thresholdPct;
+                              const collide12 =
+                                Math.abs(sorted[2]!.p - sorted[1]!.p) <
+                                thresholdPct;
+                              if (!collide01 && !collide12)
+                                return [0, 0, 0] as const;
+
+                              const offsets = [0, 0, 0];
+                              offsets[sorted[0]!.i] = 0;
+                              offsets[sorted[1]!.i] = 2;
+                              offsets[sorted[2]!.i] = -2;
+                              return offsets as const;
+                            };
+
+                            const mixPowers = swells.map(
+                              (s) => s.height * s.period
+                            );
+                            const mixTotal =
+                              mixPowers.reduce((sum, v) => sum + v, 0) || 1;
+                            const mixPercents = mixPowers.map(
+                              (v) => (v / mixTotal) * 100
+                            );
+
+                            const Track = ({
+                              kind,
+                              max,
+                            }: {
+                              kind: "height" | "period";
+                              max: number;
+                            }) => (
+                              <div className="relative h-[3px] w-full overflow-visible">
+                                <div className="relative h-[3px] w-full overflow-hidden rounded-full bg-foreground/10 ring-1 ring-foreground/5">
+                                  <div
+                                    className={cn(
+                                      "absolute inset-0 opacity-25",
+                                      trackGradient
+                                    )}
+                                  />
+                                </div>
+                                {(() => {
+                                  const pcts = swells.map((s) => {
+                                    const value =
+                                      kind === "height" ? s.height : s.period;
+                                    return toPct(value, 0, max);
+                                  });
+                                  const offsets = computeDotOffsets(pcts);
+                                  return swells.map((s, idx) => {
+                                    const size = Math.max(3, s.size - 1);
+                                    return (
+                                      <span
+                                        key={`${kind}-${s.key}`}
+                                        className="absolute top-1/2 rounded-full shadow-sm ring-1 ring-background/70 dark:ring-background/40"
+                                        style={{
+                                          left: `${pcts[idx]}%`,
+                                          width: size,
+                                          height: size,
+                                          background: s.color,
+                                          opacity: s.opacity,
+                                          transform: `translate(-50%, -50%) translateY(${offsets[idx]}px)`,
+                                        }}
+                                      />
+                                    );
+                                  });
+                                })()}
+                              </div>
+                            );
+
+                            return (
+                              <div className="flex flex-1 flex-col gap-1.5">
+                                <div className="h-[5px] w-full overflow-hidden rounded-full bg-foreground/10 ring-1 ring-foreground/5">
+                                  <div className="flex h-full w-full">
+                                    {swells.map((s, idx) => (
+                                      <div
+                                        key={`mix-${s.key}`}
+                                        className="h-full"
+                                        style={{
+                                          width: `${mixPercents[idx]}%`,
+                                          background: s.color,
+                                          opacity: 0.55,
+                                        }}
+                                      />
+                                    ))}
+                                  </div>
+                                </div>
+
+                                <div className="mt-1 grid grid-cols-[0.9rem_1fr] grid-rows-2 items-center gap-x-2 gap-y-0 text-foreground/70 dark:text-foreground/65">
+                                  <div className="row-start-1 col-start-1 grid place-items-center text-foreground/55 dark:text-foreground/50">
+                                    <svg
+                                      viewBox="0 0 16 16"
+                                      className="h-3.5 w-3.5"
+                                      aria-hidden="true"
+                                    >
+                                      <path
+                                        d="M1.75 10.75c2.1 0 2.1-2.5 4.2-2.5s2.1 2.5 4.2 2.5 2.1-2.5 4.2-2.5"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="1.6"
+                                        strokeLinecap="round"
+                                        opacity="0.95"
+                                      />
+                                      <path
+                                        d="M1.75 6.75c2.1 0 2.1-2.5 4.2-2.5s2.1 2.5 4.2 2.5 2.1-2.5 4.2-2.5"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="1.4"
+                                        strokeLinecap="round"
+                                        opacity="0.55"
+                                      />
+                                    </svg>
+                                  </div>
+                                  <div className="row-start-1 col-start-2">
+                                    <Track kind="height" max={heightMax} />
+                                  </div>
+                                  <div className="row-start-2 col-start-1 grid place-items-center text-foreground/55 dark:text-foreground/50">
+                                    <svg
+                                      viewBox="0 0 16 16"
+                                      className="h-3.5 w-3.5"
+                                      aria-hidden="true"
+                                    >
+                                      <circle
+                                        cx="8"
+                                        cy="8"
+                                        r="5.25"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="1.6"
+                                        opacity="0.85"
+                                      />
+                                      <path
+                                        d="M8 5.6v2.9l2.2 1.25"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="1.6"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        opacity="0.95"
+                                      />
+                                    </svg>
+                                  </div>
+                                  <div className="row-start-2 col-start-2">
+                                    <Track kind="period" max={periodMax} />
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    }
+                  />
                 );
                 break;
+              }
               case "weather":
                 content = stat.weather && (
                   <WeatherStat
                     temp={stat.weather.temp}
-                    condition={stat.weather.condition}
                     label={stat.label}
                     weatherCode={stat.weather.code}
                   />
                 );
                 break;
               case "water":
-                content = stat.temp && (
-                  <WeatherStat temp={stat.temp} label={stat.label} />
+                content = (
+                  <WaterStat
+                    temp={stat.temp}
+                    min={displayScales?.waterMin}
+                    max={displayScales?.waterMax}
+                  />
                 );
                 break;
 
@@ -1628,13 +2543,21 @@ const Highlights = ({
                 const hasPhase =
                   stat.phase !== null && stat.phase !== undefined;
                 content = hasPhase ? (
-                  <MoonStat data={stat.phase as any} label={stat.label} />
+                  <MoonStat data={stat.phase} label={stat.label} />
                 ) : (
-                  <HighlightCard label={stat.label}>
-                    <div className="flex flex-col items-center text-sm text-muted-foreground">
-                      <span>Moon data unavailable</span>
-                    </div>
-                  </HighlightCard>
+                  <HighlightCard
+                    label={stat.label}
+                    primary={
+                      <span className="text-[0.9rem] font-semibold text-muted-foreground">
+                        Unavailable
+                      </span>
+                    }
+                    visual={
+                      <VisualSlot>
+                        <MoonStar className="h-5 w-5 text-violet-600/70 dark:text-violet-400/70" />
+                      </VisualSlot>
+                    }
+                  />
                 );
                 break;
               }
@@ -1682,16 +2605,17 @@ const Highlights = ({
               <li
                 key={`${stat.label}-${idx}`}
                 className={cn(
-                  "relative highlight-card shadow-even min-h-22 @min-3xl:min-h-20 @min-4xl:min-h-22",
-                  isFull && "@min-4xl:min-h-25",
+                  "relative highlight-card shadow-even p-2.5 min-h-[74px] @min-3xl:min-h-[70px] @min-4xl:min-h-[95px]",
+                  "transition-colors duration-200 motion-reduce:transition-none",
+                  "hover:bg-highlight-7/70 active:bg-highlight-7/80",
                   stat.label === "swell" &&
-                    "col-span-1 @min-md:col-span-2 @min-3xl:col-span-1",
+                    "col-span-1 @min-xl:col-span-2 @min-3xl:col-span-1",
                   stat.label === "swell" && !isFull && "@min-3xl:col-span-2",
                   stat.label === "swell" && isFull && "@min-md:col-span-2",
-                  !isHydrated && "animate-pulse"
+                  !isHydrated && "animate-pulse motion-reduce:animate-none"
                 )}
               >
-                <div className="flex-1 flex items-center justify-center gap-1 mt-1 h-full">
+                <div className="flex-1 flex items-center justify-center gap-1 h-full">
                   {content}
                 </div>
               </li>

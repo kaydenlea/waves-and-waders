@@ -858,7 +858,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
         >
           {/* Day label bar */}
           <div
-            className="rounded-t-lg overflow-hidden border border-border/20 bg-highlight-5/40 shadow-even backdrop-blur-md"
+            className="rounded-t-md overflow-hidden border border-border/20 bg-highlight-5/40 backdrop-blur-md"
             style={{
               position: "absolute",
               zIndex: 40,
@@ -882,7 +882,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                   pointerEvents: "none",
                 }}
               >
-                <div className="flex h-full items-center justify-between gap-3 rounded-md border border-border/30 bg-highlight-7/10 dark:bg-highlight-5/50 px-3 py-2 shadow-sm">
+                <div className="flex h-full items-center justify-between gap-3 rounded-md bg-highlight-3/50 dark:bg-highlight-5/50 px-3 py-2">
                   {(() => {
                     const [weekdayRaw, monthDayRaw] = label.split(",");
                     const weekday = (weekdayRaw ?? label).trim();
@@ -900,8 +900,8 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                             {monthDay || label}
                           </span>
                         </div>
-                        <div className="flex flex-col items-end gap-0.5 whitespace-nowrap text-[0.72rem] text-muted-foreground">
-                          <div className="grid grid-cols-[14px_18px_32px_16px] items-center gap-x-1 rounded-md bg-foreground/5 px-2 py-0.5 leading-none">
+                        <div className="flex flex-col items-end gap-0.5 whitespace-nowrap text-[0.72rem] text-muted-foreground rounded-md py-1 pl-1 bg-foreground/5">
+                          <div className="grid grid-cols-[14px_18px_32px_16px] items-center gap-x-1 leading-none">
                             <ArrowUp className="h-3 w-3 text-emerald-500/80" />
                             <span className="mt-0.5 text-[0.68rem] font-semibold text-muted-foreground">
                               Hi
@@ -915,7 +915,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                               ft
                             </span>
                           </div>
-                          <div className="grid grid-cols-[14px_18px_32px_16px] items-center gap-x-1 rounded-md bg-foreground/5 px-2 py-0.5 leading-none">
+                          <div className="grid grid-cols-[14px_18px_32px_16px] items-center gap-x-1 leading-none">
                             <ArrowDown className="h-3 w-3 text-rose-500/80" />
                             <span className="mt-0.5 text-[0.68rem] font-semibold text-muted-foreground">
                               Lo
@@ -1083,9 +1083,9 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                 <Bar
                   dataKey="surf"
                   fill="var(--color-surf)"
-                  radius={4}
-                  stroke="#5f5f5fff"
-                  strokeWidth={0.5}
+                  radius={6}
+                  // stroke="#5f5f5fff"
+                  // strokeWidth={0.5}
                   minPointSize={15}
                   isAnimationActive={false}
                   animationDuration={0}
@@ -1122,16 +1122,16 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                               width={safeWidth}
                               height={safeHeight}
                               fill={barColor}
-                              rx={4}
-                              stroke="#5f5f5fff"
-                              strokeWidth={0.5}
+                              rx={6}
+                              // stroke="#5f5f5fff"
+                              // strokeWidth={0.5}
                             />
                             <text
                               x={safeX + safeWidth / 2}
                               y={safeY + safeHeight / 2 + fontSize / 3}
                               fill="#2c2c2cff"
                               textAnchor="middle"
-                              fontWeight="bold"
+                              fontWeight="600"
                               fontSize={fontSize}
                             >
                               {label === "0.0" ? "0" : label}

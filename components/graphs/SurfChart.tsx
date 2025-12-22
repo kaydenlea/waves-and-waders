@@ -150,8 +150,7 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     }
 
     const quantizeHour = (rawHour: number) => {
-      const rounded =
-        Math.round(rawHour / DATA_STEP_HOURS) * DATA_STEP_HOURS;
+      const rounded = Math.round(rawHour / DATA_STEP_HOURS) * DATA_STEP_HOURS;
       return Math.min(hours, Math.max(0, rounded));
     };
 
@@ -362,8 +361,7 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   const centerDomainHour = useCallback(
     (hour: number | null) => {
       if (hour == null) return null;
-      const quantized =
-        Math.round(hour / DATA_STEP_HOURS) * DATA_STEP_HOURS;
+      const quantized = Math.round(hour / DATA_STEP_HOURS) * DATA_STEP_HOURS;
       const minX = domainMin + HALF_STEP_HOURS;
       const maxX = Math.max(minX, domainMax - HALF_STEP_HOURS);
       return Math.min(maxX, Math.max(minX, quantized));
@@ -494,7 +492,7 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         })}
         {nightAreas.map((area, idx) => {
           const x1 = area.x1 <= 0 ? domainMin : area.x1;
-          const x2 = (area.x2 ?? hours) >= hours ? domainMax : (area.x2 ?? hours);
+          const x2 = (area.x2 ?? hours) >= hours ? domainMax : area.x2 ?? hours;
           return (
             <ReferenceArea
               key={`night-${idx}`}
@@ -558,9 +556,9 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         <Bar
           dataKey="surf"
           fill="var(--color-surf, var(--color-tide))"
-          radius={4}
-          stroke="#0000006e"
-          strokeWidth={0.5}
+          radius={6}
+          // stroke="#0000006e"
+          // strokeWidth={0.5}
           minPointSize={15}
           isAnimationActive={false}
           animationDuration={0}
@@ -596,16 +594,16 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
                       width={safeWidth}
                       height={safeHeight}
                       fill={barColor}
-                      rx={4}
-                      stroke="#0000006e"
-                      strokeWidth={0.5}
+                      rx={6}
+                      // stroke="#0000006e"
+                      // strokeWidth={0.5}
                     />
                     <text
                       x={safeX + safeWidth / 2}
                       y={safeY + safeHeight / 2 + fontSize / 3}
                       fill="#2c2c2cff"
                       textAnchor="middle"
-                      fontWeight="bold"
+                      fontWeight="600"
                       fontSize={fontSize}
                     >
                       {label === "0.0" ? "0" : surfLabel}

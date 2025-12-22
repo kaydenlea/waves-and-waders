@@ -1922,8 +1922,8 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       .addTo(map);
     const zoomContainer = zoomControlRef.current.getContainer();
     Object.assign(zoomContainer.style, {
-      background: "var(--highlight-7)",
-      opacity: "0.8",
+      background: "var(--highlight-4)",
+      opacity: "0.6",
       borderRadius: "30px",
       padding: "0px 5px",
       marginTop: !fullMapPage ? "125px" : smallScreen ? "260px" : "0px",
@@ -2854,7 +2854,22 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     }
   }, [fullMapPage, setOpenPanel]);
   const filterCount = filters.size;
-  const blurDisabled = viewportStatus === "loading";
+
+  const overlayButtonBase = cn(
+    "inline-flex items-center justify-center rounded-full border p-3",
+    "border-border/55 bg-background/70 text-foreground backdrop-blur-md",
+    "dark:border-border/35 dark:bg-highlight-4/60",
+    "transition-colors duration-200 motion-reduce:transition-none",
+    "hover:border-border/70 hover:bg-sky-200/80",
+    "dark:hover:border-border/45 dark:hover:bg-sky-300/40",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20 focus-visible:ring-offset-0",
+    "active:scale-[0.98] motion-reduce:transform-none"
+  );
+
+  const overlayButtonActive = cn(
+    "bg-sky-200/80 border-sky-300/70 text-sky-950",
+    "dark:bg-sky-600/40 dark:border-sky-300/35 dark:text-sky-50"
+  );
   const wrapperHeight = smallScreen
     ? {
         minHeight: "calc(100dvh)",
@@ -2945,10 +2960,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
               <button
                 type="button"
                 aria-label="Refocus map on selected beach"
-                className={cn(
-                  "bg-highlight-7/80 hover:bg-blue-200 dark:hover:bg-blue-400 rounded-full border border-border shadow-lg p-3 text-sm font-medium flex items-center gap-2 active:scale-95 transition",
-                  blurDisabled ? "" : "backdrop-blur"
-                )}
+                className={cn(overlayButtonBase, "text-sm font-medium")}
                 onClick={() => {
                   if (!selectedBeachId) return;
                   const handled = tryFocusDetail({
@@ -2971,9 +2983,9 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
               aria-label="toggle filters"
               onClick={() => togglePanel("filters")}
               className={cn(
-                "relative bg-highlight-7/80 hover:bg-blue-200 dark:hover:bg-blue-400 rounded-full border border-border shadow-lg p-3 text-sm font-medium flex items-center gap-2 active:scale-95 transition",
-                blurDisabled ? "" : "backdrop-blur",
-                openPanel === "filters" && "bg-blue-300",
+                overlayButtonBase,
+                "relative text-sm font-medium",
+                openPanel === "filters" && overlayButtonActive,
                 !fullMapPage && "block @min-4xl:hidden"
               )}
             >
@@ -2990,9 +3002,9 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
                 aria-label="toggle legend"
                 onClick={() => togglePanel("legend")}
                 className={cn(
-                  "bg-highlight-7/80 hover:bg-blue-200 dark:hover:bg-blue-400 rounded-full border border-border shadow-lg p-3 text-sm font-medium flex items-center gap-2 active:scale-95 transition",
-                  blurDisabled ? "" : "backdrop-blur",
-                  openPanel === "legend" && "bg-blue-300"
+                  overlayButtonBase,
+                  "text-sm font-medium",
+                  openPanel === "legend" && overlayButtonActive
                 )}
               >
                 <Info className="w-5 h-5 mx-auto" />
@@ -3002,7 +3014,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
               <button
                 type="button"
                 aria-label="open map"
-                className="bg-highlight-7/80 backdrop-blur icon-button p-3 hover:bg-blue-200 dark:hover:bg-blue-400"
+                className={cn(overlayButtonBase, "text-sm font-medium")}
                 onClick={() => {
                   if (openPanel) setOpenPanel(null);
                   router.push("/beaches");
@@ -3019,9 +3031,10 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
             aria-label="select date"
             onClick={() => togglePanel("date")}
             className={cn(
-              "z-[1000] absolute left-3 top-17 @min-4xl:top-auto @min-4xl:bottom-25 bg-highlight-7/80 hover:bg-blue-200 dark:hover:bg-blue-400 rounded-full border border-border shadow-lg p-3 text-sm font-medium flex items-center gap-2 active:scale-95 transition",
-              blurDisabled ? "" : "backdrop-blur",
-              openPanel === "date" && "bg-blue-300"
+              "z-[1000] absolute left-3 top-17 @min-4xl:top-auto @min-4xl:bottom-25",
+              overlayButtonBase,
+              "text-sm font-medium",
+              openPanel === "date" && overlayButtonActive
             )}
           >
             <CalendarDays className="w-5 h-5 mx-auto" />
@@ -3032,8 +3045,9 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
             type="button"
             aria-label={`${showMap ? "Minimize" : "Maximize"} map`}
             className={cn(
-              "z-[1000] absolute left-3 bottom-3 bg-highlight-7/80 rounded-full p-3 shadow-lg border border-border hover:bg-blue-200 dark:hover:bg-blue-400 text-sm font-medium flex items-center gap-2 active:scale-95 transition",
-              blurDisabled ? "" : "backdrop-blur"
+              "z-[1000] absolute left-3 bottom-3",
+              overlayButtonBase,
+              "text-sm font-medium"
             )}
             onClick={() => {
               if (openPanel) setOpenPanel(null);
@@ -3052,14 +3066,11 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
             selectedDate={effectiveStatsDate}
             onSelectDate={handleMapDateSelect}
             onClose={() => setOpenPanel(null)}
-            disableBlur={blurDisabled}
+            disableBlur={false}
           />
         )}
         {fullMapPage && openPanel === "legend" && (
-          <LegendPanel
-            onClose={() => setOpenPanel(null)}
-            disableBlur={blurDisabled}
-          />
+          <LegendPanel onClose={() => setOpenPanel(null)} disableBlur={false} />
         )}
         {mapReady && selectedBeach && overlayAnchor && swellDirections && (
           <SelectedBeachOverlay
@@ -3274,7 +3285,8 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
             width: 34px;
             height: 34px;
             border-radius: 999px;
-            border: 1px solid rgba(148, 163, 184, 0.5);
+            border: 1px solid
+              color-mix(in oklch, var(--border) 65%, transparent);
             margin: 4px 0;
             display: flex;
             align-items: center;
@@ -3282,9 +3294,11 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
             font-weight: 600;
             font-size: 1rem;
             color: var(--foreground);
-            background: rgba(255, 255, 255, 0.7);
+            background: color-mix(in oklch, var(--background) 60%, transparent);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
             transition: background 140ms ease, color 140ms ease,
-              box-shadow 140ms ease, opacity 140ms ease;
+              border-color 140ms ease, box-shadow 140ms ease, opacity 140ms ease;
             text-decoration: none;
             cursor: pointer;
             position: relative;
@@ -3300,9 +3314,15 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
             box-shadow: none;
           }
           .leaflet-control-zoom a:not(.is-disabled):hover,
-          .leaflet-control-zoom a:not(.is-disabled):focus-visible {
-            color: #6d6d6dff;
+          .leaflet-control-zoom a:not(.is-disabled):hover {
+            color: var(--muted-foreground);
             outline: none;
+          }
+          .leaflet-control-zoom a:not(.is-disabled):focus-visible {
+            color: var(--foreground);
+            border-color: color-mix(in oklch, var(--border) 80%, transparent);
+            box-shadow: 0 0 0 2px
+              color-mix(in oklch, var(--foreground) 20%, transparent);
           }
           // .leaflet-control-zoom a:not(.is-disabled):active {
           //   transform: scale(0.95);

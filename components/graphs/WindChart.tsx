@@ -271,8 +271,7 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   const centerDomainHour = useCallback(
     (hour: number | null) => {
       if (hour == null) return null;
-      const quantized =
-        Math.round(hour / DATA_STEP_HOURS) * DATA_STEP_HOURS;
+      const quantized = Math.round(hour / DATA_STEP_HOURS) * DATA_STEP_HOURS;
       const minX = domainMin + HALF_STEP_HOURS;
       const maxX = Math.max(minX, domainMax - HALF_STEP_HOURS);
       return Math.min(maxX, Math.max(minX, quantized));
@@ -304,8 +303,7 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       hour = label;
     }
     if (typeof hour !== "number") return "";
-    const nearestSlot =
-      Math.round(hour / DATA_STEP_HOURS) * DATA_STEP_HOURS;
+    const nearestSlot = Math.round(hour / DATA_STEP_HOURS) * DATA_STEP_HOURS;
     const normalized = ((nearestSlot % 24) + 24) % 24;
     const displayHour = normalized % 12 === 0 ? 12 : normalized % 12;
     const ampm = normalized >= 12 ? "PM" : "AM";
@@ -325,7 +323,9 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       return (
         <div className="flex flex-col items-end gap-0.5 text-right">
           <span className="font-semibold">{`${speed} mph`}</span>
-          <span className="text-[0.72rem] text-muted-foreground">{dirText}</span>
+          <span className="text-[0.72rem] text-muted-foreground">
+            {dirText}
+          </span>
         </div>
       );
     },
@@ -426,7 +426,7 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       >
         {dayAreas.map((area, idx) => {
           const x1 = area.x1 <= 0 ? domainMin : area.x1;
-          const x2 = (area.x2 ?? hours) >= hours ? domainMax : (area.x2 ?? hours);
+          const x2 = (area.x2 ?? hours) >= hours ? domainMax : area.x2 ?? hours;
           return (
             <ReferenceArea
               key={`day-${idx}`}
@@ -439,7 +439,7 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         })}
         {nightAreas.map((area, idx) => {
           const x1 = area.x1 <= 0 ? domainMin : area.x1;
-          const x2 = (area.x2 ?? hours) >= hours ? domainMax : (area.x2 ?? hours);
+          const x2 = (area.x2 ?? hours) >= hours ? domainMax : area.x2 ?? hours;
           return (
             <ReferenceArea
               key={`night-${idx}`}
@@ -510,9 +510,9 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         <Bar
           dataKey="wind"
           fill="var(--color-wind)"
-          radius={4}
-          stroke="#0000006e"
-          strokeWidth={0.5}
+          radius={6}
+          // stroke="#0000006e"
+          // strokeWidth={0.5}
           minPointSize={15}
           isAnimationActive={false}
           animationDuration={0}
@@ -589,16 +589,16 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
                       width={safeWidth}
                       height={safeHeight}
                       fill={barColor}
-                      rx={4}
-                      stroke="#0000006e"
-                      strokeWidth={0.5}
+                      rx={6}
+                      // stroke="#0000006e"
+                      // strokeWidth={0.5}
                     />
                     <text
                       x={safeX + safeWidth / 2}
                       y={safeY + safeHeight / 2 + fontSize / 3}
                       fill="#2c2c2cff"
                       textAnchor="middle"
-                      fontWeight="bold"
+                      fontWeight="600"
                       fontSize={fontSize}
                     >
                       {`${Math.round(props.value)}`}

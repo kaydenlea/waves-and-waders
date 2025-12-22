@@ -939,7 +939,7 @@ export default React.memo(function ForecastTideChart({
           >
             {/* Day label bar (4 filled boxes) - fixed in viewport and aligned to visible days */}
             <div
-              className="rounded-t-lg overflow-hidden border border-border/20 bg-highlight-5/40 shadow-even backdrop-blur-md"
+              className="rounded-t-md overflow-hidden border border-border/20 bg-highlight-5/40 backdrop-blur-md"
               style={{
                 position: "absolute",
                 zIndex: 40,
@@ -963,7 +963,7 @@ export default React.memo(function ForecastTideChart({
                     pointerEvents: "none",
                   }}
                 >
-                  <div className="flex h-full items-center justify-between gap-3 rounded-md border border-border/30 bg-highlight-7/10 dark:bg-highlight-5/50 px-3 py-2 shadow-sm">
+                  <div className="flex h-full items-center justify-between gap-3 rounded-md bg-highlight-3/50 dark:bg-highlight-5/50 px-3 py-2">
                     {(() => {
                       const [weekdayRaw, monthDayRaw] = label.split(",");
                       const weekday = (weekdayRaw ?? label).trim();
@@ -981,8 +981,8 @@ export default React.memo(function ForecastTideChart({
                               {monthDay || label}
                             </span>
                           </div>
-                          <div className="flex flex-col items-end gap-0.5 whitespace-nowrap text-[0.72rem] text-muted-foreground">
-                            <div className="grid grid-cols-[14px_18px_32px_16px] items-center gap-x-1 rounded-md bg-foreground/5 px-2 py-0.5 leading-none">
+                          <div className="flex flex-col items-end gap-0.5 whitespace-nowrap text-[0.72rem] text-muted-foreground rounded-md bg-foreground/5 pl-1 py-1">
+                            <div className="grid grid-cols-[14px_18px_32px_16px] items-center gap-x-1 leading-none">
                               <ArrowUp className="h-3 w-3 text-emerald-500/80" />
                               <span className="mt-0.5 text-[0.68rem] font-semibold text-muted-foreground">
                                 Hi
@@ -996,7 +996,7 @@ export default React.memo(function ForecastTideChart({
                                 ft
                               </span>
                             </div>
-                            <div className="grid grid-cols-[14px_18px_32px_16px] items-center gap-x-1 rounded-md bg-foreground/5 px-2 py-0.5 leading-none">
+                            <div className="grid grid-cols-[14px_18px_32px_16px] items-center gap-x-1 leading-none">
                               <ArrowDown className="h-3 w-3 text-rose-500/80" />
                               <span className="mt-0.5 text-[0.68rem] font-semibold text-muted-foreground">
                                 Lo
