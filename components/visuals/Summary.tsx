@@ -347,9 +347,10 @@ const computeTidePeaks = (
     const curr = sorted[i];
     const next = i < sorted.length - 1 ? sorted[i + 1] : null;
 
-    // Special case: For today, don't mark the start edge (12 AM) as a peak
-    // because there's no previous data (it was deleted)
-    if (isToday && windowStartMs != null && curr.x === windowStartMs && !prev) {
+    // Special case: For today, don't mark the first point as a peak
+    // because there's no previous data to confirm it's actually a peak.
+    // This prevents false peaks at 12 AM or shortly after when no prior data exists.
+    if (isToday && i === 0 && !prev) {
       continue;
     }
 
@@ -733,11 +734,12 @@ const Summary = ({
       .sort((a, b) => a.x - b.x);
 
     const today = new Date();
+    // Check if the displayed day is today (regardless of whether targetDateValue is set)
+    const displayedDate = targetDateValue ?? timeWindow.dayStart;
     const isToday =
-      !targetDateValue &&
-      timeWindow.dayStart.getFullYear() === today.getFullYear() &&
-      timeWindow.dayStart.getMonth() === today.getMonth() &&
-      timeWindow.dayStart.getDate() === today.getDate();
+      displayedDate.getFullYear() === today.getFullYear() &&
+      displayedDate.getMonth() === today.getMonth() &&
+      displayedDate.getDate() === today.getDate();
 
     const windowStartMs = timeWindow.dayStart.getTime();
     const windowEndMs = timeWindow.dayEnd.getTime();
