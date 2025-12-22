@@ -1922,10 +1922,12 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       .addTo(map);
     const zoomContainer = zoomControlRef.current.getContainer();
     Object.assign(zoomContainer.style, {
-      background: "var(--highlight-4)",
-      opacity: "0.6",
+      background: "color-mix(in oklch, var(--highlight-4) 60%, transparent)",
+      border: "1px solid color-mix(in oklch, var(--border) 55%, transparent)",
       borderRadius: "30px",
       padding: "0px 5px",
+      backdropFilter: "blur(12px)",
+      WebkitBackdropFilter: "blur(12px)",
       marginTop: !fullMapPage ? "125px" : smallScreen ? "260px" : "0px",
       marginBottom: !fullMapPage
         ? smallScreen

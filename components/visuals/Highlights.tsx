@@ -710,10 +710,12 @@ const WeatherStat = ({
   temp,
   label,
   weatherCode,
+  isFull,
 }: {
   temp: number;
   label: string;
   weatherCode?: number | null;
+  isFull?: boolean;
 }) => {
   const getWeatherVisual = (code: number | null | undefined) => {
     if (code == null || code === 0) {
@@ -726,7 +728,7 @@ const WeatherStat = ({
     }
     if ([1, 2].includes(code)) {
       return {
-        label: "Partly Cloudy",
+        label: "Mixed",
         icon: <CloudSun className="h-5 w-5 text-foreground/70" />,
       };
     }
@@ -793,7 +795,12 @@ const WeatherStat = ({
         </>
       }
       secondary={
-        <span className="text-[0.65rem] font-medium text-muted-foreground leading-none">
+        <span
+          className={cn(
+            "text-[0.65rem] font-medium text-muted-foreground leading-none",
+            isFull && ""
+          )}
+        >
           {visual.label}
         </span>
       }
@@ -1353,11 +1360,13 @@ const PressureStat = ({
   label,
   minScale,
   maxScale,
+  isFull,
 }: {
   data: { value: number; unit: string; trend?: Trend };
   label: string;
   minScale?: number;
   maxScale?: number;
+  isFull?: boolean;
 }) => {
   // Use fixed meteorological scale for accurate low/normal/high pressure display
   // Below 29.8 = low, 29.92 = normal, 30.2 = high
@@ -1415,14 +1424,19 @@ const PressureStat = ({
           <span className="text-[1.3rem] font-semibold tabular-nums tracking-tight text-foreground/85">
             {formattedValue}
           </span>
-          <span className="text-[0.72rem] font-medium text-muted-foreground">
+          <span
+            className={cn(
+              "text-[0.72rem] font-medium text-muted-foreground",
+              isFull && "@min-6xl:hidden"
+            )}
+          >
             {displayUnit}
           </span>
         </>
       }
       secondary={
         <span className="text-[0.65rem] font-medium text-muted-foreground">
-          {trendLabel}
+          {isFull ? displayUnit : trendLabel}
         </span>
       }
       visual={
@@ -1533,10 +1547,12 @@ const TideStat = ({
   data,
   label,
   maxAbs,
+  isFull,
 }: {
   data: { value: number | string; unit: string; pct?: number; trend?: Trend };
   label: string;
   maxAbs?: number;
+  isFull?: boolean;
 }) => {
   const numeric =
     typeof data.value === "number"
@@ -1593,7 +1609,10 @@ const TideStat = ({
       }
       secondary={
         <span className="text-[0.65rem] font-medium text-muted-foreground">
-          {stage} / {trendLabel}
+          {stage}{" "}
+          <span className={cn(isFull && "@min-6xl:hidden")}>
+            / {trendLabel}
+          </span>
         </span>
       }
       visual={
@@ -1688,12 +1707,14 @@ function HighlightCard({
   primary,
   secondary,
   visual,
+  isFull,
   className,
 }: {
   label: string;
   primary: React.ReactNode;
   secondary?: React.ReactNode;
   visual?: React.ReactNode;
+  isFull?: boolean;
   className?: string;
 }) {
   return (
@@ -1706,7 +1727,8 @@ function HighlightCard({
           "grid h-full w-full grid-cols-[1fr_auto] items-center pt-4",
           secondary && label === "swell"
             ? "@min-xl:gap-3 @min-3xl:gap-0 @min-6xl:gap-3"
-            : "gap-3"
+            : "gap-3",
+          label === "swell" && isFull && "@min-6xl:gap-0"
         )}
       >
         <div className="min-w-0">
@@ -1714,7 +1736,8 @@ function HighlightCard({
             className={cn(
               "flex min-w-0 items-baseline gap-1 leading-none",
               label === "swell" &&
-                "justify-center @min-xl:justify-start @min-3xl:justify-center @min-6xl:justify-start"
+                "justify-center @min-xl:justify-start @min-3xl:justify-center @min-6xl:justify-start",
+              label === "swell" && isFull && "@min-6xl:justify-center"
             )}
           >
             {primary}
@@ -1724,7 +1747,8 @@ function HighlightCard({
               className={cn(
                 "mt-1 min-w-0 leading-none",
                 label === "swell" &&
-                  "flex justify-center @min-xl:justify-start @min-3xl:justify-center @min-6xl:justify-start"
+                  "flex justify-center @min-xl:justify-start @min-3xl:justify-center @min-6xl:justify-start",
+                label === "swell" && isFull && "@min-6xl:justify-center"
               )}
             >
               {secondary}
@@ -2168,7 +2192,9 @@ const Highlights = ({
                   <span
                     className={cn(
                       "grid grid-cols-[10px_35px] @min-md:grid-cols-[10px_35px_20px] items-center justify-center gap-1 rounded-full border border-border/25 px-1.5 py-0.5",
-                      primary ? "bg-foreground/10" : "bg-foreground/5"
+                      primary ? "bg-foreground/10" : "bg-foreground/5",
+                      isFull &&
+                        "@min-3xl:grid-cols-[10px_35px] @min-4xl:grid-cols-[10px_35px_20px] @min-6xl:grid-cols-[auto]"
                     )}
                   >
                     <svg
@@ -2199,7 +2225,8 @@ const Highlights = ({
                     <span
                       className={cn(
                         "text-[0.6rem] font-semibold uppercase tracking-wide text-center",
-                        primary ? "" : "text-muted-foreground"
+                        primary ? "" : "text-muted-foreground",
+                        isFull && "@min-6xl:hidden"
                       )}
                     >
                       {dir}
@@ -2207,7 +2234,9 @@ const Highlights = ({
                     <span
                       className={cn(
                         "hidden @min-md:block text-[0.6rem]",
-                        primary ? "" : "text-muted-foreground"
+                        primary ? "" : "text-muted-foreground",
+                        isFull &&
+                          "@min-3xl:hidden @min-4xl:block @min-6xl:hidden"
                       )}
                     >
                       {deg.toFixed(0)}&deg;
@@ -2217,16 +2246,27 @@ const Highlights = ({
 
                 content = (
                   <HighlightCard
+                    isFull={isFull}
                     label={stat.label}
                     primary={
-                      <div className="inline-grid min-w-0 grid-cols-[0.375rem_2.3rem_1.8rem_auto] items-center gap-x-1.5">
+                      <div
+                        className={cn(
+                          "inline-grid min-w-0 grid-cols-[0.375rem_2.3rem_1.8rem_auto] items-center gap-x-1.5",
+                          isFull && "grid-cols-[0.375rem_2rem_1.5rem_auto]"
+                        )}
+                      >
                         <span
                           aria-hidden="true"
                           className="h-1.5 w-1.5 shrink-0 rounded-full"
                           style={{ background: SWELL_COLORS.primary }}
                         />
                         <span className="inline-flex w-full items-baseline justify-start gap-0.5 whitespace-nowrap tabular-nums">
-                          <span className="text-[0.8rem] font-semibold tabular-nums tracking-tight">
+                          <span
+                            className={cn(
+                              "text-[0.8rem] font-semibold tabular-nums tracking-tight",
+                              isFull && "@min-6xl:text-[0.75rem]"
+                            )}
+                          >
                             {stat.primary.height.toFixed(1)}
                           </span>
                           <span className="text-[0.58rem] @min-xs:text-[0.7rem] font-medium text-muted-foreground">
@@ -2234,7 +2274,12 @@ const Highlights = ({
                           </span>
                         </span>
                         <span className="inline-flex w-full items-baseline justify-start gap-0.5 whitespace-nowrap">
-                          <span className="text-[0.8rem] font-semibold tabular-nums tracking-tight">
+                          <span
+                            className={cn(
+                              "text-[0.8rem] font-semibold tabular-nums tracking-tight",
+                              isFull && "@min-6xl:text-[0.75rem]"
+                            )}
+                          >
                             {stat.primary.period}
                           </span>
                           <span className="text-[0.7rem] font-medium text-muted-foreground">
@@ -2250,14 +2295,24 @@ const Highlights = ({
                     }
                     secondary={
                       <div className="-mt-0.5 grid gap-y-0.5">
-                        <div className="inline-grid min-w-0 grid-cols-[0.375rem_2.3rem_1.8rem_auto] items-center gap-x-1.5">
+                        <div
+                          className={cn(
+                            "inline-grid min-w-0 grid-cols-[0.375rem_2.3rem_1.8rem_auto] items-center gap-x-1.5",
+                            isFull && "grid-cols-[0.375rem_2rem_1.5rem_auto]"
+                          )}
+                        >
                           <span
                             aria-hidden="true"
                             className="h-1.5 w-1.5 shrink-0 rounded-full"
                             style={{ background: SWELL_COLORS.secondary }}
                           />
                           <span className="inline-flex w-full items-baseline justify-start gap-0.5 whitespace-nowrap tabular-nums">
-                            <span className="text-[0.8rem] font-medium tabular-nums tracking-tight text-foreground/80">
+                            <span
+                              className={cn(
+                                "text-[0.8rem] font-medium tabular-nums tracking-tight text-foreground/80",
+                                isFull && "@min-6xl:text-[0.75rem]"
+                              )}
+                            >
                               {stat.secondary[0].height.toFixed(1)}
                             </span>
                             <span className="text-[0.58rem] @min-xs:text-[0.7rem] font-medium text-muted-foreground">
@@ -2265,7 +2320,12 @@ const Highlights = ({
                             </span>
                           </span>
                           <span className="inline-flex w-full items-baseline justify-start gap-0.5 whitespace-nowrap">
-                            <span className="text-[0.8rem] font-medium tabular-nums tracking-tight text-muted-foreground">
+                            <span
+                              className={cn(
+                                "text-[0.8rem] font-medium tabular-nums tracking-tight text-muted-foreground",
+                                isFull && "@min-6xl:text-[0.75rem]"
+                              )}
+                            >
                               {stat.secondary[0].period}
                             </span>
                             <span className="text-[0.7rem] font-medium text-muted-foreground">
@@ -2278,14 +2338,24 @@ const Highlights = ({
                           )}
                         </div>
 
-                        <div className="inline-grid min-w-0 grid-cols-[0.375rem_2.3rem_1.8rem_auto] items-center gap-x-1.5">
+                        <div
+                          className={cn(
+                            "inline-grid min-w-0 grid-cols-[0.375rem_2.3rem_1.8rem_auto] items-center gap-x-1.5",
+                            isFull && "grid-cols-[0.375rem_2rem_1.5rem_auto]"
+                          )}
+                        >
                           <span
                             aria-hidden="true"
                             className="h-1.5 w-1.5 shrink-0 rounded-full"
                             style={{ background: SWELL_COLORS.tertiary }}
                           />
                           <span className="inline-flex w-full items-baseline justify-start gap-0.5 whitespace-nowrap tabular-nums">
-                            <span className="text-[0.8rem] font-medium tabular-nums tracking-tight text-foreground/80">
+                            <span
+                              className={cn(
+                                "text-[0.8rem] font-medium tabular-nums tracking-tight text-foreground/80",
+                                isFull && "@min-6xl:text-[0.75rem]"
+                              )}
+                            >
                               {stat.secondary[1].height.toFixed(1)}
                             </span>
                             <span className="text-[0.58rem] @min-xs:text-[0.7rem] font-medium text-muted-foreground">
@@ -2293,7 +2363,12 @@ const Highlights = ({
                             </span>
                           </span>
                           <span className="inline-flex w-full items-baseline justify-start gap-0.5 whitespace-nowrap">
-                            <span className="text-[0.8rem] font-medium tabular-nums tracking-tight text-muted-foreground">
+                            <span
+                              className={cn(
+                                "text-[0.8rem] font-medium tabular-nums tracking-tight text-muted-foreground",
+                                isFull && "@min-6xl:text-[0.75rem]"
+                              )}
+                            >
                               {stat.secondary[1].period}
                             </span>
                             <span className="text-[0.7rem] font-medium text-muted-foreground">
@@ -2526,6 +2601,7 @@ const Highlights = ({
                     temp={stat.weather.temp}
                     label={stat.label}
                     weatherCode={stat.weather.code}
+                    isFull={isFull}
                   />
                 );
                 break;
@@ -2577,6 +2653,7 @@ const Highlights = ({
                     label={stat.label}
                     minScale={displayScales.pressureMin}
                     maxScale={displayScales.pressureMax}
+                    isFull={isFull}
                   />
                 );
                 break;
@@ -2595,6 +2672,7 @@ const Highlights = ({
                     data={stat.tide}
                     label={stat.label}
                     maxAbs={displayScales.tideAbsMax}
+                    isFull={isFull}
                   />
                 );
                 break;
@@ -2611,7 +2689,7 @@ const Highlights = ({
                   stat.label === "swell" &&
                     "col-span-1 @min-xl:col-span-2 @min-3xl:col-span-1",
                   stat.label === "swell" && !isFull && "@min-3xl:col-span-2",
-                  stat.label === "swell" && isFull && "@min-md:col-span-2",
+                  stat.label === "swell" && isFull && "@min-xl:col-span-2",
                   !isHydrated && "animate-pulse motion-reduce:animate-none"
                 )}
               >
