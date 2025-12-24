@@ -51,9 +51,8 @@ import { ForecastChartSkeleton } from "./ForecastChartSkeleton";
 import { useChartTheme } from "@/components/graphs/useChartTheme";
 import { getForecastDayHeaderLayout } from "./forecastDayHeaderLayout";
 
-const TideTooltipIcon = () => (
-  <TideIcon className="h-3 w-3 text-blue-500" />
-);
+const TideTooltipIcon = () => <TideIcon className="h-3 w-3" />;
+const TIDE_LINE_COLOR = "#6e6e6eff";
 
 const VISIBLE_DAYS = 4;
 const HOURS_PER_DAY = 24;
@@ -61,7 +60,7 @@ const VISIBLE_HOURS = VISIBLE_DAYS * HOURS_PER_DAY;
 const FETCH_DAYS = VISIBLE_DAYS; // fetch one extra day to allow forward pan
 const MIN_DAY_PX = 275; // minimum pixels per day to keep UI usable on tiny screens
 const CHART_LEFT_MARGIN = 0;
-const CHART_RIGHT_MARGIN = 0;
+const CHART_RIGHT_MARGIN = 5;
 const Y_AXIS_WIDTH = 30;
 const DAY_LABEL_INSET = 6;
 const Y_AXIS_OFFSET_VAR = "--forecast-y-axis-offset";
@@ -1030,7 +1029,7 @@ export default React.memo(function ForecastTideChart({
                   {
                     tide: {
                       label: "Tide",
-                      color: "#6e6e6eff",
+                      color: "#3b82f6",
                       icon: TideTooltipIcon,
                     },
                   } as ChartConfig
@@ -1187,7 +1186,7 @@ export default React.memo(function ForecastTideChart({
                   <Line
                     dataKey="tide"
                     type="natural"
-                    stroke="var(--color-tide)"
+                    stroke={TIDE_LINE_COLOR}
                     strokeWidth={2}
                     isAnimationActive={false}
                     animationDuration={0}
@@ -1204,7 +1203,7 @@ export default React.memo(function ForecastTideChart({
                             cy={cy}
                             r={4}
                             fill="orange"
-                            stroke="var(--color-tide)"
+                            stroke={TIDE_LINE_COLOR}
                             strokeWidth={1}
                           />
                         );
@@ -1223,7 +1222,7 @@ export default React.memo(function ForecastTideChart({
                             cy={cy}
                             r={3}
                             fill={isLow ? "#ef4444" : "#22c55e"}
-                            stroke="var(--color-tide)"
+                            stroke={TIDE_LINE_COLOR}
                             strokeWidth={1}
                           />
                         );

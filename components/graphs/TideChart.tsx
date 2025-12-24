@@ -34,13 +34,14 @@ import { useChartTheme } from "@/components/graphs/useChartTheme";
 const HOURS_TO_MS = 60 * 60 * 1000;
 
 const TideTooltipIcon = () => (
-  <TideIcon className="h-3 w-3 text-blue-500" />
+  <TideIcon className="h-3 w-3" />
 );
+const TIDE_LINE_COLOR = "#aaaaaaff";
 
 const chartConfig: ChartConfig = {
   tide: {
     label: "Tide",
-    color: "#aaaaaaff",
+    color: "#3b82f6",
     icon: TideTooltipIcon,
   },
 };
@@ -709,7 +710,7 @@ const TideChart: React.FC<TideChartProps> = ({
         <Line
           dataKey="tide"
           type="natural"
-          stroke="var(--color-tide)"
+          stroke={TIDE_LINE_COLOR}
           strokeWidth={2}
           isAnimationActive={false}
           animationDuration={0}
@@ -727,7 +728,7 @@ const TideChart: React.FC<TideChartProps> = ({
                   cy={cy}
                   r={4}
                   fill="orange"
-                  stroke="var(--color-tide)"
+                  stroke={TIDE_LINE_COLOR}
                   strokeWidth={1}
                 />
               );
@@ -742,7 +743,7 @@ const TideChart: React.FC<TideChartProps> = ({
                   cy={cy}
                   r={3}
                   fill={isLow ? "#ef4444" : "#22c55e"}
-                  stroke="var(--color-tide)"
+                  stroke={TIDE_LINE_COLOR}
                   strokeWidth={1}
                 />
               );

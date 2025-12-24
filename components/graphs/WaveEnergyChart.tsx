@@ -29,13 +29,13 @@ import { useChartTheme } from "@/components/graphs/useChartTheme";
 import type { SharedSunSegments } from "./sharedSunSegments";
 
 const EnergyTooltipIcon = () => (
-  <Atom className="h-3 w-3 text-red-400" />
+  <Atom className="h-3 w-3" />
 );
 
 const chartConfig = {
   energy: {
     label: "Energy",
-    color: "#616161ff",
+    color: "#f97316",
     icon: EnergyTooltipIcon,
   },
   //   secondary: {

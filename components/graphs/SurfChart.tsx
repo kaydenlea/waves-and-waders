@@ -49,13 +49,13 @@ type Row = {
 };
 
 const SurfTooltipIcon = () => (
-  <Droplets className="h-3 w-3 text-blue-400" />
+  <Droplets className="h-3 w-3" />
 );
 
 const chartConfig = {
   surf: {
     label: "Surf",
-    color: "#95c5ffff",
+    color: "#38bdf8",
     icon: SurfTooltipIcon,
   },
 } satisfies ChartConfig;

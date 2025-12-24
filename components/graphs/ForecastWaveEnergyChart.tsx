@@ -53,14 +53,12 @@ import {
 } from "../context/ForecastChartsLoadingContext";
 import { useChartTheme } from "@/components/graphs/useChartTheme";
 
-const EnergyTooltipIcon = () => (
-  <Atom className="h-3 w-3 text-red-400" />
-);
+const EnergyTooltipIcon = () => <Atom className="h-3 w-3" />;
 
 const chartConfig = {
   energy: {
     label: "Energy",
-    color: "#616161ff",
+    color: "#f97316",
     icon: EnergyTooltipIcon,
   },
 } satisfies ChartConfig;
@@ -76,7 +74,7 @@ const HOURS_PER_DAY = 24;
 const VISIBLE_DAYS = 4;
 const MIN_DAY_PX = 275;
 const CHART_LEFT_MARGIN = 0;
-const CHART_RIGHT_MARGIN = 0;
+const CHART_RIGHT_MARGIN = 5;
 const Y_AXIS_WIDTH = 30;
 const DAY_LABEL_INSET = 6;
 const Y_AXIS_OFFSET_VAR = "--forecast-y-axis-offset";

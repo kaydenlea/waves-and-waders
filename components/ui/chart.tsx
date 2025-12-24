@@ -127,6 +127,23 @@ function ChartTooltipContent({
     labelKey?: string;
   }) {
   const { config } = useChart();
+  const isDarkMode =
+    typeof document !== "undefined" &&
+    document.documentElement.classList.contains("dark");
+
+  const resolveConfigColor = React.useCallback(
+    (itemConfig: ReturnType<typeof getPayloadConfigFromPayload>) => {
+      if (!itemConfig) return undefined;
+      if ("theme" in itemConfig && itemConfig.theme) {
+        return itemConfig.theme[isDarkMode ? "dark" : "light"];
+      }
+      if ("color" in itemConfig) {
+        return itemConfig.color;
+      }
+      return undefined;
+    },
+    [isDarkMode]
+  );
 
   const tooltipLabel = React.useMemo(() => {
     if (hideLabel || !payload?.length) {
@@ -145,7 +162,7 @@ function ChartTooltipContent({
       return (
         <div
           className={cn(
-            "text-[0.72rem] font-bold uppercase tracking-[0.2em] text-foreground/80",
+            "text-[0.72rem] font-semibold uppercase tracking-[0.1em] text-foreground/80",
             labelClassName
           )}
         >
@@ -220,28 +237,78 @@ function ChartTooltipContent({
       {!nestLabel && tooltipLabel ? (
         <div className="border-border/40 border-b pb-1">{tooltipLabel}</div>
       ) : null}
-        <div className="grid gap-1.5">
-          {payload.map((item, index) => {
-            const key = `${nameKey || item.name || item.dataKey || "value"}`;
+      <div className="grid gap-1.5">
+        {payload.map((item, index) => {
+          const key = `${nameKey || item.name || item.dataKey || "value"}`;
           const itemConfig = getPayloadConfigFromPayload(config, item, key);
-          const indicatorColor = color || item.payload.fill || item.color;
+          const configColor = resolveConfigColor(itemConfig);
+          const rawIndicatorColor =
+            color ||
+            (item?.payload as any)?.fill ||
+            (item?.payload as any)?.stroke ||
+            item.color;
+          const indicatorColor =
+            typeof rawIndicatorColor === "string" &&
+            rawIndicatorColor.startsWith("url(")
+              ? configColor
+              : rawIndicatorColor || configColor;
+          const iconColor = configColor || indicatorColor;
           const formattedValue =
             formatter && item?.value !== undefined && item.name
               ? formatter(item.value, item.name, item, index, item.payload)
               : null;
           const showFormatted =
             formattedValue !== null && formattedValue !== undefined;
+          const unit =
+            key === "tide" ||
+            key === "surf" ||
+            key === "tide1" ||
+            key === "tide2" ||
+            key === "tide3"
+              ? "ft"
+              : key === "energy"
+              ? "kJ"
+              : key === "wind" ||
+                key === "wind1" ||
+                key === "wind2" ||
+                key === "wind3"
+              ? "mph"
+              : "";
+
+          const rawValue = item.value;
+          const valueText =
+            typeof rawValue === "number" && Number.isFinite(rawValue)
+              ? rawValue.toLocaleString(undefined, {
+                  minimumFractionDigits: Number.isInteger(rawValue) ? 0 : 1,
+                  maximumFractionDigits: Number.isInteger(rawValue) ? 0 : 1,
+                })
+              : rawValue != null
+              ? String(rawValue)
+              : "--";
 
           return (
             <div
               key={item.dataKey}
               className={cn(
-                "[&>svg]:text-muted-foreground flex w-full flex-wrap items-stretch gap-2 [&>svg]:h-2.5 [&>svg]:w-2.5",
+                "[&>svg]:text-muted-foreground flex w-full flex-wrap items-stretch gap-2 [&>svg]:h-3.5 [&>svg]:w-3.5",
                 indicator === "dot" && "items-center"
               )}
             >
               {itemConfig?.icon ? (
-                <itemConfig.icon />
+                <div
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border shadow-sm ring-1 ring-background/70 [&>svg]:h-3.5 [&>svg]:w-3.5 [&>svg]:text-current"
+                  style={
+                    iconColor
+                      ? ({
+                          color: iconColor,
+                          backgroundColor: `color-mix(in srgb, ${iconColor} 18%, transparent)`,
+                          borderColor: `color-mix(in srgb, ${iconColor} 38%, transparent)`,
+                        } as React.CSSProperties)
+                      : undefined
+                  }
+                >
+                  <itemConfig.icon />
+                </div>
               ) : (
                 !hideIndicator && (
                   <div
@@ -278,32 +345,28 @@ function ChartTooltipContent({
                 </div>
                 {showFormatted ? (
                   <div className="text-right">
-                    <span className="bg-foreground/10 text-foreground inline-flex items-center rounded-full px-2 py-1 font-semibold tabular-nums">
-                      {formattedValue}
-                    </span>
+                    {React.isValidElement(formattedValue) ? (
+                      formattedValue
+                    ) : (
+                      <span className="bg-foreground/10 text-foreground inline-flex items-center gap-1.5 rounded-md px-2 py-1 font-medium tabular-nums">
+                        <span className="text-sm font-semibold leading-none">
+                          {formattedValue}
+                        </span>
+                      </span>
+                    )}
                   </div>
                 ) : (
-                  item.value && (
-                    <span className="bg-foreground/10 text-foreground inline-flex items-center rounded-full px-2 py-1 font-semibold tabular-nums">
-                      {`${
-                        item.value.toString().includes(".")
-                          ? Number(item.value).toFixed(1).toLocaleString()
-                          : item.value.toLocaleString()
-                      } ${
-                        key === "tide" ||
-                        key === "surf" ||
-                        key === "tide1" ||
-                        key === "tide2" ||
-                        key === "tide3"
-                          ? "ft"
-                          : key === "energy"
-                          ? "kJ"
-                          : key === "wind1" ||
-                            key === "wind2" ||
-                            key === "wind3"
-                          ? "mph"
-                          : ""
-                      }`}
+                  rawValue !== undefined &&
+                  rawValue !== null && (
+                    <span className="bg-foreground/10 text-foreground inline-flex items-center gap-1.5 rounded-md px-2 py-1 font-medium tabular-nums">
+                      <span className="text-sm font-semibold leading-none">
+                        {valueText}
+                      </span>
+                      {unit ? (
+                        <span className="text-[0.72rem] font-medium leading-none text-muted-foreground">
+                          {unit}
+                        </span>
+                      ) : null}
                     </span>
                   )
                 )}
@@ -335,6 +398,23 @@ function ChartLegendContent({
     return null;
   }
 
+  const isDarkMode =
+    typeof document !== "undefined" &&
+    document.documentElement.classList.contains("dark");
+
+  const resolveConfigColor = (itemConfig: ReturnType<
+    typeof getPayloadConfigFromPayload
+  >) => {
+    if (!itemConfig) return undefined;
+    if ("theme" in itemConfig && itemConfig.theme) {
+      return itemConfig.theme[isDarkMode ? "dark" : "light"];
+    }
+    if ("color" in itemConfig) {
+      return itemConfig.color;
+    }
+    return undefined;
+  };
+
   return (
     <div
       className={cn(
@@ -346,6 +426,9 @@ function ChartLegendContent({
       {payload.map((item) => {
         const key = `${nameKey || item.dataKey || "value"}`;
         const itemConfig = getPayloadConfigFromPayload(config, item, key);
+        const configColor = resolveConfigColor(itemConfig);
+        const indicatorColor = item.color;
+        const iconColor = configColor || indicatorColor;
 
         return (
           <div
@@ -355,7 +438,20 @@ function ChartLegendContent({
             )}
           >
             {itemConfig?.icon && !hideIcon ? (
-              <itemConfig.icon />
+              <div
+                className="flex h-6 w-6 items-center justify-center rounded-md border shadow-sm ring-1 ring-background/70 [&>svg]:h-3.5 [&>svg]:w-3.5 [&>svg]:text-current"
+                style={
+                  iconColor
+                    ? ({
+                        color: iconColor,
+                        backgroundColor: `color-mix(in srgb, ${iconColor} 18%, transparent)`,
+                        borderColor: `color-mix(in srgb, ${iconColor} 38%, transparent)`,
+                      } as React.CSSProperties)
+                    : undefined
+                }
+              >
+                <itemConfig.icon />
+              </div>
             ) : (
               <div
                 className="h-2 w-2 shrink-0 rounded-[2px]"

@@ -81,7 +81,7 @@ const HOURS_PER_DAY = 24;
 const VISIBLE_DAYS = 4;
 const MIN_DAY_PX = 275; // minimum pixels per day to keep UI usable
 const CHART_LEFT_MARGIN = 0;
-const CHART_RIGHT_MARGIN = 0;
+const CHART_RIGHT_MARGIN = 5;
 const Y_AXIS_WIDTH = 30;
 const DAY_LABEL_INSET = 6;
 const Y_AXIS_OFFSET_VAR = "--forecast-y-axis-offset";
@@ -653,14 +653,36 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
         typeof direction === "number"
           ? `${getWindDirection(direction)} (${Math.round(direction)}°)`
           : "N/A";
-      const height =
-        typeof value === "number" ? `${value.toFixed(1)} ft` : `${value ?? ""}`;
+      const heightValue =
+        typeof value === "number" ? value.toFixed(1) : `${value ?? "--"}`;
+      const dirLabelDisplay = dirLabel
+        .replaceAll("\u00C2\u00B0", "\u00B0")
+        .replaceAll("A\u0173", "\u00B0")
+        .replaceAll("Aų", "\u00B0")
+        .replaceAll("\u0173", "\u00B0");
       return (
-        <div className="flex flex-col items-end gap-0.5 text-right">
-          <span>{height}</span>
-          <span className="text-[0.7rem] text-muted-foreground">
-            {dirLabel}
-          </span>
+        <div className="grid justify-items-end gap-1 text-right">
+          <div className="bg-foreground/10 text-foreground inline-flex items-center gap-1.5 rounded-md px-2 py-1 font-medium tabular-nums">
+            <span className="text-sm font-semibold leading-none">
+              {heightValue}
+            </span>
+            <span className="mt-1 text-[0.72rem] font-medium leading-none text-muted-foreground">
+              ft
+            </span>
+            {typeof direction === "number" ? (
+              <ArrowIcon
+                size={14}
+                className="fill-foreground/15 text-foreground/60"
+                style={{
+                  transform: `rotate(${direction - 315}deg)`,
+                  transformOrigin: "50% 50%",
+                }}
+              />
+            ) : null}
+          </div>
+          <div className="text-[0.65rem] leading-none text-muted-foreground">
+            {dirLabelDisplay}
+          </div>
         </div>
       );
     },
@@ -870,7 +892,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                 data={swellData}
                 margin={{
                   left: CHART_LEFT_MARGIN,
-                  right: 0,
+                  right: CHART_RIGHT_MARGIN,
                   bottom: 5,
                   top: 0,
                 }}

@@ -45,14 +45,12 @@ import {
 } from "../context/ForecastChartsLoadingContext";
 import { useChartTheme } from "@/components/graphs/useChartTheme";
 
-const SurfTooltipIcon = () => (
-  <Droplets className="h-3 w-3 text-blue-400" />
-);
+const SurfTooltipIcon = () => <Droplets className="h-3 w-3" />;
 
 const chartConfig = {
   surf: {
     label: "Surf",
-    color: "#95c5ffff",
+    color: "#38bdf8",
     icon: SurfTooltipIcon,
   },
 } satisfies ChartConfig;
@@ -68,7 +66,7 @@ const HOURS_PER_DAY = 24;
 const VISIBLE_DAYS = 4;
 const MIN_DAY_PX = 275;
 const CHART_LEFT_MARGIN = 0;
-const CHART_RIGHT_MARGIN = 0;
+const CHART_RIGHT_MARGIN = 5;
 const DATA_STEP_HOURS = 3;
 const HALF_STEP_HOURS = DATA_STEP_HOURS / 2;
 const Y_AXIS_WIDTH = 30;
@@ -959,7 +957,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                 data={surfData}
                 margin={{
                   left: CHART_LEFT_MARGIN,
-                  right: 0,
+                  right: CHART_RIGHT_MARGIN,
                   bottom: 5,
                   top: 0,
                 }}

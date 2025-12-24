@@ -45,14 +45,12 @@ import {
 } from "../context/ForecastChartsLoadingContext";
 import { useChartTheme } from "@/components/graphs/useChartTheme";
 
-const WindTooltipIcon = () => (
-  <WindIcon className="h-3 w-3 text-gray-700" />
-);
+const WindTooltipIcon = () => <WindIcon className="h-3 w-3" />;
 
 const chartConfig = {
   wind: {
     label: "Wind",
-    color: "#95c5ffff",
+    color: "#a78bfa",
     icon: WindTooltipIcon,
   },
 } satisfies ChartConfig;
@@ -69,7 +67,7 @@ const HOURS_PER_DAY = 24;
 const VISIBLE_DAYS = 4;
 const MIN_DAY_PX = 275;
 const CHART_LEFT_MARGIN = 0;
-const CHART_RIGHT_MARGIN = 0;
+const CHART_RIGHT_MARGIN = 5;
 const DATA_STEP_HOURS = 3;
 const HALF_STEP_HOURS = DATA_STEP_HOURS / 2;
 const Y_AXIS_WIDTH = 30;
@@ -725,12 +723,32 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
           ? `${directionLabel} (${Math.round(direction)}°)`
           : directionLabel;
       const speed = Number.isFinite(value) ? Math.round(value) : value ?? "--";
+      const dirTextDisplay = dirText
+        .replaceAll("\u00C2\u00B0", "\u00B0")
+        .replaceAll("A\u0173", "\u00B0")
+        .replaceAll("Aų", "\u00B0")
+        .replaceAll("\u0173", "\u00B0");
       return (
-        <div className="flex flex-col items-end gap-0.5 text-right">
-          <span className="font-semibold">{`${speed} mph`}</span>
-          <span className="text-[0.72rem] text-muted-foreground">
-            {dirText}
-          </span>
+        <div className="grid justify-items-end gap-1 text-right">
+          <div className="bg-foreground/10 text-foreground inline-flex items-center gap-1.5 rounded-md px-2 py-1 font-medium tabular-nums">
+            <span className="text-sm font-semibold leading-none">{speed}</span>
+            <span className="text-[0.72rem] font-medium leading-none text-muted-foreground">
+              mph
+            </span>
+            {typeof direction === "number" ? (
+              <ArrowIcon
+                size={14}
+                className="fill-foreground/15 text-foreground/60"
+                style={{
+                  transform: `rotate(${direction - 315}deg)`,
+                  transformOrigin: "50% 50%",
+                }}
+              />
+            ) : null}
+          </div>
+          <div className="text-[0.65rem] leading-none text-muted-foreground">
+            {dirTextDisplay}
+          </div>
         </div>
       );
     },
@@ -933,7 +951,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
                 data={windData}
                 margin={{
                   left: CHART_LEFT_MARGIN,
-                  right: 0,
+                  right: CHART_RIGHT_MARGIN,
                   bottom: 5,
                   top: 0,
                 }}
