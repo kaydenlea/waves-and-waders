@@ -14,6 +14,7 @@ export default function PathStyleWrapper({
   const { showMap } = useMapFilters();
   const beachPage = pathname.endsWith("/beaches");
   const editPage = pathname.endsWith("/edit");
+  const overviewPage = pathname.includes("/overview");
 
   const cls = useMemo(() => {
     if (beachPage) {
@@ -31,6 +32,7 @@ export default function PathStyleWrapper({
           "relative touch-pan-y w-full px-2 relative @min-4xl:pt-4 z-1 bg-background border-t border-x border-border/70 @min-4xl:border-none mx-auto",
           cls,
           !editPage ? "rounded-t-4xl @min-4xl:rounded-t-none pt-10" : "pt-10",
+          overviewPage && "ww-disable-backdrop",
           showMap && "@min-4xl:pr-3"
         )}
       >

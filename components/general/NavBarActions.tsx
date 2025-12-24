@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { LazyLoadDatePicker } from "./LazyLoad/LazyLoadDatePicker";
 import SearchBar from "./SearchBar";
@@ -20,6 +21,27 @@ const NavBarActions = () => {
     useDateContext();
   const { setIsOverlay } = useSearchContext();
   const { selectedTab } = useClientPath();
+
+  const beachIdFromPath = (() => {
+    const parts = (pathname ?? "").split("/").filter(Boolean);
+    if (parts.length < 2) return null;
+    const section = parts[1];
+    if (section !== "overview" && section !== "forecast") return null;
+    const raw = parts[0];
+    if (!raw) return null;
+    const delimiterIndex = raw.lastIndexOf("--");
+    return delimiterIndex >= 0 ? raw.slice(delimiterIndex + 2) : raw;
+  })();
+  const effectiveBeachId = beachIdFromPath ?? id.current ?? "";
+
+  // Keep DateContext's `id` ref in sync during client-side navigation so any
+  // other consumers (outside the page content) don't get stuck on a previous beach.
+  useEffect(() => {
+    if (!beachIdFromPath) return;
+    if (id.current !== beachIdFromPath) {
+      id.current = beachIdFromPath;
+    }
+  }, [beachIdFromPath, id]);
 
   // Note: In NavBarActions, we only update the DateContext hour
   // The MapFilterContext syncing happens elsewhere (e.g., DateSummaryBridge)
@@ -48,7 +70,7 @@ const NavBarActions = () => {
       >
         <div className="flex-1 min-w-0 w-full @min-4xl:max-w-[820px] mx-auto flex items-center gap-2">
           <TimeRail
-            beachId={id.current}
+            beachId={effectiveBeachId}
             size="lg"
             trailingActions={
               <button
@@ -86,7 +108,7 @@ const NavBarActions = () => {
         {mode === "date" || selectedTab === "forecast" ? (
           <LazyLoadDatePicker
             className="w-full"
-            beachId={id.current}
+            beachId={effectiveBeachId}
             {...(selectedTab === "forecast" && { forecast: true })}
             value={selected}
             onSelect={setSelected}

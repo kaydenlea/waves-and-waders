@@ -19,7 +19,9 @@ export const ChartLoadingCover: React.FC<ChartLoadingCoverProps> = ({
   return (
     <div
       className={cn(
-        "absolute inset-0 z-20 flex items-center justify-center rounded-2xl border border-border/60 bg-background/80 backdrop-blur-sm",
+        // Backdrop blur can flicker during scroll on some browsers; only apply when supported.
+        "absolute inset-0 z-20 flex items-center justify-center rounded-2xl border border-border/60 bg-background/90",
+        "supports-[backdrop-filter]:bg-background/80 supports-[backdrop-filter]:backdrop-blur-sm",
         className
       )}
       aria-live="polite"

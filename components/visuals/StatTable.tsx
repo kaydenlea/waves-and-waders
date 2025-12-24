@@ -1739,7 +1739,7 @@ const StatTable = ({
                           >
                             <th
                               scope="row"
-                              className="sticky left-0 z-10 p-0 align-middle bg-background/70 backdrop-blur supports-[backdrop-filter]:bg-background/50 border-r border-border/40 dark:border-border/50"
+                              className="sticky left-0 z-10 p-0 align-middle bg-background/90 supports-[backdrop-filter]:bg-background/50 supports-[backdrop-filter]:backdrop-blur border-r border-border/40 dark:border-border/50"
                             >
                               <div className="h-14 w-12 rounded-xl border border-border/25 bg-foreground/[0.03] dark:bg-foreground/[0.05] animate-pulse motion-reduce:animate-none" />
                             </th>
@@ -1796,14 +1796,14 @@ const StatTable = ({
                         key={`${i}-${entry.index}`}
                         className="transition-colors duration-200 motion-reduce:duration-0"
                       >
-                        <th
-                          scope="row"
-                          className="sticky left-0 z-10 p-0 align-middle bg-background/70 backdrop-blur supports-[backdrop-filter]:bg-background/50"
-                        >
-                          <TimeCell
-                            time={entry.time}
-                            selected={isSelectedHour}
-                          />
+                          <th
+                            scope="row"
+                            className="sticky left-0 z-10 p-0 align-middle bg-background/90 supports-[backdrop-filter]:bg-background/50 supports-[backdrop-filter]:backdrop-blur"
+                          >
+                            <TimeCell
+                              time={entry.time}
+                              selected={isSelectedHour}
+                            />
                         </th>
                         {visibleColumns.map((col) => {
                           let content: React.ReactNode = null;

@@ -11,7 +11,10 @@ export function OverviewCard({
   return (
     <section
       className={cn(
-        "group relative rounded-[22px] border border-border/25 bg-highlight-7/40 shadow-even backdrop-blur-md",
+        // NOTE: Backdrop blur can cause intermittent paint/flicker issues on some browsers while scrolling.
+        // Keep a solid-ish fallback background and only apply blur when supported.
+        "group relative rounded-[22px] border border-border/25 bg-highlight-7/70 shadow-even",
+        "supports-[backdrop-filter]:bg-highlight-7/40 supports-[backdrop-filter]:backdrop-blur-md",
         "transition-shadow duration-200 ease-out motion-reduce:transition-none",
         "hover:z-10 hover:shadow-[0_10px_30px_rgba(0,0,0,0.12)]",
         "dark:hover:shadow-[0_18px_50px_rgba(0,0,0,0.70),0_0_0_1px_rgba(255,255,255,0.08),0_12px_26px_rgba(255,255,255,0.04)]",

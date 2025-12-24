@@ -258,3 +258,14 @@
     border-top-color: oklch(34.893% 0.06737 251.007) !important;
   }
 }
+
+/* -----------------------------------------------------------------------------
+   Backdrop-filter scroll flicker workaround
+   Some browsers/drivers intermittently fail to repaint elements with
+   `backdrop-filter` during scroll, causing sections/buttons to disappear.
+   Apply `ww-disable-backdrop` on a container to force-disable blur effects.
+----------------------------------------------------------------------------- */
+.ww-disable-backdrop [class*="backdrop-blur"] {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}

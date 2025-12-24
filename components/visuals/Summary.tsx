@@ -456,6 +456,28 @@ const SURF_HEIGHT_CAP = 12;
 const WIND_SPEED_CAP = 40;
 const TEMP_CAP = 100; // For temperature circles
 
+function SummaryLoadingOverlay({ show }: { show: boolean }) {
+  if (!show) return null;
+  return (
+    <div
+      className={cn(
+        "pointer-events-none absolute inset-0 z-20 rounded-[22px]",
+        "bg-background/20 dark:bg-background/10",
+        "supports-[backdrop-filter]:bg-background/10 supports-[backdrop-filter]:backdrop-blur-[1px]"
+      )}
+      aria-hidden="true"
+    >
+      <div
+        className={cn(
+          "absolute inset-0 rounded-[22px]",
+          "bg-gradient-to-b from-transparent via-background/20 to-background/25",
+          "opacity-70 motion-safe:animate-pulse motion-reduce:opacity-60"
+        )}
+      />
+    </div>
+  );
+}
+
 const createInitialStats = (): SummaryStat[] => [
   {
     type: "surf",
@@ -511,17 +533,21 @@ const Summary = ({
   variant?: "default" | "overview";
 }) => {
   const isOverviewVariant = variant === "overview";
-  const [stats, setStats] = useState<SummaryStat[] | null>(null);
-  const statsRef = useRef<SummaryStat[] | null>(null);
   const { surfRange } = useDateContext();
-  const [tags, setTags] = useState<
-    {
-      label: string;
-      icon: React.ReactNode;
-      color: string;
-      rank?: number;
-    }[]
-  >([]);
+  type FeatureTag = {
+    label: string;
+    icon: React.ReactNode;
+    color: string;
+    rank?: number;
+  };
+  type CommittedSummary = {
+    key: string;
+    stats: SummaryStat[];
+    tags: FeatureTag[];
+    forecast: ForecastData[];
+  };
+  const [committed, setCommitted] = useState<CommittedSummary | null>(null);
+  const committedRef = useRef<CommittedSummary | null>(null);
 
   const targetDateValue = date instanceof Date ? date : undefined;
 
@@ -535,6 +561,11 @@ const Summary = ({
       tideEnd: new Date(end.getTime() + tideBuffer),
     };
   }, [targetDateValue]);
+
+  const pendingKey = useMemo(() => {
+    if (!beachId) return null;
+    return `${String(beachId)}:${timeWindow.dayStart.getTime()}:${timeWindow.dayEnd.getTime()}`;
+  }, [beachId, timeWindow.dayStart, timeWindow.dayEnd]);
 
   const hasExternalForecast = Array.isArray(forecastRows);
 
@@ -595,9 +626,8 @@ const Summary = ({
 
   useEffect(() => {
     if (!beachId) {
-      setStats(null);
-      statsRef.current = null;
-      setTags([]);
+      setCommitted(null);
+      committedRef.current = null;
       return;
     }
 
@@ -957,12 +987,17 @@ const Summary = ({
       featureTags.sort((a, b) => (a.rank ?? 999) - (b.rank ?? 999));
     }
     const topTags = featureTags.slice(0, 5);
-    setTags(topTags);
     nextStats.push({ type: "features", tags: topTags });
 
-    if (nextStats.length > 0) {
-      statsRef.current = nextStats;
-      setStats(nextStats);
+    if (nextStats.length > 0 && pendingKey) {
+      const nextCommitted: CommittedSummary = {
+        key: pendingKey,
+        stats: nextStats,
+        tags: topTags,
+        forecast,
+      };
+      committedRef.current = nextCommitted;
+      setCommitted(nextCommitted);
     }
   }, [
     beachId,
@@ -978,13 +1013,16 @@ const Summary = ({
     forecastReady,
     tidesReady,
     dailyReady,
+    pendingKey,
   ]);
 
-  const displayStats = stats ?? statsRef.current;
-
-  const statsForRender = displayStats ?? createInitialStats();
-  const isLoading = !forecastReady || !tidesReady || !dailyReady;
-  const overviewStatsReady = !isLoading && displayStats != null;
+  const committedValue = committed ?? committedRef.current;
+  const statsForRender = committedValue?.stats ?? createInitialStats();
+  const tags = committedValue?.tags ?? [];
+  const renderForecast = committedValue?.forecast ?? forecast;
+  const showSkeletons = committedValue == null;
+  const showOverlay = committedValue == null;
+  const overviewStatsReady = committedValue != null;
 
   const surfStat = statsForRender.find(
     (stat): stat is Extract<SummaryStat, { type: "surf" }> =>
@@ -1238,14 +1276,14 @@ const Summary = ({
   const hiddenItems = tags.slice(visibleCount);
 
   const primarySwellDirection = useMemo(() => {
-    const directions = forecast
+    const directions = renderForecast
       .map((row) => row?.swell?.primary?.direction)
       .filter(
         (value): value is number =>
           typeof value === "number" && !Number.isNaN(value)
       );
     return averageDirectionDeg(directions);
-  }, [forecast]);
+  }, [renderForecast]);
 
   const swellCompass = toCompass(primarySwellDirection);
   const swellRotation = primarySwellDirection ?? 0;
@@ -1299,7 +1337,7 @@ const Summary = ({
   const tideMax = tideLevels.length > 0 ? Math.max(...tideLevels) : null;
 
   const cardBase =
-    "rounded-[22px] border border-border/25 bg-highlight-7/40 backdrop-blur-md shadow-even";
+    "relative rounded-[22px] border border-border/25 bg-highlight-7/70 shadow-even supports-[backdrop-filter]:bg-highlight-7/40 supports-[backdrop-filter]:backdrop-blur-md";
   const cardHover =
     "transition-shadow duration-200 ease-out motion-reduce:transition-none hover:z-10 hover:shadow-[0_10px_30px_rgba(0,0,0,0.12)] dark:hover:shadow-[0_18px_50px_rgba(0,0,0,0.70),0_0_0_1px_rgba(255,255,255,0.08),0_12px_26px_rgba(255,255,255,0.04)] focus-within:ring-1 focus-within:ring-foreground/10";
 
@@ -1317,13 +1355,13 @@ const Summary = ({
   }, [computedOverviewText]);
 
   const surfDayRange = useMemo(() => {
-    const mins = forecast
+    const mins = renderForecast
       .map((row) => row?.surf?.heightMin)
       .filter(
         (value): value is number =>
           typeof value === "number" && !Number.isNaN(value)
       );
-    const maxes = forecast
+    const maxes = renderForecast
       .map((row) => row?.surf?.heightMax)
       .filter(
         (value): value is number =>
@@ -1338,10 +1376,10 @@ const Summary = ({
       min: Number.isFinite(minRounded) ? minRounded : null,
       max: Number.isFinite(maxRounded) ? maxRounded : null,
     };
-  }, [forecast]);
+  }, [renderForecast]);
 
   const windDayRange = useMemo(() => {
-    const speeds = forecast
+    const speeds = renderForecast
       .map((row) => row?.conditions?.windSpeed)
       .filter(
         (value): value is number =>
@@ -1354,7 +1392,7 @@ const Summary = ({
       min: Number.isFinite(minVal) ? minVal : null,
       max: Number.isFinite(maxVal) ? maxVal : null,
     };
-  }, [forecast]);
+  }, [renderForecast]);
 
   const surfNarrativeToken =
     surfStat?.surf?.height && surfStat.surf.height !== "-"
@@ -1380,17 +1418,20 @@ const Summary = ({
           )}
           aria-label="Forecast outlook"
         >
+          <SummaryLoadingOverlay show={showOverlay} />
           <header className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <p className={kickerClass}>Summary</p>
-              {outlookHeadline ? (
+              {!showSkeletons && outlookHeadline ? (
                 <h3 className="mt-0.5 text-xl @min-md:text-2xl font-semibold tracking-tight">
                   {outlookHeadline}
                 </h3>
               ) : (
-                <div className="mt-2 space-y-2 max-w-[18rem]">
-                  <div className="h-4 w-3/4 rounded-md bg-foreground/12 animate-pulse motion-reduce:animate-none" />
-                  <div className="h-4 w-2/3 rounded-md bg-foreground/8 animate-pulse motion-reduce:animate-none" />
+                <div
+                  className="mt-1.5 max-w-[20rem]"
+                  aria-hidden="true"
+                >
+                  <div className="h-7 @min-md:h-8 w-3/5 rounded-md bg-foreground/12 animate-pulse motion-reduce:animate-none" />
                 </div>
               )}
             </div>
@@ -1406,7 +1447,11 @@ const Summary = ({
                   <span>Rise</span>
                 </dt>
                 <dd className="text-foreground font-medium">
-                  {tideStat?.sunrise ?? "-:--"}
+                  {showSkeletons ? (
+                    <span className="inline-block h-3 w-14 rounded bg-foreground/10 animate-pulse motion-reduce:animate-none" />
+                  ) : (
+                    (tideStat?.sunrise ?? "-:--")
+                  )}
                 </dd>
                 <dt className="flex items-center gap-1.5 uppercase tracking-[0.06em]">
                   <Sunset
@@ -1417,14 +1462,18 @@ const Summary = ({
                   <span>Set</span>
                 </dt>
                 <dd className="text-foreground font-medium">
-                  {tideStat?.sunset ?? "-:--"}
+                  {showSkeletons ? (
+                    <span className="inline-block h-3 w-14 rounded bg-foreground/10 animate-pulse motion-reduce:animate-none" />
+                  ) : (
+                    (tideStat?.sunset ?? "-:--")
+                  )}
                 </dd>
               </dl>
             </div>
           </header>
 
           <div className="mt-auto">
-            {outlookSentences ? (
+            {!showSkeletons && outlookSentences ? (
               <ul className="space-y-1">
                 {outlookSentences.map((line, idx) => {
                   const Icon =
@@ -1492,10 +1541,14 @@ const Summary = ({
                 })}
               </ul>
             ) : (
-              <div className="space-y-2">
-                <div className="h-3 w-4/5 rounded-md bg-foreground/8 animate-pulse motion-reduce:animate-none" />
-                <div className="h-3 w-3/5 rounded-md bg-foreground/8 animate-pulse motion-reduce:animate-none" />
-              </div>
+              <ul className="space-y-1" aria-hidden="true">
+                {Array.from({ length: 3 }).map((_, idx) => (
+                  <li key={idx} className="flex items-center gap-2">
+                    <span className="grid place-items-center size-6 rounded-full bg-foreground/5" />
+                    <span className="h-5 flex-1 rounded-md bg-foreground/8 animate-pulse motion-reduce:animate-none" />
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
         </article>
@@ -1508,44 +1561,78 @@ const Summary = ({
           )}
           aria-label="Surf summary"
         >
+          <SummaryLoadingOverlay show={showOverlay} />
           <header className="flex items-baseline justify-between gap-3">
             <p className={kickerClass}>Surf</p>
             {overviewStatsReady ? (
               <span className="rounded-full border border-border/25 bg-foreground/5 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
                 {toTitleCase(surfCondition)}
               </span>
+            ) : showSkeletons ? (
+              <span
+                className="h-5 w-18 rounded-full bg-foreground/8 animate-pulse motion-reduce:animate-none"
+                aria-hidden="true"
+              />
             ) : null}
           </header>
 
           <div className="mt-3 flex-1 flex flex-col">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <div className="inline-flex items-baseline gap-1">
-                  <span className="text-2xl font-semibold tabular-nums tracking-tight text-foreground">
-                    {surfRangeLabel ?? "--"}
-                  </span>
-                  <span className="text-xs font-medium text-muted-foreground">
-                    ft
-                  </span>
-                </div>
-                <p className="mt-0 text-xs leading-snug text-muted-foreground">
-                  {surfPeriod ? `${surfPeriod} period` : "\u00a0"}
-                </p>
+                {showSkeletons ? (
+                  <div className="space-y-2" aria-hidden="true">
+                    <div className="h-7 w-24 rounded-md bg-foreground/10 animate-pulse motion-reduce:animate-none" />
+                    <div className="h-4 w-28 rounded-md bg-foreground/8 animate-pulse motion-reduce:animate-none" />
+                  </div>
+                ) : (
+                  <>
+                    <div className="inline-flex items-baseline gap-1">
+                      <span className="text-2xl font-semibold tabular-nums tracking-tight text-foreground">
+                        {surfRangeLabel ?? "--"}
+                      </span>
+                      <span className="text-xs font-medium text-muted-foreground">
+                        ft
+                      </span>
+                    </div>
+                    <p className="mt-0 text-xs leading-snug text-muted-foreground">
+                      {surfPeriod ? `${surfPeriod} period` : "\u00a0"}
+                    </p>
+                  </>
+                )}
               </div>
-              <DirectionWidget
-                rotation={swellRotation}
-                label={swellCompass}
-                ariaLabel="Swell direction"
-              />
+              {showSkeletons ? (
+                <div
+                  className={cn(
+                    "shrink-0 grid place-items-center size-10 @min-md:size-12 rounded-xl @min-md:rounded-2xl",
+                    "border border-border/25 bg-foreground/[0.03] shadow-sm",
+                    "dark:bg-foreground/[0.07]",
+                    "animate-pulse motion-reduce:animate-none"
+                  )}
+                  aria-hidden="true"
+                />
+              ) : (
+                <DirectionWidget
+                  rotation={swellRotation}
+                  label={swellCompass}
+                  ariaLabel="Swell direction"
+                />
+              )}
             </div>
 
             <div className="mt-auto pt-1.5 space-y-1.5">
-              <SegmentedFillMeter
-                label="Surf height"
-                value={surfMaxFt}
-                min={0}
-                max={SURF_HEIGHT_CAP}
-              />
+              {!showSkeletons && surfMaxFt != null ? (
+                <SegmentedFillMeter
+                  label="Surf height"
+                  value={surfMaxFt}
+                  min={0}
+                  max={SURF_HEIGHT_CAP}
+                />
+              ) : showSkeletons ? (
+                <div
+                  className="h-2 w-full rounded-[3px] bg-foreground/10 animate-pulse motion-reduce:animate-none"
+                  aria-hidden="true"
+                />
+              ) : null}
               <div className="flex items-center justify-between text-[11px] text-muted-foreground tabular-nums">
                 <span>Low</span>
                 <span>High</span>
@@ -1562,49 +1649,83 @@ const Summary = ({
           )}
           aria-label="Wind summary"
         >
+          <SummaryLoadingOverlay show={showOverlay} />
           <header className="flex items-baseline justify-between gap-3">
             <p className={kickerClass}>Wind</p>
             {overviewStatsReady ? (
               <span className="rounded-full border border-border/25 bg-foreground/5 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
                 {toTitleCase(windCondition)}
               </span>
+            ) : showSkeletons ? (
+              <span
+                className="h-5 w-18 rounded-full bg-foreground/8 animate-pulse motion-reduce:animate-none"
+                aria-hidden="true"
+              />
             ) : null}
           </header>
 
           <div className="mt-3 flex-1 flex flex-col">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <div className="inline-flex items-baseline gap-1">
-                  <span className="text-2xl font-semibold tabular-nums tracking-tight text-foreground">
-                    {windStat?.wind?.speed ?? "--"}
-                  </span>
-                  <span className="text-xs font-medium text-muted-foreground">
-                    mph
-                  </span>
-                </div>
-                <p className="mt-0 text-xs leading-snug text-muted-foreground">
-                  gust{" "}
-                  <span className="font-medium tabular-nums">
-                    {windGust ?? "--"}
-                  </span>
-                </p>
+                {showSkeletons ? (
+                  <div className="space-y-2" aria-hidden="true">
+                    <div className="h-7 w-24 rounded-md bg-foreground/10 animate-pulse motion-reduce:animate-none" />
+                    <div className="h-4 w-28 rounded-md bg-foreground/8 animate-pulse motion-reduce:animate-none" />
+                  </div>
+                ) : (
+                  <>
+                    <div className="inline-flex items-baseline gap-1">
+                      <span className="text-2xl font-semibold tabular-nums tracking-tight text-foreground">
+                        {windStat?.wind?.speed ?? "--"}
+                      </span>
+                      <span className="text-xs font-medium text-muted-foreground">
+                        mph
+                      </span>
+                    </div>
+                    <p className="mt-0 text-xs leading-snug text-muted-foreground">
+                      gust{" "}
+                      <span className="font-medium tabular-nums">
+                        {windGust ?? "--"}
+                      </span>
+                    </p>
+                  </>
+                )}
               </div>
-              <DirectionWidget
-                rotation={windRotation}
-                label={windCompass}
-                ariaLabel="Wind direction"
-              />
+              {showSkeletons ? (
+                <div
+                  className={cn(
+                    "shrink-0 grid place-items-center size-10 @min-md:size-12 rounded-xl @min-md:rounded-2xl",
+                    "border border-border/25 bg-foreground/[0.03] shadow-sm",
+                    "dark:bg-foreground/[0.07]",
+                    "animate-pulse motion-reduce:animate-none"
+                  )}
+                  aria-hidden="true"
+                />
+              ) : (
+                <DirectionWidget
+                  rotation={windRotation}
+                  label={windCompass}
+                  ariaLabel="Wind direction"
+                />
+              )}
             </div>
 
             <div className="mt-auto pt-1.5 space-y-1.5">
-              <SegmentedFillMeter
-                label="Wind speed"
-                value={
-                  windStat?.wind?.speed != null ? windStat.wind.speed : null
-                }
-                min={0}
-                max={WIND_SPEED_CAP}
-              />
+              {showSkeletons ? (
+                <div
+                  className="h-2 w-full rounded-[3px] bg-foreground/10 animate-pulse motion-reduce:animate-none"
+                  aria-hidden="true"
+                />
+              ) : (
+                <SegmentedFillMeter
+                  label="Wind speed"
+                  value={
+                    windStat?.wind?.speed != null ? windStat.wind.speed : null
+                  }
+                  min={0}
+                  max={WIND_SPEED_CAP}
+                />
+              )}
               <div className="flex items-center justify-between text-[11px] text-muted-foreground tabular-nums">
                 <span>Low</span>
                 <span>High</span>
@@ -1621,9 +1742,10 @@ const Summary = ({
           )}
           aria-label="Tide summary"
         >
+          <SummaryLoadingOverlay show={showOverlay} />
           <header className="flex items-start justify-between gap-3">
             <p className={kickerClass}>Tide</p>
-            {tideTrend ? (
+            {!showSkeletons && tideTrend ? (
               <span className="inline-flex items-center gap-1 rounded-full border border-border/25 bg-foreground/5 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
                 {tideTrend === "rising" ? (
                   <ArrowUp className="h-3.5 w-3.5" aria-hidden="true" />
@@ -1632,6 +1754,11 @@ const Summary = ({
                 )}
                 {toTitleCase(tideTrend)}
               </span>
+            ) : showSkeletons ? (
+              <span
+                className="h-5 w-18 rounded-full bg-foreground/8 animate-pulse motion-reduce:animate-none"
+                aria-hidden="true"
+              />
             ) : null}
           </header>
 
@@ -1640,19 +1767,31 @@ const Summary = ({
               <p className="text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
                 Current
               </p>
-              <p className="mt-0.5 text-2xl font-semibold tracking-tight">
-                {tideNow != null ? `${tideNow}` : "--"}
-                <span className="ml-1 text-sm font-medium text-muted-foreground">
-                  ft
-                </span>
-              </p>
+              {showSkeletons ? (
+                <div
+                  className="mt-1 h-7 w-24 rounded-md bg-foreground/10 animate-pulse motion-reduce:animate-none"
+                  aria-hidden="true"
+                />
+              ) : (
+                <p className="mt-0.5 text-2xl font-semibold tracking-tight">
+                  {tideNow != null ? `${tideNow}` : "--"}
+                  <span className="ml-1 text-sm font-medium text-muted-foreground">
+                    ft
+                  </span>
+                </p>
+              )}
             </div>
 
             <div className="min-w-0 @min-[240px]:justify-self-end">
               <p className="text-end @min-md:text-start text-[11px] uppercase tracking-[0.06em] text-muted-foreground mb-0.5">
                 Next
               </p>
-              {nextPeaks.length > 0 ? (
+              {showSkeletons ? (
+                <div className="grid justify-end gap-1.5" aria-hidden="true">
+                  <div className="h-3 w-28 rounded-md bg-foreground/10 animate-pulse motion-reduce:animate-none" />
+                  <div className="h-3 w-20 rounded-md bg-foreground/8 animate-pulse motion-reduce:animate-none" />
+                </div>
+              ) : nextPeaks.length > 0 ? (
                 <div className="grid justify-end grid-cols-[auto_auto] @min-md:grid-cols-[auto_auto_auto] items-baseline gap-x-1 gap-y-0 whitespace-nowrap text-left">
                   {nextPeaks.map((peak) => (
                     <div
@@ -1693,24 +1832,46 @@ const Summary = ({
           </div>
 
           <div className="mt-auto pt-3 space-y-2">
-            {tideNow != null && tideMin != null && tideMax != null ? (
-              <MiniMarkerTrack
-                label="Tide level"
-                value={tideNow}
-                min={tideMin}
-                max={tideMax}
-              />
+            {showSkeletons ? (
+              <>
+                <div
+                  className="mt-0.5 h-[4px] w-full rounded-full bg-foreground/10 animate-pulse motion-reduce:animate-none"
+                  aria-hidden="true"
+                />
+                <div
+                  className="mt-1 flex items-center justify-between text-[11px]"
+                  aria-hidden="true"
+                >
+                  <span className="h-3 w-12 rounded bg-foreground/8 animate-pulse motion-reduce:animate-none" />
+                  <span className="h-3 w-12 rounded bg-foreground/8 animate-pulse motion-reduce:animate-none" />
+                </div>
+              </>
+            ) : tideNow != null && tideMin != null && tideMax != null ? (
+              <>
+                <MiniMarkerTrack
+                  label="Tide level"
+                  value={tideNow}
+                  min={tideMin}
+                  max={tideMax}
+                />
+                <div className="mt-1 flex items-center justify-between text-[11px] text-muted-foreground">
+                  <span>
+                    {tideMin != null ? `${tideMin.toFixed(1)} ft` : "\u00a0"}
+                  </span>
+                  <span>
+                    {tideMax != null ? `${tideMax.toFixed(1)} ft` : "\u00a0"}
+                  </span>
+                </div>
+              </>
             ) : (
-              <div className="mt-0.5 h-[4px] w-full rounded-full bg-foreground/10" />
+              <>
+                <div className="mt-0.5 h-[4px] w-full rounded-full bg-foreground/10" />
+                <div className="mt-1 flex items-center justify-between text-[11px] text-muted-foreground">
+                  <span>{"\u00a0"}</span>
+                  <span>{"\u00a0"}</span>
+                </div>
+              </>
             )}
-            <div className="mt-1 flex items-center justify-between text-[11px] text-muted-foreground">
-              <span>
-                {tideMin != null ? `${tideMin.toFixed(1)} ft` : "\u00a0"}
-              </span>
-              <span>
-                {tideMax != null ? `${tideMax.toFixed(1)} ft` : "\u00a0"}
-              </span>
-            </div>
           </div>
         </article>
 
@@ -1722,64 +1883,85 @@ const Summary = ({
           )}
           aria-label="Temperature summary"
         >
+          <SummaryLoadingOverlay show={showOverlay} />
           <header className="flex items-baseline justify-between gap-3">
             <p className={kickerClass}>Temperature</p>
           </header>
 
           <div className="mt-3 grid grid-cols-2 gap-3 justify-items-center w-full px-0 h-full items-center">
-            {(tempStat?.waterTempHigh != null || isLoading) && (
+            {(tempStat?.waterTempHigh != null || showSkeletons) && (
               <div className="flex flex-col gap-1 items-center min-w-0">
                 <span className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap">
                   WATER
                 </span>
-                <GradientCircle
-                  condition="water"
-                  percent={tempStat?.waterTempPercent}
-                  size={54}
-                  strokeWidth={3}
-                  color="bg-background dark:bg-highlight-4"
-                  content={
-                    <div className="flex flex-col items-center leading-tight">
-                      <span className="text-[0.95rem] font-semibold mt-1 flex items-start">
-                        {tempStat?.waterTempHigh ?? "--"}
-                        <span className="text-[0.6rem] mt-0.5">{DEGREE}</span>
-                      </span>
-                      {tempStat?.waterTempLow != null && (
-                        <span className="text-[0.7rem] text-muted-foreground">
-                          {tempStat.waterTempLow}
+                {showSkeletons ? (
+                  <div
+                    className={cn(
+                      "h-[54px] w-[54px] rounded-full border border-border/25 bg-foreground/5",
+                      "animate-pulse motion-reduce:animate-none"
+                    )}
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <GradientCircle
+                    condition="water"
+                    percent={tempStat?.waterTempPercent}
+                    size={54}
+                    strokeWidth={3}
+                    color="bg-background dark:bg-highlight-4"
+                    content={
+                      <div className="flex flex-col items-center leading-tight">
+                        <span className="text-[0.95rem] font-semibold mt-1 flex items-start">
+                          {tempStat?.waterTempHigh ?? "--"}
+                          <span className="text-[0.6rem] mt-0.5">{DEGREE}</span>
                         </span>
-                      )}
-                    </div>
-                  }
-                />
+                        {tempStat?.waterTempLow != null && (
+                          <span className="text-[0.7rem] text-muted-foreground">
+                            {tempStat.waterTempLow}
+                          </span>
+                        )}
+                      </div>
+                    }
+                  />
+                )}
               </div>
             )}
-            {(tempStat?.airTempHigh != null || isLoading) && (
+            {(tempStat?.airTempHigh != null || showSkeletons) && (
               <div className="flex flex-col gap-1 items-center min-w-0">
                 <span className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap">
                   AIR
                 </span>
-                <GradientCircle
-                  condition="sun"
-                  percent={tempStat?.airTempPercent}
-                  weatherCode={tempStat?.weatherCode}
-                  size={54}
-                  strokeWidth={3}
-                  color="bg-background dark:bg-highlight-4"
-                  content={
-                    <div className="flex flex-col items-center leading-tight">
-                      <span className="text-[0.95rem] font-semibold mt-1 flex items-start">
-                        {tempStat?.airTempHigh ?? "--"}
-                        <span className="text-[0.6rem] mt-0.5">{DEGREE}</span>
-                      </span>
-                      {tempStat?.airTempLow != null && (
-                        <span className="text-[0.7rem] text-muted-foreground">
-                          {tempStat.airTempLow}
+                {showSkeletons ? (
+                  <div
+                    className={cn(
+                      "h-[54px] w-[54px] rounded-full border border-border/25 bg-foreground/5",
+                      "animate-pulse motion-reduce:animate-none"
+                    )}
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <GradientCircle
+                    condition="sun"
+                    percent={tempStat?.airTempPercent}
+                    weatherCode={tempStat?.weatherCode}
+                    size={54}
+                    strokeWidth={3}
+                    color="bg-background dark:bg-highlight-4"
+                    content={
+                      <div className="flex flex-col items-center leading-tight">
+                        <span className="text-[0.95rem] font-semibold mt-1 flex items-start">
+                          {tempStat?.airTempHigh ?? "--"}
+                          <span className="text-[0.6rem] mt-0.5">{DEGREE}</span>
                         </span>
-                      )}
-                    </div>
-                  }
-                />
+                        {tempStat?.airTempLow != null && (
+                          <span className="text-[0.7rem] text-muted-foreground">
+                            {tempStat.airTempLow}
+                          </span>
+                        )}
+                      </div>
+                    }
+                  />
+                )}
               </div>
             )}
           </div>
@@ -1789,10 +1971,11 @@ const Summary = ({
           className={cn(
             cardBase,
             cardHover,
-            "col-span-12 @min-xl:col-span-8 @min-2xl:col-span-12 @min-5xl:col-span-6 p-4 overflow-hidden flex flex-col"
+            "col-span-12 @min-xl:col-span-8 @min-2xl:col-span-12 @min-5xl:col-span-6 p-4 overflow-hidden flex flex-col min-h-35"
           )}
           aria-label="Beach features"
         >
+          <SummaryLoadingOverlay show={showOverlay} />
           <header className="flex items-baseline justify-between gap-3">
             <div className="min-w-0">
               <p className={kickerClass}>Features</p>
@@ -1802,14 +1985,33 @@ const Summary = ({
           <div className="mt-3 flex-1 flex items-start">
             <div
               ref={containerRef}
-              className="p-0.5 flex flex-1 min-w-0 flex-wrap items-start content-start overflow-x-hidden overflow-y-visible min-h-10"
+              className={cn(
+                "p-0.5 flex flex-1 min-w-0 items-start overflow-x-hidden min-h-12",
+                showSkeletons
+                  ? "flex-nowrap"
+                  : "flex-wrap content-start overflow-y-visible"
+              )}
               style={{ gap: `${gapPx}px` }}
             >
-              {visibleItems.map((tag) => (
-                <Tag key={tag.label} data={tag} />
-              ))}
+              {showSkeletons
+                ? [96, 120, 88].map((w, idx) => (
+                    <div
+                      key={`tag-skeleton-${idx}`}
+                      className={cn(
+                        "shrink-0 inline-flex items-center gap-2 rounded-full px-2.5 py-1.5",
+                        "bg-foreground/5 shadow-even",
+                        "animate-pulse motion-reduce:animate-none"
+                      )}
+                      style={{ width: `${w}px` }}
+                      aria-hidden="true"
+                    >
+                      <span className="grid place-items-center size-6 rounded-full border border-border/25 bg-foreground/10" />
+                      <span className="h-3 flex-1 rounded bg-foreground/10" />
+                    </div>
+                  ))
+                : visibleItems.map((tag) => <Tag key={tag.label} data={tag} />)}
 
-              {hiddenItems.length > 0 ? (
+              {!showSkeletons && hiddenItems.length > 0 ? (
                 <Popover>
                   <PopoverTrigger className="more-button shrink-0 px-2.5 py-1.5 rounded-full bg-foreground/5 hover:bg-foreground/8 border border-border/25 text-[13px] text-muted-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0">
                     +{hiddenItems.length}
@@ -1934,7 +2136,7 @@ const Summary = ({
           case "temperature":
             content = (
               <div className="flex gap-6 items-center justify-center w-full px-1">
-                {(stat.waterTempHigh != null || isLoading) && (
+                {(stat.waterTempHigh != null || showSkeletons) && (
                   <div className="flex flex-col gap-1 items-center min-w-0">
                     <span className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap">
                       WATER
@@ -1962,7 +2164,7 @@ const Summary = ({
                     />
                   </div>
                 )}
-                {(stat.airTempHigh != null || isLoading) && (
+                {(stat.airTempHigh != null || showSkeletons) && (
                   <div className="flex flex-col gap-1 items-center min-w-0">
                     <span className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap">
                       AIR

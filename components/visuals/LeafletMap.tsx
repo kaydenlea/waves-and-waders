@@ -1353,6 +1353,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     marker: string | null;
   }>({ card: null, marker: null });
   const appliedHoverIdRef = React.useRef<string | null>(null);
+  const clearHoverStateRef = React.useRef<(() => void) | null>(null);
   const hoveredClusterRef = React.useRef<any>(null);
   const updateClusterHighlight = React.useCallback((cluster: any | null) => {
     const prev = hoveredClusterRef.current;
@@ -1690,9 +1691,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
         }
         normalizeMapCenter();
         requestMarkerRebuild();
-        hoverStateRef.current = { card: null, marker: null };
-        appliedHoverIdRef.current = null;
-        updateClusterHighlight(null);
+        clearHoverStateRef.current?.();
         emitCameraUpdate();
       });
     }, RESIZE_SETTLE_DELAY);
@@ -1700,33 +1699,8 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     emitCameraUpdate,
     normalizeMapCenter,
     requestMarkerRebuild,
-    updateClusterHighlight,
   ]);
 
-  React.useEffect(() => {
-    if (!mapReady) return;
-    emitCameraUpdate();
-    requestMarkerRebuild();
-  }, [mapReady, emitCameraUpdate, requestMarkerRebuild]);
-
-  React.useEffect(() => {
-    if (!mapReady) return;
-    if (smallScreen === null) return;
-    scheduleResizeRecompute();
-  }, [mapReady, smallScreen, scheduleResizeRecompute]);
-
-  React.useEffect(() => {
-    return () => {
-      if (resizeTimeoutRef.current != null) {
-        window.clearTimeout(resizeTimeoutRef.current);
-        resizeTimeoutRef.current = null;
-      }
-      if (resizeRafRef.current != null) {
-        window.cancelAnimationFrame(resizeRafRef.current);
-        resizeRafRef.current = null;
-      }
-    };
-  }, []);
   const scheduleMapViewPersistence = React.useCallback(
     (payload: StoredViewState) => {
       if (typeof window === "undefined") return;
@@ -1857,6 +1831,53 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     });
     pendingAutoCenterRef.current = candidate;
   }, [beachId, initialBeach, pathname, selectedBeachId]);
+
+  const cancelPendingAutoFocus = React.useCallback(() => {
+    if (suppressUserMoveRef.current) return;
+    pendingAutoCenterRef.current = null;
+    pendingFocusRef.current = null;
+  }, []);
+
+  React.useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const handleUserIntent = () => {
+      cancelPendingAutoFocus();
+    };
+    container.addEventListener("pointerdown", handleUserIntent, {
+      passive: true,
+    });
+    container.addEventListener("wheel", handleUserIntent, { passive: true });
+    return () => {
+      container.removeEventListener("pointerdown", handleUserIntent as any);
+      container.removeEventListener("wheel", handleUserIntent as any);
+    };
+  }, [cancelPendingAutoFocus]);
+
+  React.useEffect(() => {
+    if (!mapReady) return;
+    emitCameraUpdate();
+    requestMarkerRebuild();
+  }, [mapReady, emitCameraUpdate, requestMarkerRebuild]);
+
+  React.useEffect(() => {
+    if (!mapReady) return;
+    if (smallScreen === null) return;
+    scheduleResizeRecompute();
+  }, [mapReady, smallScreen, scheduleResizeRecompute]);
+
+  React.useEffect(() => {
+    return () => {
+      if (resizeTimeoutRef.current != null) {
+        window.clearTimeout(resizeTimeoutRef.current);
+        resizeTimeoutRef.current = null;
+      }
+      if (resizeRafRef.current != null) {
+        window.cancelAnimationFrame(resizeRafRef.current);
+        resizeRafRef.current = null;
+      }
+    };
+  }, []);
   const updateZoomButtonState = React.useCallback(() => {
     const map = mapRef.current;
     const zoom = map?.getZoom?.();
@@ -1980,6 +2001,11 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     hoverStateRef.current = { card: null, marker: null };
     appliedHoverIdRef.current = null;
     setMapInteractionHover({ cardId: null, markerId: null });
+    try {
+      mapRef.current?.closePopup?.();
+    } catch {
+      // ignore popup close errors
+    }
     if (prevId) {
       const prevEntry = registry[prevId];
       if (prevEntry) {
@@ -1989,6 +2015,37 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     }
     updateClusterHighlight(null);
   }, [refreshMarkerIcon, updateClusterHighlight]);
+
+  React.useEffect(() => {
+    clearHoverStateRef.current = clearHoverState;
+  }, [clearHoverState]);
+
+  React.useEffect(() => {
+    if (!mapReady) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!interactionsReadyRef.current) return;
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+      if (
+        target.closest(".ww-leaflet-point-icon") ||
+        target.closest(".ww-cluster-inner") ||
+        target.closest(".leaflet-popup")
+      ) {
+        return;
+      }
+      if (
+        appliedHoverIdRef.current ||
+        hoverStateRef.current.card ||
+        hoverStateRef.current.marker
+      ) {
+        clearHoverState();
+      }
+    };
+    document.addEventListener("pointerdown", handlePointerDown, true);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown, true);
+    };
+  }, [mapReady, clearHoverState]);
 
   React.useEffect(() => {
     if (!navigationPending) return;
@@ -2312,6 +2369,8 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
         suppressUserMoveRef.current = false;
         return;
       }
+      pendingAutoCenterRef.current = null;
+      pendingFocusRef.current = null;
       latestCancelCommitResume();
       latestSetAllowViewportCommit(false);
       latestClearHoverState();
@@ -2533,9 +2592,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
         }
       });
       if (removed) {
-        hoverStateRef.current = { card: null, marker: null };
-        appliedHoverIdRef.current = null;
-        updateClusterHighlight(null);
+        clearHoverState();
       }
 
       let addedCount = 0;
@@ -2550,10 +2607,8 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
           typeof dailyStats.surfIntensity === "number"
             ? dailyStats.surfIntensity
             : null;
-        const resolved =
-          statsIntensity != null
-            ? statsIntensity
-            : resolveSurfIntensity(surfIntensity, beach);
+        const gridIntensity = resolveSurfIntensity(surfIntensity, beach);
+        const resolved = gridIntensity != null ? gridIntensity : statsIntensity;
         const intensity = Number.isFinite(resolved as number)
           ? (resolved as number)
           : null;
@@ -2625,7 +2680,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
         const entry: MarkerEntry = {
           marker,
           beach,
-          intensity,
+          intensity: iconIntensity,
           favorite,
         };
         markerRegistryRef.current[id] = entry;
@@ -2688,7 +2743,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       statsDateKey,
       statsHourKey,
       getSnapshotForBeach,
-      updateClusterHighlight,
+      clearHoverState,
     ]
   );
 
@@ -2702,10 +2757,8 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
         typeof dailyStats.surfIntensity === "number"
           ? dailyStats.surfIntensity
           : null;
-      const resolved =
-        statsIntensity != null
-          ? statsIntensity
-          : resolveSurfIntensity(surfIntensity, entry.beach);
+      const gridIntensity = resolveSurfIntensity(surfIntensity, entry.beach);
+      const resolved = gridIntensity != null ? gridIntensity : statsIntensity;
       const intensity = Number.isFinite(resolved as number)
         ? (resolved as number)
         : null;
