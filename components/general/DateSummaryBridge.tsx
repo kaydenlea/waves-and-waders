@@ -1004,7 +1004,7 @@ const DateSummaryBridge: React.FC<Props> = ({
                     return (
                       <div
                         key={row.id}
-                        className={`${spacing} w-full flex flex-col @min-3xl:flex-row gap-4`}
+                        className={`${spacing} w-full flex flex-col @min-4xl:flex-row gap-4`}
                       >
                         {visibleItems.map((id) => {
                           const content = renderWidget(id, isFull);

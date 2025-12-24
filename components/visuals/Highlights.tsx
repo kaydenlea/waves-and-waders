@@ -786,7 +786,7 @@ const WeatherStat = ({
       label={label}
       primary={
         <>
-          <span className="text-[1.3rem] font-semibold tabular-nums tracking-tight">
+          <span className="text-[1.15rem] @min-sm:text-[1.3rem] font-semibold tabular-nums tracking-tight">
             {temp}
           </span>
           <span className="text-[0.75rem] font-medium text-muted-foreground">
@@ -832,7 +832,7 @@ const WaterStat = ({
       label="water"
       primary={
         <>
-          <span className="text-[1.3rem] font-semibold tabular-nums tracking-tight">
+          <span className="text-[1.15rem] @min-sm:text-[1.3rem] font-semibold tabular-nums tracking-tight">
             {temp}
           </span>
           <span className="text-[0.75rem] font-medium text-muted-foreground">
@@ -1078,10 +1078,10 @@ const MoonStat = ({
       label={label}
       primary={
         <div className="flex flex-col leading-[1.05]">
-          <span className="text-[0.82rem] font-semibold tracking-tight">
+          <span className="text-[0.7rem] @min-sm:text-[0.82rem] font-semibold tracking-tight">
             {info.lines[0]}
           </span>
-          <span className="text-[0.82rem] font-semibold tracking-tight">
+          <span className="text-[0.7rem] @min-sm:text-[0.82rem] font-semibold tracking-tight">
             {info.lines[1]}
           </span>
         </div>
@@ -1194,10 +1194,10 @@ const WindStat = ({
       label={label}
       primary={
         <>
-          <span className="text-[1.3rem] font-semibold tabular-nums tracking-tight">
+          <span className="text-[1.15rem] @min-sm:text-[1.3rem] font-semibold tabular-nums tracking-tight">
             {data.speed}
           </span>
-          <span className="text-[0.75rem] font-medium text-muted-foreground">
+          <span className="text-[0.65rem] @min-sm:text-[0.75rem] font-medium text-muted-foreground">
             mph
           </span>
         </>
@@ -1318,7 +1318,7 @@ const EnergyStat = ({
       label={label}
       primary={
         <>
-          <span className="text-[1.3rem] font-semibold tabular-nums tracking-tight">
+          <span className="text-[1.15rem] @min-sm:text-[1.3rem] font-semibold tabular-nums tracking-tight">
             {data.value}
           </span>
           <span className="text-[0.75rem] font-medium text-muted-foreground">
@@ -1421,12 +1421,12 @@ const PressureStat = ({
       label={label}
       primary={
         <>
-          <span className="text-[1.3rem] font-semibold tabular-nums tracking-tight text-foreground/85">
+          <span className="text-[1.15rem] @min-sm:text-[1.3rem] font-semibold tabular-nums tracking-tight text-foreground/85">
             {formattedValue}
           </span>
           <span
             className={cn(
-              "text-[0.72rem] font-medium text-muted-foreground",
+              "hidden @min-sm:block text-[0.72rem] font-medium text-muted-foreground",
               isFull && "@min-6xl:hidden"
             )}
           >
@@ -1436,7 +1436,14 @@ const PressureStat = ({
       }
       secondary={
         <span className="text-[0.65rem] font-medium text-muted-foreground">
-          {isFull ? displayUnit : trendLabel}
+          {isFull ? (
+            displayUnit
+          ) : (
+            <>
+              <span className="hidden @min-sm:inline">{trendLabel}</span>
+              <span className="inline @min-sm:hidden">{displayUnit}</span>
+            </>
+          )}
         </span>
       }
       visual={
@@ -1599,7 +1606,7 @@ const TideStat = ({
       label={label}
       primary={
         <>
-          <span className="text-[1.3rem] font-semibold tabular-nums tracking-tight">
+          <span className="text-[1.15rem] @min-sm:text-[1.3rem] font-semibold tabular-nums tracking-tight">
             {typeof data.value === "number" ? data.value : String(data.value)}
           </span>
           <span className="text-[0.75rem] font-medium text-muted-foreground">
@@ -1610,7 +1617,12 @@ const TideStat = ({
       secondary={
         <span className="text-[0.65rem] font-medium text-muted-foreground">
           {stage}{" "}
-          <span className={cn(isFull && "@min-6xl:hidden")}>
+          <span
+            className={cn(
+              "hidden @min-sm:inline-block",
+              isFull && "@min-6xl:hidden"
+            )}
+          >
             / {trendLabel}
           </span>
         </span>
@@ -2160,7 +2172,7 @@ const Highlights = ({
       <ul
         className={cn(
           "grid grid-cols-2 @min-xl:grid-cols-3 @min-3xl:grid-cols-4 gap-2",
-          !isFull && "@min-3xl:grid-cols-3",
+          !isFull && "@min-2xl:grid-cols-3 @min-4xl:grid-cols-3",
           isFull && "@min-4xl:grid-cols-4 @min-6xl:grid-cols-8"
         )}
       >
@@ -2191,7 +2203,7 @@ const Highlights = ({
                 ) => (
                   <span
                     className={cn(
-                      "grid grid-cols-[10px_35px] @min-md:grid-cols-[10px_35px_20px] items-center justify-center gap-1 rounded-full border border-border/25 px-1.5 py-0.5",
+                      "grid grid-cols-[auto] @min-sm:grid-cols-[5px_30px] @min-md:grid-cols-[10px_35px_20px] @min-3xl:grid-cols-[10px_30px] @min-4xl:grid-cols-[10px_35px_20px] items-center justify-center gap-1 rounded-full border border-border/25 px-1.5 py-0.5",
                       primary ? "bg-foreground/10" : "bg-foreground/5",
                       isFull &&
                         "@min-3xl:grid-cols-[10px_35px] @min-4xl:grid-cols-[10px_35px_20px] @min-6xl:grid-cols-[auto]"
@@ -2224,7 +2236,7 @@ const Highlights = ({
                     </svg>
                     <span
                       className={cn(
-                        "text-[0.6rem] font-semibold uppercase tracking-wide text-center",
+                        "text-[0.55rem] @min-md:text-[0.6rem] mt-0.5 @min-md:mt-0 font-semibold uppercase tracking-wide text-center hidden @min-sm:block",
                         primary ? "" : "text-muted-foreground",
                         isFull && "@min-6xl:hidden"
                       )}
@@ -2233,8 +2245,8 @@ const Highlights = ({
                     </span>
                     <span
                       className={cn(
-                        "hidden @min-md:block text-[0.6rem]",
-                        primary ? "" : "text-muted-foreground",
+                        "hidden @min-md:block @min-3xl:hidden @min-4xl:block text-[0.6rem]",
+                        !primary && "text-muted-foreground",
                         isFull &&
                           "@min-3xl:hidden @min-4xl:block @min-6xl:hidden"
                       )}
@@ -2251,7 +2263,7 @@ const Highlights = ({
                     primary={
                       <div
                         className={cn(
-                          "inline-grid min-w-0 grid-cols-[0.375rem_2.3rem_1.8rem_auto] items-center gap-x-1.5",
+                          "inline-grid min-w-0 grid-cols-[0.375rem_1.75rem_1.25rem_auto] @min-md:grid-cols-[0.375rem_2.3rem_1.8rem_auto] items-center gap-x-1.5",
                           isFull && "grid-cols-[0.375rem_2rem_1.5rem_auto]"
                         )}
                       >
@@ -2263,7 +2275,7 @@ const Highlights = ({
                         <span className="inline-flex w-full items-baseline justify-start gap-0.5 whitespace-nowrap tabular-nums">
                           <span
                             className={cn(
-                              "text-[0.8rem] font-semibold tabular-nums tracking-tight",
+                              "text-[0.7rem] @min-md:text-[0.8rem] font-semibold tabular-nums tracking-tight",
                               isFull && "@min-6xl:text-[0.75rem]"
                             )}
                           >
@@ -2276,7 +2288,7 @@ const Highlights = ({
                         <span className="inline-flex w-full items-baseline justify-start gap-0.5 whitespace-nowrap">
                           <span
                             className={cn(
-                              "text-[0.8rem] font-semibold tabular-nums tracking-tight",
+                              "text-[0.7rem] @min-md:text-[0.8rem] font-semibold tabular-nums tracking-tight",
                               isFull && "@min-6xl:text-[0.75rem]"
                             )}
                           >
@@ -2297,7 +2309,7 @@ const Highlights = ({
                       <div className="-mt-0.5 grid gap-y-0.5">
                         <div
                           className={cn(
-                            "inline-grid min-w-0 grid-cols-[0.375rem_2.3rem_1.8rem_auto] items-center gap-x-1.5",
+                            "inline-grid min-w-0 grid-cols-[0.375rem_1.75rem_1.25rem_auto] @min-md:grid-cols-[0.375rem_2.3rem_1.8rem_auto] items-center gap-x-1.5",
                             isFull && "grid-cols-[0.375rem_2rem_1.5rem_auto]"
                           )}
                         >
@@ -2309,7 +2321,7 @@ const Highlights = ({
                           <span className="inline-flex w-full items-baseline justify-start gap-0.5 whitespace-nowrap tabular-nums">
                             <span
                               className={cn(
-                                "text-[0.8rem] font-medium tabular-nums tracking-tight text-foreground/80",
+                                "text-[0.7rem] @min-md:text-[0.8rem] font-medium tabular-nums tracking-tight text-foreground/80",
                                 isFull && "@min-6xl:text-[0.75rem]"
                               )}
                             >
@@ -2322,7 +2334,7 @@ const Highlights = ({
                           <span className="inline-flex w-full items-baseline justify-start gap-0.5 whitespace-nowrap">
                             <span
                               className={cn(
-                                "text-[0.8rem] font-medium tabular-nums tracking-tight text-muted-foreground",
+                                "text-[0.7rem] @min-md:text-[0.8rem] font-medium tabular-nums tracking-tight text-muted-foreground",
                                 isFull && "@min-6xl:text-[0.75rem]"
                               )}
                             >
@@ -2340,7 +2352,7 @@ const Highlights = ({
 
                         <div
                           className={cn(
-                            "inline-grid min-w-0 grid-cols-[0.375rem_2.3rem_1.8rem_auto] items-center gap-x-1.5",
+                            "inline-grid min-w-0 grid-cols-[0.375rem_1.75rem_1.25rem_auto] @min-md:grid-cols-[0.375rem_2.3rem_1.8rem_auto] items-center gap-x-1.5",
                             isFull && "grid-cols-[0.375rem_2rem_1.5rem_auto]"
                           )}
                         >
@@ -2352,7 +2364,7 @@ const Highlights = ({
                           <span className="inline-flex w-full items-baseline justify-start gap-0.5 whitespace-nowrap tabular-nums">
                             <span
                               className={cn(
-                                "text-[0.8rem] font-medium tabular-nums tracking-tight text-foreground/80",
+                                "text-[0.7rem] @min-md:text-[0.8rem] font-medium tabular-nums tracking-tight text-foreground/80",
                                 isFull && "@min-6xl:text-[0.75rem]"
                               )}
                             >
@@ -2365,7 +2377,7 @@ const Highlights = ({
                           <span className="inline-flex w-full items-baseline justify-start gap-0.5 whitespace-nowrap">
                             <span
                               className={cn(
-                                "text-[0.8rem] font-medium tabular-nums tracking-tight text-muted-foreground",
+                                "text-[0.7rem] @min-md:text-[0.8rem] font-medium tabular-nums tracking-tight text-muted-foreground",
                                 isFull && "@min-6xl:text-[0.75rem]"
                               )}
                             >
@@ -2688,7 +2700,7 @@ const Highlights = ({
                   "hover:bg-highlight-7/70 active:bg-highlight-7/80",
                   stat.label === "swell" &&
                     "col-span-1 @min-xl:col-span-2 @min-3xl:col-span-1",
-                  stat.label === "swell" && !isFull && "@min-3xl:col-span-2",
+                  stat.label === "swell" && !isFull && "@min-4xl:col-span-2",
                   stat.label === "swell" && isFull && "@min-xl:col-span-2",
                   !isHydrated && "animate-pulse motion-reduce:animate-none"
                 )}
