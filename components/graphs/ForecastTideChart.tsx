@@ -25,6 +25,7 @@ import {
   Sun,
   Sunrise,
   Sunset,
+  Waves as TideIcon,
 } from "lucide-react";
 import { fetchBeachByIdLoose, fetchBeachDetails } from "@/lib/supabase";
 import { getForecastCached, getTidesCached } from "@/lib/dataCache";
@@ -49,6 +50,10 @@ import {
 import { ForecastChartSkeleton } from "./ForecastChartSkeleton";
 import { useChartTheme } from "@/components/graphs/useChartTheme";
 import { getForecastDayHeaderLayout } from "./forecastDayHeaderLayout";
+
+const TideTooltipIcon = () => (
+  <TideIcon className="h-3 w-3 text-blue-500" />
+);
 
 const VISIBLE_DAYS = 4;
 const HOURS_PER_DAY = 24;
@@ -1022,7 +1027,13 @@ export default React.memo(function ForecastTideChart({
             {containerWidth > 0 && (
               <ChartContainer
                 config={
-                  { tide: { label: "Tide", color: "#6e6e6eff" } } as ChartConfig
+                  {
+                    tide: {
+                      label: "Tide",
+                      color: "#6e6e6eff",
+                      icon: TideTooltipIcon,
+                    },
+                  } as ChartConfig
                 }
                 className="forecast-tide-chart-container aspect-auto h-[235px] w-full"
               >

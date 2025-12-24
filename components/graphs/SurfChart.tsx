@@ -12,7 +12,7 @@ import {
   ReferenceArea,
   ReferenceLine,
 } from "recharts";
-import { TrendingUp, TrendingDown } from "lucide-react";
+import { Droplets, TrendingUp, TrendingDown } from "lucide-react";
 import { getPacificHour } from "@/lib/utils";
 import {
   ChartConfig,
@@ -48,10 +48,15 @@ type Row = {
   rangeLabel: string;
 };
 
+const SurfTooltipIcon = () => (
+  <Droplets className="h-3 w-3 text-blue-400" />
+);
+
 const chartConfig = {
   surf: {
-    label: "Surf (ft)",
+    label: "Surf",
     color: "#95c5ffff",
+    icon: SurfTooltipIcon,
   },
 } satisfies ChartConfig;
 

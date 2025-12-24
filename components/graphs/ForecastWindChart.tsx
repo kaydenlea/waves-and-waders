@@ -25,6 +25,7 @@ import {
   ArrowUp,
   ChevronLeft,
   ChevronRight,
+  Wind as WindIcon,
 } from "lucide-react";
 import { getWindDirection } from "@/lib/supabase";
 import { cn, getPacificHour, getPacificMidnightUTC } from "@/lib/utils";
@@ -44,10 +45,15 @@ import {
 } from "../context/ForecastChartsLoadingContext";
 import { useChartTheme } from "@/components/graphs/useChartTheme";
 
+const WindTooltipIcon = () => (
+  <WindIcon className="h-3 w-3 text-gray-700" />
+);
+
 const chartConfig = {
   wind: {
-    label: "Wind (mph)",
+    label: "Wind",
     color: "#95c5ffff",
+    icon: WindTooltipIcon,
   },
 } satisfies ChartConfig;
 

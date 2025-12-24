@@ -130,7 +130,7 @@ const PageTabs = ({
           {!showMap && isDesktop && (
             <button
               type="button"
-              aria-label="Reopen map"
+              aria-label="Show map"
               className={cn(
                 "bg-highlight-5 hover:bg-highlight-3 rounded-full py-2.5 px-4 disabled:opacity-50 disabled:hover:bg-highlight-5 flex gap-1.5"
               )}
@@ -141,7 +141,7 @@ const PageTabs = ({
               ) : (
                 <MapPinned className="w-5 h-5 @min-sm:w-5 @min-sm:h-5" />
               )}
-              <span className="font-medium text-[15px]">Zoom</span>
+              <span className="font-medium text-[15px]">Show Map</span>
             </button>
           )}
           <div className="w-full hidden @min-md:block @min-xl:hidden bg-highlight-3 p-1 rounded-3xl max-w-45">

@@ -21,7 +21,13 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ChevronLeft,
+  ChevronRight,
+  Droplets,
+} from "lucide-react";
 import { cn, getPacificHour, getPacificMidnightUTC } from "@/lib/utils";
 import { getForecastCached } from "@/lib/dataCache";
 import { useForecastData } from "@/components/context/ForecastDataContext";
@@ -39,10 +45,15 @@ import {
 } from "../context/ForecastChartsLoadingContext";
 import { useChartTheme } from "@/components/graphs/useChartTheme";
 
+const SurfTooltipIcon = () => (
+  <Droplets className="h-3 w-3 text-blue-400" />
+);
+
 const chartConfig = {
   surf: {
-    label: "Surf (ft)",
+    label: "Surf",
     color: "#95c5ffff",
+    icon: SurfTooltipIcon,
   },
 } satisfies ChartConfig;
 

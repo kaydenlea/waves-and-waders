@@ -16,6 +16,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
+import { Atom } from "lucide-react";
 import {
   useDateContext,
   useHoveredHour,
@@ -27,10 +28,15 @@ import { useForecastWindowData } from "@/lib/hooks/useForecastWindow";
 import { useChartTheme } from "@/components/graphs/useChartTheme";
 import type { SharedSunSegments } from "./sharedSunSegments";
 
+const EnergyTooltipIcon = () => (
+  <Atom className="h-3 w-3 text-red-400" />
+);
+
 const chartConfig = {
   energy: {
-    label: "Energy (kJ)",
+    label: "Energy",
     color: "#616161ff",
+    icon: EnergyTooltipIcon,
   },
   //   secondary: {
   //     label: "Secondary",
@@ -204,7 +210,12 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   }, [hours]);
 
   const fillStops = useMemo(
-    () => buildTrendStops(series, "var(--green)", "var(--red)"),
+    () =>
+      buildTrendStops(
+        series,
+        "var(--energy-fill-inc)",
+        "var(--energy-fill-dec)"
+      ),
     [series]
   );
 

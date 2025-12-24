@@ -11,7 +11,7 @@ import {
   LabelList,
   LabelProps,
 } from "recharts";
-import { Sunrise, Sunset } from "lucide-react";
+import { Sunrise, Sunset, Waves as TideIcon } from "lucide-react";
 import {
   ChartConfig,
   ChartContainer,
@@ -33,9 +33,15 @@ import { useChartTheme } from "@/components/graphs/useChartTheme";
 
 const HOURS_TO_MS = 60 * 60 * 1000;
 
+const TideTooltipIcon = () => (
+  <TideIcon className="h-3 w-3 text-blue-500" />
+);
+
 const chartConfig: ChartConfig = {
   tide: {
+    label: "Tide",
     color: "#aaaaaaff",
+    icon: TideTooltipIcon,
   },
 };
 

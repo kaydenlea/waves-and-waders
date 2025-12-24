@@ -143,7 +143,12 @@ function ChartTooltipContent({
 
     if (labelFormatter) {
       return (
-        <div className={cn("font-medium", labelClassName)}>
+        <div
+          className={cn(
+            "text-[0.72rem] font-bold uppercase tracking-[0.2em] text-foreground/80",
+            labelClassName
+          )}
+        >
           {labelFormatter(value, payload)}
         </div>
       );
@@ -169,12 +174,26 @@ function ChartTooltipContent({
         hourNum !== null ? (hourNum % 12 === 0 ? 12 : hourNum % 12) : null;
       const amPm = hourNum !== null ? (hourNum % 24 >= 12 ? "PM" : "AM") : "";
       return (
-        <div className={cn("font-medium", labelClassName)}>
+        <div
+          className={cn(
+            "text-[0.72rem] font-bold uppercase tracking-[0.2em] text-foreground/80",
+            labelClassName
+          )}
+        >
           {hour !== null ? `${hour} ${amPm}` : value}
         </div>
       );
     }
-    return <div className={cn("font-medium", labelClassName)}>{value}</div>;
+    return (
+      <div
+        className={cn(
+          "text-[0.72rem] font-bold uppercase tracking-[0.2em] text-foreground/80",
+          labelClassName
+        )}
+      >
+        {value}
+      </div>
+    );
   }, [
     label,
     labelFormatter,
@@ -194,14 +213,16 @@ function ChartTooltipContent({
   return (
     <div
       className={cn(
-        "border-border/50 bg-background grid min-w-[12rem] items-start gap-1.5 rounded-lg border px-3 py-2 text-xs shadow-xl",
+        "relative grid min-w-[12rem] items-start gap-2 overflow-hidden rounded-2xl border border-border/60 bg-background/80 px-3 py-2.5 text-xs shadow-[0_18px_45px_rgba(0,0,0,0.25)] ring-1 ring-white/10 backdrop-blur-md transition-transform duration-150 ease-out motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-95 before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(140%_140%_at_0%_0%,rgba(56,189,248,0.25)_0%,rgba(14,165,233,0.08)_35%,transparent_70%)] before:opacity-80",
         className
       )}
     >
-      {!nestLabel ? tooltipLabel : null}
-      <div className="grid gap-1.5">
-        {payload.map((item, index) => {
-          const key = `${nameKey || item.name || item.dataKey || "value"}`;
+      {!nestLabel && tooltipLabel ? (
+        <div className="border-border/40 border-b pb-1">{tooltipLabel}</div>
+      ) : null}
+        <div className="grid gap-1.5">
+          {payload.map((item, index) => {
+            const key = `${nameKey || item.name || item.dataKey || "value"}`;
           const itemConfig = getPayloadConfigFromPayload(config, item, key);
           const indicatorColor = color || item.payload.fill || item.color;
           const formattedValue =
@@ -225,7 +246,7 @@ function ChartTooltipContent({
                 !hideIndicator && (
                   <div
                     className={cn(
-                      "shrink-0 rounded-[2px] border-(--color-border) bg-(--color-bg)",
+                      "shrink-0 rounded-full border-(--color-border) bg-(--color-bg) shadow-sm ring-2 ring-background/80",
                       {
                         "h-2.5 w-2.5": indicator === "dot",
                         "w-1": indicator === "line",
@@ -245,7 +266,7 @@ function ChartTooltipContent({
               )}
               <div
                 className={cn(
-                  "flex flex-1 justify-between leading-none",
+                  "flex flex-1 items-center justify-between gap-2 leading-none",
                   nestLabel ? "items-end" : "items-center"
                 )}
               >
@@ -256,12 +277,14 @@ function ChartTooltipContent({
                   </span>
                 </div>
                 {showFormatted ? (
-                  <div className="text-foreground font-medium tabular-nums text-right">
-                    {formattedValue}
+                  <div className="text-right">
+                    <span className="bg-foreground/10 text-foreground inline-flex items-center rounded-full px-2 py-1 font-semibold tabular-nums">
+                      {formattedValue}
+                    </span>
                   </div>
                 ) : (
                   item.value && (
-                    <span className="text-foreground font-medium tabular-nums">
+                    <span className="bg-foreground/10 text-foreground inline-flex items-center rounded-full px-2 py-1 font-semibold tabular-nums">
                       {`${
                         item.value.toString().includes(".")
                           ? Number(item.value).toFixed(1).toLocaleString()

@@ -27,7 +27,13 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  Atom,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { fetchBeachByIdLoose } from "@/lib/supabase";
 import { cn, getPacificMidnightUTC } from "@/lib/utils";
 import { getForecastCached } from "@/lib/dataCache";
@@ -47,10 +53,15 @@ import {
 } from "../context/ForecastChartsLoadingContext";
 import { useChartTheme } from "@/components/graphs/useChartTheme";
 
+const EnergyTooltipIcon = () => (
+  <Atom className="h-3 w-3 text-red-400" />
+);
+
 const chartConfig = {
   energy: {
-    label: "Energy (kJ)",
+    label: "Energy",
     color: "#616161ff",
+    icon: EnergyTooltipIcon,
   },
 } satisfies ChartConfig;
 
@@ -683,7 +694,12 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
   }, [energyData, totalFetchedDays]);
 
   const fillStops = React.useMemo(
-    () => buildTrendStops(energyData, "var(--green)", "var(--red)"),
+    () =>
+      buildTrendStops(
+        energyData,
+        "var(--energy-fill-inc)",
+        "var(--energy-fill-dec)"
+      ),
     [energyData]
   );
   const strokeStops = React.useMemo(

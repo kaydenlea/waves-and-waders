@@ -7,8 +7,24 @@ import {
   useMemo,
   useLayoutEffect,
   useImperativeHandle,
+  useState,
+  useEffect,
 } from "react";
 import * as THREE from "three";
+
+// Check if WebGL is available
+const isWebGLAvailable = (): boolean => {
+  if (typeof window === "undefined") return false;
+  try {
+    const canvas = document.createElement("canvas");
+    return !!(
+      window.WebGLRenderingContext &&
+      (canvas.getContext("webgl") || canvas.getContext("experimental-webgl"))
+    );
+  } catch {
+    return false;
+  }
+};
 
 const EDGE_GUTTER_PX = 0; // optional if used elsewhere
 
@@ -150,6 +166,11 @@ const WaveBg: React.FC<WaveBgProps> = ({
   rotation = 3,
 }) => {
   const meshRef = useRef<THREE.Mesh>(null);
+  const [webGLSupported, setWebGLSupported] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    setWebGLSupported(isWebGLAvailable());
+  }, []);
 
   const uniforms = useMemo(
     () => ({
@@ -162,6 +183,26 @@ const WaveBg: React.FC<WaveBgProps> = ({
     }),
     [speed, scale, noiseIntensity, color, rotation]
   );
+
+  // Show nothing while checking WebGL support (prevents hydration mismatch)
+  if (webGLSupported === null) {
+    return (
+      <div
+        className="rounded-3xl w-full h-full"
+        style={{ backgroundColor: color }}
+      />
+    );
+  }
+
+  // Fallback for browsers without WebGL support
+  if (!webGLSupported) {
+    return (
+      <div
+        className="rounded-3xl w-full h-full"
+        style={{ backgroundColor: color }}
+      />
+    );
+  }
 
   return (
     <Canvas dpr={[1, 2]} frameloop="always" className="rounded-3xl">

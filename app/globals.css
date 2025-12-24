@@ -164,6 +164,8 @@
   ); /* More saturated purple for light mode */
   --chart-hover-opacity: 0.15;
   --chart-shading-opacity: 0.35;
+  --energy-fill-inc: oklch(86% 0.2 142);
+  --energy-fill-dec: oklch(78% 0.22 28);
   --energy-stroke-inc: oklch(51.524% 0.13522 142.111 / 0.199);
   --energy-stroke-dec: oklch(55.855% 0.18038 25.848 / 0.178);
 
@@ -230,6 +232,8 @@
   --chart-night-shading: #ccc1ffff;
   --chart-hover-opacity: 0.08;
   --chart-shading-opacity: 0.2;
+  --energy-fill-inc: var(--green);
+  --energy-fill-dec: var(--red);
   --energy-stroke-inc: var(--green);
   --energy-stroke-dec: var(--red);
 

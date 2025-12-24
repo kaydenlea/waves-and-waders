@@ -16,6 +16,7 @@ import {
   MousePointer2 as ArrowIcon,
   TrendingUp,
   TrendingDown,
+  Wind as WindIcon,
 } from "lucide-react";
 import {
   ChartConfig,
@@ -45,10 +46,15 @@ type Props = {
   date?: Date;
   sunSegments?: SharedSunSegments;
 };
+const WindTooltipIcon = () => (
+  <WindIcon className="h-3 w-3 text-gray-700" />
+);
+
 const chartConfig = {
   wind: {
-    label: "Wind (mph)",
+    label: "Wind",
     color: "#95c5ffff",
+    icon: WindTooltipIcon,
   },
 } satisfies ChartConfig;
 
