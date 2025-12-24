@@ -968,13 +968,9 @@ const SelectedBeachOverlay = React.memo(
     const scale = overlayZoom >= 14 ? 1 : overlayZoom / 14;
     const ringSize = 160 * scale;
     const outerRadius = (typeof windDirection === "number" ? 110 : 76) * scale;
-    const labelDistance = 130 * scale;
+    const labelDistance = 137 * scale;
     const centerOffset = ringSize / 2;
-    const markerHole = 12 * scale;
     const haloPadding = Math.max(outerRadius - ringSize / 2, 0);
-    const blurMask = `radial-gradient(circle ${outerRadius}px at center, transparent 0, transparent ${markerHole}px, black ${
-      markerHole + 2 * scale
-    }px, black ${outerRadius}px, transparent ${outerRadius + 1}px)`;
     const cardinalLabels = [
       {
         id: "N" as const,
@@ -1036,21 +1032,17 @@ const SelectedBeachOverlay = React.memo(
               className="relative flex items-center justify-center"
               style={{ width: ringSize, height: ringSize }}
             >
-              <div
-                className="pointer-events-none absolute rounded-full bg-white/15 shadow-[0_8px_28px_rgba(0,0,0,0.08)] border border-border/40"
+              {/* <div
+                className="pointer-events-none absolute rounded-full shadow-[0_8px_28px_rgba(0,0,0,0.10)] border border-border/35"
                 aria-hidden="true"
                 style={{
                   top: -haloPadding,
                   left: -haloPadding,
                   right: -haloPadding,
                   bottom: -haloPadding,
-                  backdropFilter: "blur(1px)",
-                  WebkitBackdropFilter: "blur(1px)",
-                  maskImage: blurMask,
-                  WebkitMaskImage: blurMask,
                 }}
-              />
-              <div
+              /> */}
+              {/* <div
                 className="pointer-events-none absolute rounded-full border border-border/45"
                 aria-hidden="true"
                 style={{
@@ -1059,22 +1051,13 @@ const SelectedBeachOverlay = React.memo(
                   right: -haloPadding * 0.6,
                   bottom: -haloPadding * 0.6,
                 }}
-              />
-              <div
-                className="pointer-events-none absolute inset-0"
-                aria-hidden="true"
-              >
-                <div className="absolute left-1/2 top-0 h-6 w-[1px] -translate-x-1/2 bg-border/35" />
-                <div className="absolute left-1/2 bottom-0 h-6 w-[1px] -translate-x-1/2 bg-border/35" />
-                <div className="absolute top-1/2 left-0 w-6 h-[1px] -translate-y-1/2 bg-border/35" />
-                <div className="absolute top-1/2 right-0 w-6 h-[1px] -translate-y-1/2 bg-border/35" />
-              </div>
+              /> */}
               {legendOpen && (
                 <div className="pointer-events-none absolute inset-0">
                   {cardinalLabels.map(({ id, style }) => (
                     <span
                       key={id}
-                      className="absolute rounded-md px-1.5 py-[1px] text-[11px] font-black uppercase text-slate-900 dark:text-slate-100 bg-white/90 dark:bg-slate-900/85 border border-border select-none"
+                      className="absolute text-[12px] font-black uppercase leading-none text-slate-900/60 drop-shadow-[0_1px_3px_rgba(0,0,0,0.35)] select-none"
                       style={style}
                     >
                       {id}
@@ -1093,6 +1076,7 @@ const SelectedBeachOverlay = React.memo(
                   secondary: overlayLabels?.secondary ?? null,
                   tertiary: overlayLabels?.tertiary ?? null,
                 }}
+                showLegend={legendOpen}
                 scale={scale}
                 className="absolute inset-0"
               />
@@ -1100,6 +1084,7 @@ const SelectedBeachOverlay = React.memo(
                 <WindRing
                   direction={windDirection}
                   label={overlayLabels?.wind ?? null}
+                  showLegend={legendOpen}
                   scale={scale}
                   className="absolute inset-0"
                 />
@@ -1925,7 +1910,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       background: "color-mix(in oklch, var(--highlight-4) 60%, transparent)",
       border: "1px solid color-mix(in oklch, var(--border) 55%, transparent)",
       borderRadius: "30px",
-      padding: "0px 5px",
+      padding: "0px 6px",
       backdropFilter: "blur(12px)",
       WebkitBackdropFilter: "blur(12px)",
       marginTop: !fullMapPage ? "125px" : smallScreen ? "260px" : "0px",

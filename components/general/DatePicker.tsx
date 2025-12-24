@@ -695,7 +695,7 @@ DatePickerProps) => {
                       "border-1 border-border/15",
                       "shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
                     )
-                : "bg-background dark:bg-highlight-4 rounded-md";
+                : "bg-background dark:bg-highlight-4 rounded-xl";
               const buttonRounding = forecast ? "rounded-none" : "rounded-md";
               const selectedClasses = forecast
                 ? cn(

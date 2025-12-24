@@ -169,6 +169,12 @@
   --energy-stroke-inc: oklch(51.524% 0.13522 142.111 / 0.199);
   --energy-stroke-dec: oklch(55.855% 0.18038 25.848 / 0.178);
 
+  /* Map marker rings (direction overlay) */
+  --ww-ring-swell-primary: #60a5fa;
+  --ww-ring-swell-secondary: #7dd3fc;
+  --ww-ring-swell-tertiary: #67e8f9;
+  --ww-ring-wind: #a78bfa;
+
   .maplibregl-popup-content {
     background-color: white !important;
   }
@@ -236,6 +242,12 @@
   --energy-fill-dec: var(--red);
   --energy-stroke-inc: var(--green);
   --energy-stroke-dec: var(--red);
+
+  /* Map marker rings (direction overlay) */
+  --ww-ring-swell-primary: #60a5fa;
+  --ww-ring-swell-secondary: #7dd3fc;
+  --ww-ring-swell-tertiary: #67e8f9;
+  --ww-ring-wind: #a78bfa;
 
   .maplibregl-popup-content {
     background-color: oklch(34.893% 0.06737 251.007) !important;
