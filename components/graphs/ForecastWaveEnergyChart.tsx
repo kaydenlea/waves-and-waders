@@ -52,6 +52,7 @@ import {
   useForecastChartsBusyState,
 } from "../context/ForecastChartsLoadingContext";
 import { useChartTheme } from "@/components/graphs/useChartTheme";
+import { buildYAxisTicks } from "@/components/graphs/yAxisTicks";
 
 const EnergyTooltipIcon = () => <Atom className="h-3 w-3" />;
 
@@ -73,14 +74,14 @@ type Props = { beachId?: string; days?: Date[] | null };
 const HOURS_PER_DAY = 24;
 const VISIBLE_DAYS = 4;
 const MIN_DAY_PX = 275;
-const CHART_LEFT_MARGIN = 0;
+const CHART_LEFT_MARGIN = 5;
 const CHART_RIGHT_MARGIN = 5;
 const Y_AXIS_WIDTH = 30;
 const DAY_LABEL_INSET = 6;
 const Y_AXIS_OFFSET_VAR = "--forecast-y-axis-offset";
 const Y_AXIS_TICK = {
   fill: "var(--foreground)",
-  fontWeight: 700,
+  fontWeight: 500,
   filter: "drop-shadow(0 0 4px var(--background))",
 } as const;
 
@@ -225,6 +226,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
     () => Math.min(containerWidth || 0, dayPx * VISIBLE_DAYS),
     [containerWidth, dayPx]
   );
+  const isScrollable = chartInnerWidth > viewportWidth + 1;
   const dataAreaWidth =
     chartInnerWidth - CHART_LEFT_MARGIN - CHART_RIGHT_MARGIN - Y_AXIS_WIDTH;
   const dayLabelLeftOffset = CHART_LEFT_MARGIN + Y_AXIS_WIDTH;
@@ -648,6 +650,20 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
     }
     return ticks;
   }, [totalFetchedDays]);
+
+  const energyTicks = useMemo(
+    () =>
+      buildYAxisTicks(
+        energyData
+          .map((row) => row.energy)
+          .filter((v): v is number => typeof v === "number" && Number.isFinite(v)),
+        0,
+        6,
+        0.25,
+        8
+      ),
+    [energyData]
+  );
   const formatHourLabel = useCallback((label: unknown, payload: any[]) => {
     let hour = payload?.[0]?.payload?.hour;
     if (typeof hour !== "number" && typeof label === "number") {
@@ -755,7 +771,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
           onClick={handleBack}
           className={cn(
             "absolute left-4 top-[55%] -translate-y-1/2 z-50 rounded-full bg-highlight-7/90 p-1 shadow border border-border/30 shadow-even backdrop-blur-xl",
-            dayOffset === 0 && "hidden"
+            (!isScrollable || dayOffset === 0) && "hidden"
           )}
         >
           <ChevronLeft className="w-5 h-5" />
@@ -765,7 +781,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
           onClick={handleNext}
           className={cn(
             "absolute right-4 top-[55%] -translate-y-1/2 z-50 rounded-full bg-highlight-7/90 p-1 shadow border border-border/30 shadow-even backdrop-blur-xl",
-            isAtRightEdge && "hidden"
+            (!isScrollable || isAtRightEdge) && "hidden"
           )}
         >
           <ChevronRight className="w-5 h-5" />
@@ -1044,10 +1060,10 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
                   fontSize={11}
                   tick={Y_AXIS_TICK}
                   domain={[
-                    0,
-                    (dataMax: number) =>
-                      Math.max(Math.round(Math.ceil(dataMax) * 1.5), 8),
+                    energyTicks[0] ?? 0,
+                    energyTicks[energyTicks.length - 1] ?? 8,
                   ]}
+                  ticks={energyTicks}
                   style={{
                     transform: `translateX(var(${Y_AXIS_OFFSET_VAR}, 0px))`,
                   }}

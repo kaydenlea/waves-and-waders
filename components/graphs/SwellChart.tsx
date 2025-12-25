@@ -52,6 +52,7 @@ import { buildSunSegments } from "@/components/graphs/sunSegments";
 import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
 import { useForecastWindowData } from "@/lib/hooks/useForecastWindow";
 import type { SharedSunSegments } from "./sharedSunSegments";
+import { buildYAxisTicks } from "@/components/graphs/yAxisTicks";
 
 type Props = {
   beachId?: string;
@@ -99,22 +100,16 @@ export const SwellStatsHeader = ({
   }, [beachId, rows]);
 
   return (
-    <div className="grid rounded-md bg-highlight-5 grid-cols-[60px_1fr] grid-rows-2 gap-y-0.5 items-center text-xs text-muted-foreground uppercase tracking-wide leading-tight px-2 py-1.5">
+    <div className="grid grid-cols-[60px_1fr] grid-rows-2 gap-y-0.5 items-center rounded-xl border border-border/25 bg-highlight-7/70 px-2.5 py-2 text-xs uppercase tracking-wide leading-tight text-muted-foreground shadow-even supports-[backdrop-filter]:bg-highlight-7/40 supports-[backdrop-filter]:backdrop-blur-md">
       <span className="flex gap-2 items-center">
-        <TrendingUp
-          fill="#353535ff"
-          className="stroke-muted-foreground w-4 h-4"
-        />
+        <TrendingUp className="h-4 w-4 text-muted-foreground" />
         <span className="block font-medium">High</span>
       </span>
       <span className="ml-1 text-foreground normal-case font-medium">
         {highSwell ?? "--"} <span className="inline-block">ft</span>
       </span>
       <span className="flex gap-2 items-center">
-        <TrendingDown
-          fill="#353535ff"
-          className="stroke-muted-foreground w-4 h-4"
-        />
+        <TrendingDown className="h-4 w-4 text-muted-foreground" />
         <span className="block -mb-0.5 font-medium">Low</span>
       </span>
       <span className="ml-1 text-foreground normal-case font-medium">
@@ -299,6 +294,19 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     return ticks;
   }, [hours]);
 
+  const swellTicks = useMemo(
+    () =>
+      buildYAxisTicks(
+        data
+          .flatMap((row) => [row.primary, row.secondary, row.tertiary])
+          .filter((v): v is number => typeof v === "number" && Number.isFinite(v)),
+        0,
+        6,
+        0.2
+      ),
+    [data]
+  );
+
   const lastHoveredRef = React.useRef<number | null>(null);
 
   const handleMouseMove = (e: any) => {
@@ -330,7 +338,7 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         margin={{
           top: 10,
           right: 15,
-          left: -28,
+          left: -25,
         }}
         syncId="allCharts"
         syncMethod={syncToNearestThirdHour}
@@ -378,12 +386,15 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           }
         />
         <YAxis
-          allowDecimals={false}
           tickLine={false}
           axisLine={false}
           tickMargin={8}
           fontSize={11}
-          domain={[0, (dataMax: number) => Math.ceil(dataMax + 2)]}
+          domain={[
+            swellTicks[0] ?? 0,
+            swellTicks[swellTicks.length - 1] ?? 6,
+          ]}
+          ticks={swellTicks}
         />
         {/* <ChartLegend content={<ChartLegendContent />} /> */}
         <ChartTooltip

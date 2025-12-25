@@ -66,7 +66,7 @@ type Props = { beachId?: string; days?: Date[] | null };
 const HOURS_PER_DAY = 24;
 const VISIBLE_DAYS = 4;
 const MIN_DAY_PX = 275;
-const CHART_LEFT_MARGIN = 0;
+const CHART_LEFT_MARGIN = 5;
 const CHART_RIGHT_MARGIN = 5;
 const DATA_STEP_HOURS = 3;
 const HALF_STEP_HOURS = DATA_STEP_HOURS / 2;
@@ -75,7 +75,7 @@ const DAY_LABEL_INSET = 6;
 const Y_AXIS_OFFSET_VAR = "--forecast-y-axis-offset";
 const Y_AXIS_TICK = {
   fill: "var(--foreground)",
-  fontWeight: 700,
+  fontWeight: 500,
   filter: "drop-shadow(0 0 4px var(--background))",
 } as const;
 
@@ -209,6 +209,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
     () => Math.min(containerWidth || 0, dayPx * VISIBLE_DAYS),
     [containerWidth, dayPx]
   );
+  const isScrollable = chartInnerWidth > viewportWidth + 1;
   const xAxisLeftPadding = useMemo(
     () => Math.max(6, axisPadding / 2),
     [axisPadding]
@@ -824,7 +825,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
           onClick={handleBack}
           className={cn(
             "absolute left-4 top-[55%] -translate-y-1/2 z-50 rounded-full bg-highlight-7/90 p-1 shadow border border-border/30 shadow-even backdrop-blur-xl",
-            dayOffset === 0 && "hidden"
+            (!isScrollable || dayOffset === 0) && "hidden"
           )}
         >
           <ChevronLeft className="w-5 h-5" />
@@ -834,7 +835,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
           onClick={handleNext}
           className={cn(
             "absolute right-4 top-[55%] -translate-y-1/2 z-50 rounded-full bg-highlight-7/90 p-1 shadow border border-border/30 shadow-even backdrop-blur-xl",
-            isAtRightEdge && "hidden"
+            (!isScrollable || isAtRightEdge) && "hidden"
           )}
         >
           <ChevronRight className="w-5 h-5" />

@@ -112,6 +112,10 @@ export function useDateContext(): Ctx {
   return ctx;
 }
 
+export function useOptionalDateContext(): Ctx | null {
+  return React.useContext(DateContext);
+}
+
 // Custom hook for charts to subscribe to hover changes without causing context re-renders
 export function useHoveredHour(): number | null {
   const { hoveredHourRef, subscribeToHover } = useDateContext();

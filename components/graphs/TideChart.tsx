@@ -30,12 +30,11 @@ import {
 } from "@/components/graphs/sunSegments";
 import { getPacificMidnightUTC } from "@/lib/utils";
 import { useChartTheme } from "@/components/graphs/useChartTheme";
+import { buildYAxisTicks } from "@/components/graphs/yAxisTicks";
 
 const HOURS_TO_MS = 60 * 60 * 1000;
 
-const TideTooltipIcon = () => (
-  <TideIcon className="h-3 w-3" />
-);
+const TideTooltipIcon = () => <TideIcon className="h-3 w-3" />;
 const TIDE_LINE_COLOR = "#aaaaaaff";
 
 const chartConfig: ChartConfig = {
@@ -570,6 +569,22 @@ const TideChart: React.FC<TideChartProps> = ({
     return ticks;
   }, [hours]);
 
+  const tideTicks = useMemo(() => {
+    const values = renderData
+      .map((p) => p.tide)
+      .filter((v): v is number => typeof v === "number" && Number.isFinite(v));
+    if (!values.length) return buildYAxisTicks([0], -2, 6, 0.2);
+
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+
+    // Add headroom/footroom so labels/icons never collide with the curve.
+    const paddedMin = Math.floor(min - 2);
+    const paddedMax = Math.ceil(max + 4);
+
+    return buildYAxisTicks([paddedMin, ...values, paddedMax], paddedMin, 6, 0);
+  }, [renderData]);
+
   // Calculate high and low tide values from peaks
   const { highTide, lowTide } = useMemo(() => {
     const peaks = chartData.filter((p) => p.isPeak != null);
@@ -617,7 +632,7 @@ const TideChart: React.FC<TideChartProps> = ({
         data={renderData}
         margin={{
           top: 10,
-          left: -30,
+          left: -25,
           right: 15,
           bottom: 0,
         }}
@@ -686,9 +701,10 @@ const TideChart: React.FC<TideChartProps> = ({
           tickMargin={8}
           fontSize={11}
           domain={[
-            (dataMin: number) => Math.floor(dataMin) - 1,
-            (dataMax: number) => Math.max(Math.ceil(dataMax) + 3, 8),
+            tideTicks[0] ?? -2,
+            tideTicks[tideTicks.length - 1] ?? 8,
           ]}
+          ticks={tideTicks}
         />
         <ChartTooltip
           content={<ChartTooltipContent />}

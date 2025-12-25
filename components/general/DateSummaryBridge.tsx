@@ -82,7 +82,7 @@ const HeaderVisual = ({
   max: string | null;
 }) => {
   return (
-    <div className="flex gap-2 rounded-lg bg-highlight-5 items-center text-xs text-muted-foreground uppercase tracking-wide leading-tight px-3 py-2">
+    <div className="flex items-center gap-2 rounded-xl border border-border/25 bg-highlight-7/70 px-3 py-2 text-xs uppercase tracking-wide leading-tight text-muted-foreground shadow-even supports-[backdrop-filter]:bg-highlight-7/40 supports-[backdrop-filter]:backdrop-blur-md">
       <div className="flex items-center gap-0.5">
         <span className="flex gap-0.5 items-center">
           <ArrowDown className="h-4 w-4 text-rose-500/80" />

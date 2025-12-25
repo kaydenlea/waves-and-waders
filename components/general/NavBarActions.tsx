@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { LazyLoadDatePicker } from "./LazyLoad/LazyLoadDatePicker";
 import SearchBar from "./SearchBar";
-import { useDateContext } from "../context/DateContext";
+import { useOptionalDateContext } from "../context/DateContext";
 import { LazyLoadHourSlider } from "./LazyLoad/LazyLoadHourSlider";
 import { Calendar, Clock, MapIcon, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -17,10 +17,26 @@ const NavBarActions = () => {
   const router = useRouter();
   const homePage = pathname === "/";
   const beachesPage = pathname.endsWith("/beaches");
-  const { id, selected, setSelected, hour, setHour, mode, setMode } =
-    useDateContext();
+  const dateCtx = useOptionalDateContext();
   const { setIsOverlay } = useSearchContext();
   const { selectedTab } = useClientPath();
+
+  if (!dateCtx) {
+    if (homePage || beachesPage) {
+      return (
+        <SearchBar
+          beachesPage={beachesPage}
+          className={cn(
+            "sm:max-w-none",
+            beachesPage ? "flex" : "max-w-[12rem] hidden @min-4xl:flex"
+          )}
+        />
+      );
+    }
+    return null;
+  }
+
+  const { id, selected, setSelected, hour, setHour, mode, setMode } = dateCtx;
 
   const beachIdFromPath = (() => {
     const parts = (pathname ?? "").split("/").filter(Boolean);

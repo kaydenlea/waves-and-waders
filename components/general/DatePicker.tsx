@@ -20,12 +20,12 @@ import {
 import {
   Sun,
   Cloud as CloudIcon,
-  CloudSun,
   CloudDrizzle,
   CloudRain,
   CloudLightning,
   Snowflake,
 } from "lucide-react";
+import MixedCloudSunIcon from "@/components/icons/MixedCloudSunIcon";
 import { fetchBeachForecast, type ForecastData } from "@/lib/supabase";
 import { fetchSurfIntensityAPI } from "@/lib/api";
 import { useSurfIntensity } from "@/lib/hooks/useSurfIntensity";
@@ -62,7 +62,11 @@ const getWeatherIcon = (code: number | null, size?: number) => {
     return <Sun size={iconSize} strokeWidth={3} color="#f79e55ff" />; // Clear
   if ([1, 2, 3].includes(code))
     return (
-      <CloudSun size={iconSize} color="#bdbdbdff" strokeWidth={strokeWidth} />
+      <MixedCloudSunIcon
+        size={iconSize}
+        strokeWidth={strokeWidth}
+        className="shrink-0"
+      />
     ); // Partly cloudy/overcast
   if ([45, 48].includes(code))
     return (

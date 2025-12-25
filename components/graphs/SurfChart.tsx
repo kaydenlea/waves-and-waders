@@ -48,9 +48,7 @@ type Row = {
   rangeLabel: string;
 };
 
-const SurfTooltipIcon = () => (
-  <Droplets className="h-3 w-3" />
-);
+const SurfTooltipIcon = () => <Droplets className="h-3 w-3" />;
 
 const chartConfig = {
   surf: {
@@ -94,22 +92,16 @@ export const SurfStatsHeader = ({
   }, [beachId, rows]);
 
   return (
-    <div className="grid rounded-md bg-highlight-5 grid-cols-[60px_1fr] grid-rows-2 gap-y-0.5 items-center text-xs text-muted-foreground uppercase tracking-wide leading-tight px-2 py-1.5">
+    <div className="grid grid-cols-[60px_1fr] grid-rows-2 gap-y-0.5 items-center rounded-xl border border-border/25 bg-highlight-7/70 px-2.5 py-2 text-xs uppercase tracking-wide leading-tight text-muted-foreground shadow-even supports-[backdrop-filter]:bg-highlight-7/40 supports-[backdrop-filter]:backdrop-blur-md">
       <span className="flex gap-2 items-center">
-        <TrendingUp
-          fill="#353535ff"
-          className="stroke-muted-foreground w-4 h-4"
-        />
+        <TrendingUp className="h-4 w-4 text-muted-foreground" />
         <span className="block font-medium">High</span>
       </span>
       <span className="ml-1 text-foreground normal-case font-medium">
         {highSurf ?? "--"} <span className="inline-block">ft</span>
       </span>
       <span className="flex gap-2 items-center">
-        <TrendingDown
-          fill="#353535ff"
-          className="stroke-muted-foreground w-4 h-4"
-        />
+        <TrendingDown className="h-4 w-4 text-muted-foreground" />
         <span className="block -mb-0.5 font-medium">Low</span>
       </span>
       <span className="ml-1 text-foreground normal-case font-medium">
@@ -470,7 +462,7 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         margin={{
           top: 10,
           right: 15,
-          left: -30,
+          left: -25,
           bottom: 0,
         }}
         accessibilityLayer

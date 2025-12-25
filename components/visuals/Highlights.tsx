@@ -12,6 +12,7 @@ import {
   CloudLightning,
   Snowflake,
 } from "lucide-react";
+import MixedCloudSunIcon from "@/components/icons/MixedCloudSunIcon";
 
 // Module-scope helpers and segmented gauge for compact, legible intensity visuals
 const clamp = (n: number, lo: number, hi: number) =>
@@ -716,30 +717,6 @@ const WeatherStat = ({
   weatherCode?: number | null;
   isFull?: boolean;
 }) => {
-  const MixedCloudSunIcon = ({ className }: { className?: string }) => (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      className={cn("h-5 w-5", className)}
-      fill="none"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <g stroke="#f79e55ff">
-        <path d="M12 2v2" />
-        <path d="m4.93 4.93 1.41 1.41" />
-        <path d="M20 12h2" />
-        <path d="m19.07 4.93-1.41 1.41" />
-        <path d="M15.947 12.65a4 4 0 0 0-5.925-4.128" />
-      </g>
-      <path
-        d="M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z"
-        stroke="#bdbdbdff"
-      />
-    </svg>
-  );
-
   const getWeatherVisual = (code: number | null | undefined) => {
     if (code == null || code === 0) {
       return {
@@ -752,7 +729,7 @@ const WeatherStat = ({
     if ([1, 2].includes(code)) {
       return {
         label: "Mixed",
-        icon: <MixedCloudSunIcon />,
+        icon: <MixedCloudSunIcon className="h-5 w-5" />,
       };
     }
     if (code === 3) {

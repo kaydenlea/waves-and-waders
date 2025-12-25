@@ -22,13 +22,27 @@ export function useCachedForecast({
   const [error, setError] = useState<Error | null>(null);
 
   const requestIdRef = useRef(0);
+  const activeKeyRef = useRef<string | null>(null);
+
+  const requestKey =
+    enabled && beachId
+      ? `forecast:${beachId}:${start.toISOString()}:${end.toISOString()}`
+      : null;
+
+  // If the inputs change, surface `loading` immediately (even before the effect runs)
+  // so consumers don't briefly treat stale `data` as belonging to the new request.
+  const keyChanged = requestKey !== activeKeyRef.current;
 
   useEffect(() => {
     if (!enabled || !beachId) {
       setData([]);
+      setLoading(false);
+      setError(null);
+      activeKeyRef.current = null;
       return;
     }
 
+    activeKeyRef.current = requestKey;
     const requestId = ++requestIdRef.current;
     let cancelled = false;
 
@@ -61,7 +75,7 @@ export function useCachedForecast({
     return () => {
       cancelled = true;
     };
-  }, [beachId, start.getTime(), end.getTime(), enabled]);
+  }, [beachId, start.getTime(), end.getTime(), enabled, requestKey]);
 
-  return { data, loading, error };
+  return { data, loading: loading || keyChanged, error };
 }

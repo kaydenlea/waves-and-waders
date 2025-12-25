@@ -27,10 +27,9 @@ import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
 import { useForecastWindowData } from "@/lib/hooks/useForecastWindow";
 import { useChartTheme } from "@/components/graphs/useChartTheme";
 import type { SharedSunSegments } from "./sharedSunSegments";
+import { buildYAxisTicks } from "@/components/graphs/yAxisTicks";
 
-const EnergyTooltipIcon = () => (
-  <Atom className="h-3 w-3" />
-);
+const EnergyTooltipIcon = () => <Atom className="h-3 w-3" />;
 
 const chartConfig = {
   energy: {
@@ -209,6 +208,19 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     return ticks;
   }, [hours]);
 
+  const energyTicks = useMemo(
+    () =>
+      buildYAxisTicks(
+        series
+          .map((p) => p.energy)
+          .filter((v): v is number => typeof v === "number" && Number.isFinite(v)),
+        0,
+        6,
+        0.25
+      ),
+    [series]
+  );
+
   const fillStops = useMemo(
     () =>
       buildTrendStops(
@@ -220,7 +232,12 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   );
 
   const strokeStops = useMemo(
-    () => buildTrendStops(series, "var(--energy-stroke-inc)", "var(--energy-stroke-dec)"),
+    () =>
+      buildTrendStops(
+        series,
+        "var(--energy-stroke-inc)",
+        "var(--energy-stroke-dec)"
+      ),
     [series]
   );
 
@@ -255,7 +272,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         margin={{
           top: 10,
           right: 15,
-          left: -30,
+          left: -25,
         }}
         syncId="allCharts"
         syncMethod={syncToNearestThirdHour}
@@ -303,12 +320,15 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           }
         />
         <YAxis
-          allowDecimals={false}
           tickLine={false}
           axisLine={false}
           tickMargin={8}
           fontSize={11}
-          domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.5)]}
+          domain={[
+            energyTicks[0] ?? 0,
+            energyTicks[energyTicks.length - 1] ?? 8,
+          ]}
+          ticks={energyTicks}
         />
         <ChartTooltip
           content={<ChartTooltipContent />}

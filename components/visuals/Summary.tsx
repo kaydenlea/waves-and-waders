@@ -28,7 +28,6 @@ import {
   DEFAULT_FEATURE_ICON,
 } from "@/lib/beachFeatureIcons";
 
-import { useDateContext } from "@/components/context/DateContext";
 import {
   useBeachForecast,
   useCurrentConditions,
@@ -533,7 +532,6 @@ const Summary = ({
   variant?: "default" | "overview";
 }) => {
   const isOverviewVariant = variant === "overview";
-  const { surfRange } = useDateContext();
   type FeatureTag = {
     label: string;
     icon: React.ReactNode;
@@ -612,10 +610,7 @@ const Summary = ({
     data: beachDetails,
     isSuccess: beachDetailsSuccess,
     isError: beachDetailsError,
-  } = useBeachDetails(
-    beachId ?? null,
-    Boolean(beachId)
-  );
+  } = useBeachDetails(beachId ?? null, Boolean(beachId));
   const county = beachDetails?.COUNTY ?? null;
   const {
     data: dailyConditions,
@@ -639,6 +634,13 @@ const Summary = ({
     if (!beachId) {
       setCommitted(null);
       committedRef.current = null;
+      return;
+    }
+
+    // Once we've committed a snapshot for this (beach, day) key, keep it stable.
+    // This prevents cached-date switches from "staggering" updates as individual
+    // queries refetch and resolve at different times.
+    if (pendingKey && committedRef.current?.key === pendingKey) {
       return;
     }
 
@@ -682,9 +684,7 @@ const Summary = ({
     const hasRange = minWithFallback != null && max != null;
 
     let surfHeightLabel: string | null = null;
-    if (targetDateValue && surfRange) {
-      surfHeightLabel = surfRange;
-    } else if (hasRange) {
+    if (hasRange) {
       let minRounded = Math.round(minWithFallback!);
       let maxRounded = Math.round(max!);
       if (minRounded > maxRounded) {
@@ -1013,7 +1013,6 @@ const Summary = ({
   }, [
     beachId,
     targetDateValue,
-    surfRange,
     forecast,
     current,
     tides,
@@ -1589,8 +1588,8 @@ const Summary = ({
               <div className="min-w-0">
                 {showSkeletons ? (
                   <div className="space-y-2" aria-hidden="true">
-                    <div className="h-7 w-24 rounded-md bg-foreground/10 animate-pulse motion-reduce:animate-none" />
-                    <div className="h-4 w-28 rounded-md bg-foreground/8 animate-pulse motion-reduce:animate-none" />
+                    <div className="h-7 w-20 rounded-md bg-foreground/10 animate-pulse motion-reduce:animate-none" />
+                    <div className="h-4 w-16 rounded-md bg-foreground/8 animate-pulse motion-reduce:animate-none" />
                   </div>
                 ) : (
                   <>
@@ -1677,8 +1676,8 @@ const Summary = ({
               <div className="min-w-0">
                 {showSkeletons ? (
                   <div className="space-y-2" aria-hidden="true">
-                    <div className="h-7 w-24 rounded-md bg-foreground/10 animate-pulse motion-reduce:animate-none" />
-                    <div className="h-4 w-28 rounded-md bg-foreground/8 animate-pulse motion-reduce:animate-none" />
+                    <div className="h-7 w-20 rounded-md bg-foreground/10 animate-pulse motion-reduce:animate-none" />
+                    <div className="h-4 w-16 rounded-md bg-foreground/8 animate-pulse motion-reduce:animate-none" />
                   </div>
                 ) : (
                   <>
@@ -1777,7 +1776,7 @@ const Summary = ({
               </p>
               {showSkeletons ? (
                 <div
-                  className="mt-0.5 h-8 w-24 rounded-md bg-foreground/10 animate-pulse motion-reduce:animate-none"
+                  className="mt-0.5 h-8 w-18 rounded-md bg-foreground/10 animate-pulse motion-reduce:animate-none"
                   aria-hidden="true"
                 />
               ) : (
@@ -1796,8 +1795,8 @@ const Summary = ({
               </p>
               {showSkeletons ? (
                 <div className="grid justify-end gap-y-0.5" aria-hidden="true">
-                  <div className="h-4 w-28 rounded-md bg-foreground/10 animate-pulse motion-reduce:animate-none" />
-                  <div className="h-4 w-28 rounded-md bg-foreground/8 animate-pulse motion-reduce:animate-none" />
+                  <div className="h-4 w-12 @min-md:w-24 rounded-md bg-foreground/10 animate-pulse motion-reduce:animate-none" />
+                  <div className="h-4 w-12 @min-md:w-24 rounded-md bg-foreground/8 animate-pulse motion-reduce:animate-none" />
                 </div>
               ) : nextPeaks.length > 0 ? (
                 <div className="grid justify-end grid-cols-[auto_auto] @min-md:grid-cols-[auto_auto_auto] items-baseline gap-x-1 gap-y-0 whitespace-nowrap text-left leading-4">
@@ -1979,7 +1978,7 @@ const Summary = ({
           className={cn(
             cardBase,
             cardHover,
-            "col-span-12 @min-xl:col-span-8 @min-2xl:col-span-12 @min-5xl:col-span-6 p-4 overflow-hidden flex flex-col min-h-35"
+            "col-span-12 @min-xl:col-span-8 @min-2xl:col-span-12 @min-5xl:col-span-6 p-4 overflow-hidden flex flex-col"
           )}
           aria-label="Beach features"
         >

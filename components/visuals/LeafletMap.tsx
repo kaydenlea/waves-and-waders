@@ -1023,7 +1023,7 @@ const SelectedBeachOverlay = React.memo(
             <div
               className={cn(
                 "absolute bg-background rounded-lg border border-border px-3 py-1.5 shadow-lg whitespace-nowrap z-10 text-sm font-semibold text-foreground",
-                legendOpen ? "-top-26" : "-top-19"
+                legendOpen ? "-top-26" : "-top-22"
               )}
             >
               {selected.name}

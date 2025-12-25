@@ -22,6 +22,7 @@ import {
   Droplets,
   ClockFading,
 } from "lucide-react";
+import MixedCloudSunIcon from "@/components/icons/MixedCloudSunIcon";
 
 import {
   fetchBeachByIdLoose,
@@ -463,29 +464,7 @@ const WeatherStat = ({
     if (code === 0)
       return <Sun className="w-4 h-4" strokeWidth={3} color="#f79e55ff" />; // Clear
     if ([1, 2, 3].includes(code))
-      return (
-        <svg
-          aria-hidden="true"
-          viewBox="0 0 24 24"
-          className="h-4 w-4"
-          fill="none"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <g stroke="#f79e55ff">
-            <path d="M12 2v2" />
-            <path d="m4.93 4.93 1.41 1.41" />
-            <path d="M20 12h2" />
-            <path d="m19.07 4.93-1.41 1.41" />
-            <path d="M15.947 12.65a4 4 0 0 0-5.925-4.128" />
-          </g>
-          <path
-            d="M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z"
-            stroke="#bdbdbdff"
-          />
-        </svg>
-      ); // Partly cloudy/overcast
+      return <MixedCloudSunIcon className="h-4 w-4" />; // Partly cloudy/overcast
     if ([45, 48].includes(code))
       return <CloudIcon className="w-4 h-4" color="#bdbdbdff" />; // Fog
     if ([51, 53, 55].includes(code))

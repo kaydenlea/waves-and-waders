@@ -49,6 +49,7 @@ import {
 } from "../context/ForecastChartsLoadingContext";
 import { ForecastChartSkeleton } from "./ForecastChartSkeleton";
 import { useChartTheme } from "@/components/graphs/useChartTheme";
+import { buildYAxisTicks } from "@/components/graphs/yAxisTicks";
 import { getForecastDayHeaderLayout } from "./forecastDayHeaderLayout";
 
 const TideTooltipIcon = () => <TideIcon className="h-3 w-3" />;
@@ -59,14 +60,14 @@ const HOURS_PER_DAY = 24;
 const VISIBLE_HOURS = VISIBLE_DAYS * HOURS_PER_DAY;
 const FETCH_DAYS = VISIBLE_DAYS; // fetch one extra day to allow forward pan
 const MIN_DAY_PX = 275; // minimum pixels per day to keep UI usable on tiny screens
-const CHART_LEFT_MARGIN = 0;
+const CHART_LEFT_MARGIN = 5;
 const CHART_RIGHT_MARGIN = 5;
 const Y_AXIS_WIDTH = 30;
 const DAY_LABEL_INSET = 6;
 const Y_AXIS_OFFSET_VAR = "--forecast-y-axis-offset";
 const Y_AXIS_TICK = {
   fill: "var(--foreground)",
-  fontWeight: 700,
+  fontWeight: 500,
   filter: "drop-shadow(0 0 4px var(--background))",
 } as const;
 
@@ -126,6 +127,7 @@ export default React.memo(function ForecastTideChart({
       {
         dayAreas: { x1: number; x2: number }[];
         nightAreas: { x1: number; x2?: number }[];
+        markerTargets: { hour: number; type: "sunrise" | "sunset" }[];
         sunMarkers: { hour: number; type: "sunrise" | "sunset" }[];
       }
     >
@@ -222,6 +224,7 @@ export default React.memo(function ForecastTideChart({
     () => Math.min(containerWidth || 0, dayPx * VISIBLE_DAYS),
     [containerWidth, dayPx]
   );
+  const isScrollable = chartInnerWidth > viewportWidth + 1;
   const showSkeleton = loading || !shadingReady || containerWidth === 0;
 
   // Pointer & animation refs (imperative values to avoid re-renders)
@@ -594,17 +597,54 @@ export default React.memo(function ForecastTideChart({
   // Load sun/shading markers after tide data is ready so lines render sooner
   useEffect(() => {
     let cancelled = false;
+    const snapSunMarkersToData = (
+      targets: { hour: number; type: "sunrise" | "sunset" }[],
+      data: TidePoint[]
+    ) => {
+      if (!targets.length) return [];
+      if (!data.length) return targets;
+
+      const usedHours = new Set<number>();
+      const snapped: { hour: number; type: "sunrise" | "sunset" }[] = [];
+
+      for (const target of targets) {
+        let best: TidePoint | null = null;
+        let bestDiff = Number.POSITIVE_INFINITY;
+        for (const point of data) {
+          if (usedHours.has(point.hour)) continue;
+          const diff = Math.abs(point.hour - target.hour);
+          if (diff < bestDiff) {
+            bestDiff = diff;
+            best = point;
+          }
+        }
+        if (best) {
+          usedHours.add(best.hour);
+          snapped.push({ hour: best.hour, type: target.type });
+        } else {
+          snapped.push(target);
+        }
+      }
+
+      return snapped;
+    };
     (async () => {
       if (!beachId) return;
       const cacheKey = `${beachId}-${startMs}`;
       const cached = sunCacheRef.current.get(cacheKey);
       if (cached) {
-        setChartState((prev) => ({
-          ...prev,
-          dayAreas: cached.dayAreas,
-          nightAreas: cached.nightAreas,
-          sunMarkers: cached.sunMarkers,
-        }));
+        // Always re-snap cached targets to the latest tide series so the sunrise/sunset
+        // icons match an actual x-value in the rendered data (prevents "missing" icons
+        // on first client navigation where sun data can resolve before tide points).
+        setChartState((prev) => {
+          const markers = snapSunMarkersToData(cached.markerTargets, prev.data);
+          return {
+            ...prev,
+            dayAreas: cached.dayAreas,
+            nightAreas: cached.nightAreas,
+            sunMarkers: markers,
+          };
+        });
         return;
       }
 
@@ -671,42 +711,21 @@ export default React.memo(function ForecastTideChart({
         }
         nightAreasBuild.push({ x1: nightStart });
 
-        const markers: { hour: number; type: "sunrise" | "sunset" }[] = [];
-        if (markerTargets.length) {
-          for (const target of markerTargets) {
-            if (chartState.data.length) {
-              let closest = chartState.data[0];
-              let minDiff = Math.abs(chartState.data[0].hour - target.hour);
-              for (const point of chartState.data) {
-                const diff = Math.abs(point.hour - target.hour);
-                if (diff < minDiff) {
-                  minDiff = diff;
-                  closest = point;
-                }
-              }
-              const withinTolerance = minDiff < 0.17;
-              const alreadyPlaced = markers.find(
-                (m) => m.hour === closest.hour
-              );
-              if (withinTolerance && !alreadyPlaced) {
-                markers.push({ hour: closest.hour, type: target.type });
-                continue;
-              }
-            }
-            // fallback: place at target hour if no tide data yet or outside tolerance
-            markers.push({ hour: target.hour, type: target.type });
-          }
-        }
-
         if (!cancelled) {
           setChartState((prev) => {
+            const markers = snapSunMarkersToData(markerTargets, prev.data);
             const next = {
               ...prev,
               dayAreas: dayAreasBuild,
               nightAreas: nightAreasBuild,
               sunMarkers: markers,
             };
-            sunCacheRef.current.set(cacheKey, next);
+            sunCacheRef.current.set(cacheKey, {
+              dayAreas: dayAreasBuild,
+              nightAreas: nightAreasBuild,
+              markerTargets,
+              sunMarkers: markers,
+            });
             return next;
           });
         }
@@ -720,7 +739,12 @@ export default React.memo(function ForecastTideChart({
               nightAreas: [],
               sunMarkers: [],
             };
-            sunCacheRef.current.set(cacheKey, cleared);
+            sunCacheRef.current.set(cacheKey, {
+              dayAreas: [],
+              nightAreas: [],
+              markerTargets: [],
+              sunMarkers: [],
+            });
             return cleared;
           });
         }
@@ -819,6 +843,22 @@ export default React.memo(function ForecastTideChart({
     }
     return ticks;
   }, [totalFetchedDays]);
+
+  const tideTicks = useMemo(() => {
+    const values = data
+      .map((p) => p.tide)
+      .filter((v): v is number => typeof v === "number" && Number.isFinite(v));
+    if (!values.length) return buildYAxisTicks([0], -2, 6, 0.2);
+
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+
+    // Add headroom/footroom so labels/icons never collide with the curve.
+    const paddedMin = Math.floor(min - 2);
+    const paddedMax = Math.ceil(max + 4);
+
+    return buildYAxisTicks([paddedMin, ...values, paddedMax], paddedMin, 6, 0);
+  }, [data]);
   const formatHourLabel = useCallback((label: unknown, payload: any[]) => {
     let hour = payload?.[0]?.payload?.hour;
     if (typeof hour !== "number" && typeof label === "number") {
@@ -900,26 +940,26 @@ export default React.memo(function ForecastTideChart({
           )}
         >
           {/* prev/next buttons */}
-          <button
-            aria-label="Back one day"
-            onClick={handleBack}
-            className={cn(
-              "absolute left-4 top-[55%] -translate-y-1/2 z-50 rounded-full bg-highlight-7/90 p-1 shadow border border-border/30 shadow-even backdrop-blur-xl",
-              dayOffset === 0 && "hidden"
-            )}
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <button
-            aria-label="Next one day"
-            onClick={handleNext}
-            className={cn(
-              "absolute right-4 top-[55%] -translate-y-1/2 z-50 rounded-full bg-highlight-7/90 p-1 shadow border border-border/30 shadow-even backdrop-blur-xl",
-              isAtRightEdge && "hidden"
-            )}
-          >
-            <ChevronRight className="w-5 h-5" />
-          </button>
+           <button
+             aria-label="Back one day"
+             onClick={handleBack}
+             className={cn(
+               "absolute left-4 top-[55%] -translate-y-1/2 z-50 rounded-full bg-highlight-7/90 p-1 shadow border border-border/30 shadow-even backdrop-blur-xl",
+              (!isScrollable || dayOffset === 0) && "hidden"
+             )}
+           >
+             <ChevronLeft className="w-5 h-5" />
+           </button>
+           <button
+             aria-label="Next one day"
+             onClick={handleNext}
+             className={cn(
+               "absolute right-4 top-[55%] -translate-y-1/2 z-50 rounded-full bg-highlight-7/90 p-1 shadow border border-border/30 shadow-even backdrop-blur-xl",
+              (!isScrollable || isAtRightEdge) && "hidden"
+             )}
+           >
+             <ChevronRight className="w-5 h-5" />
+           </button>
 
           {/* moving inner (chart + day separators) */}
           <div
@@ -1107,30 +1147,6 @@ export default React.memo(function ForecastTideChart({
                     tickFormatter={(v: number) =>
                       v % 3 === 0 ? String(v % 12 === 0 ? 12 : v % 12) : ""
                     }
-                  />
-                  <YAxis
-                    dataKey="tide"
-                    width={Y_AXIS_WIDTH}
-                    tickLine={false}
-                    axisLine={{
-                      stroke: "var(--border)",
-                      strokeWidth: 1.25,
-                      opacity: 0.85,
-                    }}
-                    tickMargin={8}
-                    fontSize={11}
-                    tick={Y_AXIS_TICK}
-                    domain={[
-                      (dataMin: number) =>
-                        Number.isFinite(dataMin) ? Math.floor(dataMin) - 4 : 0,
-                      (dataMax: number) =>
-                        Number.isFinite(dataMax)
-                          ? Math.max(Math.ceil(dataMax) + 4, 8)
-                          : 8,
-                    ]}
-                    style={{
-                      transform: `translateX(var(${Y_AXIS_OFFSET_VAR}, 0px))`,
-                    }}
                   />
                   {/* Selected hour marker */}
                   {(() => {
@@ -1330,6 +1346,27 @@ export default React.memo(function ForecastTideChart({
                       }}
                     />
                   </Line>
+                  <YAxis
+                    dataKey="tide"
+                    width={Y_AXIS_WIDTH}
+                    tickLine={false}
+                    axisLine={{
+                      stroke: "var(--border)",
+                      strokeWidth: 1.25,
+                      opacity: 0.85,
+                    }}
+                    tickMargin={8}
+                    fontSize={11}
+                    tick={Y_AXIS_TICK}
+                    domain={[
+                      tideTicks[0] ?? -2,
+                      tideTicks[tideTicks.length - 1] ?? 8,
+                    ]}
+                    ticks={tideTicks}
+                    style={{
+                      transform: `translateX(var(${Y_AXIS_OFFSET_VAR}, 0px))`,
+                    }}
+                  />
                 </LineChart>
               </ChartContainer>
             )}

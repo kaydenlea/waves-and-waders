@@ -58,10 +58,13 @@ export default function BackButton({
       aria-label="Go back"
       onClick={handleClick}
       className={cn(
-        // Match SaveButton default styling on overview for visual harmony
-        "group/button self-center rounded-full bg-highlight-5 backdrop-blur p-2 transition hover:bg-highlight-3",
+        "group/button self-center flex items-center gap-1 rounded-full",
+        "border border-border/25 bg-highlight-7/70 shadow-even",
+        "supports-[backdrop-filter]:bg-highlight-7/40 supports-[backdrop-filter]:backdrop-blur-md",
+        "hover:bg-highlight-6/60 transition-colors duration-200 motion-reduce:transition-none",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0",
         // On overview we show icon + label with slightly larger padding
-        "flex items-center gap-1 @min-2xl:px-4 @min-2xl:py-2.5",
+        "flex items-center gap-1 p-2 @min-2xl:px-4 @min-2xl:py-2.5",
         className
       )}
     >

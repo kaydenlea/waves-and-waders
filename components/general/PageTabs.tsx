@@ -134,9 +134,10 @@ const PageTabs = ({
                 className={cn(
                   "fixed bottom-6 left-6 z-[60]",
                   "flex items-center gap-2 px-4 py-3 rounded-full",
-                  "bg-background border border-border shadow-lg",
+                  "border border-border/25 bg-highlight-7/70 shadow-even supports-[backdrop-filter]:bg-highlight-7/40 supports-[backdrop-filter]:backdrop-blur-md",
                   "text-sm font-medium text-foreground",
-                  "hover:bg-highlight-3 transition-colors"
+                  "hover:bg-highlight-6/60 transition-colors duration-200 motion-reduce:transition-none",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0"
                 )}
                 onClick={() => setShowMap(true)}
               >
@@ -144,8 +145,14 @@ const PageTabs = ({
                 <MapPinned className="w-5 h-5 -mt-0.5" />
               </button>
             )}
-          <div className="w-full hidden @min-md:block @min-xl:hidden bg-highlight-3 p-1 rounded-3xl max-w-45">
-            <span className="flex font-medium text-sm px-3 py-2.5 bg-background dark:bg-highlight-5 rounded-3xl text-center gap-2 flex items-center justify-center">
+          <div className="w-full hidden @min-md:block @min-xl:hidden max-w-45">
+            <span
+              className={cn(
+                "flex items-center justify-center gap-2 rounded-full px-4 py-3 text-center text-sm font-medium",
+                "border border-border/25 bg-highlight-7/70 text-foreground shadow-even",
+                "supports-[backdrop-filter]:bg-highlight-7/40 supports-[backdrop-filter]:backdrop-blur-md"
+              )}
+            >
               {forecastPage ? (
                 <CalendarDays className="w-5 h-5 mb-0.5" />
               ) : (
@@ -167,7 +174,14 @@ const PageTabs = ({
                         : `/${beachId}/overview/edit#overview-content`
                     )}`
               }
-              className="hidden @min-xl:inline-flex bg-highlight-5 hover:bg-highlight-3 items-center rounded-full p-3 @min-2xl:py-2.5 @min-2xl:px-4 gap-1.5"
+              className={cn(
+                "hidden @min-xl:inline-flex items-center gap-1.5 rounded-full",
+                "border border-border/25 bg-highlight-7/70 shadow-even",
+                "supports-[backdrop-filter]:bg-highlight-7/40 supports-[backdrop-filter]:backdrop-blur-md",
+                "hover:bg-highlight-6/60 transition-colors duration-200 motion-reduce:transition-none",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0",
+                "p-3 @min-2xl:py-2.5 @min-2xl:px-4"
+              )}
               aria-label={`Edit ${
                 forecastPage ? "forecast" : "overview"
               } dashboard`}
@@ -190,7 +204,9 @@ const PageTabs = ({
       )}
       <div
         className={cn(
-          "relative flex rounded-full p-1 bg-highlight-3 @min-sm:text-base text-sm font-medium border border-border/20 shadow-md",
+          "relative flex rounded-full p-1 @min-sm:text-base text-sm font-medium",
+          "border border-border/25 bg-highlight-7/70 shadow-even",
+          "supports-[backdrop-filter]:bg-highlight-7/40 supports-[backdrop-filter]:backdrop-blur-md",
           responsiveFull
             ? "w-full @min-xl:w-fit"
             : fullWidth
@@ -202,7 +218,7 @@ const PageTabs = ({
       >
         <div
           aria-hidden="true"
-          className="absolute inset-y-1 left-1 z-0 rounded-full bg-background dark:bg-highlight-5 transition-transform duration-200 ease-out motion-reduce:transition-none"
+          className="absolute inset-y-1 left-1 z-0 rounded-full bg-highlight-3/50 dark:bg-highlight-5/80 shadow-sm transition-transform duration-200 ease-out motion-reduce:transition-none"
           style={{
             width: `calc((100% - 0.5rem) / ${tabCount})`,
             transform: `translateX(${activeIndex * 100}%)`,
