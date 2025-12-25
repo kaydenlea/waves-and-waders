@@ -4,13 +4,16 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSupabaseClient, useUser } from "@supabase/auth-helpers-react";
 import { LogIn, LogOut, User, UserCircle2, Heart } from "lucide-react";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import React from "react";
+import {
+  AppMenu,
+  AppMenuContent,
+  AppMenuHeader,
+  AppMenuItem,
+  AppMenuSeparator,
+  AppMenuTrigger,
+} from "@/components/ui/app-menu";
 
 export const UserMenu = ({
   landingPage = false,
@@ -70,47 +73,44 @@ export const UserMenu = ({
 
   const UserMenuPopover = () => {
     return (
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger className="icon-button p-2.5 dark:bg-highlight-5 hover:bg-highlight-3 dark:hover:bg-highlight-3 rounded-full">
+      <AppMenu open={open} onOpenChange={setOpen}>
+        <AppMenuTrigger className="icon-button p-2.5 dark:bg-highlight-5 hover:bg-highlight-3 dark:hover:bg-highlight-3 rounded-full">
           <UserCircle2 className="h-6 w-6" />
-        </PopoverTrigger>
-        <PopoverContent
-          align="end"
-          className="z-50 w-50 py-2 px-4 flex flex-col gap-1"
-        >
-          <span className="px-2 py-1.5 text-sm text-muted-foreground max-w-[208px] truncate">
-            {displayEmail}
-          </span>
-          <div className="border-t border-border/40 my-1" />
-          <Link
-            className="hover:bg-highlight-5 px-2 py-1.5 rounded-md flex items-center gap-2 whitespace-nowrap"
-            href="/beaches"
-            onClick={() => {
+        </AppMenuTrigger>
+        <AppMenuContent align="end" className="w-72">
+          <AppMenuHeader
+            title="Account"
+            subtitle={displayEmail}
+            icon={<User className="h-4 w-4" />}
+          />
+          <AppMenuSeparator />
+          <AppMenuItem
+            asChild
+            onSelect={() => {
               try {
                 if (typeof window !== "undefined") {
                   window.localStorage.setItem("tab:/beaches", "saved");
                 }
-                router.push("/beaches?tab=saved");
-              } catch {
-                router.push("/beaches?tab=saved");
-              }
+              } catch {}
               setOpen(false);
             }}
           >
-            <Heart className="w-5 h-5 -mt-0.5" /> Saved spots
-          </Link>
-          <div className="border-t border-border/40 my-1" />
-          <button
-            className="hover:bg-highlight-5 px-2 py-1.5 rounded-md flex items-center gap-2 text-destructive"
-            onClick={() => {
+            <Link href="/beaches?tab=saved">
+              <Heart className="w-5 h-5 -mt-0.5" /> Saved spots
+            </Link>
+          </AppMenuItem>
+          <AppMenuSeparator />
+          <AppMenuItem
+            variant="destructive"
+            onSelect={() => {
               setOpen(false);
               void handleSignOut();
             }}
           >
             <LogOut className="h-5 w-5" /> Sign out
-          </button>
-        </PopoverContent>
-      </Popover>
+          </AppMenuItem>
+        </AppMenuContent>
+      </AppMenu>
     );
   };
 

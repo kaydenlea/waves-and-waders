@@ -4,6 +4,7 @@ import * as React from "react";
 import { useTheme } from "next-themes";
 import { Moon, Sun, SunMoon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AppMenuItem } from "@/components/ui/app-menu";
 
 const ThemeToggle = ({
   switchMode = false,
@@ -33,21 +34,23 @@ const ThemeToggle = ({
     );
   }
   if (switchMode) {
+    const labelTheme = theme ?? "system";
     return (
-      <button
-        aria-label="theme toggle"
-        onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-        className="block @min-5xl:hidden px-2 py-1.5 rounded-md flex items-center gap-2 hover:bg-highlight-5"
+      <AppMenuItem
+        className={cn("@min-5xl:hidden", className)}
+        onSelect={() => setTheme(theme === "light" ? "dark" : "light")}
       >
         {theme === "light" ? (
           <Sun className="w-5 h-5 -mt-0.5" />
-        ) : (
+        ) : theme === "dark" ? (
           <Moon className="w-5 h-5 -mt-0.5" />
+        ) : (
+          <SunMoon className="w-5 h-5 -mt-0.5" />
         )}
         <span>
-          <span className="capitalize">{theme}</span> mode
+          <span className="capitalize">{labelTheme}</span> mode
         </span>
-      </button>
+      </AppMenuItem>
     );
   }
   return (

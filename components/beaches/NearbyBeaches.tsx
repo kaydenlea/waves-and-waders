@@ -121,8 +121,11 @@ const decorateBeachWithStats = (
 };
 
 export default function NearbyBeaches() {
-  const { filters, beaches: sharedBeaches, favoriteIds: favoriteIdsSet } =
-    useMapFilters();
+  const {
+    filters,
+    beaches: sharedBeaches,
+    favoriteIds: favoriteIdsSet,
+  } = useMapFilters();
   const { status: viewportStatus } = useViewportBeachesContext();
   const deferredBeaches = useDeferredValue(sharedBeaches);
   const { selected: selectedDate, hour } = useDateContext();
@@ -252,7 +255,7 @@ export default function NearbyBeaches() {
   }, [baseUiBeaches, startSortingTransition]);
 
   const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(10);
+  const [perPage, setPerPage] = useState(20);
   const { selectedTab } = useClientPath();
 
   const [open, setOpen] = useState(false);
@@ -384,9 +387,9 @@ export default function NearbyBeaches() {
       const duration = performance.now() - startTs;
       // eslint-disable-next-line no-console
       console.log(
-        `[BeachesPerf] decorate-cards page=${page} count=${next.length} duration=${duration.toFixed(
-          1
-        )}ms`
+        `[BeachesPerf] decorate-cards page=${page} count=${
+          next.length
+        } duration=${duration.toFixed(1)}ms`
       );
     }
 
@@ -518,7 +521,8 @@ export default function NearbyBeaches() {
     viewportStatus === "dirty";
   const hasVisibleItems = visibleList.length > 0;
   const showGlobalLoading = !hasCommittedBeaches && viewportBusy;
-  const showListLoading = !hasVisibleItems && hasCommittedBeaches && viewportBusy;
+  const showListLoading =
+    !hasVisibleItems && hasCommittedBeaches && viewportBusy;
   const showSortingLoading = !hasVisibleItems && isSortingPending;
   const showLoadingState =
     showGlobalLoading || showListLoading || showSortingLoading;
@@ -589,16 +593,17 @@ export default function NearbyBeaches() {
         )
       ) : (
         <section
-          className="grid grid-cols-1 gap-3 @min-4xl/main:gap-4 @min-md/beaches:grid-cols-2 px-0.5 pb-4"
-          style={{
-            contentVisibility: "auto",
-            contain: "layout paint style",
-          }}
+          className={cn(
+            "grid grid-cols-1 gap-3 @min-4xl/main:gap-4 @min-md/beaches:grid-cols-2 px-0.5 pb-4",
+            // `content-visibility`/aggressive `contain` can cause intermittent
+            // paint issues (cards vanishing) while scrolling in some browsers.
+            "ww-disable-backdrop"
+          )}
         >
           {renderedItems.map((b, idx) => {
             const id = String(b.id);
             const snapshotRaw = snapshotMap.get(id);
-              const loadingStats = snapshotRaw === undefined;
+            const loadingStats = snapshotRaw === undefined;
             const priorityImage = page === 1 && idx < 4;
             return (
               <BeachCard

@@ -566,7 +566,8 @@ const readStoredSelectionId = () => {
 };
 
 const resolveInitialView = (
-  initialBeach?: BeachPoint | null
+  initialBeach?: BeachPoint | null,
+  options?: { allowStoredFallback?: boolean }
 ): StoredViewState => {
   if (
     initialBeach &&
@@ -578,6 +579,9 @@ const resolveInitialView = (
       latitude: Number(initialBeach.latitude),
       zoom: AUTO_FOCUS_ZOOM,
     };
+  }
+  if (options?.allowStoredFallback === false) {
+    return DEFAULT_VIEW;
   }
   const storedSelectionCenter = readStoredSelectionCenter();
   if (storedSelectionCenter) {
@@ -1412,7 +1416,8 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     0
   );
 
-  const fullMapPage = !pathname.endsWith("/beaches");
+  const beachesPage = pathname.endsWith("/beaches");
+  const fullMapPage = !beachesPage;
   const editPage = pathname.includes("edit");
   const isDesktop = smallScreen === false;
   const layoutVersion = smallScreen === null ? 0 : smallScreen ? 1 : 2;
@@ -1809,7 +1814,8 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
   React.useEffect(() => {
     const pathParts = (pathname || "").split("/").filter(Boolean);
     const fromPath = pathParts.length ? extractBeachId(pathParts[0]) : null;
-    const stored = selectedBeachId ? null : readStoredSelectionId();
+    const stored =
+      beachesPage || selectedBeachId ? null : readStoredSelectionId();
     const candidate =
       beachId != null
         ? String(beachId)
@@ -2309,7 +2315,9 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     if (typeof window !== "undefined" && L?.Browser?.any3d) {
       (L.Browser as any).any3d = false;
     }
-    const initialView = resolveInitialView(initialBeach);
+    const initialView = resolveInitialView(initialBeach, {
+      allowStoredFallback: !pathname.endsWith("/beaches"),
+    });
     const map = L.map(containerRef.current, {
       center: [initialView.latitude, initialView.longitude],
       zoom: initialView.zoom,

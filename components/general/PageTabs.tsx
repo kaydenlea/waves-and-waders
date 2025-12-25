@@ -206,7 +206,7 @@ const PageTabs = ({
         className={cn(
           "relative flex rounded-full p-1 @min-sm:text-base text-sm font-medium",
           "border border-border/25 bg-highlight-7/70 shadow-even",
-          "supports-[backdrop-filter]:bg-highlight-7/40 supports-[backdrop-filter]:backdrop-blur-md",
+          "supports-[backdrop-filter]:bg-highlight-7/70 supports-[backdrop-filter]:dark:bg-highlight-7/40 supports-[backdrop-filter]:backdrop-blur-md",
           responsiveFull
             ? "w-full @min-xl:w-fit"
             : fullWidth
@@ -218,7 +218,10 @@ const PageTabs = ({
       >
         <div
           aria-hidden="true"
-          className="absolute inset-y-1 left-1 z-0 rounded-full bg-highlight-3/50 dark:bg-highlight-5/80 shadow-sm transition-transform duration-200 ease-out motion-reduce:transition-none"
+          className={cn(
+            "absolute inset-y-1 left-1 z-0 rounded-full bg-highlight-3/50 dark:bg-highlight-5/80 shadow-sm transition-transform duration-200 ease-out motion-reduce:transition-none",
+            beachPage && "bg-background"
+          )}
           style={{
             width: `calc((100% - 0.5rem) / ${tabCount})`,
             transform: `translateX(${activeIndex * 100}%)`,
@@ -283,7 +286,7 @@ const PageTabs = ({
                   ? beachPage
                     ? "text-foreground font-medium"
                     : "text-foreground font-semibold"
-                  : "text-muted-foreground hover:text-foreground/80"
+                  : "text-foreground/80 hover:text-foreground"
               )}
             >
               <span className="relative z-10">{tab}</span>
