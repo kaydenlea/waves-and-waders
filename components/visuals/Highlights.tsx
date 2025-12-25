@@ -1046,9 +1046,11 @@ const getMoonEmoji = (kind: MoonKind): string => {
 const MoonStat = ({
   label,
   data,
+  showMap,
 }: {
   label: string;
   data: string | number;
+  showMap: boolean;
 }) => {
   const info = getMoonPhaseInfo(data);
   const emoji = getMoonPhaseEmoji(info.kind);
@@ -1078,10 +1080,20 @@ const MoonStat = ({
       label={label}
       primary={
         <div className="flex flex-col leading-[1.05]">
-          <span className="text-[0.7rem] @min-sm:text-[0.82rem] font-semibold tracking-tight">
+          <span
+            className={cn(
+              "text-[0.7rem] @min-sm:text-[0.82rem] font-semibold tracking-tight",
+              !showMap && "@min-4xl:text-[0.75rem] @min-5xl:text-[0.82rem]"
+            )}
+          >
             {info.lines[0]}
           </span>
-          <span className="text-[0.7rem] @min-sm:text-[0.82rem] font-semibold tracking-tight">
+          <span
+            className={cn(
+              "text-[0.7rem] @min-sm:text-[0.82rem] font-semibold tracking-tight",
+              !showMap && "@min-4xl:text-[0.75rem] @min-5xl:text-[0.82rem]"
+            )}
+          >
             {info.lines[1]}
           </span>
         </div>
@@ -1361,12 +1373,14 @@ const PressureStat = ({
   minScale,
   maxScale,
   isFull,
+  showMap,
 }: {
   data: { value: number; unit: string; trend?: Trend };
   label: string;
   minScale?: number;
   maxScale?: number;
   isFull?: boolean;
+  showMap?: boolean;
 }) => {
   // Use fixed meteorological scale for accurate low/normal/high pressure display
   // Below 29.8 = low, 29.92 = normal, 30.2 = high
@@ -1427,7 +1441,8 @@ const PressureStat = ({
           <span
             className={cn(
               "hidden @min-sm:block text-[0.72rem] font-medium text-muted-foreground",
-              isFull && "@min-6xl:hidden"
+              isFull && "@min-6xl:hidden",
+              !showMap && "@min-4xl:hidden @min-6xl:block"
             )}
           >
             {displayUnit}
@@ -1440,8 +1455,22 @@ const PressureStat = ({
             displayUnit
           ) : (
             <>
-              <span className="hidden @min-sm:inline">{trendLabel}</span>
-              <span className="inline @min-sm:hidden">{displayUnit}</span>
+              <span
+                className={cn(
+                  "hidden @min-sm:inline",
+                  !showMap && "@min-4xl:hidden @min-6xl:inline"
+                )}
+              >
+                {trendLabel}
+              </span>
+              <span
+                className={cn(
+                  "inline @min-sm:hidden",
+                  !showMap && "@min-4xl:inline @min-6xl:hidden"
+                )}
+              >
+                {displayUnit}
+              </span>
             </>
           )}
         </span>
@@ -1555,11 +1584,13 @@ const TideStat = ({
   label,
   maxAbs,
   isFull,
+  showMap,
 }: {
   data: { value: number | string; unit: string; pct?: number; trend?: Trend };
   label: string;
   maxAbs?: number;
   isFull?: boolean;
+  showMap?: boolean;
 }) => {
   const numeric =
     typeof data.value === "number"
@@ -1620,7 +1651,8 @@ const TideStat = ({
           <span
             className={cn(
               "hidden @min-sm:inline-block",
-              isFull && "@min-6xl:hidden"
+              isFull && "@min-6xl:hidden",
+              !showMap && "@min-4xl:hidden @min-5xl:inline-block"
             )}
           >
             / {trendLabel}
@@ -1787,6 +1819,7 @@ import {
   useBeachById,
   usePrefetchAdjacentHours,
 } from "@/lib/hooks/useBeachData";
+import { useMapFilters } from "../context/MapFilterContext";
 
 type HighlightScales = {
   windMax: number;
@@ -1886,6 +1919,8 @@ const Highlights = ({
   // Fetch beach data
   const { data: beach } = useBeachById(beachId ?? null);
   const resolvedId = beach?.id ?? beachId;
+
+  const { showMap } = useMapFilters();
 
   // Fetch all data with React Query
   const { data: current } = useCurrentConditions(resolvedId ?? null);
@@ -2264,7 +2299,8 @@ const Highlights = ({
                       <div
                         className={cn(
                           "inline-grid min-w-0 grid-cols-[0.375rem_1.75rem_1.25rem_auto] @min-md:grid-cols-[0.375rem_2.3rem_1.8rem_auto] items-center gap-x-1.5",
-                          isFull && "grid-cols-[0.375rem_2rem_1.5rem_auto]"
+                          isFull &&
+                            "@min-6xl:grid-cols-[0.375rem_2rem_1.5rem_auto]"
                         )}
                       >
                         <span
@@ -2310,7 +2346,8 @@ const Highlights = ({
                         <div
                           className={cn(
                             "inline-grid min-w-0 grid-cols-[0.375rem_1.75rem_1.25rem_auto] @min-md:grid-cols-[0.375rem_2.3rem_1.8rem_auto] items-center gap-x-1.5",
-                            isFull && "grid-cols-[0.375rem_2rem_1.5rem_auto]"
+                            isFull &&
+                              "@min-6xl:grid-cols-[0.375rem_2rem_1.5rem_auto]"
                           )}
                         >
                           <span
@@ -2353,7 +2390,8 @@ const Highlights = ({
                         <div
                           className={cn(
                             "inline-grid min-w-0 grid-cols-[0.375rem_1.75rem_1.25rem_auto] @min-md:grid-cols-[0.375rem_2.3rem_1.8rem_auto] items-center gap-x-1.5",
-                            isFull && "grid-cols-[0.375rem_2rem_1.5rem_auto]"
+                            isFull &&
+                              "@min-6xl:grid-cols-[0.375rem_2rem_1.5rem_auto]"
                           )}
                         >
                           <span
@@ -2631,7 +2669,11 @@ const Highlights = ({
                 const hasPhase =
                   stat.phase !== null && stat.phase !== undefined;
                 content = hasPhase ? (
-                  <MoonStat data={stat.phase} label={stat.label} />
+                  <MoonStat
+                    data={stat.phase}
+                    label={stat.label}
+                    showMap={showMap}
+                  />
                 ) : (
                   <HighlightCard
                     label={stat.label}
@@ -2666,6 +2708,7 @@ const Highlights = ({
                     minScale={displayScales.pressureMin}
                     maxScale={displayScales.pressureMax}
                     isFull={isFull}
+                    showMap={showMap}
                   />
                 );
                 break;
@@ -2685,6 +2728,7 @@ const Highlights = ({
                     label={stat.label}
                     maxAbs={displayScales.tideAbsMax}
                     isFull={isFull}
+                    showMap={showMap}
                   />
                 );
                 break;
