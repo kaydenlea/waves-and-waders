@@ -564,7 +564,9 @@ const Summary = ({
 
   const pendingKey = useMemo(() => {
     if (!beachId) return null;
-    return `${String(beachId)}:${timeWindow.dayStart.getTime()}:${timeWindow.dayEnd.getTime()}`;
+    return `${String(
+      beachId
+    )}:${timeWindow.dayStart.getTime()}:${timeWindow.dayEnd.getTime()}`;
   }, [beachId, timeWindow.dayStart, timeWindow.dayEnd]);
 
   const hasExternalForecast = Array.isArray(forecastRows);
@@ -606,7 +608,11 @@ const Summary = ({
     timeWindow.tideEnd,
     Boolean(beachId)
   );
-  const { data: beachDetails } = useBeachDetails(
+  const {
+    data: beachDetails,
+    isSuccess: beachDetailsSuccess,
+    isError: beachDetailsError,
+  } = useBeachDetails(
     beachId ?? null,
     Boolean(beachId)
   );
@@ -622,7 +628,12 @@ const Summary = ({
   );
   const forecastReady = forecastSuccess || forecastError;
   const tidesReady = tidesSuccess || tidesError;
-  const dailyReady = county ? dailySuccess || dailyError : true;
+  const beachDetailsReady = beachDetailsSuccess || beachDetailsError;
+  const dailyReady = beachDetailsReady
+    ? county
+      ? dailySuccess || dailyError
+      : true
+    : false;
 
   useEffect(() => {
     if (!beachId) {
@@ -1427,16 +1438,13 @@ const Summary = ({
                   {outlookHeadline}
                 </h3>
               ) : (
-                <div
-                  className="mt-1.5 max-w-[20rem]"
-                  aria-hidden="true"
-                >
+                <div className="mt-1.5 max-w-[20rem]" aria-hidden="true">
                   <div className="h-7 @min-md:h-8 w-3/5 rounded-md bg-foreground/12 animate-pulse motion-reduce:animate-none" />
                 </div>
               )}
             </div>
 
-            <div className="shrink-0 rounded-xl border border-border/25 bg-foreground/5 px-3 py-2 text-xs text-muted-foreground">
+            <div className="shrink-0 rounded-xl border border-border/25 bg-foreground/5 px-3 py-2 text-[11px] leading-4 text-muted-foreground tabular-nums">
               <dl className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 items-center">
                 <dt className="flex items-center gap-1.5 uppercase tracking-[0.06em]">
                   <Sunrise
@@ -1446,11 +1454,11 @@ const Summary = ({
                   />
                   <span>Rise</span>
                 </dt>
-                <dd className="text-foreground font-medium">
+                <dd className="text-foreground font-medium tabular-nums">
                   {showSkeletons ? (
                     <span className="inline-block h-3 w-14 rounded bg-foreground/10 animate-pulse motion-reduce:animate-none" />
                   ) : (
-                    (tideStat?.sunrise ?? "-:--")
+                    tideStat?.sunrise ?? "--"
                   )}
                 </dd>
                 <dt className="flex items-center gap-1.5 uppercase tracking-[0.06em]">
@@ -1461,11 +1469,11 @@ const Summary = ({
                   />
                   <span>Set</span>
                 </dt>
-                <dd className="text-foreground font-medium">
+                <dd className="text-foreground font-medium tabular-nums">
                   {showSkeletons ? (
                     <span className="inline-block h-3 w-14 rounded bg-foreground/10 animate-pulse motion-reduce:animate-none" />
                   ) : (
-                    (tideStat?.sunset ?? "-:--")
+                    tideStat?.sunset ?? "--"
                   )}
                 </dd>
               </dl>
@@ -1528,7 +1536,7 @@ const Summary = ({
                       className="flex items-center gap-2"
                     >
                       <span
-                        className="grid place-items-center size-6 rounded-full bg-foreground/5 text-foreground/70"
+                        className="shrink-0 grid place-items-center size-6 rounded-full bg-foreground/5 text-foreground/70"
                         aria-hidden="true"
                       >
                         <Icon className="h-3.5 w-3.5" />
@@ -1544,7 +1552,7 @@ const Summary = ({
               <ul className="space-y-1" aria-hidden="true">
                 {Array.from({ length: 3 }).map((_, idx) => (
                   <li key={idx} className="flex items-center gap-2">
-                    <span className="grid place-items-center size-6 rounded-full bg-foreground/5" />
+                    <span className="shrink-0 grid place-items-center size-6 rounded-full bg-foreground/5" />
                     <span className="h-5 flex-1 rounded-md bg-foreground/8 animate-pulse motion-reduce:animate-none" />
                   </li>
                 ))}
@@ -1633,7 +1641,7 @@ const Summary = ({
                   aria-hidden="true"
                 />
               ) : null}
-              <div className="flex items-center justify-between text-[11px] text-muted-foreground tabular-nums">
+              <div className="flex items-center justify-between text-[11px] leading-4 text-muted-foreground">
                 <span>Low</span>
                 <span>High</span>
               </div>
@@ -1726,7 +1734,7 @@ const Summary = ({
                   max={WIND_SPEED_CAP}
                 />
               )}
-              <div className="flex items-center justify-between text-[11px] text-muted-foreground tabular-nums">
+              <div className="flex items-center justify-between text-[11px] leading-4 text-muted-foreground">
                 <span>Low</span>
                 <span>High</span>
               </div>
@@ -1769,7 +1777,7 @@ const Summary = ({
               </p>
               {showSkeletons ? (
                 <div
-                  className="mt-1 h-7 w-24 rounded-md bg-foreground/10 animate-pulse motion-reduce:animate-none"
+                  className="mt-0.5 h-8 w-24 rounded-md bg-foreground/10 animate-pulse motion-reduce:animate-none"
                   aria-hidden="true"
                 />
               ) : (
@@ -1787,12 +1795,12 @@ const Summary = ({
                 Next
               </p>
               {showSkeletons ? (
-                <div className="grid justify-end gap-1.5" aria-hidden="true">
-                  <div className="h-3 w-28 rounded-md bg-foreground/10 animate-pulse motion-reduce:animate-none" />
-                  <div className="h-3 w-20 rounded-md bg-foreground/8 animate-pulse motion-reduce:animate-none" />
+                <div className="grid justify-end gap-y-0.5" aria-hidden="true">
+                  <div className="h-4 w-28 rounded-md bg-foreground/10 animate-pulse motion-reduce:animate-none" />
+                  <div className="h-4 w-28 rounded-md bg-foreground/8 animate-pulse motion-reduce:animate-none" />
                 </div>
               ) : nextPeaks.length > 0 ? (
-                <div className="grid justify-end grid-cols-[auto_auto] @min-md:grid-cols-[auto_auto_auto] items-baseline gap-x-1 gap-y-0 whitespace-nowrap text-left">
+                <div className="grid justify-end grid-cols-[auto_auto] @min-md:grid-cols-[auto_auto_auto] items-baseline gap-x-1 gap-y-0 whitespace-nowrap text-left leading-4">
                   {nextPeaks.map((peak) => (
                     <div
                       key={`${peak.kind}-${peak.time.getTime()}`}
@@ -1839,11 +1847,11 @@ const Summary = ({
                   aria-hidden="true"
                 />
                 <div
-                  className="mt-1 flex items-center justify-between text-[11px]"
+                  className="mt-1 flex items-center justify-between text-[11px] leading-4"
                   aria-hidden="true"
                 >
-                  <span className="h-3 w-12 rounded bg-foreground/8 animate-pulse motion-reduce:animate-none" />
-                  <span className="h-3 w-12 rounded bg-foreground/8 animate-pulse motion-reduce:animate-none" />
+                  <span className="h-4 w-12 rounded bg-foreground/8 animate-pulse motion-reduce:animate-none" />
+                  <span className="h-4 w-12 rounded bg-foreground/8 animate-pulse motion-reduce:animate-none" />
                 </div>
               </>
             ) : tideNow != null && tideMin != null && tideMax != null ? (
@@ -1854,7 +1862,7 @@ const Summary = ({
                   min={tideMin}
                   max={tideMax}
                 />
-                <div className="mt-1 flex items-center justify-between text-[11px] text-muted-foreground">
+                <div className="mt-1 flex items-center justify-between text-[11px] leading-4 text-muted-foreground">
                   <span>
                     {tideMin != null ? `${tideMin.toFixed(1)} ft` : "\u00a0"}
                   </span>
@@ -1866,7 +1874,7 @@ const Summary = ({
             ) : (
               <>
                 <div className="mt-0.5 h-[4px] w-full rounded-full bg-foreground/10" />
-                <div className="mt-1 flex items-center justify-between text-[11px] text-muted-foreground">
+                <div className="mt-1 flex items-center justify-between text-[11px] leading-4 text-muted-foreground">
                   <span>{"\u00a0"}</span>
                   <span>{"\u00a0"}</span>
                 </div>

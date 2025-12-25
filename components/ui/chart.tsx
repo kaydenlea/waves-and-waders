@@ -358,7 +358,7 @@ function ChartTooltipContent({
                 ) : (
                   rawValue !== undefined &&
                   rawValue !== null && (
-                    <span className="bg-foreground/10 text-foreground inline-flex items-center gap-1.5 rounded-md px-2 py-1 font-medium tabular-nums">
+                    <span className="bg-foreground/10 text-foreground inline-flex items-baseline gap-1.5 rounded-md px-2 py-1 font-medium tabular-nums">
                       <span className="text-sm font-semibold leading-none">
                         {valueText}
                       </span>
@@ -402,9 +402,9 @@ function ChartLegendContent({
     typeof document !== "undefined" &&
     document.documentElement.classList.contains("dark");
 
-  const resolveConfigColor = (itemConfig: ReturnType<
-    typeof getPayloadConfigFromPayload
-  >) => {
+  const resolveConfigColor = (
+    itemConfig: ReturnType<typeof getPayloadConfigFromPayload>
+  ) => {
     if (!itemConfig) return undefined;
     if ("theme" in itemConfig && itemConfig.theme) {
       return itemConfig.theme[isDarkMode ? "dark" : "light"];

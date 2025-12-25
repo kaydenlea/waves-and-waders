@@ -8,14 +8,7 @@ import { cn } from "@/lib/utils";
 import FocusMapButton from "./FocusMapButton";
 import SaveButton from "./SaveButton";
 import { useMapFilters } from "../context/MapFilterContext";
-import {
-  ArrowLeftFromLine,
-  Calendar1,
-  CalendarDays,
-  MapPinned,
-  Pencil,
-} from "lucide-react";
-import { motion } from "motion/react";
+import { Calendar1, CalendarDays, MapPinned, Pencil } from "lucide-react";
 import { useClientPath } from "../context/PathContext";
 import { poppins } from "@/lib/fonts";
 
@@ -59,6 +52,10 @@ const PageTabs = ({
   const { showMap, setShowMap } = useMapFilters();
 
   const tabsRef = useRef<HTMLDivElement>(null);
+  const normalizedTabs = tabs.map((tab) => tab.toLowerCase());
+  const tabCount = Math.max(1, tabs.length);
+  const activeIndexRaw = normalizedTabs.indexOf(selectedTab);
+  const activeIndex = activeIndexRaw >= 0 ? activeIndexRaw : 0;
 
   useEffect(() => {
     const adjustScreenSize = () => {
@@ -126,24 +123,27 @@ const PageTabs = ({
     >
       {buttons && (
         <>
-          {/* Reopen map button (left-most when visible) */}
-          {!showMap && isDesktop && (
-            <button
-              type="button"
-              aria-label="Show map"
-              className={cn(
-                "bg-highlight-5 hover:bg-highlight-3 rounded-full py-2.5 px-4 disabled:opacity-50 disabled:hover:bg-highlight-5 flex gap-1.5"
-              )}
-              onClick={() => setShowMap(!showMap)}
-            >
-              {showMap ? (
-                <ArrowLeftFromLine className="w-6 h-6 @min-sm:w-6 @min-sm:h-6" />
-              ) : (
-                <MapPinned className="w-5 h-5 @min-sm:w-5 @min-sm:h-5" />
-              )}
-              <span className="font-medium text-[15px]">Show Map</span>
-            </button>
-          )}
+          {/* Reopen map button (floating, only when map is minimized on desktop) */}
+          {!beachPage &&
+            (overviewPage || forecastPage) &&
+            !showMap &&
+            isDesktop && (
+              <button
+                type="button"
+                aria-label="Show map"
+                className={cn(
+                  "fixed bottom-6 left-6 z-[60]",
+                  "flex items-center gap-2 px-4 py-3 rounded-full",
+                  "bg-background border border-border shadow-lg",
+                  "text-sm font-medium text-foreground",
+                  "hover:bg-highlight-3 transition-colors"
+                )}
+                onClick={() => setShowMap(true)}
+              >
+                <span>Map</span>
+                <MapPinned className="w-5 h-5 -mt-0.5" />
+              </button>
+            )}
           <div className="w-full hidden @min-md:block @min-xl:hidden bg-highlight-3 p-1 rounded-3xl max-w-45">
             <span className="flex font-medium text-sm px-3 py-2.5 bg-background dark:bg-highlight-5 rounded-3xl text-center gap-2 flex items-center justify-center">
               {forecastPage ? (
@@ -200,8 +200,17 @@ const PageTabs = ({
             "hidden @min-4xl:block absolute left-3 top-3 shadow-lg bg-highlight-3/80 backdrop-blur z-[1000]"
         )}
       >
+        <div
+          aria-hidden="true"
+          className="absolute inset-y-1 left-1 z-0 rounded-full bg-background dark:bg-highlight-5 transition-transform duration-200 ease-out motion-reduce:transition-none"
+          style={{
+            width: `calc((100% - 0.5rem) / ${tabCount})`,
+            transform: `translateX(${activeIndex * 100}%)`,
+          }}
+        />
         {tabs.map((tab) => {
-          const isActive = selectedTab === tab;
+          const normalizedTab = tab.toLowerCase();
+          const isActive = selectedTab === normalizedTab;
           // const href =
           //   tab.toLowerCase() === "overview"
           //     ? beach
@@ -261,17 +270,6 @@ const PageTabs = ({
                   : "text-muted-foreground hover:text-foreground/80"
               )}
             >
-              {isActive && (
-                <motion.div
-                  layoutId="tab-pill"
-                  className="absolute inset-0 z-0 rounded-full bg-background dark:bg-highlight-5"
-                  transition={{
-                    type: "spring",
-                    stiffness: 400,
-                    damping: 30,
-                  }}
-                />
-              )}
               <span className="relative z-10">{tab}</span>
             </button>
           );

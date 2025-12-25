@@ -280,7 +280,7 @@ export const SwellRings: React.FC<{
               r={radius}
               fill="none"
               stroke="currentColor"
-              className="text-black/10"
+              className="text-black/20"
               strokeWidth={(isPreview ? 4 : 6) * scale}
             />
 
@@ -289,7 +289,7 @@ export const SwellRings: React.FC<{
               d={arcD}
               fill="none"
               stroke="currentColor"
-              className="text-black/26"
+              className="text-black/40"
               strokeWidth={arcStroke + 2 * scale}
               strokeLinecap="round"
             />
@@ -454,7 +454,7 @@ export const WindRing: React.FC<{
     >
       <defs>
         {(() => {
-          const textRadius = radius - arcStroke * (lower ? 0.1 : 0.01);
+          const textRadius = radius - arcStroke * (lower ? 0.1 : -0.1);
 
           const textStart = lower ? end + 180 : start;
           const textEnd = lower ? start + 180 : end;
@@ -482,8 +482,8 @@ export const WindRing: React.FC<{
           {Array.from({ length: 12 }).map((_, i) => {
             const deg = i * 30;
             const isCardinal = deg % 90 === 0;
-            const ro = radius + arcStroke * 0.8 + 7 * scale;
-            const tickLen = isCardinal ? 12 : 8;
+            const ro = radius + arcStroke * 0.8 + (isCardinal ? 6 : 4) * scale;
+            const tickLen = isCardinal ? 11 : 6;
             const ri = ro - tickLen * scale;
             const p1 = polar(center, center, ri, deg);
             const p2 = polar(center, center, ro, deg);
@@ -495,7 +495,7 @@ export const WindRing: React.FC<{
                 x2={p2.x}
                 y2={p2.y}
                 stroke="currentColor"
-                className={isCardinal ? "text-black/30" : "text-black/15"}
+                className={isCardinal ? "text-black/60" : "text-black/60"}
                 strokeWidth={isCardinal ? 1.5 * scale : 1.5 * scale}
                 strokeLinecap="round"
               />
@@ -510,7 +510,7 @@ export const WindRing: React.FC<{
         r={radius}
         fill="none"
         stroke="currentColor"
-        className="text-black/10"
+        className="text-black/20"
         strokeWidth={trackStroke}
       />
 
@@ -518,7 +518,7 @@ export const WindRing: React.FC<{
         d={arcD}
         fill="none"
         stroke="currentColor"
-        className="text-black/26"
+        className="text-black/40"
         strokeWidth={arcStroke + 2 * scale}
         strokeLinecap="round"
       />

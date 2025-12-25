@@ -1057,7 +1057,7 @@ const SelectedBeachOverlay = React.memo(
                   {cardinalLabels.map(({ id, style }) => (
                     <span
                       key={id}
-                      className="absolute text-[12px] font-black uppercase leading-none text-slate-900/60 drop-shadow-[0_1px_3px_rgba(0,0,0,0.35)] select-none"
+                      className="w-5 text-center bg-background dark:bg-highlight-5 p-1 rounded-sm font-black absolute text-[11px] uppercase leading-none text-foreground drop-shadow-[0_1px_3px_rgba(0,0,0,0.35)] select-none"
                       style={style}
                     >
                       {id}
@@ -1695,11 +1695,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
         emitCameraUpdate();
       });
     }, RESIZE_SETTLE_DELAY);
-  }, [
-    emitCameraUpdate,
-    normalizeMapCenter,
-    requestMarkerRebuild,
-  ]);
+  }, [emitCameraUpdate, normalizeMapCenter, requestMarkerRebuild]);
 
   const scheduleMapViewPersistence = React.useCallback(
     (payload: StoredViewState) => {
@@ -2706,7 +2702,35 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
         const handleMouseOver = () => {
           setHoveredMarkerSource("marker", String(beach.id));
         };
-        const handleMouseOut = () => {
+        const handleMouseOut = (event: any) => {
+          // Leaflet will fire `mouseout` when the marker icon DOM node is replaced
+          // (e.g. via `setIcon`) or when the pointer moves from the marker onto
+          // the popup itself. In both cases we should keep the popup open.
+          try {
+            const oe = event?.originalEvent as MouseEvent | undefined;
+            const related = (oe as any)?.relatedTarget as HTMLElement | null;
+            const isStillOnMarkerOrPopup = (node: HTMLElement | null) =>
+              Boolean(
+                node &&
+                  (node.closest(".ww-leaflet-point-icon") ||
+                    node.closest(".leaflet-popup"))
+              );
+            if (isStillOnMarkerOrPopup(related)) {
+              return;
+            }
+            if (oe && typeof document !== "undefined") {
+              const atPoint = document.elementFromPoint(
+                oe.clientX,
+                oe.clientY
+              ) as HTMLElement | null;
+              if (isStillOnMarkerOrPopup(atPoint)) {
+                return;
+              }
+            }
+          } catch {
+            // fall through to close behavior
+          }
+
           if (hoverStateRef.current.marker === String(beach.id)) {
             setHoveredMarkerSource("marker", null);
           }

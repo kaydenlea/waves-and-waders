@@ -333,7 +333,7 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         <div className="grid justify-items-end gap-1 text-right">
           <div className="bg-foreground/10 text-foreground inline-flex items-center gap-1.5 rounded-md px-2 py-1 font-medium tabular-nums">
             <span className="text-sm font-semibold leading-none">{speed}</span>
-            <span className="text-[0.72rem] font-medium leading-none text-muted-foreground">
+            <span className="mt-1 text-[0.72rem] font-medium leading-none text-muted-foreground">
               mph
             </span>
             {typeof direction === "number" ? (

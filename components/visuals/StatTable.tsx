@@ -15,11 +15,11 @@ import {
   CalendarDays,
   Sun,
   Cloud as CloudIcon,
-  CloudSun,
   CloudDrizzle,
   CloudRain,
   CloudLightning,
   Snowflake,
+  Droplets,
   ClockFading,
 } from "lucide-react";
 
@@ -463,7 +463,29 @@ const WeatherStat = ({
     if (code === 0)
       return <Sun className="w-4 h-4" strokeWidth={3} color="#f79e55ff" />; // Clear
     if ([1, 2, 3].includes(code))
-      return <CloudSun className="w-4 h-4" color="#bdbdbdff" />; // Partly cloudy/overcast
+      return (
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          className="h-4 w-4"
+          fill="none"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <g stroke="#f79e55ff">
+            <path d="M12 2v2" />
+            <path d="m4.93 4.93 1.41 1.41" />
+            <path d="M20 12h2" />
+            <path d="m19.07 4.93-1.41 1.41" />
+            <path d="M15.947 12.65a4 4 0 0 0-5.925-4.128" />
+          </g>
+          <path
+            d="M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z"
+            stroke="#bdbdbdff"
+          />
+        </svg>
+      ); // Partly cloudy/overcast
     if ([45, 48].includes(code))
       return <CloudIcon className="w-4 h-4" color="#bdbdbdff" />; // Fog
     if ([51, 53, 55].includes(code))
@@ -490,20 +512,49 @@ const WeatherStat = ({
   const isWater = water != null;
   const tempValue = water ?? data?.temp;
   const waterTemp = typeof water === "number" ? water : null;
-  const waterRangeOk =
-    typeof waterMin === "number" &&
-    typeof waterMax === "number" &&
-    waterMax > waterMin &&
-    waterTemp != null;
-  const waterT = waterRangeOk
-    ? clamp01((waterTemp - waterMin) / (waterMax - waterMin))
-    : null;
+  const waterT = waterTemp != null ? clamp01(waterTemp / 100) : null;
+  const waterFillInsetTop =
+    isWater && waterT != null ? `${Math.round((1 - waterT) * 100)}%` : null;
 
   return (
     <CellSurface>
       <div className="w-full">
         <div className="flex items-center justify-center gap-1">
-          {!isWater && (
+          {isWater ? (
+            <span aria-hidden="true" className="shrink-0 relative h-4 w-4">
+              <Droplets
+                className="absolute inset-0 h-4 w-4 text-foreground/35 dark:text-foreground/30"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+              />
+              {waterFillInsetTop ? (
+                <span
+                  className="absolute inset-0 overflow-hidden"
+                  style={{ clipPath: `inset(${waterFillInsetTop} 0 0 0)` }}
+                >
+                  <Droplets
+                    className="h-4 w-4 text-sky-500/25 dark:text-sky-400/40"
+                    fill="currentColor"
+                    stroke="none"
+                  />
+                </span>
+              ) : null}
+              {waterFillInsetTop ? (
+                <span
+                  className="absolute inset-0 overflow-hidden"
+                  style={{ clipPath: `inset(${waterFillInsetTop} 0 0 0)` }}
+                >
+                  <Droplets
+                    className="h-4 w-4 text-sky-600/70 dark:text-sky-300/80"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  />
+                </span>
+              ) : null}
+            </span>
+          ) : (
             <span aria-hidden="true">{getWeatherIcon(data?.code ?? null)}</span>
           )}
           <span className="inline-flex items-start gap-0.5">
@@ -512,17 +563,6 @@ const WeatherStat = ({
             </span>
             <span className="text-[0.7rem] text-muted-foreground">&deg;F</span>
           </span>
-          {isWater && waterT != null ? (
-            <span
-              aria-hidden="true"
-              className="hidden @min-md:block relative ml-1 h-7 w-2.5 overflow-hidden rounded-full bg-foreground/10"
-            >
-              <span
-                className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-cyan-500/45 to-amber-500/35 dark:from-cyan-400/40 dark:to-amber-400/30"
-                style={{ height: `${Math.max(10, waterT * 100)}%` }}
-              />
-            </span>
-          ) : null}
         </div>
       </div>
     </CellSurface>
@@ -739,6 +779,8 @@ const StatTable = ({
   } = useDateContext();
   const { selectedTab } = useClientPath();
   const forecastPage = selectedTab === "forecast";
+  const headerBgClass =
+    "bg-highlight-4 supports-[backdrop-filter]:backdrop-blur-md";
   const { rows: sharedRows } = useForecastData();
   const { setReady } = useOptionalForecastChartLoading("forecast-table");
   const dashboardBusy = useOptionalForecastChartsBusyState();
@@ -1194,12 +1236,33 @@ const StatTable = ({
 
   const [columnPages, setColumnPages] = React.useState([TABLE_COLUMNS]);
   const [currentPage, setCurrentPage] = React.useState(0);
+  const [stickyHeaderTopPx, setStickyHeaderTopPx] = React.useState(0);
 
   const tableRef = React.useRef<HTMLDivElement | null>(null);
   const [tableEl, setTableEl] = React.useState<HTMLDivElement | null>(null);
   const assignTableRef = React.useCallback((node: HTMLDivElement | null) => {
     tableRef.current = node;
     setTableEl(node);
+  }, []);
+
+  React.useEffect(() => {
+    const nav = document.querySelector("header.fixed") as HTMLElement | null;
+    if (!nav) return;
+
+    const update = () => {
+      const next = Math.min(65, Math.ceil(nav.getBoundingClientRect().height));
+      setStickyHeaderTopPx((prev) => (prev === next ? prev : next));
+    };
+
+    update();
+    const observer = new ResizeObserver(() => update());
+    observer.observe(nav);
+    window.addEventListener("resize", update);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", update);
+    };
   }, []);
 
   const resizeRafRef = React.useRef<number | null>(null);
@@ -1628,7 +1691,97 @@ const StatTable = ({
             {pagerShell}
           </div>
         ) : null}
-        <table className="w-full table-fixed border-separate border-spacing-x-2 border-spacing-y-1.5 text-sm">
+        <div
+          className={cn(
+            "sticky z-20 -mx-1 @min-md:mx-0 rounded-b-[18px] px-1.5 py-1",
+            headerBgClass,
+            "supports-[backdrop-filter]:backdrop-blur-md"
+          )}
+          style={{ top: stickyHeaderTopPx }}
+        >
+          <table className="w-full table-fixed border-separate border-spacing-x-2 border-spacing-y-0 text-sm">
+            <colgroup>
+              <col className="w-12" />
+              {visibleColumns.map((col) => (
+                <col
+                  key={col.id}
+                  className={cn(
+                    col.id === "surf" && "w-[clamp(5.25rem,10vw,5.75rem)]",
+                    col.id === "wind" &&
+                      showSecondarySwells &&
+                      "@min-5xl:w-[11rem]",
+                    col.id === "weather" || col.id === "water"
+                      ? showSecondarySwells
+                        ? "@min-[1175px]:w-[clamp(4.5rem,9vw,5.5rem)]"
+                        : "@min-5xl:w-[clamp(4.5rem,9vw,5.5rem)]"
+                      : "",
+                    col.id === "energy"
+                      ? showSecondarySwells
+                        ? "@min-[1175px]:w-[clamp(4.75rem,9vw,5.5rem)]"
+                        : "@min-5xl:w-[clamp(4.75rem,9vw,5.5rem)]"
+                      : "",
+                    col.id === "pressure"
+                      ? showSecondarySwells
+                        ? "@min-[1175px]:w-[clamp(5.25rem,10vw,6.75rem)]"
+                        : "@min-5xl:w-[clamp(5.25rem,10vw,6.75rem)]"
+                      : "",
+                    col.id === "__spacer" && "w-[10rem]"
+                  )}
+                />
+              ))}
+            </colgroup>
+            <thead>
+              <tr>
+                <th scope="col" className="sticky left-0 z-10 w-12 pb-1">
+                  <div className="flex flex-col items-center gap-1">
+                    <div className="flex items-center gap-1 text-[0.7rem] font-medium uppercase tracking-wide text-muted-foreground">
+                      <Clock3 className="h-3.5 w-3.5" aria-hidden="true" />
+                      <span>Time</span>
+                    </div>
+                    <span
+                      aria-hidden="true"
+                      className="h-[2px] w-8 rounded-full bg-foreground/20"
+                    />
+                    <span className="sr-only">Time</span>
+                  </div>
+                </th>
+                {visibleColumns.map((col) => {
+                  const group = getMetricGroupForColumnId(col.id);
+                  return (
+                    <th
+                      key={col.id}
+                      scope="col"
+                      className={cn(
+                        "pb-1 text-center text-[0.7rem] font-medium uppercase tracking-wide text-muted-foreground sm:text-xs"
+                      )}
+                    >
+                      <div className="flex flex-col items-center gap-1">
+                        <span className={cn(!col.label && "sr-only")}>
+                          {col.label || "Spacer"}
+                        </span>
+                        <span
+                          aria-hidden="true"
+                          className={cn(
+                            "h-[2px] w-10 rounded-full",
+                            groupAccentFillClass[group],
+                            col.id === "__spacer" ? "opacity-0" : "opacity-60"
+                          )}
+                        />
+                      </div>
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+          </table>
+        </div>
+
+        <table
+          className={cn(
+            "w-full table-fixed border-separate border-spacing-x-2 border-spacing-y-1.5 text-sm",
+            forecastPage && "-mt-5"
+          )}
+        >
           <colgroup>
             <col className="w-12" />
             {visibleColumns.map((col) => (
@@ -1659,47 +1812,14 @@ const StatTable = ({
               />
             ))}
           </colgroup>
-          <thead>
+          <thead className="sr-only">
             <tr>
-              <th scope="col" className="sticky left-0 z-10 w-12 pb-1">
-                <div className="flex flex-col items-center gap-1">
-                  <div className="flex items-center gap-1 text-[0.7rem] font-medium uppercase tracking-wide text-muted-foreground">
-                    <Clock3 className="h-3.5 w-3.5" aria-hidden="true" />
-                    <span>Time</span>
-                  </div>
-                  <span
-                    aria-hidden="true"
-                    className="h-[2px] w-8 rounded-full bg-foreground/20"
-                  />
-                  <span className="sr-only">Time</span>
-                </div>
-              </th>
-              {visibleColumns.map((col) => {
-                const group = getMetricGroupForColumnId(col.id);
-                return (
-                  <th
-                    key={col.id}
-                    scope="col"
-                    className={cn(
-                      "pb-1 text-center text-[0.7rem] font-medium uppercase tracking-wide text-muted-foreground sm:text-xs"
-                    )}
-                  >
-                    <div className="flex flex-col items-center gap-1">
-                      <span className={cn(!col.label && "sr-only")}>
-                        {col.label || "Spacer"}
-                      </span>
-                      <span
-                        aria-hidden="true"
-                        className={cn(
-                          "h-[2px] w-10 rounded-full",
-                          groupAccentFillClass[group],
-                          col.id === "__spacer" ? "opacity-0" : "opacity-60"
-                        )}
-                      />
-                    </div>
-                  </th>
-                );
-              })}
+              <th scope="col">Time</th>
+              {visibleColumns.map((col) => (
+                <th key={`sr-${col.id}`} scope="col">
+                  {col.label || "Spacer"}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -1796,14 +1916,14 @@ const StatTable = ({
                         key={`${i}-${entry.index}`}
                         className="transition-colors duration-200 motion-reduce:duration-0"
                       >
-                          <th
-                            scope="row"
-                            className="sticky left-0 z-10 p-0 align-middle bg-background/90 supports-[backdrop-filter]:bg-background/50 supports-[backdrop-filter]:backdrop-blur"
-                          >
-                            <TimeCell
-                              time={entry.time}
-                              selected={isSelectedHour}
-                            />
+                        <th
+                          scope="row"
+                          className="sticky left-0 z-10 p-0 align-middle bg-background/90 supports-[backdrop-filter]:bg-background/50 supports-[backdrop-filter]:backdrop-blur"
+                        >
+                          <TimeCell
+                            time={entry.time}
+                            selected={isSelectedHour}
+                          />
                         </th>
                         {visibleColumns.map((col) => {
                           let content: React.ReactNode = null;
