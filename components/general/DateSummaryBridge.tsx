@@ -458,24 +458,28 @@ const DateSummaryBridge: React.FC<Props> = ({
   const prevTabRef = React.useRef<string | null>(null);
   const prevLoadingRef = React.useRef<boolean>(false);
 
-  React.useEffect(() => {
-    const prev = prevTabRef.current;
-    if (isOverview && prev !== "overview") {
-      setTabOverlayActive(true);
-    } else if (!isOverview) {
-      setTabOverlayActive(false);
-    }
-    prevTabRef.current = selectedTab;
-  }, [isOverview, selectedTab]);
-
-  React.useEffect(() => {
-    if (!isOverview) return;
+  React.useLayoutEffect(() => {
+    const prevTab = prevTabRef.current;
     const wasLoading = prevLoadingRef.current;
-    if (!wasLoading && overviewChartsLoading) {
-      setTabOverlayActive(true);
+
+    if (!isOverview) {
+      if (tabOverlayActive) setTabOverlayActive(false);
+      prevTabRef.current = selectedTab;
+      prevLoadingRef.current = overviewChartsLoading;
+      return;
     }
+
+    // Ensure the overlay is active *before paint* when switching back to Overview,
+    // so content never flashes briefly before the loading cover appears.
+    const switchedToOverview = prevTab != null && prevTab !== "overview";
+    const loadingBecameTrue = !wasLoading && overviewChartsLoading;
+    if (switchedToOverview || loadingBecameTrue) {
+      if (!tabOverlayActive) setTabOverlayActive(true);
+    }
+
+    prevTabRef.current = selectedTab;
     prevLoadingRef.current = overviewChartsLoading;
-  }, [isOverview, overviewChartsLoading]);
+  }, [isOverview, overviewChartsLoading, selectedTab, tabOverlayActive]);
 
   React.useEffect(() => {
     if (!isOverview) return;

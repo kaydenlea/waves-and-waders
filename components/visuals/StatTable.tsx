@@ -1246,21 +1246,31 @@ const StatTable = ({
   }, []);
 
   React.useEffect(() => {
+    const TIME_RAIL_STICKY_TOP_PX = 65;
+
+    const isNarrowWithTimeRail = () => {
+      if (typeof window === "undefined") return false;
+      if (window.innerWidth >= 911) return false;
+      return document.querySelector("[data-time-rail-root]") != null;
+    };
+
     const nav = document.querySelector("header.fixed") as HTMLElement | null;
-    if (!nav) return;
+    if (!nav && !isNarrowWithTimeRail()) return;
 
     const update = () => {
-      const next = Math.min(65, Math.ceil(nav.getBoundingClientRect().height));
+      const next = isNarrowWithTimeRail()
+        ? TIME_RAIL_STICKY_TOP_PX
+        : Math.max(0, Math.ceil(nav?.getBoundingClientRect().height ?? 0));
       setStickyHeaderTopPx((prev) => (prev === next ? prev : next));
     };
 
     update();
-    const observer = new ResizeObserver(() => update());
-    observer.observe(nav);
+    const observer = nav ? new ResizeObserver(() => update()) : null;
+    if (nav && observer) observer.observe(nav);
     window.addEventListener("resize", update);
 
     return () => {
-      observer.disconnect();
+      observer?.disconnect();
       window.removeEventListener("resize", update);
     };
   }, []);
@@ -1693,7 +1703,7 @@ const StatTable = ({
         ) : null}
         <div
           className={cn(
-            "sticky z-20 -mx-1 @min-md:mx-0 rounded-b-[18px] px-1.5 py-1",
+            "sticky z-20 -mx-1 @min-md:mx-0 rounded-b-[18px] px-0.5 py-1",
             headerBgClass,
             "supports-[backdrop-filter]:backdrop-blur-md"
           )}
@@ -1852,27 +1862,49 @@ const StatTable = ({
                             </td>
                           </tr>
                         )}
-                        {Array.from({ length: numHours }).map((_, rowIdx) => (
-                          <tr
-                            key={`skeleton-row-${dayIdx}-${rowIdx}`}
-                            className="transition-colors"
-                          >
-                            <th
-                              scope="row"
-                              className="sticky left-0 z-10 p-0 align-middle bg-background/90 supports-[backdrop-filter]:bg-background/50 supports-[backdrop-filter]:backdrop-blur border-r border-border/40 dark:border-border/50"
-                            >
-                              <div className="h-14 w-12 rounded-xl border border-border/25 bg-foreground/[0.03] dark:bg-foreground/[0.05] animate-pulse motion-reduce:animate-none" />
-                            </th>
-                            {visibleColumns.map((col) => (
-                              <td
-                                key={`skeleton-${col.id}-${dayIdx}-${rowIdx}`}
-                                className="p-0 align-middle"
+                        {Array.from({ length: numHours }).flatMap(
+                          (_, rowIdx) => {
+                            const row = (
+                              <tr
+                                key={`skeleton-row-${dayIdx}-${rowIdx}`}
+                                className="transition-colors"
                               >
-                                <div className="h-14 w-full rounded-lg border border-border/25 bg-foreground/[0.03] dark:bg-foreground/[0.05] animate-pulse motion-reduce:animate-none" />
-                              </td>
-                            ))}
-                          </tr>
-                        ))}
+                                <th
+                                  scope="row"
+                                  className="sticky left-0 z-10 p-0 align-middle bg-background/90 supports-[backdrop-filter]:bg-background/50 supports-[backdrop-filter]:backdrop-blur border-r border-border/40 dark:border-border/50"
+                                >
+                                  <div className="h-14 w-12 rounded-xl border border-border/25 bg-foreground/[0.03] dark:bg-foreground/[0.05] animate-pulse motion-reduce:animate-none" />
+                                </th>
+                                {visibleColumns.map((col) => (
+                                  <td
+                                    key={`skeleton-${col.id}-${dayIdx}-${rowIdx}`}
+                                    className="p-0 align-middle"
+                                  >
+                                    <div className="h-14 w-full rounded-lg border border-border/25 bg-foreground/[0.03] dark:bg-foreground/[0.05] animate-pulse motion-reduce:animate-none" />
+                                  </td>
+                                ))}
+                              </tr>
+                            );
+
+                            const divider =
+                              rowIdx === numHours - 1 ? null : (
+                                <tr
+                                  key={`skeleton-row-${dayIdx}-${rowIdx}-divider`}
+                                  aria-hidden="true"
+                                  className="h-2"
+                                >
+                                  <td
+                                    colSpan={visibleColumns.length + 1}
+                                    className="p-0"
+                                  >
+                                    <div className="mx-2 h-px bg-foreground/10 dark:bg-foreground/15" />
+                                  </td>
+                                </tr>
+                              );
+
+                            return [row, divider].filter(Boolean);
+                          }
+                        )}
                       </React.Fragment>
                     )
                   );

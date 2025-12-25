@@ -3114,7 +3114,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
               "text-sm font-medium"
             )}
             onClick={() => {
-              if (openPanel) setOpenPanel(null);
+              if (openPanel && openPanel !== "legend") setOpenPanel(null);
               setShowMap(!showMap);
             }}
           >

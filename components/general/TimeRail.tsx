@@ -138,7 +138,7 @@ const TimeRail: React.FC<Props> = ({
   const panelActive = open || closing;
 
   return (
-    <div ref={railRef} className="relative w-full">
+    <div ref={railRef} className="relative w-full" data-time-rail-root>
       <Collapsible.Root open={open} onOpenChange={setOpen} className="w-full">
         <div
           className={cn(

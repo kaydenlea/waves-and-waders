@@ -37,5 +37,7 @@ export function useStableOverlay(
     }, hideDelayMs);
   }, [active, hideDelayMs, visible]);
 
-  return visible;
+  // Never allow a frame where `active === true` but `visible === false`,
+  // otherwise content can flash before the overlay effect runs.
+  return active ? true : visible;
 }
