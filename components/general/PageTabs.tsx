@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 import { cn } from "@/lib/utils";
-import FocusMapButton from "./FocusMapButton";
+import PeekingSideTab from "./PeekingSideTab";
 import SaveButton from "./SaveButton";
 import { useMapFilters } from "../context/MapFilterContext";
 import { Calendar1, CalendarDays, MapPinned, Pencil } from "lucide-react";
@@ -127,24 +127,7 @@ const PageTabs = ({
           {!beachPage &&
             (overviewPage || forecastPage) &&
             !showMap &&
-            isDesktop && (
-              <button
-                type="button"
-                aria-label="Show map"
-                className={cn(
-                  "fixed bottom-6 left-6 z-[60]",
-                  "flex items-center gap-2 px-4 py-3 rounded-full",
-                  "border border-border/25 bg-highlight-7/70 shadow-even supports-[backdrop-filter]:bg-highlight-7/40 supports-[backdrop-filter]:backdrop-blur-md",
-                  "text-sm font-medium text-foreground",
-                  "hover:bg-highlight-6/60 transition-colors duration-200 motion-reduce:transition-none",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0"
-                )}
-                onClick={() => setShowMap(true)}
-              >
-                <span>Map</span>
-                <MapPinned className="w-5 h-5 -mt-0.5" />
-              </button>
-            )}
+            isDesktop && <PeekingSideTab onClick={() => setShowMap(true)} />}
           <div className="w-full hidden @min-md:block @min-xl:hidden max-w-45">
             <span
               className={cn(
@@ -162,35 +145,58 @@ const PageTabs = ({
             </span>
           </div>
           {(forecastPage || overviewPage) && beachId && (
-            <Link
-              href={
-                loggedIn
-                  ? selectedTab === "forecast"
-                    ? `/${beachId}/forecast/edit#forecast-content`
-                    : `/${beachId}/overview/edit#overview-content`
-                  : `/login?next=${encodeURIComponent(
-                      selectedTab === "forecast"
-                        ? `/${beachId}/forecast/edit#forecast-content`
-                        : `/${beachId}/overview/edit#overview-content`
-                    )}`
-              }
-              className={cn(
-                "hidden @min-xl:inline-flex items-center gap-1.5 rounded-full",
-                "border border-border/25 bg-highlight-7/70 shadow-even",
-                "supports-[backdrop-filter]:bg-highlight-7/40 supports-[backdrop-filter]:backdrop-blur-md",
-                "hover:bg-highlight-6/60 transition-colors duration-200 motion-reduce:transition-none",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0",
-                "p-3 @min-2xl:py-2.5 @min-2xl:px-4"
+            <>
+              {overviewPage && !beachPage && !showMap && isDesktop && (
+                <button
+                  type="button"
+                  onClick={() => setShowMap(true)}
+                  className={cn(
+                    "hidden @min-xl:inline-flex items-center gap-1.5 rounded-full",
+                    "border border-border/25 bg-highlight-7 shadow-even",
+                    "supports-[backdrop-filter]:backdrop-blur-md",
+                    "hover:bg-highlight-6/60 transition-colors duration-200 motion-reduce:transition-none",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0",
+                    "p-3 @min-2xl:py-2.5 @min-2xl:px-4"
+                  )}
+                  aria-label="Show map"
+                  title="Show map"
+                >
+                  <MapPinned className="stroke-[2.5px] w-4.5 h-4.5 @min-2xl:mb-0.5" />
+                  <span className="font-medium hidden @min-2xl:inline-block text-[15px]">
+                    Map
+                  </span>
+                </button>
               )}
-              aria-label={`Edit ${
-                forecastPage ? "forecast" : "overview"
-              } dashboard`}
-            >
-              <Pencil className="stroke-[2.5px] w-4.5 h-4.5 @min-2xl:mb-0.5" />
-              <span className="font-medium hidden @min-2xl:inline-block text-[15px]">
-                Edit
-              </span>
-            </Link>
+              <Link
+                href={
+                  loggedIn
+                    ? selectedTab === "forecast"
+                      ? `/${beachId}/forecast/edit#forecast-content`
+                      : `/${beachId}/overview/edit#overview-content`
+                    : `/login?next=${encodeURIComponent(
+                        selectedTab === "forecast"
+                          ? `/${beachId}/forecast/edit#forecast-content`
+                          : `/${beachId}/overview/edit#overview-content`
+                      )}`
+                }
+                className={cn(
+                  "hidden @min-xl:inline-flex items-center gap-1.5 rounded-full",
+                  "border border-border/25 bg-highlight-7 shadow-even",
+                  "supports-[backdrop-filter]:backdrop-blur-md",
+                  "hover:bg-highlight-6/60 transition-colors duration-200 motion-reduce:transition-none",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0",
+                  "p-3 @min-2xl:py-2.5 @min-2xl:px-4"
+                )}
+                aria-label={`Edit ${
+                  forecastPage ? "forecast" : "overview"
+                } dashboard`}
+              >
+                <Pencil className="stroke-[2.5px] w-4.5 h-4.5 @min-2xl:mb-0.5" />
+                <span className="font-medium hidden @min-2xl:inline-block text-[15px]">
+                  Edit
+                </span>
+              </Link>
+            </>
           )}
           {showSaveButton && (
             <SaveButton

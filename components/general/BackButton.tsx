@@ -59,8 +59,8 @@ export default function BackButton({
       onClick={handleClick}
       className={cn(
         "group/button self-center flex items-center gap-1 rounded-full",
-        "border border-border/25 bg-highlight-7/70 shadow-even",
-        "supports-[backdrop-filter]:bg-highlight-7/40 supports-[backdrop-filter]:backdrop-blur-md",
+        "border border-border/25 bg-highlight-7 shadow-even",
+        "supports-[backdrop-filter]:backdrop-blur-md",
         "hover:bg-highlight-6/60 transition-colors duration-200 motion-reduce:transition-none",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0",
         // On overview we show icon + label with slightly larger padding

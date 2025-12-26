@@ -104,7 +104,7 @@ const SaveButton = ({
   const baseClass =
     variant === "overlay"
       ? "group/button inline-flex items-center rounded-full bg-slate-900/70 p-2 text-white/90 backdrop-blur transition hover:bg-slate-900"
-      : "group/button self-center inline-flex items-center rounded-full border border-border/25 bg-highlight-7/70 p-2 shadow-even supports-[backdrop-filter]:bg-highlight-7/40 supports-[backdrop-filter]:backdrop-blur-md transition-colors duration-200 motion-reduce:transition-none hover:bg-highlight-6/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0";
+      : "group/button self-center inline-flex items-center rounded-full border border-border/25 bg-highlight-7 p-2 shadow-even supports-[backdrop-filter]:backdrop-blur-md transition-colors duration-200 motion-reduce:transition-none hover:bg-highlight-6/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0";
 
   const heartClass =
     variant === "overlay"

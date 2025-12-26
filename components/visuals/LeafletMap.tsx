@@ -519,7 +519,7 @@ const readStoredView = (): StoredViewState => {
           latitude: parsed.latitude,
           zoom:
             typeof parsed?.zoom === "number"
-              ? Math.max(3, Math.min(16, parsed.zoom))
+              ? Math.max(3, Math.min(17, parsed.zoom))
               : DEFAULT_ZOOM,
         };
       }
@@ -878,6 +878,8 @@ const SelectedBeachOverlay = React.memo(
   }) => {
     const markerRef = React.useRef<L.Marker | null>(null);
     const portalRef = React.useRef<HTMLDivElement | null>(null);
+    const [portalTargetEl, setPortalTargetEl] =
+      React.useState<HTMLDivElement | null>(null);
     const [overlayZoom, setOverlayZoom] = React.useState(() => {
       const map = mapRef.current;
       return map ? map.getZoom() : DEFAULT_ZOOM;
@@ -890,6 +892,7 @@ const SelectedBeachOverlay = React.memo(
           markerRef.current = null;
           portalRef.current = null;
         }
+        setPortalTargetEl(null);
       };
     }, []);
 
@@ -908,7 +911,7 @@ const SelectedBeachOverlay = React.memo(
       };
     }, [mapReady, mapRef]);
 
-    React.useEffect(() => {
+    React.useLayoutEffect(() => {
       if (!mapReady) return;
       const map = mapRef.current;
       if (!map) return;
@@ -918,6 +921,7 @@ const SelectedBeachOverlay = React.memo(
           markerRef.current = null;
           portalRef.current = null;
         }
+        setPortalTargetEl(null);
         return;
       }
       let marker = markerRef.current;
@@ -925,6 +929,7 @@ const SelectedBeachOverlay = React.memo(
         const element = document.createElement("div");
         element.className = "ww-selected-overlay-anchor";
         portalRef.current = element;
+        setPortalTargetEl(element);
         marker = L.marker([anchor.latitude, anchor.longitude], {
           icon: L.divIcon({
             className: "ww-selected-overlay-marker",
@@ -956,7 +961,7 @@ const SelectedBeachOverlay = React.memo(
     ) {
       return null;
     }
-    const portalTarget = portalRef.current;
+    const portalTarget = portalTargetEl ?? portalRef.current;
     if (!portalTarget) {
       return null;
     }
@@ -1318,8 +1323,12 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     favoriteIds,
     hoverCardId,
   } = useMapFilters();
-  const { setVisibleBounds, setViewportRequestId, setAllowViewportCommit } =
-    useMapViewport();
+  const {
+    setVisibleBounds,
+    setViewportRequestId,
+    setAllowViewportCommit,
+    viewportStatus: mapViewportStatus,
+  } = useMapViewport();
   const {
     selected: selectedDate,
     setSelected: setSelectedDate,
@@ -1401,8 +1410,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
   });
   const [mapReady, setMapReady] = React.useState(false);
   const [markersLoading, setMarkersLoading] = React.useState(false);
-  const markerLoadingShownAtRef = React.useRef<number | null>(null);
-  const markerLoadingHideTimerRef = React.useRef<number | null>(null);
+  const markerBuildTokenRef = React.useRef(0);
   const [selectedBeachId, setSelectedBeachId] = React.useState<
     string | number | null
   >(null);
@@ -1558,12 +1566,8 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
   usePrefetchAdjacentDates(selectedBeachKey, selectedDate);
   const requestMarkerRebuild = React.useCallback(() => {
     rebuildMarkersRef.current = true;
+    markerBuildTokenRef.current += 1;
     setMarkersLoading(true);
-    markerLoadingShownAtRef.current = Date.now();
-    if (markerLoadingHideTimerRef.current != null) {
-      window.clearTimeout(markerLoadingHideTimerRef.current);
-      markerLoadingHideTimerRef.current = null;
-    }
     forceMarkerRevision();
   }, []);
 
@@ -1578,6 +1582,10 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
 
   const showUpdateBanner =
     viewportStatus === "dirty" || viewportStatus === "loading";
+  const showLoadingPill =
+    mapReady &&
+    mapViewportStatus !== "error" &&
+    (markersLoading || mapViewportStatus === "loading");
 
   const findBeachMatch = React.useCallback(
     (identifier: string | number | null | undefined): BeachPoint | null => {
@@ -2813,27 +2821,14 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     if (!group || !mapReady) return;
     if (!rebuildMarkersRef.current) return;
     rebuildMarkersRef.current = false;
+    const buildToken = markerBuildTokenRef.current;
     const startTs =
       typeof performance !== "undefined" ? performance.now() : null;
     try {
       applyMarkerDiff(group, startTs);
     } finally {
-      const shownAt = markerLoadingShownAtRef.current;
-      const elapsed = shownAt != null ? Date.now() - shownAt : 0;
-      const remaining = Math.max(0, 500 - elapsed);
-      if (markerLoadingHideTimerRef.current != null) {
-        window.clearTimeout(markerLoadingHideTimerRef.current);
-        markerLoadingHideTimerRef.current = null;
-      }
-      if (remaining === 0) {
+      if (markerBuildTokenRef.current === buildToken) {
         setMarkersLoading(false);
-        markerLoadingShownAtRef.current = null;
-      } else {
-        markerLoadingHideTimerRef.current = window.setTimeout(() => {
-          setMarkersLoading(false);
-          markerLoadingShownAtRef.current = null;
-          markerLoadingHideTimerRef.current = null;
-        }, remaining);
       }
     }
   }, [mapReady, applyMarkerDiff, markerRevision]);
@@ -3101,7 +3096,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
             </div>
           </div>
         )} */}
-        {mapReady && markersLoading && (
+        {showLoadingPill && (
           <div
             className={cn(
               "pointer-events-none absolute left-1/2 z-[1200] -translate-x-1/2",
@@ -3287,8 +3282,8 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
             isolation: isolate;
           }
           .ww-cluster-core {
-            width: 72%;
-            height: 72%;
+            width: 85%;
+            height: 85%;
             border-radius: 999px;
             display: flex;
             flex-direction: column;

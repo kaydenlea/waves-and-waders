@@ -1045,10 +1045,12 @@ const MoonStat = ({
   label,
   data,
   showMap,
+  isFull,
 }: {
   label: string;
   data: string | number;
   showMap: boolean;
+  isFull?: boolean;
 }) => {
   const info = getMoonPhaseInfo(data);
   const emoji = getMoonPhaseEmoji(info.kind);
@@ -1081,7 +1083,10 @@ const MoonStat = ({
           <span
             className={cn(
               "text-[0.7rem] @min-sm:text-[0.82rem] font-semibold tracking-tight",
-              !showMap && "@min-4xl:text-[0.75rem] @min-5xl:text-[0.82rem]"
+              !showMap && "@min-4xl:text-[0.75rem] @min-5xl:text-[0.82rem]",
+              showMap &&
+                !isFull &&
+                "@min-4xl:text-[0.7rem] @min-6xl:text-[0.82rem]"
             )}
           >
             {info.lines[0]}
@@ -1089,7 +1094,10 @@ const MoonStat = ({
           <span
             className={cn(
               "text-[0.7rem] @min-sm:text-[0.82rem] font-semibold tracking-tight",
-              !showMap && "@min-4xl:text-[0.75rem] @min-5xl:text-[0.82rem]"
+              !showMap && "@min-4xl:text-[0.75rem] @min-5xl:text-[0.82rem]",
+              showMap &&
+                !isFull &&
+                "@min-4xl:text-[0.7rem] @min-6xl:text-[0.82rem]"
             )}
           >
             {info.lines[1]}
@@ -1165,10 +1173,14 @@ const WindStat = ({
   data,
   label,
   maxScale,
+  showMap,
+  isFull,
 }: {
   data: { speed: number; max: number; dir: number };
   label: string;
   maxScale?: number;
+  showMap: boolean;
+  isFull: boolean;
 }) => {
   const dirLabel = getWindDirection(
     typeof data.dir === "number" && Number.isFinite(data.dir) ? data.dir : 0
@@ -1204,10 +1216,24 @@ const WindStat = ({
       label={label}
       primary={
         <>
-          <span className="text-[1.15rem] @min-sm:text-[1.3rem] font-semibold tabular-nums tracking-tight">
+          <span
+            className={cn(
+              "text-[1.15rem] @min-sm:text-[1.3rem] font-semibold tabular-nums tracking-tight",
+              !isFull &&
+                showMap &&
+                "@min-4xl:text-[1.15rem] @min-6xl:text-[1.3rem]"
+            )}
+          >
             {data.speed}
           </span>
-          <span className="text-[0.65rem] @min-sm:text-[0.75rem] font-medium text-muted-foreground">
+          <span
+            className={cn(
+              "text-[0.65rem] @min-sm:text-[0.75rem] font-medium text-muted-foreground",
+              !isFull &&
+                showMap &&
+                "@min-4xl:text-[0.65rem] @min-6xl:text-[0.75rem]"
+            )}
+          >
             mph
           </span>
         </>
@@ -1433,14 +1459,22 @@ const PressureStat = ({
       label={label}
       primary={
         <>
-          <span className="text-[1.15rem] @min-sm:text-[1.3rem] font-semibold tabular-nums tracking-tight text-foreground/85">
+          <span
+            className={cn(
+              "text-[1.15rem] @min-sm:text-[1.3rem] font-semibold tabular-nums tracking-tight text-foreground/85",
+              showMap &&
+                !isFull &&
+                "@min-4xl:text-[1.15rem] @min-6xl:text-[1.3rem]"
+            )}
+          >
             {formattedValue}
           </span>
           <span
             className={cn(
               "hidden @min-sm:block text-[0.72rem] font-medium text-muted-foreground",
               isFull && "@min-6xl:hidden",
-              !showMap && "@min-4xl:hidden @min-6xl:block"
+              !showMap && "@min-4xl:hidden @min-6xl:block",
+              showMap && !isFull && "@min-4xl:hidden @min-6xl:inline"
             )}
           >
             {displayUnit}
@@ -1456,7 +1490,8 @@ const PressureStat = ({
               <span
                 className={cn(
                   "hidden @min-sm:inline",
-                  !showMap && "@min-4xl:hidden @min-6xl:inline"
+                  !showMap && "@min-4xl:hidden @min-6xl:inline",
+                  showMap && !isFull && "@min-4xl:hidden @min-6xl:inline"
                 )}
               >
                 {trendLabel}
@@ -1464,7 +1499,8 @@ const PressureStat = ({
               <span
                 className={cn(
                   "inline @min-sm:hidden",
-                  !showMap && "@min-4xl:inline @min-6xl:hidden"
+                  !showMap && "@min-4xl:inline @min-6xl:hidden",
+                  showMap && !isFull && "@min-4xl:inline @min-6xl:hidden"
                 )}
               >
                 {displayUnit}
@@ -1650,7 +1686,8 @@ const TideStat = ({
             className={cn(
               "hidden @min-sm:inline-block",
               isFull && "@min-6xl:hidden",
-              !showMap && "@min-4xl:hidden @min-5xl:inline-block"
+              !showMap && "@min-4xl:hidden @min-5xl:inline-block",
+              !isFull && showMap && "@min-4xl:hidden @min-6xl:inline-block"
             )}
           >
             / {trendLabel}
@@ -2671,6 +2708,7 @@ const Highlights = ({
                     data={stat.phase}
                     label={stat.label}
                     showMap={showMap}
+                    isFull={isFull}
                   />
                 ) : (
                   <HighlightCard
@@ -2695,6 +2733,8 @@ const Highlights = ({
                     data={stat.wind}
                     label={stat.label}
                     maxScale={displayScales.windMax}
+                    isFull={isFull}
+                    showMap={showMap}
                   />
                 );
                 break;
