@@ -362,6 +362,7 @@ export const WindRing: React.FC<{
   scale?: number;
   className?: string;
   variant?: "full" | "preview";
+  radiusOffset?: number;
 }> = ({
   direction,
   label,
@@ -369,13 +370,14 @@ export const WindRing: React.FC<{
   scale = 1,
   className = "",
   variant = "full",
+  radiusOffset = 0,
 }) => {
   const size = 160 * scale;
   const center = size / 2;
   const svgId = useStableSvgId();
 
   const isPreview = variant === "preview";
-  const radius = 108 * scale;
+  const radius = (108 + radiusOffset) * scale;
   const color = "var(--ww-ring-wind)";
 
   const arcStroke = (isPreview ? 7 : 12) * scale;

@@ -230,7 +230,7 @@ function ChartTooltipContent({
   return (
     <div
       className={cn(
-        "relative grid min-w-[12rem] items-start gap-2 overflow-hidden rounded-2xl border border-border/60 bg-background/80 px-3 py-2.5 text-xs shadow-[0_18px_45px_rgba(0,0,0,0.25)] ring-1 ring-white/10 backdrop-blur-md transition-transform duration-150 ease-out motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-95 before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(140%_140%_at_0%_0%,rgba(56,189,248,0.25)_0%,rgba(14,165,233,0.08)_35%,transparent_70%)] before:opacity-80",
+        "relative grid min-w-[12rem] items-start gap-2 overflow-hidden rounded-2xl border border-border/60 bg-background/90 px-3 py-2.5 text-xs shadow-[0_18px_45px_rgba(0,0,0,0.25)] ring-1 ring-white/10 backdrop-blur-md transition-transform duration-150 ease-out motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-95 before:pointer-events-none before:absolute before:inset-0 before:opacity-90",
         className
       )}
     >
@@ -259,6 +259,8 @@ function ChartTooltipContent({
               : null;
           const showFormatted =
             formattedValue !== null && formattedValue !== undefined;
+          const isRichFormatted =
+            showFormatted && React.isValidElement(formattedValue);
           const unit =
             key === "tide" ||
             key === "surf" ||
@@ -291,21 +293,25 @@ function ChartTooltipContent({
               key={item.dataKey}
               className={cn(
                 "[&>svg]:text-muted-foreground flex w-full flex-wrap items-stretch gap-2 [&>svg]:h-3.5 [&>svg]:w-3.5",
-                indicator === "dot" && "items-center"
+                isRichFormatted && "items-start",
+                !isRichFormatted && indicator === "dot" && "items-center"
               )}
             >
               {itemConfig?.icon ? (
                 <div
-                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border shadow-sm ring-1 ring-background/70 [&>svg]:h-3.5 [&>svg]:w-3.5 [&>svg]:text-current"
-                  style={
-                    iconColor
-                      ? ({
-                          color: iconColor,
-                          backgroundColor: `color-mix(in srgb, ${iconColor} 18%, transparent)`,
-                          borderColor: `color-mix(in srgb, ${iconColor} 38%, transparent)`,
-                        } as React.CSSProperties)
-                      : undefined
-                  }
+                  className={cn(
+                    "flex h-6 w-6 shrink-0 items-center justify-center rounded-md border shadow-sm ring-1 ring-background/70 [&>svg]:h-3.5 [&>svg]:w-3.5 [&>svg]:text-current",
+                    isRichFormatted && "items-start pt-1"
+                  )}
+                  // style={
+                  //   iconColor
+                  //     ? ({
+                  //         color: iconColor,
+                  //         backgroundColor: `color-mix(in srgb, ${iconColor} 18%, transparent)`,
+                  //         borderColor: `color-mix(in srgb, ${iconColor} 38%, transparent)`,
+                  //       } as React.CSSProperties)
+                  //     : undefined
+                  // }
                 >
                   <itemConfig.icon />
                 </div>
@@ -314,6 +320,7 @@ function ChartTooltipContent({
                   <div
                     className={cn(
                       "shrink-0 rounded-full border-(--color-border) bg-(--color-bg) shadow-sm ring-2 ring-background/80",
+                      isRichFormatted && "mt-1.5",
                       {
                         "h-2.5 w-2.5": indicator === "dot",
                         "w-1": indicator === "line",
@@ -334,10 +341,16 @@ function ChartTooltipContent({
               <div
                 className={cn(
                   "flex flex-1 items-center justify-between gap-2 leading-none",
-                  nestLabel ? "items-end" : "items-center"
+                  nestLabel
+                    ? "items-end"
+                    : isRichFormatted
+                    ? "items-start"
+                    : "items-center"
                 )}
               >
-                <div className="grid gap-1.5">
+                <div
+                  className={cn("grid gap-1.5", isRichFormatted && "pt-1.5")}
+                >
                   {nestLabel ? tooltipLabel : null}
                   <span className="text-muted-foreground">
                     {itemConfig?.label || item.name}

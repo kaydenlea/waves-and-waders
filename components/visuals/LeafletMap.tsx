@@ -77,6 +77,8 @@ const CAMERA_MIN_INTERVAL = 120;
 const COMMIT_IDLE_DELAY = 180;
 const RESIZE_SETTLE_DELAY = 180;
 const BOUNDS_DELTA_THRESHOLD = 0.0005;
+const MARKER_BUILD_FRAME_BUDGET_MS = 10;
+const MARKER_BUILD_MIN_BATCH = 60;
 const MIN_OVERLAY_ZOOM = 15;
 const AUTO_FOCUS_ZOOM = 16;
 const OVERLAY_PANE_ID = "ww-overlay-pane";
@@ -971,7 +973,7 @@ const SelectedBeachOverlay = React.memo(
     const scale = overlayZoom >= 14 ? 1 : overlayZoom / 14;
     const ringSize = 160 * scale;
     const outerRadius = (typeof windDirection === "number" ? 110 : 76) * scale;
-    const labelDistance = 137 * scale;
+    const labelDistance = 145 * scale;
     const centerOffset = ringSize / 2;
     const haloPadding = Math.max(outerRadius - ringSize / 2, 0);
     const cardinalLabels = [
@@ -1026,7 +1028,7 @@ const SelectedBeachOverlay = React.memo(
             <div
               className={cn(
                 "absolute bg-background rounded-lg border border-border px-3 py-1.5 shadow-lg whitespace-nowrap z-10 text-sm font-semibold text-foreground",
-                legendOpen ? "-top-26" : "-top-22"
+                legendOpen ? "-top-30" : "-top-22"
               )}
             >
               {selected.name}
@@ -1089,6 +1091,7 @@ const SelectedBeachOverlay = React.memo(
                   label={overlayLabels?.wind ?? null}
                   showLegend={legendOpen}
                   scale={scale}
+                  radiusOffset={6}
                   className="absolute inset-0"
                 />
               )}
@@ -1381,6 +1384,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
   }, []);
   const persistViewTimeoutRef = React.useRef<number | null>(null);
   const resumeCommitTimeoutRef = React.useRef<number | null>(null);
+  const prefetchStatsTimeoutRef = React.useRef<number | null>(null);
   const resizeTimeoutRef = React.useRef<number | null>(null);
   const resizeRafRef = React.useRef<number | null>(null);
   const containerResizeObserverRef = React.useRef<ResizeObserver | null>(null);
@@ -1411,6 +1415,17 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
   const [mapReady, setMapReady] = React.useState(false);
   const [markersLoading, setMarkersLoading] = React.useState(false);
   const markerBuildTokenRef = React.useRef(0);
+  type MarkerBuildJob = {
+    token: number;
+    raf: number | null;
+    index: number;
+    startTs: number | null;
+    removedCount: number;
+    addedCount: number;
+    updatedCount: number;
+    nextStatsFallbackIds: Set<string>;
+  };
+  const markerBuildJobRef = React.useRef<MarkerBuildJob | null>(null);
   const [selectedBeachId, setSelectedBeachId] = React.useState<
     string | number | null
   >(null);
@@ -2024,22 +2039,34 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     [selectedBeachId]
   );
 
-  const enqueueMarkerAdd = React.useCallback((marker: L.Marker) => {
-    const attempt = () => {
-      const group = clusterLayerRef.current;
-      const map = mapRef.current;
-      if (!group || !map || !(group as any)._map) {
-        window.requestAnimationFrame(attempt);
-        return;
+  const cancelMarkerBuild = React.useCallback(() => {
+    const job = markerBuildJobRef.current;
+    if (!job) return;
+    if (job.raf != null) {
+      window.cancelAnimationFrame(job.raf);
+    }
+    markerBuildJobRef.current = null;
+  }, []);
+
+  const resetMarkerRegistry = React.useCallback(() => {
+    cancelMarkerBuild();
+    const registry = markerRegistryRef.current;
+    Object.values(registry).forEach((entry) => {
+      if (!entry?.marker) return;
+      try {
+        entry.marker.off();
+      } catch {
+        // ignore listener cleanup errors
       }
       try {
-        group.addLayer(marker);
+        entry.marker.remove();
       } catch {
-        window.requestAnimationFrame(attempt);
+        // ignore marker removal errors
       }
-    };
-    attempt();
-  }, []);
+    });
+    markerRegistryRef.current = {};
+    statsFallbackIdsRef.current = new Set();
+  }, [cancelMarkerBuild]);
 
   const clearHoverState = React.useCallback(() => {
     const registry = markerRegistryRef.current;
@@ -2228,6 +2255,40 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       });
   }, []);
 
+  const cancelPrefetchVisibleMarkerStats = React.useCallback(() => {
+    if (prefetchStatsTimeoutRef.current == null) return;
+    const globalWindow = window as any;
+    if (typeof globalWindow.cancelIdleCallback === "function") {
+      globalWindow.cancelIdleCallback(prefetchStatsTimeoutRef.current);
+    } else {
+      window.clearTimeout(prefetchStatsTimeoutRef.current);
+    }
+    prefetchStatsTimeoutRef.current = null;
+  }, []);
+
+  const schedulePrefetchVisibleMarkerStats = React.useCallback(() => {
+    if (typeof window === "undefined") return;
+    cancelPrefetchVisibleMarkerStats();
+    const run = () => {
+      prefetchStatsTimeoutRef.current = null;
+      prefetchVisibleMarkerStats();
+    };
+    const globalWindow = window as any;
+    if (typeof globalWindow.requestIdleCallback === "function") {
+      prefetchStatsTimeoutRef.current = globalWindow.requestIdleCallback(run, {
+        timeout: 800,
+      });
+    } else {
+      prefetchStatsTimeoutRef.current = window.setTimeout(run, 120);
+    }
+  }, [cancelPrefetchVisibleMarkerStats, prefetchVisibleMarkerStats]);
+
+  React.useEffect(() => {
+    return () => {
+      cancelPrefetchVisibleMarkerStats();
+    };
+  }, [cancelPrefetchVisibleMarkerStats]);
+
   const hoverOpsRef = React.useRef({
     refreshMarkerIcon,
     updateClusterHighlight,
@@ -2347,6 +2408,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       nextId: string | null
     ) => void;
     primeVisibleMarkerStats: () => void;
+    updateZoomButtons: () => void;
   };
 
   const mapLifecycleCallbacksRef = React.useRef<MapLifecycleCallbacks | null>(
@@ -2365,7 +2427,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       setAllowViewportCommit,
       cancelCommitResume,
       setHoveredMarkerSource,
-      primeVisibleMarkerStats: prefetchVisibleMarkerStats,
+      primeVisibleMarkerStats: schedulePrefetchVisibleMarkerStats,
       updateZoomButtons: updateZoomButtonState,
     };
   }, [
@@ -2379,7 +2441,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     setAllowViewportCommit,
     cancelCommitResume,
     setHoveredMarkerSource,
-    prefetchVisibleMarkerStats,
+    schedulePrefetchVisibleMarkerStats,
     updateZoomButtonState,
   ]);
 
@@ -2450,10 +2512,8 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       showCoverageOnHover: false,
       removeOutsideVisibleBounds: false,
       animateAddingMarkers: false,
-      chunkedLoading: true,
-      chunkDelay: 5,
-      chunkInterval: 80,
-      iconCreateFunction: (cluster) => createClusterIcon(cluster),
+      chunkedLoading: false,
+      iconCreateFunction: (cluster: any) => createClusterIcon(cluster),
     });
     clusterLayerRef.current = clusterGroup;
     clusterGroup.addTo(map);
@@ -2473,6 +2533,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       latestCancelCommitResume();
       latestSetAllowViewportCommit(false);
       latestClearHoverState();
+      cancelPrefetchVisibleMarkerStats();
     };
     const handleResizeEvent = () => {
       latestScheduleResizeRecompute();
@@ -2500,6 +2561,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
 
     const handleZoomStart = () => {
       latestClearHoverState();
+      cancelPrefetchVisibleMarkerStats();
     };
 
     map.on("movestart", handleMoveStart);
@@ -2515,6 +2577,9 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       map.off("moveend", handleInteractionEnd);
       map.off("zoomend", handleInteractionEnd);
       latestCancelCommitResume();
+      cancelPrefetchVisibleMarkerStats();
+      resetMarkerRegistry();
+      setMarkersLoading(false);
       zoomControlRef.current?.remove();
       zoomControlRef.current = null;
       if (clusterLayerRef.current) {
@@ -2530,7 +2595,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       setMapReady(false);
       latestClearHoverState();
     };
-  }, [effectiveShowMap]);
+  }, [effectiveShowMap, resetMarkerRegistry]);
   React.useEffect(() => {
     if (!mapReady || !selectedBeachId || !selectedBeach) return;
     const targetId = pendingAutoCenterRef.current;
@@ -2659,150 +2724,269 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
   }, [clearHoverState, smallScreen]);
 
   const applyMarkerDiff = React.useCallback(
-    (group: L.MarkerClusterGroup, startTs: number | null) => {
+    (
+      group: L.MarkerClusterGroup,
+      startTs: number | null,
+      buildToken: number
+    ) => {
+      cancelMarkerBuild();
+
       const registry = markerRegistryRef.current;
       const incomingIds = new Set(
         filteredBeaches.map((beach) => String(beach.id))
       );
 
-      let removed = false;
       let removedCount = 0;
+      const removedEntries: MarkerEntry[] = [];
       Object.entries(registry).forEach(([id, entry]) => {
-        if (!incomingIds.has(id)) {
-          group.removeLayer(entry.marker);
-          entry.marker.off();
-          delete registry[id];
-          removed = true;
-          removedCount += 1;
+        if (incomingIds.has(id)) {
           return;
         }
-        if (typeof (group as any).hasLayer === "function") {
-          if (!(group as any).hasLayer(entry.marker)) {
-            enqueueMarkerAdd(entry.marker);
-          }
-        } else {
-          enqueueMarkerAdd(entry.marker);
-        }
+        removedEntries.push(entry);
+        delete registry[id];
+        removedCount += 1;
       });
-      if (removed) {
+
+      if (removedEntries.length) {
+        const markersToRemove = removedEntries
+          .map((entry) => entry.marker)
+          .filter(Boolean);
+        try {
+          if (typeof (group as any).removeLayers === "function") {
+            (group as any).removeLayers(markersToRemove);
+          } else {
+            markersToRemove.forEach((marker: L.Marker) => {
+              group.removeLayer(marker);
+            });
+          }
+        } catch {
+          markersToRemove.forEach((marker: L.Marker) => {
+            try {
+              if (
+                typeof (group as any).hasLayer !== "function" ||
+                (group as any).hasLayer(marker)
+              ) {
+                group.removeLayer(marker);
+              }
+            } catch {
+              // ignore removal errors; marker will be detached during map teardown
+            }
+          });
+        }
+
+        removedEntries.forEach((entry) => {
+          try {
+            entry.marker.off();
+          } catch {
+            // ignore listener cleanup errors
+          }
+          try {
+            entry.marker.remove();
+          } catch {
+            // ignore removal errors
+          }
+        });
+
         clearHoverState();
       }
 
-      let addedCount = 0;
-      let updatedCount = 0;
-      const nextStatsFallbackIds = new Set<string>();
-      filteredBeaches.forEach((beach) => {
-        const id = String(beach.id);
-        const gridIntensity = resolveSurfIntensity(surfIntensity, beach);
-        const iconIntensity = (() => {
-          if (gridIntensity != null) {
-            return Number.isFinite(gridIntensity as number)
-              ? (gridIntensity as number)
-              : 0;
+      const job: MarkerBuildJob = {
+        token: buildToken,
+        raf: null,
+        index: 0,
+        startTs,
+        removedCount,
+        addedCount: 0,
+        updatedCount: 0,
+        nextStatsFallbackIds: new Set<string>(),
+      };
+
+      markerBuildJobRef.current = job;
+
+      const addMarkers = (markers: L.Marker[]) => {
+        if (!markers.length) return;
+        try {
+          if (typeof (group as any).addLayers === "function") {
+            (group as any).addLayers(markers);
+          } else {
+            markers.forEach((marker) => group.addLayer(marker));
           }
-          nextStatsFallbackIds.add(id);
-          const ctx = statsContextRef.current;
-          const snapshot =
-            ctx.getStatsSnapshot(
-              String(beach.id),
-              ctx.statsDateKey,
-              ctx.statsHourKey
-            ) ?? null;
-          const dailyStats = extractDailySurfWindStats(snapshot);
-          return typeof dailyStats.surfIntensity === "number" &&
-            Number.isFinite(dailyStats.surfIntensity)
-            ? dailyStats.surfIntensity
-            : 0;
-        })();
-        const favorite = favoriteSet.has(id);
-        const existing = registry[id];
-        if (existing) {
-          let changed = false;
-          if (existing.intensity !== iconIntensity) {
-            existing.intensity = iconIntensity;
-            changed = true;
-          }
-          if (existing.favorite !== favorite) {
-            existing.favorite = favorite;
-            changed = true;
-          }
-          if (changed) {
-            (existing.marker.options as any).wwIntensity = iconIntensity;
-            const hoveredId = appliedHoverIdRef.current;
-            refreshMarkerIcon(existing, hoveredId === id);
-            updatedCount += 1;
-          }
-          if (
-            typeof (group as any).hasLayer !== "function" ||
-            !(group as any).hasLayer(existing.marker)
-          ) {
-            enqueueMarkerAdd(existing.marker);
-          }
+        } catch {
+          markers.forEach((marker) => {
+            try {
+              group.addLayer(marker);
+            } catch {
+              // ignore transient add errors; next rebuild will reconcile
+            }
+          });
+        }
+      };
+
+      const step = () => {
+        const active = markerBuildJobRef.current;
+        if (!active || active.token !== buildToken) return;
+        if (markerBuildTokenRef.current !== buildToken) {
+          markerBuildJobRef.current = null;
           return;
         }
-        const marker = L.marker(
-          [Number(beach.latitude), Number(beach.longitude)],
-          {
-            icon: createMarkerIcon({
+
+        active.raf = null;
+
+        const supportsPerformance = typeof performance !== "undefined";
+        const frameStart = supportsPerformance ? performance.now() : Date.now();
+        const markersToAdd: L.Marker[] = [];
+
+        while (active.index < filteredBeaches.length) {
+          const beach = filteredBeaches[active.index];
+          active.index += 1;
+
+          const id = String(beach.id);
+          const gridIntensity = resolveSurfIntensity(surfIntensity, beach);
+          const iconIntensity = (() => {
+            if (gridIntensity != null) {
+              return Number.isFinite(gridIntensity as number)
+                ? (gridIntensity as number)
+                : 0;
+            }
+            active.nextStatsFallbackIds.add(id);
+            const ctx = statsContextRef.current;
+            const snapshot =
+              ctx.getStatsSnapshot(
+                String(beach.id),
+                ctx.statsDateKey,
+                ctx.statsHourKey
+              ) ?? null;
+            const dailyStats = extractDailySurfWindStats(snapshot);
+            return typeof dailyStats.surfIntensity === "number" &&
+              Number.isFinite(dailyStats.surfIntensity)
+              ? dailyStats.surfIntensity
+              : 0;
+          })();
+
+          const favorite = favoriteSet.has(id);
+          const existing = registry[id];
+          if (existing) {
+            let changed = false;
+            if (existing.intensity !== iconIntensity) {
+              existing.intensity = iconIntensity;
+              changed = true;
+            }
+            if (existing.favorite !== favorite) {
+              existing.favorite = favorite;
+              changed = true;
+            }
+            if (changed) {
+              (existing.marker.options as any).wwIntensity = iconIntensity;
+              const hoveredId = appliedHoverIdRef.current;
+              refreshMarkerIcon(existing, hoveredId === id);
+              active.updatedCount += 1;
+            }
+            try {
+              if (
+                typeof (group as any).hasLayer !== "function" ||
+                !(group as any).hasLayer(existing.marker)
+              ) {
+                markersToAdd.push(existing.marker);
+              }
+            } catch {
+              markersToAdd.push(existing.marker);
+            }
+          } else {
+            const marker = L.marker(
+              [Number(beach.latitude), Number(beach.longitude)],
+              {
+                icon: createMarkerIcon({
+                  intensity: iconIntensity,
+                  favorite,
+                  selected:
+                    selectedBeachId != null &&
+                    String(selectedBeachId) === String(beach.id),
+                }),
+                keyboard: false,
+                bubblingMouseEvents: false,
+                wwIntensity: iconIntensity,
+                wwBeachId: id,
+              } as any
+            );
+
+            const entry: MarkerEntry = {
+              marker,
+              beach,
               intensity: iconIntensity,
               favorite,
-              selected:
-                selectedBeachId != null &&
-                String(selectedBeachId) === String(beach.id),
-            }),
-            keyboard: false,
-            bubblingMouseEvents: false,
-            // Store intensity so cluster icons can reflect the
-            // distribution of underlying marker intensities.
-            wwIntensity: iconIntensity,
-          } as any
-        );
-        const entry: MarkerEntry = {
-          marker,
-          beach,
-          intensity: iconIntensity,
-          favorite,
-        };
-        markerRegistryRef.current[id] = entry;
-        const handleClick = () => {
-          if (!interactionsReadyRef.current) return;
-          const normalizedId = String(beach.id);
-          setSelectedBeachId(beach.id);
-          pendingAutoCenterRef.current = normalizedId;
-          ensureMarkerPopup(entry);
-          marker.openPopup();
-          const destination = `${generateBeachUrl(
-            beach.name,
-            beach.id
-          )}/overview#content`;
-          if (router) {
-            setNavigationPending(true);
-            router.push(destination);
+            };
+            registry[id] = entry;
+
+            const handleClick = () => {
+              if (!interactionsReadyRef.current) return;
+              const normalizedId = String(beach.id);
+              setSelectedBeachId(beach.id);
+              pendingAutoCenterRef.current = normalizedId;
+              ensureMarkerPopup(entry);
+              marker.openPopup();
+              const destination = `${generateBeachUrl(
+                beach.name,
+                beach.id
+              )}/overview#content`;
+              if (router) {
+                setNavigationPending(true);
+                router.push(destination);
+              }
+            };
+            const handleMouseOver = () => {
+              setHoveredMarkerSource("marker", String(beach.id));
+            };
+            marker.on("click", handleClick);
+            marker.on("mouseover", handleMouseOver);
+
+            markersToAdd.push(marker);
+            active.addedCount += 1;
           }
-        };
-        const handleMouseOver = () => {
-          setHoveredMarkerSource("marker", String(beach.id));
-        };
-        marker.on("click", handleClick);
-        marker.on("mouseover", handleMouseOver);
-        enqueueMarkerAdd(marker);
-        addedCount += 1;
-      });
-      statsFallbackIdsRef.current = nextStatsFallbackIds;
-      try {
-        group.refreshClusters();
-      } catch {
-        // ignore refresh errors
-      }
-      logLeafletPerf(
-        `marker-rebuild add=${addedCount} update=${updatedCount} remove=${removedCount} total=${
-          Object.keys(markerRegistryRef.current).length
-        }`,
-        startTs
-      );
+
+          const elapsed =
+            (supportsPerformance ? performance.now() : Date.now()) - frameStart;
+          if (
+            markersToAdd.length >= MARKER_BUILD_MIN_BATCH &&
+            elapsed >= MARKER_BUILD_FRAME_BUDGET_MS
+          ) {
+            break;
+          }
+        }
+
+        addMarkers(markersToAdd);
+
+        if (active.index < filteredBeaches.length) {
+          active.raf = window.requestAnimationFrame(step);
+          return;
+        }
+
+        statsFallbackIdsRef.current = active.nextStatsFallbackIds;
+        if (active.updatedCount > 0) {
+          try {
+            group.refreshClusters();
+          } catch {
+            // ignore refresh errors
+          }
+        }
+        logLeafletPerf(
+          `marker-rebuild add=${active.addedCount} update=${
+            active.updatedCount
+          } remove=${active.removedCount} total=${
+            Object.keys(markerRegistryRef.current).length
+          }`,
+          active.startTs
+        );
+
+        markerBuildJobRef.current = null;
+        if (markerBuildTokenRef.current === buildToken) {
+          setMarkersLoading(false);
+        }
+      };
+
+      step();
     },
     [
-      enqueueMarkerAdd,
+      cancelMarkerBuild,
       favoriteSet,
       filteredBeaches,
       refreshMarkerIcon,
@@ -2824,18 +3008,12 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     const buildToken = markerBuildTokenRef.current;
     const startTs =
       typeof performance !== "undefined" ? performance.now() : null;
-    try {
-      applyMarkerDiff(group, startTs);
-    } finally {
-      if (markerBuildTokenRef.current === buildToken) {
-        setMarkersLoading(false);
-      }
-    }
+    applyMarkerDiff(group, startTs, buildToken);
   }, [mapReady, applyMarkerDiff, markerRevision]);
   React.useEffect(() => {
     if (!mapReady) return;
-    prefetchVisibleMarkerStats();
-  }, [mapReady, markerRevision, prefetchVisibleMarkerStats]);
+    schedulePrefetchVisibleMarkerStats();
+  }, [mapReady, markerRevision, schedulePrefetchVisibleMarkerStats]);
 
   React.useEffect(() => {
     if (!mapReady) return;

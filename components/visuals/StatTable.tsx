@@ -37,6 +37,7 @@ import {
   useOptionalForecastChartLoading,
   useOptionalForecastChartsBusyState,
 } from "../context/ForecastChartsLoadingContext";
+import { useMapFilters } from "../context/MapFilterContext";
 
 type MetricGroup =
   | "hour"
@@ -132,8 +133,8 @@ function MiniMarkerTrack({
       <div
         className={cn(
           "absolute top-1/2 h-2 w-1.5 -translate-y-1/2 rounded-full",
-          "bg-highlight-4 shadow-md ring-1 ring-foreground/35 dark:ring-foreground/45",
-          "outline outline-2 outline-background/70",
+          "bg-background dark:bg-foreground shadow-md ring-1 ring-foreground/40 dark:ring-background/55",
+          "outline outline-2 outline-foreground/15 dark:outline-background/80",
           markerClassName
         )}
         style={{
@@ -207,14 +208,42 @@ function TimeCell({ time, selected }: { time: string; selected: boolean }) {
 function DirectionBadge({
   deg,
   label,
+  showMap,
+  showDegrees = false,
+  labelVisibilityClassName,
+  showSecondarySwells,
+  layout = "inline",
+  widthClassName,
+  className,
 }: {
   deg?: number | null;
   label?: string | null;
+  showMap?: boolean;
+  showDegrees?: boolean;
+  labelVisibilityClassName?: string;
+  showSecondarySwells: boolean;
+  layout?: "inline" | "grid";
+  widthClassName?: string;
+  className?: string;
 }) {
   const rotation = typeof deg === "number" ? deg - 315 : 0;
   const safeLabel = label ?? "-";
+  const degreesText = showDegrees
+    ? typeof deg === "number" && Number.isFinite(deg)
+      ? `${Math.round(deg)}\u00B0`
+      : `--\u00B0`
+    : null;
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-border/40 bg-foreground/[0.03] px-1.5 py-0.5">
+    <span
+      className={cn(
+        layout === "grid"
+          ? "grid grid-cols-[0.9rem_1fr_1.5rem] items-center gap-x-1.5"
+          : "inline-flex items-center gap-1.5",
+        "h-[23px] rounded-full border border-border/40 bg-foreground/[0.03] px-1.5 py-0.5",
+        widthClassName,
+        className
+      )}
+    >
       <span
         aria-hidden="true"
         style={{ transform: `rotate(${rotation}deg)`, display: "inline-block" }}
@@ -225,9 +254,33 @@ function DirectionBadge({
           className="fill-foreground/15 text-foreground/45"
         />
       </span>
-      <span className="hidden @min-lg:inline-block @min-4xl:hidden @min-5xl:inline-block text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground mt-0.5">
+      <span
+        className={cn(
+          labelVisibilityClassName,
+          "text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground mt-0.5 hidden @min-lg:inline-block",
+          layout === "grid" && "justify-self-center"
+          // !showMap &&
+          //   !showSecondarySwells &&
+          //   "@min-5xl:hidden @min-6xl:inline-block"
+          // (showMap || (!showMap && !showSecondarySwells)) &&
+          //   "@min-4xl:hidden @min-5xl:inline-block"
+          // !showMap &&
+          //   showSecondarySwells &&
+          //   "@min-[1217.5px]:hidden @min-[1235px]:inline-block"
+        )}
+      >
         {safeLabel}
       </span>
+      {degreesText && (
+        <span
+          className={cn(
+            "text-[0.65rem] font-semibold tabular-nums text-muted-foreground",
+            layout === "grid" && "justify-self-end"
+          )}
+        >
+          {degreesText}
+        </span>
+      )}
     </span>
   );
 }
@@ -328,21 +381,92 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 const SwellStat = ({
   primary = false,
   data,
+  showMap,
+  showSecondarySwells,
 }: {
   primary?: boolean;
+  showMap: boolean;
   data?: {
     height?: number | string | null;
     period?: number | null;
     dir?: string | null;
     deg?: number | null;
   } | null;
+  showSecondarySwells: boolean;
 }) => {
   const height = data?.height ?? "-";
   const period = data?.period ?? "-";
   const dir = data?.dir ?? "-";
-  const deg = data?.deg ?? 0;
-
+  const deg = data?.deg ?? null;
+  const degreesText =
+    typeof deg === "number" && Number.isFinite(deg)
+      ? `${Math.round(deg)}\u00B0`
+      : `--\u00B0`;
   const periodNumber = typeof data?.period === "number" ? data.period : null;
+  const swellHeightValue = (() => {
+    const value = data?.height;
+    if (typeof value === "number") {
+      return Number.isFinite(value) ? value : null;
+    }
+    if (typeof value === "string") {
+      const parsed = Number.parseFloat(value);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+    return null;
+  })();
+
+  // return (
+  //   <CellSurface
+  //     className={cn(
+  //       primary ? "bg-foreground/[0.04] dark:bg-foreground/[0.06]" : undefined
+  //     )}
+  //   >
+  //     <div
+  //       className={cn(
+  //         "grid w-fit min-w-0 grid-cols-[2.75rem_2.6rem_6.75rem] @min-md:grid-cols-[3.25rem_3rem_6.75rem] items-center justify-items-center gap-x-2",
+  //         primary ? "gap-x-2.5" : undefined
+  //       )}
+  //     >
+  //       <span className="inline-flex items-baseline justify-center gap-0.5 whitespace-nowrap tabular-nums">
+  //         <span
+  //           className={cn(
+  //             "font-semibold tabular-nums tracking-tight leading-none",
+  //             primary ? "text-[0.95rem]" : "text-[0.9rem]"
+  //           )}
+  //         >
+  //           {height}
+  //         </span>
+  //         <span className="text-[0.65rem] font-medium text-muted-foreground">
+  //           ft
+  //         </span>
+  //       </span>
+
+  //       <span className="inline-flex items-baseline justify-center gap-0.5 whitespace-nowrap tabular-nums">
+  //         <span
+  //           className={cn(
+  //             "font-semibold tabular-nums tracking-tight leading-none",
+  //             primary ? "text-[0.95rem]" : "text-[0.9rem]"
+  //           )}
+  //         >
+  //           {period}
+  //         </span>
+  //         <span className="text-[0.65rem] font-medium text-muted-foreground">
+  //           s
+  //         </span>
+  //       </span>
+
+  //       <DirectionBadge
+  //         deg={deg}
+  //         label={dir}
+  //         showMap={showMap}
+  //         showDegrees
+  //         layout="grid"
+  //         widthClassName="w-[6rem]"
+  //         labelVisibilityClassName="inline-block"
+  //       />
+  //     </div>
+  //   </CellSurface>
+  // );
 
   return (
     <CellSurface
@@ -352,31 +476,29 @@ const SwellStat = ({
     >
       <div className="w-full">
         <div className="flex h-full items-center justify-between gap-2 min-w-0">
-          <div className="flex min-w-0 flex-col items-start">
+          <div className="flex min-w-0 flex-col items-start gap-0.5">
             <div className="flex items-baseline gap-1 whitespace-nowrap">
               <span
                 className={cn(
                   "tabular-nums leading-none",
                   primary
-                    ? "text-[0.95rem] font-semibold"
-                    : "text-sm font-semibold"
+                    ? "text-[1rem] font-semibold"
+                    : "text-[1rem] font-semibold"
                 )}
               >
                 {height}
               </span>
               <span className="text-[0.65rem] text-muted-foreground">ft</span>
             </div>
-            <div className="flex items-center gap-1 whitespace-nowrap text-muted-foreground -mb-1">
+            <div className="flex items-center gap-1 whitespace-nowrap text-muted-foreground -mb-0.5">
               <ClockFading
                 aria-hidden="true"
-                className="hidden @min-lg:block h-3.5 w-3.5 shrink-0 text-muted-foreground/80"
+                className="hidden @min-xs:block h-3.5 w-3.5 shrink-0 text-muted-foreground/80"
               />
               <span
                 className={cn(
                   "tabular-nums leading-none",
-                  primary
-                    ? "text-[0.95rem] font-semibold"
-                    : "text-sm font-semibold"
+                  primary ? "text-sm font-semibold" : "text-sm font-semibold"
                 )}
               >
                 {period}
@@ -387,11 +509,31 @@ const SwellStat = ({
             </div>
           </div>
 
-          <div className="flex shrink-0 flex-col items-end justify-center gap-2">
-            <DirectionBadge deg={deg} label={dir} />
-            <div className="pr-1">
+          <div className="flex shrink-0 flex-col items-end justify-center gap-1">
+            <DirectionBadge
+              deg={deg}
+              label={dir}
+              showMap={showMap}
+              showSecondarySwells={showSecondarySwells}
+            />
+            {/* <div className="pr-1">
               <PeriodTicks period={periodNumber} />
-            </div>
+            </div> */}
+            {/* <div className="pr-1 w-16">
+              <MiniMarkerTrack
+                value={swellHeightValue}
+                min={0}
+                max={SURF_SCALE_MAX_FT}
+                trackClassName={statusGradientTrackClass}
+              />
+            </div> */}
+            <span
+              className={cn(
+                "pr-1 text-[0.7rem] font-semibold tabular-nums text-muted-foreground"
+              )}
+            >
+              {degreesText}
+            </span>
           </div>
         </div>
       </div>
@@ -402,19 +544,26 @@ const SwellStat = ({
 const WindStat = ({
   data,
   scaleMax = 30,
+  showSecondarySwells,
 }: {
   data: { dir: string; speed: number; max: number; deg?: number };
   scaleMax?: number;
+  showSecondarySwells: boolean;
 }) => {
   return (
     <CellSurface>
       <div className="w-full">
         <div className="flex items-start justify-between gap-2 min-w-0">
-          <DirectionBadge deg={data.deg} label={data.dir} />
+          <DirectionBadge
+            deg={data.deg}
+            label={data.dir}
+            className="-mt-0.5"
+            showSecondarySwells={showSecondarySwells}
+          />
 
           <div className="flex min-w-0 flex-col items-end leading-none">
             <div className="inline-flex items-baseline gap-1">
-              <span className="inline-flex w-[3ch] justify-end text-[1.05rem] font-semibold tabular-nums leading-none">
+              <span className="inline-flex w-[3ch] justify-end text-[1rem] font-semibold tabular-nums leading-none">
                 {data.speed}
               </span>
               <span className="text-[0.65rem] text-muted-foreground">mph</span>
@@ -422,9 +571,9 @@ const WindStat = ({
             <div className="mt-0.5 inline-flex items-center gap-1 text-muted-foreground">
               <ArrowUp
                 aria-hidden="true"
-                className="h-3.5 w-3.5 shrink-0 text-muted-foreground/80"
+                className="h-3 w-3 shrink-0 text-muted-foreground/80 mb-0.5"
               />
-              <span className="inline-flex w-[1.5ch] justify-end text-xs font-medium tabular-nums">
+              <span className="inline-flex w-[1.4ch] justify-end text-[0.7rem] font-medium tabular-nums">
                 {data.max}
               </span>
               <span className="sr-only">gust</span>
@@ -587,7 +736,7 @@ const EnergyStat = ({
   return (
     <CellSurface>
       <div className="w-full">
-        <div className="flex items-center justify-center gap-2">
+        <div className="flex items-center justify-center gap-2 mb-1">
           <span className="inline-flex items-baseline gap-1 whitespace-nowrap">
             <span className="text-[1.05rem] font-semibold tabular-nums leading-none">
               {value}
@@ -757,6 +906,7 @@ const StatTable = ({
     showSecondarySwells,
   } = useDateContext();
   const { selectedTab } = useClientPath();
+  const { showMap } = useMapFilters();
   const forecastPage = selectedTab === "forecast";
   const headerBgClass =
     "bg-highlight-4 supports-[backdrop-filter]:backdrop-blur-md";
@@ -1256,60 +1406,23 @@ const StatTable = ({
 
   const resizeRafRef = React.useRef<number | null>(null);
   const measuredWidthRef = React.useRef<number>(0);
-  type LayoutBucket = "lt400" | "lt600" | "lt900" | "lt1150" | "gte1150";
-  const layoutBucketRef = React.useRef<LayoutBucket>("gte1150");
-  const LAYOUT_HYSTERESIS_PX = 20;
+  const TABLE_BREAKPOINT_SM = 400;
+  const TABLE_BREAKPOINT_MD = 600;
+  const TABLE_BREAKPOINT_LG = 900;
+  const TABLE_BREAKPOINT_XL = 1150;
+  const widthNow = React.useRef<number>(0);
 
   React.useEffect(() => {
     const table = tableRef.current;
     if (!table) return;
 
     const adjustData = () => {
-      const widthNow = measuredWidthRef.current || table.clientWidth;
+      widthNow.current = measuredWidthRef.current || table.clientWidth;
       let newPages: typeof columnPages;
       // Use filtered columns instead of COLUMNS
       const cols = filteredColumns;
 
-      const hysteresis = LAYOUT_HYSTERESIS_PX;
-      const up = (edge: number) => edge + hysteresis;
-      const down = (edge: number) => edge - hysteresis;
-      const stepBucket = (bucket: LayoutBucket): LayoutBucket => {
-        switch (bucket) {
-          case "lt400":
-            if (widthNow > up(400)) return "lt600";
-            return "lt400";
-          case "lt600":
-            if (widthNow < down(400)) return "lt400";
-            if (widthNow > up(600)) return "lt900";
-            return "lt600";
-          case "lt900":
-            if (widthNow < down(600)) return "lt600";
-            if (widthNow > up(900)) return "lt1150";
-            return "lt900";
-          case "lt1150":
-            if (widthNow < down(900)) return "lt900";
-            if (widthNow > up(1150)) return "gte1150";
-            return "lt1150";
-          case "gte1150":
-          default:
-            if (widthNow < down(1150)) return "lt1150";
-            return "gte1150";
-        }
-      };
-
-      // Allow large width jumps (tab switches, minimize/maximize) to settle in a
-      // single pass, while still keeping hysteresis near boundaries.
-      let bucket = layoutBucketRef.current;
-      for (let i = 0; i < 4; i += 1) {
-        const next = stepBucket(bucket);
-        if (next === bucket) break;
-        bucket = next;
-      }
-      const nextBucket = bucket;
-
-      layoutBucketRef.current = nextBucket;
-
-      if (nextBucket === "lt400") {
+      if (widthNow.current < TABLE_BREAKPOINT_SM) {
         if (showSecondarySwells) {
           newPages = [
             [cols[0], cols[1]],
@@ -1324,7 +1437,7 @@ const StatTable = ({
             cols.slice(4, cols.length),
           ];
         }
-      } else if (nextBucket === "lt600") {
+      } else if (widthNow.current < TABLE_BREAKPOINT_MD) {
         if (showSecondarySwells) {
           newPages = [
             [cols[0], cols[2], cols[1]],
@@ -1334,7 +1447,7 @@ const StatTable = ({
         } else {
           newPages = [[cols[0], cols[2], cols[1]], cols.slice(3, cols.length)];
         }
-      } else if (nextBucket === "lt900") {
+      } else if (widthNow.current < TABLE_BREAKPOINT_LG) {
         if (showSecondarySwells) {
           newPages = [
             [cols[0], cols[2], cols[1]],
@@ -1344,7 +1457,7 @@ const StatTable = ({
         } else {
           newPages = [[cols[0], cols[2], cols[1]], cols.slice(3, cols.length)];
         }
-      } else if (nextBucket === "lt1150") {
+      } else if (widthNow.current < TABLE_BREAKPOINT_XL) {
         if (showSecondarySwells) {
           newPages = [
             [cols[0], cols[2], cols[3], cols[4], cols[1]].filter(Boolean),
@@ -1363,11 +1476,11 @@ const StatTable = ({
               cols[2],
               cols[3],
               cols[4],
+              cols[1],
               cols[5],
               cols[6],
               cols[7],
               cols[8],
-              cols[1],
             ],
           ];
         } else {
@@ -1695,24 +1808,42 @@ const StatTable = ({
                 <col
                   key={col.id}
                   className={cn(
-                    col.id === "surf" && "w-[clamp(5.25rem,10vw,5.75rem)]",
+                    col.id === "surf"
+                      ? widthNow.current >= 750 &&
+                        widthNow.current < TABLE_BREAKPOINT_LG
+                        ? ""
+                        : "w-[clamp(5.25rem,10vw,5.75rem)]"
+                      : "",
                     col.id === "wind" &&
                       showSecondarySwells &&
-                      "@min-5xl:w-[11rem]",
+                      widthNow.current >= TABLE_BREAKPOINT_LG &&
+                      "w-[11rem]",
                     col.id === "weather" || col.id === "water"
                       ? showSecondarySwells
-                        ? "@min-[1175px]:w-[clamp(4.5rem,9vw,5.5rem)]"
-                        : "@min-5xl:w-[clamp(4.5rem,9vw,5.5rem)]"
+                        ? widthNow.current >= TABLE_BREAKPOINT_LG &&
+                          widthNow.current < TABLE_BREAKPOINT_XL
+                          ? ""
+                          : "@min-[1175px]:w-[clamp(4.5rem,9vw,5.5rem)]"
+                        : widthNow.current >= TABLE_BREAKPOINT_LG &&
+                          "w-[clamp(4.5rem,9vw,5.5rem)]"
                       : "",
                     col.id === "energy"
                       ? showSecondarySwells
-                        ? "@min-[1175px]:w-[clamp(4.75rem,9vw,5.5rem)]"
-                        : "@min-5xl:w-[clamp(4.75rem,9vw,5.5rem)]"
+                        ? widthNow.current >= TABLE_BREAKPOINT_LG &&
+                          widthNow.current < TABLE_BREAKPOINT_XL
+                          ? ""
+                          : "@min-[1175px]:w-[clamp(4.75rem,9vw,5.5rem)]"
+                        : widthNow.current >= TABLE_BREAKPOINT_LG &&
+                          "w-[clamp(4.75rem,9vw,5.5rem)]"
                       : "",
                     col.id === "pressure"
                       ? showSecondarySwells
-                        ? "@min-[1175px]:w-[clamp(5.25rem,10vw,6.75rem)]"
-                        : "@min-5xl:w-[clamp(5.25rem,10vw,6.75rem)]"
+                        ? widthNow.current >= TABLE_BREAKPOINT_LG &&
+                          widthNow.current < TABLE_BREAKPOINT_XL
+                          ? ""
+                          : "@min-[1175px]:w-[clamp(5.25rem,10vw,6.75rem)]"
+                        : widthNow.current >= TABLE_BREAKPOINT_LG &&
+                          "w-[clamp(5.25rem,10vw,6.75rem)]"
                       : "",
                     col.id === "__spacer" && "w-[10rem]"
                   )}
@@ -1777,24 +1908,42 @@ const StatTable = ({
               <col
                 key={col.id}
                 className={cn(
-                  col.id === "surf" && "w-[clamp(5.25rem,10vw,5.75rem)]",
+                  col.id === "surf"
+                    ? widthNow.current >= 750 &&
+                      widthNow.current < TABLE_BREAKPOINT_LG
+                      ? ""
+                      : "w-[clamp(5.25rem,10vw,5.75rem)]"
+                    : "",
                   col.id === "wind" &&
                     showSecondarySwells &&
-                    "@min-5xl:w-[11rem]",
+                    widthNow.current >= TABLE_BREAKPOINT_LG &&
+                    "w-[11rem]",
                   col.id === "weather" || col.id === "water"
                     ? showSecondarySwells
-                      ? "@min-[1175px]:w-[clamp(4.5rem,9vw,5.5rem)]"
-                      : "@min-5xl:w-[clamp(4.5rem,9vw,5.5rem)]"
+                      ? widthNow.current >= TABLE_BREAKPOINT_LG &&
+                        widthNow.current < TABLE_BREAKPOINT_XL
+                        ? ""
+                        : "@min-[1175px]:w-[clamp(4.5rem,9vw,5.5rem)]"
+                      : widthNow.current >= TABLE_BREAKPOINT_LG &&
+                        "w-[clamp(4.5rem,9vw,5.5rem)]"
                     : "",
                   col.id === "energy"
                     ? showSecondarySwells
-                      ? "@min-[1175px]:w-[clamp(4.75rem,9vw,5.5rem)]"
-                      : "@min-5xl:w-[clamp(4.75rem,9vw,5.5rem)]"
+                      ? widthNow.current >= TABLE_BREAKPOINT_LG &&
+                        widthNow.current < TABLE_BREAKPOINT_XL
+                        ? ""
+                        : "@min-[1175px]:w-[clamp(4.75rem,9vw,5.5rem)]"
+                      : widthNow.current >= TABLE_BREAKPOINT_LG &&
+                        "w-[clamp(4.75rem,9vw,5.5rem)]"
                     : "",
                   col.id === "pressure"
                     ? showSecondarySwells
-                      ? "@min-[1175px]:w-[clamp(5.25rem,10vw,6.75rem)]"
-                      : "@min-5xl:w-[clamp(5.25rem,10vw,6.75rem)]"
+                      ? widthNow.current >= TABLE_BREAKPOINT_LG &&
+                        widthNow.current < TABLE_BREAKPOINT_XL
+                        ? ""
+                        : "@min-[1175px]:w-[clamp(5.25rem,10vw,6.75rem)]"
+                      : widthNow.current >= TABLE_BREAKPOINT_LG &&
+                        "w-[clamp(5.25rem,10vw,6.75rem)]"
                     : "",
                   col.id === "__spacer" && "w-[10rem]"
                 )}
@@ -1954,6 +2103,7 @@ const StatTable = ({
                                 <WindStat
                                   data={entry.wind}
                                   scaleMax={WIND_SCALE_MAX_MPH}
+                                  showSecondarySwells={showSecondarySwells}
                                 />
                               );
                               break;
@@ -1971,17 +2121,34 @@ const StatTable = ({
                               break;
                             case "swellPrimary":
                               content = (
-                                <SwellStat primary data={entry.swell.primary} />
+                                <SwellStat
+                                  primary
+                                  data={entry.swell.primary}
+                                  showMap={showMap}
+                                  showSecondarySwells={showSecondarySwells}
+                                />
                               );
                               break;
                             case "swellSecondary": {
                               const s0 = entry.swell.secondary[0];
-                              content = <SwellStat data={s0} />;
+                              content = (
+                                <SwellStat
+                                  data={s0}
+                                  showMap={showMap}
+                                  showSecondarySwells={showSecondarySwells}
+                                />
+                              );
                               break;
                             }
                             case "swellTertiary": {
                               const s1 = entry.swell.secondary[1];
-                              content = <SwellStat data={s1} />;
+                              content = (
+                                <SwellStat
+                                  data={s1}
+                                  showMap={showMap}
+                                  showSecondarySwells={showSecondarySwells}
+                                />
+                              );
                               break;
                             }
                             case "pressure":

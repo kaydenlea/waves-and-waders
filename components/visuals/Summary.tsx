@@ -227,8 +227,8 @@ function MiniMarkerTrack({
         <div
           className={cn(
             "absolute top-1/2 h-[10px] w-1.5 -translate-y-1/2 rounded-full",
-            "bg-highlight-4 shadow-md ring-1 ring-foreground/35 dark:ring-foreground/45",
-            "outline outline-2 outline-background/70"
+            "bg-background dark:bg-foreground shadow-md ring-1 ring-foreground/40 dark:ring-background/55",
+            "outline outline-2 outline-foreground/15 dark:outline-background/80"
           )}
           style={{
             left: `clamp(0px, calc(${

@@ -1245,14 +1245,14 @@ const WindStat = ({
       }
       visual={
         <VisualSlot className="text-foreground/65 dark:text-foreground/60">
-          <div className="relative h-11 w-11">
+          <div className="relative h-10 w-10">
             <div className="absolute left-1/2 -top-3 -translate-x-1/2 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground/80 whitespace-nowrap">
               {dirLabel}
             </div>
             <svg
               className="absolute inset-0"
-              width="44"
-              height="44"
+              width="40"
+              height="40"
               viewBox="0 0 44 44"
               aria-hidden="true"
             >

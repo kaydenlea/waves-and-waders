@@ -33,11 +33,11 @@ const chartConfig = {
     color: "#0077b6",
   },
   secondary: {
-    label: "Secondary",
+    label: "Second",
     color: "#48cae4",
   },
   tertiary: {
-    label: "Tertiary",
+    label: "Third",
     color: "#adf1ffff",
   },
 } satisfies ChartConfig;
@@ -68,6 +68,9 @@ type Row = {
   primaryDir?: number;
   secondaryDir?: number;
   tertiaryDir?: number;
+  primaryPeriod?: number;
+  secondaryPeriod?: number;
+  tertiaryPeriod?: number;
 };
 
 export const SwellStatsHeader = ({
@@ -150,7 +153,13 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   const formatSwellTooltipValue = React.useCallback(
     (value: number, _name: string, item: any) => {
       const dirKey = `${item?.dataKey}Dir`;
+      const periodKey = `${item?.dataKey}Period`;
       const direction = item?.payload?.[dirKey];
+      const period = item?.payload?.[periodKey];
+      const periodValue =
+        typeof period === "number" && Number.isFinite(period)
+          ? Math.round(period)
+          : null;
       const dirLabel =
         typeof direction === "number"
           ? `${getWindDirection(direction)} (${Math.round(direction)}°)`
@@ -164,16 +173,29 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         .replaceAll("\u0173", "\u00B0");
       return (
         <div className="grid justify-items-end gap-1 text-right">
-          <div className="bg-foreground/10 text-foreground inline-flex items-center gap-1.5 rounded-md px-2 py-1 font-medium tabular-nums">
+          <div className="bg-foreground/10 text-foreground inline-flex items-center gap-1 rounded-md px-2 py-1 font-medium tabular-nums">
             <span className="text-sm font-semibold leading-none">
               {heightValue}
             </span>
             <span className="mt-1 text-[0.72rem] font-medium leading-none text-muted-foreground">
               ft
             </span>
+            {periodValue !== null ? (
+              <>
+                <span className="mx-0.25 text-muted-foreground/60">•</span>
+                <span className="text-sm font-semibold leading-none">
+                  {periodValue}
+                </span>
+                <span className="mt-1 text-[0.72rem] font-medium leading-none text-muted-foreground">
+                  s
+                </span>
+              </>
+            ) : null}
+          </div>
+          <div className="inline-flex items-center gap-1 text-[0.65rem] leading-none text-muted-foreground">
             {typeof direction === "number" ? (
               <ArrowIcon
-                size={14}
+                size={13}
                 className="fill-foreground/15 text-foreground/60"
                 style={{
                   transform: `rotate(${direction - 315}deg)`,
@@ -181,9 +203,7 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
                 }}
               />
             ) : null}
-          </div>
-          <div className="text-[0.65rem] leading-none text-muted-foreground">
-            {dirLabelDisplay}
+            <span>{dirLabelDisplay}</span>
           </div>
         </div>
       );
@@ -212,6 +232,11 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           primaryDir: (time * 15) % 360,
           secondaryDir: (time * 20) % 360,
           tertiaryDir: (time * 25) % 360,
+          primaryPeriod: Math.round(12 + Math.sin((time / 24) * Math.PI) * 2),
+          secondaryPeriod: Math.round(
+            10 + Math.cos((time / 24) * Math.PI) * 2
+          ),
+          tertiaryPeriod: Math.round(8 + Math.sin((time / 12) * Math.PI) * 1),
         };
       }),
     []
@@ -232,6 +257,9 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       primaryDir: r.swell.primary.direction ?? undefined,
       secondaryDir: r.swell.secondary.direction ?? undefined,
       tertiaryDir: r.swell.tertiary?.direction ?? undefined,
+      primaryPeriod: r.swell.primary.period ?? undefined,
+      secondaryPeriod: r.swell.secondary.period ?? undefined,
+      tertiaryPeriod: r.swell.tertiary?.period ?? undefined,
     }));
   }, [beachId, forecastRows, hours, placeholderData]);
 
