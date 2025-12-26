@@ -46,24 +46,33 @@ const IMAGE_PLACEHOLDER =
 
 const BeachCard = React.memo(
   ({
-    b,
-    useMiles = true,
-    isFav,
-    map,
-    setHoverCardId = () => {},
-    loadingStats = false,
-    priorityImage = false,
-  }: BeachCardProps) => {
-    const router = useRouter();
-    const tagsRowRef = React.useRef<HTMLDivElement | null>(null);
-    const [fitCount, setFitCount] = React.useState<number>(0);
-    const measureTagRefs = React.useRef<Array<HTMLDivElement | null>>([]);
-    const moreMeasureRef = React.useRef<HTMLDivElement | null>(null);
-    const [imageLoaded, setImageLoaded] = React.useState(false);
+      b,
+      useMiles = true,
+      isFav,
+      map,
+      setHoverCardId = () => {},
+      loadingStats = false,
+      priorityImage = false,
+    }: BeachCardProps) => {
+      const router = useRouter();
+      const tagsRowRef = React.useRef<HTMLDivElement | null>(null);
+      const hoveringRef = React.useRef(false);
+      const [fitCount, setFitCount] = React.useState<number>(0);
+      const measureTagRefs = React.useRef<Array<HTMLDivElement | null>>([]);
+      const moreMeasureRef = React.useRef<HTMLDivElement | null>(null);
+      const [imageLoaded, setImageLoaded] = React.useState(false);
 
-    React.useEffect(() => {
-      setImageLoaded(false);
-    }, [b.image]);
+      React.useEffect(() => {
+        setImageLoaded(false);
+      }, [b.image]);
+
+      React.useEffect(() => {
+        return () => {
+          if (hoveringRef.current) {
+            setHoverCardId(null);
+          }
+        };
+      }, [setHoverCardId]);
 
     const distance =
       b.distanceKm != null
@@ -138,6 +147,7 @@ const BeachCard = React.memo(
     }, [b.features]);
 
     const handleMouseEnter = React.useCallback(() => {
+      hoveringRef.current = true;
       setHoverCardId(b.id);
       if (!map) return;
       try {
@@ -157,6 +167,7 @@ const BeachCard = React.memo(
     }, [b.coords, b.id, map, setHoverCardId]);
 
     const handleMouseLeave = React.useCallback(() => {
+      hoveringRef.current = false;
       setHoverCardId(null);
     }, [setHoverCardId]);
 
@@ -168,9 +179,11 @@ const BeachCard = React.memo(
           }
           event.preventDefault();
         }
+        hoveringRef.current = false;
+        setHoverCardId(null);
         goToOverview();
       },
-      [goToOverview]
+      [goToOverview, setHoverCardId]
     );
 
     return (

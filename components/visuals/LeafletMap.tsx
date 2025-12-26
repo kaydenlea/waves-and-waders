@@ -373,47 +373,39 @@ const createClusterIcon = (cluster: any) => {
         border-radius:50%;
         position:relative;
         background:${backgroundStyle};
-        color:#0f172a;
-        font-size:14px;
-        font-weight:600;
         display:flex;
         align-items:center;
         justify-content:center;
-        box-shadow:0 4px 12px rgba(15,23,42,0.25);
+        box-shadow:0 14px 30px rgba(15,23,42,0.18);
       "
     >
-      <span>${count}</span>
-      <div
-        style="
-          position:absolute;
-          bottom:6px;
-          left:50%;
-          transform:translateX(-50%);
-          display:flex;
-          gap:2px;
-        "
-      >
-        ${
-          hasLow
-            ? `<span style="width:6px;height:6px;border-radius:999px;background:${getIntensityColor(
-                1
-              )};"></span>`
-            : ""
-        }
-        ${
-          hasMed
-            ? `<span style="width:6px;height:6px;border-radius:999px;background:${getIntensityColor(
-                4
-              )};"></span>`
-            : ""
-        }
-        ${
-          hasHigh
-            ? `<span style="width:6px;height:6px;border-radius:999px;background:${getIntensityColor(
-                7
-              )};"></span>`
-            : ""
-        }
+      <div class="ww-cluster-core">
+        <span class="ww-cluster-count" data-digits="${
+          String(count).length
+        }">${count}</span>
+        <div class="ww-cluster-dots" aria-hidden="true">
+          ${
+            hasLow
+              ? `<span class="ww-cluster-dot" style="background:${getIntensityColor(
+                  1
+                )};"></span>`
+              : ""
+          }
+          ${
+            hasMed
+              ? `<span class="ww-cluster-dot" style="background:${getIntensityColor(
+                  4
+                )};"></span>`
+              : ""
+          }
+          ${
+            hasHigh
+              ? `<span class="ww-cluster-dot" style="background:${getIntensityColor(
+                  7
+                )};"></span>`
+              : ""
+          }
+        </div>
       </div>
     </div>
   `;
@@ -639,8 +631,8 @@ const buildPopupHtml = (
   const color = getIntensityColor(
     numericIntensity != null ? numericIntensity : 0
   );
-  const wavesSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"></path><path d="M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"></path><path d="M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"></path></svg>`;
-  const windSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#464646ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.7 17a1.7 1.7 0 1 1 1.7 1.7H2"></path><path d="M12.4 13a2.1 2.1 0 1 1 2.1 2.1H2"></path><path d="M15.1 7a2.9 2.9 0 1 0-2.9-2.9"></path><path d="M2 9h12.5"></path></svg>`;
+  const wavesSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"></path><path d="M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"></path><path d="M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"></path></svg>`;
+  const windSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#464646ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.7 17a1.7 1.7 0 1 1 1.7 1.7H2"></path><path d="M12.4 13a2.1 2.1 0 1 1 2.1 2.1H2"></path><path d="M15.1 7a2.9 2.9 0 1 0-2.9-2.9"></path><path d="M2 9h12.5"></path></svg>`;
   return `
     <div class="ww-leaflet-popup">
       <header class="ww-leaflet-popup__header">
@@ -650,26 +642,28 @@ const buildPopupHtml = (
           <span title="${safeCounty}">${safeCounty}</span>
         </div>
       </header>
-      <div class="ww-leaflet-popup__metric">
-        <div class="ww-leaflet-popup__icon">${wavesSvg}</div>
-        <div class="ww-leaflet-popup__metric-text">
-          <span>Surf</span>
-          <strong>${
-            surfReady
-              ? `${surfText}<span>ft</span>`
-              : `<span class="ww-leaflet-popup__placeholder ww-leaflet-popup__placeholder--wide" aria-hidden="true"></span>`
-          }</strong>
+      <div class="ww-leaflet-popup__metrics">
+        <div class="ww-leaflet-popup__metric">
+          <div class="ww-leaflet-popup__icon">${wavesSvg}</div>
+          <div class="ww-leaflet-popup__metric-text">
+            <span>Surf</span>
+            <strong>${
+              surfReady
+                ? `${surfText}<span>ft</span>`
+                : `<span class="ww-leaflet-popup__placeholder ww-leaflet-popup__placeholder--wide" aria-hidden="true"></span>`
+            }</strong>
+          </div>
         </div>
-      </div>
-      <div class="ww-leaflet-popup__metric">
-        <div class="ww-leaflet-popup__icon" style="background:rgba(255, 255, 255, 0.95)">${windSvg}</div>
-        <div class="ww-leaflet-popup__metric-text">
-          <span>Wind</span>
-          <strong>${
-            windReady
-              ? `${windText}<span>mph</span>${windArrow}`
-              : `<span class="ww-leaflet-popup__placeholder ww-leaflet-popup__placeholder--wide" aria-hidden="true"></span>`
-          }</strong>
+        <div class="ww-leaflet-popup__metric">
+          <div class="ww-leaflet-popup__icon" style="background:rgba(255, 255, 255, 0.95)">${windSvg}</div>
+          <div class="ww-leaflet-popup__metric-text">
+            <span>Wind</span>
+            <strong>${
+              windReady
+                ? `${windText}<span>mph</span>${windArrow}`
+                : `<span class="ww-leaflet-popup__placeholder ww-leaflet-popup__placeholder--wide" aria-hidden="true"></span>`
+            }</strong>
+          </div>
         </div>
       </div>
     </div>
@@ -1350,6 +1344,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
   const tileLayerRef = React.useRef<L.TileLayer | null>(null);
   const zoomControlRef = React.useRef<L.Control.Zoom | null>(null);
   const markerRegistryRef = React.useRef<Record<string, MarkerEntry>>({});
+  const statsFallbackIdsRef = React.useRef<Set<string>>(new Set());
   const beachLookupRef = React.useRef<Record<string, BeachPoint>>({});
   const rebuildMarkersRef = React.useRef(true);
   const hoverStateRef = React.useRef<{
@@ -1405,6 +1400,9 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     setShowMap,
   });
   const [mapReady, setMapReady] = React.useState(false);
+  const [markersLoading, setMarkersLoading] = React.useState(false);
+  const markerLoadingShownAtRef = React.useRef<number | null>(null);
+  const markerLoadingHideTimerRef = React.useRef<number | null>(null);
   const [selectedBeachId, setSelectedBeachId] = React.useState<
     string | number | null
   >(null);
@@ -1489,6 +1487,44 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     }
     return "now";
   }, [effectiveStatsDate, selectedHour]);
+
+  const statsContextRef = React.useRef<{
+    getStatsSnapshot: typeof getStatsSnapshot;
+    prefetchSnapshots: typeof prefetchSnapshots;
+    effectiveStatsDate: Date | null;
+    selectedHour: number | null;
+    statsDateKey: string;
+    statsHourKey: string | number;
+    surfIntensity: Record<string | number, number>;
+  }>({
+    getStatsSnapshot,
+    prefetchSnapshots,
+    effectiveStatsDate,
+    selectedHour,
+    statsDateKey,
+    statsHourKey,
+    surfIntensity,
+  });
+
+  React.useEffect(() => {
+    statsContextRef.current = {
+      getStatsSnapshot,
+      prefetchSnapshots,
+      effectiveStatsDate,
+      selectedHour,
+      statsDateKey,
+      statsHourKey,
+      surfIntensity,
+    };
+  }, [
+    getStatsSnapshot,
+    prefetchSnapshots,
+    effectiveStatsDate,
+    selectedHour,
+    statsDateKey,
+    statsHourKey,
+    surfIntensity,
+  ]);
   const handleMapDateSelect = React.useCallback(
     (next: Date) => {
       if (!(next instanceof Date) || Number.isNaN(next.getTime())) return;
@@ -1522,18 +1558,18 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
   usePrefetchAdjacentDates(selectedBeachKey, selectedDate);
   const requestMarkerRebuild = React.useCallback(() => {
     rebuildMarkersRef.current = true;
+    setMarkersLoading(true);
+    markerLoadingShownAtRef.current = Date.now();
+    if (markerLoadingHideTimerRef.current != null) {
+      window.clearTimeout(markerLoadingHideTimerRef.current);
+      markerLoadingHideTimerRef.current = null;
+    }
     forceMarkerRevision();
   }, []);
 
   React.useEffect(() => {
     requestMarkerRebuild();
-  }, [
-    filteredBeaches,
-    surfIntensity,
-    favoriteSet,
-    statsVersion,
-    requestMarkerRebuild,
-  ]);
+  }, [filteredBeaches, surfIntensity, favoriteSet, requestMarkerRebuild]);
 
   const interactionsReady = mapReady && filteredBeaches.length > 0;
   React.useEffect(() => {
@@ -2079,30 +2115,63 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     [updateClusterHighlight]
   );
 
+  const buildPopupHtmlForBeach = React.useCallback((beach: BeachPoint) => {
+    const ctx = statsContextRef.current;
+    const snapshot =
+      ctx.getStatsSnapshot(
+        String(beach.id),
+        ctx.statsDateKey,
+        ctx.statsHourKey
+      ) ?? null;
+    const dailyStats = extractDailySurfWindStats(snapshot);
+    const statsIntensity =
+      typeof dailyStats.surfIntensity === "number"
+        ? dailyStats.surfIntensity
+        : null;
+    const gridIntensity = resolveSurfIntensity(ctx.surfIntensity, beach);
+    const intensity = gridIntensity != null ? gridIntensity : statsIntensity;
+    return buildPopupHtml(beach, {
+      surfHeight: dailyStats.surfHeight,
+      surfIntensity: intensity,
+      windSpeed: dailyStats.windSpeed,
+      windDirection: dailyStats.windDirection,
+    });
+  }, []);
+
+  const ensureMarkerPopup = React.useCallback(
+    (entry: MarkerEntry) => {
+      const popupHtml = buildPopupHtmlForBeach(entry.beach);
+      const popup = entry.marker.getPopup();
+      if (popup) {
+        popup.setContent(popupHtml);
+        return;
+      }
+      entry.marker.bindPopup(popupHtml, { closeButton: false, autoPan: false });
+    },
+    [buildPopupHtmlForBeach]
+  );
+
   const ensureStatsForBeachId = React.useCallback(
     (beachId: string | number | null | undefined) => {
       if (beachId == null) return;
-      const snapshot = getStatsSnapshot(
+      const ctx = statsContextRef.current;
+      const snapshot = ctx.getStatsSnapshot(
         String(beachId),
-        statsDateKey,
-        statsHourKey
+        ctx.statsDateKey,
+        ctx.statsHourKey
       );
       if (snapshot !== undefined) return;
-      prefetchSnapshots([beachId], {
-        date: effectiveStatsDate ?? undefined,
-        hour: typeof selectedHour === "number" ? selectedHour : undefined,
-      }).catch(() => {
-        // ignore fetch errors; popups will show "--" until data available
-      });
+      ctx
+        .prefetchSnapshots([beachId], {
+          date: ctx.effectiveStatsDate ?? undefined,
+          hour:
+            typeof ctx.selectedHour === "number" ? ctx.selectedHour : undefined,
+        })
+        .catch(() => {
+          // ignore fetch errors; popups will show "--" until data available
+        });
     },
-    [
-      getStatsSnapshot,
-      statsDateKey,
-      statsHourKey,
-      prefetchSnapshots,
-      effectiveStatsDate,
-      selectedHour,
-    ]
+    []
   );
 
   const prefetchVisibleMarkerStats = React.useCallback(() => {
@@ -2113,6 +2182,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     }
     const bounds = map.getBounds();
     if (!bounds) return;
+    const ctx = statsContextRef.current;
     const pending: Array<string | number> = [];
     Object.values(markerRegistryRef.current).forEach((entry) => {
       if (!entry?.marker) return;
@@ -2129,34 +2199,55 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       }
       const beachId = entry.beach?.id;
       if (beachId == null) return;
-      const snapshot = getStatsSnapshot(
+      const snapshot = ctx.getStatsSnapshot(
         String(beachId),
-        statsDateKey,
-        statsHourKey
+        ctx.statsDateKey,
+        ctx.statsHourKey
       );
       if (snapshot === undefined) {
         pending.push(beachId);
       }
     });
     if (!pending.length) return;
-    prefetchSnapshots(pending, {
-      date: effectiveStatsDate ?? undefined,
-      hour: typeof selectedHour === "number" ? selectedHour : undefined,
-    }).catch(() => {
-      // ignore background errors
-    });
+    ctx
+      .prefetchSnapshots(pending, {
+        date: ctx.effectiveStatsDate ?? undefined,
+        hour:
+          typeof ctx.selectedHour === "number" ? ctx.selectedHour : undefined,
+      })
+      .catch(() => {
+        // ignore background errors
+      });
+  }, []);
+
+  const hoverOpsRef = React.useRef({
+    refreshMarkerIcon,
+    updateClusterHighlight,
+    highlightClusterForBeach,
+    ensureStatsForBeachId,
+    ensureMarkerPopup,
+  });
+
+  React.useEffect(() => {
+    hoverOpsRef.current = {
+      refreshMarkerIcon,
+      updateClusterHighlight,
+      highlightClusterForBeach,
+      ensureStatsForBeachId,
+      ensureMarkerPopup,
+    };
   }, [
-    getStatsSnapshot,
-    statsDateKey,
-    statsHourKey,
-    prefetchSnapshots,
-    effectiveStatsDate,
-    selectedHour,
+    refreshMarkerIcon,
+    updateClusterHighlight,
+    highlightClusterForBeach,
+    ensureStatsForBeachId,
+    ensureMarkerPopup,
   ]);
 
   const setHoveredMarkerSource = React.useCallback(
     (source: "marker" | "card", nextId: string | null) => {
       if (!interactionsReadyRef.current) return;
+      const hoverOps = hoverOpsRef.current;
       hoverStateRef.current[source] = nextId;
       setMapInteractionHover({
         cardId: hoverStateRef.current.card,
@@ -2166,34 +2257,34 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
         hoverStateRef.current.card ?? hoverStateRef.current.marker;
       const previousId = appliedHoverIdRef.current;
       if (nextHoverId) {
-        ensureStatsForBeachId(nextHoverId);
+        hoverOps.ensureStatsForBeachId(nextHoverId);
       }
       if (previousId === nextHoverId) {
         if (nextHoverId) {
           const entry = markerRegistryRef.current[nextHoverId];
           if (entry) {
-            updateClusterHighlight(
+            hoverOps.updateClusterHighlight(
               (clusterLayerRef.current as any)?.getVisibleParent?.(
                 entry.marker
               ) ?? null
             );
           } else if (
             source === "card" &&
-            highlightClusterForBeach(nextHoverId)
+            hoverOps.highlightClusterForBeach(nextHoverId)
           ) {
             // cluster highlight handled
           } else {
-            updateClusterHighlight(null);
+            hoverOps.updateClusterHighlight(null);
           }
         } else {
-          updateClusterHighlight(null);
+          hoverOps.updateClusterHighlight(null);
         }
         return;
       }
       if (previousId) {
         const prevEntry = markerRegistryRef.current[previousId];
         if (prevEntry) {
-          refreshMarkerIcon(prevEntry, false);
+          hoverOps.refreshMarkerIcon(prevEntry, false);
           prevEntry.marker.closePopup();
         }
       }
@@ -2201,7 +2292,8 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       if (nextHoverId) {
         const entry = markerRegistryRef.current[nextHoverId];
         if (entry) {
-          refreshMarkerIcon(entry, true);
+          hoverOps.refreshMarkerIcon(entry, true);
+          hoverOps.ensureMarkerPopup(entry);
           entry.marker.openPopup();
           const group = clusterLayerRef.current;
           if (
@@ -2211,30 +2303,25 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
           ) {
             const parent = (group as any).getVisibleParent(entry.marker);
             if (parent && parent !== entry.marker) {
-              updateClusterHighlight(parent);
+              hoverOps.updateClusterHighlight(parent);
             } else {
-              updateClusterHighlight(null);
+              hoverOps.updateClusterHighlight(null);
             }
           } else {
-            updateClusterHighlight(null);
+            hoverOps.updateClusterHighlight(null);
           }
         } else {
           const handled =
-            source === "card" && highlightClusterForBeach(nextHoverId);
+            source === "card" && hoverOps.highlightClusterForBeach(nextHoverId);
           if (!handled) {
-            updateClusterHighlight(null);
+            hoverOps.updateClusterHighlight(null);
           }
         }
       } else {
-        updateClusterHighlight(null);
+        hoverOps.updateClusterHighlight(null);
       }
     },
-    [
-      refreshMarkerIcon,
-      updateClusterHighlight,
-      highlightClusterForBeach,
-      ensureStatsForBeachId,
-    ]
+    []
   );
 
   type MapLifecycleCallbacks = {
@@ -2563,12 +2650,6 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     };
   }, [clearHoverState, smallScreen]);
 
-  const getSnapshotForBeach = React.useCallback(
-    (beach: BeachPoint) =>
-      getStatsSnapshot(String(beach.id), statsDateKey, statsHourKey),
-    [getStatsSnapshot, statsDateKey, statsHourKey]
-  );
-
   const applyMarkerDiff = React.useCallback(
     (group: L.MarkerClusterGroup, startTs: number | null) => {
       const registry = markerRegistryRef.current;
@@ -2601,29 +2682,31 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
 
       let addedCount = 0;
       let updatedCount = 0;
+      const nextStatsFallbackIds = new Set<string>();
       filteredBeaches.forEach((beach) => {
         const id = String(beach.id);
-        console.log("ID", id);
-        const snapshot = getSnapshotForBeach(beach) ?? null;
-        console.log("SNAPSHOT", snapshot);
-        const dailyStats = extractDailySurfWindStats(snapshot);
-        const statsIntensity =
-          typeof dailyStats.surfIntensity === "number"
-            ? dailyStats.surfIntensity
-            : null;
         const gridIntensity = resolveSurfIntensity(surfIntensity, beach);
-        const resolved = gridIntensity != null ? gridIntensity : statsIntensity;
-        const intensity = Number.isFinite(resolved as number)
-          ? (resolved as number)
-          : null;
-        const iconIntensity = intensity ?? 0;
+        const iconIntensity = (() => {
+          if (gridIntensity != null) {
+            return Number.isFinite(gridIntensity as number)
+              ? (gridIntensity as number)
+              : 0;
+          }
+          nextStatsFallbackIds.add(id);
+          const ctx = statsContextRef.current;
+          const snapshot =
+            ctx.getStatsSnapshot(
+              String(beach.id),
+              ctx.statsDateKey,
+              ctx.statsHourKey
+            ) ?? null;
+          const dailyStats = extractDailySurfWindStats(snapshot);
+          return typeof dailyStats.surfIntensity === "number" &&
+            Number.isFinite(dailyStats.surfIntensity)
+            ? dailyStats.surfIntensity
+            : 0;
+        })();
         const favorite = favoriteSet.has(id);
-        const popupStats = {
-          surfHeight: dailyStats.surfHeight,
-          surfIntensity: intensity,
-          windSpeed: dailyStats.windSpeed,
-          windDirection: dailyStats.windDirection,
-        };
         const existing = registry[id];
         if (existing) {
           let changed = false;
@@ -2635,21 +2718,10 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
             existing.favorite = favorite;
             changed = true;
           }
-          // Always keep popup HTML in sync with latest stats so we don't
-          // get stuck showing "--" after stats prefetch completes.
-          const popupHtml = buildPopupHtml(beach, popupStats);
-          const popup = existing.marker.getPopup();
-          if (popup) {
-            popup.setContent(popupHtml);
-          } else {
-            existing.marker.bindPopup(popupHtml, {
-              closeButton: false,
-              autoPan: false,
-            });
-          }
           if (changed) {
             (existing.marker.options as any).wwIntensity = iconIntensity;
-            refreshMarkerIcon(existing, false);
+            const hoveredId = appliedHoverIdRef.current;
+            refreshMarkerIcon(existing, hoveredId === id);
             updatedCount += 1;
           }
           if (
@@ -2677,10 +2749,6 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
             wwIntensity: iconIntensity,
           } as any
         );
-        marker.bindPopup(buildPopupHtml(beach, popupStats), {
-          closeButton: false,
-          autoPan: false,
-        });
         const entry: MarkerEntry = {
           marker,
           beach,
@@ -2691,13 +2759,10 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
         const handleClick = () => {
           if (!interactionsReadyRef.current) return;
           const normalizedId = String(beach.id);
-          if (selectedBeachId && String(selectedBeachId) === normalizedId) {
-            marker.openPopup();
-          } else {
-            setSelectedBeachId(beach.id);
-            pendingAutoCenterRef.current = normalizedId;
-            marker.openPopup();
-          }
+          setSelectedBeachId(beach.id);
+          pendingAutoCenterRef.current = normalizedId;
+          ensureMarkerPopup(entry);
+          marker.openPopup();
           const destination = `${generateBeachUrl(
             beach.name,
             beach.id
@@ -2710,46 +2775,12 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
         const handleMouseOver = () => {
           setHoveredMarkerSource("marker", String(beach.id));
         };
-        const handleMouseOut = (event: any) => {
-          // Leaflet will fire `mouseout` when the marker icon DOM node is replaced
-          // (e.g. via `setIcon`) or when the pointer moves from the marker onto
-          // the popup itself. In both cases we should keep the popup open.
-          try {
-            const oe = event?.originalEvent as MouseEvent | undefined;
-            const related = (oe as any)?.relatedTarget as HTMLElement | null;
-            const isStillOnMarkerOrPopup = (node: HTMLElement | null) =>
-              Boolean(
-                node &&
-                  (node.closest(".ww-leaflet-point-icon") ||
-                    node.closest(".leaflet-popup"))
-              );
-            if (isStillOnMarkerOrPopup(related)) {
-              return;
-            }
-            if (oe && typeof document !== "undefined") {
-              const atPoint = document.elementFromPoint(
-                oe.clientX,
-                oe.clientY
-              ) as HTMLElement | null;
-              if (isStillOnMarkerOrPopup(atPoint)) {
-                return;
-              }
-            }
-          } catch {
-            // fall through to close behavior
-          }
-
-          if (hoverStateRef.current.marker === String(beach.id)) {
-            setHoveredMarkerSource("marker", null);
-          }
-          marker.closePopup();
-        };
         marker.on("click", handleClick);
         marker.on("mouseover", handleMouseOver);
-        marker.on("mouseout", handleMouseOut);
         enqueueMarkerAdd(marker);
         addedCount += 1;
       });
+      statsFallbackIdsRef.current = nextStatsFallbackIds;
       try {
         group.refreshClusters();
       } catch {
@@ -2772,52 +2803,10 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       setHoveredMarkerSource,
       setSelectedBeachId,
       surfIntensity,
-      statsDateKey,
-      statsHourKey,
-      getSnapshotForBeach,
       clearHoverState,
+      ensureMarkerPopup,
     ]
   );
-
-  React.useEffect(() => {
-    if (!mapReady) return;
-    const registry = markerRegistryRef.current;
-    Object.values(registry).forEach((entry) => {
-      const snapshot = getSnapshotForBeach(entry.beach) ?? null;
-      const dailyStats = extractDailySurfWindStats(snapshot);
-      const statsIntensity =
-        typeof dailyStats.surfIntensity === "number"
-          ? dailyStats.surfIntensity
-          : null;
-      const gridIntensity = resolveSurfIntensity(surfIntensity, entry.beach);
-      const resolved = gridIntensity != null ? gridIntensity : statsIntensity;
-      const intensity = Number.isFinite(resolved as number)
-        ? (resolved as number)
-        : null;
-      const popupHtml = buildPopupHtml(entry.beach, {
-        surfHeight: dailyStats.surfHeight,
-        surfIntensity: intensity,
-        windSpeed: dailyStats.windSpeed,
-        windDirection: dailyStats.windDirection,
-      });
-      const popup = entry.marker.getPopup();
-      if (popup) {
-        popup.setContent(popupHtml);
-      } else {
-        entry.marker.bindPopup(popupHtml, {
-          closeButton: false,
-          autoPan: false,
-        });
-      }
-    });
-  }, [
-    mapReady,
-    statsVersion,
-    statsDateKey,
-    statsHourKey,
-    surfIntensity,
-    getSnapshotForBeach,
-  ]);
 
   React.useEffect(() => {
     const group = clusterLayerRef.current;
@@ -2826,12 +2815,108 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     rebuildMarkersRef.current = false;
     const startTs =
       typeof performance !== "undefined" ? performance.now() : null;
-    applyMarkerDiff(group, startTs);
+    try {
+      applyMarkerDiff(group, startTs);
+    } finally {
+      const shownAt = markerLoadingShownAtRef.current;
+      const elapsed = shownAt != null ? Date.now() - shownAt : 0;
+      const remaining = Math.max(0, 500 - elapsed);
+      if (markerLoadingHideTimerRef.current != null) {
+        window.clearTimeout(markerLoadingHideTimerRef.current);
+        markerLoadingHideTimerRef.current = null;
+      }
+      if (remaining === 0) {
+        setMarkersLoading(false);
+        markerLoadingShownAtRef.current = null;
+      } else {
+        markerLoadingHideTimerRef.current = window.setTimeout(() => {
+          setMarkersLoading(false);
+          markerLoadingShownAtRef.current = null;
+          markerLoadingHideTimerRef.current = null;
+        }, remaining);
+      }
+    }
   }, [mapReady, applyMarkerDiff, markerRevision]);
   React.useEffect(() => {
     if (!mapReady) return;
     prefetchVisibleMarkerStats();
   }, [mapReady, markerRevision, prefetchVisibleMarkerStats]);
+
+  React.useEffect(() => {
+    if (!mapReady) return;
+    const hoveredId = appliedHoverIdRef.current;
+    if (!hoveredId) return;
+    const entry = markerRegistryRef.current[hoveredId];
+    if (!entry) return;
+    ensureMarkerPopup(entry);
+  }, [
+    mapReady,
+    statsVersion,
+    statsDateKey,
+    statsHourKey,
+    surfIntensity,
+    ensureMarkerPopup,
+  ]);
+
+  React.useEffect(() => {
+    if (!mapReady) return;
+    const fallbackIds = statsFallbackIdsRef.current;
+    if (!fallbackIds.size) return;
+    const group = clusterLayerRef.current;
+    const ctx = statsContextRef.current;
+    const hoveredId = appliedHoverIdRef.current;
+    let didUpdate = false;
+    fallbackIds.forEach((id) => {
+      const entry = markerRegistryRef.current[id];
+      if (!entry) return;
+      const gridIntensity = resolveSurfIntensity(
+        ctx.surfIntensity,
+        entry.beach
+      );
+      if (gridIntensity != null) {
+        return;
+      }
+      const snapshot =
+        ctx.getStatsSnapshot(
+          String(entry.beach.id),
+          ctx.statsDateKey,
+          ctx.statsHourKey
+        ) ?? null;
+      const dailyStats = extractDailySurfWindStats(snapshot);
+      const iconIntensity =
+        typeof dailyStats.surfIntensity === "number" &&
+        Number.isFinite(dailyStats.surfIntensity)
+          ? dailyStats.surfIntensity
+          : 0;
+      if (entry.intensity === iconIntensity) {
+        if (hoveredId === id) {
+          ensureMarkerPopup(entry);
+        }
+        return;
+      }
+      entry.intensity = iconIntensity;
+      (entry.marker.options as any).wwIntensity = iconIntensity;
+      refreshMarkerIcon(entry, hoveredId === id);
+      didUpdate = true;
+      if (hoveredId === id) {
+        ensureMarkerPopup(entry);
+      }
+    });
+    if (didUpdate && group) {
+      try {
+        group.refreshClusters();
+      } catch {
+        // ignore refresh errors
+      }
+    }
+  }, [
+    mapReady,
+    statsVersion,
+    statsDateKey,
+    statsHourKey,
+    refreshMarkerIcon,
+    ensureMarkerPopup,
+  ]);
   React.useEffect(() => {
     const hoveredId = appliedHoverIdRef.current;
     Object.values(markerRegistryRef.current).forEach((entry) => {
@@ -3016,6 +3101,19 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
             </div>
           </div>
         )} */}
+        {mapReady && markersLoading && (
+          <div
+            className={cn(
+              "pointer-events-none absolute left-1/2 z-[1200] -translate-x-1/2",
+              fullMapPage ? "top-21 @min-4xl:top-3" : "top-3"
+            )}
+          >
+            <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/95 px-3 py-1 text-xs font-semibold text-foreground shadow-md ring-1 ring-black/5 backdrop-blur">
+              <span className="h-3 w-3 animate-spin rounded-full border-2 border-border/60 border-t-sky-500 motion-reduce:animate-none" />
+              Updating markers
+            </div>
+          </div>
+        )}
         {(showMap || smallScreen) && (
           <div
             className={cn(
@@ -3174,7 +3272,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
           }
           .ww-leaflet-cluster-icon {
             cursor: pointer;
-            transition: transform 120ms ease, box-shadow 120ms ease;
+            transition: transform 140ms ease, filter 140ms ease;
           }
           .ww-cluster-inner {
             position: relative;
@@ -3184,21 +3282,60 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
             display: flex;
             align-items: center;
             justify-content: center;
+            border: 1px solid rgba(255, 255, 255, 0.9);
+            box-shadow: 0 16px 32px rgba(15, 23, 42, 0.16);
+            isolation: isolate;
+          }
+          .ww-cluster-core {
+            width: 72%;
+            height: 72%;
+            border-radius: 999px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+            background: var(--highlight-7);
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            box-shadow: 0 12px 22px rgba(15, 23, 42, 0.12);
+            color: var(--foreground);
+          }
+          .ww-cluster-count {
+            font-size: 12px;
+            font-weight: 600;
+            line-height: 1;
+            letter-spacing: -0.02em;
+            transform: translateY(0.5px);
+            font-family: var(--font-poppins), ui-sans-serif, system-ui,
+              -apple-system, "Segoe UI", Roboto, Helvetica, Arial;
+          }
+          .ww-cluster-count[data-digits="3"] {
+            font-size: 12px;
+          }
+          .ww-cluster-count[data-digits="4"] {
+            font-size: 12px;
+          }
+          .ww-cluster-dots {
+            display: flex;
+            gap: 3px;
+            align-items: center;
+            justify-content: center;
+          }
+          .ww-cluster-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 999px;
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.85);
           }
           .ww-leaflet-cluster-icon.ww-cluster-hovered {
-            transform: translateZ(0) scale(1.2);
+            transform: translateZ(0) scale(1.12);
+            filter: saturate(1.05) brightness(1.02);
             border: none;
             border-radius: 999px;
           }
           .ww-leaflet-cluster-icon.ww-cluster-hovered .ww-cluster-inner {
-            background: radial-gradient(
-              circle at center,
-              #ffffff 0%,
-              #dbeafe 60%,
-              #60a5fa 100%
-            ) !important;
-            color: #0f172a !important;
-            border: 2px solid #bfdbfe;
+            border: 1px solid rgba(191, 219, 254, 0.95);
+            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
           }
           .ww-leaflet-cluster-icon.ww-cluster-hovered .ww-cluster-inner::after {
             content: "";
@@ -3224,11 +3361,18 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
             }
           }
           .ww-leaflet-popup {
-            min-width: 200px;
-            max-width: 200px;
+            min-width: 210px;
+            max-width: 210px;
             display: flex;
             flex-direction: column;
             gap: 6px;
+            font-family: var(--font-poppins), ui-sans-serif, system-ui,
+              -apple-system, "Segoe UI", Roboto, Helvetica, Arial;
+          }
+          .ww-leaflet-popup__metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
           }
           .ww-leaflet-popup__header {
             display: flex;
@@ -3261,14 +3405,15 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
           .ww-leaflet-popup__metric {
             display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 6px 10px;
-            border-radius: 999px;
+            gap: 5px;
+            padding: 6px 7px;
+            border-radius: 14px;
             background: var(--highlight-5);
+            min-width: 0;
           }
           .ww-leaflet-popup__icon {
-            width: 26px;
-            height: 26px;
+            width: 20px;
+            height: 20px;
             border-radius: 999px;
             background: rgba(223, 236, 255, 1);
             display: flex;
@@ -3280,15 +3425,15 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
           .ww-leaflet-popup__metric-text {
             display: flex;
             flex-direction: column;
-            line-height: 1.3;
+            line-height: 1.4;
           }
           .ww-leaflet-popup__metric-text strong {
-            font-size: 0.95rem;
+            font-size: 0.8rem;
             color: var(--foreground);
             font-weight: 600;
           }
           .ww-leaflet-popup__metric-text strong span {
-            font-size: 0.7rem;
+            font-size: 0.65rem;
             font-weight: 400;
             margin-left: 4px;
             color: var(--muted-foreground);
@@ -3327,7 +3472,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
           }
           .ww-leaflet-popup__wind-arrow {
             display: inline-flex;
-            margin-left: 8px;
+            margin-left: 2px;
             width: 0.8rem;
             height: 0.8rem;
             align-items: center;
@@ -3348,6 +3493,33 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
           }
           .leaflet-popup .leaflet-popup-tip {
             background: var(--background);
+          }
+          .leaflet-pane.leaflet-marker-pane {
+            z-index: 720 !important;
+          }
+          .leaflet-pane.leaflet-popup-pane {
+            z-index: 820 !important;
+          }
+          .leaflet-popup {
+            transform: translate3d(0, -14px, 0);
+            pointer-events: none;
+          }
+          .leaflet-popup-content-wrapper,
+          .leaflet-popup-tip {
+            pointer-events: none;
+          }
+          @media (prefers-reduced-motion: reduce) {
+            .ww-leaflet-cluster-icon,
+            .ww-leaflet-cluster-icon.ww-cluster-hovered {
+              transition: none !important;
+            }
+            .ww-leaflet-cluster-icon.ww-cluster-hovered
+              .ww-cluster-inner::after {
+              animation: none !important;
+            }
+            .leaflet-popup {
+              transform: none !important;
+            }
           }
           .leaflet-control-zoom {
             border: none;

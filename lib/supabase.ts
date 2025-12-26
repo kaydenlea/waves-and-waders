@@ -974,7 +974,11 @@ export async function fetchAllBeaches(): Promise<Beach[]> {
 }
 
 export async function fetchBeachByIdLoose(id: string): Promise<Beach | null> {
-  const target = id.trim();
+  const target = (id ?? "").trim();
+  if (!target || target === "undefined" || target === "null") {
+    console.warn("fetchBeachByIdLoose: missing beach identifier", { id });
+    return null;
+  }
 
   console.log("Looking up beach:", target);
 
@@ -985,7 +989,7 @@ export async function fetchBeachByIdLoose(id: string): Promise<Beach | null> {
     .single();
 
   if (error) {
-    console.error("Error in find_beach_smart:", error);
+    console.error("Error in find_beach_smart:", error?.message ?? error);
     // Fallback to direct query if RPC fails
     const fallback = await supabase
       .from("beaches")
