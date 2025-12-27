@@ -122,6 +122,8 @@ type OverlayLabels = {
   wind: string | null;
 } | null;
 
+type LatLngLiteral = { lat: number; lng: number };
+
 type SwellDirectionSet = {
   primary: number | null;
   secondary: number | null;
@@ -973,7 +975,7 @@ const SelectedBeachOverlay = React.memo(
     const scale = overlayZoom >= 14 ? 1 : overlayZoom / 14;
     const ringSize = 160 * scale;
     const outerRadius = (typeof windDirection === "number" ? 110 : 76) * scale;
-    const labelDistance = 145 * scale;
+    const labelDistance = 148 * scale;
     const centerOffset = ringSize / 2;
     const haloPadding = Math.max(outerRadius - ringSize / 2, 0);
     const cardinalLabels = [
@@ -1091,7 +1093,6 @@ const SelectedBeachOverlay = React.memo(
                   label={overlayLabels?.wind ?? null}
                   showLegend={legendOpen}
                   scale={scale}
-                  radiusOffset={6}
                   className="absolute inset-0"
                 />
               )}
@@ -1414,6 +1415,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
   });
   const [mapReady, setMapReady] = React.useState(false);
   const [markersLoading, setMarkersLoading] = React.useState(false);
+  const [refocusDisabled, setRefocusDisabled] = React.useState(true);
   const markerBuildTokenRef = React.useRef(0);
   type MarkerBuildJob = {
     token: number;
@@ -1484,6 +1486,17 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       null
     );
   }, [filteredBeaches, combinedBeaches, selectedBeachId]);
+  const selectedBeachLatLngRef = React.useRef<LatLngLiteral | null>(null);
+  React.useEffect(() => {
+    if (!selectedBeach) {
+      selectedBeachLatLngRef.current = null;
+      return;
+    }
+    selectedBeachLatLngRef.current = {
+      lat: Number(selectedBeach.latitude),
+      lng: Number(selectedBeach.longitude),
+    };
+  }, [selectedBeach]);
 
   const surfIntensity = useSurfIntensityData(selectedDate);
   const effectiveStatsDate = React.useMemo(
@@ -1972,6 +1985,32 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     }
   }, []);
 
+  const updateRefocusDisabled = React.useCallback(() => {
+    const map = mapRef.current;
+    const target = selectedBeachLatLngRef.current;
+    if (!map || !target) {
+      setRefocusDisabled(true);
+      return;
+    }
+    try {
+      const centerPt = map.latLngToContainerPoint(map.getCenter());
+      const targetPt = map.latLngToContainerPoint(target as any);
+      const pxDist = Math.hypot(centerPt.x - targetPt.x, centerPt.y - targetPt.y);
+      // Pixel-space threshold keeps behavior stable across zoom levels and basemaps.
+      setRefocusDisabled(pxDist < 8);
+    } catch {
+      setRefocusDisabled(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (!mapReady) {
+      setRefocusDisabled(true);
+      return;
+    }
+    updateRefocusDisabled();
+  }, [mapReady, selectedBeachId, updateRefocusDisabled]);
+
   const refreshZoomControl = React.useCallback(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -2046,7 +2085,8 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       window.cancelAnimationFrame(job.raf);
     }
     markerBuildJobRef.current = null;
-  }, []);
+    setMarkersLoading(false);
+  }, [setMarkersLoading]);
 
   const resetMarkerRegistry = React.useCallback(() => {
     cancelMarkerBuild();
@@ -2409,6 +2449,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     ) => void;
     primeVisibleMarkerStats: () => void;
     updateZoomButtons: () => void;
+    updateRefocusDisabled: () => void;
   };
 
   const mapLifecycleCallbacksRef = React.useRef<MapLifecycleCallbacks | null>(
@@ -2429,6 +2470,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       setHoveredMarkerSource,
       primeVisibleMarkerStats: schedulePrefetchVisibleMarkerStats,
       updateZoomButtons: updateZoomButtonState,
+      updateRefocusDisabled,
     };
   }, [
     refreshZoomControl,
@@ -2443,6 +2485,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     setHoveredMarkerSource,
     schedulePrefetchVisibleMarkerStats,
     updateZoomButtonState,
+    updateRefocusDisabled,
   ]);
 
   React.useEffect(() => {
@@ -2456,19 +2499,20 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     if (!lifecycle) {
       return;
     }
-    const {
-      refreshZoomControl: latestRefreshZoomControl,
-      emitCameraUpdate: latestEmitCameraUpdate,
-      scheduleMapViewPersistence: latestScheduleMapViewPersistence,
-      clearHoverState: latestClearHoverState,
-      scheduleCommitResume: latestScheduleCommitResume,
-      scheduleResizeRecompute: latestScheduleResizeRecompute,
-      normalizeMapCenter: latestNormalizeMapCenter,
-      setAllowViewportCommit: latestSetAllowViewportCommit,
-      cancelCommitResume: latestCancelCommitResume,
-      updateZoomButtons: latestUpdateZoomButtons = () => {},
-      primeVisibleMarkerStats: latestPrimeVisibleMarkerStats = () => {},
-    } = lifecycle;
+      const {
+        refreshZoomControl: latestRefreshZoomControl,
+        emitCameraUpdate: latestEmitCameraUpdate,
+        scheduleMapViewPersistence: latestScheduleMapViewPersistence,
+        clearHoverState: latestClearHoverState,
+        scheduleCommitResume: latestScheduleCommitResume,
+        scheduleResizeRecompute: latestScheduleResizeRecompute,
+        normalizeMapCenter: latestNormalizeMapCenter,
+        setAllowViewportCommit: latestSetAllowViewportCommit,
+        cancelCommitResume: latestCancelCommitResume,
+        updateZoomButtons: latestUpdateZoomButtons = () => {},
+        updateRefocusDisabled: latestUpdateRefocusDisabled = () => {},
+        primeVisibleMarkerStats: latestPrimeVisibleMarkerStats = () => {},
+      } = lifecycle;
     if (typeof window !== "undefined" && L?.Browser?.any3d) {
       (L.Browser as any).any3d = false;
     }
@@ -2522,6 +2566,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     latestEmitCameraUpdate();
     latestPrimeVisibleMarkerStats();
     latestUpdateZoomButtons();
+    latestUpdateRefocusDisabled();
 
     const handleMoveStart = () => {
       if (suppressUserMoveRef.current) {
@@ -2539,10 +2584,10 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       latestScheduleResizeRecompute();
     };
 
-    const handleInteractionEnd = () => {
-      latestClearHoverState();
-      try {
-        const center = map.getCenter();
+      const handleInteractionEnd = () => {
+        latestClearHoverState();
+        try {
+          const center = map.getCenter();
         const zoom = map.getZoom();
         latestScheduleMapViewPersistence({
           longitude: center.lng,
@@ -2557,6 +2602,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       latestScheduleCommitResume();
       latestPrimeVisibleMarkerStats();
       latestUpdateZoomButtons();
+      latestUpdateRefocusDisabled();
     };
 
     const handleZoomStart = () => {
@@ -2730,6 +2776,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       buildToken: number
     ) => {
       cancelMarkerBuild();
+      setMarkersLoading(true);
 
       const registry = markerRegistryRef.current;
       const incomingIds = new Set(
@@ -2827,6 +2874,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
         if (!active || active.token !== buildToken) return;
         if (markerBuildTokenRef.current !== buildToken) {
           markerBuildJobRef.current = null;
+          setMarkersLoading(false);
           return;
         }
 
@@ -2992,6 +3040,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       refreshMarkerIcon,
       router,
       selectedBeachId,
+      setMarkersLoading,
       setHoveredMarkerSource,
       setSelectedBeachId,
       surfIntensity,
@@ -3303,7 +3352,13 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
               <button
                 type="button"
                 aria-label="Refocus map on selected beach"
-                className={cn(overlayButtonBase, "text-sm font-medium")}
+                disabled={!selectedBeachId || refocusDisabled}
+                className={cn(
+                  overlayButtonBase,
+                  "text-sm font-medium",
+                  (!selectedBeachId || refocusDisabled) &&
+                    "opacity-50 pointer-events-none"
+                )}
                 onClick={() => {
                   if (!selectedBeachId) return;
                   const handled = tryFocusDetail({

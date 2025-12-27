@@ -27,6 +27,18 @@ const TimeRail: React.FC<Props> = ({
 }) => {
   const { selected, setSelected, hour, setHour } = useDateContext();
   const [hourChanged, setHourChanged] = useState(false);
+  const hourChangedTimeoutRef = useRef<number | null>(null);
+
+  const triggerHourChanged = () => {
+    setHourChanged(true);
+    if (hourChangedTimeoutRef.current != null) {
+      window.clearTimeout(hourChangedTimeoutRef.current);
+    }
+    hourChangedTimeoutRef.current = window.setTimeout(() => {
+      hourChangedTimeoutRef.current = null;
+      setHourChanged(false);
+    }, 600);
+  };
 
   // Handler that updates UI immediately with rAF throttling for smoothness
   const hourRafRef = useRef<number | null>(null);
@@ -38,7 +50,7 @@ const TimeRail: React.FC<Props> = ({
         hourRafRef.current = null;
         // Immediate UI update (frame-throttled)
         setHour(nextHourRef.current);
-        setHourChanged(true);
+        triggerHourChanged();
       });
     }
   };
@@ -56,16 +68,12 @@ const TimeRail: React.FC<Props> = ({
         cancelAnimationFrame(hourRafRef.current);
         hourRafRef.current = null;
       }
+      if (hourChangedTimeoutRef.current != null) {
+        window.clearTimeout(hourChangedTimeoutRef.current);
+        hourChangedTimeoutRef.current = null;
+      }
     };
   }, []);
-
-  // Reset animation after it completes
-  useEffect(() => {
-    if (hourChanged) {
-      const timeout = setTimeout(() => setHourChanged(false), 600);
-      return () => clearTimeout(timeout);
-    }
-  }, [hourChanged]);
 
   const onNow = () => {
     const now = new Date();
