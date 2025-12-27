@@ -19,7 +19,7 @@ const Tag = ({
       className={cn(
         "shrink-0 inline-flex flex-none items-center gap-2 rounded-full px-2.5 py-1.5 text-xs font-medium",
         "bg-background/60 text-foreground/90 shadow-even backdrop-blur-sm",
-        "dark:bg-foreground/5 dark:text-foreground/90",
+        "dark:bg-foreground/5 dark:text-foreground/90 border border-border/40",
         className
       )}
     >

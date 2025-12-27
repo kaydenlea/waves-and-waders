@@ -10,8 +10,8 @@ import { cn } from "@/lib/utils";
 // Standardized on Radix DropdownMenu (positioning + keyboard semantics), with `modal={false}` by default to avoid blocking map gestures.
 const APP_MENU_CONTENT_CLASS = cn(
   "z-[90] min-w-[14rem] max-w-[min(22rem,calc(100vw-1.25rem))] overflow-hidden",
-  "rounded-[16px] border border-border/25",
-  "bg-background dark:bg-highlight-5",
+  "rounded-[16px] border border-border/50",
+  "bg-background dark:bg-highlight-4",
   "shadow-[0_18px_55px_rgba(2,6,23,0.14),0_10px_28px_rgba(2,6,23,0.10),0_1px_0_rgba(255,255,255,0.06)]",
   "p-1",
   "origin-(--radix-dropdown-menu-content-transform-origin)",

@@ -1473,7 +1473,7 @@ const PressureStat = ({
             className={cn(
               "hidden @min-sm:block text-[0.72rem] font-medium text-muted-foreground",
               isFull && "@min-6xl:hidden",
-              !showMap && "@min-4xl:hidden @min-6xl:block",
+              !showMap && !isFull && "@min-4xl:hidden @min-6xl:block",
               showMap && !isFull && "@min-4xl:hidden @min-6xl:inline"
             )}
           >
@@ -2777,7 +2777,7 @@ const Highlights = ({
               <li
                 key={`${stat.label}-${idx}`}
                 className={cn(
-                  "relative highlight-card shadow-even p-2.5 min-h-[74px] @min-3xl:min-h-[70px] @min-4xl:min-h-[95px]",
+                  "relative highlight-card shadow-even p-2.5 min-h-[74px] @min-3xl:min-h-[95px]",
                   "transition-colors duration-200 motion-reduce:transition-none",
                   "hover:bg-highlight-7/70 active:bg-highlight-7/80",
                   stat.label === "swell" &&
