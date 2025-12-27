@@ -34,6 +34,7 @@ import { useMapFilters } from "../context/MapFilterContext";
 import { useClientPath } from "../context/PathContext";
 import { getForecastCached } from "@/lib/dataCache";
 import { getPacificDayRange } from "@/lib/utils";
+import { acquireInteractionLock } from "@/lib/uiInteractionLock";
 
 type DatePickerProps = {
   beachId: string;
@@ -152,6 +153,10 @@ DatePickerProps) => {
 
   // Debounce timer for date selection
   const dateSelectionTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const interactionLockReleaseRef = useRef<(() => void) | null>(null);
+  const carouselPointerDownRef = useRef(false);
+  const carouselSawScrollRef = useRef(false);
+  const carouselScrollingRef = useRef(false);
 
   const { setSelectedDays, setSurfRange } = useDateContext();
   const { setSurfIntensityForDate } = useMapFilters();
@@ -184,20 +189,98 @@ DatePickerProps) => {
     [beachId]
   );
 
+  const ensureCarouselInteractionLock = useCallback(() => {
+    if (!interactionLockReleaseRef.current) {
+      interactionLockReleaseRef.current = acquireInteractionLock();
+    }
+  }, []);
+
+  const releaseCarouselInteractionLock = useCallback(() => {
+    interactionLockReleaseRef.current?.();
+    interactionLockReleaseRef.current = null;
+  }, []);
+
+  const releaseCarouselInteractionLockIfIdle = useCallback(() => {
+    if (carouselPointerDownRef.current) return;
+    if (carouselScrollingRef.current) return;
+    releaseCarouselInteractionLock();
+  }, [releaseCarouselInteractionLock]);
+
+  const beginCarouselMotionLock = useCallback(() => {
+    carouselSawScrollRef.current = true;
+    carouselScrollingRef.current = true;
+    ensureCarouselInteractionLock();
+  }, [ensureCarouselInteractionLock]);
+
   const handleNext = () => {
     if (!api) return;
     const nextIndex = Math.min(
       api.selectedScrollSnap() + scrollBy,
       api.scrollSnapList().length - 1
     );
+    beginCarouselMotionLock();
     api.scrollTo(nextIndex);
   };
 
   const handlePrev = () => {
     if (!api) return;
     const prevIndex = Math.max(api.selectedScrollSnap() - scrollBy, 0);
+    beginCarouselMotionLock();
     api.scrollTo(prevIndex);
   };
+
+  useEffect(() => {
+    return () => {
+      releaseCarouselInteractionLock();
+    };
+  }, [releaseCarouselInteractionLock]);
+
+  useEffect(() => {
+    if (!api) return;
+
+    const handlePointerDown = () => {
+      carouselPointerDownRef.current = true;
+      carouselSawScrollRef.current = false;
+      ensureCarouselInteractionLock();
+    };
+
+    const handlePointerUp = () => {
+      carouselPointerDownRef.current = false;
+      if (!carouselSawScrollRef.current) {
+        carouselScrollingRef.current = false;
+        releaseCarouselInteractionLockIfIdle();
+      }
+    };
+
+    const handleScroll = () => {
+      carouselSawScrollRef.current = true;
+      carouselScrollingRef.current = true;
+      ensureCarouselInteractionLock();
+    };
+
+    const handleSettle = () => {
+      carouselScrollingRef.current = false;
+      releaseCarouselInteractionLockIfIdle();
+    };
+
+    api.on("pointerDown", handlePointerDown);
+    api.on("pointerUp", handlePointerUp);
+    api.on("scroll", handleScroll);
+    api.on("settle", handleSettle);
+    api.on("reInit", handleSettle);
+
+    return () => {
+      api.off("pointerDown", handlePointerDown);
+      api.off("pointerUp", handlePointerUp);
+      api.off("scroll", handleScroll);
+      api.off("settle", handleSettle);
+      api.off("reInit", handleSettle);
+    };
+  }, [
+    api,
+    ensureCarouselInteractionLock,
+    releaseCarouselInteractionLockIfIdle,
+  ]);
 
   useEffect(() => {
     let active = true;

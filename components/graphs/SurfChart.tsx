@@ -468,7 +468,7 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         accessibilityLayer
         data={chartData}
         barCategoryGap="15%"
-        maxBarSize={40}
+        maxBarSize={55}
         syncId="allCharts"
         syncMethod={syncToNearestThirdHour}
         onMouseMove={handleMouseMove}

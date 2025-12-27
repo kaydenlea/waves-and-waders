@@ -269,3 +269,12 @@
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
 }
+
+/* ---------------------------------------------------------------------------
+   Interaction lock
+   While dragging the map / rails, disable chart hover tooltips to prevent
+   simultaneous interactions and stutter.
+--------------------------------------------------------------------------- */
+body[data-ww-interaction-lock="1"] [data-slot="chart"] {
+  pointer-events: none;
+}

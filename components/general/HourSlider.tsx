@@ -1,7 +1,8 @@
 "use client";
-import { useMemo, useState, useRef } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
+import { acquireInteractionLock } from "@/lib/uiInteractionLock";
 
 type Props = {
   value?: number | null;
@@ -30,6 +31,7 @@ const HourSlider = ({
   });
 
   const [isSliding, setIsSliding] = useState(false);
+  const interactionLockReleaseRef = useRef<(() => void) | null>(null);
   const hour = controlled ?? internal;
   const displayValue = hour % 12 === 0 ? 12 : hour % 12;
   const ampm = hour >= 12 && hour < 24 ? "PM" : "AM";
@@ -76,6 +78,13 @@ const HourSlider = ({
     onChange?.(v);
   };
 
+  useEffect(() => {
+    return () => {
+      interactionLockReleaseRef.current?.();
+      interactionLockReleaseRef.current = null;
+    };
+  }, []);
+
   return (
     <div
       className={cn(
@@ -95,8 +104,22 @@ const HourSlider = ({
           const v = Math.max(min, Math.min(max, Math.round(vals[0] ?? hour)));
           onCommit?.(v);
         }}
-        onPointerDown={() => setIsSliding(true)}
-        onPointerUp={() => setIsSliding(false)}
+        onPointerDown={() => {
+          setIsSliding(true);
+          if (!interactionLockReleaseRef.current) {
+            interactionLockReleaseRef.current = acquireInteractionLock();
+          }
+        }}
+        onPointerUp={() => {
+          setIsSliding(false);
+          interactionLockReleaseRef.current?.();
+          interactionLockReleaseRef.current = null;
+        }}
+        onPointerCancel={() => {
+          setIsSliding(false);
+          interactionLockReleaseRef.current?.();
+          interactionLockReleaseRef.current = null;
+        }}
         className="z-1"
         trackClassName="h-2 border border-border/50"
         rangeClassName={cn(

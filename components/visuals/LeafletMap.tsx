@@ -10,6 +10,7 @@ import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 import { createPortal } from "react-dom";
 
 import { cn } from "@/lib/utils";
+import { acquireInteractionLock } from "@/lib/uiInteractionLock";
 import {
   FEATURE_CATEGORIES,
   getFeatureDisplayName,
@@ -1389,6 +1390,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
   const resizeTimeoutRef = React.useRef<number | null>(null);
   const resizeRafRef = React.useRef<number | null>(null);
   const containerResizeObserverRef = React.useRef<ResizeObserver | null>(null);
+  const interactionLockReleaseRef = React.useRef<(() => void) | null>(null);
   const interactionsReadyRef = React.useRef(false);
   const pendingAutoCenterRef = React.useRef<string | null>(null);
   const pendingFocusRef = React.useRef<MapFocusEventDetail | null>(null);
@@ -2088,6 +2090,22 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     setMarkersLoading(false);
   }, [setMarkersLoading]);
 
+  const enableInteractionLock = React.useCallback(() => {
+    if (interactionLockReleaseRef.current) return;
+    interactionLockReleaseRef.current = acquireInteractionLock();
+  }, []);
+
+  const disableInteractionLock = React.useCallback(() => {
+    interactionLockReleaseRef.current?.();
+    interactionLockReleaseRef.current = null;
+  }, []);
+
+  React.useEffect(() => {
+    return () => {
+      disableInteractionLock();
+    };
+  }, [disableInteractionLock]);
+
   const resetMarkerRegistry = React.useCallback(() => {
     cancelMarkerBuild();
     const registry = markerRegistryRef.current;
@@ -2167,6 +2185,12 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     }, 4000);
     return () => window.clearTimeout(timer);
   }, [navigationPending]);
+
+  React.useEffect(() => {
+    if (!navigationPending) return;
+    cancelMarkerBuild();
+    disableInteractionLock();
+  }, [navigationPending, cancelMarkerBuild, disableInteractionLock]);
 
   React.useEffect(() => {
     if (navigationPending) return;
@@ -2573,6 +2597,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
         suppressUserMoveRef.current = false;
         return;
       }
+      enableInteractionLock();
       pendingAutoCenterRef.current = null;
       pendingFocusRef.current = null;
       latestCancelCommitResume();
@@ -2586,6 +2611,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
 
       const handleInteractionEnd = () => {
         latestClearHoverState();
+        disableInteractionLock();
         try {
           const center = map.getCenter();
         const zoom = map.getZoom();
@@ -2606,6 +2632,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     };
 
     const handleZoomStart = () => {
+      enableInteractionLock();
       latestClearHoverState();
       cancelPrefetchVisibleMarkerStats();
     };
@@ -2622,6 +2649,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       map.off("zoomstart", handleZoomStart);
       map.off("moveend", handleInteractionEnd);
       map.off("zoomend", handleInteractionEnd);
+      disableInteractionLock();
       latestCancelCommitResume();
       cancelPrefetchVisibleMarkerStats();
       resetMarkerRegistry();

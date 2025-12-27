@@ -54,45 +54,31 @@ export function useViewportBeaches({
   const [status, setStatus] = React.useState<Status>("idle");
   const [error, setError] = React.useState<Error | null>(null);
   const latestRequestIdRef = React.useRef(requestId);
-  const lastSignatureRef = React.useRef<string | null>(null);
+  const boundsKey = bounds
+    ? `${bounds.south}:${bounds.north}:${bounds.west}:${bounds.east}:${
+        bounds.crossesAntimeridian ? 1 : 0
+      }`
+    : null;
+  const filtersKey = JSON.stringify(Array.from(filters ?? []).sort());
+  const favoritesKey = JSON.stringify(Array.from(favoriteIds ?? []).sort());
+  const statsDateKey =
+    statsDate instanceof Date && !Number.isNaN(statsDate.getTime())
+      ? statsDate.toISOString()
+      : null;
 
   React.useEffect(() => {
     latestRequestIdRef.current = requestId;
   }, [requestId]);
 
   React.useEffect(() => {
-    if (!bounds) {
-      lastSignatureRef.current = null;
+    if (!boundsKey) {
+      setStatus("idle");
+      setError((prev) => (prev === null ? prev : null));
       return;
     }
-
-    const serializeBounds = (value: VisibleMapBounds) =>
-      `${value.south}:${value.north}:${value.west}:${value.east}:${
-        value.crossesAntimeridian ? 1 : 0
-      }`;
-    const filtersKey = JSON.stringify(Array.from(filters ?? []));
-    const favoritesKey = JSON.stringify(Array.from(favoriteIds ?? []));
-    const signature = JSON.stringify({
-      bounds: serializeBounds(bounds),
-      filters: filtersKey,
-      favorites: favoritesKey,
-      selectedTab,
-      requestId,
-      includeStats,
-      statsLimit,
-      statsDate:
-        statsDate instanceof Date && !Number.isNaN(statsDate.getTime())
-          ? statsDate.toISOString()
-          : null,
-      statsHour,
-    });
-
-    if (lastSignatureRef.current === signature) {
-      return;
-    }
-    lastSignatureRef.current = signature;
 
     let isActive = true;
+    let didFinish = false;
     const controller = new AbortController();
     const filterList = Array.from(filters ?? []);
     const favoriteList = Array.from(favoriteIds ?? []);
@@ -117,6 +103,7 @@ export function useViewportBeaches({
         controller.signal
       )
         .then((response) => {
+          didFinish = true;
           if (controller.signal.aborted || !isActive) {
             return;
           }
@@ -136,6 +123,7 @@ export function useViewportBeaches({
           setStatus("success");
         })
         .catch((err) => {
+          didFinish = true;
           if (controller.signal.aborted || !isActive) {
             return;
           }
@@ -151,17 +139,20 @@ export function useViewportBeaches({
       isActive = false;
       window.clearTimeout(timeoutId);
       controller.abort();
+      if (!didFinish) {
+        setStatus("idle");
+      }
     };
   }, [
-    bounds,
-    filters,
-    favoriteIds,
+    boundsKey,
+    filtersKey,
+    favoritesKey,
     selectedTab,
     debounceMs,
     requestId,
     includeStats,
     statsLimit,
-    statsDate,
+    statsDateKey,
     statsHour,
   ]);
 
