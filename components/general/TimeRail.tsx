@@ -181,6 +181,8 @@ const TimeRail: React.FC<Props> = ({
           </div>
 
           <LazyLoadHourSlider
+            beachId={beachId}
+            date={selected}
             value={hour}
             onChange={handleHourChange}
             onCommit={handleHourCommit}

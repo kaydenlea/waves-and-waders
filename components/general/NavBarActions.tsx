@@ -132,6 +132,8 @@ const NavBarActions = () => {
         ) : (
           <LazyLoadHourSlider
             className="w-full"
+            beachId={effectiveBeachId}
+            date={selected}
             value={hour}
             onChange={setHour}
             min={0}

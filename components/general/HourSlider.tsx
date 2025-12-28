@@ -3,8 +3,21 @@ import { useMemo, useState, useRef, useEffect } from "react";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 import { acquireInteractionLock } from "@/lib/uiInteractionLock";
+import { useForecastWindowData } from "@/lib/hooks/useForecastWindow";
+import {
+  getCachedHourSliderTrackGradient,
+  setCachedHourSliderTrackGradient,
+} from "@/lib/ui/hourSliderTrackCache";
+import {
+  buildSurfIntensityTrackGradientFromSegments,
+  getSurfIntensityBand,
+  type SurfIntensitySegment,
+  summarizeForecastSurfMaxFtInHourRange,
+} from "@/lib/forecast/surfIntensity";
 
 type Props = {
+  beachId?: string;
+  date?: Date | null;
   value?: number | null;
   onChange?: (value: number) => void;
   onCommit?: (value: number) => void;
@@ -15,6 +28,8 @@ type Props = {
 };
 
 const HourSlider = ({
+  beachId,
+  date,
   value: controlled,
   onChange,
   onCommit,
@@ -37,26 +52,120 @@ const HourSlider = ({
   const ampm = hour >= 12 && hour < 24 ? "PM" : "AM";
   const sliderValue = useMemo(() => [hour], [hour]);
 
-  // Subtle, desaturated day-night gradient aligned to hour ranges
-  const trackGradient = useMemo(() => {
-    const range = Math.max(1, max - min);
-    const pct = (h: number) =>
-      Math.max(0, Math.min(100, ((h - min) / range) * 100));
-    const dawn = pct(6); // ~06:00
-    const dusk = pct(18); // ~18:00
-    const night = "#ebd9ffff"; // slate-800
-    const twilight = "#edddffff"; // slate-400
-    const day = "#ffefd0ff"; // slate-200
-    return `linear-gradient(90deg,
-      ${night} 0%,
-      ${night} ${Math.max(0, dawn - 3)}%,
-      ${twilight} ${dawn}%,
-      ${day} ${Math.min(100, dawn + 3)}%,
-      ${day} ${Math.max(dusk - 3, dawn + 3)}%,
-      ${twilight} ${dusk}%,
-      ${night} ${Math.min(100, dusk + 3)}%,
-      ${night} 100%)`;
-  }, [min, max]);
+  const {
+    rows: forecastRows,
+    start: windowStart,
+    end: windowEnd,
+    loading: forecastLoading,
+  } = useForecastWindowData({
+    beachId: beachId ? String(beachId) : undefined,
+    date: date ?? undefined,
+    hours: 24,
+  });
+
+  const stepSegments = useMemo(() => {
+    const out: number[] = [];
+    const safeStep = step > 0 ? step : 3;
+    for (let h = min; h < max; h += safeStep) {
+      out.push(h);
+    }
+    return out;
+  }, [max, min, step]);
+
+  const lastGradientRef = useRef<string | null>(getCachedHourSliderTrackGradient());
+  const pendingWindowStartMsRef = useRef<number | null>(null);
+  const pendingSinceMsRef = useRef<number | null>(null);
+
+  const computedTrackGradient = useMemo(() => {
+    const safeRows = Array.isArray(forecastRows) ? forecastRows : [];
+    const startMs = windowStart.getTime();
+    const endMs = windowEnd.getTime();
+
+    const hasRowInWindow =
+      safeRows.length > 0 &&
+      safeRows.some((row) => {
+        const ts = new Date(row.timestamp).getTime();
+        return Number.isFinite(ts) && ts >= startMs && ts <= endMs;
+      });
+
+    const isWindowPending = !hasRowInWindow && (forecastLoading || safeRows.length > 0);
+
+    if (pendingWindowStartMsRef.current !== startMs) {
+      pendingWindowStartMsRef.current = startMs;
+      pendingSinceMsRef.current = Date.now();
+    }
+
+    // Prevent flashing to "unknown" while switching windows (first uncached fetch).
+    if (!hasRowInWindow && lastGradientRef.current) {
+      const pendingForMs =
+        pendingSinceMsRef.current != null
+          ? Date.now() - pendingSinceMsRef.current
+          : 0;
+      if (isWindowPending || pendingForMs < 1200) {
+        return lastGradientRef.current;
+      }
+    }
+
+    if (safeRows.length === 0 && forecastLoading) {
+      return (
+        lastGradientRef.current ??
+        `linear-gradient(90deg, var(--ww-surf-intensity-unknown) 0%, var(--ww-surf-intensity-unknown) 100%)`
+      );
+    }
+
+    const safeStep = step > 0 ? step : 3;
+    const segments: SurfIntensitySegment[] = stepSegments.map((startHour) => {
+      const endHour = Math.min(max, startHour + safeStep);
+      const includeEnd = endHour >= max;
+
+      const intensityFt = summarizeForecastSurfMaxFtInHourRange(
+        safeRows,
+        windowStart,
+        startHour,
+        endHour,
+        { includeEnd }
+      );
+
+      return {
+        startHour,
+        endHour,
+        band: getSurfIntensityBand(intensityFt),
+      };
+    });
+
+    return buildSurfIntensityTrackGradientFromSegments({
+      segments,
+      min,
+      max,
+      blendHours: Math.max(0.2, Math.min(0.5, safeStep * 0.1)),
+    });
+  }, [
+    forecastLoading,
+    forecastRows,
+    max,
+    min,
+    step,
+    stepSegments,
+    windowEnd,
+    windowStart,
+  ]);
+
+  useEffect(() => {
+    const safeRows = Array.isArray(forecastRows) ? forecastRows : [];
+    const startMs = windowStart.getTime();
+    const endMs = windowEnd.getTime();
+    const hasRowInWindow =
+      safeRows.length > 0 &&
+      safeRows.some((row) => {
+        const ts = new Date(row.timestamp).getTime();
+        return Number.isFinite(ts) && ts >= startMs && ts <= endMs;
+      });
+
+    if (hasRowInWindow) {
+      lastGradientRef.current = computedTrackGradient;
+      setCachedHourSliderTrackGradient(computedTrackGradient);
+    }
+  }, [computedTrackGradient, forecastRows, windowEnd, windowStart]);
 
   // Range tint: lighter during the day, darker at night (neutral slate)
   const rangeTint = useMemo(() => {
@@ -126,8 +235,11 @@ const HourSlider = ({
           "transition-colors",
           isSliding ? "duration-0" : "duration-300"
         )}
-        thumbClassName="size-5 bg-white dark:bg-slate-900 border-2 border-slate-800 dark:border-white shadow-md"
-        trackStyle={{ background: trackGradient }}
+        thumbClassName="relative z-10 size-5 bg-white dark:bg-slate-900 border-2 border-slate-800 dark:border-white shadow-md"
+        trackStyle={{
+          backgroundImage: computedTrackGradient,
+          backgroundColor: "var(--ww-surf-intensity-unknown)",
+        }}
         // rangeStyle={{ background: rangeTint }}
         thumbStyle={{ boxShadow: thumbShadow }}
         // displayContent={

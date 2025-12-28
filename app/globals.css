@@ -169,6 +169,12 @@
   --energy-stroke-inc: oklch(51.524% 0.13522 142.111 / 0.199);
   --energy-stroke-dec: oklch(55.855% 0.18038 25.848 / 0.178);
 
+  /* Surf intensity (low → mid → high) used by DatePicker + HourSlider */
+  --ww-surf-intensity-unknown: oklch(93.5% 0.01 250);
+  --ww-surf-intensity-low: oklch(90% 0.085 145);
+  --ww-surf-intensity-mid: oklch(90% 0.095 80);
+  --ww-surf-intensity-high: oklch(89% 0.095 28);
+
   /* Map marker rings (direction overlay) */
   --ww-ring-swell-primary: #60a5fa;
   --ww-ring-swell-secondary: #7dd3fc;
@@ -242,6 +248,13 @@
   --energy-fill-dec: var(--red);
   --energy-stroke-inc: var(--green);
   --energy-stroke-dec: var(--red);
+
+  /* Surf intensity (low → mid → high) used by DatePicker + HourSlider */
+  --ww-surf-intensity-unknown: oklch(33% 0.02 250);
+  /* Dark mode: slightly richer to match the rest of the UI (DatePicker markers). */
+  --ww-surf-intensity-low: oklch(76.042% 0.17973 145.144 / 0.644);
+  --ww-surf-intensity-mid: oklch(75.221% 0.16891 64.849 / 0.774);
+  --ww-surf-intensity-high: oklch(71.474% 0.17885 28.673 / 0.705);
 
   /* Map marker rings (direction overlay) */
   --ww-ring-swell-primary: #60a5fa;

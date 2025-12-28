@@ -1,5 +1,6 @@
 import React from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData } from "@tanstack/react-query";
 import { fetchBeachByIdLoose, fetchBeachDetails } from "../supabase";
 import {
   getForecastCached,
@@ -22,6 +23,7 @@ export function useBeachForecast(
       return getForecastCached(beachId, startWindow, endWindow);
     },
     enabled: enabled && !!beachId,
+    placeholderData: keepPreviousData,
     staleTime: 5 * 60 * 1000,
   });
 }
