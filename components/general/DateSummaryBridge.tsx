@@ -1,32 +1,22 @@
 "use client";
 
 import React from "react";
-import {
-  useSessionContext,
-  useSupabaseClient,
-} from "@supabase/auth-helpers-react";
 import { cn } from "@/lib/utils";
 import Summary from "@/components/visuals/Summary";
 import Highlights from "@/components/visuals/Highlights";
-import { LazyLoadDatePicker } from "@/components/general/LazyLoad/LazyLoadDatePicker";
 import OverviewWidget from "@/components/general/overview/OverviewWidget";
 import { LazyLoadWind } from "@/components/general/LazyLoad/LazyLoadWind";
 import { LazyLoadTide } from "@/components/general/LazyLoad/LazyLoadTide";
 import { LazyLoadSwell } from "@/components/general/LazyLoad/LazyLoadSwell";
 import { LazyLoadSurf } from "@/components/general/LazyLoad/LazyLoadSurf";
-import { LazyLoadHourSlider } from "@/components/general/LazyLoad/LazyLoadHourSlider";
 import { LazyLoadTable } from "@/components/general/LazyLoad/LazyLoadTable";
 import { LazyLoadEnergy } from "@/components/general/LazyLoad/LazyLoadEnergy";
 import {
-  getDashboardStorageKey,
-  getDefaultLayout,
-  normalizeMeta,
-  normalizeRows,
   type Row,
   type WidgetId,
   type WidgetMeta,
 } from "./dashboardLayout";
-import { LazyLoadSummary } from "./LazyLoad/LazyLoadSummary";
+import { useDashboardLayout } from "./useDashboardLayout";
 import { useDateContext } from "../context/DateContext";
 import { useClientPath } from "../context/PathContext";
 import { ForecastChartProvider } from "../context/ForecastChartContext";
@@ -34,13 +24,8 @@ import { SunDataProvider, useSunData } from "../context/SunDataContext";
 import ForecastBridge from "./ForecastBridge";
 import PageTabs from "./PageTabs";
 import Link from "next/link";
-import {
-  Pencil,
-  TrendingUp,
-  TrendingDown,
-  ArrowUp,
-  ArrowDown,
-} from "lucide-react";
+import { Pencil, ArrowUp, ArrowDown } from "lucide-react";
+import { useDashboardEditMode } from "@/components/context/DashboardEditModeContext";
 import { getTidesCached } from "@/lib/dataCache";
 import { useCachedForecast } from "@/lib/hooks/useCachedForecast";
 import { getPacificDayRange, getPacificMidnightUTC } from "@/lib/utils";
@@ -121,7 +106,6 @@ const TideStatsHeader = ({
     const loadTideStats = async () => {
       try {
         const HOURS_TO_MS = 60 * 60 * 1000;
-        const hours = 24;
 
         const { start, end } = getPacificDayRange(
           date instanceof Date ? date : undefined
@@ -228,34 +212,52 @@ const DateSummaryBridge: React.FC<Props> = ({
   initialForecastMeta = null,
   initialForecastRows = null,
 }) => {
-  const { id, selected, setSelected, hour, setHour, selectedDays } =
-    useDateContext();
+  const { id, selected, setSelected, hour, selectedDays } = useDateContext();
   id.current = beachId;
   const { selectedTab } = useClientPath();
   const isOverview = selectedTab === "overview";
   const isForecastTab = selectedTab === "forecast";
+  const {
+    enterEdit,
+    isEditing,
+    pendingLayoutApply,
+    clearPendingLayoutApply,
+    cacheLayout,
+  } =
+    useDashboardEditMode();
   const [mounted, setMounted] = React.useState(false);
   const [currentTime, setCurrentTime] = React.useState<string>("");
-  const [layoutMeta, setLayoutMeta] = React.useState<
-    Partial<Record<WidgetId, WidgetMeta>>
-  >(() => initialOverviewMeta ?? {});
-  const [layoutRows, setLayoutRows] = React.useState<Row[]>(
-    () => initialOverviewRows ?? []
-  );
-  const [layoutHydrated, setLayoutHydrated] = React.useState(
-    () => !!(initialOverviewRows && initialOverviewRows.length)
-  );
+  const {
+    meta: layoutMeta,
+    rows: layoutRows,
+    hydrated: layoutHydrated,
+    setMeta: setLayoutMeta,
+    setRows: setLayoutRows,
+  } = useDashboardLayout({
+    type: "overview",
+    initialMeta: initialOverviewMeta,
+    initialRows: initialOverviewRows,
+  });
+  React.useLayoutEffect(() => {
+    if (!pendingLayoutApply) return;
+    if (pendingLayoutApply.type !== "overview") return;
+    if (isEditing) return;
+    setLayoutOverlayActive(true);
+    setLayoutMeta(pendingLayoutApply.meta);
+    setLayoutRows(pendingLayoutApply.rows);
+    clearPendingLayoutApply();
+  }, [
+    isEditing,
+    pendingLayoutApply,
+    setLayoutMeta,
+    setLayoutRows,
+    clearPendingLayoutApply,
+  ]);
+  React.useEffect(() => {
+    if (!layoutHydrated) return;
+    cacheLayout({ type: "overview", meta: layoutMeta, rows: layoutRows });
+  }, [cacheLayout, layoutHydrated, layoutMeta, layoutRows]);
   const [forecastWindow, setForecastWindow] = React.useState("Select range");
-  const storageMetaKey = React.useMemo(
-    () => getDashboardStorageKey("overview", "meta"),
-    []
-  );
-  const storageRowsKey = React.useMemo(
-    () => getDashboardStorageKey("overview", "rows"),
-    []
-  );
-  const supabase = useSupabaseClient();
-  const { session } = useSessionContext();
   const statsRange = React.useMemo(() => {
     return getPacificDayRange(selected instanceof Date ? selected : undefined);
   }, [selected]);
@@ -322,7 +324,7 @@ const DateSummaryBridge: React.FC<Props> = ({
       sunset: null,
       baseDate: null,
     });
-  const [forecastSunSegments, setForecastSunSegments] = React.useState<{
+  const [, setForecastSunSegments] = React.useState<{
     dayAreas: { x1: number; x2: number }[];
     nightAreas: { x1: number; x2?: number }[];
   } | null>(null);
@@ -455,6 +457,7 @@ const DateSummaryBridge: React.FC<Props> = ({
     sharedSunSegments.baseDate == null;
 
   const [tabOverlayActive, setTabOverlayActive] = React.useState(false);
+  const [layoutOverlayActive, setLayoutOverlayActive] = React.useState(false);
   const prevTabRef = React.useRef<string | null>(null);
   const prevLoadingRef = React.useRef<boolean>(false);
 
@@ -489,8 +492,14 @@ const DateSummaryBridge: React.FC<Props> = ({
     return () => window.clearTimeout(timeout);
   }, [isOverview, tabOverlayActive, overviewChartsLoading]);
 
+  React.useEffect(() => {
+    if (!layoutOverlayActive) return;
+    const timeout = window.setTimeout(() => setLayoutOverlayActive(false), 250);
+    return () => window.clearTimeout(timeout);
+  }, [layoutOverlayActive]);
+
   const overlayVisible = useStableOverlay(
-    overviewChartsLoading || tabOverlayActive,
+    overviewChartsLoading || tabOverlayActive || layoutOverlayActive,
     250
   );
 
@@ -572,8 +581,6 @@ const DateSummaryBridge: React.FC<Props> = ({
         energyStats: toRange(energyValues, 0),
       };
     }, [forecastRows]);
-
-  const [, startMapSyncTransition] = React.useTransition();
 
   // Set mounted and initialize time on client
   React.useEffect(() => {
@@ -662,83 +669,7 @@ const DateSummaryBridge: React.FC<Props> = ({
       );
       setSelected(dateOnly);
     }
-  }, []);
-
-  React.useEffect(() => {
-    let cancelled = false;
-    const fallback = getDefaultLayout("overview");
-
-    const applyLayout = (
-      nextMeta: Partial<Record<WidgetId, WidgetMeta>>,
-      nextRows: Row[]
-    ) => {
-      if (cancelled) return;
-      setLayoutMeta(nextMeta);
-      setLayoutRows(nextRows);
-      setLayoutHydrated(true);
-    };
-
-    const loadFromLocalStorage = () => {
-      if (typeof window === "undefined") {
-        applyLayout(fallback.meta, fallback.rows);
-        return;
-      }
-      try {
-        const savedMetaRaw = window.localStorage.getItem(storageMetaKey);
-        const nextMeta = savedMetaRaw
-          ? normalizeMeta("overview", JSON.parse(savedMetaRaw))
-          : fallback.meta;
-        const savedRowsRaw = window.localStorage.getItem(storageRowsKey);
-        const nextRows = savedRowsRaw
-          ? normalizeRows("overview", JSON.parse(savedRowsRaw), nextMeta)
-          : fallback.rows;
-        applyLayout(nextMeta, nextRows);
-      } catch (error) {
-        console.warn("Failed to load overview layout", error);
-        applyLayout(fallback.meta, fallback.rows);
-      }
-    };
-
-    const loadFromSupabase = async () => {
-      if (!session) {
-        loadFromLocalStorage();
-        return;
-      }
-      try {
-        const { data, error } = await supabase
-          .from("user_dashboard_settings")
-          .select("overview_meta, overview_rows")
-          .eq("user_id", session.user.id)
-          .maybeSingle();
-
-        if (error) {
-          console.warn("Failed to load overview layout from Supabase", error);
-          loadFromLocalStorage();
-          return;
-        }
-        if (!data) {
-          applyLayout(fallback.meta, fallback.rows);
-          return;
-        }
-        const nextMeta = normalizeMeta("overview", data.overview_meta);
-        const nextRows = normalizeRows(
-          "overview",
-          data.overview_rows,
-          nextMeta
-        );
-        applyLayout(nextMeta, nextRows);
-      } catch (error) {
-        console.warn("Unexpected error loading overview layout", error);
-        loadFromLocalStorage();
-      }
-    };
-
-    void loadFromSupabase();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [storageMetaKey, storageRowsKey, supabase, session]);
+  }, [selected, setSelected]);
 
   const visibleRows = React.useMemo(
     () =>
@@ -872,6 +803,8 @@ const DateSummaryBridge: React.FC<Props> = ({
       hour,
       label,
       timeDisplay,
+      forecastRows,
+      sharedSunSegments,
       windStats,
       surfStats,
       swellStats,
@@ -881,16 +814,15 @@ const DateSummaryBridge: React.FC<Props> = ({
   );
 
   const sectionId = isOverview ? "overview-content" : "forecast-content";
-  const showOverviewCopy = isOverview;
   const headerTitle = isOverview ? "Daily Overview" : "Weekly Forecast";
   const headerSubtitle = isOverview ? "Today's surf insights" : forecastWindow;
-  const mobileEditTarget =
+  const loggedOutEditTarget =
     selectedTab === "forecast"
       ? `/${beachId}/forecast/edit#forecast-content`
       : `/${beachId}/overview/edit#overview-content`;
-  const mobileEditHref = loggedIn
-    ? mobileEditTarget
-    : `/login?next=${encodeURIComponent(mobileEditTarget)}`;
+  const loggedOutEditHref = `/login?next=${encodeURIComponent(
+    loggedOutEditTarget
+  )}`;
 
   return (
     <ForecastDataProvider
@@ -942,23 +874,46 @@ const DateSummaryBridge: React.FC<Props> = ({
                   </p>
                 </div>
                 {/* Mobile edit button (hidden on wide screens). Signed-out users go to login with return URL. */}
-                <Link
-                  href={mobileEditHref}
-                  className={cn(
-                    "@min-xl:hidden inline-flex items-center rounded-full px-4 py-2.5 gap-1.5 shrink-0",
-                    "border border-border/25 bg-highlight-7/50 hover:bg-highlight-6/60 shadow-even",
-                    "transition-colors duration-200 motion-reduce:transition-none",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0"
-                  )}
-                  aria-label={`Edit ${
-                    selectedTab === "forecast" ? "forecast" : "overview"
-                  } dashboard`}
-                >
-                  <Pencil className="stroke-[2.5px] w-4.5 h-4.5 @min-sm:mb-0.5" />
-                  <span className="font-medium hidden @min-sm:inline-block text-[15px]">
-                    Edit
-                  </span>
-                </Link>
+                {loggedIn ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      enterEdit(selectedTab === "forecast" ? "forecast" : "overview")
+                    }
+                    className={cn(
+                      "@min-xl:hidden inline-flex items-center rounded-full px-4 py-2.5 gap-1.5 shrink-0",
+                      "border border-border/25 bg-highlight-7/50 hover:bg-highlight-6/60 shadow-even",
+                      "transition-colors duration-200 motion-reduce:transition-none",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0"
+                    )}
+                    aria-label={`Edit ${
+                      selectedTab === "forecast" ? "forecast" : "overview"
+                    } dashboard`}
+                  >
+                    <Pencil className="stroke-[2.5px] w-4.5 h-4.5 @min-sm:mb-0.5" />
+                    <span className="font-medium hidden @min-sm:inline-block text-[15px]">
+                      Edit
+                    </span>
+                  </button>
+                ) : (
+                  <Link
+                    href={loggedOutEditHref}
+                    className={cn(
+                      "@min-xl:hidden inline-flex items-center rounded-full px-4 py-2.5 gap-1.5 shrink-0",
+                      "border border-border/25 bg-highlight-7/50 hover:bg-highlight-6/60 shadow-even",
+                      "transition-colors duration-200 motion-reduce:transition-none",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0"
+                    )}
+                    aria-label={`Edit ${
+                      selectedTab === "forecast" ? "forecast" : "overview"
+                    } dashboard`}
+                  >
+                    <Pencil className="stroke-[2.5px] w-4.5 h-4.5 @min-sm:mb-0.5" />
+                    <span className="font-medium hidden @min-sm:inline-block text-[15px]">
+                      Edit
+                    </span>
+                  </Link>
+                )}
               </div>
               <div className="shrink-0 @min-xl:ml-auto w-full @min-xl:w-auto">
                 <PageTabs

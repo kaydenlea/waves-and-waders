@@ -1834,8 +1834,11 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
 
   React.useEffect(() => {
     const handleResize = () => {
-      const container = document.querySelector("#main-content");
-      const width = container ? container.clientWidth : window.innerWidth;
+      const container = document.querySelector("#main-content") as
+        | HTMLElement
+        | null;
+      const measured = container?.clientWidth ?? 0;
+      const width = measured > 0 ? measured : window.innerWidth;
       setSmallScreen(width < 896);
     };
     handleResize();

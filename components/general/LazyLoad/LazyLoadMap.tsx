@@ -10,7 +10,8 @@ const Loading = () => {
   const readIsSmallScreen = React.useCallback(() => {
     if (typeof window === "undefined") return false;
     const container = document.querySelector("#main-content") as HTMLElement | null;
-    const width = container ? container.clientWidth : window.innerWidth;
+    const measured = container?.clientWidth ?? 0;
+    const width = measured > 0 ? measured : window.innerWidth;
     return width < 896;
   }, []);
 

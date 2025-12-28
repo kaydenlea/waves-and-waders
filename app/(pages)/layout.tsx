@@ -4,6 +4,7 @@ import { ViewportBeachesProvider } from "@/components/context/ViewportBeachesCon
 import { DateProvider } from "@/components/context/DateContext";
 import { SearchProvider } from "@/components/context/SearchContext";
 import { PathProvider } from "@/components/context/PathContext";
+import { DashboardEditModeProvider } from "@/components/context/DashboardEditModeContext";
 import { BeachStatsCacheProvider } from "@/components/context/BeachStatsCacheContext";
 import ViewportBeachesManager from "@/components/context/ViewportBeachesManager";
 
@@ -16,10 +17,12 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
             <SearchProvider>
               <BeachStatsCacheProvider>
                 <PathProvider>
-                  <ViewportBeachesManager />
-                  <div className="min-h-screen @min-4xl:flex @min-4xl:flex-col">
-                    {children}
-                  </div>
+                  <DashboardEditModeProvider>
+                    <ViewportBeachesManager />
+                    <div className="min-h-screen @min-4xl:flex @min-4xl:flex-col">
+                      {children}
+                    </div>
+                  </DashboardEditModeProvider>
                 </PathProvider>
               </BeachStatsCacheProvider>
             </SearchProvider>

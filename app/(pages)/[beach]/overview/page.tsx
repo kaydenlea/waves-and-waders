@@ -1,16 +1,8 @@
-import DateSummaryBridge from "@/components/general/DateSummaryBridge";
-import { SunDataProvider } from "@/components/context/SunDataContext";
-import SaveButton from "@/components/general/SaveButton";
-import BackButton from "@/components/general/BackButton";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { fetchBeachByIdLoose, extractBeachId } from "@/lib/supabase";
 import { getServerSupabase } from "@/lib/supabaseServer";
-import BottomNav from "@/components/general/BottomNav";
-import NavBar from "@/components/general/NavBar";
-import { LazyLoadMap } from "@/components/general/LazyLoad/LazyLoadMap";
-import PathStyleWrapper from "@/components/general/PathStyleWrapper";
-import Footer from "@/components/general/Footer";
+import OverviewPageClient from "./OverviewPageClient";
 import {
   getDefaultLayout,
   normalizeMeta,
@@ -158,54 +150,18 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
   }
 
   return (
-    <>
-      <NavBar />
-      <main
-        id="main-content"
-        className="bg-background-2 min-h-[calc(100vh-4rem)] @min-4xl:flex @min-4xl:flex-1 @min-4xl:mt-[5.5rem] @min-4xl:pb-4"
-      >
-        <LazyLoadMap
-          beachId={beachId}
-          initialBeach={initialBeach ?? undefined}
-        />
-        <PathStyleWrapper>
-          <div className="@container pb-6 @min-4xl:pb-3 pt-2 @min-4xl:pt-8 px-1 @min-md:px-3">
-            <header
-              id="content"
-              className="relative w-full flex flex-col gap-5 px-2 pt-3 @min-md:pt-4 pb-0 scroll-mt-30"
-            >
-              <div className="flex items-center gap-3">
-                <h1 className="pb-0.5 font-semibold text-3xl @min-md:text-4xl tracking-tight w-full whitespace-nowrap truncate">
-                  {beachName}
-                </h1>
-                <div className="ml-auto flex items-center gap-2 shrink-0">
-                  <BackButton loggedIn={Boolean(user)} />
-                  <SaveButton beachId={beachId} initialIsFav={isFav} />
-                </div>
-              </div>
-            </header>
-
-            {/* Time controls are now in the top NavBar (desktop + mobile). */}
-
-            {/* <BeachContent beachId={beachId} /> */}
-            <SunDataProvider>
-              <DateSummaryBridge
-                beachId={beachId}
-                beachParam={beach}
-                isFavorite={isFav}
-                loggedIn={Boolean(user)}
-                initialOverviewMeta={initialOverviewMeta}
-                initialOverviewRows={initialOverviewRows}
-                initialForecastMeta={initialForecastMeta}
-                initialForecastRows={initialForecastRows}
-              />
-            </SunDataProvider>
-          </div>
-        </PathStyleWrapper>
-      </main>
-      <BottomNav />
-      <Footer />
-    </>
+    <OverviewPageClient
+      beachId={beachId}
+      beachParam={beach}
+      beachName={beachName}
+      loggedIn={Boolean(user)}
+      isFavorite={isFav}
+      initialBeach={initialBeach}
+      initialOverviewMeta={initialOverviewMeta}
+      initialOverviewRows={initialOverviewRows}
+      initialForecastMeta={initialForecastMeta}
+      initialForecastRows={initialForecastRows}
+    />
   );
 };
 

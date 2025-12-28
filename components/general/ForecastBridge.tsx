@@ -3,15 +3,12 @@
 import React, {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
 import { cn } from "@/lib/utils";
-import {
-  useSessionContext,
-  useSupabaseClient,
-} from "@supabase/auth-helpers-react";
 import { LazyLoadDatePicker } from "@/components/general/LazyLoad/LazyLoadDatePicker";
 import VisualWrapper from "@/components/general/VisualWrapper";
 import OverviewWidget from "@/components/general/overview/OverviewWidget";
@@ -20,6 +17,7 @@ import { LazyLoadTable } from "@/components/general/LazyLoad/LazyLoadTable";
 import Link from "next/link";
 import { Pencil } from "lucide-react";
 import { useDateContext } from "../context/DateContext";
+import { useDashboardEditMode } from "../context/DashboardEditModeContext";
 import { useSunData } from "../context/SunDataContext";
 import dayjs from "dayjs";
 import { LazyLoadForecastWaveEnergy } from "./LazyLoad/LazyLoadForecastWaveEnergy";
@@ -27,14 +25,11 @@ import { LazyLoadForecastSurf } from "./LazyLoad/LazyLoadForecastSurf";
 import { LazyLoadForecastWind } from "./LazyLoad/LazyLoadForecastWind";
 import { LazyLoadForecastSwell } from "./LazyLoad/LazyLoadForecastSwell";
 import {
-  getDashboardStorageKey,
-  getDefaultLayout,
-  normalizeMeta,
-  normalizeRows,
   type Row,
   type WidgetId,
   type WidgetMeta,
 } from "./dashboardLayout";
+import { useDashboardLayout } from "./useDashboardLayout";
 import { useForecastData } from "../context/ForecastDataContext";
 import { useForecastChartsLoadingState } from "../context/ForecastChartsLoadingContext";
 import { useStableOverlay } from "../hooks/useStableOverlay";
@@ -81,28 +76,48 @@ const ForecastBridge: React.FC<Props> = ({
   // whether the picker is visible in the viewport; default true so compact bar is NOT shown on SSR/initial render.
   const [, setIsPickerVisible] = useState<boolean>(true);
 
-  // TODO(overview-perf): Introduce a shared multi-day forecast data context alongside this layout
-  // state so all forecast charts and tables can reuse the same rows instead of fetching per-widget.
-  const forecastDefaults = useMemo(() => getDefaultLayout("forecast"), []);
-  const [layoutMeta, setLayoutMeta] = useState<
-    Partial<Record<WidgetId, WidgetMeta>>
-  >(() => initialMeta ?? forecastDefaults.meta);
-  const [layoutRows, setLayoutRows] = useState<Row[]>(
-    () => initialRows ?? forecastDefaults.rows
-  );
-  const [layoutHydrated, setLayoutHydrated] = useState(
-    () => !!(initialRows && initialRows.length)
-  );
-  const storageMetaKey = useMemo(
-    () => getDashboardStorageKey("forecast", "meta"),
-    []
-  );
-  const storageRowsKey = useMemo(
-    () => getDashboardStorageKey("forecast", "rows"),
-    []
-  );
-  const supabase = useSupabaseClient();
-  const { session } = useSessionContext();
+  const {
+    meta: layoutMeta,
+    rows: layoutRows,
+    hydrated: layoutHydrated,
+    setMeta: setLayoutMeta,
+    setRows: setLayoutRows,
+  } = useDashboardLayout({
+    type: "forecast",
+    initialMeta,
+    initialRows,
+  });
+  const {
+    pendingLayoutApply,
+    clearPendingLayoutApply,
+    cacheLayout,
+    isEditing,
+  } = useDashboardEditMode();
+  const [layoutOverlayActive, setLayoutOverlayActive] = useState(false);
+  useLayoutEffect(() => {
+    if (!pendingLayoutApply) return;
+    if (pendingLayoutApply.type !== "forecast") return;
+    if (isEditing) return;
+    setLayoutOverlayActive(true);
+    setLayoutMeta(pendingLayoutApply.meta);
+    setLayoutRows(pendingLayoutApply.rows);
+    clearPendingLayoutApply();
+  }, [
+    isEditing,
+    pendingLayoutApply,
+    setLayoutMeta,
+    setLayoutRows,
+    clearPendingLayoutApply,
+  ]);
+  useEffect(() => {
+    if (!layoutOverlayActive) return;
+    const timeout = window.setTimeout(() => setLayoutOverlayActive(false), 250);
+    return () => window.clearTimeout(timeout);
+  }, [layoutOverlayActive]);
+  useEffect(() => {
+    if (!layoutHydrated) return;
+    cacheLayout({ type: "forecast", meta: layoutMeta, rows: layoutRows });
+  }, [cacheLayout, layoutHydrated, layoutMeta, layoutRows]);
   const { prefetchSunData } = useSunData();
   const { rows: forecastRows, loading: forecastLoading } = useForecastData();
   const chartsLoading = useForecastChartsLoadingState();
@@ -151,83 +166,6 @@ const ForecastBridge: React.FC<Props> = ({
     };
   }, [isMounted]);
 
-  useEffect(() => {
-    let cancelled = false;
-    const fallback = getDefaultLayout("forecast");
-
-    const applyLayout = (
-      nextMeta: Partial<Record<WidgetId, WidgetMeta>>,
-      nextRows: Row[]
-    ) => {
-      if (cancelled) return;
-      setLayoutMeta(nextMeta);
-      setLayoutRows(nextRows);
-      setLayoutHydrated(true);
-    };
-
-    const loadFromLocalStorage = () => {
-      if (typeof window === "undefined") {
-        applyLayout(fallback.meta, fallback.rows);
-        return;
-      }
-      try {
-        const savedMetaRaw = window.localStorage.getItem(storageMetaKey);
-        const nextMeta = savedMetaRaw
-          ? normalizeMeta("forecast", JSON.parse(savedMetaRaw))
-          : fallback.meta;
-        const savedRowsRaw = window.localStorage.getItem(storageRowsKey);
-        const nextRows = savedRowsRaw
-          ? normalizeRows("forecast", JSON.parse(savedRowsRaw), nextMeta)
-          : fallback.rows;
-        applyLayout(nextMeta, nextRows);
-      } catch (error) {
-        console.warn("Failed to load forecast layout", error);
-        applyLayout(fallback.meta, fallback.rows);
-      }
-    };
-
-    const loadFromSupabase = async () => {
-      if (!session) {
-        loadFromLocalStorage();
-        return;
-      }
-      try {
-        const { data, error } = await supabase
-          .from("user_dashboard_settings")
-          .select("forecast_meta, forecast_rows")
-          .eq("user_id", session.user.id)
-          .maybeSingle();
-
-        if (error) {
-          console.warn("Failed to load forecast layout from Supabase", error);
-          loadFromLocalStorage();
-          return;
-        }
-        if (!data) {
-          applyLayout(fallback.meta, fallback.rows);
-          return;
-        }
-
-        const nextMeta = normalizeMeta("forecast", data.forecast_meta);
-        const nextRows = normalizeRows(
-          "forecast",
-          data.forecast_rows,
-          nextMeta
-        );
-        applyLayout(nextMeta, nextRows);
-      } catch (error) {
-        console.warn("Unexpected error loading forecast layout", error);
-        loadFromLocalStorage();
-      }
-    };
-
-    void loadFromSupabase();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [storageMetaKey, storageRowsKey, session, supabase]);
-
   // Build the human readable window string only after mounted and when selectedDays exist.
   const windowString = useMemo(() => {
     if (!isMounted || !selectedDays || selectedDays.length === 0) {
@@ -266,7 +204,8 @@ const ForecastBridge: React.FC<Props> = ({
   const widgetLoading = chartsLoading || !layoutHydrated || forecastLoading;
 
   // Memoize individual widgets to prevent unnecessary re-renders
-  const rawWidgetLoading = chartsLoading || !layoutHydrated || forecastLoading;
+  const rawWidgetLoading =
+    chartsLoading || !layoutHydrated || forecastLoading || layoutOverlayActive;
   const stableWidgetLoading = useStableOverlay(rawWidgetLoading, 220);
 
   const widgets = useMemo(() => {

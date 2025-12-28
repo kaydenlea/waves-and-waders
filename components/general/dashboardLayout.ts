@@ -36,20 +36,20 @@ export const ALL_WIDGET_IDS: readonly WidgetId[] = [
 ] as const;
 
 const BASE_META_OVERVIEW: Partial<Record<WidgetId, WidgetMeta>> = {
-  stats: { id: "stats", title: "Key Stats", visible: true, span: "half" },
-  tide: { id: "tide", title: "Tide Chart", visible: true, span: "half" },
-  surf: { id: "surf", title: "Surf Chart", visible: true, span: "half" },
-  swell: { id: "swell", title: "Swell Chart", visible: true, span: "half" },
+  stats: { id: "stats", title: "Stats", visible: true, span: "half" },
+  tide: { id: "tide", title: "Tide", visible: true, span: "half" },
+  surf: { id: "surf", title: "Surf", visible: true, span: "half" },
+  swell: { id: "swell", title: "Swell", visible: true, span: "half" },
   energy: {
     id: "energy",
-    title: "Wave Energy Chart",
+    title: "Energy",
     visible: true,
     span: "half",
   },
-  wind: { id: "wind", title: "Wind Chart", visible: true, span: "half" },
+  wind: { id: "wind", title: "Wind", visible: true, span: "half" },
   table: {
     id: "table",
-    title: "Stats Table",
+    title: "Daily",
     visible: true,
     span: "full",
     immutableFull: true,
@@ -60,37 +60,37 @@ const BASE_META_FORECAST: Partial<Record<WidgetId, WidgetMeta>> = {
   stats: { id: "stats" },
   tide: {
     id: "tide",
-    title: "Tide Chart",
+    title: "Tide",
     visible: true,
     span: "half",
   },
   surf: {
     id: "surf",
-    title: "Surf Chart",
+    title: "Surf",
     visible: true,
     span: "half",
   },
   swell: {
     id: "swell",
-    title: "Swell Chart",
+    title: "Swell",
     visible: true,
     span: "half",
   },
   energy: {
     id: "energy",
-    title: "Wave Energy Chart",
+    title: "Energy",
     visible: true,
     span: "half",
   },
   wind: {
     id: "wind",
-    title: "Wind Chart",
+    title: "Wind",
     visible: true,
     span: "half",
   },
   table: {
     id: "table",
-    title: "Stats Table",
+    title: "Daily",
     visible: true,
     span: "full",
     immutableFull: true,
@@ -192,15 +192,13 @@ export const normalizeMeta = (
     if (!incoming || typeof incoming !== "object") continue;
 
     const candidate = incoming as Partial<WidgetMeta>;
-    if (typeof candidate.title === "string" && meta[id]) {
-      meta[id].title = candidate.title;
-    }
     if (typeof candidate.visible !== "undefined" && meta[id]) {
       meta[id].visible = Boolean(candidate.visible);
     }
     if (isSpan(candidate.span) && meta[id]) {
       meta[id].span = candidate.span;
     }
+    // title should NEVER be copied from saved data - always use defaults
     // immutableFull should NEVER be copied from saved data - always use defaults
     // This ensures that schema changes (like removing immutableFull from widgets) take effect
   }

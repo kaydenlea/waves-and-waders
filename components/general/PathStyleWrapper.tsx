@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
 import { useMemo } from "react";
 import { useMapFilters } from "../context/MapFilterContext";
+import { useDashboardEditMode } from "../context/DashboardEditModeContext";
 
 export default function PathStyleWrapper({
   children,
@@ -12,9 +13,11 @@ export default function PathStyleWrapper({
 }) {
   const pathname = usePathname();
   const { showMap } = useMapFilters();
+  const { isEditing } = useDashboardEditMode();
   const beachPage = pathname.endsWith("/beaches");
   const editPage = pathname.endsWith("/edit");
   const overviewPage = pathname.includes("/overview");
+  const effectiveEditPage = editPage || isEditing;
 
   const cls = useMemo(() => {
     if (beachPage) {
@@ -25,18 +28,21 @@ export default function PathStyleWrapper({
 
   return (
     <>
-      <div className={editPage ? "h-0" : "h-[100vh] @min-4xl:h-0"} />
+      <div className={effectiveEditPage ? "h-0" : "h-[100vh] @min-4xl:h-0"} />
       <article
         id="content"
         className={cn(
-          "relative touch-pan-y w-full px-2 relative @min-4xl:pt-4 z-1 bg-background border-t border-x border-border/70 @min-4xl:border-none mx-auto",
+          "relative touch-pan-y w-full px-2 relative @min-4xl:pt-4 bg-background border-t border-x border-border/70 @min-4xl:border-none mx-auto",
+          effectiveEditPage ? "z-auto" : "z-1",
           cls,
-          !editPage ? "rounded-t-4xl @min-4xl:rounded-t-none pt-10" : "pt-10",
+          !effectiveEditPage
+            ? "rounded-t-4xl @min-4xl:rounded-t-none pt-10"
+            : "pt-10",
           overviewPage && "ww-disable-backdrop",
           showMap && "@min-4xl:pr-3"
         )}
       >
-        {!editPage && (
+        {!effectiveEditPage && (
           <div className="block @min-4xl:hidden absolute top-5 left-1/2 transform -translate-x-1/2 h-2 w-20 bg-muted-foreground/50 rounded-full" />
         )}
         {children}

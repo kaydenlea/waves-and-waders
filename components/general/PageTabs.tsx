@@ -11,6 +11,7 @@ import { useMapFilters } from "../context/MapFilterContext";
 import { Calendar1, CalendarDays, MapPinned, Pencil } from "lucide-react";
 import { useClientPath } from "../context/PathContext";
 import { poppins } from "@/lib/fonts";
+import { useDashboardEditMode } from "@/components/context/DashboardEditModeContext";
 
 type PageTabsProps = {
   beach?: string;
@@ -32,7 +33,6 @@ type PageTabsProps = {
 const PageTabs = ({
   beach,
   beachId,
-  defaultPage,
   tabs,
   buttons = true,
   isFavorite = false,
@@ -50,6 +50,7 @@ const PageTabs = ({
   const [isDesktop, setIsDesktop] = useState(false);
   const { selectedTab, setSelectedTab } = useClientPath();
   const { showMap, setShowMap } = useMapFilters();
+  const { enterEdit } = useDashboardEditMode();
 
   const tabsRef = useRef<HTMLDivElement>(null);
   const normalizedTabs = tabs.map((tab) => tab.toLowerCase());
@@ -167,35 +168,64 @@ const PageTabs = ({
                   </span>
                 </button>
               )}
-              <Link
-                href={
-                  loggedIn
-                    ? selectedTab === "forecast"
-                      ? `/${beachId}/forecast/edit#forecast-content`
-                      : `/${beachId}/overview/edit#overview-content`
-                    : `/login?next=${encodeURIComponent(
-                        selectedTab === "forecast"
-                          ? `/${beachId}/forecast/edit#forecast-content`
-                          : `/${beachId}/overview/edit#overview-content`
-                      )}`
-                }
-                className={cn(
+              {(() => {
+                const editType = selectedTab === "forecast" ? "forecast" : "overview";
+                const nextTarget =
+                  selectedTab === "forecast"
+                    ? `/${beachId}/forecast/edit#forecast-content`
+                    : `/${beachId}/overview/edit#overview-content`;
+
+                const className = cn(
                   "hidden @min-xl:inline-flex items-center gap-1.5 rounded-full",
                   "border border-border/25 bg-highlight-7 shadow-even",
                   "supports-[backdrop-filter]:backdrop-blur-md",
                   "hover:bg-highlight-6/60 transition-colors duration-200 motion-reduce:transition-none",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0",
                   "p-3 @min-2xl:py-2.5 @min-2xl:px-4"
-                )}
-                aria-label={`Edit ${
-                  forecastPage ? "forecast" : "overview"
-                } dashboard`}
-              >
-                <Pencil className="stroke-[2.5px] w-4.5 h-4.5 @min-2xl:mb-0.5" />
-                <span className="font-medium hidden @min-2xl:inline-block text-[15px]">
-                  Edit
-                </span>
-              </Link>
+                );
+
+                if (!loggedIn) {
+                  return (
+                    <Link
+                      href={`/login?next=${encodeURIComponent(nextTarget)}`}
+                      className={className}
+                      aria-label={`Edit ${editType} dashboard`}
+                    >
+                      <Pencil className="stroke-[2.5px] w-4.5 h-4.5 @min-2xl:mb-0.5" />
+                      <span className="font-medium hidden @min-2xl:inline-block text-[15px]">
+                        Edit
+                      </span>
+                    </Link>
+                  );
+                }
+
+                return (
+                  <button
+                    type="button"
+                    className={className}
+                    aria-label={`Edit ${editType} dashboard`}
+                    onClick={() => {
+                      enterEdit(editType);
+
+                      // Dedicated forecast/overview routes should jump to the combined
+                      // editor on the overview route.
+                      if (forecastPage && !overviewPage) {
+                        const targetBase = beach ? `/${beach}/overview` : null;
+                        if (!targetBase) return;
+                        router.push(
+                          `${targetBase}?tab=${encodeURIComponent(selectedTab)}`,
+                          { scroll: false }
+                        );
+                      }
+                    }}
+                  >
+                    <Pencil className="stroke-[2.5px] w-4.5 h-4.5 @min-2xl:mb-0.5" />
+                    <span className="font-medium hidden @min-2xl:inline-block text-[15px]">
+                      Edit
+                    </span>
+                  </button>
+                );
+              })()}
             </>
           )}
           {showSaveButton && (
@@ -247,7 +277,7 @@ const PageTabs = ({
 
           return (
             <button
-              onClick={(e) => {
+              onClick={() => {
                 const next = tab.toLowerCase();
                 if (beachPage && next === "saved" && !loggedIn) {
                   // Redirect unauthenticated users to login when selecting Saved on beaches page
