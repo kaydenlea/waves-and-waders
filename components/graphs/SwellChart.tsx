@@ -37,7 +37,7 @@ const chartConfig = {
     color: "#48cae4",
   },
   tertiary: {
-    label: "Third",
+    label: "Tertiary",
     color: "#adf1ffff",
   },
 } satisfies ChartConfig;
@@ -173,20 +173,20 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         .replaceAll("\u0173", "\u00B0");
       return (
         <div className="grid justify-items-end gap-1 text-right">
-          <div className="bg-foreground/10 text-foreground inline-flex items-center gap-1 rounded-md px-2 py-1 font-medium tabular-nums">
-            <span className="text-sm font-semibold leading-none">
+          <div className="bg-foreground/10 text-foreground inline-flex items-baseline gap-1 rounded-md px-2 py-1 font-medium tabular-nums">
+            <span className="text-xs font-semibold leading-none">
               {heightValue}
             </span>
-            <span className="mt-1 text-[0.72rem] font-medium leading-none text-muted-foreground">
+            <span className="text-[0.68rem] font-medium leading-none text-muted-foreground">
               ft
             </span>
             {periodValue !== null ? (
               <>
-                <span className="mx-0.25 text-muted-foreground/60">•</span>
-                <span className="text-sm font-semibold leading-none">
+                <span className="text-muted-foreground/60">•</span>
+                <span className="text-xs font-semibold leading-none">
                   {periodValue}
                 </span>
-                <span className="mt-1 text-[0.72rem] font-medium leading-none text-muted-foreground">
+                <span className="text-[0.68rem] font-medium leading-none text-muted-foreground">
                   s
                 </span>
               </>
@@ -233,9 +233,7 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           secondaryDir: (time * 20) % 360,
           tertiaryDir: (time * 25) % 360,
           primaryPeriod: Math.round(12 + Math.sin((time / 24) * Math.PI) * 2),
-          secondaryPeriod: Math.round(
-            10 + Math.cos((time / 24) * Math.PI) * 2
-          ),
+          secondaryPeriod: Math.round(10 + Math.cos((time / 24) * Math.PI) * 2),
           tertiaryPeriod: Math.round(8 + Math.sin((time / 12) * Math.PI) * 1),
         };
       }),
@@ -327,7 +325,9 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       buildYAxisTicks(
         data
           .flatMap((row) => [row.primary, row.secondary, row.tertiary])
-          .filter((v): v is number => typeof v === "number" && Number.isFinite(v)),
+          .filter(
+            (v): v is number => typeof v === "number" && Number.isFinite(v)
+          ),
         0,
         6,
         0.2
@@ -418,10 +418,7 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           axisLine={false}
           tickMargin={8}
           fontSize={11}
-          domain={[
-            swellTicks[0] ?? 0,
-            swellTicks[swellTicks.length - 1] ?? 6,
-          ]}
+          domain={[swellTicks[0] ?? 0, swellTicks[swellTicks.length - 1] ?? 6]}
           ticks={swellTicks}
         />
         {/* <ChartLegend content={<ChartLegendContent />} /> */}

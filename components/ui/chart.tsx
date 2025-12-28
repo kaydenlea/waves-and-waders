@@ -362,7 +362,7 @@ function ChartTooltipContent({
                       formattedValue
                     ) : (
                       <span className="bg-foreground/10 text-foreground inline-flex items-center gap-1.5 rounded-md px-2 py-1 font-medium tabular-nums">
-                        <span className="text-sm font-semibold leading-none">
+                        <span className="text-xs font-semibold leading-none">
                           {formattedValue}
                         </span>
                       </span>
@@ -372,11 +372,11 @@ function ChartTooltipContent({
                   rawValue !== undefined &&
                   rawValue !== null && (
                     <span className="bg-foreground/10 text-foreground inline-flex items-baseline gap-1.5 rounded-md px-2 py-1 font-medium tabular-nums">
-                      <span className="text-sm font-semibold leading-none">
+                      <span className="text-xs font-semibold leading-none">
                         {valueText}
                       </span>
                       {unit ? (
-                        <span className="text-[0.72rem] font-medium leading-none text-muted-foreground">
+                        <span className="text-[0.68rem] font-medium leading-none text-muted-foreground">
                           {unit}
                         </span>
                       ) : null}

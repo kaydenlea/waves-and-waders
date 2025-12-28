@@ -252,9 +252,9 @@
   /* Surf intensity (low → mid → high) used by DatePicker + HourSlider */
   --ww-surf-intensity-unknown: oklch(33% 0.02 250);
   /* Dark mode: slightly richer to match the rest of the UI (DatePicker markers). */
-  --ww-surf-intensity-low: oklch(76.042% 0.17973 145.144 / 0.644);
-  --ww-surf-intensity-mid: oklch(75.221% 0.16891 64.849 / 0.774);
-  --ww-surf-intensity-high: oklch(71.474% 0.17885 28.673 / 0.705);
+  --ww-surf-intensity-low: oklch(91.322% 0.16386 145.367 / 0.801);
+  --ww-surf-intensity-mid: oklch(86.708% 0.1172 76.638 / 0.822);
+  --ww-surf-intensity-high: oklch(74.834% 0.15204 27.929 / 0.767);
 
   /* Map marker rings (direction overlay) */
   --ww-ring-swell-primary: #60a5fa;

@@ -326,13 +326,15 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       return (
         <div className="grid justify-items-end gap-1 text-right">
           <div className="bg-foreground/10 text-foreground inline-flex items-center gap-1.5 rounded-md px-2 py-1 font-medium tabular-nums">
-            <span className="text-sm font-semibold leading-none">{speed}</span>
-            <span className="mt-1 text-[0.72rem] font-medium leading-none text-muted-foreground">
-              mph
+            <span className="inline-flex items-baseline gap-1">
+              <span className="text-xs font-semibold leading-none">{speed}</span>
+              <span className="text-[0.68rem] font-medium leading-none text-muted-foreground">
+                mph
+              </span>
             </span>
             {typeof direction === "number" ? (
               <ArrowIcon
-                size={14}
+                size={13}
                 className="fill-foreground/15 text-foreground/60"
                 style={{
                   transform: `rotate(${direction - 315}deg)`,
@@ -560,10 +562,7 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
               const centerY = safeY - iconSize / 2 - 7; // Position above the bar
 
               return (
-                <g>
-                  <title>{`Wind Direction: ${directionLabel} (${Math.round(
-                    direction
-                  )}Â°)`}</title>
+                <g pointerEvents="none">
                   <g transform={`translate(${centerX}, ${centerY})`}>
                     <g transform={`rotate(${rotation}, 0, 0)`}>
                       <ArrowIcon
