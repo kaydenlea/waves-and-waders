@@ -213,7 +213,9 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       buildYAxisTicks(
         series
           .map((p) => p.energy)
-          .filter((v): v is number => typeof v === "number" && Number.isFinite(v)),
+          .filter(
+            (v): v is number => typeof v === "number" && Number.isFinite(v)
+          ),
         0,
         6,
         0.25
@@ -264,7 +266,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   return (
     <ChartContainer
       config={chartConfig}
-      className="aspect-auto h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px] w-full [&_.recharts-legend-wrapper]:hidden mb-3"
+      className="aspect-auto h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px] w-full [&_.recharts-legend-wrapper]:hidden"
     >
       <AreaChart
         accessibilityLayer

@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
 import { useMemo } from "react";
 import { useMapFilters } from "../context/MapFilterContext";
-import { useDashboardEditMode } from "../context/DashboardEditModeContext";
+import { useOptionalDashboardEditMode } from "../context/DashboardEditModeContext";
 
 export default function PathStyleWrapper({
   children,
@@ -13,7 +13,8 @@ export default function PathStyleWrapper({
 }) {
   const pathname = usePathname();
   const { showMap } = useMapFilters();
-  const { isEditing } = useDashboardEditMode();
+  const dashboardEditMode = useOptionalDashboardEditMode();
+  const isEditing = dashboardEditMode?.isEditing ?? false;
   const beachPage = pathname.endsWith("/beaches");
   const editPage = pathname.endsWith("/edit");
   const overviewPage = pathname.includes("/overview");

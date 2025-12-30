@@ -401,8 +401,8 @@ export const SwellRings: React.FC<{
         const badgeBearing = end;
         const badgeRadius = radius - arcStroke * 0.02;
 
-        const iconGapPx = 1 * scale;
-        const iconSize = Math.max(11 * scale, arcStroke * 0.98);
+        const iconGapPx = 0.01 * scale;
+        const iconSize = Math.max(11 * scale, arcStroke * 0.5);
         // Keep the icon fully inside the colored arc band (same lane as the text).
         const laneR = radius - arcStroke * 0.01;
         const iconCenterShiftPx =

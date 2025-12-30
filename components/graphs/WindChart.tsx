@@ -327,7 +327,9 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         <div className="grid justify-items-end gap-1 text-right">
           <div className="bg-foreground/10 text-foreground inline-flex items-center gap-1.5 rounded-md px-2 py-1 font-medium tabular-nums">
             <span className="inline-flex items-baseline gap-1">
-              <span className="text-xs font-semibold leading-none">{speed}</span>
+              <span className="text-xs font-semibold leading-none">
+                {speed}
+              </span>
               <span className="text-[0.68rem] font-medium leading-none text-muted-foreground">
                 mph
               </span>
@@ -431,7 +433,7 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     <ChartContainer
       ref={chartRef}
       config={chartConfig}
-      className="aspect-auto h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px] w-full mb-3"
+      className="aspect-auto h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px] w-full"
     >
       <BarChart
         margin={{ top: 10, right: 15, left: -25, bottom: 0 }}

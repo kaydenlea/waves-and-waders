@@ -29,7 +29,8 @@ export default function DashboardEditorScreen({
   initialRows = null,
 }: Props) {
   const router = useRouter();
-  const { exitEdit, requestScrollTo, queueLayoutApply } = useDashboardEditMode();
+  const { exitEdit, requestScrollTo, queueLayoutApply } =
+    useDashboardEditMode();
 
   const { meta, rows, setMeta, setRows, reset } = useDashboardLayout({
     type,
@@ -39,7 +40,8 @@ export default function DashboardEditorScreen({
     persistAnonymous: false,
   });
 
-  const sectionId = type === "forecast" ? "forecast-content" : "overview-content";
+  const sectionId =
+    type === "forecast" ? "forecast-content" : "overview-content";
 
   const handleConfirm = () => {
     const base =
@@ -60,11 +62,16 @@ export default function DashboardEditorScreen({
   return (
     <div className="bg-background-2 min-h-screen">
       <PathStyleWrapper>
-        <div id="dashboard-editor" className="@container py-0 @min-4xl:py-5 p-5 mt-0">
+        <div
+          id="dashboard-editor"
+          className="@container mx-auto w-full max-w-4xl py-0 @min-4xl:py-5 p-5 mt-0"
+        >
           <section id={sectionId} className="flex flex-col gap-3 w-full mb-2">
             <header className="mx-2 gap-2 flex justify-between">
               <div>
-                <h2 className="text-2xl font-semibold">Drag and drop widgets</h2>
+                <h2 className="text-2xl font-semibold">
+                  Drag and drop widgets
+                </h2>
                 <p className="text-sm text-muted-foreground">
                   Customize your dashboard
                 </p>

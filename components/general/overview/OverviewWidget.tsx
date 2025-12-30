@@ -5,9 +5,8 @@ import {
   Atom,
   ChartNoAxesCombined,
   CircleGauge,
+  ClockFading,
   Droplets,
-  Eye,
-  EyeOff,
   MapPin,
   MoonStar,
   Shell,
@@ -17,13 +16,8 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { useDateContext } from "@/components/context/DateContext";
 import { ChartLoadingCover } from "@/components/graphs/ChartLoadingCover";
-import {
-  OverviewCard,
-  OverviewCardHeader,
-  OverviewPill,
-} from "./OverviewPrimitives";
+import { OverviewCard, OverviewCardHeader } from "./OverviewPrimitives";
 
 const iconMap: Record<string, React.ReactNode> = {
   map: <MapPin className="h-4 w-4" />,
@@ -41,6 +35,9 @@ type Props = {
   children: React.ReactNode;
   label: string;
   unit?: string;
+  onUnitClick?: () => void;
+  unitAriaLabel?: string;
+  unitDisabled?: boolean;
   extraPadding?: boolean;
   headerContent?: React.ReactNode;
   loading?: boolean;
@@ -50,48 +47,79 @@ export default function OverviewWidget({
   children,
   label,
   unit,
+  onUnitClick,
+  unitAriaLabel,
+  unitDisabled,
   extraPadding,
   headerContent,
   loading,
 }: Props) {
-  const { showSecondarySwells, setShowSecondarySwells } = useDateContext();
   const lowerCaseLabel = label.toLowerCase();
 
   const icon = iconMap[lowerCaseLabel] ?? <CircleGauge className="h-4 w-4" />;
   const showInlineUnit = Boolean(
     unit && (headerContent == null || label === "Daily")
   );
+  const unitIsToggle = Boolean(unit && onUnitClick);
+  const unitPrimaryClassName =
+    label === "Daily" ? "inline-flex" : "hidden @min-xs:inline-flex";
 
-  const SwellToggle = () => (
-    <button
-      type="button"
-      aria-label={`${showSecondarySwells ? "Hide" : "Show"} secondary swells`}
-      onClick={() => setShowSecondarySwells(!showSecondarySwells)}
-      className={cn(
-        "inline-flex items-center gap-2 rounded-full border border-border/25 bg-foreground/5 px-3 py-2",
-        "text-xs font-medium text-muted-foreground",
-        "transition-colors duration-200 motion-reduce:transition-none",
-        "hover:bg-foreground/10",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0"
-      )}
-    >
-      {showSecondarySwells ? (
-        <>
-          <Eye className="h-4 w-4 text-foreground/70" />
-          <span className="whitespace-nowrap">
-            <span className="hidden @min-[290px]:inline">Extra</span> Swells
-          </span>
-        </>
-      ) : (
-        <>
-          <EyeOff className="h-4 w-4 text-foreground/70" />
-          <span className="whitespace-nowrap">
-            <span className="hidden @min-[290px]:inline">Extra</span> Swells
-          </span>
-        </>
-      )}
-    </button>
-  );
+  const UnitPill = ({ className }: { className?: string }) => {
+    if (!unit) return null;
+    if (!unitIsToggle) {
+      return (
+        <span
+          className={cn(
+            "inline-flex items-center rounded-full border border-border/25 bg-foreground/5 px-2.5 py-1",
+            "text-xs font-medium text-muted-foreground whitespace-nowrap",
+            className
+          )}
+        >
+          {unit}
+        </span>
+      );
+    }
+
+    if (unitDisabled) {
+      return (
+        <span
+          className={cn(
+            "inline-flex items-center gap-2 rounded-full border border-border/25 bg-foreground/5 px-3 py-2",
+            "text-xs font-medium text-muted-foreground whitespace-nowrap opacity-70",
+            className
+          )}
+        >
+          <ClockFading
+            aria-hidden="true"
+            className="h-4 w-4 text-foreground/60"
+          />
+          <span>{unit}</span>
+        </span>
+      );
+    }
+
+    return (
+      <button
+        type="button"
+        aria-label={unitAriaLabel ?? `Toggle ${label} interval`}
+        onClick={onUnitClick}
+        className={cn(
+          "inline-flex items-center gap-2 rounded-full border border-border/25 bg-foreground/5 px-3 py-2",
+          "text-xs font-medium text-muted-foreground whitespace-nowrap",
+          "transition-colors duration-200 motion-reduce:transition-none",
+          "hover:bg-foreground/10",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0",
+          className
+        )}
+      >
+        <ClockFading
+          aria-hidden="true"
+          className="h-4 w-4 text-foreground/70"
+        />
+        <span>{unit}</span>
+      </button>
+    );
+  };
 
   return (
     <figure className="relative flex-1">
@@ -101,15 +129,12 @@ export default function OverviewWidget({
           icon={icon}
           right={
             <div className="flex items-center gap-2">
-              {label === "Daily" ? <SwellToggle /> : null}
               {headerContent ??
                 (showInlineUnit ? (
-                  <OverviewPill className="hidden @min-xs:inline-flex">
-                    {unit}
-                  </OverviewPill>
+                  <UnitPill className={unitPrimaryClassName} />
                 ) : null)}
               {headerContent == null && showInlineUnit && label !== "Daily" ? (
-                <OverviewPill className="@min-xs:hidden">{unit}</OverviewPill>
+                <UnitPill className="@min-xs:hidden" />
               ) : null}
             </div>
           }
@@ -117,8 +142,8 @@ export default function OverviewWidget({
 
         <div
           className={cn(
-            "px-4 pb-4 touch-pan-y relative",
-            extraPadding && "px-5"
+            "px-4 pb-[27px] touch-pan-y relative",
+            extraPadding && "px-5 pb-7.5"
           )}
         >
           <div className="relative">

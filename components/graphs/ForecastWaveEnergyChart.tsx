@@ -656,7 +656,9 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
       buildYAxisTicks(
         energyData
           .map((row) => row.energy)
-          .filter((v): v is number => typeof v === "number" && Number.isFinite(v)),
+          .filter(
+            (v): v is number => typeof v === "number" && Number.isFinite(v)
+          ),
         0,
         6,
         0.25,
@@ -888,7 +890,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
             <ChartContainer
               key={chartInnerWidth}
               config={chartConfig}
-              className="forecast-wave-energy-chart-container aspect-auto h-[235px] w-full"
+              className="forecast-wave-energy-chart-container aspect-auto h-[250px] w-full"
             >
               <AreaChart
                 accessibilityLayer={false}

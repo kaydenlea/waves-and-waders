@@ -10,12 +10,12 @@ import { LazyLoadTide } from "@/components/general/LazyLoad/LazyLoadTide";
 import { LazyLoadSwell } from "@/components/general/LazyLoad/LazyLoadSwell";
 import { LazyLoadSurf } from "@/components/general/LazyLoad/LazyLoadSurf";
 import { LazyLoadTable } from "@/components/general/LazyLoad/LazyLoadTable";
+import type {
+  StatTableDensity,
+  StatTableUiState,
+} from "@/components/general/LazyLoad/LazyLoadTable";
 import { LazyLoadEnergy } from "@/components/general/LazyLoad/LazyLoadEnergy";
-import {
-  type Row,
-  type WidgetId,
-  type WidgetMeta,
-} from "./dashboardLayout";
+import { type Row, type WidgetId, type WidgetMeta } from "./dashboardLayout";
 import { useDashboardLayout } from "./useDashboardLayout";
 import { useDateContext } from "../context/DateContext";
 import { useClientPath } from "../context/PathContext";
@@ -223,8 +223,7 @@ const DateSummaryBridge: React.FC<Props> = ({
     pendingLayoutApply,
     clearPendingLayoutApply,
     cacheLayout,
-  } =
-    useDashboardEditMode();
+  } = useDashboardEditMode();
   const [mounted, setMounted] = React.useState(false);
   const [currentTime, setCurrentTime] = React.useState<string>("");
   const {
@@ -258,6 +257,29 @@ const DateSummaryBridge: React.FC<Props> = ({
     cacheLayout({ type: "overview", meta: layoutMeta, rows: layoutRows });
   }, [cacheLayout, layoutHydrated, layoutMeta, layoutRows]);
   const [forecastWindow, setForecastWindow] = React.useState("Select range");
+  const [dailyTableDensity, setDailyTableDensity] =
+    React.useState<StatTableDensity>("3h");
+  const [dailyTableUi, setDailyTableUi] =
+    React.useState<StatTableUiState | null>(null);
+  const onDailyTableUiStateChange = React.useCallback(
+    (next: StatTableUiState) => {
+      setDailyTableUi((prev) => {
+        if (
+          prev &&
+          prev.canToggleDensity === next.canToggleDensity &&
+          prev.effectiveDensity === next.effectiveDensity &&
+          prev.isHalfColumns === next.isHalfColumns
+        ) {
+          return prev;
+        }
+        return next;
+      });
+    },
+    []
+  );
+  const toggleDailyTableDensity = React.useCallback(() => {
+    setDailyTableDensity((prev) => (prev === "3h" ? "12h" : "3h"));
+  }, []);
   const statsRange = React.useMemo(() => {
     return getPacificDayRange(selected instanceof Date ? selected : undefined);
   }, [selected]);
@@ -782,29 +804,46 @@ const DateSummaryBridge: React.FC<Props> = ({
               />
             </OverviewWidget>
           );
-        case "table":
+        case "table": {
+          const tableUnit =
+            (dailyTableUi?.effectiveDensity ?? dailyTableDensity) === "12h"
+              ? "12 hrs"
+              : "3 hrs";
           return (
-            <OverviewWidget label="Daily" unit="3 hrs" loading={overlayVisible}>
+            <OverviewWidget
+              label="Daily"
+              unit={tableUnit}
+              loading={overlayVisible}
+            >
               <LazyLoadTable
                 beachId={beachId}
                 numHours={8}
                 numDays={1}
                 date={selected ?? undefined}
+                variant={isFull ? "full" : "half"}
+                density={dailyTableDensity}
+                onToggleDensity={toggleDailyTableDensity}
+                onUiStateChange={onDailyTableUiStateChange}
               />
             </OverviewWidget>
           );
+        }
         default:
           return null;
       }
     },
     [
       beachId,
+      dailyTableDensity,
+      dailyTableUi,
+      onDailyTableUiStateChange,
       selected,
       hour,
       label,
       timeDisplay,
       forecastRows,
       sharedSunSegments,
+      toggleDailyTableDensity,
       windStats,
       surfStats,
       swellStats,
@@ -878,7 +917,9 @@ const DateSummaryBridge: React.FC<Props> = ({
                   <button
                     type="button"
                     onClick={() =>
-                      enterEdit(selectedTab === "forecast" ? "forecast" : "overview")
+                      enterEdit(
+                        selectedTab === "forecast" ? "forecast" : "overview"
+                      )
                     }
                     className={cn(
                       "@min-xl:hidden inline-flex items-center rounded-full px-4 py-2.5 gap-1.5 shrink-0",
@@ -1008,7 +1049,7 @@ const DateSummaryBridge: React.FC<Props> = ({
                           onWindowStringChange={setForecastWindow}
                           initialMeta={initialForecastMeta ?? undefined}
                           initialRows={initialForecastRows ?? undefined}
-                          cardVariant="overview"
+                          cardVariant="forecast"
                         />
                       </ForecastDataProvider>
                     </ForecastChartProvider>

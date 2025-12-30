@@ -1,9 +1,17 @@
 ﻿"use client";
 
 import React from "react";
-import { createPortal } from "react-dom";
 import { cn, getPacificDayRange } from "@/lib/utils";
 import { Button } from "../ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 import {
   ArrowLeft,
   ArrowRight,
@@ -13,6 +21,7 @@ import {
   ArrowDown,
   Minus,
   CalendarDays,
+  ChevronDown,
   Sun,
   Cloud as CloudIcon,
   CloudDrizzle,
@@ -21,6 +30,10 @@ import {
   Snowflake,
   Droplets,
   ClockFading,
+  LayoutGrid,
+  SlidersHorizontal,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import MixedCloudSunIcon from "@/components/icons/MixedCloudSunIcon";
 
@@ -827,6 +840,7 @@ const PressureStat = ({
 type TableEntry = {
   index: number;
   time: string;
+  missing?: boolean;
   wind: {
     label: string;
     dir: string;
@@ -865,6 +879,40 @@ const isValidDate = (value: DateLike): value is Date =>
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+const PACIFIC_DAY_KEY_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/Los_Angeles",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+const PACIFIC_COMPACT_DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/Los_Angeles",
+  weekday: "short",
+  month: "short",
+  day: "numeric",
+});
+
+const PACIFIC_PILL_WEEKDAY_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/Los_Angeles",
+  weekday: "short",
+});
+
+const PACIFIC_PILL_MONTHDAY_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/Los_Angeles",
+  month: "short",
+  day: "numeric",
+});
+
+function getPacificDayKey(value: Date | string): string {
+  const date = typeof value === "string" ? new Date(value) : value;
+  const parts = PACIFIC_DAY_KEY_FORMATTER.formatToParts(date);
+  const year = parts.find((p) => p.type === "year")?.value ?? "0000";
+  const month = parts.find((p) => p.type === "month")?.value ?? "01";
+  const day = parts.find((p) => p.type === "day")?.value ?? "01";
+  return `${year}-${month}-${day}`;
+}
+
 const TABLE_COLUMNS: Array<{ id: string; label: string }> = [
   { id: "surf", label: "Surf" },
   { id: "wind", label: "Wind" },
@@ -882,18 +930,130 @@ const SPACER_COLUMN: { id: string; label: string } = {
   label: "",
 };
 
+export type StatTableDensity = "3h" | "12h";
+
+const THREE_HOUR_TARGET_HOURS = [0, 3, 6, 9, 12, 15, 18, 21] as const;
+const TWELVE_HOUR_TARGET_HOURS = [0, 12, 21] as const;
+
+function pickClosestBucket(hours: number[], targetHour: number): number | null {
+  if (hours.length === 0) return null;
+  let bestHour = hours[0];
+  let bestDiff = Math.abs(hours[0] - targetHour);
+  for (let i = 1; i < hours.length; i++) {
+    const diff = Math.abs(hours[i] - targetHour);
+    if (diff < bestDiff) {
+      bestDiff = diff;
+      bestHour = hours[i];
+    }
+  }
+  return bestHour;
+}
+
+function pickLastNotAfter(hours: number[], targetHour: number): number | null {
+  if (hours.length === 0) return null;
+  let bestHour = hours[0];
+  for (const hour of hours) {
+    if (hour <= targetHour) bestHour = hour;
+  }
+  return bestHour;
+}
+
+function formatHourLabel(hour24: number): string {
+  const normalized = ((hour24 % 24) + 24) % 24;
+  const displayHour = normalized % 12 === 0 ? 12 : normalized % 12;
+  const ampm = normalized >= 12 ? "PM" : "AM";
+  return `${displayHour} ${ampm}`;
+}
+
+function buildMissingEntry(hour24: number): TableEntry {
+  return {
+    index: hour24,
+    time: formatHourLabel(hour24),
+    missing: true,
+    wind: { label: "wind", dir: "-", speed: 0, max: 0, deg: 0 },
+    surf: { label: "surf", height: "—" },
+    swell: {
+      label: "swell",
+      primary: { height: 0, period: 0, dir: "-", deg: 0 },
+      secondary: [],
+    },
+    pressure: { label: "pressure", value: 0 },
+    weather: { label: "weather", condition: "clear", temp: 0, code: null },
+    water: { label: "water", temp: 0 },
+    energy: { label: "energy", value: 0 },
+  };
+}
+
+const COLUMN_PRIORITY: Record<string, number> = {
+  surf: 1,
+  wind: 2,
+  swellPrimary: 3,
+  weather: 4,
+  water: 5,
+  energy: 6,
+  pressure: 7,
+  swellSecondary: 8,
+  swellTertiary: 9,
+};
+
+function getHalfColumnsPerPage(widthPx: number): number {
+  if (!Number.isFinite(widthPx) || widthPx <= 0) return 3;
+
+  // Half-width widgets get cramped fast; prefer fewer columns per page and rely
+  // on the pager rather than squeezing content.
+  const TIME_COL_PX = 48; // Tailwind `w-12`
+  const MIN_DATA_COL_PX = 140;
+  const available = Math.max(0, widthPx - TIME_COL_PX);
+  const fit = Math.floor(available / MIN_DATA_COL_PX);
+  return Math.max(2, Math.min(4, fit || 2));
+}
+
+function buildHalfColumnPages(
+  columns: Array<{ id: string; label: string }>,
+  widthPx: number
+) {
+  const perPage = getHalfColumnsPerPage(widthPx);
+  const ordered = columns
+    .slice()
+    .sort(
+      (a, b) => (COLUMN_PRIORITY[a.id] ?? 999) - (COLUMN_PRIORITY[b.id] ?? 999)
+    );
+
+  const pages: Array<Array<{ id: string; label: string }>> = [];
+  for (let i = 0; i < ordered.length; i += perPage) {
+    pages.push(ordered.slice(i, i + perPage));
+  }
+  return pages.length ? pages : [ordered];
+}
+
+export type StatTableVariant = "full" | "half";
+
+export type StatTableUiState = {
+  canToggleDensity: boolean;
+  effectiveDensity: StatTableDensity;
+  isHalfColumns: boolean;
+};
+
 const StatTable = ({
   numDays,
   numHours,
   header = false,
   beachId,
   date,
+  variant = "full",
+  density,
+  onToggleDensity,
+  onUiStateChange,
 }: {
   numDays: number;
   numHours: number;
   header?: boolean;
   beachId?: string;
   date?: Date;
+  variant?: StatTableVariant;
+  density?: StatTableDensity;
+  onToggleDensity?: () => void;
+  onUiStateChange?: (state: StatTableUiState) => void;
 }) => {
   // TODO(overview-perf): Ideally drive this loading state from a shared forecast context
   // when available so both overview and forecast tables stay in sync with other widgets.
@@ -904,12 +1064,13 @@ const StatTable = ({
     hour: selectedHour,
     selected,
     showSecondarySwells,
+    setShowSecondarySwells,
   } = useDateContext();
   const { selectedTab } = useClientPath();
   const { showMap } = useMapFilters();
   const forecastPage = selectedTab === "forecast";
   const headerBgClass =
-    "bg-highlight-4 supports-[backdrop-filter]:backdrop-blur-md";
+    "bg-[var(--widget-header-surface,var(--widget-surface,var(--highlight-4)))]";
   const { rows: sharedRows } = useForecastData();
   const { setReady } = useOptionalForecastChartLoading("forecast-table");
   const dashboardBusy = useOptionalForecastChartsBusyState();
@@ -1067,21 +1228,6 @@ const StatTable = ({
 
         // Group by date using Pacific timezone (matches chart processing)
         const byDay = new Map<string, ForecastData[]>();
-        const getDayKey = (timestamp: string) => {
-          const d = new Date(timestamp);
-          // Use Pacific timezone for grouping to match charts (DST-aware)
-          const formatter = new Intl.DateTimeFormat("en-US", {
-            timeZone: "America/Los_Angeles",
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-          });
-          const parts = formatter.formatToParts(d);
-          const year = parts.find((p) => p.type === "year")?.value;
-          const month = parts.find((p) => p.type === "month")?.value;
-          const day = parts.find((p) => p.type === "day")?.value;
-          return `${year}-${month}-${day}`;
-        };
 
         const fmtDayLabel = (d: Date) =>
           d.toLocaleDateString("en-US", {
@@ -1091,7 +1237,7 @@ const StatTable = ({
           });
 
         weekly.forEach((row) => {
-          const dayKey = getDayKey(row.timestamp);
+          const dayKey = getPacificDayKey(row.timestamp);
           const arr = byDay.get(dayKey) ?? [];
           arr.push(row);
           byDay.set(dayKey, arr);
@@ -1107,11 +1253,11 @@ const StatTable = ({
         // Convert requested dates to day keys for filtering
         const onlyKey =
           requestedDate && !forecastPage
-            ? getDayKey(requestedDate.toISOString())
+            ? getPacificDayKey(requestedDate.toISOString())
             : null;
         const onlyKeys =
           Array.isArray(selectedDays) && selectedDays.length > 0
-            ? selectedDays.map((day) => getDayKey(day.toISOString()))
+            ? selectedDays.map((day) => getPacificDayKey(day.toISOString()))
             : null;
         let allowedKeys: Set<string> | null = null;
         const dayKeys = entriesByDay.map(([key]) => key);
@@ -1123,10 +1269,10 @@ const StatTable = ({
           if (onlyKey && dayKeys.includes(onlyKey)) {
             allowedKeys = new Set([onlyKey]);
           } else if (requestedDate) {
-            const prev = getDayKey(
+            const prev = getPacificDayKey(
               new Date(requestedDate.getTime() - DAY_MS).toISOString()
             );
-            const next = getDayKey(
+            const next = getPacificDayKey(
               new Date(requestedDate.getTime() + DAY_MS).toISOString()
             );
             const cands = [prev, next].filter((k) => dayKeys.includes(k));
@@ -1146,34 +1292,6 @@ const StatTable = ({
           const getLocalHour = (timestamp: string): number => {
             return new Date(timestamp).getHours();
           };
-
-          // Instead of forcing specific hours, sample evenly from available data
-          // This ensures we show ACTUAL forecast times that exist in the data
-          const numSamples = Math.min(numHours, rows.length);
-          const sampledRows: ForecastData[] = [];
-
-          if (numSamples > 0 && rows.length > 0) {
-            if (rows.length <= numSamples) {
-              // Use all rows if we have fewer than requested
-              sampledRows.push(...rows);
-            } else {
-              // Sample evenly across the day, avoiding duplicates
-              const indices = new Set<number>();
-              const step = (rows.length - 1) / (numSamples - 1);
-
-              for (let i = 0; i < numSamples; i++) {
-                let index = Math.round(i * step);
-                // Ensure we don't exceed array bounds
-                index = Math.min(index, rows.length - 1);
-                indices.add(index);
-              }
-
-              // Convert to sorted array and get rows
-              Array.from(indices)
-                .sort((a, b) => a - b)
-                .forEach((idx) => sampledRows.push(rows[idx]));
-            }
-          }
 
           const makeEntryFromRow = (r: ForecastData): TableEntry => {
             // Use the ACTUAL hour from the data, not the target hour
@@ -1273,9 +1391,16 @@ const StatTable = ({
             };
           };
 
-          const entries: TableEntry[] = sampledRows.map((r) => {
-            return makeEntryFromRow(r);
-          });
+          const entriesByHour = new Map<number, TableEntry>();
+          for (const r of rows) {
+            const entry = makeEntryFromRow(r);
+            if (!entriesByHour.has(entry.index)) {
+              entriesByHour.set(entry.index, entry);
+            }
+          }
+          const entries: TableEntry[] = Array.from(entriesByHour.values()).sort(
+            (a, b) => a.index - b.index
+          );
 
           const firstTs = rows[0]?.timestamp ?? new Date().toISOString();
           const d0 = new Date(firstTs);
@@ -1363,45 +1488,22 @@ const StatTable = ({
     );
   }, [showSecondarySwells]);
 
+  const isHalfWidget = variant === "half";
+  type ForecastViewMode = "all" | "single";
+  const [forecastViewMode, setForecastViewMode] =
+    React.useState<ForecastViewMode>(() =>
+      variant === "half" ? "single" : "all"
+    );
+
   const [columnPages, setColumnPages] = React.useState([TABLE_COLUMNS]);
   const [currentPage, setCurrentPage] = React.useState(0);
-  const [stickyHeaderTopPx, setStickyHeaderTopPx] = React.useState(0);
+  const [tableWidthPx, setTableWidthPx] = React.useState(0);
+  const [effectiveColumnsVariant, setEffectiveColumnsVariant] =
+    React.useState<StatTableVariant>(variant);
 
   const tableRef = React.useRef<HTMLDivElement | null>(null);
-  const [tableEl, setTableEl] = React.useState<HTMLDivElement | null>(null);
   const assignTableRef = React.useCallback((node: HTMLDivElement | null) => {
     tableRef.current = node;
-    setTableEl(node);
-  }, []);
-
-  React.useEffect(() => {
-    const TIME_RAIL_STICKY_TOP_PX = 65;
-
-    const isNarrowWithTimeRail = () => {
-      if (typeof window === "undefined") return false;
-      if (window.innerWidth >= 911) return false;
-      return document.querySelector("[data-time-rail-root]") != null;
-    };
-
-    const nav = document.querySelector("header.fixed") as HTMLElement | null;
-    if (!nav && !isNarrowWithTimeRail()) return;
-
-    const update = () => {
-      const next = isNarrowWithTimeRail()
-        ? TIME_RAIL_STICKY_TOP_PX
-        : Math.max(0, Math.ceil(nav?.getBoundingClientRect().height ?? 0));
-      setStickyHeaderTopPx((prev) => (prev === next ? prev : next));
-    };
-
-    update();
-    const observer = nav ? new ResizeObserver(() => update()) : null;
-    if (nav && observer) observer.observe(nav);
-    window.addEventListener("resize", update);
-
-    return () => {
-      observer?.disconnect();
-      window.removeEventListener("resize", update);
-    };
   }, []);
 
   const resizeRafRef = React.useRef<number | null>(null);
@@ -1412,15 +1514,65 @@ const StatTable = ({
   const TABLE_BREAKPOINT_XL = 1150;
   const widthNow = React.useRef<number>(0);
 
-  React.useEffect(() => {
+  React.useLayoutEffect(() => {
     const table = tableRef.current;
     if (!table) return;
 
     const adjustData = () => {
       widthNow.current = measuredWidthRef.current || table.clientWidth;
+      setTableWidthPx((prev) =>
+        prev === widthNow.current ? prev : widthNow.current
+      );
+
+      const isHalfStacked = (() => {
+        if (variant !== "half") return null;
+        const figure = table.closest("figure");
+        const row = figure?.parentElement;
+        if (!row) return null;
+        const style = window.getComputedStyle(row);
+        if (!style || style.display !== "flex") return null;
+        return (
+          style.flexDirection === "column" ||
+          style.flexDirection === "column-reverse"
+        );
+      })();
+
+      const isHalfAloneInRow = (() => {
+        if (variant !== "half") return null;
+        const figure = table.closest("figure");
+        const row = figure?.parentElement;
+        if (!row) return null;
+        const figuresInRow = Array.from(row.children).filter(
+          (el) => el.tagName === "FIGURE"
+        ).length;
+        return figuresInRow === 1;
+      })();
+
+      const treatHalfAsFull =
+        isHalfStacked === true || isHalfAloneInRow === true;
+
+      const nextColumnsVariant: StatTableVariant =
+        variant === "half" ? (treatHalfAsFull ? "full" : "half") : "full";
+      setEffectiveColumnsVariant((prev) =>
+        prev === nextColumnsVariant ? prev : nextColumnsVariant
+      );
       let newPages: typeof columnPages;
       // Use filtered columns instead of COLUMNS
       const cols = filteredColumns;
+
+      // if (nextColumnsVariant === "half") {
+      //   newPages = buildHalfColumnPages(cols, widthNow.current);
+      //   setColumnPages((prev) => {
+      //     const prevJson = JSON.stringify(prev);
+      //     const nextJson = JSON.stringify(newPages);
+      //     if (prevJson !== nextJson) {
+      //       setCurrentPage((p) => Math.min(p, newPages.length - 1));
+      //       return newPages;
+      //     }
+      //     return prev;
+      //   });
+      //   return;
+      // }
 
       if (widthNow.current < TABLE_BREAKPOINT_SM) {
         if (showSecondarySwells) {
@@ -1535,7 +1687,13 @@ const StatTable = ({
         resizeRafRef.current = null;
       }
     };
-  }, [filteredColumns, showSecondarySwells, selectedTab]);
+  }, [
+    filteredColumns,
+    showSecondarySwells,
+    selectedTab,
+    variant,
+    isHalfWidget,
+  ]);
 
   const handleNext = () => {
     setCurrentPage((prev) => Math.min(prev + 1, columnPages.length - 1));
@@ -1545,9 +1703,124 @@ const StatTable = ({
   };
   const visibleColumns = columnPages[currentPage];
 
-  const windowSize = 4;
+  const isHalfColumns = effectiveColumnsVariant === "half";
+  const effectiveDensity: StatTableDensity = React.useMemo(() => {
+    if (isHalfColumns) return "12h";
+    return density ?? (numHours <= 3 ? "12h" : "3h");
+  }, [density, isHalfColumns, numHours]);
+  const canToggleDensity = !isHalfColumns;
+  const lastUiStateRef = React.useRef<string>("");
+  React.useEffect(() => {
+    if (!onUiStateChange) return;
+    const next = { canToggleDensity, effectiveDensity, isHalfColumns };
+    const nextKey = JSON.stringify(next);
+    if (lastUiStateRef.current === nextKey) return;
+    lastUiStateRef.current = nextKey;
+    onUiStateChange(next);
+  }, [canToggleDensity, effectiveDensity, isHalfColumns, onUiStateChange]);
 
-  const visibleDays = data.slice(0, windowSize);
+  const targetHours =
+    effectiveDensity === "3h"
+      ? THREE_HOUR_TARGET_HOURS
+      : TWELVE_HOUR_TARGET_HOURS;
+
+  const maxVisibleDays = 4;
+  const selectorDays = React.useMemo(
+    () => (forecastPage ? data.slice(0, maxVisibleDays) : []),
+    [data, forecastPage]
+  );
+
+  const showForecastViewToggle =
+    forecastPage && !(variant === "half" && effectiveColumnsVariant === "half");
+  const canToggleForecastView = selectorDays.length > 1;
+  const resolvedForecastViewMode: ForecastViewMode = showForecastViewToggle
+    ? forecastViewMode
+    : "single";
+
+  React.useEffect(() => {
+    if (!forecastPage) {
+      setForecastViewMode("all");
+      return;
+    }
+    if (!showForecastViewToggle) {
+      setForecastViewMode("single");
+      return;
+    }
+  }, [forecastPage, forecastViewMode, showForecastViewToggle, variant]);
+
+  const preferredForecastDayKey = React.useMemo(() => {
+    if (!forecastPage) return null;
+    if (selected instanceof Date) return getPacificDayKey(selected);
+    return selectorDays[0]?.key ?? null;
+  }, [forecastPage, selected, selectorDays]);
+
+  const useSingleDayView = !forecastPage
+    ? variant === "half"
+    : resolvedForecastViewMode === "single";
+
+  const showDayHeaderRow =
+    header &&
+    effectiveColumnsVariant === "full" &&
+    !(forecastPage && useSingleDayView);
+
+  const [forecastDayKey, setForecastDayKey] = React.useState<string | null>(
+    null
+  );
+
+  React.useEffect(() => {
+    if (!forecastPage || !useSingleDayView) {
+      setForecastDayKey(null);
+      return;
+    }
+    const keys = new Set(selectorDays.map((day) => day.key));
+    if (forecastDayKey && keys.has(forecastDayKey)) return;
+
+    const next =
+      preferredForecastDayKey && keys.has(preferredForecastDayKey)
+        ? preferredForecastDayKey
+        : selectorDays[0]?.key ?? null;
+    setForecastDayKey(next);
+  }, [
+    forecastDayKey,
+    forecastPage,
+    preferredForecastDayKey,
+    selectorDays,
+    useSingleDayView,
+  ]);
+
+  const forecastSelectedDay = React.useMemo(() => {
+    if (!forecastPage || !useSingleDayView) return null;
+    const target = forecastDayKey ?? preferredForecastDayKey;
+    return (
+      selectorDays.find((day) => day.key === target) ?? selectorDays[0] ?? null
+    );
+  }, [
+    forecastDayKey,
+    forecastPage,
+    preferredForecastDayKey,
+    selectorDays,
+    useSingleDayView,
+  ]);
+
+  const visibleDays = React.useMemo(() => {
+    if (!useSingleDayView) return data.slice(0, maxVisibleDays);
+    if (forecastPage) return forecastSelectedDay ? [forecastSelectedDay] : [];
+    return data[0] ? [data[0]] : [];
+  }, [data, forecastPage, forecastSelectedDay, useSingleDayView]);
+
+  const footerDateLabel = React.useMemo(() => {
+    const preferMs = (() => {
+      if (forecastPage) return forecastSelectedDay?.dateMs ?? null;
+      if (visibleDays[0]?.dateMs) return visibleDays[0].dateMs;
+      if (selected instanceof Date) return selected.getTime();
+      return null;
+    })();
+    if (!preferMs) return null;
+    const date = new Date(preferMs);
+    const weekday = PACIFIC_PILL_WEEKDAY_FORMATTER.format(date);
+    const monthDay = PACIFIC_PILL_MONTHDAY_FORMATTER.format(date);
+    return `${weekday} · ${monthDay}`;
+  }, [forecastPage, forecastSelectedDay?.dateMs, selected, visibleDays]);
 
   const barScales = React.useMemo(() => {
     let waterMin = Number.POSITIVE_INFINITY;
@@ -1607,163 +1880,540 @@ const StatTable = ({
     if (e.deltaX > 8) handleNext();
     if (e.deltaX < -8) handleBack();
   };
-
-  type PagerMode = "hidden" | "fixed" | "docked";
-  const [pagerMode, setPagerMode] = React.useState<PagerMode>("hidden");
-  const [pagerFrame, setPagerFrame] = React.useState<{
-    left: number;
-    width: number;
-  }>({ left: 0, width: 0 });
-  const [portalTarget, setPortalTarget] = React.useState<HTMLElement | null>(
-    null
-  );
+  const [forecastDateMenuOpen, setForecastDateMenuOpen] = React.useState(false);
 
   React.useEffect(() => {
-    setPortalTarget(document.body);
-  }, []);
-
-  React.useEffect(() => {
-    if (columnPages.length <= 1) {
-      setPagerMode("hidden");
-      return;
+    const canShowForecastDateMenu =
+      forecastPage && useSingleDayView && selectorDays.length > 1;
+    if (!canShowForecastDateMenu) {
+      setForecastDateMenuOpen(false);
     }
-    if (!tableEl) return;
-    if (typeof window === "undefined") return;
+  }, [forecastPage, selectorDays.length, useSingleDayView]);
 
-    let raf = 0;
-    const update = () => {
-      raf = 0;
-      const rect = tableEl.getBoundingClientRect();
-      const vh = window.innerHeight || 0;
-      const vw = window.innerWidth || 0;
-
-      const isVisible = rect.bottom > 0 && rect.top < vh;
-      if (!isVisible) {
-        setPagerMode("hidden");
-        return;
+  const Pager = ({ compact }: { compact?: boolean }) => {
+    const totalPages = columnPages.length;
+    const dotIndices = (() => {
+      if (!compact || totalPages <= 7) {
+        return Array.from({ length: totalPages }, (_, idx) => idx);
       }
+      const windowSize = 7;
+      const half = Math.floor(windowSize / 2);
+      const start = Math.max(
+        0,
+        Math.min(currentPage - half, totalPages - windowSize)
+      );
+      return Array.from({ length: windowSize }, (_, idx) => start + idx);
+    })();
 
-      const visibleLeft = Math.max(0, rect.left);
-      const visibleRight = Math.min(vw, rect.right);
-      const visibleWidth = Math.max(0, visibleRight - visibleLeft);
-      setPagerFrame({ left: visibleLeft, width: visibleWidth });
+    const showOverflowBefore =
+      compact && totalPages > dotIndices.length && (dotIndices[0] ?? 0) > 0;
+    const showOverflowAfter =
+      compact &&
+      totalPages > dotIndices.length &&
+      (dotIndices[dotIndices.length - 1] ?? 0) < totalPages - 1;
 
-      // Stick to the viewport while the table extends below the viewport,
-      // then dock to the table bottom once you reach the end of the table.
-      const dockThresholdPx = 12;
-      const shouldDock = rect.bottom <= vh - dockThresholdPx;
-      setPagerMode(shouldDock ? "docked" : "fixed");
-    };
+    return (
+      <>
+        <Button
+          aria-label="previous columns"
+          variant="ghost"
+          size="icon"
+          className={cn(
+            "h-8 w-8",
+            "rounded-full text-muted-foreground",
+            "hover:bg-foreground/5 hover:text-foreground",
+            "focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0"
+          )}
+          onClick={handleBack}
+          disabled={currentPage === 0}
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <div className="flex items-center gap-1 px-0.5">
+          {showOverflowBefore ? (
+            <span
+              aria-hidden="true"
+              className={cn("rounded-full bg-foreground/15", "h-2 w-2")}
+            />
+          ) : null}
+          {dotIndices.map((idx) => (
+            <span
+              key={`pager-pill-${idx}`}
+              className={cn(
+                "rounded-full transition-colors motion-reduce:transition-none",
+                "h-2 w-2",
+                idx === currentPage ? "bg-foreground/80" : "bg-foreground/25"
+              )}
+            />
+          ))}
+          {showOverflowAfter ? (
+            <span
+              aria-hidden="true"
+              className={cn("rounded-full bg-foreground/15", "h-2 w-2")}
+            />
+          ) : null}
+        </div>
+        <Button
+          aria-label="next columns"
+          variant="ghost"
+          size="icon"
+          className={cn(
+            "h-8 w-8",
+            "rounded-full text-muted-foreground",
+            "hover:bg-foreground/5 hover:text-foreground",
+            "focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0"
+          )}
+          onClick={handleNext}
+          disabled={currentPage === totalPages - 1}
+        >
+          <ArrowRight className="h-4 w-4" />
+        </Button>
+      </>
+    );
+  };
 
-    const schedule = () => {
-      if (raf) return;
-      raf = window.requestAnimationFrame(update);
-    };
+  const controlsReady = !loading && data.length > 0;
+  const showDateSegment = controlsReady && useSingleDayView;
+  const showPager = controlsReady && columnPages.length > 1;
+  const showDensityToggle =
+    controlsReady && Boolean(density) && typeof onToggleDensity === "function";
+  const showExtraSwellsToggle = controlsReady;
+  const showForecastViewToggleInPill = controlsReady && showForecastViewToggle;
+  const controlsEnabled =
+    showForecastViewToggleInPill ||
+    showDateSegment ||
+    showPager ||
+    showDensityToggle ||
+    showExtraSwellsToggle;
 
-    schedule();
-    window.addEventListener("scroll", schedule, { passive: true });
-    window.addEventListener("resize", schedule);
-    return () => {
-      if (raf) window.cancelAnimationFrame(raf);
-      window.removeEventListener("scroll", schedule);
-      window.removeEventListener("resize", schedule);
-    };
-  }, [columnPages.length, tableEl]);
+  const isCompactPill =
+    controlsEnabled && tableWidthPx > 0 && tableWidthPx < 500;
 
-  const Pager = () => (
-    <>
-      <Button
-        aria-label="previous columns"
-        size="icon"
-        className={cn(
-          "h-7 w-7 rounded-full border border-border/60",
-          "bg-background/80 text-muted-foreground shadow-sm",
-          "hover:bg-background focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-        )}
-        onClick={handleBack}
-        disabled={currentPage === 0}
-      >
-        <ArrowLeft className="h-4 w-4" />
-      </Button>
-      <div className="flex gap-1">
-        {columnPages.map((_, i) => (
-          <span
-            key={`pager-${i}`}
-            className={cn(
-              "h-2 w-2 rounded-full transition-colors motion-reduce:transition-none",
-              i === currentPage ? "bg-foreground/80" : "bg-foreground/25"
-            )}
-          />
-        ))}
-      </div>
-      <Button
-        aria-label="next columns"
-        size="icon"
-        className={cn(
-          "h-7 w-7 rounded-full border border-border/60",
-          "bg-background/80 text-muted-foreground shadow-sm",
-          "hover:bg-background focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-        )}
-        onClick={handleNext}
-        disabled={currentPage === columnPages.length - 1}
-      >
-        <ArrowRight className="h-4 w-4" />
-      </Button>
-    </>
+  const divider = (
+    <span aria-hidden="true" className="mx-1.5 h-5 w-px bg-border/60" />
   );
 
-  const pagerShell = (
+  const footerControlsPill = controlsEnabled ? (
     <div
       className={cn(
-        "pointer-events-auto flex items-center gap-2",
+        "pointer-events-auto inline-flex h-10 max-w-full items-center rounded-full",
         "bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/70",
-        "border border-border/60 rounded-full px-2 py-1 shadow-md"
+        "border border-border/60 shadow-md"
       )}
     >
-      <Pager />
+      {isCompactPill ? (
+        <DropdownMenu modal={false}>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              aria-label="Table controls"
+              className={cn(
+                "inline-flex h-9 items-center gap-2 rounded-full px-3 text-xs font-semibold",
+                "text-foreground hover:bg-foreground/5",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0"
+              )}
+            >
+              <SlidersHorizontal
+                aria-hidden="true"
+                className="h-4 w-4 text-muted-foreground"
+              />
+              <span className="max-w-[9.5rem] truncate">
+                {showDateSegment ? footerDateLabel ?? "Date" : "Controls"}
+              </span>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="center"
+            sideOffset={10}
+            collisionPadding={12}
+            className={cn(
+              "w-56 rounded-2xl border border-border/40 p-1.5 shadow-xl",
+              "bg-background/95 supports-[backdrop-filter]:backdrop-blur-md",
+              "max-h-none overflow-visible",
+              "z-20"
+            )}
+          >
+            {showForecastViewToggleInPill ? (
+              <>
+                <DropdownMenuItem
+                  disabled={!canToggleForecastView}
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    setForecastViewMode((prev) =>
+                      prev === "all" ? "single" : "all"
+                    );
+                  }}
+                  className={cn(
+                    "rounded-xl px-2.5 py-2",
+                    !canToggleForecastView && "opacity-60"
+                  )}
+                >
+                  {resolvedForecastViewMode === "all" ? (
+                    <LayoutGrid aria-hidden="true" className="h-4 w-4" />
+                  ) : (
+                    <CalendarDays aria-hidden="true" className="h-4 w-4" />
+                  )}
+                  <span className="font-semibold">
+                    {resolvedForecastViewMode === "all" ? "4 days" : "1 day"}
+                  </span>
+                  <span className="ml-auto text-[0.7rem] font-semibold tabular-nums text-muted-foreground">
+                    toggle
+                  </span>
+                </DropdownMenuItem>
+                {showDateSegment ||
+                showDensityToggle ||
+                showExtraSwellsToggle ? (
+                  <DropdownMenuSeparator className="my-1" />
+                ) : null}
+              </>
+            ) : null}
+
+            {showDateSegment && forecastPage && selectorDays.length > 1 ? (
+              loading && !forecastSelectedDay ? (
+                <div className="px-2 py-2">
+                  <div className="h-3 w-full rounded bg-foreground/10 animate-pulse motion-reduce:animate-none" />
+                </div>
+              ) : forecastSelectedDay ? (
+                <div className="px-1">
+                  <DropdownMenuRadioGroup
+                    value={forecastSelectedDay.key}
+                    onValueChange={(value) => setForecastDayKey(value)}
+                    className="grid gap-1"
+                  >
+                    {selectorDays.map((day) => {
+                      const date = new Date(day.dateMs);
+                      const weekday =
+                        PACIFIC_PILL_WEEKDAY_FORMATTER.format(date);
+                      const monthDay =
+                        PACIFIC_PILL_MONTHDAY_FORMATTER.format(date);
+                      return (
+                        <DropdownMenuRadioItem
+                          key={day.key}
+                          value={day.key}
+                          className={cn(
+                            "rounded-xl px-2.5 py-2 pl-8",
+                            "focus:outline-none",
+                            "data-[state=checked]:bg-foreground/6 data-[state=checked]:shadow-even",
+                            "hover:bg-foreground/5 focus:bg-foreground/6"
+                          )}
+                        >
+                          <span className="flex min-w-0 flex-col">
+                            <span className="truncate text-[0.82rem] font-semibold leading-tight text-foreground">
+                              {weekday}
+                            </span>
+                            <span className="mt-0.5 truncate text-[0.7rem] font-semibold tabular-nums leading-tight text-muted-foreground">
+                              {monthDay}
+                            </span>
+                          </span>
+                        </DropdownMenuRadioItem>
+                      );
+                    })}
+                  </DropdownMenuRadioGroup>
+                </div>
+              ) : null
+            ) : showDateSegment ? (
+              <div className="px-2 py-2 text-sm font-semibold text-foreground">
+                {footerDateLabel ?? "-"}
+              </div>
+            ) : null}
+
+            {showDateSegment && (showDensityToggle || showExtraSwellsToggle) ? (
+              <DropdownMenuSeparator className="my-1" />
+            ) : null}
+
+            {showDensityToggle ? (
+              <DropdownMenuItem
+                disabled={!canToggleDensity}
+                onSelect={(e) => {
+                  e.preventDefault();
+                  onToggleDensity?.();
+                }}
+                className={cn(
+                  "rounded-xl px-2.5 py-2",
+                  !canToggleDensity && "opacity-60"
+                )}
+              >
+                <ClockFading aria-hidden="true" className="h-4 w-4" />
+                <span className="font-semibold">Interval</span>
+                <span className="ml-auto text-[0.75rem] font-semibold tabular-nums text-muted-foreground">
+                  {effectiveDensity === "3h" ? "3h" : "12h"}
+                </span>
+              </DropdownMenuItem>
+            ) : null}
+
+            {showDensityToggle && showExtraSwellsToggle ? (
+              <DropdownMenuSeparator className="my-1" />
+            ) : null}
+
+            {showExtraSwellsToggle ? (
+              <DropdownMenuItem
+                onSelect={(e) => {
+                  e.preventDefault();
+                  setShowSecondarySwells(!showSecondarySwells);
+                }}
+                className="rounded-xl px-2.5 py-2"
+              >
+                {showSecondarySwells ? (
+                  <EyeOff aria-hidden="true" className="h-4 w-4" />
+                ) : (
+                  <Eye aria-hidden="true" className="h-4 w-4" />
+                )}
+                <span className="font-semibold">Swells</span>
+                <span className="ml-auto text-[0.75rem] font-semibold text-muted-foreground">
+                  {showSecondarySwells ? "On" : "Off"}
+                </span>
+              </DropdownMenuItem>
+            ) : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : showForecastViewToggleInPill ? (
+        <button
+          type="button"
+          aria-label={
+            resolvedForecastViewMode === "all"
+              ? "Switch to 1-day view"
+              : "Switch to 4-day view"
+          }
+          onClick={() =>
+            setForecastViewMode((prev) => (prev === "all" ? "single" : "all"))
+          }
+          disabled={!canToggleForecastView}
+          className={cn(
+            "inline-flex h-9 items-center gap-2 rounded-full px-3 text-xs font-semibold",
+            "text-foreground hover:bg-foreground/5",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0",
+            !canToggleForecastView &&
+              "opacity-60 cursor-not-allowed hover:bg-transparent"
+          )}
+        >
+          {resolvedForecastViewMode === "all" ? (
+            <LayoutGrid
+              aria-hidden="true"
+              className="h-4 w-4 text-muted-foreground"
+            />
+          ) : (
+            <CalendarDays
+              aria-hidden="true"
+              className="h-4 w-4 text-muted-foreground"
+            />
+          )}
+          <span>{resolvedForecastViewMode === "all" ? "4 days" : "1 day"}</span>
+        </button>
+      ) : null}
+
+      {!isCompactPill &&
+      showForecastViewToggleInPill &&
+      (showDateSegment ||
+        showDensityToggle ||
+        showExtraSwellsToggle ||
+        showPager)
+        ? divider
+        : null}
+
+      {!isCompactPill && showDateSegment ? (
+        forecastPage && selectorDays.length > 1 ? (
+          loading && !forecastSelectedDay ? (
+            <div className="h-9 w-40 rounded-full px-3">
+              <div className="mt-3 h-3 w-full rounded bg-foreground/10 animate-pulse motion-reduce:animate-none" />
+            </div>
+          ) : forecastSelectedDay ? (
+            <DropdownMenu
+              modal={false}
+              open={forecastDateMenuOpen}
+              onOpenChange={setForecastDateMenuOpen}
+            >
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Select forecast date"
+                  className={cn(
+                    "inline-flex h-9 items-center gap-2 rounded-full px-3 text-xs font-semibold",
+                    "text-foreground hover:bg-foreground/5",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0"
+                  )}
+                >
+                  <CalendarDays
+                    aria-hidden="true"
+                    className="h-4 w-4 text-muted-foreground"
+                  />
+                  <span className="max-w-[10rem] truncate">
+                    {footerDateLabel ??
+                      PACIFIC_COMPACT_DATE_FORMATTER.format(
+                        new Date(forecastSelectedDay.dateMs)
+                      )}
+                  </span>
+                  <ChevronDown
+                    aria-hidden="true"
+                    className={cn(
+                      "h-4 w-4 text-muted-foreground transition-transform duration-200",
+                      forecastDateMenuOpen && "rotate-180"
+                    )}
+                  />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                side="top"
+                sideOffset={10}
+                collisionPadding={12}
+                className={cn(
+                  "w-44 rounded-2xl border border-border/40 p-1 shadow-xl",
+                  "bg-background/95 supports-[backdrop-filter]:backdrop-blur-md",
+                  "z-20"
+                )}
+              >
+                <DropdownMenuRadioGroup
+                  value={forecastSelectedDay.key}
+                  onValueChange={(value) => setForecastDayKey(value)}
+                  className="grid gap-1"
+                >
+                  {selectorDays.map((day) => {
+                    const date = new Date(day.dateMs);
+                    const weekday = PACIFIC_PILL_WEEKDAY_FORMATTER.format(date);
+                    const monthDay =
+                      PACIFIC_PILL_MONTHDAY_FORMATTER.format(date);
+                    return (
+                      <DropdownMenuRadioItem
+                        key={day.key}
+                        value={day.key}
+                        className={cn(
+                          "rounded-xl px-2.5 py-2 pl-8",
+                          "focus:outline-none",
+                          "data-[state=checked]:bg-foreground/6 data-[state=checked]:shadow-even",
+                          "hover:bg-foreground/5 focus:bg-foreground/6"
+                        )}
+                      >
+                        <span className="flex min-w-0 flex-col">
+                          <span className="truncate text-[0.82rem] font-semibold leading-tight text-foreground">
+                            {weekday}
+                          </span>
+                          <span className="mt-0.5 truncate text-[0.7rem] font-semibold tabular-nums leading-tight text-muted-foreground">
+                            {monthDay}
+                          </span>
+                        </span>
+                      </DropdownMenuRadioItem>
+                    );
+                  })}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null
+        ) : (
+          <div
+            className={cn(
+              "inline-flex h-9 items-center gap-2 rounded-full px-3 text-xs font-semibold",
+              "text-foreground"
+            )}
+          >
+            <CalendarDays
+              aria-hidden="true"
+              className="h-4 w-4 text-muted-foreground"
+            />
+            <span className="max-w-[10rem] truncate">
+              {footerDateLabel ?? "—"}
+            </span>
+          </div>
+        )
+      ) : null}
+
+      {!isCompactPill &&
+      showDateSegment &&
+      (showDensityToggle || showExtraSwellsToggle || showPager)
+        ? divider
+        : null}
+
+      {!isCompactPill && showDensityToggle ? (
+        <button
+          type="button"
+          aria-label={
+            effectiveDensity === "3h"
+              ? "Switch to 12-hour interval"
+              : "Switch to 3-hour interval"
+          }
+          onClick={onToggleDensity}
+          disabled={!canToggleDensity}
+          className={cn(
+            "inline-flex h-9 items-center gap-2 rounded-full px-3 text-xs font-semibold",
+            "text-foreground hover:bg-foreground/5",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0",
+            !canToggleDensity &&
+              "opacity-60 cursor-not-allowed hover:bg-transparent"
+          )}
+        >
+          <ClockFading
+            aria-hidden="true"
+            className="h-4 w-4 text-muted-foreground"
+          />
+          <span className="tabular-nums">
+            {effectiveDensity === "3h" ? "3h" : "12h"}
+          </span>
+        </button>
+      ) : null}
+
+      {!isCompactPill && showDensityToggle && showExtraSwellsToggle
+        ? divider
+        : null}
+
+      {!isCompactPill && showExtraSwellsToggle ? (
+        <button
+          type="button"
+          aria-label={`${showSecondarySwells ? "Hide" : "Show"} extra swells`}
+          onClick={() => setShowSecondarySwells(!showSecondarySwells)}
+          className={cn(
+            "inline-flex h-9 items-center gap-2 rounded-full px-3 text-xs font-semibold",
+            "text-foreground hover:bg-foreground/5",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0"
+          )}
+        >
+          {showSecondarySwells ? (
+            <EyeOff
+              aria-hidden="true"
+              className="h-4 w-4 text-muted-foreground"
+            />
+          ) : (
+            <Eye aria-hidden="true" className="h-4 w-4 text-muted-foreground" />
+          )}
+          <span className="hidden @min-[460px]:inline">Swells</span>
+        </button>
+      ) : null}
+
+      {showPager ? divider : null}
+      {showPager ? (
+        <div className="flex items-center pr-1">
+          <Pager compact={isCompactPill} />
+        </div>
+      ) : null}
     </div>
-  );
+  ) : null;
+
+  const shouldReserveFooterSpace = Boolean(footerControlsPill) || loading;
 
   return (
-    <>
-      {pagerMode === "fixed" && portalTarget
-        ? createPortal(
-            <div
-              className="fixed z-20 flex justify-center pointer-events-none"
-              style={{
-                left: pagerFrame.left,
-                width: pagerFrame.width,
-                bottom: "calc(0.75rem + env(safe-area-inset-bottom))",
-              }}
-            >
-              {pagerShell}
-            </div>,
-            portalTarget
-          )
-        : null}
-      <div
-        ref={assignTableRef}
-        className={cn(
-          "relative -mx-1 @min-md:mx-2 @min-2xl:mx-4",
-          columnPages.length > 1 && "pb-16",
-          "rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-        )}
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
-        onWheel={onWheel}
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (columnPages.length <= 1) return;
-          if (e.key === "ArrowRight") {
-            e.preventDefault();
-            handleNext();
-          } else if (e.key === "ArrowLeft") {
-            e.preventDefault();
-            handleBack();
-          }
-        }}
-      >
+    <div
+      ref={assignTableRef}
+      className={cn(
+        "relative -mx-1 @min-md:mx-2",
+        variant !== "half" && "@min-2xl:mx-4",
+        // controlsEnabled && "pb-16",
+        "rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      )}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      onWheel={onWheel}
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (columnPages.length <= 1) return;
+        if (e.key === "ArrowRight") {
+          e.preventDefault();
+          handleNext();
+        } else if (e.key === "ArrowLeft") {
+          e.preventDefault();
+          handleBack();
+        }
+      }}
+    >
+      <div>
         {/* Toggle button for secondary/tertiary swells */}
         {/* <div className="flex justify-end mb-2">
         <Button
@@ -1785,21 +2435,11 @@ const StatTable = ({
           )}
         </Button>
       </div> */}
-        {pagerMode === "docked" && columnPages.length > 1 ? (
-          <div
-            className="absolute inset-x-0 z-20 flex justify-center pointer-events-none"
-            style={{ bottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
-          >
-            {pagerShell}
-          </div>
-        ) : null}
         <div
           className={cn(
-            "sticky z-20 -mx-1 @min-md:mx-0 rounded-b-[18px] px-0.5 py-1",
-            headerBgClass,
-            "supports-[backdrop-filter]:backdrop-blur-md"
+            "sticky top-16 @min-4xl:top-27.5 z-40 @min-md:mx-0 rounded-b-[10px] px-0.5 py-0.5",
+            headerBgClass
           )}
-          style={{ top: stickyHeaderTopPx }}
         >
           <table className="w-full table-fixed border-separate border-spacing-x-2 border-spacing-y-0 text-sm">
             <colgroup>
@@ -1807,52 +2447,56 @@ const StatTable = ({
               {visibleColumns.map((col) => (
                 <col
                   key={col.id}
-                  className={cn(
-                    col.id === "surf"
-                      ? widthNow.current >= 750 &&
-                        widthNow.current < TABLE_BREAKPOINT_LG
-                        ? ""
-                        : "w-[clamp(5.25rem,10vw,5.75rem)]"
-                      : "",
-                    col.id === "wind" &&
-                      showSecondarySwells &&
-                      widthNow.current >= TABLE_BREAKPOINT_LG &&
-                      "w-[11rem]",
-                    col.id === "weather" || col.id === "water"
-                      ? showSecondarySwells
-                        ? widthNow.current >= TABLE_BREAKPOINT_LG &&
-                          widthNow.current < TABLE_BREAKPOINT_XL
-                          ? ""
-                          : "@min-[1175px]:w-[clamp(4.5rem,9vw,5.5rem)]"
-                        : widthNow.current >= TABLE_BREAKPOINT_LG &&
-                          "w-[clamp(4.5rem,9vw,5.5rem)]"
-                      : "",
-                    col.id === "energy"
-                      ? showSecondarySwells
-                        ? widthNow.current >= TABLE_BREAKPOINT_LG &&
-                          widthNow.current < TABLE_BREAKPOINT_XL
-                          ? ""
-                          : "@min-[1175px]:w-[clamp(4.75rem,9vw,5.5rem)]"
-                        : widthNow.current >= TABLE_BREAKPOINT_LG &&
-                          "w-[clamp(4.75rem,9vw,5.5rem)]"
-                      : "",
-                    col.id === "pressure"
-                      ? showSecondarySwells
-                        ? widthNow.current >= TABLE_BREAKPOINT_LG &&
-                          widthNow.current < TABLE_BREAKPOINT_XL
-                          ? ""
-                          : "@min-[1175px]:w-[clamp(5.25rem,10vw,6.75rem)]"
-                        : widthNow.current >= TABLE_BREAKPOINT_LG &&
-                          "w-[clamp(5.25rem,10vw,6.75rem)]"
-                      : "",
-                    col.id === "__spacer" && "w-[10rem]"
-                  )}
+                  className={
+                    isHalfColumns
+                      ? undefined
+                      : cn(
+                          col.id === "surf"
+                            ? widthNow.current >= 750 &&
+                              widthNow.current < TABLE_BREAKPOINT_LG
+                              ? ""
+                              : "w-[clamp(5.25rem,10vw,5.75rem)]"
+                            : "",
+                          col.id === "wind" &&
+                            showSecondarySwells &&
+                            widthNow.current >= TABLE_BREAKPOINT_LG &&
+                            "w-[11rem]",
+                          col.id === "weather" || col.id === "water"
+                            ? showSecondarySwells
+                              ? widthNow.current >= TABLE_BREAKPOINT_LG &&
+                                widthNow.current < TABLE_BREAKPOINT_XL
+                                ? ""
+                                : "@min-[1175px]:w-[clamp(4.5rem,9vw,5.5rem)]"
+                              : widthNow.current >= TABLE_BREAKPOINT_LG &&
+                                "w-[clamp(4.5rem,9vw,5.5rem)]"
+                            : "",
+                          col.id === "energy"
+                            ? showSecondarySwells
+                              ? widthNow.current >= TABLE_BREAKPOINT_LG &&
+                                widthNow.current < TABLE_BREAKPOINT_XL
+                                ? ""
+                                : "@min-[1175px]:w-[clamp(4.75rem,9vw,5.5rem)]"
+                              : widthNow.current >= TABLE_BREAKPOINT_LG &&
+                                "w-[clamp(4.75rem,9vw,5.5rem)]"
+                            : "",
+                          col.id === "pressure"
+                            ? showSecondarySwells
+                              ? widthNow.current >= TABLE_BREAKPOINT_LG &&
+                                widthNow.current < TABLE_BREAKPOINT_XL
+                                ? ""
+                                : "@min-[1175px]:w-[clamp(5.25rem,10vw,6.75rem)]"
+                              : widthNow.current >= TABLE_BREAKPOINT_LG &&
+                                "w-[clamp(5.25rem,10vw,6.75rem)]"
+                            : "",
+                          col.id === "__spacer" && "w-[10rem]"
+                        )
+                  }
                 />
               ))}
             </colgroup>
             <thead>
               <tr>
-                <th scope="col" className="sticky left-0 z-10 w-12 pb-1">
+                <th scope="col" className="sticky left-0 z-10 w-12 pb-0">
                   <div className="flex flex-col items-center gap-1">
                     <div className="flex items-center gap-1 text-[0.7rem] font-medium uppercase tracking-wide text-muted-foreground">
                       <Clock3 className="h-3.5 w-3.5" aria-hidden="true" />
@@ -1872,11 +2516,17 @@ const StatTable = ({
                       key={col.id}
                       scope="col"
                       className={cn(
-                        "pb-1 text-center text-[0.7rem] font-medium uppercase tracking-wide text-muted-foreground sm:text-xs"
+                        "pb-0 text-center text-[0.7rem] font-medium uppercase tracking-wide text-muted-foreground sm:text-xs"
                       )}
                     >
                       <div className="flex flex-col items-center gap-1">
-                        <span className={cn(!col.label && "sr-only")}>
+                        <span
+                          className={
+                            col.label
+                              ? "block max-w-full truncate whitespace-nowrap"
+                              : "sr-only"
+                          }
+                        >
                           {col.label || "Spacer"}
                         </span>
                         <span
@@ -1899,7 +2549,14 @@ const StatTable = ({
         <table
           className={cn(
             "w-full table-fixed border-separate border-spacing-x-2 border-spacing-y-1.5 text-sm",
-            forecastPage && "-mt-5"
+            forecastPage &&
+              (variant === "half" ||
+                (variant === "full" && forecastViewMode === "single")) &&
+              "mt-0",
+            forecastPage &&
+              variant === "full" &&
+              forecastViewMode === "all" &&
+              "-mt-5"
           )}
         >
           <colgroup>
@@ -1907,46 +2564,50 @@ const StatTable = ({
             {visibleColumns.map((col) => (
               <col
                 key={col.id}
-                className={cn(
-                  col.id === "surf"
-                    ? widthNow.current >= 750 &&
-                      widthNow.current < TABLE_BREAKPOINT_LG
-                      ? ""
-                      : "w-[clamp(5.25rem,10vw,5.75rem)]"
-                    : "",
-                  col.id === "wind" &&
-                    showSecondarySwells &&
-                    widthNow.current >= TABLE_BREAKPOINT_LG &&
-                    "w-[11rem]",
-                  col.id === "weather" || col.id === "water"
-                    ? showSecondarySwells
-                      ? widthNow.current >= TABLE_BREAKPOINT_LG &&
-                        widthNow.current < TABLE_BREAKPOINT_XL
-                        ? ""
-                        : "@min-[1175px]:w-[clamp(4.5rem,9vw,5.5rem)]"
-                      : widthNow.current >= TABLE_BREAKPOINT_LG &&
-                        "w-[clamp(4.5rem,9vw,5.5rem)]"
-                    : "",
-                  col.id === "energy"
-                    ? showSecondarySwells
-                      ? widthNow.current >= TABLE_BREAKPOINT_LG &&
-                        widthNow.current < TABLE_BREAKPOINT_XL
-                        ? ""
-                        : "@min-[1175px]:w-[clamp(4.75rem,9vw,5.5rem)]"
-                      : widthNow.current >= TABLE_BREAKPOINT_LG &&
-                        "w-[clamp(4.75rem,9vw,5.5rem)]"
-                    : "",
-                  col.id === "pressure"
-                    ? showSecondarySwells
-                      ? widthNow.current >= TABLE_BREAKPOINT_LG &&
-                        widthNow.current < TABLE_BREAKPOINT_XL
-                        ? ""
-                        : "@min-[1175px]:w-[clamp(5.25rem,10vw,6.75rem)]"
-                      : widthNow.current >= TABLE_BREAKPOINT_LG &&
-                        "w-[clamp(5.25rem,10vw,6.75rem)]"
-                    : "",
-                  col.id === "__spacer" && "w-[10rem]"
-                )}
+                className={
+                  isHalfColumns
+                    ? undefined
+                    : cn(
+                        col.id === "surf"
+                          ? widthNow.current >= 750 &&
+                            widthNow.current < TABLE_BREAKPOINT_LG
+                            ? ""
+                            : "w-[clamp(5.25rem,10vw,5.75rem)]"
+                          : "",
+                        col.id === "wind" &&
+                          showSecondarySwells &&
+                          widthNow.current >= TABLE_BREAKPOINT_LG &&
+                          "w-[11rem]",
+                        col.id === "weather" || col.id === "water"
+                          ? showSecondarySwells
+                            ? widthNow.current >= TABLE_BREAKPOINT_LG &&
+                              widthNow.current < TABLE_BREAKPOINT_XL
+                              ? ""
+                              : "@min-[1175px]:w-[clamp(4.5rem,9vw,5.5rem)]"
+                            : widthNow.current >= TABLE_BREAKPOINT_LG &&
+                              "w-[clamp(4.5rem,9vw,5.5rem)]"
+                          : "",
+                        col.id === "energy"
+                          ? showSecondarySwells
+                            ? widthNow.current >= TABLE_BREAKPOINT_LG &&
+                              widthNow.current < TABLE_BREAKPOINT_XL
+                              ? ""
+                              : "@min-[1175px]:w-[clamp(4.75rem,9vw,5.5rem)]"
+                            : widthNow.current >= TABLE_BREAKPOINT_LG &&
+                              "w-[clamp(4.75rem,9vw,5.5rem)]"
+                          : "",
+                        col.id === "pressure"
+                          ? showSecondarySwells
+                            ? widthNow.current >= TABLE_BREAKPOINT_LG &&
+                              widthNow.current < TABLE_BREAKPOINT_XL
+                              ? ""
+                              : "@min-[1175px]:w-[clamp(5.25rem,10vw,6.75rem)]"
+                            : widthNow.current >= TABLE_BREAKPOINT_LG &&
+                              "w-[clamp(5.25rem,10vw,6.75rem)]"
+                          : "",
+                        col.id === "__spacer" && "w-[10rem]"
+                      )
+                }
               />
             ))}
           </colgroup>
@@ -1963,20 +2624,25 @@ const StatTable = ({
           <tbody>
             {loading && !visibleDays.length
               ? (() => {
-                  const daysForSkeleton = Math.min(
-                    windowSize,
-                    Math.max(numDays, 1)
-                  );
+                  const daysForSkeleton = useSingleDayView
+                    ? 1
+                    : Math.min(maxVisibleDays, Math.max(numDays, 1));
+                  const rowsForSkeleton = targetHours.length;
                   return Array.from({ length: daysForSkeleton }).map(
                     (_, dayIdx) => (
                       <React.Fragment key={`skeleton-day-${dayIdx}`}>
-                        {header && (
+                        {showDayHeaderRow && (
                           <tr>
                             <td
                               colSpan={visibleColumns.length + 1}
                               className="p-0"
                             >
-                              <div className="mx-1 my-4 relative overflow-hidden rounded-2xl border border-border/60 bg-foreground/[0.06] px-4 py-3 shadow-[0_1px_0_rgba(0,0,0,0.04),0_12px_30px_rgba(0,0,0,0.06)] dark:bg-foreground/[0.09] dark:shadow-[0_1px_0_rgba(0,0,0,0.35),0_12px_30px_rgba(0,0,0,0.35)]">
+                              <div
+                                className={cn(
+                                  "mx-0 my-3 relative overflow-hidden rounded-2xl border border-border/60 bg-foreground/[0.06] px-4 py-3 shadow-[0_1px_0_rgba(0,0,0,0.04),0_12px_30px_rgba(0,0,0,0.06)] dark:bg-foreground/[0.09] dark:shadow-[0_1px_0_rgba(0,0,0,0.35),0_12px_30px_rgba(0,0,0,0.35)]",
+                                  dayIdx === 0 && variant === "half" && "mt-0"
+                                )}
+                              >
                                 <div className="absolute inset-0 bg-gradient-to-r from-foreground/[0.06] via-transparent to-foreground/[0.02] dark:from-foreground/[0.09] dark:to-foreground/[0.04]" />
                                 <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-foreground/20 to-transparent dark:via-foreground/25" />
                                 <div className="relative flex items-center gap-3">
@@ -1990,7 +2656,7 @@ const StatTable = ({
                             </td>
                           </tr>
                         )}
-                        {Array.from({ length: numHours }).flatMap(
+                        {Array.from({ length: rowsForSkeleton }).flatMap(
                           (_, rowIdx) => {
                             const row = (
                               <tr
@@ -1999,7 +2665,7 @@ const StatTable = ({
                               >
                                 <th
                                   scope="row"
-                                  className="sticky left-0 z-10 p-0 align-middle bg-background/90 supports-[backdrop-filter]:bg-background/50 supports-[backdrop-filter]:backdrop-blur border-r border-border/40 dark:border-border/50"
+                                  className="sticky left-0 z-10 p-0 align-middle bg-transparent border-r border-border/40 dark:border-border/50"
                                 >
                                   <div className="h-14 w-12 rounded-xl border border-border/25 bg-foreground/[0.03] dark:bg-foreground/[0.05] animate-pulse motion-reduce:animate-none" />
                                 </th>
@@ -2015,7 +2681,7 @@ const StatTable = ({
                             );
 
                             const divider =
-                              rowIdx === numHours - 1 ? null : (
+                              rowIdx === rowsForSkeleton - 1 ? null : (
                                 <tr
                                   key={`skeleton-row-${dayIdx}-${rowIdx}-divider`}
                                   aria-hidden="true"
@@ -2038,7 +2704,13 @@ const StatTable = ({
                   );
                 })()
               : visibleDays.map((day, i) => {
-                  const content = day.vals.flatMap((entry, rowIdx) => {
+                  const dayEntries = targetHours.map(
+                    (hour) =>
+                      day.vals.find((entry) => entry.index === hour) ??
+                      buildMissingEntry(hour)
+                  );
+
+                  const content = dayEntries.flatMap((entry, rowIdx) => {
                     let isSelectedHour = false;
                     // Determine selection per page context
                     if (forecastPage) {
@@ -2052,7 +2724,7 @@ const StatTable = ({
                           ).getTime() === day.dateMs
                         : false;
                       if (sameDay) {
-                        const hours = day.vals
+                        const hours = dayEntries
                           .map((v) => v.index)
                           .sort((a, b) => a - b);
                         // pick the last hour <= selected hour, otherwise first
@@ -2060,16 +2732,21 @@ const StatTable = ({
                           ? stableSelectedHour ?? selectedHour ?? null
                           : selectedHour ?? null;
                         if (effectiveHour != null) {
-                          let bucket = hours[0];
-                          for (const h of hours) {
-                            if (h <= effectiveHour) bucket = h;
-                          }
-                          isSelectedHour = entry.index === bucket;
+                          const bucket = pickLastNotAfter(hours, effectiveHour);
+                          isSelectedHour =
+                            bucket != null && entry.index === bucket;
                         }
                       }
                     } else {
-                      // Overview behavior: exact hour match
-                      isSelectedHour = entry.index === selectedHour;
+                      const effectiveHour = selectedHour ?? null;
+                      if (effectiveHour != null) {
+                        const hours = dayEntries
+                          .map((v) => v.index)
+                          .sort((a, b) => a - b);
+                        const bucket = pickClosestBucket(hours, effectiveHour);
+                        isSelectedHour =
+                          bucket != null && entry.index === bucket;
+                      }
                     }
                     const row = (
                       <tr
@@ -2078,7 +2755,7 @@ const StatTable = ({
                       >
                         <th
                           scope="row"
-                          className="sticky left-0 z-10 p-0 align-middle bg-background/90 supports-[backdrop-filter]:bg-background/50 supports-[backdrop-filter]:backdrop-blur"
+                          className="sticky left-0 z-10 p-0 align-middle bg-transparent"
                         >
                           <TimeCell
                             time={entry.time}
@@ -2087,102 +2764,112 @@ const StatTable = ({
                         </th>
                         {visibleColumns.map((col) => {
                           let content: React.ReactNode = null;
-                          switch (col.id) {
-                            case "__spacer":
-                              content = (
-                                <CellSurface className="bg-transparent dark:bg-transparent border-border/20">
-                                  <span
-                                    aria-hidden="true"
-                                    className="h-2 w-10 rounded-full bg-foreground/10"
+                          if (entry.missing && col.id !== "__spacer") {
+                            content = (
+                              <CellSurface>
+                                <span className="text-sm font-semibold text-muted-foreground">
+                                  —
+                                </span>
+                              </CellSurface>
+                            );
+                          } else {
+                            switch (col.id) {
+                              case "__spacer":
+                                content = (
+                                  <CellSurface className="bg-transparent dark:bg-transparent border-border/20">
+                                    <span
+                                      aria-hidden="true"
+                                      className="h-2 w-10 rounded-full bg-foreground/10"
+                                    />
+                                  </CellSurface>
+                                );
+                                break;
+                              case "wind":
+                                content = (
+                                  <WindStat
+                                    data={entry.wind}
+                                    scaleMax={WIND_SCALE_MAX_MPH}
+                                    showSecondarySwells={showSecondarySwells}
                                   />
-                                </CellSurface>
-                              );
-                              break;
-                            case "wind":
-                              content = (
-                                <WindStat
-                                  data={entry.wind}
-                                  scaleMax={WIND_SCALE_MAX_MPH}
-                                  showSecondarySwells={showSecondarySwells}
-                                />
-                              );
-                              break;
-                            case "weather":
-                              content = <WeatherStat data={entry.weather} />;
-                              break;
-                            case "surf":
-                              content = (
-                                <SurfStat
-                                  range={entry.surf.height}
-                                  maxFt={parseSurfMaxFt(entry.surf.height)}
-                                  scaleMax={SURF_SCALE_MAX_FT}
-                                />
-                              );
-                              break;
-                            case "swellPrimary":
-                              content = (
-                                <SwellStat
-                                  primary
-                                  data={entry.swell.primary}
-                                  showMap={showMap}
-                                  showSecondarySwells={showSecondarySwells}
-                                />
-                              );
-                              break;
-                            case "swellSecondary": {
-                              const s0 = entry.swell.secondary[0];
-                              content = (
-                                <SwellStat
-                                  data={s0}
-                                  showMap={showMap}
-                                  showSecondarySwells={showSecondarySwells}
-                                />
-                              );
-                              break;
+                                );
+                                break;
+                              case "weather":
+                                content = <WeatherStat data={entry.weather} />;
+                                break;
+                              case "surf":
+                                content = (
+                                  <SurfStat
+                                    range={entry.surf.height}
+                                    maxFt={parseSurfMaxFt(entry.surf.height)}
+                                    scaleMax={SURF_SCALE_MAX_FT}
+                                  />
+                                );
+                                break;
+                              case "swellPrimary":
+                                content = (
+                                  <SwellStat
+                                    primary
+                                    data={entry.swell.primary}
+                                    showMap={showMap}
+                                    showSecondarySwells={showSecondarySwells}
+                                  />
+                                );
+                                break;
+                              case "swellSecondary": {
+                                const s0 = entry.swell.secondary[0];
+                                content = (
+                                  <SwellStat
+                                    data={s0}
+                                    showMap={showMap}
+                                    showSecondarySwells={showSecondarySwells}
+                                  />
+                                );
+                                break;
+                              }
+                              case "swellTertiary": {
+                                const s1 = entry.swell.secondary[1];
+                                content = (
+                                  <SwellStat
+                                    data={s1}
+                                    showMap={showMap}
+                                    showSecondarySwells={showSecondarySwells}
+                                  />
+                                );
+                                break;
+                              }
+                              case "pressure":
+                                content = (
+                                  <PressureStat
+                                    value={entry.pressure.value}
+                                    min={barScales.pressureMin}
+                                    max={barScales.pressureMax}
+                                    prev={
+                                      rowIdx > 0
+                                        ? day.vals[rowIdx - 1]?.pressure
+                                            .value ?? null
+                                        : null
+                                    }
+                                  />
+                                );
+                                break;
+                              case "water":
+                                content = (
+                                  <WeatherStat
+                                    water={entry.water.temp}
+                                    waterMin={barScales.waterMin}
+                                    waterMax={barScales.waterMax}
+                                  />
+                                );
+                                break;
+                              case "energy":
+                                content = (
+                                  <EnergyStat
+                                    value={entry.energy.value}
+                                    scaleMax={barScales.energyMax}
+                                  />
+                                );
+                                break;
                             }
-                            case "swellTertiary": {
-                              const s1 = entry.swell.secondary[1];
-                              content = (
-                                <SwellStat
-                                  data={s1}
-                                  showMap={showMap}
-                                  showSecondarySwells={showSecondarySwells}
-                                />
-                              );
-                              break;
-                            }
-                            case "pressure":
-                              content = (
-                                <PressureStat
-                                  value={entry.pressure.value}
-                                  min={barScales.pressureMin}
-                                  max={barScales.pressureMax}
-                                  prev={
-                                    rowIdx > 0
-                                      ? day.vals[rowIdx - 1]?.pressure.value ??
-                                        null
-                                      : null
-                                  }
-                                />
-                              );
-                              break;
-                            case "water":
-                              content = (
-                                <WeatherStat
-                                  water={entry.water.temp}
-                                  waterMin={barScales.waterMin}
-                                  waterMax={barScales.waterMax}
-                                />
-                              );
-                              break;
-                            case "energy":
-                              content = (
-                                <EnergyStat
-                                  value={entry.energy.value}
-                                  scaleMax={barScales.energyMax}
-                                />
-                              );
-                              break;
                           }
                           return (
                             <td
@@ -2205,7 +2892,7 @@ const StatTable = ({
                     );
 
                     const divider =
-                      rowIdx === day.vals.length - 1 ? null : (
+                      rowIdx === dayEntries.length - 1 ? null : (
                         <tr
                           key={`${i}-${entry.index}-divider`}
                           aria-hidden="true"
@@ -2224,13 +2911,18 @@ const StatTable = ({
                   });
                   return (
                     <React.Fragment key={i}>
-                      {header && (
+                      {showDayHeaderRow && (
                         <tr key={`${i}-date`}>
                           <td
                             colSpan={visibleColumns.length + 1}
                             className="p-0"
                           >
-                            <div className="mx-1 my-4 relative overflow-hidden rounded-2xl border border-border/60 bg-foreground/[0.06] px-4 py-3 shadow-[0_1px_0_rgba(0,0,0,0.04),0_12px_30px_rgba(0,0,0,0.06)] dark:bg-foreground/[0.09] dark:shadow-[0_1px_0_rgba(0,0,0,0.35),0_12px_30px_rgba(0,0,0,0.35)]">
+                            <div
+                              className={cn(
+                                "mx-0 my-3 relative overflow-hidden rounded-2xl border border-border/60 bg-foreground/[0.06] px-4 py-3 shadow-[0_1px_0_rgba(0,0,0,0.04),0_12px_30px_rgba(0,0,0,0.06)] dark:bg-foreground/[0.09] dark:shadow-[0_1px_0_rgba(0,0,0,0.35),0_12px_30px_rgba(0,0,0,0.35)]",
+                                i === 0 && variant === "half" && "mt-0"
+                              )}
+                            >
                               <div className="absolute inset-0 bg-gradient-to-r from-foreground/[0.06] via-transparent to-foreground/[0.02] dark:from-foreground/[0.09] dark:to-foreground/[0.04]" />
                               <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-foreground/20 to-transparent dark:via-foreground/25" />
                               <div className="relative flex items-center gap-3">
@@ -2257,8 +2949,153 @@ const StatTable = ({
                 })}
           </tbody>
         </table>
+
+        {/* Footer controls render in the fixed footer below. */}
+        {false ? (
+          <div className="mt-2 flex min-h-10 items-center justify-end px-1">
+            {footerControlsPill}
+            {/*
+            <div className="flex items-center gap-2 min-w-0">
+              {forecastPage && selectorDays.length > 1 ? (
+                loading && !halfForecastSelectedDay ? (
+                  <div className="h-8 w-32 rounded-full border border-border/60 bg-foreground/5 px-3 shadow-sm">
+                    <div className="mt-2 h-3 w-full rounded bg-foreground/10 animate-pulse motion-reduce:animate-none" />
+                  </div>
+                ) : halfForecastSelectedDay ? (
+                  <DropdownMenu modal={false}>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        aria-label="Select forecast date"
+                        className={cn(
+                          "inline-flex h-8 items-center gap-2 rounded-full border border-border/60",
+                          "bg-background/90 px-3 text-xs font-semibold text-foreground shadow-sm",
+                          "hover:bg-background",
+                          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                        )}
+                      >
+                        <CalendarDays
+                          aria-hidden="true"
+                          className="h-4 w-4 text-muted-foreground"
+                        />
+                        <span className="max-w-[9rem] truncate">
+                          {halfFooterDateLabel ??
+                            PACIFIC_COMPACT_DATE_FORMATTER.format(
+                              new Date(halfForecastSelectedDay.dateMs)
+                            )}
+                        </span>
+                        <ChevronDown
+                          aria-hidden="true"
+                          className="h-4 w-4 text-muted-foreground"
+                        />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      align="start"
+                      side="top"
+                      sideOffset={8}
+                      avoidCollisions={false}
+                      className={cn(
+                        "min-w-[14rem] rounded-2xl border border-border/40 p-1.5 shadow-lg",
+                        "bg-background/95 supports-[backdrop-filter]:backdrop-blur-md"
+                      )}
+                    >
+                      <DropdownMenuLabel className="px-2 py-1 text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Forecast date
+                      </DropdownMenuLabel>
+                      <DropdownMenuSeparator className="my-1" />
+                      <DropdownMenuRadioGroup
+                        value={halfForecastSelectedDay.key}
+                        onValueChange={(value) => setHalfForecastDayKey(value)}
+                      >
+                        {selectorDays.map((day) => {
+                          const label = PACIFIC_COMPACT_DATE_FORMATTER.format(
+                            new Date(day.dateMs)
+                          );
+                          const [weekdayRaw, restRaw] = label.split(",");
+                          const weekday = (weekdayRaw ?? label).trim();
+                          const rest = (restRaw ?? "").trim();
+                          const compactLabel =
+                            rest.length > 0 ? `${weekday} · ${rest}` : label;
+                          return (
+                            <DropdownMenuRadioItem
+                              key={day.key}
+                              value={day.key}
+                              className={cn(
+                                "rounded-xl py-2.5 pl-8 pr-3",
+                                "text-sm font-medium text-foreground",
+                                "data-[state=checked]:bg-highlight-6/60 data-[state=checked]:shadow-even",
+                                "hover:bg-highlight-6/40 focus:bg-highlight-6/60"
+                              )}
+                            >
+                              <span className="truncate">{compactLabel}</span>
+                            </DropdownMenuRadioItem>
+                          );
+                        })}
+                      </DropdownMenuRadioGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : null
+              ) : (
+                <div
+                  className={cn(
+                    "inline-flex h-8 items-center gap-2 rounded-full border border-border/60",
+                    "bg-background/90 px-3 text-xs font-semibold text-foreground shadow-sm"
+                  )}
+                >
+                  <CalendarDays
+                    aria-hidden="true"
+                    className="h-4 w-4 text-muted-foreground"
+                  />
+                  <span className="max-w-[9rem] truncate">
+                    {halfFooterDateLabel ?? "—"}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {columnPages.length > 1 ? (
+              <div
+                className={cn(
+                  "shrink-0 pointer-events-auto flex items-center gap-2",
+                  "bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/70",
+                  "border border-border/60 rounded-full px-2 py-1 shadow-md"
+                )}
+              >
+                <Pager />
+              </div>
+            ) : null}
+          </div>
+            */}
+          </div>
+        ) : null}
       </div>
-    </>
+
+      {shouldReserveFooterSpace ? (
+        <div
+          className={cn(
+            // Keep the pager attached to the bottom edge of the widget while the
+            // page scrolls; within-table scrolling is handled by the flex layout above.
+            "sticky z-30 bottom-[calc(0.75rem+env(safe-area-inset-bottom))]",
+            "mt-2",
+            "shrink-0 flex min-h-10 items-center justify-center px-1 pt-1"
+          )}
+        >
+          {footerControlsPill ? (
+            footerControlsPill
+          ) : (
+            <div
+              aria-hidden="true"
+              className={cn(
+                "pointer-events-none h-10 w-[min(22rem,100%)] rounded-full",
+                "border border-border/30 bg-foreground/10",
+                "animate-pulse motion-reduce:animate-none"
+              )}
+            />
+          )}
+        </div>
+      ) : null}
+    </div>
   );
 };
 

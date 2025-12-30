@@ -132,3 +132,7 @@ export function useDashboardEditMode() {
   }
   return ctx;
 }
+
+export function useOptionalDashboardEditMode() {
+  return React.useContext(DashboardEditModeContext);
+}

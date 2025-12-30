@@ -14,6 +14,10 @@ import VisualWrapper from "@/components/general/VisualWrapper";
 import OverviewWidget from "@/components/general/overview/OverviewWidget";
 import { LazyLoadForecastTide } from "@/components/general/LazyLoad/LazyLoadForecastTide";
 import { LazyLoadTable } from "@/components/general/LazyLoad/LazyLoadTable";
+import type {
+  StatTableDensity,
+  StatTableUiState,
+} from "@/components/general/LazyLoad/LazyLoadTable";
 import Link from "next/link";
 import { Pencil } from "lucide-react";
 import { useDateContext } from "../context/DateContext";
@@ -24,11 +28,7 @@ import { LazyLoadForecastWaveEnergy } from "./LazyLoad/LazyLoadForecastWaveEnerg
 import { LazyLoadForecastSurf } from "./LazyLoad/LazyLoadForecastSurf";
 import { LazyLoadForecastWind } from "./LazyLoad/LazyLoadForecastWind";
 import { LazyLoadForecastSwell } from "./LazyLoad/LazyLoadForecastSwell";
-import {
-  type Row,
-  type WidgetId,
-  type WidgetMeta,
-} from "./dashboardLayout";
+import { type Row, type WidgetId, type WidgetMeta } from "./dashboardLayout";
 import { useDashboardLayout } from "./useDashboardLayout";
 import { useForecastData } from "../context/ForecastDataContext";
 import { useForecastChartsLoadingState } from "../context/ForecastChartsLoadingContext";
@@ -42,7 +42,7 @@ type Props = {
   onWindowStringChange?: (value: string) => void;
   initialMeta?: Partial<Record<WidgetId, WidgetMeta>> | null;
   initialRows?: Row[] | null;
-  cardVariant?: "default" | "overview";
+  cardVariant?: "default" | "overview" | "forecast";
 };
 
 /**
@@ -59,6 +59,28 @@ const ForecastBridge: React.FC<Props> = ({
   cardVariant = "default",
 }) => {
   const isOverviewCards = cardVariant === "overview";
+  const isForecastCards = cardVariant === "forecast";
+  const [dailyTableDensity, setDailyTableDensity] =
+    useState<StatTableDensity>("12h");
+  const [dailyTableUi, setDailyTableUi] = useState<StatTableUiState | null>(
+    null
+  );
+  const onDailyTableUiStateChange = useCallback((next: StatTableUiState) => {
+    setDailyTableUi((prev) => {
+      if (
+        prev &&
+        prev.canToggleDensity === next.canToggleDensity &&
+        prev.effectiveDensity === next.effectiveDensity &&
+        prev.isHalfColumns === next.isHalfColumns
+      ) {
+        return prev;
+      }
+      return next;
+    });
+  }, []);
+  const toggleDailyTableDensity = useCallback(() => {
+    setDailyTableDensity((prev) => (prev === "3h" ? "12h" : "3h"));
+  }, []);
   // local selected date (kept for the DatePicker's controlled value)
   // const [selected, setSelected] = useState<Date | null>(dayjs().toDate());
 
@@ -121,7 +143,6 @@ const ForecastBridge: React.FC<Props> = ({
   const { prefetchSunData } = useSunData();
   const { rows: forecastRows, loading: forecastLoading } = useForecastData();
   const chartsLoading = useForecastChartsLoadingState();
-
 
   useEffect(() => {
     setIsMounted(true);
@@ -201,124 +222,172 @@ const ForecastBridge: React.FC<Props> = ({
     [layoutRows, layoutMeta]
   );
 
-  const widgetLoading = chartsLoading || !layoutHydrated || forecastLoading;
-
   // Memoize individual widgets to prevent unnecessary re-renders
   const rawWidgetLoading =
     chartsLoading || !layoutHydrated || forecastLoading || layoutOverlayActive;
   const stableWidgetLoading = useStableOverlay(rawWidgetLoading, 220);
 
-  const widgets = useMemo(() => {
-    const Wrapper = (
-      cardVariant === "overview" ? OverviewWidget : VisualWrapper
-    ) as React.ComponentType<React.ComponentProps<typeof VisualWrapper>>;
-    const firstDay = selectedDays?.[0] ?? undefined;
+  const Wrapper = useMemo(
+    () =>
+      (cardVariant === "overview" || cardVariant === "forecast"
+        ? OverviewWidget
+        : VisualWrapper) as React.ComponentType<
+        React.ComponentProps<typeof VisualWrapper>
+      >,
+    [cardVariant]
+  );
 
-    return {
-      stats: (
-        <Wrapper label="Forecast Overview" loading={stableWidgetLoading}>
-          <div className="space-y-2 text-sm text-muted-foreground">
-            <p className="font-medium text-foreground">{windowString}</p>
-            <p>
-              Adjust the date range above or use the edit mode to customize
-              which panels show here.
-            </p>
-          </div>
-        </Wrapper>
-      ),
-      tide: (
-        <Wrapper
-          label="Tide"
-          extraPadding
-          unit="ft"
-          loading={stableWidgetLoading}
-        >
-          <LazyLoadForecastTide
-            beachId={beachId}
-            date={firstDay}
-            days={selectedDays ?? undefined}
-          />
-        </Wrapper>
-      ),
-      surf: (
-        <Wrapper
-          extraPadding
-          label="Surf"
-          unit="ft"
-          loading={stableWidgetLoading}
-        >
-          <LazyLoadForecastSurf beachId={beachId} days={selectedDays} />
-        </Wrapper>
-      ),
-      wind: (
-        <Wrapper
-          extraPadding
-          label="Wind"
-          unit="mph"
-          loading={stableWidgetLoading}
-        >
-          <LazyLoadForecastWind beachId={beachId} days={selectedDays} />
-        </Wrapper>
-      ),
-      surfAndWind: (
-        <div
-          className={cn(
-            "w-full flex flex-col @min-2xl:flex-row",
-            isOverviewCards ? "gap-4" : "gap-6"
-          )}
-        >
-          <Wrapper label="Wind" unit="mph" loading={stableWidgetLoading}>
-            <LazyLoadForecastWind beachId={beachId} days={selectedDays} />
-          </Wrapper>
-          <Wrapper label="Surf" unit="ft" loading={stableWidgetLoading}>
-            <LazyLoadForecastSurf beachId={beachId} days={selectedDays} />
-          </Wrapper>
-        </div>
-      ),
-      energy: (
-        <Wrapper
-          extraPadding
-          label="Energy"
-          unit="kJ"
-          loading={stableWidgetLoading}
-        >
-          <LazyLoadForecastWaveEnergy beachId={beachId} days={selectedDays} />
-        </Wrapper>
-      ),
-      table: (
-        <Wrapper
-          label="Daily"
-          unit="12 hrs"
-          loading={stableWidgetLoading}
-        >
-          <LazyLoadTable
-            beachId={beachId}
-            numHours={3}
-            numDays={7}
-            header
-            date={selected ?? undefined}
-          />
-        </Wrapper>
-      ),
-      swell: (
-        <Wrapper
-          extraPadding
-          label="Swell"
-          unit="ft"
-          loading={stableWidgetLoading}
-        >
-          <LazyLoadForecastSwell beachId={beachId} days={selectedDays} />
-        </Wrapper>
-      ),
-    } as const;
-  }, [
-    beachId,
-    selected,
-    selectedDays,
-    windowString,
-    stableWidgetLoading,
-    cardVariant,
-  ]);
+  const renderWidget = useCallback(
+    (id: WidgetId, variant: "full" | "half") => {
+      const firstDay = selectedDays?.[0] ?? undefined;
+
+      switch (id) {
+        case "stats":
+          return (
+            <Wrapper label="Forecast Overview" loading={stableWidgetLoading}>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p className="font-medium text-foreground">{windowString}</p>
+                <p>
+                  Adjust the date range above or use the edit mode to customize
+                  which panels show here.
+                </p>
+              </div>
+            </Wrapper>
+          );
+        case "tide":
+          return (
+            <Wrapper
+              label="Tide"
+              extraPadding={isForecastCards}
+              unit="ft"
+              loading={stableWidgetLoading}
+            >
+              <LazyLoadForecastTide
+                beachId={beachId}
+                date={firstDay}
+                days={selectedDays ?? undefined}
+              />
+            </Wrapper>
+          );
+        case "surf":
+          return (
+            <Wrapper
+              extraPadding={isForecastCards}
+              label="Surf"
+              unit="ft"
+              loading={stableWidgetLoading}
+            >
+              <LazyLoadForecastSurf beachId={beachId} days={selectedDays} />
+            </Wrapper>
+          );
+        case "wind":
+          return (
+            <Wrapper
+              extraPadding={isForecastCards}
+              label="Wind"
+              unit="mph"
+              loading={stableWidgetLoading}
+            >
+              <LazyLoadForecastWind beachId={beachId} days={selectedDays} />
+            </Wrapper>
+          );
+        case "surfAndWind":
+          return (
+            <div
+              className={cn(
+                "w-full flex flex-col @min-2xl:flex-row",
+                isOverviewCards ? "gap-4" : "gap-6"
+              )}
+            >
+              <Wrapper label="Wind" unit="mph" loading={stableWidgetLoading}>
+                <LazyLoadForecastWind beachId={beachId} days={selectedDays} />
+              </Wrapper>
+              <Wrapper label="Surf" unit="ft" loading={stableWidgetLoading}>
+                <LazyLoadForecastSurf beachId={beachId} days={selectedDays} />
+              </Wrapper>
+            </div>
+          );
+        case "energy":
+          return (
+            <Wrapper
+              extraPadding={isForecastCards}
+              label="Energy"
+              unit="kJ"
+              loading={stableWidgetLoading}
+            >
+              <LazyLoadForecastWaveEnergy
+                beachId={beachId}
+                days={selectedDays}
+              />
+            </Wrapper>
+          );
+        case "table": {
+          const tableUnit =
+            (dailyTableUi?.effectiveDensity ?? dailyTableDensity) === "12h"
+              ? "12 hrs"
+              : "3 hrs";
+          const table = (
+            <LazyLoadTable
+              beachId={beachId}
+              numHours={3}
+              numDays={7}
+              header
+              date={selected ?? undefined}
+              variant={variant}
+              density={dailyTableDensity}
+              onToggleDensity={toggleDailyTableDensity}
+              onUiStateChange={onDailyTableUiStateChange}
+            />
+          );
+
+          return isOverviewCards || isForecastCards ? (
+            <OverviewWidget
+              label="Daily"
+              unit={tableUnit}
+              loading={stableWidgetLoading}
+            >
+              {table}
+            </OverviewWidget>
+          ) : (
+            <Wrapper
+              label="Daily"
+              unit={tableUnit}
+              loading={stableWidgetLoading}
+            >
+              {table}
+            </Wrapper>
+          );
+        }
+        case "swell":
+          return (
+            <Wrapper
+              extraPadding={isForecastCards}
+              label="Swell"
+              unit="ft"
+              loading={stableWidgetLoading}
+            >
+              <LazyLoadForecastSwell beachId={beachId} days={selectedDays} />
+            </Wrapper>
+          );
+        default:
+          return null;
+      }
+    },
+    [
+      Wrapper,
+      beachId,
+      dailyTableDensity,
+      dailyTableUi,
+      isOverviewCards,
+      isForecastCards,
+      onDailyTableUiStateChange,
+      selected,
+      selectedDays,
+      stableWidgetLoading,
+      toggleDailyTableDensity,
+      windowString,
+    ]
+  );
 
   return (
     <section
@@ -384,7 +453,11 @@ const ForecastBridge: React.FC<Props> = ({
               if (!visibleItems.length) return null;
 
               const renderedItems = visibleItems
-                .map((id) => ({ id, content: widgets[id] }))
+                .map((id) => {
+                  const span = layoutMeta[id]?.span ?? "half";
+                  const variant = span === "half" ? "half" : "full";
+                  return { id, content: renderWidget(id, variant) };
+                })
                 .filter((entry) => Boolean(entry.content));
 
               if (!renderedItems.length) return null;
@@ -406,8 +479,10 @@ const ForecastBridge: React.FC<Props> = ({
                 <div
                   key={row.id}
                   className={cn(
-                    `${spacingClass} w-full flex flex-col @min-3xl:flex-row`,
-                    isOverviewCards ? "gap-4" : "gap-5"
+                    `${spacingClass} w-full flex flex-col`,
+                    isOverviewCards || isForecastCards
+                      ? "@min-4xl:flex-row gap-4"
+                      : "@min-3xl:flex-row gap-5"
                   )}
                 >
                   {renderedItems.map((entry) => (

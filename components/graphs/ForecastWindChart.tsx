@@ -733,7 +733,9 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
         <div className="grid justify-items-end gap-1 text-right">
           <div className="bg-foreground/10 text-foreground inline-flex items-center gap-1.5 rounded-md px-2 py-1 font-medium tabular-nums">
             <span className="inline-flex items-baseline gap-1">
-              <span className="text-xs font-semibold leading-none">{speed}</span>
+              <span className="text-xs font-semibold leading-none">
+                {speed}
+              </span>
               <span className="text-[0.68rem] font-medium leading-none text-muted-foreground">
                 mph
               </span>
@@ -946,7 +948,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
             <ChartContainer
               key={chartInnerWidth}
               config={chartConfig}
-              className="forecast-wind-chart-container aspect-auto h-[235px] w-full"
+              className="forecast-wind-chart-container aspect-auto h-[250px] w-full"
             >
               <BarChart
                 accessibilityLayer={false}

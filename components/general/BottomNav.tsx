@@ -34,6 +34,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useMapFilters } from "../context/MapFilterContext";
 import { FEATURE_CATEGORIES, getFeatureDisplayName } from "@/lib/supabase";
 import { useClientPath } from "../context/PathContext";
+import { useOptionalDashboardEditMode } from "../context/DashboardEditModeContext";
 import {
   AppMenu,
   AppMenuContent,
@@ -48,6 +49,8 @@ export default function BottomNav() {
   const user = useUser();
   const displayEmail = user?.email ?? "Account";
   const supabase = useSupabaseClient();
+  const dashboardEditMode = useOptionalDashboardEditMode();
+  const isEditing = dashboardEditMode?.isEditing ?? false;
   const [showBottomUI, setShowBottomUI] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
   const [atTop, setAtTop] = useState(true);
@@ -85,6 +88,7 @@ export default function BottomNav() {
   }, []);
 
   useEffect(() => {
+    if (isEditing) return;
     let scrollTimeout: NodeJS.Timeout | null = null;
 
     const handleScroll = () => {
@@ -107,7 +111,7 @@ export default function BottomNav() {
       if (scrollTimeout) clearTimeout(scrollTimeout);
       window.removeEventListener("scroll", handleScroll);
     };
-  }, []);
+  }, [isEditing, landingPage]);
 
   // hide main scrollbar when filters panel is open
   useEffect(() => {

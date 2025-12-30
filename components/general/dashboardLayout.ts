@@ -52,7 +52,6 @@ const BASE_META_OVERVIEW: Partial<Record<WidgetId, WidgetMeta>> = {
     title: "Daily",
     visible: true,
     span: "full",
-    immutableFull: true,
   },
 };
 
@@ -93,7 +92,6 @@ const BASE_META_FORECAST: Partial<Record<WidgetId, WidgetMeta>> = {
     title: "Daily",
     visible: true,
     span: "full",
-    immutableFull: true,
   },
 };
 

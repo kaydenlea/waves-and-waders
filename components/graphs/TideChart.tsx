@@ -624,7 +624,7 @@ const TideChart: React.FC<TideChartProps> = ({
 
   return (
     <ChartContainer
-      className="aspect-auto h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px] w-full [&_.recharts-legend-wrapper]:hidden mb-3"
+      className="aspect-auto h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px] w-full [&_.recharts-legend-wrapper]:hidden"
       config={chartConfig}
     >
       <LineChart
@@ -700,10 +700,7 @@ const TideChart: React.FC<TideChartProps> = ({
           axisLine={false}
           tickMargin={8}
           fontSize={11}
-          domain={[
-            tideTicks[0] ?? -2,
-            tideTicks[tideTicks.length - 1] ?? 8,
-          ]}
+          domain={[tideTicks[0] ?? -2, tideTicks[tideTicks.length - 1] ?? 8]}
           ticks={tideTicks}
         />
         <ChartTooltip

@@ -940,26 +940,26 @@ export default React.memo(function ForecastTideChart({
           )}
         >
           {/* prev/next buttons */}
-           <button
-             aria-label="Back one day"
-             onClick={handleBack}
-             className={cn(
-               "absolute left-4 top-[55%] -translate-y-1/2 z-50 rounded-full bg-highlight-7/90 p-1 shadow border border-border/30 shadow-even backdrop-blur-xl",
+          <button
+            aria-label="Back one day"
+            onClick={handleBack}
+            className={cn(
+              "absolute left-4 top-[55%] -translate-y-1/2 z-50 rounded-full bg-highlight-7/90 p-1 shadow border border-border/30 shadow-even backdrop-blur-xl",
               (!isScrollable || dayOffset === 0) && "hidden"
-             )}
-           >
-             <ChevronLeft className="w-5 h-5" />
-           </button>
-           <button
-             aria-label="Next one day"
-             onClick={handleNext}
-             className={cn(
-               "absolute right-4 top-[55%] -translate-y-1/2 z-50 rounded-full bg-highlight-7/90 p-1 shadow border border-border/30 shadow-even backdrop-blur-xl",
+            )}
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <button
+            aria-label="Next one day"
+            onClick={handleNext}
+            className={cn(
+              "absolute right-4 top-[55%] -translate-y-1/2 z-50 rounded-full bg-highlight-7/90 p-1 shadow border border-border/30 shadow-even backdrop-blur-xl",
               (!isScrollable || isAtRightEdge) && "hidden"
-             )}
-           >
-             <ChevronRight className="w-5 h-5" />
-           </button>
+            )}
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
 
           {/* moving inner (chart + day separators) */}
           <div
@@ -1074,7 +1074,7 @@ export default React.memo(function ForecastTideChart({
                     },
                   } as ChartConfig
                 }
-                className="forecast-tide-chart-container aspect-auto h-[235px] w-full"
+                className="forecast-tide-chart-container aspect-auto h-[250px] w-full"
               >
                 <LineChart
                   accessibilityLayer={false}

@@ -950,7 +950,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
             <ChartContainer
               key={chartInnerWidth}
               config={chartConfig}
-              className="forecast-surf-chart-container aspect-auto h-[235px] w-full"
+              className="forecast-surf-chart-container aspect-auto h-[250px] w-full !justify-start"
             >
               <BarChart
                 accessibilityLayer={false}

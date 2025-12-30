@@ -924,7 +924,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
             <ChartContainer
               key={chartInnerWidth}
               config={chartConfig}
-              className="forecast-swell-chart-container aspect-auto h-[235px] w-full"
+              className="forecast-swell-chart-container aspect-auto h-[250px] w-full"
             >
               <AreaChart
                 accessibilityLayer={false}

@@ -358,7 +358,7 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   return (
     <ChartContainer
       config={chartConfig}
-      className="aspect-auto h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px] w-full mb-3"
+      className="aspect-auto h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px] w-full"
     >
       <AreaChart
         accessibilityLayer

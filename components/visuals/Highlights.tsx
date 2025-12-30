@@ -2250,7 +2250,12 @@ const Highlights = ({
           let content;
           if (!isHydrated) {
             content = (
-              <div className="w-full h-[62.5px] rounded-xl bg-highlight-6/70" />
+              <div
+                className={cn(
+                  "w-full rounded-xl bg-highlight-6/70",
+                  isFull ? "h-[65px]" : "h-[70px]"
+                )}
+              />
             );
           } else {
             switch (stat.label) {
@@ -2777,7 +2782,7 @@ const Highlights = ({
               <li
                 key={`${stat.label}-${idx}`}
                 className={cn(
-                  "relative highlight-card shadow-even p-2.5 min-h-[74px] @min-3xl:min-h-[95px]",
+                  "relative highlight-card shadow-even p-2.5 min-h-[74px] @min-3xl:min-h-[90px]",
                   "transition-colors duration-200 motion-reduce:transition-none",
                   "hover:bg-highlight-7/70 active:bg-highlight-7/80",
                   stat.label === "swell" &&

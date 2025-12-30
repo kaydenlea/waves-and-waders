@@ -225,7 +225,6 @@ export default function Dashboard({
   const [activeWidget, setActiveWidget] = useState<WidgetId | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
   const [activeWidth, setActiveWidth] = useState<number | null>(null);
-  const [overlayWidth, setOverlayWidth] = useState<number | null>(null);
 
   const keepGrabOffsetOnWidthChange = React.useCallback<Modifier>(
     ({ draggingNodeRect, overlayNodeRect, transform }) => {
@@ -278,30 +277,15 @@ export default function Dashboard({
     const id = String(e.active.id);
     if (id.startsWith("w:")) setActiveWidget(id.slice(2) as WidgetId);
     setOverId(null);
-    setOverlayWidth(null);
     const r = e.active.rect.current.initial;
     if (r) {
       setActiveWidth(r.width);
-      setOverlayWidth(r.width);
     }
   }
 
   function onDragOver(e: DragOverEvent) {
     const id = e.over?.id ? String(e.over.id) : null;
-    setOverId(id);
-    if (!id) {
-      if (activeWidth != null) setOverlayWidth(activeWidth);
-      return;
-    }
-
-    if (isSlotId(id)) {
-      setOverlayWidth(e.over?.rect?.width ?? null);
-      return;
-    }
-
-    if (activeWidth != null) {
-      setOverlayWidth(activeWidth);
-    }
+    setOverId((prev) => (prev === id ? prev : id));
   }
 
   function onDragEnd(e: DragEndEvent) {
@@ -312,7 +296,6 @@ export default function Dashboard({
     const cleanup = () => {
       setActiveWidget(null);
       setActiveWidth(null);
-      setOverlayWidth(null);
     };
 
     const finish = () => {
@@ -535,25 +518,22 @@ export default function Dashboard({
   }
 
   /* ---------------------------------- Render --------------------------------- */
+  const activeSpan = activeWidget ? meta[activeWidget]?.span : undefined;
+  const activeIsConvertibleFull =
+    !!activeWidget && activeSpan === "full" && !meta[activeWidget]?.immutableFull;
+
   const isDraggingHalf =
-    !!activeWidget &&
-    (meta[activeWidget]?.span === "half" ||
-      (meta[activeWidget]?.span === "full" &&
-        !meta[activeWidget]?.immutableFull &&
-        !!overId &&
-        isSlotId(overId)));
+    !!activeWidget && (activeSpan === "half" || activeIsConvertibleFull);
 
   const activeIsFullForPreview = (() => {
     if (!activeWidget) return false;
+    return meta[activeWidget]?.span === "full";
+  })();
 
-    // Use the real dragged/overlay width as the source of truth so "half widgets
-    // alone in a row" preview as full-width, and shrink to half only when the UI
-    // actually splits into 2 slots during drag.
-    if (activeWidth != null && overlayWidth != null && activeWidth > 0) {
-      return overlayWidth / activeWidth >= 0.75;
-    }
-
-    return meta[activeWidget]?.span === "full" && !isDraggingHalf;
+  const overlayPreviewWidth = (() => {
+    if (!activeWidget) return undefined;
+    if (activeWidth == null || activeWidth <= 0) return undefined;
+    return activeWidth;
   })();
 
   return (
@@ -620,6 +600,7 @@ export default function Dashboard({
         onDragOver={onDragOver}
         onDragEnd={onDragEnd}
         collisionDetection={closestCenter}
+        autoScroll={false}
       >
         {/* Render rows and gaps. Nothing reflows during drag; only indicators update */}
         <div className="space-y-2">
@@ -632,7 +613,8 @@ export default function Dashboard({
               visibleItems.length === 1 &&
               meta[visibleItems[0]]?.span === "full";
             const isFixed =
-              visibleItems.length === 1 && meta[visibleItems[0]]?.immutableFull;
+              visibleItems.length === 1 &&
+              Boolean(meta[visibleItems[0]]?.immutableFull);
             return (
               <React.Fragment key={`frag-${row.id}`}>
                 <div className="w-full">
@@ -771,7 +753,7 @@ export default function Dashboard({
           {activeWidget && meta[activeWidget] ? (
             <div
               className="pointer-events-none"
-              style={{ width: overlayWidth ?? activeWidth ?? undefined }}
+              style={{ width: overlayPreviewWidth ?? activeWidth ?? undefined }}
             >
               <article
                 className={cn(
