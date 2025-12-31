@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   CartesianGrid,
   XAxis,
@@ -146,6 +146,9 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   const [nightAreas, setNightAreas] = useState<{ x1: number; x2?: number }[]>(
     []
   );
+  const lastArrowPointRef = useRef<
+    Record<"primary" | "secondary" | "tertiary", { cx: number; cy: number } | null>
+  >({ primary: null, secondary: null, tertiary: null });
 
   const formatHourLabel = React.useCallback(
     (label: unknown, payload: any[]) => {
@@ -451,6 +454,36 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     setHoveredHour(null);
   };
 
+  // Arrow dots are shifted left at the very last x-value to avoid right-edge clipping.
+  // When shifted, project them along the final curve segment so they still sit on the line.
+  useEffect(() => {
+    lastArrowPointRef.current = { primary: null, secondary: null, tertiary: null };
+  }, [data, hours]);
+
+  const projectArrowAlongLastSegment = React.useCallback(
+    (
+      key: "primary" | "secondary" | "tertiary",
+      cx: number,
+      cy: number,
+      dx: number
+    ) => {
+      const prev = lastArrowPointRef.current[key];
+      lastArrowPointRef.current[key] = { cx, cy };
+
+      if (!dx || !prev) return { x: cx + dx, y: cy };
+
+      const vx = cx - prev.cx;
+      const vy = cy - prev.cy;
+      if (!Number.isFinite(vx) || !Number.isFinite(vy) || Math.abs(vx) < 1e-6) {
+        return { x: cx + dx, y: cy };
+      }
+
+      const t = Math.max(-1, Math.min(0, dx / vx));
+      return { x: cx + dx, y: cy + t * vy };
+    },
+    []
+  );
+
   return (
     <div
       className="relative aspect-auto h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px] w-full"
@@ -660,12 +693,18 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
             }
             const isLastPoint = (payload as any)?.time === hours;
             const dx = isLastPoint ? -iconSize / 2 : 0;
+            const projected = projectArrowAlongLastSegment(
+              "primary",
+              cxNum,
+              cyNum,
+              dx
+            );
             const direction = payload.primaryDir ?? 0;
             const rotation = direction - 315; // Arrow points at 315° by default
 
             return (
               <g key={`primary-${index}`}>
-                <g transform={`translate(${cxNum + dx}, ${cyNum})`}>
+                <g transform={`translate(${projected.x}, ${projected.y})`}>
                   <g transform={`rotate(${rotation}, 0, 0)`}>
                     <ArrowIcon
                       size={iconSize}
@@ -701,12 +740,18 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
             }
             const isLastPoint = (payload as any)?.time === hours;
             const dx = isLastPoint ? -iconSize / 2 : 0;
+            const projected = projectArrowAlongLastSegment(
+              "secondary",
+              cxNum,
+              cyNum,
+              dx
+            );
             const direction = payload.secondaryDir ?? 0;
             const rotation = direction - 315;
 
             return (
               <g key={`secondary-${index}`}>
-                <g transform={`translate(${cxNum + dx}, ${cyNum})`}>
+                <g transform={`translate(${projected.x}, ${projected.y})`}>
                   <g transform={`rotate(${rotation}, 0, 0)`}>
                     <ArrowIcon
                       size={iconSize}
@@ -742,12 +787,18 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
             }
             const isLastPoint = (payload as any)?.time === hours;
             const dx = isLastPoint ? -iconSize / 2 : 0;
+            const projected = projectArrowAlongLastSegment(
+              "tertiary",
+              cxNum,
+              cyNum,
+              dx
+            );
             const direction = payload.tertiaryDir ?? 0;
             const rotation = direction - 315;
 
             return (
               <g key={`tertiary-${index}`}>
-                <g transform={`translate(${cxNum + dx}, ${cyNum})`}>
+                <g transform={`translate(${projected.x}, ${projected.y})`}>
                   <g transform={`rotate(${rotation}, 0, 0)`}>
                     <ArrowIcon
                       size={iconSize}

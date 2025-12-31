@@ -114,6 +114,9 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
   const [nightAreas, setNightAreas] = useState<{ x1: number; x2?: number }[]>(
     []
   );
+  const lastArrowPointRef = useRef<
+    Record<"primary" | "secondary" | "tertiary", { cx: number; cy: number } | null>
+  >({ primary: null, secondary: null, tertiary: null });
 
   // Scrollable state
   const [dayOffset, setDayOffset] = useState(0);
@@ -850,6 +853,36 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
     setHoveredHour(null);
   }, [setHoveredHour]);
 
+  // Arrow dots are shifted left at the very last x-value to avoid right-edge clipping.
+  // When shifted, project them along the final curve segment so they still sit on the line.
+  useEffect(() => {
+    lastArrowPointRef.current = { primary: null, secondary: null, tertiary: null };
+  }, [swellData, totalFetchedDays]);
+
+  const projectArrowAlongLastSegment = useCallback(
+    (
+      key: "primary" | "secondary" | "tertiary",
+      cx: number,
+      cy: number,
+      dx: number
+    ) => {
+      const prev = lastArrowPointRef.current[key];
+      lastArrowPointRef.current[key] = { cx, cy };
+
+      if (!dx || !prev) return { x: cx + dx, y: cy };
+
+      const vx = cx - prev.cx;
+      const vy = cy - prev.cy;
+      if (!Number.isFinite(vx) || !Number.isFinite(vy) || Math.abs(vx) < 1e-6) {
+        return { x: cx + dx, y: cy };
+      }
+
+      const t = Math.max(-1, Math.min(0, dx / vx));
+      return { x: cx + dx, y: cy + t * vy };
+    },
+    []
+  );
+
   const [stableSelectedHour, setStableSelectedHour] = useState<number | null>(
     null
   );
@@ -1316,12 +1349,20 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                           Math.abs((payload as any).hour - totalFetchedDays * 24) <
                             1e-6;
                         const dx = isAtRightEdge ? -iconSize / 2 : 0;
+                        const projected = projectArrowAlongLastSegment(
+                          "primary",
+                          cxNum,
+                          cyNum,
+                          dx
+                        );
                         const direction = payload.primaryDir ?? 0;
                         const rotation = direction - 315;
 
                         return (
                           <g key={`primary-${index}`}>
-                            <g transform={`translate(${cxNum + dx}, ${cyNum})`}>
+                            <g
+                              transform={`translate(${projected.x}, ${projected.y})`}
+                            >
                               <g transform={`rotate(${rotation}, 0, 0)`}>
                                 <ArrowIcon
                                   size={iconSize}
@@ -1366,12 +1407,20 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                           Math.abs((payload as any).hour - totalFetchedDays * 24) <
                             1e-6;
                         const dx = isAtRightEdge ? -iconSize / 2 : 0;
+                        const projected = projectArrowAlongLastSegment(
+                          "secondary",
+                          cxNum,
+                          cyNum,
+                          dx
+                        );
                         const direction = payload.secondaryDir ?? 0;
                         const rotation = direction - 315;
 
                         return (
                           <g key={`secondary-${index}`}>
-                            <g transform={`translate(${cxNum + dx}, ${cyNum})`}>
+                            <g
+                              transform={`translate(${projected.x}, ${projected.y})`}
+                            >
                               <g transform={`rotate(${rotation}, 0, 0)`}>
                                 <ArrowIcon
                                   size={iconSize}
@@ -1416,12 +1465,20 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                           Math.abs((payload as any).hour - totalFetchedDays * 24) <
                             1e-6;
                         const dx = isAtRightEdge ? -iconSize / 2 : 0;
+                        const projected = projectArrowAlongLastSegment(
+                          "tertiary",
+                          cxNum,
+                          cyNum,
+                          dx
+                        );
                         const direction = payload.tertiaryDir ?? 0;
                         const rotation = direction - 315;
 
                         return (
                           <g key={`tertiary-${index}`}>
-                            <g transform={`translate(${cxNum + dx}, ${cyNum})`}>
+                            <g
+                              transform={`translate(${projected.x}, ${projected.y})`}
+                            >
                               <g transform={`rotate(${rotation}, 0, 0)`}>
                                 <ArrowIcon
                                   size={iconSize}

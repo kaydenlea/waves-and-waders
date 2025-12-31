@@ -225,6 +225,7 @@ function DirectionBadge({
   showMap,
   showDegrees = false,
   labelVisibilityClassName,
+  variant,
   showSecondarySwells,
   layout = "inline",
   widthClassName,
@@ -239,6 +240,7 @@ function DirectionBadge({
   layout?: "inline" | "grid";
   widthClassName?: string;
   className?: string;
+  variant?: string;
 }) {
   const rotation = typeof deg === "number" ? deg - 315 : 0;
   const safeLabel = label ?? "-";
@@ -272,7 +274,10 @@ function DirectionBadge({
         className={cn(
           labelVisibilityClassName,
           "text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground mt-0.5 hidden @min-lg:inline-block",
-          layout === "grid" && "justify-self-center"
+          layout === "grid" && "justify-self-center",
+          !showMap &&
+            variant === "half" &&
+            "@min-4xl:hidden @min-5xl:inline-block"
           // !showMap &&
           //   !showSecondarySwells &&
           //   "@min-5xl:hidden @min-6xl:inline-block"
@@ -397,6 +402,7 @@ const SwellStat = ({
   data,
   showMap,
   showSecondarySwells,
+  variant,
 }: {
   primary?: boolean;
   showMap: boolean;
@@ -407,6 +413,7 @@ const SwellStat = ({
     deg?: number | null;
   } | null;
   showSecondarySwells: boolean;
+  variant?: string;
 }) => {
   const height = data?.height ?? "-";
   const period = data?.period ?? "-";
@@ -529,6 +536,7 @@ const SwellStat = ({
               label={dir}
               showMap={showMap}
               showSecondarySwells={showSecondarySwells}
+              variant={variant}
             />
             {/* <div className="pr-1">
               <PeriodTicks period={periodNumber} />
@@ -559,10 +567,14 @@ const WindStat = ({
   data,
   scaleMax = 30,
   showSecondarySwells,
+  variant,
+  showMap,
 }: {
   data: { dir: string; speed: number; max: number; deg?: number };
   scaleMax?: number;
   showSecondarySwells: boolean;
+  variant?: string;
+  showMap?: boolean;
 }) => {
   return (
     <CellSurface>
@@ -572,7 +584,9 @@ const WindStat = ({
             deg={data.deg}
             label={data.dir}
             className="-mt-0.5"
+            showMap={showMap}
             showSecondarySwells={showSecondarySwells}
+            variant={variant}
           />
 
           <div className="flex min-w-0 flex-col items-end leading-none">
@@ -2007,10 +2021,15 @@ const StatTable = ({
     showExtraSwellsToggle;
 
   const isCompactPill =
-    controlsEnabled && tableWidthPx > 0 && tableWidthPx < 500;
+    controlsEnabled &&
+    tableWidthPx > 0 &&
+    (isHalfColumns ? tableWidthPx < 450 : tableWidthPx < 540);
 
   const divider = (
-    <span aria-hidden="true" className="mx-1.5 h-5 w-px bg-border/60" />
+    <span
+      aria-hidden="true"
+      className="mx-1 @min-4xl:mx-1.5 h-5 w-px bg-border/60"
+    />
   );
 
   const footerControlsPill = controlsEnabled ? (
@@ -2018,7 +2037,7 @@ const StatTable = ({
       className={cn(
         "pointer-events-auto inline-flex h-10 max-w-full items-center rounded-full",
         "bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/70",
-        "border border-border/60 shadow-md"
+        "border border-border/40 shadow-xs"
       )}
     >
       {isCompactPill ? (
@@ -2467,50 +2486,46 @@ const StatTable = ({
               {visibleColumns.map((col) => (
                 <col
                   key={col.id}
-                  className={
-                    isHalfColumns
-                      ? undefined
-                      : cn(
-                          col.id === "surf"
-                            ? widthNow.current >= 750 &&
-                              widthNow.current < TABLE_BREAKPOINT_LG
-                              ? ""
-                              : "w-[clamp(5.25rem,10vw,5.75rem)]"
-                            : "",
-                          col.id === "wind" &&
-                            showSecondarySwells &&
-                            widthNow.current >= TABLE_BREAKPOINT_LG &&
-                            "w-[11rem]",
-                          col.id === "weather" || col.id === "water"
-                            ? showSecondarySwells
-                              ? widthNow.current >= TABLE_BREAKPOINT_LG &&
-                                widthNow.current < TABLE_BREAKPOINT_XL
-                                ? ""
-                                : "@min-[1175px]:w-[clamp(4.5rem,9vw,5.5rem)]"
-                              : widthNow.current >= TABLE_BREAKPOINT_LG &&
-                                "w-[clamp(4.5rem,9vw,5.5rem)]"
-                            : "",
-                          col.id === "energy"
-                            ? showSecondarySwells
-                              ? widthNow.current >= TABLE_BREAKPOINT_LG &&
-                                widthNow.current < TABLE_BREAKPOINT_XL
-                                ? ""
-                                : "@min-[1175px]:w-[clamp(4.75rem,9vw,5.5rem)]"
-                              : widthNow.current >= TABLE_BREAKPOINT_LG &&
-                                "w-[clamp(4.75rem,9vw,5.5rem)]"
-                            : "",
-                          col.id === "pressure"
-                            ? showSecondarySwells
-                              ? widthNow.current >= TABLE_BREAKPOINT_LG &&
-                                widthNow.current < TABLE_BREAKPOINT_XL
-                                ? ""
-                                : "@min-[1175px]:w-[clamp(5.25rem,10vw,6.75rem)]"
-                              : widthNow.current >= TABLE_BREAKPOINT_LG &&
-                                "w-[clamp(5.25rem,10vw,6.75rem)]"
-                            : "",
-                          col.id === "__spacer" && "w-[10rem]"
-                        )
-                  }
+                  className={cn(
+                    col.id === "surf"
+                      ? widthNow.current >= 750 &&
+                        widthNow.current < TABLE_BREAKPOINT_LG
+                        ? ""
+                        : "w-[clamp(5.25rem,10vw,5.75rem)]"
+                      : "",
+                    col.id === "wind" &&
+                      showSecondarySwells &&
+                      widthNow.current >= TABLE_BREAKPOINT_LG &&
+                      "w-[11rem]",
+                    col.id === "weather" || col.id === "water"
+                      ? showSecondarySwells
+                        ? widthNow.current >= TABLE_BREAKPOINT_LG &&
+                          widthNow.current < TABLE_BREAKPOINT_XL
+                          ? ""
+                          : "@min-[1175px]:w-[clamp(4.5rem,9vw,5.5rem)]"
+                        : widthNow.current >= TABLE_BREAKPOINT_LG &&
+                          "w-[clamp(4.5rem,9vw,5.5rem)]"
+                      : "",
+                    col.id === "energy"
+                      ? showSecondarySwells
+                        ? widthNow.current >= TABLE_BREAKPOINT_LG &&
+                          widthNow.current < TABLE_BREAKPOINT_XL
+                          ? ""
+                          : "@min-[1175px]:w-[clamp(4.75rem,9vw,5.5rem)]"
+                        : widthNow.current >= TABLE_BREAKPOINT_LG &&
+                          "w-[clamp(4.75rem,9vw,5.5rem)]"
+                      : "",
+                    col.id === "pressure"
+                      ? showSecondarySwells
+                        ? widthNow.current >= TABLE_BREAKPOINT_LG &&
+                          widthNow.current < TABLE_BREAKPOINT_XL
+                          ? ""
+                          : "@min-[1175px]:w-[clamp(5.25rem,10vw,6.75rem)]"
+                        : widthNow.current >= TABLE_BREAKPOINT_LG &&
+                          "w-[clamp(5.25rem,10vw,6.75rem)]"
+                      : "",
+                    col.id === "__spacer" && "w-[10rem]"
+                  )}
                 />
               ))}
             </colgroup>
@@ -2584,50 +2599,46 @@ const StatTable = ({
             {visibleColumns.map((col) => (
               <col
                 key={col.id}
-                className={
-                  isHalfColumns
-                    ? undefined
-                    : cn(
-                        col.id === "surf"
-                          ? widthNow.current >= 750 &&
-                            widthNow.current < TABLE_BREAKPOINT_LG
-                            ? ""
-                            : "w-[clamp(5.25rem,10vw,5.75rem)]"
-                          : "",
-                        col.id === "wind" &&
-                          showSecondarySwells &&
-                          widthNow.current >= TABLE_BREAKPOINT_LG &&
-                          "w-[11rem]",
-                        col.id === "weather" || col.id === "water"
-                          ? showSecondarySwells
-                            ? widthNow.current >= TABLE_BREAKPOINT_LG &&
-                              widthNow.current < TABLE_BREAKPOINT_XL
-                              ? ""
-                              : "@min-[1175px]:w-[clamp(4.5rem,9vw,5.5rem)]"
-                            : widthNow.current >= TABLE_BREAKPOINT_LG &&
-                              "w-[clamp(4.5rem,9vw,5.5rem)]"
-                          : "",
-                        col.id === "energy"
-                          ? showSecondarySwells
-                            ? widthNow.current >= TABLE_BREAKPOINT_LG &&
-                              widthNow.current < TABLE_BREAKPOINT_XL
-                              ? ""
-                              : "@min-[1175px]:w-[clamp(4.75rem,9vw,5.5rem)]"
-                            : widthNow.current >= TABLE_BREAKPOINT_LG &&
-                              "w-[clamp(4.75rem,9vw,5.5rem)]"
-                          : "",
-                        col.id === "pressure"
-                          ? showSecondarySwells
-                            ? widthNow.current >= TABLE_BREAKPOINT_LG &&
-                              widthNow.current < TABLE_BREAKPOINT_XL
-                              ? ""
-                              : "@min-[1175px]:w-[clamp(5.25rem,10vw,6.75rem)]"
-                            : widthNow.current >= TABLE_BREAKPOINT_LG &&
-                              "w-[clamp(5.25rem,10vw,6.75rem)]"
-                          : "",
-                        col.id === "__spacer" && "w-[10rem]"
-                      )
-                }
+                className={cn(
+                  col.id === "surf"
+                    ? widthNow.current >= 750 &&
+                      widthNow.current < TABLE_BREAKPOINT_LG
+                      ? ""
+                      : "w-[clamp(5.25rem,10vw,5.75rem)]"
+                    : "",
+                  col.id === "wind" &&
+                    showSecondarySwells &&
+                    widthNow.current >= TABLE_BREAKPOINT_LG &&
+                    "w-[11rem]",
+                  col.id === "weather" || col.id === "water"
+                    ? showSecondarySwells
+                      ? widthNow.current >= TABLE_BREAKPOINT_LG &&
+                        widthNow.current < TABLE_BREAKPOINT_XL
+                        ? ""
+                        : "@min-[1175px]:w-[clamp(4.5rem,9vw,5.5rem)]"
+                      : widthNow.current >= TABLE_BREAKPOINT_LG &&
+                        "w-[clamp(4.5rem,9vw,5.5rem)]"
+                    : "",
+                  col.id === "energy"
+                    ? showSecondarySwells
+                      ? widthNow.current >= TABLE_BREAKPOINT_LG &&
+                        widthNow.current < TABLE_BREAKPOINT_XL
+                        ? ""
+                        : "@min-[1175px]:w-[clamp(4.75rem,9vw,5.5rem)]"
+                      : widthNow.current >= TABLE_BREAKPOINT_LG &&
+                        "w-[clamp(4.75rem,9vw,5.5rem)]"
+                    : "",
+                  col.id === "pressure"
+                    ? showSecondarySwells
+                      ? widthNow.current >= TABLE_BREAKPOINT_LG &&
+                        widthNow.current < TABLE_BREAKPOINT_XL
+                        ? ""
+                        : "@min-[1175px]:w-[clamp(5.25rem,10vw,6.75rem)]"
+                      : widthNow.current >= TABLE_BREAKPOINT_LG &&
+                        "w-[clamp(5.25rem,10vw,6.75rem)]"
+                    : "",
+                  col.id === "__spacer" && "w-[10rem]"
+                )}
               />
             ))}
           </colgroup>
@@ -2810,6 +2821,8 @@ const StatTable = ({
                                     data={entry.wind}
                                     scaleMax={WIND_SCALE_MAX_MPH}
                                     showSecondarySwells={showSecondarySwells}
+                                    variant={variant}
+                                    showMap={showMap}
                                   />
                                 );
                                 break;
@@ -2832,6 +2845,7 @@ const StatTable = ({
                                     data={entry.swell.primary}
                                     showMap={showMap}
                                     showSecondarySwells={showSecondarySwells}
+                                    variant={variant}
                                   />
                                 );
                                 break;
@@ -2842,6 +2856,7 @@ const StatTable = ({
                                     data={s0}
                                     showMap={showMap}
                                     showSecondarySwells={showSecondarySwells}
+                                    variant={variant}
                                   />
                                 );
                                 break;
@@ -2853,6 +2868,7 @@ const StatTable = ({
                                     data={s1}
                                     showMap={showMap}
                                     showSecondarySwells={showSecondarySwells}
+                                    variant={variant}
                                   />
                                 );
                                 break;
@@ -3096,7 +3112,7 @@ const StatTable = ({
           className={cn(
             // Keep the pager attached to the bottom edge of the widget while the
             // page scrolls; within-table scrolling is handled by the flex layout above.
-            "sticky z-30 bottom-[calc(0.75rem+env(safe-area-inset-bottom))]",
+            "sticky z-50 bottom-[calc(0.75rem+env(safe-area-inset-bottom))]",
             "mt-2",
             "shrink-0 flex min-h-10 items-center justify-center px-1 pt-1"
           )}

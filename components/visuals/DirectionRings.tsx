@@ -465,14 +465,14 @@ export const SwellRings: React.FC<{
             />
 
             {/* Inner highlight: thin light edge for a "premium" finish (kept subtle). */}
-            <path
+            {/* <path
               d={arcD}
               fill="none"
               stroke="rgba(255,255,255,0.72)"
               strokeWidth={Math.max(0.8 * scale, 1.25 * scale)}
               strokeLinecap="round"
               opacity={0.28}
-            />
+            /> */}
 
             {renderArcCapPointer(
               direction,
@@ -807,14 +807,14 @@ export const WindRing: React.FC<{
         opacity={0.18}
       />
 
-      <path
+      {/* <path
         d={arcD}
         fill="none"
         stroke="rgba(255,255,255,0.72)"
         strokeWidth={Math.max(0.8 * scale, 1.25 * scale)}
         strokeLinecap="round"
         opacity={0.28}
-      />
+      /> */}
 
       {renderArcCapPointer(finalDirection)}
 
