@@ -259,6 +259,7 @@ const DateSummaryBridge: React.FC<Props> = ({
   const [forecastWindow, setForecastWindow] = React.useState("Select range");
   const [dailyTableDensity, setDailyTableDensity] =
     React.useState<StatTableDensity>("3h");
+  const skipDailyTableDensityPersistRef = React.useRef(true);
   const [dailyTableUi, setDailyTableUi] =
     React.useState<StatTableUiState | null>(null);
   const onDailyTableUiStateChange = React.useCallback(
@@ -280,6 +281,31 @@ const DateSummaryBridge: React.FC<Props> = ({
   const toggleDailyTableDensity = React.useCallback(() => {
     setDailyTableDensity((prev) => (prev === "3h" ? "12h" : "3h"));
   }, []);
+
+  React.useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(
+        "waves-and-waders.statTable.density"
+      );
+      if (stored === "3h" || stored === "12h") {
+        skipDailyTableDensityPersistRef.current = true;
+        setDailyTableDensity(stored);
+      }
+    } catch {}
+  }, []);
+
+  React.useEffect(() => {
+    if (skipDailyTableDensityPersistRef.current) {
+      skipDailyTableDensityPersistRef.current = false;
+      return;
+    }
+    try {
+      window.localStorage.setItem(
+        "waves-and-waders.statTable.density",
+        dailyTableDensity
+      );
+    } catch {}
+  }, [dailyTableDensity]);
   const statsRange = React.useMemo(() => {
     return getPacificDayRange(selected instanceof Date ? selected : undefined);
   }, [selected]);

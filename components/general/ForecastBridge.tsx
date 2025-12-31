@@ -62,6 +62,7 @@ const ForecastBridge: React.FC<Props> = ({
   const isForecastCards = cardVariant === "forecast";
   const [dailyTableDensity, setDailyTableDensity] =
     useState<StatTableDensity>("12h");
+  const skipDailyTableDensityPersistRef = useRef(true);
   const [dailyTableUi, setDailyTableUi] = useState<StatTableUiState | null>(
     null
   );
@@ -81,6 +82,31 @@ const ForecastBridge: React.FC<Props> = ({
   const toggleDailyTableDensity = useCallback(() => {
     setDailyTableDensity((prev) => (prev === "3h" ? "12h" : "3h"));
   }, []);
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(
+        "waves-and-waders.statTable.density"
+      );
+      if (stored === "3h" || stored === "12h") {
+        skipDailyTableDensityPersistRef.current = true;
+        setDailyTableDensity(stored);
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (skipDailyTableDensityPersistRef.current) {
+      skipDailyTableDensityPersistRef.current = false;
+      return;
+    }
+    try {
+      window.localStorage.setItem(
+        "waves-and-waders.statTable.density",
+        dailyTableDensity
+      );
+    } catch {}
+  }, [dailyTableDensity]);
   // local selected date (kept for the DatePicker's controlled value)
   // const [selected, setSelected] = useState<Date | null>(dayjs().toDate());
 

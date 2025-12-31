@@ -26,6 +26,7 @@ const DateContext = React.createContext<Ctx | null>(null);
 
 export function DateProvider({ children }: { children: React.ReactNode }) {
   const [showSecondarySwells, setShowSecondarySwells] = React.useState(false);
+  const skipSecondarySwellsPersistRef = React.useRef(true);
   const id = React.useRef<string>("");
   const [mode, setMode] = React.useState<string>("date");
   const [selected, setSelected] = React.useState<Date | null>(null);
@@ -95,6 +96,34 @@ export function DateProvider({ children }: { children: React.ReactNode }) {
     const rounded = Math.round(Math.max(0, Math.min(21, currentHour)) / 3) * 3;
     setHour(rounded);
   }, []);
+
+  React.useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(
+        "waves-and-waders.statTable.showSecondarySwells"
+      );
+      if (stored === "1" || stored === "true") {
+        skipSecondarySwellsPersistRef.current = true;
+        setShowSecondarySwells(true);
+      } else if (stored === "0" || stored === "false") {
+        skipSecondarySwellsPersistRef.current = true;
+        setShowSecondarySwells(false);
+      }
+    } catch {}
+  }, []);
+
+  React.useEffect(() => {
+    if (skipSecondarySwellsPersistRef.current) {
+      skipSecondarySwellsPersistRef.current = false;
+      return;
+    }
+    try {
+      window.localStorage.setItem(
+        "waves-and-waders.statTable.showSecondarySwells",
+        showSecondarySwells ? "1" : "0"
+      );
+    } catch {}
+  }, [showSecondarySwells]);
 
   // After mount, ensure selected date defaults to today if not set
   React.useEffect(() => {

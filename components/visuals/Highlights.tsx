@@ -2256,7 +2256,7 @@ const Highlights = ({
               <div
                 className={cn(
                   "w-full rounded-xl bg-highlight-6/70",
-                  isFull ? "h-[65px]" : "h-[70px]"
+                  isFull ? "h-[74px]" : "h-[70px]"
                 )}
               />
             );

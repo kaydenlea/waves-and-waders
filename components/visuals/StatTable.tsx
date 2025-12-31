@@ -1515,6 +1515,7 @@ const StatTable = ({
 
   const isHalfWidget = variant === "half";
   type ForecastViewMode = "all" | "single";
+  const skipForecastViewModePersistRef = React.useRef(true);
   const [forecastViewMode, setForecastViewMode] =
     React.useState<ForecastViewMode>(() =>
       variant === "half" ? "single" : "all"
@@ -1779,6 +1780,33 @@ const StatTable = ({
   const resolvedForecastViewMode: ForecastViewMode = showForecastViewToggle
     ? forecastViewMode
     : "single";
+
+  React.useEffect(() => {
+    if (!forecastPage) return;
+    try {
+      const stored = window.localStorage.getItem(
+        "waves-and-waders.statTable.forecastViewMode"
+      );
+      if (stored === "all" || stored === "single") {
+        skipForecastViewModePersistRef.current = true;
+        setForecastViewMode(stored);
+      }
+    } catch {}
+  }, [forecastPage]);
+
+  React.useEffect(() => {
+    if (!forecastPage) return;
+    if (skipForecastViewModePersistRef.current) {
+      skipForecastViewModePersistRef.current = false;
+      return;
+    }
+    try {
+      window.localStorage.setItem(
+        "waves-and-waders.statTable.forecastViewMode",
+        forecastViewMode
+      );
+    } catch {}
+  }, [forecastPage, forecastViewMode]);
 
   const preferredForecastDayKey = React.useMemo(() => {
     if (!forecastPage) return null;
