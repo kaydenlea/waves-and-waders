@@ -7,6 +7,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { flushSync } from "react-dom";
 import { cn, getPacificDayRange } from "@/lib/utils";
 import GradientCircle from "../general/Stats/GradientCircle";
 import Tag from "../general/Tag";
@@ -1232,6 +1233,16 @@ const Summary = ({
     });
   }, [computeVisibleCount]);
 
+  const syncCompute = useCallback(() => {
+    if (rafRef.current != null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    flushSync(() => {
+      computeVisibleCount();
+    });
+  }, [computeVisibleCount]);
+
   // initial measurement after mount/update of measurement nodes
   React.useLayoutEffect(() => {
     // measure nodes synchronously once they are rendered into measureRef
@@ -1247,7 +1258,9 @@ const Summary = ({
 
     // observe container resize
     const ro = new ResizeObserver(() => {
-      scheduleCompute();
+      // ResizeObserver fires before paint; flushing avoids a frame where the tags
+      // render with the old row limit during breakpoint switches.
+      syncCompute();
     });
     ro.observe(container);
 
@@ -1258,7 +1271,7 @@ const Summary = ({
       ro.disconnect();
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
     };
-  }, [tagWidths, gapPx, moreButtonReservePx]);
+  }, [scheduleCompute, syncCompute]);
 
   // If DOM fonts or images load might affect widths, also observe the measurement container for mutations
   useEffect(

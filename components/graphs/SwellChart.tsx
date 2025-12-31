@@ -5,10 +5,10 @@ import {
   CartesianGrid,
   XAxis,
   YAxis,
-  ReferenceArea,
   ReferenceLine,
   AreaChart,
   Area,
+  Customized,
 } from "recharts";
 import { getPacificHour } from "@/lib/utils";
 import {
@@ -25,7 +25,22 @@ import {
   TrendingUp,
   TrendingDown,
 } from "lucide-react";
+import { getWindDirection } from "@/lib/supabase";
+import {
+  useDateContext,
+  useHoveredHour,
+} from "@/components/context/DateContext";
+import { useSunData } from "@/components/context/SunDataContext";
+import { buildSunSegments } from "@/components/graphs/sunSegments";
+import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
+import { useForecastWindowData } from "@/lib/hooks/useForecastWindow";
+import type { SharedSunSegments } from "./sharedSunSegments";
+import { buildYAxisTicks } from "@/components/graphs/yAxisTicks";
 import { useChartTheme } from "@/components/graphs/useChartTheme";
+import {
+  applyForecastShadingOpacity,
+  buildForecastPlotShadingBackgroundPercent,
+} from "@/components/graphs/forecastShadingBackground";
 
 const chartConfig = {
   primary: {
@@ -42,17 +57,17 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-import { getWindDirection } from "@/lib/supabase";
-import {
-  useDateContext,
-  useHoveredHour,
-} from "@/components/context/DateContext";
-import { useSunData } from "@/components/context/SunDataContext";
-import { buildSunSegments } from "@/components/graphs/sunSegments";
-import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
-import { useForecastWindowData } from "@/lib/hooks/useForecastWindow";
-import type { SharedSunSegments } from "./sharedSunSegments";
-import { buildYAxisTicks } from "@/components/graphs/yAxisTicks";
+// Overview charts (single-day): keep the Y-axis inside the shaded plot container.
+const CHART_LEFT_MARGIN = 5;
+const CHART_TOP_MARGIN = 10;
+const CHART_RIGHT_MARGIN = 10;
+const Y_AXIS_WIDTH = 30;
+const X_AXIS_SHADE_EXCLUDE_PX = 34;
+const Y_AXIS_TICK = {
+  fill: "var(--foreground)",
+  fontWeight: 500,
+  filter: "drop-shadow(0 0 4px var(--background))",
+} as const;
 
 type Props = {
   beachId?: string;
@@ -334,6 +349,87 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       ),
     [data]
   );
+  const yAxisTick = React.useCallback(
+    (props: any) => {
+      const { x, y, payload, textAnchor, fontSize } = props ?? {};
+      const xNum = typeof x === "number" ? x : Number(x);
+      const yNum = typeof y === "number" ? y : Number(y);
+      if (!Number.isFinite(xNum) || !Number.isFinite(yNum)) return <text />;
+
+      const value = payload?.value;
+      const minTick = swellTicks[0] ?? 0;
+      const maxTick = swellTicks[swellTicks.length - 1] ?? minTick;
+      const valueNum = typeof value === "number" ? value : Number(value);
+      const isMinTick =
+        Number.isFinite(valueNum) && Math.abs(valueNum - minTick) < 1e-6;
+      const isMaxTick =
+        Number.isFinite(valueNum) && Math.abs(valueNum - maxTick) < 1e-6;
+
+      return (
+        <text
+          x={xNum + 6}
+          y={yNum}
+          // Nudge the bottom tick up so it stays visually contained within the shaded plot area.
+          dy={isMinTick ? -8 : isMaxTick ? 8 : 0}
+          textAnchor={textAnchor ?? "end"}
+          dominantBaseline="central"
+          fontSize={typeof fontSize === "number" ? fontSize : 11}
+          {...Y_AXIS_TICK}
+        >
+          {value}
+        </text>
+      );
+    },
+    [swellTicks]
+  );
+
+  const yAxisInsetPx = CHART_LEFT_MARGIN + Y_AXIS_WIDTH;
+  const plotClipIdRaw = React.useId();
+  const plotClipId = useMemo(
+    () => `overview-swell-plot-clip-${plotClipIdRaw.replace(/:/g, "")}`,
+    [plotClipIdRaw]
+  );
+  const plotShading = useMemo(
+    () =>
+      buildForecastPlotShadingBackgroundPercent({
+        dayAreas,
+        nightAreas,
+        domainMin: 0,
+        domainMax: hours,
+        dayColor: chartTheme.dayShading,
+        nightColor: chartTheme.nightShading,
+        opacity: chartTheme.shadingOpacity,
+      }),
+    [
+      dayAreas,
+      nightAreas,
+      hours,
+      chartTheme.dayShading,
+      chartTheme.nightShading,
+      chartTheme.shadingOpacity,
+    ]
+  );
+  const edgeFill = useMemo(() => {
+    const isDayAt = (h: number) =>
+      dayAreas.some((a) => h >= a.x1 && h <= (a.x2 ?? hours));
+    const leftIsDay = isDayAt(0.0001);
+    const rightIsDay = isDayAt(Math.max(0, hours - 0.0001));
+    const left = applyForecastShadingOpacity(
+      leftIsDay ? chartTheme.dayShading : chartTheme.nightShading,
+      chartTheme.shadingOpacity
+    );
+    const right = applyForecastShadingOpacity(
+      rightIsDay ? chartTheme.dayShading : chartTheme.nightShading,
+      chartTheme.shadingOpacity
+    );
+    return { left, right };
+  }, [
+    dayAreas,
+    hours,
+    chartTheme.dayShading,
+    chartTheme.nightShading,
+    chartTheme.shadingOpacity,
+  ]);
 
   const lastHoveredRef = React.useRef<number | null>(null);
 
@@ -356,41 +452,146 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   };
 
   return (
-    <ChartContainer
-      config={chartConfig}
-      className="aspect-auto h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px] w-full"
+    <div
+      className="relative aspect-auto h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px] w-full"
     >
-      <AreaChart
-        accessibilityLayer
-        data={data}
-        margin={{
-          top: 10,
-          right: 15,
-          left: -25,
+      {/* Shade only the plot area (not the X-axis label band), matching prior ReferenceArea behavior. */}
+      <div
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          left: 0,
+          top: CHART_TOP_MARGIN,
+          right: 0,
+          bottom: X_AXIS_SHADE_EXCLUDE_PX,
+          backgroundImage: [
+            `linear-gradient(to right, ${edgeFill.left}, ${edgeFill.left})`,
+            plotShading,
+            `linear-gradient(to right, ${edgeFill.right}, ${edgeFill.right})`,
+          ]
+            .filter(Boolean)
+            .join(", "),
+          backgroundRepeat: "no-repeat",
+          backgroundSize: `${yAxisInsetPx}px 100%, calc(100% - ${yAxisInsetPx}px - ${CHART_RIGHT_MARGIN}px) 100%, ${CHART_RIGHT_MARGIN}px 100%`,
+          backgroundPosition: `0 0, ${yAxisInsetPx}px 0, right 0`,
+          borderRadius: 8,
+          pointerEvents: "none",
         }}
-        syncId="allCharts"
-        syncMethod={syncToNearestThirdHour}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
+      />
+      {/* Divider between the in-plot axis inset and the data plot. */}
+      <div
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          top: CHART_TOP_MARGIN,
+          bottom: X_AXIS_SHADE_EXCLUDE_PX,
+          left: yAxisInsetPx,
+          width: 1,
+          backgroundColor: "var(--border)",
+          opacity: 0.85,
+          pointerEvents: "none",
+          zIndex: 2,
+        }}
+      />
+      {/* In-plot Y-axis overlay. */}
+      <div
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: yAxisInsetPx,
+          pointerEvents: "none",
+          zIndex: 3,
+        }}
       >
-        {dayAreas.map((a, idx) => (
-          <ReferenceArea
-            key={`day-${idx}`}
-            x1={a.x1}
-            x2={a.x2}
-            fill={chartTheme.dayShading}
-            fillOpacity={chartTheme.shadingOpacity}
-          />
-        ))}
-        {nightAreas.map((a, idx) => (
-          <ReferenceArea
-            key={`night-${idx}`}
-            x1={a.x1}
-            x2={a.x2}
-            fill={chartTheme.nightShading}
-            fillOpacity={chartTheme.shadingOpacity}
-          />
-        ))}
+        <ChartContainer
+          config={chartConfig}
+          className="aspect-auto h-full w-full !justify-start"
+        >
+          <AreaChart
+            accessibilityLayer={false}
+            data={[{ x: 0 }]}
+            margin={{
+              left: CHART_LEFT_MARGIN,
+              right: 0,
+              top: CHART_TOP_MARGIN,
+              bottom: 0,
+            }}
+          >
+            <XAxis
+              dataKey="x"
+              type="number"
+              domain={[0, 1]}
+              ticks={[]}
+              tick={false}
+              tickLine={false}
+              axisLine={false}
+              height={X_AXIS_SHADE_EXCLUDE_PX}
+            />
+            <YAxis
+              width={Y_AXIS_WIDTH}
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+              fontSize={11}
+              tick={yAxisTick}
+              domain={[swellTicks[0] ?? 0, swellTicks[swellTicks.length - 1] ?? 6]}
+              ticks={swellTicks}
+            />
+          </AreaChart>
+        </ChartContainer>
+      </div>
+
+      <div style={{ position: "relative", zIndex: 1, height: "100%" }}>
+        <ChartContainer config={chartConfig} className="aspect-auto h-full w-full">
+          <AreaChart
+            accessibilityLayer
+            data={data}
+            margin={{
+              top: CHART_TOP_MARGIN,
+              right: 0,
+              left: yAxisInsetPx,
+              bottom: 0,
+            }}
+            syncId="allCharts"
+            syncMethod={syncToNearestThirdHour}
+            onMouseMove={handleMouseMove}
+            onMouseLeave={handleMouseLeave}
+          >
+        {/* Clip filled areas to the same rounded plot bounds as the day/night shading (keeps bottom-right corner premium). */}
+        <Customized
+          component={(p: any) => {
+            const offset = p?.offset;
+            const fullWidth = typeof p?.width === "number" ? p.width : 0;
+            const clipWidth =
+              (typeof offset?.left === "number" ? offset.left : 0) +
+              (typeof offset?.width === "number" ? offset.width : 0);
+            if (
+              !offset ||
+              !(fullWidth > 0) ||
+              !(clipWidth > 0) ||
+              !(offset.height > 0)
+            ) {
+              return null;
+            }
+            return (
+              <defs>
+                <clipPath id={plotClipId}>
+                  <rect
+                    x={0}
+                    y={offset.top}
+                    width={Math.min(fullWidth, clipWidth)}
+                    height={offset.height}
+                    rx={8}
+                    ry={8}
+                  />
+                </clipPath>
+              </defs>
+            );
+          }}
+        />
         {/* <CartesianGrid
           strokeDasharray="3 3"
           stroke="var(--foreground)"
@@ -406,6 +607,7 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           tickMargin={8}
           minTickGap={0}
           fontSize={11}
+          height={X_AXIS_SHADE_EXCLUDE_PX}
           ticks={hourTicks}
           tickFormatter={(value) =>
             value % 3 === 0
@@ -414,10 +616,8 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           }
         />
         <YAxis
-          tickLine={false}
-          axisLine={false}
-          tickMargin={8}
-          fontSize={11}
+          hide
+          width={0}
           domain={[swellTicks[0] ?? 0, swellTicks[swellTicks.length - 1] ?? 6]}
           ticks={swellTicks}
         />
@@ -447,17 +647,25 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           fill="#0077b6"
           strokeWidth={1.5}
           fillOpacity={0.2}
+          clipPath={`url(#${plotClipId})`}
           isAnimationActive={false}
           animationDuration={0}
           animationBegin={0}
           dot={({ payload, cx, cy, index }) => {
             const iconSize = 15;
+            const cxNum = typeof cx === "number" ? cx : Number(cx);
+            const cyNum = typeof cy === "number" ? cy : Number(cy);
+            if (!Number.isFinite(cxNum) || !Number.isFinite(cyNum)) {
+              return <g key={`primary-${index}`} />;
+            }
+            const isLastPoint = (payload as any)?.time === hours;
+            const dx = isLastPoint ? -iconSize / 2 : 0;
             const direction = payload.primaryDir ?? 0;
             const rotation = direction - 315; // Arrow points at 315° by default
 
             return (
               <g key={`primary-${index}`}>
-                <g transform={`translate(${cx}, ${cy})`}>
+                <g transform={`translate(${cxNum + dx}, ${cyNum})`}>
                   <g transform={`rotate(${rotation}, 0, 0)`}>
                     <ArrowIcon
                       size={iconSize}
@@ -480,17 +688,25 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           fill="#48cae4"
           strokeWidth={1.5}
           fillOpacity={0.2}
+          clipPath={`url(#${plotClipId})`}
           isAnimationActive={false}
           animationDuration={0}
           animationBegin={0}
           dot={({ payload, cx, cy, index }) => {
             const iconSize = 15;
+            const cxNum = typeof cx === "number" ? cx : Number(cx);
+            const cyNum = typeof cy === "number" ? cy : Number(cy);
+            if (!Number.isFinite(cxNum) || !Number.isFinite(cyNum)) {
+              return <g key={`secondary-${index}`} />;
+            }
+            const isLastPoint = (payload as any)?.time === hours;
+            const dx = isLastPoint ? -iconSize / 2 : 0;
             const direction = payload.secondaryDir ?? 0;
             const rotation = direction - 315;
 
             return (
               <g key={`secondary-${index}`}>
-                <g transform={`translate(${cx}, ${cy})`}>
+                <g transform={`translate(${cxNum + dx}, ${cyNum})`}>
                   <g transform={`rotate(${rotation}, 0, 0)`}>
                     <ArrowIcon
                       size={iconSize}
@@ -513,17 +729,25 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           fill="#adf1ffff"
           strokeWidth={1.5}
           fillOpacity={0.2}
+          clipPath={`url(#${plotClipId})`}
           isAnimationActive={false}
           animationDuration={0}
           animationBegin={0}
           dot={({ payload, cx, cy, index }) => {
             const iconSize = 15;
+            const cxNum = typeof cx === "number" ? cx : Number(cx);
+            const cyNum = typeof cy === "number" ? cy : Number(cy);
+            if (!Number.isFinite(cxNum) || !Number.isFinite(cyNum)) {
+              return <g key={`tertiary-${index}`} />;
+            }
+            const isLastPoint = (payload as any)?.time === hours;
+            const dx = isLastPoint ? -iconSize / 2 : 0;
             const direction = payload.tertiaryDir ?? 0;
             const rotation = direction - 315;
 
             return (
               <g key={`tertiary-${index}`}>
-                <g transform={`translate(${cx}, ${cy})`}>
+                <g transform={`translate(${cxNum + dx}, ${cyNum})`}>
                   <g transform={`rotate(${rotation}, 0, 0)`}>
                     <ArrowIcon
                       size={iconSize}
@@ -555,8 +779,10 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
             strokeDasharray="5 5"
           />
         )}
-      </AreaChart>
-    </ChartContainer>
+          </AreaChart>
+        </ChartContainer>
+      </div>
+    </div>
   );
 };
 

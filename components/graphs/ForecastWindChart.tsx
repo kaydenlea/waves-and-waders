@@ -11,7 +11,6 @@ import {
   YAxis,
   LabelProps,
   ReferenceLine,
-  ReferenceArea,
 } from "recharts";
 import {
   ChartConfig,
@@ -35,9 +34,10 @@ import { useDateContext } from "@/components/context/DateContext";
 import { useForecastChartContext } from "@/components/context/ForecastChartContext";
 import HoverReferenceLine from "@/components/graphs/HoverReferenceLine";
 import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
-import { buildYAxisTicks } from "@/components/graphs/yAxisTicks";
+import { buildYAxisTicks, limitYAxisTicks } from "@/components/graphs/yAxisTicks";
 import { useSunData } from "@/components/context/SunDataContext";
 import { buildSunSegmentsForRange } from "@/components/graphs/sunSegments";
+import { buildForecastShadingBackground } from "@/components/graphs/forecastShadingBackground";
 import { getForecastDayHeaderLayout } from "./forecastDayHeaderLayout";
 import {
   useForecastChartLoading,
@@ -67,12 +67,13 @@ const HOURS_PER_DAY = 24;
 const VISIBLE_DAYS = 4;
 const MIN_DAY_PX = 275;
 const CHART_LEFT_MARGIN = 5;
-const CHART_RIGHT_MARGIN = 5;
+const CHART_RIGHT_MARGIN = 0;
 const DATA_STEP_HOURS = 3;
 const HALF_STEP_HOURS = DATA_STEP_HOURS / 2;
 const Y_AXIS_WIDTH = 30;
 const DAY_LABEL_INSET = 6;
 const Y_AXIS_OFFSET_VAR = "--forecast-y-axis-offset";
+const X_AXIS_SHADE_EXCLUDE_PX = 34;
 const Y_AXIS_TICK = {
   fill: "var(--foreground)",
   fontWeight: 500,
@@ -176,6 +177,8 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
   const domainMax = totalFetchedDays * HOURS_PER_DAY + HALF_STEP_HOURS;
 
   const dayPx = useMemo(() => {
+    // Day width is derived from the visible container width (4 days shown) with a floor,
+    // so each 24h segment keeps a stable pixel width and stays aligned across charts.
     if (!containerWidth) return MIN_DAY_PX;
     const fillPerDay = containerWidth / VISIBLE_DAYS;
     return Math.max(MIN_DAY_PX, Math.floor(fillPerDay));
@@ -195,14 +198,44 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
   }, [axisPadding, chartInnerWidth, hoursSpan]);
   const windTicks = useMemo(
     () =>
-      buildYAxisTicks(
-        windData.map((d) => d.wind),
-        0,
-        6,
-        0.2,
-        10
+      limitYAxisTicks(
+        buildYAxisTicks(windData.map((d) => d.wind), 0, 5, 0.2, 10),
+        5
       ),
     [windData]
+  );
+  const yAxisTick = useCallback(
+    (props: any) => {
+      const { x, y, payload, textAnchor, fontSize } = props ?? {};
+      const xNum = typeof x === "number" ? x : Number(x);
+      const yNum = typeof y === "number" ? y : Number(y);
+      if (!Number.isFinite(xNum) || !Number.isFinite(yNum)) return <text />;
+
+      const value = payload?.value;
+      const minTick = windTicks[0] ?? 0;
+      const maxTick = windTicks[windTicks.length - 1] ?? minTick;
+      const valueNum = typeof value === "number" ? value : Number(value);
+      const isMinTick =
+        Number.isFinite(valueNum) && Math.abs(valueNum - minTick) < 1e-6;
+      const isMaxTick =
+        Number.isFinite(valueNum) && Math.abs(valueNum - maxTick) < 1e-6;
+
+      return (
+        <text
+          x={xNum + 6}
+          y={yNum}
+          // Nudge the bottom tick up so it stays visually contained within the shaded plot area.
+          dy={isMinTick ? -8 : isMaxTick ? 8 : 0}
+          textAnchor={textAnchor ?? "end"}
+          dominantBaseline="central"
+          fontSize={typeof fontSize === "number" ? fontSize : 11}
+          {...Y_AXIS_TICK}
+        >
+          {value}
+        </text>
+      );
+    },
+    [windTicks]
   );
 
   const viewportWidth = useMemo(
@@ -214,6 +247,10 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
     () => Math.max(6, axisPadding / 2),
     [axisPadding]
   );
+
+  // Header alignment: this matches Recharts' inner plot rect (chart width minus margins + axis gutter),
+  // keeping each header column pixel-aligned with the 24h day boundaries. The axis gutter doubles as an
+  // in-plot inset so series never render beneath the sticky Y-axis labels.
   const dayLabelLeftOffset = CHART_LEFT_MARGIN + Y_AXIS_WIDTH;
   const dataAreaWidth =
     chartInnerWidth - CHART_LEFT_MARGIN - CHART_RIGHT_MARGIN - Y_AXIS_WIDTH;
@@ -229,6 +266,36 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
         includeDomainPaddingInEdgeDays: true,
       }),
     [dayLabelLeftOffset, dataAreaWidth, totalFetchedDays, domainMin, domainMax]
+  );
+
+  const shadingBackground = useMemo(
+    () =>
+      buildForecastShadingBackground({
+        dayAreas,
+        nightAreas,
+        domainMin,
+        domainMax,
+        // `chartWidthPx` is where the X-scale ends (last X value), so day/night transitions stop before the
+        // reserved `CHART_RIGHT_MARGIN` (the background layer still spans the full container).
+        chartWidthPx: chartInnerWidth - CHART_RIGHT_MARGIN,
+        plotLeftPx: dayLabelLeftOffset,
+        plotWidthPx: dataAreaWidth,
+        dayColor: chartTheme.dayShading,
+        nightColor: chartTheme.nightShading,
+        opacity: chartTheme.shadingOpacity,
+      }),
+    [
+      dayAreas,
+      nightAreas,
+      domainMin,
+      domainMax,
+      chartInnerWidth,
+      dayLabelLeftOffset,
+      dataAreaWidth,
+      chartTheme.dayShading,
+      chartTheme.nightShading,
+      chartTheme.shadingOpacity,
+    ]
   );
 
   // helpers: clamp translate (px)
@@ -250,6 +317,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
       } else {
         node.style.transition = "none";
       }
+      // Keep a CSS var for HTML overlays, and pin the SVG Y-axis via an imperative transform.
       node.style.setProperty(Y_AXIS_OFFSET_VAR, `${px}px`);
       node.style.transform = `translate3d(-${px}px,0,0)`;
       currentTranslateRef.current = px;
@@ -828,7 +896,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
           aria-label="Back one day"
           onClick={handleBack}
           className={cn(
-            "absolute left-4 top-[55%] -translate-y-1/2 z-50 rounded-full bg-highlight-7/90 p-1 shadow border border-border/30 shadow-even backdrop-blur-xl",
+            "absolute left-1 top-[55%] -translate-y-1/2 z-50 rounded-full bg-highlight-7/90 p-1 shadow border border-border/30 shadow-even backdrop-blur-xl",
             (!isScrollable || dayOffset === 0) && "hidden"
           )}
         >
@@ -838,7 +906,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
           aria-label="Next one day"
           onClick={handleNext}
           className={cn(
-            "absolute right-4 top-[55%] -translate-y-1/2 z-50 rounded-full bg-highlight-7/90 p-1 shadow border border-border/30 shadow-even backdrop-blur-xl",
+            "absolute right-1 top-[55%] -translate-y-1/2 z-50 rounded-full bg-highlight-7/90 p-1 shadow border border-border/30 shadow-even backdrop-blur-xl",
             (!isScrollable || isAtRightEdge) && "hidden"
           )}
         >
@@ -866,353 +934,431 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
         >
           {/* Day label bar */}
           <div
-            className="rounded-t-md overflow-hidden border border-border/20 bg-highlight-5/40 backdrop-blur-md"
+            className="rounded-t-md overflow-hidden border border-border/20 border-b-0 bg-highlight-5/40 backdrop-blur-md"
             style={{
               position: "absolute",
               zIndex: 40,
-              left: dayHeaderLayout.left,
               top: -58,
-              width: dayHeaderLayout.width,
-              display: "grid",
-              gridTemplateColumns: dayHeaderLayout.gridTemplateColumns,
+              left: 0,
+              width: chartInnerWidth,
+              display: "flex",
               pointerEvents: "none",
               backgroundImage: `linear-gradient(to bottom, color-mix(in oklab, ${chartTheme.dayShading} 14%, transparent), hsl(var(--background) / 0.75))`,
             }}
           >
-            {dayLabels?.map((label, idx) => (
-              <div
-                key={idx}
-                className="h-14 p-1"
-                style={{
-                  boxSizing: "border-box",
-                  width: "100%",
-                  color: "var(--foreground)",
-                  pointerEvents: "none",
-                }}
-              >
-                <div className="flex h-full items-center justify-between gap-3 rounded-md bg-highlight-3/50 dark:bg-highlight-5/50 px-3 py-2">
-                  {(() => {
-                    const [weekdayRaw, monthDayRaw] = label.split(",");
-                    const weekday = (weekdayRaw ?? label).trim();
-                    const monthDay = (monthDayRaw ?? "").trim();
-                    const high = dayStats[idx]?.high;
-                    const low = dayStats[idx]?.low;
+            <div
+              className="h-14 p-1"
+              style={{ width: dayHeaderLayout.left, flex: "0 0 auto" }}
+            >
+              <div className="h-full rounded-md bg-highlight-3/40 dark:bg-highlight-5/50" />
+            </div>
+            <div
+              style={{
+                width: dayHeaderLayout.width,
+                display: "grid",
+                gridTemplateColumns: dayHeaderLayout.gridTemplateColumns,
+              }}
+            >
+              {dayLabels?.map((label, idx) => (
+                <div
+                  key={idx}
+                  className="h-14 p-1"
+                  style={{
+                    boxSizing: "border-box",
+                    width: "100%",
+                    color: "var(--foreground)",
+                    pointerEvents: "none",
+                  }}
+                >
+                  <div className="flex h-full items-center justify-between gap-3 rounded-md bg-highlight-3/50 dark:bg-highlight-5/50 px-3 py-2">
+                    {(() => {
+                      const [weekdayRaw, monthDayRaw] = label.split(",");
+                      const weekday = (weekdayRaw ?? label).trim();
+                      const monthDay = (monthDayRaw ?? "").trim();
+                      const high = dayStats[idx]?.high;
+                      const low = dayStats[idx]?.low;
 
-                    return (
-                      <>
-                        <div className="flex flex-col min-w-0 leading-tight">
-                          <span className="text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">
-                            {weekday}
-                          </span>
-                          <span className="text-sm font-semibold truncate">
-                            {monthDay || label}
-                          </span>
-                        </div>
-                        <div className="flex flex-col items-end gap-0.5 whitespace-nowrap text-[0.72rem] text-muted-foreground rounded-md bg-foreground/5 px-1 py-1">
-                          <div className="grid grid-cols-[14px_18px_16px_30px] items-center gap-x-1 leading-none">
-                            <ArrowUp className="h-3 w-3 text-emerald-500/80" />
-                            <span className="mt-0.5 text-[0.68rem] font-semibold text-muted-foreground">
-                              Hi
+                      return (
+                        <>
+                          <div className="flex flex-col min-w-0 leading-tight">
+                            <span className="text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">
+                              {weekday}
                             </span>
-                            <span className="mt-0.5 tabular-nums text-right text-foreground font-semibold">
-                              {typeof high === "number"
-                                ? Math.round(high)
-                                : "--"}
-                            </span>
-                            <span className="text-[0.7rem] text-muted-foreground">
-                              mph
+                            <span className="text-sm font-semibold truncate">
+                              {monthDay || label}
                             </span>
                           </div>
-                          <div className="grid grid-cols-[14px_18px_16px_30px] items-center gap-x-1 leading-none">
-                            <ArrowDown className="h-3 w-3 text-rose-500/80" />
-                            <span className="mt-0.5 text-[0.68rem] font-semibold text-muted-foreground">
-                              Lo
-                            </span>
-                            <span className="mt-0.5 tabular-nums text-right text-foreground font-semibold">
-                              {typeof low === "number" ? Math.round(low) : "--"}
-                            </span>
-                            <span className="mt-0.5 text-[0.7rem] text-muted-foreground">
-                              mph
-                            </span>
+                          <div className="flex flex-col items-end gap-0.5 whitespace-nowrap text-[0.72rem] text-muted-foreground rounded-md bg-foreground/5 px-1 py-1">
+                            <div className="grid grid-cols-[14px_18px_16px_30px] items-center gap-x-1 leading-none">
+                              <ArrowUp className="h-3 w-3 text-emerald-500/80" />
+                              <span className="mt-0.5 text-[0.68rem] font-semibold text-muted-foreground">
+                                Hi
+                              </span>
+                              <span className="mt-0.5 tabular-nums text-right text-foreground font-semibold">
+                                {typeof high === "number"
+                                  ? Math.round(high)
+                                  : "--"}
+                              </span>
+                              <span className="text-[0.7rem] text-muted-foreground">
+                                mph
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-[14px_18px_16px_30px] items-center gap-x-1 leading-none">
+                              <ArrowDown className="h-3 w-3 text-rose-500/80" />
+                              <span className="mt-0.5 text-[0.68rem] font-semibold text-muted-foreground">
+                                Lo
+                              </span>
+                              <span className="mt-0.5 tabular-nums text-right text-foreground font-semibold">
+                                {typeof low === "number"
+                                  ? Math.round(low)
+                                  : "--"}
+                              </span>
+                              <span className="mt-0.5 text-[0.7rem] text-muted-foreground">
+                                mph
+                              </span>
+                            </div>
                           </div>
-                        </div>
-                      </>
-                    );
-                  })()}
+                        </>
+                      );
+                    })()}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
 
           {containerWidth > 0 && (
-            <ChartContainer
-              key={chartInnerWidth}
-              config={chartConfig}
-              className="forecast-wind-chart-container aspect-auto h-[250px] w-full"
-            >
-              <BarChart
-                accessibilityLayer={false}
-                width={chartInnerWidth}
-                data={windData}
-                margin={{
-                  left: CHART_LEFT_MARGIN,
-                  right: CHART_RIGHT_MARGIN,
-                  bottom: 5,
+            <div className="relative w-full overflow-hidden rounded-b-md border border-border/20 border-t-0 border-x-0">
+              {/* Shade only the plot area (not the X-axis label band), matching prior ReferenceArea behavior. */}
+              <div
+                aria-hidden="true"
+                style={{
+                  position: "absolute",
+                  left: 0,
                   top: 0,
+                  right: CHART_RIGHT_MARGIN,
+                  bottom: X_AXIS_SHADE_EXCLUDE_PX,
+                  backgroundImage: shadingBackground,
+                  backgroundRepeat: "no-repeat",
+                  borderTopLeftRadius: 0,
+                  borderTopRightRadius: 0,
+                  borderBottomLeftRadius: 8,
+                  borderBottomRightRadius: 8,
+                  pointerEvents: "none",
                 }}
-                syncId="allCharts"
-                syncMethod={syncToNearestThirdHour}
-                onMouseMove={handleMouseMove}
-                onMouseLeave={handleMouseLeave}
+              />
+              {/* Left divider clipped to shaded plot height (stops above X-axis labels). */}
+              <div
+                aria-hidden="true"
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  bottom: X_AXIS_SHADE_EXCLUDE_PX,
+                  left: dayLabelLeftOffset,
+                  width: 1,
+                  backgroundColor: "var(--border)",
+                  opacity: 0.85,
+                  pointerEvents: "none",
+                  transform: `translateX(var(${Y_AXIS_OFFSET_VAR}, 0px))`,
+                  zIndex: 2,
+                }}
+              />
+              {/* Sticky in-plot Y-axis (separate overlay chart) to avoid mutating Recharts' SVG output. */}
+              <div
+                aria-hidden="true"
+                style={{
+                  position: "absolute",
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: dayLabelLeftOffset,
+                  pointerEvents: "none",
+                  // Counter-translate by the same px as the pan transform (set on `innerRef`)
+                  // so the Y-axis stays pinned while the chart content drags underneath.
+                  transform: `translateX(var(${Y_AXIS_OFFSET_VAR}, 0px))`,
+                  zIndex: 3,
+                }}
               >
-                {/* vertical boundaries every day */}
-                {Array.from({ length: totalFetchedDays + 1 }, (_, i) => {
-                  if (i !== 0 && i !== totalFetchedDays) {
-                    return (
-                      <ReferenceLine
-                        key={`boundary-${i}`}
-                        x={i * 24}
-                        stroke="var(--foreground)"
-                        strokeOpacity={0.25}
-                        strokeWidth={0.5}
-                      />
-                    );
-                  }
-                })}
-                {dayAreas.map((a, idx) => {
-                  const x1 = Math.max(domainMin, a.x1);
-                  const x2 = Math.min(domainMax, a.x2);
-                  return (
-                    <ReferenceArea
-                      key={`day-${idx}`}
-                      x1={x1}
-                      x2={x2}
-                      fill={chartTheme.dayShading}
-                      fillOpacity={chartTheme.shadingOpacity}
-                      ifOverflow="extendDomain"
-                    />
-                  );
-                })}
-                {nightAreas.map((a, idx) => {
-                  const isFirst = idx === 0;
-                  const isLast = idx === nightAreas.length - 1;
-                  const x1 = isFirst ? domainMin : a.x1 ?? domainMin;
-                  const x2 = isLast ? domainMax : a.x2 ?? domainMax;
-                  return (
-                    <ReferenceArea
-                      key={`night-${idx}`}
-                      x1={x1}
-                      x2={x2}
-                      fill={chartTheme.nightShading}
-                      fillOpacity={chartTheme.shadingOpacity}
-                      ifOverflow="extendDomain"
-                    />
-                  );
-                })}
-                <XAxis
-                  dataKey="hour"
-                  type="number"
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={8}
-                  minTickGap={0}
-                  fontSize={11}
-                  domain={[
-                    -HALF_STEP_HOURS,
-                    totalFetchedDays * 24 + HALF_STEP_HOURS,
-                  ]}
-                  ticks={hourTicks}
-                  tickFormatter={(value: number) => {
-                    const nearestSlot =
-                      Math.round(value / DATA_STEP_HOURS) * DATA_STEP_HOURS;
-                    const normalized = ((nearestSlot % 24) + 24) % 24;
-                    const labelHour =
-                      normalized % 12 === 0 ? 12 : normalized % 12;
-                    return String(labelHour);
-                  }}
-                />
-                <ChartTooltip
-                  content={
-                    <ChartTooltipContent
-                      className="min-w-[14rem]"
-                      labelFormatter={formatHourLabel}
-                      formatter={formatWindTooltipValue as any}
-                    />
-                  }
-                  cursor={renderTooltipCursor as any}
-                  animationDuration={0}
-                  isAnimationActive={false}
-                />
-                {/* Selected hour marker */}
-                {(() => {
-                  try {
-                    const effectiveHour = dashboardBusy
-                      ? stableSelectedHour ?? selectedHour ?? null
-                      : selectedHour ?? null;
-                    const base =
-                      displayDays && displayDays.length > 0
-                        ? displayDays[0]
-                        : null;
-                    if (!base || !selectedDate || effectiveHour == null)
-                      return null;
-                    const baseMid = new Date(
-                      base.getFullYear(),
-                      base.getMonth(),
-                      base.getDate()
-                    ).getTime();
-                    const selMid = new Date(
-                      selectedDate.getFullYear(),
-                      selectedDate.getMonth(),
-                      selectedDate.getDate()
-                    ).getTime();
-                    const dayDelta = Math.floor(
-                      (selMid - baseMid) / (24 * 3600 * 1000)
-                    );
-                    const baseX = dayDelta * 24 + effectiveHour;
-                    if (baseX < 0 || baseX > totalFetchedDays * 24) return null;
-                    const snappedX =
-                      Math.round(baseX / DATA_STEP_HOURS) * DATA_STEP_HOURS;
-                    return (
-                      <ReferenceLine
-                        x={snappedX}
-                        stroke="var(--foreground)"
-                        strokeDasharray="3 3"
-                      />
-                    );
-                  } catch {
-                    return null;
-                  }
-                })()}
-                {/* Hover indicator line */}
-                <HoverReferenceLine
-                  days={displayDays}
-                  selectedDate={selectedDate}
-                  selectedHour={
-                    dashboardBusy ? stableSelectedHour : selectedHour
-                  }
-                  alignmentOffset={0}
-                />
-                <Bar
-                  dataKey="wind"
-                  fill="var(--color-wind)"
-                  radius={6}
-                  // stroke="#5f5f5fff"
-                  // strokeWidth={0.5}
-                  minPointSize={15}
-                  isAnimationActive={false}
-                  animationDuration={0}
-                  animationBegin={0}
+                <ChartContainer
+                  config={chartConfig}
+                  className="aspect-auto h-[250px] w-full !justify-start"
                 >
-                  <LabelList
-                    dataKey="wind"
-                    position="top"
-                    content={(props: LabelProps) => {
-                      const safeX = typeof props.x === "number" ? props.x : 0;
-                      const safeY = typeof props.y === "number" ? props.y : 0;
-                      const safeWidth =
-                        typeof props.width === "number" ? props.width : 0;
-                      const iconSize = Math.min(16, safeWidth * 0.8);
-
-                      const dataPoint = windData[props.index ?? 0];
-                      if (!dataPoint) return null;
-                      const direction = dataPoint?.direction ?? 0;
-                      const directionLabel = getWindDirection(direction);
-                      const rotation = direction - 315;
-
-                      const centerX = safeX + safeWidth / 2;
-                      const centerY = safeY - iconSize / 2 - 7;
-
-                      return (
-                        <g pointerEvents="none">
-                          <title>{`Wind Direction: ${directionLabel} (${Math.round(
-                            direction
-                          )}°)`}</title>
-                          <g transform={`translate(${centerX}, ${centerY})`}>
-                            <g transform={`rotate(${rotation}, 0, 0)`}>
-                              <ArrowIcon
-                                size={iconSize}
-                                x={-iconSize / 2}
-                                y={-iconSize / 2}
-                                // fill="#8bd668ff"
-                                // color="#8bd668ff"
-                                className="fill-foreground/20 text-foreground/50"
-                              />
-                            </g>
-                          </g>
-                        </g>
-                      );
+                  <BarChart
+                    accessibilityLayer={false}
+                    width={dayLabelLeftOffset}
+                    height={250}
+                    data={[{ x: 0 }]}
+                    margin={{
+                      left: CHART_LEFT_MARGIN,
+                      right: 0,
+                      bottom: 5,
+                      top: 0,
                     }}
-                  />
-                  <LabelList
-                    dataKey="wind"
-                    position="middle"
-                    content={(props: LabelProps) => {
-                      const safeX = typeof props.x === "number" ? props.x : 0;
-                      const safeY = typeof props.y === "number" ? props.y : 0;
-                      const safeWidth =
-                        typeof props.width === "number" ? props.width : 0;
-                      const safeHeight =
-                        typeof props.height === "number" ? props.height : 0;
-                      const fontSize = Math.max(10, safeWidth * 0.15);
-
-                      // Get color based on wind value
-                      const windValue =
-                        typeof props.value === "number" ? props.value : 0;
-                      const barColor = getWindColor(windValue);
-
-                      if (typeof props.value === "number") {
+                  >
+                    <XAxis
+                      dataKey="x"
+                      type="number"
+                      domain={[0, 1]}
+                      ticks={[]}
+                      tick={false}
+                      tickLine={false}
+                      axisLine={false}
+                      height={X_AXIS_SHADE_EXCLUDE_PX}
+                    />
+                    <YAxis
+                      width={Y_AXIS_WIDTH}
+                      tickLine={false}
+                      axisLine={false}
+                      tickMargin={8}
+                      fontSize={11}
+                      tick={yAxisTick}
+                      domain={[
+                        windTicks[0] ?? 0,
+                        windTicks[windTicks.length - 1] ?? 20,
+                      ]}
+                      ticks={windTicks}
+                    />
+                  </BarChart>
+                </ChartContainer>
+              </div>
+              <div style={{ position: "relative", zIndex: 1 }}>
+                <ChartContainer
+                  key={chartInnerWidth}
+                  config={chartConfig}
+                  className="forecast-wind-chart-container aspect-auto h-[250px] w-full"
+                >
+                  <BarChart
+                    accessibilityLayer={false}
+                    width={chartInnerWidth}
+                    data={windData}
+                    margin={{
+                      left: dayLabelLeftOffset,
+                      right: CHART_RIGHT_MARGIN,
+                      bottom: 5,
+                      top: 0,
+                    }}
+                    syncId="allCharts"
+                    syncMethod={syncToNearestThirdHour}
+                    onMouseMove={handleMouseMove}
+                    onMouseLeave={handleMouseLeave}
+                  >
+                    {/* vertical boundaries every day */}
+                    {Array.from({ length: totalFetchedDays + 1 }, (_, i) => {
+                      if (i !== 0 && i !== totalFetchedDays) {
                         return (
-                          <g>
-                            {/* Render the colored bar */}
-                            <rect
-                              x={safeX}
-                              y={safeY}
-                              width={safeWidth}
-                              height={safeHeight}
-                              fill={barColor}
-                              rx={6}
-                              // stroke="#5f5f5fff"
-                              // strokeWidth={0.5}
-                            />
-                            <text
-                              x={safeX + safeWidth / 2}
-                              y={safeY + safeHeight / 2 + fontSize / 3}
-                              fill="#2c2c2cff"
-                              textAnchor="middle"
-                              fontWeight="600"
-                              fontSize={fontSize}
-                            >
-                              {`${Math.round(props.value)}`}
-                            </text>
-                          </g>
+                          <ReferenceLine
+                            key={`boundary-${i}`}
+                            x={i * 24}
+                            stroke="var(--foreground)"
+                            strokeOpacity={0.25}
+                            strokeWidth={0.5}
+                          />
                         );
                       }
-                    }}
-                    fill="black"
-                  />
-                </Bar>
-                <YAxis
-                  width={Y_AXIS_WIDTH}
-                  tickLine={false}
-                  axisLine={{
-                    stroke: "var(--border)",
-                    strokeWidth: 1.25,
-                    opacity: 0.85,
-                  }}
-                  tickMargin={8}
-                  fontSize={11}
-                  tick={Y_AXIS_TICK}
-                  domain={[
-                    windTicks[0] ?? 0,
-                    windTicks[windTicks.length - 1] ?? 20,
-                  ]}
-                  ticks={windTicks}
-                  style={{
-                    transform: `translateX(var(${Y_AXIS_OFFSET_VAR}, 0px))`,
-                  }}
-                />
-              </BarChart>
-            </ChartContainer>
+                    })}
+
+                    <XAxis
+                      dataKey="hour"
+                      type="number"
+                      tickLine={false}
+                      axisLine={false}
+                      tickMargin={8}
+                      minTickGap={0}
+                      fontSize={11}
+                      domain={[
+                        -HALF_STEP_HOURS,
+                        totalFetchedDays * 24 + HALF_STEP_HOURS,
+                      ]}
+                      ticks={hourTicks}
+                      tickFormatter={(value: number) => {
+                        const nearestSlot =
+                          Math.round(value / DATA_STEP_HOURS) * DATA_STEP_HOURS;
+                        const normalized = ((nearestSlot % 24) + 24) % 24;
+                        const labelHour =
+                          normalized % 12 === 0 ? 12 : normalized % 12;
+                        return String(labelHour);
+                      }}
+                    />
+                    <ChartTooltip
+                      content={
+                        <ChartTooltipContent
+                          className="min-w-[14rem]"
+                          labelFormatter={formatHourLabel}
+                          formatter={formatWindTooltipValue as any}
+                        />
+                      }
+                      cursor={renderTooltipCursor as any}
+                      animationDuration={0}
+                      isAnimationActive={false}
+                    />
+                    {/* Selected hour marker */}
+                    {(() => {
+                      try {
+                        const effectiveHour = dashboardBusy
+                          ? stableSelectedHour ?? selectedHour ?? null
+                          : selectedHour ?? null;
+                        const base =
+                          displayDays && displayDays.length > 0
+                            ? displayDays[0]
+                            : null;
+                        if (!base || !selectedDate || effectiveHour == null)
+                          return null;
+                        const baseMid = new Date(
+                          base.getFullYear(),
+                          base.getMonth(),
+                          base.getDate()
+                        ).getTime();
+                        const selMid = new Date(
+                          selectedDate.getFullYear(),
+                          selectedDate.getMonth(),
+                          selectedDate.getDate()
+                        ).getTime();
+                        const dayDelta = Math.floor(
+                          (selMid - baseMid) / (24 * 3600 * 1000)
+                        );
+                        const baseX = dayDelta * 24 + effectiveHour;
+                        if (baseX < 0 || baseX > totalFetchedDays * 24)
+                          return null;
+                        const snappedX =
+                          Math.round(baseX / DATA_STEP_HOURS) * DATA_STEP_HOURS;
+                        return (
+                          <ReferenceLine
+                            x={snappedX}
+                            stroke="var(--foreground)"
+                            strokeDasharray="3 3"
+                          />
+                        );
+                      } catch {
+                        return null;
+                      }
+                    })()}
+                    {/* Hover indicator line */}
+                    <HoverReferenceLine
+                      days={displayDays}
+                      selectedDate={selectedDate}
+                      selectedHour={
+                        dashboardBusy ? stableSelectedHour : selectedHour
+                      }
+                      alignmentOffset={0}
+                    />
+                    <Bar
+                      dataKey="wind"
+                      fill="var(--color-wind)"
+                      radius={6}
+                      // stroke="#5f5f5fff"
+                      // strokeWidth={0.5}
+                      minPointSize={15}
+                      isAnimationActive={false}
+                      animationDuration={0}
+                      animationBegin={0}
+                    >
+                      <LabelList
+                        dataKey="wind"
+                        position="top"
+                        content={(props: LabelProps) => {
+                          const safeX =
+                            typeof props.x === "number" ? props.x : 0;
+                          const safeY =
+                            typeof props.y === "number" ? props.y : 0;
+                          const safeWidth =
+                            typeof props.width === "number" ? props.width : 0;
+                          const iconSize = Math.min(16, safeWidth * 0.8);
+
+                          const dataPoint = windData[props.index ?? 0];
+                          if (!dataPoint) return null;
+                          const direction = dataPoint?.direction ?? 0;
+                          const directionLabel = getWindDirection(direction);
+                          const rotation = direction - 315;
+
+                          const centerX = safeX + safeWidth / 2;
+                          const centerY = safeY - iconSize / 2 - 7;
+
+                          return (
+                            <g pointerEvents="none">
+                              <title>{`Wind Direction: ${directionLabel} (${Math.round(
+                                direction
+                              )}°)`}</title>
+                              <g
+                                transform={`translate(${centerX}, ${centerY})`}
+                              >
+                                <g transform={`rotate(${rotation}, 0, 0)`}>
+                                  <ArrowIcon
+                                    size={iconSize}
+                                    x={-iconSize / 2}
+                                    y={-iconSize / 2}
+                                    // fill="#8bd668ff"
+                                    // color="#8bd668ff"
+                                    className="fill-foreground/20 text-foreground/50"
+                                  />
+                                </g>
+                              </g>
+                            </g>
+                          );
+                        }}
+                      />
+                      <LabelList
+                        dataKey="wind"
+                        position="middle"
+                        content={(props: LabelProps) => {
+                          const safeX =
+                            typeof props.x === "number" ? props.x : 0;
+                          const safeY =
+                            typeof props.y === "number" ? props.y : 0;
+                          const safeWidth =
+                            typeof props.width === "number" ? props.width : 0;
+                          const safeHeight =
+                            typeof props.height === "number" ? props.height : 0;
+                          const fontSize = Math.max(10, safeWidth * 0.15);
+
+                          // Get color based on wind value
+                          const windValue =
+                            typeof props.value === "number" ? props.value : 0;
+                          const barColor = getWindColor(windValue);
+
+                          if (typeof props.value === "number") {
+                            return (
+                              <g>
+                                {/* Render the colored bar */}
+                                <rect
+                                  x={safeX}
+                                  y={safeY}
+                                  width={safeWidth}
+                                  height={safeHeight}
+                                  fill={barColor}
+                                  rx={6}
+                                  // stroke="#5f5f5fff"
+                                  // strokeWidth={0.5}
+                                />
+                                <text
+                                  x={safeX + safeWidth / 2}
+                                  y={safeY + safeHeight / 2 + fontSize / 3}
+                                  fill="#2c2c2cff"
+                                  textAnchor="middle"
+                                  fontWeight="600"
+                                  fontSize={fontSize}
+                                >
+                                  {`${Math.round(props.value)}`}
+                                </text>
+                              </g>
+                            );
+                          }
+                        }}
+                        fill="black"
+                      />
+                    </Bar>
+                    <YAxis
+                      hide
+                      width={0}
+                      domain={[
+                        windTicks[0] ?? 0,
+                        windTicks[windTicks.length - 1] ?? 20,
+                      ]}
+                      ticks={windTicks}
+                    />
+                  </BarChart>
+                </ChartContainer>
+              </div>
+            </div>
           )}
         </div>
 

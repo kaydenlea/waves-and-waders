@@ -43,6 +43,37 @@ export function buildYAxisTicks(
   return ticks;
 }
 
+// Enforce an upper bound on tick count while keeping the min/max ticks.
+// Used by forecast charts to keep the in-plot sticky axis compact.
+export function limitYAxisTicks(ticks: number[], maxTicks: number): number[] {
+  if (!Array.isArray(ticks) || ticks.length === 0) return ticks;
+  if (!(maxTicks > 1) || ticks.length <= maxTicks) return ticks;
+
+  const lastIndex = ticks.length - 1;
+  const step = lastIndex / (maxTicks - 1);
+  const out: number[] = [];
+
+  let prevIndex = -1;
+  for (let i = 0; i < maxTicks; i++) {
+    const rawIndex = Math.round(i * step);
+    const index =
+      i === 0
+        ? 0
+        : i === maxTicks - 1
+          ? lastIndex
+          : Math.min(lastIndex - (maxTicks - 1 - i), Math.max(prevIndex + 1, rawIndex));
+    prevIndex = index;
+    const value = ticks[index]!;
+    if (!out.length || Math.abs(value - out[out.length - 1]!) > 1e-6) {
+      out.push(value);
+    }
+  }
+
+  // If rounding produced fewer than desired ticks, fall back to min/max only.
+  if (out.length < 2) return [ticks[0]!, ticks[lastIndex]!];
+  return out;
+}
+
 // Pick a friendly step (1/2/5 * 10^n)
 function chooseNiceStep(step: number) {
   if (step <= 0) return 1;

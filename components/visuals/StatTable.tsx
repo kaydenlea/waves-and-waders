@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import React from "react";
+import { flushSync } from "react-dom";
 import { cn, getPacificDayRange } from "@/lib/utils";
 import { Button } from "../ui/button";
 import {
@@ -1500,6 +1501,7 @@ const StatTable = ({
   const [tableWidthPx, setTableWidthPx] = React.useState(0);
   const [effectiveColumnsVariant, setEffectiveColumnsVariant] =
     React.useState<StatTableVariant>(variant);
+  const effectiveColumnsVariantRef = React.useRef<StatTableVariant>(variant);
 
   const tableRef = React.useRef<HTMLDivElement | null>(null);
   const assignTableRef = React.useCallback((node: HTMLDivElement | null) => {
@@ -1518,14 +1520,10 @@ const StatTable = ({
     const table = tableRef.current;
     if (!table) return;
 
-    const adjustData = () => {
-      widthNow.current = measuredWidthRef.current || table.clientWidth;
-      setTableWidthPx((prev) =>
-        prev === widthNow.current ? prev : widthNow.current
-      );
+    const computeColumnsVariant = (): StatTableVariant => {
+      if (variant !== "half") return "full";
 
       const isHalfStacked = (() => {
-        if (variant !== "half") return null;
         const figure = table.closest("figure");
         const row = figure?.parentElement;
         if (!row) return null;
@@ -1538,7 +1536,6 @@ const StatTable = ({
       })();
 
       const isHalfAloneInRow = (() => {
-        if (variant !== "half") return null;
         const figure = table.closest("figure");
         const row = figure?.parentElement;
         if (!row) return null;
@@ -1551,11 +1548,33 @@ const StatTable = ({
       const treatHalfAsFull =
         isHalfStacked === true || isHalfAloneInRow === true;
 
-      const nextColumnsVariant: StatTableVariant =
-        variant === "half" ? (treatHalfAsFull ? "full" : "half") : "full";
-      setEffectiveColumnsVariant((prev) =>
-        prev === nextColumnsVariant ? prev : nextColumnsVariant
+      return treatHalfAsFull ? "full" : "half";
+    };
+
+    const syncColumnsVariant = () => {
+      const nextColumnsVariant = computeColumnsVariant();
+      if (effectiveColumnsVariantRef.current === nextColumnsVariant) return;
+
+      // ResizeObserver fires before paint; flushing here avoids a frame where the
+      // half-width table renders at the previous density (visible layout shift).
+      flushSync(() => {
+        setEffectiveColumnsVariant(nextColumnsVariant);
+      });
+      effectiveColumnsVariantRef.current = nextColumnsVariant;
+    };
+
+    const adjustData = () => {
+      widthNow.current = measuredWidthRef.current || table.clientWidth;
+      setTableWidthPx((prev) =>
+        prev === widthNow.current ? prev : widthNow.current
       );
+
+      const nextColumnsVariant = computeColumnsVariant();
+      setEffectiveColumnsVariant((prev) => {
+        if (prev === nextColumnsVariant) return prev;
+        effectiveColumnsVariantRef.current = nextColumnsVariant;
+        return nextColumnsVariant;
+      });
       let newPages: typeof columnPages;
       // Use filtered columns instead of COLUMNS
       const cols = filteredColumns;
@@ -1663,6 +1682,7 @@ const StatTable = ({
     const observer = new ResizeObserver(() => {
       const w = table.clientWidth;
       if (w > 0) measuredWidthRef.current = w;
+      syncColumnsVariant();
       scheduleAdjust();
     });
     observer.observe(table);

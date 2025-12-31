@@ -11,10 +11,10 @@ import {
   CartesianGrid,
   XAxis,
   YAxis,
-  ReferenceArea,
   ReferenceLine,
   AreaChart,
   Area,
+  Customized,
 } from "recharts";
 import {
   ChartConfig,
@@ -43,13 +43,14 @@ import {
 import { useForecastChartContext } from "@/components/context/ForecastChartContext";
 import { useSunData } from "@/components/context/SunDataContext";
 import { buildSunSegmentsForRange } from "@/components/graphs/sunSegments";
+import { buildForecastShadingBackground } from "@/components/graphs/forecastShadingBackground";
 import { getForecastDayHeaderLayout } from "./forecastDayHeaderLayout";
 import {
   useForecastChartLoading,
   useForecastChartsBusyState,
 } from "../context/ForecastChartsLoadingContext";
 import { useChartTheme } from "@/components/graphs/useChartTheme";
-import { buildYAxisTicks } from "@/components/graphs/yAxisTicks";
+import { buildYAxisTicks, limitYAxisTicks } from "@/components/graphs/yAxisTicks";
 
 const chartConfig = {
   primary: {
@@ -77,6 +78,7 @@ type SwellPoint = {
   primaryPeriod?: number;
   secondaryPeriod?: number;
   tertiaryPeriod?: number;
+  _terminal?: boolean;
 };
 
 type Props = { beachId?: string; days?: Date[] | null };
@@ -85,10 +87,11 @@ const HOURS_PER_DAY = 24;
 const VISIBLE_DAYS = 4;
 const MIN_DAY_PX = 275; // minimum pixels per day to keep UI usable
 const CHART_LEFT_MARGIN = 5;
-const CHART_RIGHT_MARGIN = 5;
+const CHART_RIGHT_MARGIN = 0;
 const Y_AXIS_WIDTH = 30;
 const DAY_LABEL_INSET = 6;
 const Y_AXIS_OFFSET_VAR = "--forecast-y-axis-offset";
+const X_AXIS_SHADE_EXCLUDE_PX = 34;
 const Y_AXIS_TICK = {
   fill: "var(--foreground)",
   fontWeight: 500,
@@ -145,6 +148,8 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
       : VISIBLE_DAYS;
   }, [normalizedDays]);
   const dayPx = useMemo(() => {
+    // Day width is derived from the visible container width (4 days shown) with a floor,
+    // so each 24h segment keeps a stable pixel width and stays aligned across charts.
     if (!containerWidth) return MIN_DAY_PX;
     const fillPerDay = containerWidth / VISIBLE_DAYS;
     return Math.max(MIN_DAY_PX, Math.floor(fillPerDay));
@@ -160,6 +165,10 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
     [containerWidth, dayPx]
   );
   const isScrollable = chartInnerWidth > viewportWidth + 1;
+
+  // Header alignment: this matches Recharts' inner plot rect (chart width minus margins + axis gutter),
+  // keeping each header column pixel-aligned with the 24h day boundaries. The axis gutter doubles as an
+  // in-plot inset so series never render beneath the sticky Y-axis labels.
   const dataAreaWidth =
     chartInnerWidth - CHART_LEFT_MARGIN - CHART_RIGHT_MARGIN - Y_AXIS_WIDTH;
   const dayLabelLeftOffset = CHART_LEFT_MARGIN + Y_AXIS_WIDTH;
@@ -176,6 +185,35 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
         hoursPerDay: HOURS_PER_DAY,
       }),
     [dayLabelLeftOffset, dataAreaWidth, totalFetchedDays, domainMax]
+  );
+
+  const shadingBackground = useMemo(
+    () =>
+      buildForecastShadingBackground({
+        dayAreas,
+        nightAreas,
+        domainMin,
+        domainMax,
+        // `chartWidthPx` is where the X-scale ends (last X value), so day/night transitions stop before the right margin.
+        chartWidthPx: chartInnerWidth - CHART_RIGHT_MARGIN,
+        plotLeftPx: dayLabelLeftOffset,
+        plotWidthPx: dataAreaWidth,
+        dayColor: chartTheme.dayShading,
+        nightColor: chartTheme.nightShading,
+        opacity: chartTheme.shadingOpacity,
+      }),
+    [
+      dayAreas,
+      nightAreas,
+      domainMin,
+      domainMax,
+      chartInnerWidth,
+      dayLabelLeftOffset,
+      dataAreaWidth,
+      chartTheme.dayShading,
+      chartTheme.nightShading,
+      chartTheme.shadingOpacity,
+    ]
   );
 
   // helpers: clamp translate (px)
@@ -197,6 +235,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
       } else {
         node.style.transition = "none";
       }
+      // Keep a CSS var for HTML overlays, and pin the SVG Y-axis via an imperative transform.
       node.style.setProperty(Y_AXIS_OFFSET_VAR, `${px}px`);
       node.style.transform = `translate3d(-${px}px,0,0)`;
       currentTranslateRef.current = px;
@@ -567,6 +606,20 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
         }
 
         series.sort((a, b) => a.hour - b.hour);
+        const last = series[series.length - 1];
+        if (last && last.hour < maxHour) {
+          series.push({
+            ...last,
+            hour: maxHour,
+            _terminal: true,
+            primaryDir: undefined,
+            secondaryDir: undefined,
+            tertiaryDir: undefined,
+            primaryPeriod: undefined,
+            secondaryPeriod: undefined,
+            tertiaryPeriod: undefined,
+          });
+        }
         if (!cancelled) {
           setSwellData(series);
           setLoading(series.length === 0);
@@ -642,17 +695,53 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
 
   const swellTicks = useMemo(
     () =>
-      buildYAxisTicks(
-        swellData
-          .flatMap((row) => [row.primary, row.secondary, row.tertiary])
-          .filter(
-            (v): v is number => typeof v === "number" && Number.isFinite(v)
-          ),
-        0,
-        6,
-        0.2
+      limitYAxisTicks(
+        buildYAxisTicks(
+          swellData
+            .flatMap((row) => [row.primary, row.secondary, row.tertiary])
+            .filter(
+              (v): v is number => typeof v === "number" && Number.isFinite(v)
+            ),
+          0,
+          5,
+          0.2
+        ),
+        5
       ),
     [swellData]
+  );
+  const yAxisTick = useCallback(
+    (props: any) => {
+      const { x, y, payload, textAnchor, fontSize } = props ?? {};
+      const xNum = typeof x === "number" ? x : Number(x);
+      const yNum = typeof y === "number" ? y : Number(y);
+      if (!Number.isFinite(xNum) || !Number.isFinite(yNum)) return <text />;
+
+      const value = payload?.value;
+      const minTick = swellTicks[0] ?? 0;
+      const maxTick = swellTicks[swellTicks.length - 1] ?? minTick;
+      const valueNum = typeof value === "number" ? value : Number(value);
+      const isMinTick =
+        Number.isFinite(valueNum) && Math.abs(valueNum - minTick) < 1e-6;
+      const isMaxTick =
+        Number.isFinite(valueNum) && Math.abs(valueNum - maxTick) < 1e-6;
+
+      return (
+        <text
+          x={xNum + 6}
+          y={yNum}
+          // Nudge the bottom tick up so it stays visually contained within the shaded plot area.
+          dy={isMinTick ? -8 : isMaxTick ? 8 : 0}
+          textAnchor={textAnchor ?? "end"}
+          dominantBaseline="central"
+          fontSize={typeof fontSize === "number" ? fontSize : 11}
+          {...Y_AXIS_TICK}
+        >
+          {value}
+        </text>
+      );
+    },
+    [swellTicks]
   );
   const formatHourLabel = useCallback((label: unknown, payload: any[]) => {
     let hour = payload?.[0]?.payload?.hour;
@@ -727,6 +816,12 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
       );
     },
     [getWindDirection]
+  );
+
+  const plotClipIdRaw = React.useId();
+  const plotClipId = useMemo(
+    () => `forecast-swell-plot-clip-${plotClipIdRaw.replace(/:/g, "")}`,
+    [plotClipIdRaw]
   );
 
   // Hover sync handlers
@@ -804,7 +899,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
           aria-label="Back one day"
           onClick={handleBack}
           className={cn(
-            "absolute left-4 top-[55%] -translate-y-1/2 z-50 rounded-full bg-highlight-7/90 p-1 shadow border border-border/30 shadow-even backdrop-blur-xl",
+            "absolute left-1 top-[55%] -translate-y-1/2 z-50 rounded-full bg-highlight-7/90 p-1 shadow border border-border/30 shadow-even backdrop-blur-xl",
             (!isScrollable || dayOffset === 0) && "hidden"
           )}
         >
@@ -814,7 +909,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
           aria-label="Next one day"
           onClick={handleNext}
           className={cn(
-            "absolute right-4 top-[55%] -translate-y-1/2 z-50 rounded-full bg-highlight-7/90 p-1 shadow border border-border/30 shadow-even backdrop-blur-xl",
+            "absolute right-1 top-[55%] -translate-y-1/2 z-50 rounded-full bg-highlight-7/90 p-1 shadow border border-border/30 shadow-even backdrop-blur-xl",
             (!isScrollable || isAtRightEdge) && "hidden"
           )}
         >
@@ -842,340 +937,509 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
         >
           {/* Day label bar */}
           <div
-            className="rounded-t-md overflow-hidden border border-border/20 bg-highlight-5/40 backdrop-blur-md"
+            className="rounded-t-md overflow-hidden border border-border/20 border-b-0 bg-highlight-5/40 backdrop-blur-md"
             style={{
               position: "absolute",
               zIndex: 40,
-              left: dayHeaderLayout.left,
               top: -58,
-              width: dayHeaderLayout.width,
-              display: "grid",
-              gridTemplateColumns: dayHeaderLayout.gridTemplateColumns,
+              left: 0,
+              width: chartInnerWidth,
+              display: "flex",
               pointerEvents: "none",
               backgroundImage: `linear-gradient(to bottom, color-mix(in oklab, ${chartTheme.dayShading} 14%, transparent), hsl(var(--background) / 0.75))`,
             }}
           >
-            {dayLabels?.map((label, idx) => (
-              <div
-                key={idx}
-                className="h-14 p-1"
-                style={{
-                  boxSizing: "border-box",
-                  width: "100%",
-                  color: "var(--foreground)",
-                  pointerEvents: "none",
-                }}
-              >
-                <div className="flex h-full items-center justify-between gap-3 rounded-md bg-highlight-3/50 dark:bg-highlight-5/50 px-3 py-2">
-                  {(() => {
-                    const [weekdayRaw, monthDayRaw] = label.split(",");
-                    const weekday = (weekdayRaw ?? label).trim();
-                    const monthDay = (monthDayRaw ?? "").trim();
-                    const high = dayStats[idx]?.high;
-                    const low = dayStats[idx]?.low;
+            <div
+              className="h-14 p-1"
+              style={{ width: dayHeaderLayout.left, flex: "0 0 auto" }}
+            >
+              <div className="h-full rounded-md bg-highlight-3/40 dark:bg-highlight-5/50" />
+            </div>
+            <div
+              style={{
+                width: dayHeaderLayout.width,
+                display: "grid",
+                gridTemplateColumns: dayHeaderLayout.gridTemplateColumns,
+              }}
+            >
+              {dayLabels?.map((label, idx) => (
+                <div
+                  key={idx}
+                  className="h-14 p-1"
+                  style={{
+                    boxSizing: "border-box",
+                    width: "100%",
+                    color: "var(--foreground)",
+                    pointerEvents: "none",
+                  }}
+                >
+                  <div className="flex h-full items-center justify-between gap-3 rounded-md bg-highlight-3/50 dark:bg-highlight-5/50 px-3 py-2">
+                    {(() => {
+                      const [weekdayRaw, monthDayRaw] = label.split(",");
+                      const weekday = (weekdayRaw ?? label).trim();
+                      const monthDay = (monthDayRaw ?? "").trim();
+                      const high = dayStats[idx]?.high;
+                      const low = dayStats[idx]?.low;
 
-                    return (
-                      <>
-                        <div className="flex flex-col min-w-0 leading-tight">
-                          <span className="text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">
-                            {weekday}
-                          </span>
-                          <span className="text-sm font-semibold truncate">
-                            {monthDay || label}
-                          </span>
-                        </div>
-                        <div className="flex flex-col items-end gap-0.5 whitespace-nowrap text-[0.72rem] text-muted-foreground rounded-md py-1 pl-1 bg-foreground/5">
-                          <div className="grid grid-cols-[14px_18px_32px_16px] items-center gap-x-1 leading-none">
-                            <ArrowUp className="h-3 w-3 text-emerald-500/80" />
-                            <span className="mt-0.5 text-[0.68rem] font-semibold text-muted-foreground">
-                              Hi
+                      return (
+                        <>
+                          <div className="flex flex-col min-w-0 leading-tight">
+                            <span className="text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">
+                              {weekday}
                             </span>
-                            <span className="mt-0.5 tabular-nums text-right text-foreground font-semibold">
-                              {typeof high === "number"
-                                ? high.toFixed(1)
-                                : "--"}
-                            </span>
-                            <span className="text-[0.7rem] text-muted-foreground">
-                              ft
+                            <span className="text-sm font-semibold truncate">
+                              {monthDay || label}
                             </span>
                           </div>
-                          <div className="grid grid-cols-[14px_18px_32px_16px] items-center gap-x-1 leading-none">
-                            <ArrowDown className="h-3 w-3 text-rose-500/80" />
-                            <span className="mt-0.5 text-[0.68rem] font-semibold text-muted-foreground">
-                              Lo
-                            </span>
-                            <span className="mt-0.5 tabular-nums text-right text-foreground font-semibold">
-                              {typeof low === "number" ? low.toFixed(1) : "--"}
-                            </span>
-                            <span className="mt-0.5 text-[0.7rem] text-muted-foreground">
-                              ft
-                            </span>
+                          <div className="flex flex-col items-end gap-0.5 whitespace-nowrap text-[0.72rem] text-muted-foreground rounded-md py-1 pl-1 bg-foreground/5">
+                            <div className="grid grid-cols-[14px_18px_32px_16px] items-center gap-x-1 leading-none">
+                              <ArrowUp className="h-3 w-3 text-emerald-500/80" />
+                              <span className="mt-0.5 text-[0.68rem] font-semibold text-muted-foreground">
+                                Hi
+                              </span>
+                              <span className="mt-0.5 tabular-nums text-right text-foreground font-semibold">
+                                {typeof high === "number"
+                                  ? high.toFixed(1)
+                                  : "--"}
+                              </span>
+                              <span className="text-[0.7rem] text-muted-foreground">
+                                ft
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-[14px_18px_32px_16px] items-center gap-x-1 leading-none">
+                              <ArrowDown className="h-3 w-3 text-rose-500/80" />
+                              <span className="mt-0.5 text-[0.68rem] font-semibold text-muted-foreground">
+                                Lo
+                              </span>
+                              <span className="mt-0.5 tabular-nums text-right text-foreground font-semibold">
+                                {typeof low === "number"
+                                  ? low.toFixed(1)
+                                  : "--"}
+                              </span>
+                              <span className="mt-0.5 text-[0.7rem] text-muted-foreground">
+                                ft
+                              </span>
+                            </div>
                           </div>
-                        </div>
-                      </>
-                    );
-                  })()}
+                        </>
+                      );
+                    })()}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
 
           {containerWidth > 0 && (
-            <ChartContainer
-              key={chartInnerWidth}
-              config={chartConfig}
-              className="forecast-swell-chart-container aspect-auto h-[250px] w-full"
-            >
-              <AreaChart
-                accessibilityLayer={false}
-                width={chartInnerWidth}
-                data={swellData}
-                margin={{
-                  left: CHART_LEFT_MARGIN,
-                  right: CHART_RIGHT_MARGIN,
-                  bottom: 5,
+            <div className="relative w-full overflow-hidden rounded-b-md border border-border/20 border-t-0 border-x-0">
+              {/* Shade only the plot area (not the X-axis label band), matching prior ReferenceArea behavior. */}
+              <div
+                aria-hidden="true"
+                style={{
+                  position: "absolute",
+                  left: 0,
                   top: 0,
+                  right: CHART_RIGHT_MARGIN,
+                  bottom: X_AXIS_SHADE_EXCLUDE_PX,
+                  backgroundImage: shadingBackground,
+                  backgroundRepeat: "no-repeat",
+                  borderTopLeftRadius: 0,
+                  borderTopRightRadius: 0,
+                  borderBottomLeftRadius: 8,
+                  borderBottomRightRadius: 8,
+                  pointerEvents: "none",
                 }}
-                syncId="allCharts"
-                syncMethod={syncToNearestThirdHour}
-                onMouseMove={handleMouseMove}
-                onMouseLeave={handleMouseLeave}
+              />
+              {/* Left divider clipped to shaded plot height (stops above X-axis labels). */}
+              <div
+                aria-hidden="true"
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  bottom: X_AXIS_SHADE_EXCLUDE_PX,
+                  left: dayLabelLeftOffset,
+                  width: 1,
+                  backgroundColor: "var(--border)",
+                  opacity: 0.85,
+                  pointerEvents: "none",
+                  transform: `translateX(var(${Y_AXIS_OFFSET_VAR}, 0px))`,
+                  zIndex: 2,
+                }}
+              />
+              {/* Sticky in-plot Y-axis (separate overlay chart) to avoid mutating Recharts' SVG output. */}
+              <div
+                aria-hidden="true"
+                style={{
+                  position: "absolute",
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: dayLabelLeftOffset,
+                  pointerEvents: "none",
+                  // Counter-translate by the same px as the pan transform (set on `innerRef`)
+                  // so the Y-axis stays pinned while the chart content drags underneath.
+                  transform: `translateX(var(${Y_AXIS_OFFSET_VAR}, 0px))`,
+                  zIndex: 3,
+                }}
               >
-                {/* vertical boundaries every day */}
-                {Array.from({ length: totalFetchedDays + 1 }, (_, i) => {
-                  if (i !== 0 && i !== totalFetchedDays) {
-                    return (
-                      <ReferenceLine
-                        key={`boundary-${i}`}
-                        x={i * 24}
-                        stroke="var(--foreground)"
-                        strokeOpacity={0.25}
-                        strokeWidth={0.5}
-                      />
-                    );
-                  }
-                })}
-                {dayAreas.map((a, idx) => (
-                  <ReferenceArea
-                    key={`day-${idx}`}
-                    x1={a.x1}
-                    x2={a.x2}
-                    fill={chartTheme.dayShading}
-                    fillOpacity={chartTheme.shadingOpacity}
-                    ifOverflow="extendDomain"
-                  />
-                ))}
-                {nightAreas.map((a, idx) => (
-                  <ReferenceArea
-                    key={`night-${idx}`}
-                    x1={idx === 0 ? undefined : a.x1}
-                    x2={idx === nightAreas.length - 1 ? undefined : a.x2}
-                    fill={chartTheme.nightShading}
-                    fillOpacity={chartTheme.shadingOpacity}
-                    ifOverflow="extendDomain"
-                  />
-                ))}
-                <XAxis
-                  dataKey="hour"
-                  type="number"
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={8}
-                  minTickGap={0}
-                  fontSize={11}
-                  domain={[0, totalFetchedDays * 24]}
-                  ticks={hourTicks}
-                  tickFormatter={(v: number) =>
-                    v % 3 === 0 ? String(v % 12 === 0 ? 12 : v % 12) : ""
-                  }
-                />
-                {/* Selected hour marker */}
-                {(() => {
-                  try {
-                    const effectiveHour = dashboardBusy
-                      ? stableSelectedHour ?? selectedHour ?? null
-                      : selectedHour ?? null;
-                    const base =
-                      displayDays && displayDays.length > 0
-                        ? displayDays[0]
-                        : null;
-                    if (!base || !selectedDate || effectiveHour == null)
-                      return null;
-                    const baseMid = new Date(
-                      base.getFullYear(),
-                      base.getMonth(),
-                      base.getDate()
-                    ).getTime();
-                    const selMid = new Date(
-                      selectedDate.getFullYear(),
-                      selectedDate.getMonth(),
-                      selectedDate.getDate()
-                    ).getTime();
-                    const dayDelta = Math.floor(
-                      (selMid - baseMid) / (24 * 3600 * 1000)
-                    );
-                    const x = dayDelta * 24 + effectiveHour;
-                    if (x < 0 || x > totalFetchedDays * 24) return null;
-                    return (
-                      <ReferenceLine
-                        x={x}
-                        stroke="var(--foreground)"
-                        strokeDasharray="3 3"
-                      />
-                    );
-                  } catch {
-                    return null;
-                  }
-                })()}
-                {/* Hover indicator line */}
-                {hoveredHour !== null && (
-                  <ReferenceLine
-                    x={hoveredHour}
-                    stroke="var(--foreground)"
-                    strokeWidth={1}
-                    strokeOpacity={0.75}
-                    strokeDasharray="5 5"
-                  />
-                )}
-                <YAxis
-                  width={Y_AXIS_WIDTH}
-                  tickLine={false}
-                  axisLine={{
-                    stroke: "var(--border)",
-                    strokeWidth: 1.25,
-                    opacity: 0.85,
-                  }}
-                  tickMargin={8}
-                  fontSize={11}
-                  tick={Y_AXIS_TICK}
-                  domain={[
-                    swellTicks[0] ?? 0,
-                    swellTicks[swellTicks.length - 1] ?? 6,
-                  ]}
-                  ticks={swellTicks}
-                  style={{
-                    transform: `translateX(var(${Y_AXIS_OFFSET_VAR}, 0px))`,
-                  }}
-                />
-                {/* <ChartLegend content={<ChartLegendContent />} /> */}
-                <ChartTooltip
-                  content={
-                    <ChartTooltipContent
-                      labelFormatter={formatHourLabel}
-                      formatter={formatSwellTooltipValue as any}
+                <ChartContainer
+                  key={`swell-axis-${chartInnerWidth}`}
+                  config={chartConfig}
+                  className="aspect-auto h-[250px] w-full !justify-start"
+                >
+                  <AreaChart
+                    accessibilityLayer={false}
+                    width={dayLabelLeftOffset}
+                    height={250}
+                    data={[{ x: 0 }]}
+                    margin={{
+                      left: CHART_LEFT_MARGIN,
+                      right: 0,
+                      bottom: 5,
+                      top: 0,
+                    }}
+                  >
+                    <XAxis
+                      dataKey="x"
+                      type="number"
+                      domain={[0, 1]}
+                      ticks={[]}
+                      tick={false}
+                      tickLine={false}
+                      axisLine={false}
+                      height={X_AXIS_SHADE_EXCLUDE_PX}
                     />
-                  }
-                  cursor={{
-                    stroke: "var(--foreground)",
-                    strokeWidth: 1,
-                    strokeDasharray: "3 3",
-                    strokeOpacity: 0.75,
-                  }}
-                  animationDuration={0}
-                  isAnimationActive={false}
-                />
+                    <YAxis
+                      width={Y_AXIS_WIDTH}
+                      tickLine={false}
+                      axisLine={false}
+                      tickMargin={8}
+                      fontSize={11}
+                      tick={yAxisTick}
+                      domain={[
+                        swellTicks[0] ?? 0,
+                        swellTicks[swellTicks.length - 1] ?? 6,
+                      ]}
+                      ticks={swellTicks}
+                    />
+                  </AreaChart>
+                </ChartContainer>
+              </div>
+              <div style={{ position: "relative", zIndex: 1 }}>
+                <ChartContainer
+                  key={chartInnerWidth}
+                  config={chartConfig}
+                  className="forecast-swell-chart-container aspect-auto h-[250px] w-full"
+                >
+                  <AreaChart
+                    accessibilityLayer={false}
+                    width={chartInnerWidth}
+                    data={swellData}
+                    margin={{
+                      left: dayLabelLeftOffset,
+                      right: CHART_RIGHT_MARGIN,
+                      bottom: 5,
+                      top: 0,
+                    }}
+                    syncId="allCharts"
+                    syncMethod={syncToNearestThirdHour}
+                    onMouseMove={handleMouseMove}
+                    onMouseLeave={handleMouseLeave}
+                  >
+                    {/* Clip filled areas to the same rounded plot bounds as the day/night shading. */}
+                    <Customized
+                      component={(p: any) => {
+                        const offset = p?.offset;
+                        const fullWidth =
+                          typeof p?.width === "number" ? p.width : 0;
+                        const clipWidth =
+                          (typeof offset?.left === "number" ? offset.left : 0) +
+                          (typeof offset?.width === "number"
+                            ? offset.width
+                            : 0);
+                        if (
+                          !offset ||
+                          !(fullWidth > 0) ||
+                          !(clipWidth > 0) ||
+                          !(offset.height > 0)
+                        ) {
+                          return null;
+                        }
+                        const w = Math.min(fullWidth, clipWidth);
+                        const h = offset.height;
+                        const r = Math.min(8, h / 2, w / 2);
+                        const y0 = offset.top;
+                        const y1 = y0 + h;
+                        const d = `M0,${y0}H${w}V${y1 - r}Q${w},${y1} ${
+                          w - r
+                        },${y1}H${r}Q0,${y1} 0,${y1 - r}V${y0}Z`;
+                        return (
+                          <defs>
+                            <clipPath id={plotClipId}>
+                              <path d={d} />
+                            </clipPath>
+                          </defs>
+                        );
+                      }}
+                    />
+                    {/* vertical boundaries every day */}
+                    {Array.from({ length: totalFetchedDays + 1 }, (_, i) => {
+                      if (i !== 0 && i !== totalFetchedDays) {
+                        return (
+                          <ReferenceLine
+                            key={`boundary-${i}`}
+                            x={i * 24}
+                            stroke="var(--foreground)"
+                            strokeOpacity={0.25}
+                            strokeWidth={0.5}
+                          />
+                        );
+                      }
+                    })}
 
-                <Area
-                  type="monotone"
-                  dataKey="primary"
-                  activeDot={false}
-                  stroke="#023e8a"
-                  strokeWidth={1.5}
-                  fill="#0077b6"
-                  fillOpacity={0.2}
-                  isAnimationActive={false}
-                  animationDuration={0}
-                  animationBegin={0}
-                  dot={({ payload, cx, cy, index }) => {
-                    const iconSize = 15;
-                    const direction = payload.primaryDir ?? 0;
-                    const rotation = direction - 315;
+                    <XAxis
+                      dataKey="hour"
+                      type="number"
+                      tickLine={false}
+                      axisLine={false}
+                      tickMargin={8}
+                      minTickGap={0}
+                      fontSize={11}
+                      domain={[0, totalFetchedDays * 24]}
+                      ticks={hourTicks}
+                      tickFormatter={(v: number) =>
+                        v % 3 === 0 ? String(v % 12 === 0 ? 12 : v % 12) : ""
+                      }
+                    />
+                    {/* Selected hour marker */}
+                    {(() => {
+                      try {
+                        const effectiveHour = dashboardBusy
+                          ? stableSelectedHour ?? selectedHour ?? null
+                          : selectedHour ?? null;
+                        const base =
+                          displayDays && displayDays.length > 0
+                            ? displayDays[0]
+                            : null;
+                        if (!base || !selectedDate || effectiveHour == null)
+                          return null;
+                        const baseMid = new Date(
+                          base.getFullYear(),
+                          base.getMonth(),
+                          base.getDate()
+                        ).getTime();
+                        const selMid = new Date(
+                          selectedDate.getFullYear(),
+                          selectedDate.getMonth(),
+                          selectedDate.getDate()
+                        ).getTime();
+                        const dayDelta = Math.floor(
+                          (selMid - baseMid) / (24 * 3600 * 1000)
+                        );
+                        const x = dayDelta * 24 + effectiveHour;
+                        if (x < 0 || x > totalFetchedDays * 24) return null;
+                        return (
+                          <ReferenceLine
+                            x={x}
+                            stroke="var(--foreground)"
+                            strokeDasharray="3 3"
+                          />
+                        );
+                      } catch {
+                        return null;
+                      }
+                    })()}
+                    {/* Hover indicator line */}
+                    {hoveredHour !== null && (
+                      <ReferenceLine
+                        x={hoveredHour}
+                        stroke="var(--foreground)"
+                        strokeWidth={1}
+                        strokeOpacity={0.75}
+                        strokeDasharray="5 5"
+                      />
+                    )}
+                    <YAxis
+                      hide
+                      width={0}
+                      domain={[
+                        swellTicks[0] ?? 0,
+                        swellTicks[swellTicks.length - 1] ?? 6,
+                      ]}
+                      ticks={swellTicks}
+                    />
+                    {/* <ChartLegend content={<ChartLegendContent />} /> */}
+                    <ChartTooltip
+                      content={
+                        <ChartTooltipContent
+                          labelFormatter={formatHourLabel}
+                          formatter={formatSwellTooltipValue as any}
+                        />
+                      }
+                      cursor={{
+                        stroke: "var(--foreground)",
+                        strokeWidth: 1,
+                        strokeDasharray: "3 3",
+                        strokeOpacity: 0.75,
+                      }}
+                      animationDuration={0}
+                      isAnimationActive={false}
+                    />
 
-                    return (
-                      <g key={`primary-${index}`}>
-                        <g transform={`translate(${cx}, ${cy})`}>
-                          <g transform={`rotate(${rotation}, 0, 0)`}>
-                            <ArrowIcon
-                              size={iconSize}
-                              x={-iconSize / 2}
-                              y={-iconSize / 2}
-                              fill={chartConfig.primary.color}
-                              color={chartConfig.primary.color}
-                            />
+                    <Area
+                      type="monotone"
+                      dataKey="primary"
+                      activeDot={false}
+                      stroke="#023e8a"
+                      strokeWidth={1.5}
+                      fill="#0077b6"
+                      fillOpacity={0.2}
+                      clipPath={`url(#${plotClipId})`}
+                      isAnimationActive={false}
+                      animationDuration={0}
+                      animationBegin={0}
+                      dot={({ payload, cx, cy, index }) => {
+                        if ((payload as any)?._terminal) {
+                          return <g key={`primary-terminal-${index}`} />;
+                        }
+                        const iconSize = 15;
+                        const cxNum = typeof cx === "number" ? cx : Number(cx);
+                        const cyNum = typeof cy === "number" ? cy : Number(cy);
+                        if (
+                          !Number.isFinite(cxNum) ||
+                          !Number.isFinite(cyNum)
+                        ) {
+                          return <g key={`primary-${index}`} />;
+                        }
+                        const isAtRightEdge =
+                          typeof (payload as any)?.hour === "number" &&
+                          Math.abs((payload as any).hour - totalFetchedDays * 24) <
+                            1e-6;
+                        const dx = isAtRightEdge ? -iconSize / 2 : 0;
+                        const direction = payload.primaryDir ?? 0;
+                        const rotation = direction - 315;
+
+                        return (
+                          <g key={`primary-${index}`}>
+                            <g transform={`translate(${cxNum + dx}, ${cyNum})`}>
+                              <g transform={`rotate(${rotation}, 0, 0)`}>
+                                <ArrowIcon
+                                  size={iconSize}
+                                  x={-iconSize / 2}
+                                  y={-iconSize / 2}
+                                  fill={chartConfig.primary.color}
+                                  color={chartConfig.primary.color}
+                                />
+                              </g>
+                            </g>
                           </g>
-                        </g>
-                      </g>
-                    );
-                  }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="secondary"
-                  activeDot={false}
-                  stroke="#0096c7"
-                  strokeWidth={1.5}
-                  fill="#48cae4"
-                  fillOpacity={0.2}
-                  isAnimationActive={false}
-                  animationDuration={0}
-                  animationBegin={0}
-                  dot={({ payload, cx, cy, index }) => {
-                    const iconSize = 15;
-                    const direction = payload.secondaryDir ?? 0;
-                    const rotation = direction - 315;
+                        );
+                      }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="secondary"
+                      activeDot={false}
+                      stroke="#0096c7"
+                      strokeWidth={1.5}
+                      fill="#48cae4"
+                      fillOpacity={0.2}
+                      clipPath={`url(#${plotClipId})`}
+                      isAnimationActive={false}
+                      animationDuration={0}
+                      animationBegin={0}
+                      dot={({ payload, cx, cy, index }) => {
+                        if ((payload as any)?._terminal) {
+                          return <g key={`secondary-terminal-${index}`} />;
+                        }
+                        const iconSize = 15;
+                        const cxNum = typeof cx === "number" ? cx : Number(cx);
+                        const cyNum = typeof cy === "number" ? cy : Number(cy);
+                        if (
+                          !Number.isFinite(cxNum) ||
+                          !Number.isFinite(cyNum)
+                        ) {
+                          return <g key={`secondary-${index}`} />;
+                        }
+                        const isAtRightEdge =
+                          typeof (payload as any)?.hour === "number" &&
+                          Math.abs((payload as any).hour - totalFetchedDays * 24) <
+                            1e-6;
+                        const dx = isAtRightEdge ? -iconSize / 2 : 0;
+                        const direction = payload.secondaryDir ?? 0;
+                        const rotation = direction - 315;
 
-                    return (
-                      <g key={`secondary-${index}`}>
-                        <g transform={`translate(${cx}, ${cy})`}>
-                          <g transform={`rotate(${rotation}, 0, 0)`}>
-                            <ArrowIcon
-                              size={iconSize}
-                              x={-iconSize / 2}
-                              y={-iconSize / 2}
-                              fill={chartConfig.secondary.color}
-                              color={chartConfig.secondary.color}
-                            />
+                        return (
+                          <g key={`secondary-${index}`}>
+                            <g transform={`translate(${cxNum + dx}, ${cyNum})`}>
+                              <g transform={`rotate(${rotation}, 0, 0)`}>
+                                <ArrowIcon
+                                  size={iconSize}
+                                  x={-iconSize / 2}
+                                  y={-iconSize / 2}
+                                  fill={chartConfig.secondary.color}
+                                  color={chartConfig.secondary.color}
+                                />
+                              </g>
+                            </g>
                           </g>
-                        </g>
-                      </g>
-                    );
-                  }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="tertiary"
-                  activeDot={false}
-                  stroke="#70ccebff"
-                  strokeWidth={1.5}
-                  fill="#adf1ffff"
-                  fillOpacity={0.2}
-                  isAnimationActive={false}
-                  animationDuration={0}
-                  animationBegin={0}
-                  dot={({ payload, cx, cy, index }) => {
-                    const iconSize = 15;
-                    const direction = payload.tertiaryDir ?? 0;
-                    const rotation = direction - 315;
+                        );
+                      }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="tertiary"
+                      activeDot={false}
+                      stroke="#70ccebff"
+                      strokeWidth={1.5}
+                      fill="#adf1ffff"
+                      fillOpacity={0.2}
+                      clipPath={`url(#${plotClipId})`}
+                      isAnimationActive={false}
+                      animationDuration={0}
+                      animationBegin={0}
+                      dot={({ payload, cx, cy, index }) => {
+                        if ((payload as any)?._terminal) {
+                          return <g key={`tertiary-terminal-${index}`} />;
+                        }
+                        const iconSize = 15;
+                        const cxNum = typeof cx === "number" ? cx : Number(cx);
+                        const cyNum = typeof cy === "number" ? cy : Number(cy);
+                        if (
+                          !Number.isFinite(cxNum) ||
+                          !Number.isFinite(cyNum)
+                        ) {
+                          return <g key={`tertiary-${index}`} />;
+                        }
+                        const isAtRightEdge =
+                          typeof (payload as any)?.hour === "number" &&
+                          Math.abs((payload as any).hour - totalFetchedDays * 24) <
+                            1e-6;
+                        const dx = isAtRightEdge ? -iconSize / 2 : 0;
+                        const direction = payload.tertiaryDir ?? 0;
+                        const rotation = direction - 315;
 
-                    return (
-                      <g key={`tertiary-${index}`}>
-                        <g transform={`translate(${cx}, ${cy})`}>
-                          <g transform={`rotate(${rotation}, 0, 0)`}>
-                            <ArrowIcon
-                              size={iconSize}
-                              x={-iconSize / 2}
-                              y={-iconSize / 2}
-                              fill={chartConfig.tertiary.color}
-                              color={chartConfig.tertiary.color}
-                            />
+                        return (
+                          <g key={`tertiary-${index}`}>
+                            <g transform={`translate(${cxNum + dx}, ${cyNum})`}>
+                              <g transform={`rotate(${rotation}, 0, 0)`}>
+                                <ArrowIcon
+                                  size={iconSize}
+                                  x={-iconSize / 2}
+                                  y={-iconSize / 2}
+                                  fill={chartConfig.tertiary.color}
+                                  color={chartConfig.tertiary.color}
+                                />
+                              </g>
+                            </g>
                           </g>
-                        </g>
-                      </g>
-                    );
-                  }}
-                />
-              </AreaChart>
-            </ChartContainer>
+                        );
+                      }}
+                    />
+                  </AreaChart>
+                </ChartContainer>
+              </div>
+            </div>
           )}
         </div>
 

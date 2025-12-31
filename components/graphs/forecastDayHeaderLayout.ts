@@ -26,6 +26,10 @@ export function getForecastDayHeaderLayout({
   hoursPerDay = 24,
   includeDomainPaddingInEdgeDays = false,
 }: Params): ForecastDayHeaderLayout {
+  // Alignment note:
+  // `dataAreaWidthPx` should match the Recharts inner plot width (chart width minus margins and
+  // any reserved axis width). `leftOffsetPx` should match that plot's left pixel offset. This
+  // keeps each 24-hour header segment pixel-aligned with the chart’s X scale/day boundaries.
   const safeDays = Number.isFinite(totalDays) && totalDays > 0 ? totalDays : 1;
   const safeWidth =
     Number.isFinite(dataAreaWidthPx) && dataAreaWidthPx > 0

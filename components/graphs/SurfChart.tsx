@@ -9,7 +9,6 @@ import {
   LabelList,
   YAxis,
   LabelProps,
-  ReferenceArea,
   ReferenceLine,
 } from "recharts";
 import { Droplets, TrendingUp, TrendingDown } from "lucide-react";
@@ -32,6 +31,7 @@ import { buildSunSegments } from "@/components/graphs/sunSegments";
 import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
 import { buildYAxisTicks } from "@/components/graphs/yAxisTicks";
 import { useChartTheme } from "@/components/graphs/useChartTheme";
+import { buildForecastShadingBackground } from "@/components/graphs/forecastShadingBackground";
 import type { SharedSunSegments } from "./sharedSunSegments";
 
 type Props = {
@@ -60,6 +60,18 @@ const chartConfig = {
 
 const DATA_STEP_HOURS = 3;
 const HALF_STEP_HOURS = DATA_STEP_HOURS / 2;
+
+// Overview charts (single-day): keep the Y-axis inside the shaded plot container.
+const CHART_LEFT_MARGIN = 5;
+const CHART_TOP_MARGIN = 10;
+const CHART_RIGHT_MARGIN = 10;
+const Y_AXIS_WIDTH = 30;
+const X_AXIS_SHADE_EXCLUDE_PX = 34;
+const Y_AXIS_TICK = {
+  fill: "var(--foreground)",
+  fontWeight: 500,
+  filter: "drop-shadow(0 0 4px var(--background))",
+} as const;
 
 export const SurfStatsHeader = ({
   beachId,
@@ -120,10 +132,8 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   const [nightAreas, setNightAreas] = useState<{ x1: number; x2?: number }[]>(
     []
   );
-
-  const [buffer, setBuffer] = useState<number>(0);
-  const [width, setWidth] = useState<number>(0);
-  const chartRef = React.useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState<number>(0);
+  const containerRef = React.useRef<HTMLDivElement>(null);
 
   const { rows: forecastRows, start: windowStart } = useForecastWindowData({
     beachId,
@@ -264,19 +274,13 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   };
 
   useEffect(() => {
-    const chart = chartRef.current;
-    if (!chart) return;
+    const node = containerRef.current;
+    if (!node) return;
 
-    const adjustData = () => {
-      const width = chart.clientWidth;
-      setWidth(width);
-      setBuffer(0);
-    };
-
-    const observer = new ResizeObserver(adjustData);
-    observer.observe(chart);
-
-    adjustData();
+    const update = () => setContainerWidth(node.clientWidth);
+    const observer = new ResizeObserver(update);
+    observer.observe(node);
+    update();
 
     return () => observer.disconnect();
   }, []);
@@ -346,6 +350,73 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       ),
     [chartData]
   );
+  const yAxisTick = React.useCallback(
+    (props: any) => {
+      const { x, y, payload, textAnchor, fontSize } = props ?? {};
+      const xNum = typeof x === "number" ? x : Number(x);
+      const yNum = typeof y === "number" ? y : Number(y);
+      if (!Number.isFinite(xNum) || !Number.isFinite(yNum)) return <text />;
+
+      const value = payload?.value;
+      const minTick = surfTicks[0] ?? 0;
+      const maxTick = surfTicks[surfTicks.length - 1] ?? minTick;
+      const valueNum = typeof value === "number" ? value : Number(value);
+      const isMinTick =
+        Number.isFinite(valueNum) && Math.abs(valueNum - minTick) < 1e-6;
+      const isMaxTick =
+        Number.isFinite(valueNum) && Math.abs(valueNum - maxTick) < 1e-6;
+
+      return (
+        <text
+          x={xNum + 6}
+          y={yNum}
+          // Nudge the bottom tick up so it stays visually contained within the shaded plot area.
+          dy={isMinTick ? -8 : isMaxTick ? 8 : 0}
+          textAnchor={textAnchor ?? "end"}
+          dominantBaseline="central"
+          fontSize={typeof fontSize === "number" ? fontSize : 11}
+          {...Y_AXIS_TICK}
+        >
+          {value}
+        </text>
+      );
+    },
+    [surfTicks]
+  );
+
+  const yAxisInsetPx = CHART_LEFT_MARGIN + Y_AXIS_WIDTH;
+  const plotWidthPx = useMemo(
+    () => Math.max(0, containerWidth - yAxisInsetPx - CHART_RIGHT_MARGIN),
+    [containerWidth, yAxisInsetPx]
+  );
+  const shadingBackground = useMemo(
+    () =>
+      buildForecastShadingBackground({
+        dayAreas,
+        nightAreas,
+        domainMin,
+        domainMax,
+        // Stop the shading at the last X value (exclude the right margin reserved for label breathing room).
+        chartWidthPx: Math.max(0, containerWidth - CHART_RIGHT_MARGIN),
+        plotLeftPx: yAxisInsetPx,
+        plotWidthPx,
+        dayColor: chartTheme.dayShading,
+        nightColor: chartTheme.nightShading,
+        opacity: chartTheme.shadingOpacity,
+      }),
+    [
+      dayAreas,
+      nightAreas,
+      domainMin,
+      domainMax,
+      containerWidth,
+      yAxisInsetPx,
+      plotWidthPx,
+      chartTheme.dayShading,
+      chartTheme.nightShading,
+      chartTheme.shadingOpacity,
+    ]
+  );
 
   const hourTicks = useMemo(() => {
     const ticks: number[] = [];
@@ -369,41 +440,6 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   const centeredSelectedHour = centerDomainHour(selectedHour);
   const centeredHoveredHour =
     hoveredHour !== null ? centerDomainHour(hoveredHour) : null;
-
-  // const EDGE_GUTTER_PX = 35;
-  const closeTo = (a: number, b: number, tolerance = 0.05) =>
-    Math.abs(a - b) <= tolerance;
-  const makeAreaShape = (
-    color: string,
-    touchesLeft: boolean,
-    touchesRight: boolean
-  ) => {
-    const AreaShape = (props: any) => {
-      const x = typeof props.x === "number" ? props.x : 0;
-      const y = typeof props.y === "number" ? props.y : 0;
-      const width = typeof props.width === "number" ? props.width : 0;
-      const height = typeof props.height === "number" ? props.height : 0;
-      const leftPad = touchesLeft ? buffer : 0;
-      const rightPad = touchesRight ? buffer : 0;
-
-      return (
-        <rect
-          x={x - leftPad}
-          y={y}
-          width={width + leftPad + rightPad}
-          height={height}
-          fill={color}
-          fillOpacity={0.2}
-          pointerEvents="none"
-        />
-      );
-    };
-
-    // Assign a display name for debugging & ESLint
-    AreaShape.displayName = `AreaShape(${color})`;
-
-    return AreaShape;
-  };
 
   const lastHoveredRef = React.useRef<number | null>(null);
 
@@ -453,53 +489,112 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   );
 
   return (
-    <ChartContainer
-      ref={chartRef}
-      config={chartConfig}
-      className="aspect-auto h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px] w-full !justify-start"
+    <div
+      ref={containerRef}
+      className="relative aspect-auto h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px] w-full !justify-start"
     >
-      <BarChart
-        margin={{
-          top: 10,
-          right: 15,
-          left: -25,
-          bottom: 0,
+      {/* Shade only the plot area (not the X-axis label band), matching prior ReferenceArea behavior. */}
+      <div
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          left: 0,
+          top: CHART_TOP_MARGIN,
+          right: 0,
+          bottom: X_AXIS_SHADE_EXCLUDE_PX,
+          backgroundImage: shadingBackground,
+          backgroundRepeat: "no-repeat",
+          borderRadius: 8,
+          pointerEvents: "none",
         }}
-        accessibilityLayer
-        data={chartData}
-        barCategoryGap="15%"
-        maxBarSize={55}
-        syncId="allCharts"
-        syncMethod={syncToNearestThirdHour}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
+      />
+      {/* Divider between the in-plot axis inset and the data plot. */}
+      <div
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          top: CHART_TOP_MARGIN,
+          bottom: X_AXIS_SHADE_EXCLUDE_PX,
+          left: yAxisInsetPx,
+          width: 1,
+          backgroundColor: "var(--border)",
+          opacity: 0.85,
+          pointerEvents: "none",
+          zIndex: 2,
+        }}
+      />
+      {/* In-plot Y-axis overlay. */}
+      <div
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: yAxisInsetPx,
+          pointerEvents: "none",
+          zIndex: 3,
+        }}
       >
-        {dayAreas.map((area, idx) => {
-          const x1 = area.x1 <= 0 ? domainMin : area.x1;
-          const x2 = area.x2 >= hours ? domainMax : area.x2;
-          return (
-            <ReferenceArea
-              key={`day-${idx}`}
-              x1={x1}
-              x2={x2}
-              fill={chartTheme.dayShading}
-              fillOpacity={chartTheme.shadingOpacity}
+        <ChartContainer
+          config={chartConfig}
+          className="aspect-auto h-full w-full !justify-start"
+        >
+          <BarChart
+            accessibilityLayer={false}
+            data={[{ x: 0 }]}
+            margin={{
+              left: CHART_LEFT_MARGIN,
+              right: 0,
+              top: CHART_TOP_MARGIN,
+              bottom: 0,
+            }}
+          >
+            <XAxis
+              dataKey="x"
+              type="number"
+              domain={[0, 1]}
+              ticks={[]}
+              tick={false}
+              tickLine={false}
+              axisLine={false}
+              height={X_AXIS_SHADE_EXCLUDE_PX}
             />
-          );
-        })}
-        {nightAreas.map((area, idx) => {
-          const x1 = area.x1 <= 0 ? domainMin : area.x1;
-          const x2 = (area.x2 ?? hours) >= hours ? domainMax : area.x2 ?? hours;
-          return (
-            <ReferenceArea
-              key={`night-${idx}`}
-              x1={x1}
-              x2={x2}
-              fill={chartTheme.nightShading}
-              fillOpacity={chartTheme.shadingOpacity}
+            <YAxis
+              width={Y_AXIS_WIDTH}
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+              fontSize={11}
+              tick={yAxisTick}
+              domain={[surfTicks[0] ?? 0, surfTicks[surfTicks.length - 1] ?? 6]}
+              ticks={surfTicks}
             />
-          );
-        })}
+          </BarChart>
+        </ChartContainer>
+      </div>
+
+      <div style={{ position: "relative", zIndex: 1, height: "100%" }}>
+        <ChartContainer
+          config={chartConfig}
+          className="aspect-auto h-full w-full !justify-start"
+        >
+          <BarChart
+            margin={{
+              top: CHART_TOP_MARGIN,
+              right: CHART_RIGHT_MARGIN,
+              left: yAxisInsetPx,
+              bottom: 0,
+            }}
+            accessibilityLayer
+            data={chartData}
+            barCategoryGap="15%"
+            maxBarSize={55}
+            syncId="allCharts"
+            syncMethod={syncToNearestThirdHour}
+            onMouseMove={handleMouseMove}
+            onMouseLeave={handleMouseLeave}
+          >
         {/* <CartesianGrid
           strokeDasharray="3 3"
           stroke="var(--foreground)"
@@ -514,6 +609,7 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           tickMargin={10}
           fontSize={11}
           axisLine={false}
+          height={X_AXIS_SHADE_EXCLUDE_PX}
           // padding={{ left: buffer, right: buffer }}
           domain={[domainMin, domainMax]}
           ticks={hourTicks}
@@ -529,11 +625,9 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           }}
         />
         <YAxis
+          hide
+          width={0}
           dataKey="surf"
-          tickLine={false}
-          axisLine={false}
-          tickMargin={8}
-          fontSize={11}
           domain={[surfTicks[0] ?? 0, surfTicks[surfTicks.length - 1] ?? 6]}
           ticks={surfTicks}
         />
@@ -579,7 +673,8 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
               const surfValue =
                 typeof props.value === "number" ? props.value : 0;
               const barColor = getSurfColor(surfValue);
-              const surfLabel = width > 400 ? label : Math.round(Number(label));
+              const surfLabel =
+                containerWidth > 400 ? label : Math.round(Number(label));
 
               if (label) {
                 return (
@@ -613,8 +708,10 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
             fill="black"
           />
         </Bar>
-      </BarChart>
-    </ChartContainer>
+          </BarChart>
+        </ChartContainer>
+      </div>
+    </div>
   );
 };
 

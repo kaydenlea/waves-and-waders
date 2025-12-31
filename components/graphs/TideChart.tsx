@@ -6,7 +6,6 @@ import {
   LineChart,
   XAxis,
   YAxis,
-  ReferenceArea,
   ReferenceLine,
   LabelList,
   LabelProps,
@@ -31,8 +30,24 @@ import {
 import { getPacificMidnightUTC } from "@/lib/utils";
 import { useChartTheme } from "@/components/graphs/useChartTheme";
 import { buildYAxisTicks } from "@/components/graphs/yAxisTicks";
+import {
+  applyForecastShadingOpacity,
+  buildForecastPlotShadingBackgroundPercent,
+} from "@/components/graphs/forecastShadingBackground";
 
 const HOURS_TO_MS = 60 * 60 * 1000;
+
+// Overview charts (single-day): keep the Y-axis inside the shaded plot container.
+const CHART_LEFT_MARGIN = 5;
+const CHART_TOP_MARGIN = 10;
+const CHART_RIGHT_MARGIN = 10;
+const Y_AXIS_WIDTH = 30;
+const X_AXIS_SHADE_EXCLUDE_PX = 34;
+const Y_AXIS_TICK = {
+  fill: "var(--foreground)",
+  fontWeight: 500,
+  filter: "drop-shadow(0 0 4px var(--background))",
+} as const;
 
 const TideTooltipIcon = () => <TideIcon className="h-3 w-3" />;
 const TIDE_LINE_COLOR = "#aaaaaaff";
@@ -174,7 +189,20 @@ const TideChart: React.FC<TideChartProps> = ({
   const tideLoading = tideContext?.loading ?? tideWindow.loading;
 
   // Keep native resolution (≈6 minute spacing) for accuracy; no downsampling.
-  const renderData = useMemo(() => chartData, [chartData]);
+  const renderData = useMemo(() => {
+    if (chartData.length < 2) return chartData;
+    const last = chartData[chartData.length - 1];
+    if (!last || !(last.hour < hours - 1e-6)) return chartData;
+    const hoursDelta = Math.max(0, hours - last.hour);
+    return [
+      ...chartData,
+      {
+        timestamp: last.timestamp + hoursDelta * HOURS_TO_MS,
+        hour: hours,
+        tide: last.tide,
+      },
+    ];
+  }, [chartData, hours]);
 
   const peakPoints = useMemo(
     () => renderData.filter((p) => p.isPeak != null),
@@ -584,6 +612,82 @@ const TideChart: React.FC<TideChartProps> = ({
 
     return buildYAxisTicks([paddedMin, ...values, paddedMax], paddedMin, 6, 0);
   }, [renderData]);
+  const yAxisTick = React.useCallback(
+    (props: any) => {
+      const { x, y, payload, textAnchor, fontSize } = props ?? {};
+      const xNum = typeof x === "number" ? x : Number(x);
+      const yNum = typeof y === "number" ? y : Number(y);
+      if (!Number.isFinite(xNum) || !Number.isFinite(yNum)) return <text />;
+
+      const value = payload?.value;
+      const minTick = tideTicks[0] ?? -2;
+      const maxTick = tideTicks[tideTicks.length - 1] ?? minTick;
+      const valueNum = typeof value === "number" ? value : Number(value);
+      const isMinTick =
+        Number.isFinite(valueNum) && Math.abs(valueNum - minTick) < 1e-6;
+      const isMaxTick =
+        Number.isFinite(valueNum) && Math.abs(valueNum - maxTick) < 1e-6;
+
+      return (
+        <text
+          x={xNum + 6}
+          y={yNum}
+          // Nudge the bottom tick up so it stays visually contained within the shaded plot area.
+          dy={isMinTick ? -8 : isMaxTick ? 8 : 0}
+          textAnchor={textAnchor ?? "end"}
+          dominantBaseline="central"
+          fontSize={typeof fontSize === "number" ? fontSize : 11}
+          {...Y_AXIS_TICK}
+        >
+          {value}
+        </text>
+      );
+    },
+    [tideTicks]
+  );
+
+  const yAxisInsetPx = CHART_LEFT_MARGIN + Y_AXIS_WIDTH;
+  const plotShading = useMemo(
+    () =>
+      buildForecastPlotShadingBackgroundPercent({
+        dayAreas,
+        nightAreas,
+        domainMin: 0,
+        domainMax: hours,
+        dayColor: chartTheme.dayShading,
+        nightColor: chartTheme.nightShading,
+        opacity: chartTheme.shadingOpacity,
+      }),
+    [
+      dayAreas,
+      nightAreas,
+      hours,
+      chartTheme.dayShading,
+      chartTheme.nightShading,
+      chartTheme.shadingOpacity,
+    ]
+  );
+  const edgeFill = useMemo(() => {
+    const isDayAt = (h: number) =>
+      dayAreas.some((a) => h >= a.x1 && h <= (a.x2 ?? hours));
+    const leftIsDay = isDayAt(0.0001);
+    const rightIsDay = isDayAt(Math.max(0, hours - 0.0001));
+    const left = applyForecastShadingOpacity(
+      leftIsDay ? chartTheme.dayShading : chartTheme.nightShading,
+      chartTheme.shadingOpacity
+    );
+    const right = applyForecastShadingOpacity(
+      rightIsDay ? chartTheme.dayShading : chartTheme.nightShading,
+      chartTheme.shadingOpacity
+    );
+    return { left, right };
+  }, [
+    dayAreas,
+    hours,
+    chartTheme.dayShading,
+    chartTheme.nightShading,
+    chartTheme.shadingOpacity,
+  ]);
 
   // Calculate high and low tide values from peaks
   const { highTide, lowTide } = useMemo(() => {
@@ -623,24 +727,114 @@ const TideChart: React.FC<TideChartProps> = ({
   };
 
   return (
-    <ChartContainer
-      className="aspect-auto h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px] w-full [&_.recharts-legend-wrapper]:hidden"
-      config={chartConfig}
+    <div
+      className="relative aspect-auto h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px] w-full [&_.recharts-legend-wrapper]:hidden"
     >
-      <LineChart
-        accessibilityLayer
-        data={renderData}
-        margin={{
-          top: 10,
-          left: -25,
-          right: 15,
-          bottom: 0,
+      {/* Shade only the plot area (not the X-axis label band), matching prior ReferenceArea behavior. */}
+      <div
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          left: 0,
+          top: CHART_TOP_MARGIN,
+          right: 0,
+          bottom: X_AXIS_SHADE_EXCLUDE_PX,
+          backgroundImage: [
+            `linear-gradient(to right, ${edgeFill.left}, ${edgeFill.left})`,
+            plotShading,
+            `linear-gradient(to right, ${edgeFill.right}, ${edgeFill.right})`,
+          ]
+            .filter(Boolean)
+            .join(", "),
+          backgroundRepeat: "no-repeat",
+          backgroundSize: `${yAxisInsetPx}px 100%, calc(100% - ${yAxisInsetPx}px - ${CHART_RIGHT_MARGIN}px) 100%, ${CHART_RIGHT_MARGIN}px 100%`,
+          backgroundPosition: `0 0, ${yAxisInsetPx}px 0, right 0`,
+          borderRadius: 8,
+          pointerEvents: "none",
         }}
-        syncId="allCharts"
-        syncMethod="value"
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
+      />
+      {/* Divider between the in-plot axis inset and the data plot. */}
+      <div
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          top: CHART_TOP_MARGIN,
+          bottom: X_AXIS_SHADE_EXCLUDE_PX,
+          left: yAxisInsetPx,
+          width: 1,
+          backgroundColor: "var(--border)",
+          opacity: 0.85,
+          pointerEvents: "none",
+          zIndex: 2,
+        }}
+      />
+      {/* In-plot Y-axis overlay. */}
+      <div
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: yAxisInsetPx,
+          pointerEvents: "none",
+          zIndex: 3,
+        }}
       >
+        <ChartContainer
+          config={chartConfig}
+          className="aspect-auto h-full w-full !justify-start"
+        >
+          <LineChart
+            accessibilityLayer={false}
+            data={[{ x: 0 }]}
+            margin={{
+              left: CHART_LEFT_MARGIN,
+              right: 0,
+              top: CHART_TOP_MARGIN,
+              bottom: 0,
+            }}
+          >
+            <XAxis
+              dataKey="x"
+              type="number"
+              domain={[0, 1]}
+              ticks={[]}
+              tick={false}
+              tickLine={false}
+              axisLine={false}
+              height={X_AXIS_SHADE_EXCLUDE_PX}
+            />
+            <YAxis
+              width={Y_AXIS_WIDTH}
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+              fontSize={11}
+              tick={yAxisTick}
+              domain={[tideTicks[0] ?? -2, tideTicks[tideTicks.length - 1] ?? 8]}
+              ticks={tideTicks}
+            />
+          </LineChart>
+        </ChartContainer>
+      </div>
+
+      <div style={{ position: "relative", zIndex: 1, height: "100%" }}>
+        <ChartContainer config={chartConfig} className="aspect-auto h-full w-full">
+          <LineChart
+            accessibilityLayer
+            data={renderData}
+            margin={{
+              top: CHART_TOP_MARGIN,
+              left: yAxisInsetPx,
+              right: 0,
+              bottom: 0,
+            }}
+            syncId="allCharts"
+            syncMethod="value"
+            onMouseMove={handleMouseMove}
+            onMouseLeave={handleMouseLeave}
+          >
         {/* Hour indicator line */}
         <ReferenceLine
           x={selectedHour}
@@ -658,24 +852,6 @@ const TideChart: React.FC<TideChartProps> = ({
           }
           strokeDasharray="5 5"
         />
-        {dayAreas.map((area, idx) => (
-          <ReferenceArea
-            key={`day-${idx}`}
-            x1={area.x1}
-            x2={area.x2}
-            fill={chartTheme.dayShading}
-            fillOpacity={chartTheme.shadingOpacity}
-          />
-        ))}
-        {nightAreas.map((area, idx) => (
-          <ReferenceArea
-            key={`night-${idx}`}
-            x1={area.x1}
-            x2={area.x2}
-            fill={chartTheme.nightShading}
-            fillOpacity={chartTheme.shadingOpacity}
-          />
-        ))}
         {/* <CartesianGrid
           strokeDasharray="3 3"
           stroke="var(--foreground)"
@@ -691,15 +867,14 @@ const TideChart: React.FC<TideChartProps> = ({
           tickMargin={8}
           minTickGap={0}
           fontSize={11}
+          height={X_AXIS_SHADE_EXCLUDE_PX}
           ticks={hourTicks}
           tickFormatter={formatHourTick}
         />
         <YAxis
+          hide
+          width={0}
           dataKey="tide"
-          tickLine={false}
-          axisLine={false}
-          tickMargin={8}
-          fontSize={11}
           domain={[tideTicks[0] ?? -2, tideTicks[tideTicks.length - 1] ?? 8]}
           ticks={tideTicks}
         />
@@ -848,8 +1023,10 @@ const TideChart: React.FC<TideChartProps> = ({
             }}
           />
         </Line>
-      </LineChart>
-    </ChartContainer>
+          </LineChart>
+        </ChartContainer>
+      </div>
+    </div>
   );
 };
 
