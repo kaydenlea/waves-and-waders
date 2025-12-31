@@ -2454,8 +2454,8 @@ const StatTable = ({
     <div
       ref={assignTableRef}
       className={cn(
-        "relative -mx-1 @min-md:mx-2",
-        variant !== "half" && "@min-2xl:mx-4",
+        "relative -mx-1 @min-md:mx-0",
+        // variant !== "half" && "@min-2xl:mx-4",
         // controlsEnabled && "pb-16",
         "rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       )}
@@ -2769,7 +2769,7 @@ const StatTable = ({
                     let isSelectedHour = false;
                     // Determine selection per page context
                     if (forecastPage) {
-                      // Highlight only within the selected day and matching interval bucket
+                      // Highlight only within the selected day and closest interval bucket
                       const sel = selected instanceof Date ? selected : null;
                       const sameDay = sel
                         ? new Date(
@@ -2787,7 +2787,7 @@ const StatTable = ({
                           ? stableSelectedHour ?? selectedHour ?? null
                           : selectedHour ?? null;
                         if (effectiveHour != null) {
-                          const bucket = pickLastNotAfter(hours, effectiveHour);
+                          const bucket = pickClosestBucket(hours, effectiveHour);
                           isSelectedHour =
                             bucket != null && entry.index === bucket;
                         }

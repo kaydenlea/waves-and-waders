@@ -25,7 +25,6 @@ const ViewportBeachesManager = () => {
     setStatus: setViewportContextStatus,
     setBeaches: setViewportContextBeaches,
     commitPending,
-    requestSearch,
   } = useViewportBeachesContext();
   const { selectedTab } = useClientPath();
   const effectiveBounds =
@@ -38,10 +37,6 @@ const ViewportBeachesManager = () => {
     requestId: viewportRequestId,
     limit: MAX_VIEWPORT_BEACHES,
   });
-  React.useEffect(() => {
-    if (!pendingBounds && !committedBounds) return;
-    requestSearch();
-  }, [filters, selectedTab, requestSearch, pendingBounds, committedBounds]);
 
   React.useEffect(() => {
     if (!visibleBounds) return;

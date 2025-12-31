@@ -98,8 +98,14 @@ const PageTabs = ({
     if (!beachPage) return;
     if (loggedIn) return;
     if (selectedTab !== "saved") return;
+    try {
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("tab:/beaches", "nearby");
+      }
+    } catch {}
+    setSelectedTab("nearby");
     router.push(`/login?next=${encodeURIComponent("/beaches?tab=saved")}`);
-  }, [beachPage, loggedIn, selectedTab, router]);
+  }, [beachPage, loggedIn, selectedTab, router, setSelectedTab]);
 
   useEffect(() => {
     setFavorite(isFavorite);

@@ -2059,11 +2059,12 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     });
     const zoomButtons = zoomContainer.querySelectorAll("a");
     zoomButtons.forEach((button) => {
-      Object.assign(button.style, {
-        background: "transparent",
-        border: "none",
-        textDecoration: "none",
-      });
+      button.style.setProperty("background", "transparent", "important");
+      button.style.setProperty("background-color", "transparent", "important");
+      button.style.setProperty("border", "0", "important");
+      button.style.setProperty("border-bottom", "0", "important");
+      button.style.setProperty("box-shadow", "none", "important");
+      button.style.setProperty("text-decoration", "none", "important");
       button.removeAttribute("href");
       button.setAttribute("role", "button");
     });
@@ -3794,22 +3795,19 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
           .leaflet-control-zoom a {
             width: 34px;
             height: 34px;
-            border-radius: 999px;
-            border: 1px solid
-              color-mix(in oklch, var(--border) 65%, transparent);
             margin: 4px 0;
-            display: flex;
+            display: flex !important;
             align-items: center;
             justify-content: center;
             font-weight: 600;
             font-size: 1rem;
             color: var(--foreground);
-            background: color-mix(in oklch, var(--background) 60%, transparent);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            transition: background 140ms ease, color 140ms ease,
-              border-color 140ms ease, box-shadow 140ms ease, opacity 140ms ease;
-            text-decoration: none;
+            background: transparent !important;
+            border: none !important;
+            border-bottom: none !important;
+            box-shadow: none !important;
+            transition: color 140ms ease, box-shadow 140ms ease, opacity 140ms ease;
+            text-decoration: none !important;
             cursor: pointer;
             position: relative;
             outline: none;
@@ -3823,20 +3821,15 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
           .leaflet-control-zoom a:focus:not(:focus-visible) {
             box-shadow: none;
           }
-          .leaflet-control-zoom a:not(.is-disabled):hover,
           .leaflet-control-zoom a:not(.is-disabled):hover {
             color: var(--muted-foreground);
             outline: none;
           }
           .leaflet-control-zoom a:not(.is-disabled):focus-visible {
             color: var(--foreground);
-            border-color: color-mix(in oklch, var(--border) 80%, transparent);
             box-shadow: 0 0 0 2px
-              color-mix(in oklch, var(--foreground) 20%, transparent);
+              color-mix(in oklch, var(--foreground) 20%, transparent) !important;
           }
-          // .leaflet-control-zoom a:not(.is-disabled):active {
-          //   transform: scale(0.95);
-          // }
           .leaflet-control-zoom a + a::before {
             content: "";
             position: absolute;
@@ -3847,7 +3840,8 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
             background: rgba(148, 163, 184, 0.6);
             opacity: 0.85;
           }
-          .leaflet-control-zoom a.is-disabled {
+          .leaflet-control-zoom a.is-disabled,
+          .leaflet-control-zoom a.leaflet-disabled {
             opacity: 0.45;
             cursor: not-allowed;
             pointer-events: none;

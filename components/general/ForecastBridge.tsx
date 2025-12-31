@@ -43,6 +43,8 @@ type Props = {
   initialMeta?: Partial<Record<WidgetId, WidgetMeta>> | null;
   initialRows?: Row[] | null;
   cardVariant?: "default" | "overview" | "forecast";
+  tableDensity?: StatTableDensity;
+  onTableDensityChange?: (next: StatTableDensity) => void;
 };
 
 /**
@@ -57,12 +59,29 @@ const ForecastBridge: React.FC<Props> = ({
   initialMeta = null,
   initialRows = null,
   cardVariant = "default",
+  tableDensity: controlledTableDensity,
+  onTableDensityChange,
 }) => {
   const isOverviewCards = cardVariant === "overview";
   const isForecastCards = cardVariant === "forecast";
-  const [dailyTableDensity, setDailyTableDensity] =
-    useState<StatTableDensity>("12h");
+  const isTableDensityControlled = controlledTableDensity != null;
+  const [uncontrolledDailyTableDensity, setUncontrolledDailyTableDensity] =
+    useState<StatTableDensity>("3h");
   const skipDailyTableDensityPersistRef = useRef(true);
+
+  const dailyTableDensity =
+    controlledTableDensity ?? uncontrolledDailyTableDensity;
+
+  const setDailyTableDensity = useCallback(
+    (next: StatTableDensity) => {
+      if (onTableDensityChange) {
+        onTableDensityChange(next);
+        return;
+      }
+      setUncontrolledDailyTableDensity(next);
+    },
+    [onTableDensityChange]
+  );
   const [dailyTableUi, setDailyTableUi] = useState<StatTableUiState | null>(
     null
   );
@@ -80,10 +99,11 @@ const ForecastBridge: React.FC<Props> = ({
     });
   }, []);
   const toggleDailyTableDensity = useCallback(() => {
-    setDailyTableDensity((prev) => (prev === "3h" ? "12h" : "3h"));
-  }, []);
+    setDailyTableDensity(dailyTableDensity === "3h" ? "12h" : "3h");
+  }, [dailyTableDensity, setDailyTableDensity]);
 
   useEffect(() => {
+    if (isTableDensityControlled) return;
     try {
       const stored = window.localStorage.getItem(
         "waves-and-waders.statTable.density"
@@ -93,9 +113,10 @@ const ForecastBridge: React.FC<Props> = ({
         setDailyTableDensity(stored);
       }
     } catch {}
-  }, []);
+  }, [isTableDensityControlled]);
 
   useEffect(() => {
+    if (isTableDensityControlled) return;
     if (skipDailyTableDensityPersistRef.current) {
       skipDailyTableDensityPersistRef.current = false;
       return;
@@ -106,7 +127,7 @@ const ForecastBridge: React.FC<Props> = ({
         dailyTableDensity
       );
     } catch {}
-  }, [dailyTableDensity]);
+  }, [dailyTableDensity, isTableDensityControlled]);
   // local selected date (kept for the DatePicker's controlled value)
   // const [selected, setSelected] = useState<Date | null>(dayjs().toDate());
 
@@ -489,14 +510,15 @@ const ForecastBridge: React.FC<Props> = ({
               if (!renderedItems.length) return null;
 
               const spacingClass = index === 0 ? "mt-4" : "mt-5";
-              const isFull =
-                renderedItems.length === 1 &&
-                layoutMeta[renderedItems[0].id]?.span === "full";
+              const isFull = renderedItems.length === 1;
 
               if (isFull) {
+                const singleContent =
+                  renderWidget(renderedItems[0].id, "full") ??
+                  renderedItems[0].content;
                 return (
                   <div key={row.id} className={`${spacingClass} w-full`}>
-                    {renderedItems[0].content}
+                    {singleContent}
                   </div>
                 );
               }

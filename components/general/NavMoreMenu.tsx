@@ -38,6 +38,11 @@ export default function NavMoreMenu({
         <AppMenuItem
           asChild
           onSelect={() => {
+            try {
+              if (typeof window !== "undefined") {
+                window.localStorage.setItem("tab:/beaches", "nearby");
+              }
+            } catch {}
             setOpen(false);
           }}
         >
@@ -49,7 +54,7 @@ export default function NavMoreMenu({
           asChild
           onSelect={() => {
             try {
-              if (typeof window !== "undefined") {
+              if (user && typeof window !== "undefined") {
                 window.localStorage.setItem("tab:/beaches", "saved");
               }
             } catch {}

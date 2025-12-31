@@ -1076,6 +1076,10 @@ const DateSummaryBridge: React.FC<Props> = ({
                           initialMeta={initialForecastMeta ?? undefined}
                           initialRows={initialForecastRows ?? undefined}
                           cardVariant="forecast"
+                          tableDensity={dailyTableDensity}
+                          onTableDensityChange={(next) =>
+                            setDailyTableDensity(next)
+                          }
                         />
                       </ForecastDataProvider>
                     </ForecastChartProvider>
