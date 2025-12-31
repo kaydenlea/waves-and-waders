@@ -796,11 +796,13 @@ const PressureStat = ({
   min,
   max,
   prev,
+  showMap,
 }: {
   value: number;
   min: number;
   max: number;
   prev: number | null;
+  showMap: boolean;
 }) => {
   const delta = prev == null ? 0 : value - prev;
   const trend = getPressureTrend(delta);
@@ -817,10 +819,15 @@ const PressureStat = ({
 
   return (
     <CellSurface className="px-3">
-      <div className="flex w-full items-center justify-center @min-xl:justify-between gap-2">
+      <div
+        className={cn(
+          "flex w-full items-center justify-center @min-xl:justify-between @min-4xl:justify-center gap-2",
+          showMap ? "@min-5xl:justify-between" : "@min-6xl:justify-between"
+        )}
+      >
         <div className="flex min-w-0 flex-col items-start mt-1">
           <div className="flex items-baseline gap-1 whitespace-nowrap">
-            <span className="text-[0.9rem] @min-lg:text-[1.05rem] font-semibold tabular-nums leading-none">
+            <span className="text-[0.9rem] @min-lg:text-[1rem] font-semibold tabular-nums leading-none">
               {value.toFixed(2)}
             </span>
             <span className="hidden @min-xs:block text-[0.65rem] text-muted-foreground">
@@ -842,7 +849,10 @@ const PressureStat = ({
           </div>
         </div>
         <PressureNeedle
-          className="hidden @min-xl:block"
+          className={cn(
+            "hidden @min-xl:block @min-4xl:hidden",
+            showMap ? "@min-5xl:block" : "@min-6xl:block"
+          )}
           value={value}
           min={min}
           max={max}
@@ -1764,23 +1774,11 @@ const StatTable = ({
     [data, forecastPage]
   );
 
-  const showForecastViewToggle =
-    forecastPage && !(variant === "half" && effectiveColumnsVariant === "half");
+  const showForecastViewToggle = forecastPage && !isHalfColumns;
   const canToggleForecastView = selectorDays.length > 1;
   const resolvedForecastViewMode: ForecastViewMode = showForecastViewToggle
     ? forecastViewMode
     : "single";
-
-  React.useEffect(() => {
-    if (!forecastPage) {
-      setForecastViewMode("all");
-      return;
-    }
-    if (!showForecastViewToggle) {
-      setForecastViewMode("single");
-      return;
-    }
-  }, [forecastPage, forecastViewMode, showForecastViewToggle, variant]);
 
   const preferredForecastDayKey = React.useMemo(() => {
     if (!forecastPage) return null;
@@ -1788,9 +1786,9 @@ const StatTable = ({
     return selectorDays[0]?.key ?? null;
   }, [forecastPage, selected, selectorDays]);
 
-  const useSingleDayView = !forecastPage
-    ? variant === "half"
-    : resolvedForecastViewMode === "single";
+  const useSingleDayView = forecastPage
+    ? resolvedForecastViewMode === "single"
+    : isHalfColumns;
 
   const showDayHeaderRow =
     header &&
@@ -1802,10 +1800,7 @@ const StatTable = ({
   );
 
   React.useEffect(() => {
-    if (!forecastPage || !useSingleDayView) {
-      setForecastDayKey(null);
-      return;
-    }
+    if (!forecastPage || !useSingleDayView) return;
     const keys = new Set(selectorDays.map((day) => day.key));
     if (forecastDayKey && keys.has(forecastDayKey)) return;
 
@@ -2498,7 +2493,7 @@ const StatTable = ({
                       widthNow.current >= TABLE_BREAKPOINT_LG &&
                       "w-[11rem]",
                     col.id === "weather" || col.id === "water"
-                      ? showSecondarySwells
+                      ? showSecondarySwells && variant === "full"
                         ? widthNow.current >= TABLE_BREAKPOINT_LG &&
                           widthNow.current < TABLE_BREAKPOINT_XL
                           ? ""
@@ -2507,7 +2502,7 @@ const StatTable = ({
                           "w-[clamp(4.5rem,9vw,5.5rem)]"
                       : "",
                     col.id === "energy"
-                      ? showSecondarySwells
+                      ? showSecondarySwells && variant === "full"
                         ? widthNow.current >= TABLE_BREAKPOINT_LG &&
                           widthNow.current < TABLE_BREAKPOINT_XL
                           ? ""
@@ -2516,7 +2511,7 @@ const StatTable = ({
                           "w-[clamp(4.75rem,9vw,5.5rem)]"
                       : "",
                     col.id === "pressure"
-                      ? showSecondarySwells
+                      ? showSecondarySwells && variant === "full"
                         ? widthNow.current >= TABLE_BREAKPOINT_LG &&
                           widthNow.current < TABLE_BREAKPOINT_XL
                           ? ""
@@ -2586,11 +2581,12 @@ const StatTable = ({
             "w-full table-fixed border-separate border-spacing-x-2 border-spacing-y-1.5 text-sm",
             forecastPage &&
               (variant === "half" ||
-                (variant === "full" && forecastViewMode === "single")) &&
+                (variant === "full" &&
+                  resolvedForecastViewMode === "single")) &&
               "mt-0",
             forecastPage &&
               variant === "full" &&
-              forecastViewMode === "all" &&
+              resolvedForecastViewMode === "all" &&
               "-mt-5"
           )}
         >
@@ -2611,7 +2607,7 @@ const StatTable = ({
                     widthNow.current >= TABLE_BREAKPOINT_LG &&
                     "w-[11rem]",
                   col.id === "weather" || col.id === "water"
-                    ? showSecondarySwells
+                    ? showSecondarySwells && variant === "full"
                       ? widthNow.current >= TABLE_BREAKPOINT_LG &&
                         widthNow.current < TABLE_BREAKPOINT_XL
                         ? ""
@@ -2620,7 +2616,7 @@ const StatTable = ({
                         "w-[clamp(4.5rem,9vw,5.5rem)]"
                     : "",
                   col.id === "energy"
-                    ? showSecondarySwells
+                    ? showSecondarySwells && variant === "full"
                       ? widthNow.current >= TABLE_BREAKPOINT_LG &&
                         widthNow.current < TABLE_BREAKPOINT_XL
                         ? ""
@@ -2629,7 +2625,7 @@ const StatTable = ({
                         "w-[clamp(4.75rem,9vw,5.5rem)]"
                     : "",
                   col.id === "pressure"
-                    ? showSecondarySwells
+                    ? showSecondarySwells && variant === "full"
                       ? widthNow.current >= TABLE_BREAKPOINT_LG &&
                         widthNow.current < TABLE_BREAKPOINT_XL
                         ? ""
@@ -2876,6 +2872,7 @@ const StatTable = ({
                               case "pressure":
                                 content = (
                                   <PressureStat
+                                    showMap={showMap}
                                     value={entry.pressure.value}
                                     min={barScales.pressureMin}
                                     max={barScales.pressureMax}

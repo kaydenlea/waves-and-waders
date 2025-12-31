@@ -1328,6 +1328,13 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     favoriteIds,
     hoverCardId,
   } = useMapFilters();
+
+  // Beaches page should always render with the map visible, even if another page hid it.
+  React.useEffect(() => {
+    if (pathname.endsWith("/beaches") && !showMap) {
+      setShowMap(true);
+    }
+  }, [pathname, showMap, setShowMap]);
   const {
     setVisibleBounds,
     setViewportRequestId,

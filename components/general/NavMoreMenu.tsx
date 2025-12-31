@@ -21,6 +21,9 @@ export default function NavMoreMenu({
 }) {
   const [open, setOpen] = React.useState(false);
   const user = useUser();
+  const savedSpotsHref = user
+    ? "/beaches?tab=saved"
+    : `/login?next=${encodeURIComponent("/beaches?tab=saved")}`;
   React.useEffect(() => {
     const onResize = () => setOpen(false);
     window.addEventListener("resize", onResize, { passive: true });
@@ -45,10 +48,15 @@ export default function NavMoreMenu({
         <AppMenuItem
           asChild
           onSelect={() => {
+            try {
+              if (typeof window !== "undefined") {
+                window.localStorage.setItem("tab:/beaches", "saved");
+              }
+            } catch {}
             setOpen(false);
           }}
         >
-          <Link href="/favorites">
+          <Link href={savedSpotsHref}>
             <Heart className="w-5 h-5 -mt-0.5" /> Saved spots
           </Link>
         </AppMenuItem>

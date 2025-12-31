@@ -40,7 +40,8 @@ const HOURS_TO_MS = 60 * 60 * 1000;
 // Overview charts (single-day): keep the Y-axis inside the shaded plot container.
 const CHART_LEFT_MARGIN = 5;
 const CHART_TOP_MARGIN = 10;
-const CHART_RIGHT_MARGIN = 10;
+// Keep the plot shading aligned to the X scale (the line chart uses `margin.right: 0`).
+const CHART_RIGHT_MARGIN = 0;
 const Y_AXIS_WIDTH = 30;
 const X_AXIS_SHADE_EXCLUDE_PX = 34;
 const Y_AXIS_TICK = {

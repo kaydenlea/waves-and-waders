@@ -1086,7 +1086,8 @@ const MoonStat = ({
               !showMap && "@min-4xl:text-[0.75rem] @min-5xl:text-[0.82rem]",
               showMap &&
                 !isFull &&
-                "@min-4xl:text-[0.7rem] @min-6xl:text-[0.82rem]"
+                "@min-4xl:text-[0.7rem] @min-6xl:text-[0.82rem]",
+              isFull && "@min-6xl:text-[0.75rem]"
             )}
           >
             {info.lines[0]}
@@ -1097,7 +1098,8 @@ const MoonStat = ({
               !showMap && "@min-4xl:text-[0.75rem] @min-5xl:text-[0.82rem]",
               showMap &&
                 !isFull &&
-                "@min-4xl:text-[0.7rem] @min-6xl:text-[0.82rem]"
+                "@min-4xl:text-[0.7rem] @min-6xl:text-[0.82rem]",
+              isFull && "@min-6xl:text-[0.75rem]"
             )}
           >
             {info.lines[1]}
@@ -1464,7 +1466,8 @@ const PressureStat = ({
               "text-[1.15rem] @min-sm:text-[1.3rem] font-semibold tabular-nums tracking-tight text-foreground/85",
               showMap &&
                 !isFull &&
-                "@min-4xl:text-[1.15rem] @min-6xl:text-[1.3rem]"
+                "@min-4xl:text-[1.15rem] @min-6xl:text-[1.3rem]",
+              isFull && "@min-6xl:text-[1.15rem]"
             )}
           >
             {formattedValue}
