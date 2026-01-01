@@ -1451,13 +1451,13 @@ const Summary = ({
                 </h3>
               ) : (
                 <div className="mt-1.5 max-w-[20rem]" aria-hidden="true">
-                  <div className="h-7 @min-md:h-8 w-3/5 rounded-md bg-foreground/12 animate-pulse motion-reduce:animate-none" />
+                  <div className="h-6 w-3/5 rounded-md bg-foreground/12 animate-pulse motion-reduce:animate-none" />
                 </div>
               )}
             </div>
 
             <div className="shrink-0 rounded-xl border border-border/25 bg-foreground/5 px-3 py-2 text-[11px] leading-4 text-muted-foreground tabular-nums">
-              <dl className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 items-center">
+              <dl className="grid grid-cols-[auto_44px] gap-x-2 gap-y-1 items-center">
                 <dt className="flex items-center gap-1.5 uppercase tracking-[0.06em]">
                   <Sunrise
                     fill="#ff9f45ff"
@@ -1468,7 +1468,7 @@ const Summary = ({
                 </dt>
                 <dd className="text-foreground font-medium tabular-nums">
                   {showSkeletons ? (
-                    <span className="inline-block h-3 w-14 rounded bg-foreground/10 animate-pulse motion-reduce:animate-none" />
+                    <span className="-mb-0.5 inline-block h-3 w-11 rounded bg-foreground/10 animate-pulse motion-reduce:animate-none" />
                   ) : (
                     tideStat?.sunrise ?? "--"
                   )}
@@ -1483,7 +1483,7 @@ const Summary = ({
                 </dt>
                 <dd className="text-foreground font-medium tabular-nums">
                   {showSkeletons ? (
-                    <span className="inline-block h-3 w-14 rounded bg-foreground/10 animate-pulse motion-reduce:animate-none" />
+                    <span className="-mb-0.5 inline-block h-3 w-11 rounded bg-foreground/10 animate-pulse motion-reduce:animate-none" />
                   ) : (
                     tideStat?.sunset ?? "--"
                   )}
@@ -1590,7 +1590,7 @@ const Summary = ({
               </span>
             ) : showSkeletons ? (
               <span
-                className="h-5 w-18 rounded-full bg-foreground/8 animate-pulse motion-reduce:animate-none"
+                className="h-[15px] w-18 rounded-full bg-foreground/8 animate-pulse motion-reduce:animate-none"
                 aria-hidden="true"
               />
             ) : null}
@@ -1623,7 +1623,7 @@ const Summary = ({
               {showSkeletons ? (
                 <div
                   className={cn(
-                    "shrink-0 grid place-items-center size-10 @min-md:size-12 rounded-xl @min-md:rounded-2xl",
+                    "mt-[3px] shrink-0 grid place-items-center size-10 @min-md:size-12 rounded-xl @min-md:rounded-2xl",
                     "border border-border/25 bg-foreground/[0.03] shadow-sm",
                     "dark:bg-foreground/[0.07]",
                     "animate-pulse motion-reduce:animate-none"
@@ -1678,7 +1678,7 @@ const Summary = ({
               </span>
             ) : showSkeletons ? (
               <span
-                className="h-5 w-18 rounded-full bg-foreground/8 animate-pulse motion-reduce:animate-none"
+                className="h-[15px] w-18 rounded-full bg-foreground/8 animate-pulse motion-reduce:animate-none"
                 aria-hidden="true"
               />
             ) : null}
@@ -1714,7 +1714,7 @@ const Summary = ({
               {showSkeletons ? (
                 <div
                   className={cn(
-                    "shrink-0 grid place-items-center size-10 @min-md:size-12 rounded-xl @min-md:rounded-2xl",
+                    "mt-[3px] shrink-0 grid place-items-center size-10 @min-md:size-12 rounded-xl @min-md:rounded-2xl",
                     "border border-border/25 bg-foreground/[0.03] shadow-sm",
                     "dark:bg-foreground/[0.07]",
                     "animate-pulse motion-reduce:animate-none"
@@ -1766,7 +1766,7 @@ const Summary = ({
           <header className="flex items-start justify-between gap-3">
             <p className={kickerClass}>Tide</p>
             {!showSkeletons && tideTrend ? (
-              <span className="inline-flex items-center gap-1 rounded-full border border-border/25 bg-foreground/5 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+              <span className="-mt-1 inline-flex items-center gap-1 rounded-full border border-border/25 bg-foreground/5 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
                 {tideTrend === "rising" ? (
                   <ArrowUp className="h-3.5 w-3.5" aria-hidden="true" />
                 ) : (
@@ -1803,7 +1803,7 @@ const Summary = ({
             </div>
 
             <div className="min-w-0 @min-[240px]:justify-self-end">
-              <p className="text-end @min-md:text-start text-[11px] uppercase tracking-[0.06em] text-muted-foreground mb-0.5">
+              <p className="text-start @min-md:text-start text-[11px] uppercase tracking-[0.06em] text-muted-foreground mb-0.5">
                 Next
               </p>
               {showSkeletons ? (
@@ -1862,8 +1862,8 @@ const Summary = ({
                   className="mt-1 flex items-center justify-between text-[11px] leading-4"
                   aria-hidden="true"
                 >
-                  <span className="h-4 w-12 rounded bg-foreground/8 animate-pulse motion-reduce:animate-none" />
-                  <span className="h-4 w-12 rounded bg-foreground/8 animate-pulse motion-reduce:animate-none" />
+                  <span className="h-3.5 w-12 rounded bg-foreground/8 animate-pulse motion-reduce:animate-none" />
+                  <span className="h-3.5 w-12 rounded bg-foreground/8 animate-pulse motion-reduce:animate-none" />
                 </div>
               </>
             ) : tideNow != null && tideMin != null && tideMax != null ? (

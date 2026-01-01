@@ -147,7 +147,10 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     []
   );
   const lastArrowPointRef = useRef<
-    Record<"primary" | "secondary" | "tertiary", { cx: number; cy: number } | null>
+    Record<
+      "primary" | "secondary" | "tertiary",
+      { cx: number; cy: number } | null
+    >
   >({ primary: null, secondary: null, tertiary: null });
 
   const formatHourLabel = React.useCallback(
@@ -347,7 +350,7 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
             (v): v is number => typeof v === "number" && Number.isFinite(v)
           ),
         0,
-        6,
+        4,
         0.2
       ),
     [data]
@@ -373,7 +376,7 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           x={xNum + 6}
           y={yNum}
           // Nudge the bottom tick up so it stays visually contained within the shaded plot area.
-          dy={isMinTick ? -8 : isMaxTick ? 8 : 0}
+          dy={isMinTick ? -15 : isMaxTick ? 15 : 0}
           textAnchor={textAnchor ?? "end"}
           dominantBaseline="central"
           fontSize={typeof fontSize === "number" ? fontSize : 11}
@@ -457,7 +460,11 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   // Arrow dots are shifted left at the very last x-value to avoid right-edge clipping.
   // When shifted, project them along the final curve segment so they still sit on the line.
   useEffect(() => {
-    lastArrowPointRef.current = { primary: null, secondary: null, tertiary: null };
+    lastArrowPointRef.current = {
+      primary: null,
+      secondary: null,
+      tertiary: null,
+    };
   }, [data, hours]);
 
   const projectArrowAlongLastSegment = React.useCallback(
@@ -485,9 +492,7 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   );
 
   return (
-    <div
-      className="relative aspect-auto h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px] w-full"
-    >
+    <div className="relative aspect-auto h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px] w-full">
       {/* Shade only the plot area (not the X-axis label band), matching prior ReferenceArea behavior. */}
       <div
         aria-hidden="true"
@@ -570,7 +575,10 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
               tickMargin={8}
               fontSize={11}
               tick={yAxisTick}
-              domain={[swellTicks[0] ?? 0, swellTicks[swellTicks.length - 1] ?? 6]}
+              domain={[
+                swellTicks[0] ?? 0,
+                swellTicks[swellTicks.length - 1] ?? 6,
+              ]}
               ticks={swellTicks}
             />
           </AreaChart>
@@ -578,7 +586,10 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       </div>
 
       <div style={{ position: "relative", zIndex: 1, height: "100%" }}>
-        <ChartContainer config={chartConfig} className="aspect-auto h-full w-full">
+        <ChartContainer
+          config={chartConfig}
+          className="aspect-auto h-full w-full"
+        >
           <AreaChart
             accessibilityLayer
             data={data}
@@ -593,243 +604,246 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
           >
-        {/* Clip filled areas to the same rounded plot bounds as the day/night shading (keeps bottom-right corner premium). */}
-        <Customized
-          component={(p: any) => {
-            const offset = p?.offset;
-            const fullWidth = typeof p?.width === "number" ? p.width : 0;
-            const clipWidth =
-              (typeof offset?.left === "number" ? offset.left : 0) +
-              (typeof offset?.width === "number" ? offset.width : 0);
-            if (
-              !offset ||
-              !(fullWidth > 0) ||
-              !(clipWidth > 0) ||
-              !(offset.height > 0)
-            ) {
-              return null;
-            }
-            return (
-              <defs>
-                <clipPath id={plotClipId}>
-                  <rect
-                    x={0}
-                    y={offset.top}
-                    width={Math.min(fullWidth, clipWidth)}
-                    height={offset.height}
-                    rx={8}
-                    ry={8}
-                  />
-                </clipPath>
-              </defs>
-            );
-          }}
-        />
-        {/* <CartesianGrid
+            {/* Clip filled areas to the same rounded plot bounds as the day/night shading (keeps bottom-right corner premium). */}
+            <Customized
+              component={(p: any) => {
+                const offset = p?.offset;
+                const fullWidth = typeof p?.width === "number" ? p.width : 0;
+                const clipWidth =
+                  (typeof offset?.left === "number" ? offset.left : 0) +
+                  (typeof offset?.width === "number" ? offset.width : 0);
+                if (
+                  !offset ||
+                  !(fullWidth > 0) ||
+                  !(clipWidth > 0) ||
+                  !(offset.height > 0)
+                ) {
+                  return null;
+                }
+                return (
+                  <defs>
+                    <clipPath id={plotClipId}>
+                      <rect
+                        x={0}
+                        y={offset.top}
+                        width={Math.min(fullWidth, clipWidth)}
+                        height={offset.height}
+                        rx={8}
+                        ry={8}
+                      />
+                    </clipPath>
+                  </defs>
+                );
+              }}
+            />
+            {/* <CartesianGrid
           strokeDasharray="3 3"
           stroke="var(--foreground)"
           strokeWidth={0.1}
           vertical={false}
         /> */}
-        <XAxis
-          dataKey="time"
-          domain={[0, hours]}
-          type="number"
-          tickLine={false}
-          axisLine={false}
-          tickMargin={8}
-          minTickGap={0}
-          fontSize={11}
-          height={X_AXIS_SHADE_EXCLUDE_PX}
-          ticks={hourTicks}
-          tickFormatter={(value) =>
-            value % 3 === 0
-              ? (value % 12 === 0 ? 12 : value % 12).toString()
-              : ""
-          }
-        />
-        <YAxis
-          hide
-          width={0}
-          domain={[swellTicks[0] ?? 0, swellTicks[swellTicks.length - 1] ?? 6]}
-          ticks={swellTicks}
-        />
-        {/* <ChartLegend content={<ChartLegendContent />} /> */}
-        <ChartTooltip
-          content={
-            <ChartTooltipContent
-              labelFormatter={formatHourLabel}
-              formatter={formatSwellTooltipValue as any}
+            <XAxis
+              dataKey="time"
+              domain={[0, hours]}
+              type="number"
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+              minTickGap={0}
+              fontSize={11}
+              height={X_AXIS_SHADE_EXCLUDE_PX}
+              ticks={hourTicks}
+              tickFormatter={(value) =>
+                value % 3 === 0
+                  ? (value % 12 === 0 ? 12 : value % 12).toString()
+                  : ""
+              }
             />
-          }
-          cursor={{
-            stroke: "var(--foreground)",
-            strokeWidth: 1,
-            strokeDasharray: "3 3",
-            strokeOpacity: 0.5,
-          }}
-          animationDuration={0}
-          isAnimationActive={false}
-        />
+            <YAxis
+              hide
+              width={0}
+              domain={[
+                swellTicks[0] ?? 0,
+                swellTicks[swellTicks.length - 1] ?? 6,
+              ]}
+              ticks={swellTicks}
+            />
+            {/* <ChartLegend content={<ChartLegendContent />} /> */}
+            <ChartTooltip
+              content={
+                <ChartTooltipContent
+                  labelFormatter={formatHourLabel}
+                  formatter={formatSwellTooltipValue as any}
+                />
+              }
+              cursor={{
+                stroke: "var(--foreground)",
+                strokeWidth: 1,
+                strokeDasharray: "3 3",
+                strokeOpacity: 0.5,
+              }}
+              animationDuration={0}
+              isAnimationActive={false}
+            />
 
-        <Area
-          type="monotone"
-          dataKey="primary"
-          activeDot={false}
-          stroke="#023e8a"
-          fill="#0077b6"
-          strokeWidth={1.5}
-          fillOpacity={0.2}
-          clipPath={`url(#${plotClipId})`}
-          isAnimationActive={false}
-          animationDuration={0}
-          animationBegin={0}
-          dot={({ payload, cx, cy, index }) => {
-            const iconSize = 15;
-            const cxNum = typeof cx === "number" ? cx : Number(cx);
-            const cyNum = typeof cy === "number" ? cy : Number(cy);
-            if (!Number.isFinite(cxNum) || !Number.isFinite(cyNum)) {
-              return <g key={`primary-${index}`} />;
-            }
-            const isLastPoint = (payload as any)?.time === hours;
-            const dx = isLastPoint ? -iconSize / 2 : 0;
-            const projected = projectArrowAlongLastSegment(
-              "primary",
-              cxNum,
-              cyNum,
-              dx
-            );
-            const direction = payload.primaryDir ?? 0;
-            const rotation = direction - 315; // Arrow points at 315° by default
+            <Area
+              type="monotone"
+              dataKey="primary"
+              activeDot={false}
+              stroke="#023e8a"
+              fill="#0077b6"
+              strokeWidth={1.5}
+              fillOpacity={0.2}
+              clipPath={`url(#${plotClipId})`}
+              isAnimationActive={false}
+              animationDuration={0}
+              animationBegin={0}
+              dot={({ payload, cx, cy, index }) => {
+                const iconSize = 15;
+                const cxNum = typeof cx === "number" ? cx : Number(cx);
+                const cyNum = typeof cy === "number" ? cy : Number(cy);
+                if (!Number.isFinite(cxNum) || !Number.isFinite(cyNum)) {
+                  return <g key={`primary-${index}`} />;
+                }
+                const isLastPoint = (payload as any)?.time === hours;
+                const dx = isLastPoint ? -iconSize / 2 : 0;
+                const projected = projectArrowAlongLastSegment(
+                  "primary",
+                  cxNum,
+                  cyNum,
+                  dx
+                );
+                const direction = payload.primaryDir ?? 0;
+                const rotation = direction - 315; // Arrow points at 315° by default
 
-            return (
-              <g key={`primary-${index}`}>
-                <g transform={`translate(${projected.x}, ${projected.y})`}>
-                  <g transform={`rotate(${rotation}, 0, 0)`}>
-                    <ArrowIcon
-                      size={iconSize}
-                      x={-iconSize / 2}
-                      y={-iconSize / 2}
-                      fill={chartConfig.primary.color}
-                      color={chartConfig.primary.color}
-                    />
+                return (
+                  <g key={`primary-${index}`}>
+                    <g transform={`translate(${projected.x}, ${projected.y})`}>
+                      <g transform={`rotate(${rotation}, 0, 0)`}>
+                        <ArrowIcon
+                          size={iconSize}
+                          x={-iconSize / 2}
+                          y={-iconSize / 2}
+                          fill={chartConfig.primary.color}
+                          color={chartConfig.primary.color}
+                        />
+                      </g>
+                    </g>
                   </g>
-                </g>
-              </g>
-            );
-          }}
-        />
-        <Area
-          type="monotone"
-          dataKey="secondary"
-          activeDot={false}
-          stroke="#0096c7"
-          fill="#48cae4"
-          strokeWidth={1.5}
-          fillOpacity={0.2}
-          clipPath={`url(#${plotClipId})`}
-          isAnimationActive={false}
-          animationDuration={0}
-          animationBegin={0}
-          dot={({ payload, cx, cy, index }) => {
-            const iconSize = 15;
-            const cxNum = typeof cx === "number" ? cx : Number(cx);
-            const cyNum = typeof cy === "number" ? cy : Number(cy);
-            if (!Number.isFinite(cxNum) || !Number.isFinite(cyNum)) {
-              return <g key={`secondary-${index}`} />;
-            }
-            const isLastPoint = (payload as any)?.time === hours;
-            const dx = isLastPoint ? -iconSize / 2 : 0;
-            const projected = projectArrowAlongLastSegment(
-              "secondary",
-              cxNum,
-              cyNum,
-              dx
-            );
-            const direction = payload.secondaryDir ?? 0;
-            const rotation = direction - 315;
+                );
+              }}
+            />
+            <Area
+              type="monotone"
+              dataKey="secondary"
+              activeDot={false}
+              stroke="#0096c7"
+              fill="#48cae4"
+              strokeWidth={1.5}
+              fillOpacity={0.2}
+              clipPath={`url(#${plotClipId})`}
+              isAnimationActive={false}
+              animationDuration={0}
+              animationBegin={0}
+              dot={({ payload, cx, cy, index }) => {
+                const iconSize = 15;
+                const cxNum = typeof cx === "number" ? cx : Number(cx);
+                const cyNum = typeof cy === "number" ? cy : Number(cy);
+                if (!Number.isFinite(cxNum) || !Number.isFinite(cyNum)) {
+                  return <g key={`secondary-${index}`} />;
+                }
+                const isLastPoint = (payload as any)?.time === hours;
+                const dx = isLastPoint ? -iconSize / 2 : 0;
+                const projected = projectArrowAlongLastSegment(
+                  "secondary",
+                  cxNum,
+                  cyNum,
+                  dx
+                );
+                const direction = payload.secondaryDir ?? 0;
+                const rotation = direction - 315;
 
-            return (
-              <g key={`secondary-${index}`}>
-                <g transform={`translate(${projected.x}, ${projected.y})`}>
-                  <g transform={`rotate(${rotation}, 0, 0)`}>
-                    <ArrowIcon
-                      size={iconSize}
-                      x={-iconSize / 2}
-                      y={-iconSize / 2}
-                      fill={chartConfig.secondary.color}
-                      color={chartConfig.secondary.color}
-                    />
+                return (
+                  <g key={`secondary-${index}`}>
+                    <g transform={`translate(${projected.x}, ${projected.y})`}>
+                      <g transform={`rotate(${rotation}, 0, 0)`}>
+                        <ArrowIcon
+                          size={iconSize}
+                          x={-iconSize / 2}
+                          y={-iconSize / 2}
+                          fill={chartConfig.secondary.color}
+                          color={chartConfig.secondary.color}
+                        />
+                      </g>
+                    </g>
                   </g>
-                </g>
-              </g>
-            );
-          }}
-        />
-        <Area
-          type="monotone"
-          dataKey="tertiary"
-          activeDot={false}
-          stroke="#70ccebff"
-          fill="#adf1ffff"
-          strokeWidth={1.5}
-          fillOpacity={0.2}
-          clipPath={`url(#${plotClipId})`}
-          isAnimationActive={false}
-          animationDuration={0}
-          animationBegin={0}
-          dot={({ payload, cx, cy, index }) => {
-            const iconSize = 15;
-            const cxNum = typeof cx === "number" ? cx : Number(cx);
-            const cyNum = typeof cy === "number" ? cy : Number(cy);
-            if (!Number.isFinite(cxNum) || !Number.isFinite(cyNum)) {
-              return <g key={`tertiary-${index}`} />;
-            }
-            const isLastPoint = (payload as any)?.time === hours;
-            const dx = isLastPoint ? -iconSize / 2 : 0;
-            const projected = projectArrowAlongLastSegment(
-              "tertiary",
-              cxNum,
-              cyNum,
-              dx
-            );
-            const direction = payload.tertiaryDir ?? 0;
-            const rotation = direction - 315;
+                );
+              }}
+            />
+            <Area
+              type="monotone"
+              dataKey="tertiary"
+              activeDot={false}
+              stroke="#70ccebff"
+              fill="#adf1ffff"
+              strokeWidth={1.5}
+              fillOpacity={0.2}
+              clipPath={`url(#${plotClipId})`}
+              isAnimationActive={false}
+              animationDuration={0}
+              animationBegin={0}
+              dot={({ payload, cx, cy, index }) => {
+                const iconSize = 15;
+                const cxNum = typeof cx === "number" ? cx : Number(cx);
+                const cyNum = typeof cy === "number" ? cy : Number(cy);
+                if (!Number.isFinite(cxNum) || !Number.isFinite(cyNum)) {
+                  return <g key={`tertiary-${index}`} />;
+                }
+                const isLastPoint = (payload as any)?.time === hours;
+                const dx = isLastPoint ? -iconSize / 2 : 0;
+                const projected = projectArrowAlongLastSegment(
+                  "tertiary",
+                  cxNum,
+                  cyNum,
+                  dx
+                );
+                const direction = payload.tertiaryDir ?? 0;
+                const rotation = direction - 315;
 
-            return (
-              <g key={`tertiary-${index}`}>
-                <g transform={`translate(${projected.x}, ${projected.y})`}>
-                  <g transform={`rotate(${rotation}, 0, 0)`}>
-                    <ArrowIcon
-                      size={iconSize}
-                      x={-iconSize / 2}
-                      y={-iconSize / 2}
-                      fill={chartConfig.tertiary.color}
-                      color={chartConfig.tertiary.color}
-                    />
+                return (
+                  <g key={`tertiary-${index}`}>
+                    <g transform={`translate(${projected.x}, ${projected.y})`}>
+                      <g transform={`rotate(${rotation}, 0, 0)`}>
+                        <ArrowIcon
+                          size={iconSize}
+                          x={-iconSize / 2}
+                          y={-iconSize / 2}
+                          fill={chartConfig.tertiary.color}
+                          color={chartConfig.tertiary.color}
+                        />
+                      </g>
+                    </g>
                   </g>
-                </g>
-              </g>
-            );
-          }}
-        />
-        {/* Hour indicator line */}
-        <ReferenceLine
-          x={selectedHour}
-          stroke="var(--foreground)"
-          // strokeWidth={2}
-          strokeDasharray="3 3"
-        />
-        {/* Hover indicator line - only show when hovering on any chart */}
-        {hoveredHour !== null && hoveredHour !== selectedHour && (
-          <ReferenceLine
-            x={hoveredHour}
-            stroke="var(--foreground)"
-            strokeWidth={1}
-            strokeOpacity={0.5}
-            strokeDasharray="5 5"
-          />
-        )}
+                );
+              }}
+            />
+            {/* Hour indicator line */}
+            <ReferenceLine
+              x={selectedHour}
+              stroke="var(--foreground)"
+              // strokeWidth={2}
+              strokeDasharray="3 3"
+            />
+            {/* Hover indicator line - only show when hovering on any chart */}
+            {hoveredHour !== null && hoveredHour !== selectedHour && (
+              <ReferenceLine
+                x={hoveredHour}
+                stroke="var(--foreground)"
+                strokeWidth={1}
+                strokeOpacity={0.5}
+                strokeDasharray="5 5"
+              />
+            )}
           </AreaChart>
         </ChartContainer>
       </div>

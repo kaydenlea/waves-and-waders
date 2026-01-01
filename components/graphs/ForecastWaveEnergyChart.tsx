@@ -703,11 +703,11 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
               (v): v is number => typeof v === "number" && Number.isFinite(v)
             ),
           0,
-          5,
+          4,
           0.25,
           8
         ),
-        5
+        4
       ),
     [energyData]
   );

@@ -344,7 +344,7 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       buildYAxisTicks(
         chartData.map((d) => d.surf),
         0,
-        6,
+        4,
         0.2,
         5
       ),
@@ -371,7 +371,7 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           x={xNum + 6}
           y={yNum}
           // Nudge the bottom tick up so it stays visually contained within the shaded plot area.
-          dy={isMinTick ? -8 : isMaxTick ? 8 : 0}
+          dy={isMinTick ? -15 : isMaxTick ? 15 : 0}
           textAnchor={textAnchor ?? "end"}
           dominantBaseline="central"
           fontSize={typeof fontSize === "number" ? fontSize : 11}
@@ -595,119 +595,121 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
           >
-        {/* <CartesianGrid
+            {/* <CartesianGrid
           strokeDasharray="3 3"
           stroke="var(--foreground)"
           strokeWidth={0.1}
           vertical={false}
         /> */}
-        <XAxis
-          dataKey="hour"
-          type="number"
-          orientation="bottom"
-          tickLine={false}
-          tickMargin={10}
-          fontSize={11}
-          axisLine={false}
-          height={X_AXIS_SHADE_EXCLUDE_PX}
-          // padding={{ left: buffer, right: buffer }}
-          domain={[domainMin, domainMax]}
-          ticks={hourTicks}
-          scale="linear"
-          tickFormatter={(value: number) => {
-            const num = Number(value);
-            if (!Number.isFinite(num)) return "";
-            const nearestSlot =
-              Math.round(num / DATA_STEP_HOURS) * DATA_STEP_HOURS;
-            const normalized = ((nearestSlot % 24) + 24) % 24;
-            const labelHour = normalized % 12 === 0 ? 12 : normalized % 12;
-            return String(labelHour);
-          }}
-        />
-        <YAxis
-          hide
-          width={0}
-          dataKey="surf"
-          domain={[surfTicks[0] ?? 0, surfTicks[surfTicks.length - 1] ?? 6]}
-          ticks={surfTicks}
-        />
-        <ChartTooltip
-          content={<ChartTooltipContent />}
-          cursor={renderTooltipCursor as any}
-          animationDuration={0}
-        />
-        {/* Hour indicator line */}
-        {centeredSelectedHour !== null && (
-          <ReferenceLine
-            x={centeredSelectedHour}
-            stroke="var(--foreground)"
-            strokeDasharray="3 3"
-          />
-        )}
-        <Bar
-          dataKey="surf"
-          fill="var(--color-surf, var(--color-tide))"
-          radius={6}
-          // stroke="#0000006e"
-          // strokeWidth={0.5}
-          minPointSize={15}
-          isAnimationActive={false}
-          animationDuration={0}
-          animationBegin={0}
-        >
-          <LabelList
-            dataKey="surf"
-            position="middle"
-            content={(props: LabelProps) => {
-              const safeX = typeof props.x === "number" ? props.x : 0;
-              const safeY = typeof props.y === "number" ? props.y : 0;
-              const safeWidth =
-                typeof props.width === "number" ? props.width : 0;
-              const safeHeight =
-                typeof props.height === "number" ? props.height : 0;
-              const fontSize = Math.max(10, safeWidth * 0.15);
-              const label =
-                typeof props.value === "number" ? props.value.toFixed(1) : "";
+            <XAxis
+              dataKey="hour"
+              type="number"
+              orientation="bottom"
+              tickLine={false}
+              tickMargin={10}
+              fontSize={11}
+              axisLine={false}
+              height={X_AXIS_SHADE_EXCLUDE_PX}
+              // padding={{ left: buffer, right: buffer }}
+              domain={[domainMin, domainMax]}
+              ticks={hourTicks}
+              scale="linear"
+              tickFormatter={(value: number) => {
+                const num = Number(value);
+                if (!Number.isFinite(num)) return "";
+                const nearestSlot =
+                  Math.round(num / DATA_STEP_HOURS) * DATA_STEP_HOURS;
+                const normalized = ((nearestSlot % 24) + 24) % 24;
+                const labelHour = normalized % 12 === 0 ? 12 : normalized % 12;
+                return String(labelHour);
+              }}
+            />
+            <YAxis
+              hide
+              width={0}
+              dataKey="surf"
+              domain={[surfTicks[0] ?? 0, surfTicks[surfTicks.length - 1] ?? 6]}
+              ticks={surfTicks}
+            />
+            <ChartTooltip
+              content={<ChartTooltipContent />}
+              cursor={renderTooltipCursor as any}
+              animationDuration={0}
+            />
+            {/* Hour indicator line */}
+            {centeredSelectedHour !== null && (
+              <ReferenceLine
+                x={centeredSelectedHour}
+                stroke="var(--foreground)"
+                strokeDasharray="3 3"
+              />
+            )}
+            <Bar
+              dataKey="surf"
+              fill="var(--color-surf, var(--color-tide))"
+              radius={6}
+              // stroke="#0000006e"
+              // strokeWidth={0.5}
+              minPointSize={15}
+              isAnimationActive={false}
+              animationDuration={0}
+              animationBegin={0}
+            >
+              <LabelList
+                dataKey="surf"
+                position="middle"
+                content={(props: LabelProps) => {
+                  const safeX = typeof props.x === "number" ? props.x : 0;
+                  const safeY = typeof props.y === "number" ? props.y : 0;
+                  const safeWidth =
+                    typeof props.width === "number" ? props.width : 0;
+                  const safeHeight =
+                    typeof props.height === "number" ? props.height : 0;
+                  const fontSize = Math.max(10, safeWidth * 0.15);
+                  const label =
+                    typeof props.value === "number"
+                      ? props.value.toFixed(1)
+                      : "";
 
-              // Get color based on surf value
-              const surfValue =
-                typeof props.value === "number" ? props.value : 0;
-              const barColor = getSurfColor(surfValue);
-              const surfLabel =
-                containerWidth > 400 ? label : Math.round(Number(label));
+                  // Get color based on surf value
+                  const surfValue =
+                    typeof props.value === "number" ? props.value : 0;
+                  const barColor = getSurfColor(surfValue);
+                  const surfLabel =
+                    containerWidth > 400 ? label : Math.round(Number(label));
 
-              if (label) {
-                return (
-                  <g>
-                    {/* Render the colored bar */}
-                    <rect
-                      x={safeX}
-                      y={safeY}
-                      width={safeWidth}
-                      height={safeHeight}
-                      fill={barColor}
-                      rx={6}
-                      // stroke="#0000006e"
-                      // strokeWidth={0.5}
-                    />
-                    <text
-                      x={safeX + safeWidth / 2}
-                      y={safeY + safeHeight / 2 + fontSize / 3}
-                      fill="#2c2c2cff"
-                      textAnchor="middle"
-                      fontWeight="600"
-                      fontSize={fontSize}
-                    >
-                      {label === "0.0" ? "0" : surfLabel}
-                    </text>
-                  </g>
-                );
-              }
-              return null;
-            }}
-            fill="black"
-          />
-        </Bar>
+                  if (label) {
+                    return (
+                      <g>
+                        {/* Render the colored bar */}
+                        <rect
+                          x={safeX}
+                          y={safeY}
+                          width={safeWidth}
+                          height={safeHeight}
+                          fill={barColor}
+                          rx={6}
+                          // stroke="#0000006e"
+                          // strokeWidth={0.5}
+                        />
+                        <text
+                          x={safeX + safeWidth / 2}
+                          y={safeY + safeHeight / 2 + fontSize / 3}
+                          fill="#2c2c2cff"
+                          textAnchor="middle"
+                          fontWeight="600"
+                          fontSize={fontSize}
+                        >
+                          {label === "0.0" ? "0" : surfLabel}
+                        </text>
+                      </g>
+                    );
+                  }
+                  return null;
+                }}
+                fill="black"
+              />
+            </Bar>
           </BarChart>
         </ChartContainer>
       </div>

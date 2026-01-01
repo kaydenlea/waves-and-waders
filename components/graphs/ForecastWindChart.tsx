@@ -199,8 +199,8 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
   const windTicks = useMemo(
     () =>
       limitYAxisTicks(
-        buildYAxisTicks(windData.map((d) => d.wind), 0, 5, 0.2, 10),
-        5
+        buildYAxisTicks(windData.map((d) => d.wind), 0, 4, 0.2, 10),
+        4
       ),
     [windData]
   );

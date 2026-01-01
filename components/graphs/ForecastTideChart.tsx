@@ -890,7 +890,7 @@ export default React.memo(function ForecastTideChart({
       .map((p) => p.tide)
       .filter((v): v is number => typeof v === "number" && Number.isFinite(v));
     if (!values.length)
-      return limitYAxisTicks(buildYAxisTicks([0], -2, 5, 0.2), 5);
+      return limitYAxisTicks(buildYAxisTicks([0], -2, 4, 0.2), 4);
 
     const min = Math.min(...values);
     const max = Math.max(...values);
@@ -900,8 +900,8 @@ export default React.memo(function ForecastTideChart({
     const paddedMax = Math.ceil(max + 4);
 
     return limitYAxisTicks(
-      buildYAxisTicks([paddedMin, ...values, paddedMax], paddedMin, 5, 0),
-      5
+      buildYAxisTicks([paddedMin, ...values, paddedMax], paddedMin, 4, 0),
+      4
     );
   }, [data]);
   const yAxisTick = useCallback(

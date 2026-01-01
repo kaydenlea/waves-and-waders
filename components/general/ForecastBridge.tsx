@@ -392,6 +392,7 @@ const ForecastBridge: React.FC<Props> = ({
               label="Daily"
               unit={tableUnit}
               loading={stableWidgetLoading}
+              extraPadding
             >
               {table}
             </OverviewWidget>

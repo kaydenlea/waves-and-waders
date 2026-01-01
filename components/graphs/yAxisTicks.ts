@@ -1,6 +1,8 @@
 "use client";
 
 // Compute a "nice" linear set of ticks with consistent spacing.
+// `targetCount` is treated as exact: the returned tick array will have exactly
+// `targetCount` values (unless `targetCount < 2`, in which case it falls back to 2).
 export function buildYAxisTicks(
   values: number[],
   minValue = 0,
@@ -8,6 +10,7 @@ export function buildYAxisTicks(
   paddingRatio = 0.2,
   minMax?: number
 ): number[] {
+  const desiredCount = Math.max(2, Math.floor(targetCount));
   const finiteValues = values.filter(
     (v) => typeof v === "number" && Number.isFinite(v)
   );
@@ -20,24 +23,19 @@ export function buildYAxisTicks(
   const paddedMax = Math.max(minMax ?? minValue, paddedCandidate);
 
   const span = Math.max(1e-6, paddedMax - minValue);
-  const desiredSteps = Math.max(2, targetCount - 1);
-  const rawStep = span / desiredSteps;
+  const desiredSteps = desiredCount - 1;
+  const rawStep = span / Math.max(1, desiredSteps);
 
   const niceStep = chooseNiceStep(rawStep);
   const start = Math.floor(minValue / niceStep) * niceStep;
-  const end = Math.ceil(paddedMax / niceStep) * niceStep;
 
-  const ticks: number[] = [];
-  for (let v = start; v <= end + 1e-9; v += niceStep) {
-    const rounded = roundForDisplay(v, niceStep);
-    if (!ticks.length || Math.abs(rounded - ticks[ticks.length - 1]) > 1e-6) {
-      ticks.push(rounded);
-    }
-  }
+  const ticks: number[] = Array.from({ length: desiredCount }, (_, i) =>
+    roundForDisplay(start + i * niceStep, niceStep)
+  );
 
   // Fallback if something went wrong
-  if (ticks.length === 0) {
-    return [0, 1, 2, 3, 4, 5];
+  if (ticks.length < 2) {
+    return [0, 1];
   }
 
   return ticks;

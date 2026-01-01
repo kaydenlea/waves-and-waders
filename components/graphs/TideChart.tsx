@@ -602,7 +602,7 @@ const TideChart: React.FC<TideChartProps> = ({
     const values = renderData
       .map((p) => p.tide)
       .filter((v): v is number => typeof v === "number" && Number.isFinite(v));
-    if (!values.length) return buildYAxisTicks([0], -2, 6, 0.2);
+    if (!values.length) return buildYAxisTicks([0], -2, 4, 0.2);
 
     const min = Math.min(...values);
     const max = Math.max(...values);
@@ -611,7 +611,7 @@ const TideChart: React.FC<TideChartProps> = ({
     const paddedMin = Math.floor(min - 2);
     const paddedMax = Math.ceil(max + 4);
 
-    return buildYAxisTicks([paddedMin, ...values, paddedMax], paddedMin, 6, 0);
+    return buildYAxisTicks([paddedMin, ...values, paddedMax], paddedMin, 4, 0);
   }, [renderData]);
   const yAxisTick = React.useCallback(
     (props: any) => {
@@ -634,7 +634,7 @@ const TideChart: React.FC<TideChartProps> = ({
           x={xNum + 6}
           y={yNum}
           // Nudge the bottom tick up so it stays visually contained within the shaded plot area.
-          dy={isMinTick ? -8 : isMaxTick ? 8 : 0}
+          dy={isMinTick ? -15 : isMaxTick ? 15 : 0}
           textAnchor={textAnchor ?? "end"}
           dominantBaseline="central"
           fontSize={typeof fontSize === "number" ? fontSize : 11}
@@ -728,9 +728,7 @@ const TideChart: React.FC<TideChartProps> = ({
   };
 
   return (
-    <div
-      className="relative aspect-auto h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px] w-full [&_.recharts-legend-wrapper]:hidden"
-    >
+    <div className="relative aspect-auto h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px] w-full [&_.recharts-legend-wrapper]:hidden">
       {/* Shade only the plot area (not the X-axis label band), matching prior ReferenceArea behavior. */}
       <div
         aria-hidden="true"
@@ -813,7 +811,10 @@ const TideChart: React.FC<TideChartProps> = ({
               tickMargin={8}
               fontSize={11}
               tick={yAxisTick}
-              domain={[tideTicks[0] ?? -2, tideTicks[tideTicks.length - 1] ?? 8]}
+              domain={[
+                tideTicks[0] ?? -2,
+                tideTicks[tideTicks.length - 1] ?? 8,
+              ]}
               ticks={tideTicks}
             />
           </LineChart>
@@ -821,7 +822,10 @@ const TideChart: React.FC<TideChartProps> = ({
       </div>
 
       <div style={{ position: "relative", zIndex: 1, height: "100%" }}>
-        <ChartContainer config={chartConfig} className="aspect-auto h-full w-full">
+        <ChartContainer
+          config={chartConfig}
+          className="aspect-auto h-full w-full"
+        >
           <LineChart
             accessibilityLayer
             data={renderData}
@@ -836,194 +840,201 @@ const TideChart: React.FC<TideChartProps> = ({
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
           >
-        {/* Hour indicator line */}
-        <ReferenceLine
-          x={selectedHour}
-          stroke="var(--foreground)"
-          // strokeWidth={2}
-          strokeDasharray="3 3"
-        />
-        {/* Hover indicator line - always rendered to avoid re-mount */}
-        <ReferenceLine
-          x={hoveredHour ?? 0}
-          stroke="var(--foreground)"
-          strokeWidth={1}
-          strokeOpacity={
-            hoveredHour !== null && hoveredHour !== selectedHour ? 0.5 : 0
-          }
-          strokeDasharray="5 5"
-        />
-        {/* <CartesianGrid
+            {/* Hour indicator line */}
+            <ReferenceLine
+              x={selectedHour}
+              stroke="var(--foreground)"
+              // strokeWidth={2}
+              strokeDasharray="3 3"
+            />
+            {/* Hover indicator line - always rendered to avoid re-mount */}
+            <ReferenceLine
+              x={hoveredHour ?? 0}
+              stroke="var(--foreground)"
+              strokeWidth={1}
+              strokeOpacity={
+                hoveredHour !== null && hoveredHour !== selectedHour ? 0.5 : 0
+              }
+              strokeDasharray="5 5"
+            />
+            {/* <CartesianGrid
           strokeDasharray="3 3"
           stroke="var(--foreground)"
           strokeWidth={0.1}
           vertical={false}
         /> */}
-        <XAxis
-          dataKey="hour"
-          type="number"
-          domain={[0, hours]}
-          tickLine={false}
-          axisLine={false}
-          tickMargin={8}
-          minTickGap={0}
-          fontSize={11}
-          height={X_AXIS_SHADE_EXCLUDE_PX}
-          ticks={hourTicks}
-          tickFormatter={formatHourTick}
-        />
-        <YAxis
-          hide
-          width={0}
-          dataKey="tide"
-          domain={[tideTicks[0] ?? -2, tideTicks[tideTicks.length - 1] ?? 8]}
-          ticks={tideTicks}
-        />
-        <ChartTooltip
-          content={<ChartTooltipContent />}
-          cursor={{
-            stroke: "var(--foreground)",
-            strokeWidth: 1,
-            strokeDasharray: "3 3",
-            strokeOpacity: 0.5,
-          }}
-          labelFormatter={(_, payload) => {
-            const entry = Array.isArray(payload)
-              ? (payload[0]?.payload as TidePoint | undefined)
-              : undefined;
-            return entry ? formatTime(entry.timestamp) : "";
-          }}
-          animationDuration={0}
-          isAnimationActive={false}
-        />
-        <Line
-          dataKey="tide"
-          type="natural"
-          stroke={TIDE_LINE_COLOR}
-          strokeWidth={2}
-          isAnimationActive={false}
-          animationDuration={0}
-          animationBegin={0}
-          dot={(props) => {
-            const { payload, cx, cy } = props;
-            const point = payload as TidePoint;
-            // Optimized: use Map lookup instead of find
-            const sunMarkerType = sunMarkerMap.get(point.hour);
-            if (sunMarkerType) {
-              return (
-                <circle
-                  key={`sun-${point.hour}`}
-                  cx={cx}
-                  cy={cy}
-                  r={4}
-                  fill="orange"
-                  stroke={TIDE_LINE_COLOR}
-                  strokeWidth={1}
-                />
-              );
-            }
-            // Otherwise check if it's a tide peak
-            if (point.isPeak != null) {
-              const isLow = point.isPeak <= point.tide && point.isPeak <= 0;
-              return (
-                <circle
-                  key={`peak-${point.timestamp}`}
-                  cx={cx}
-                  cy={cy}
-                  r={3}
-                  fill={isLow ? "#ef4444" : "#22c55e"}
-                  stroke={TIDE_LINE_COLOR}
-                  strokeWidth={1}
-                />
-              );
-            }
-            return <g key={`empty-${point.timestamp}`} />;
-          }}
-        >
-          <LabelList
-            dataKey="hour"
-            content={(props: LabelProps) => {
-              const index = props.index ?? -1;
-              const point = renderData[index];
-              // Optimized: use Map lookup instead of find
-              const markerType = point ? sunMarkerMap.get(point.hour) : null;
-              if (!markerType) return null;
-              const safeX = typeof props.x === "number" ? props.x : 0;
+            <XAxis
+              dataKey="hour"
+              type="number"
+              domain={[0, hours]}
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+              minTickGap={0}
+              fontSize={11}
+              height={X_AXIS_SHADE_EXCLUDE_PX}
+              ticks={hourTicks}
+              tickFormatter={formatHourTick}
+            />
+            <YAxis
+              hide
+              width={0}
+              dataKey="tide"
+              domain={[
+                tideTicks[0] ?? -2,
+                tideTicks[tideTicks.length - 1] ?? 8,
+              ]}
+              ticks={tideTicks}
+            />
+            <ChartTooltip
+              content={<ChartTooltipContent />}
+              cursor={{
+                stroke: "var(--foreground)",
+                strokeWidth: 1,
+                strokeDasharray: "3 3",
+                strokeOpacity: 0.5,
+              }}
+              labelFormatter={(_, payload) => {
+                const entry = Array.isArray(payload)
+                  ? (payload[0]?.payload as TidePoint | undefined)
+                  : undefined;
+                return entry ? formatTime(entry.timestamp) : "";
+              }}
+              animationDuration={0}
+              isAnimationActive={false}
+            />
+            <Line
+              dataKey="tide"
+              type="natural"
+              stroke={TIDE_LINE_COLOR}
+              strokeWidth={2}
+              isAnimationActive={false}
+              animationDuration={0}
+              animationBegin={0}
+              dot={(props) => {
+                const { payload, cx, cy } = props;
+                const point = payload as TidePoint;
+                // Optimized: use Map lookup instead of find
+                const sunMarkerType = sunMarkerMap.get(point.hour);
+                if (sunMarkerType) {
+                  return (
+                    <circle
+                      key={`sun-${point.hour}`}
+                      cx={cx}
+                      cy={cy}
+                      r={4}
+                      fill="orange"
+                      stroke={TIDE_LINE_COLOR}
+                      strokeWidth={1}
+                    />
+                  );
+                }
+                // Otherwise check if it's a tide peak
+                if (point.isPeak != null) {
+                  const isLow = point.isPeak <= point.tide && point.isPeak <= 0;
+                  return (
+                    <circle
+                      key={`peak-${point.timestamp}`}
+                      cx={cx}
+                      cy={cy}
+                      r={3}
+                      fill={isLow ? "#ef4444" : "#22c55e"}
+                      stroke={TIDE_LINE_COLOR}
+                      strokeWidth={1}
+                    />
+                  );
+                }
+                return <g key={`empty-${point.timestamp}`} />;
+              }}
+            >
+              <LabelList
+                dataKey="hour"
+                content={(props: LabelProps) => {
+                  const index = props.index ?? -1;
+                  const point = renderData[index];
+                  // Optimized: use Map lookup instead of find
+                  const markerType = point
+                    ? sunMarkerMap.get(point.hour)
+                    : null;
+                  if (!markerType) return null;
+                  const safeX = typeof props.x === "number" ? props.x : 0;
 
-              const IconComponent = markerType === "sunrise" ? Sunrise : Sunset;
-              return (
-                <g>
-                  <IconComponent
-                    size={18}
-                    x={safeX - 9}
-                    y={15}
-                    fill="#ff9946ff"
-                    color="var(--muted-foreground)"
-                  />
-                </g>
-              );
-            }}
-          />
-          <LabelList
-            dataKey="isPeak"
-            content={(props: LabelProps) => {
-              const index = props.index ?? -1;
-              const point = renderData[index];
-              if (!point || point.isPeak == null) return null;
-              const safeX = typeof props.x === "number" ? props.x : 0;
-              const safeY = typeof props.y === "number" ? props.y : 0;
+                  const IconComponent =
+                    markerType === "sunrise" ? Sunrise : Sunset;
+                  return (
+                    <g>
+                      <IconComponent
+                        size={18}
+                        x={safeX - 9}
+                        y={15}
+                        fill="#ff9946ff"
+                        color="var(--muted-foreground)"
+                      />
+                    </g>
+                  );
+                }}
+              />
+              <LabelList
+                dataKey="isPeak"
+                content={(props: LabelProps) => {
+                  const index = props.index ?? -1;
+                  const point = renderData[index];
+                  if (!point || point.isPeak == null) return null;
+                  const safeX = typeof props.x === "number" ? props.x : 0;
+                  const safeY = typeof props.y === "number" ? props.y : 0;
 
-              // Calculate boundaries - Y-axis width is approximately 40px from left margin
-              const LEFT_BOUNDARY = 10; // Minimum x position (just past Y-axis)
-              const LABEL_HALF_WIDTH = 35; // Approximate half-width of label text
+                  // Calculate boundaries - Y-axis width is approximately 40px from left margin
+                  const LEFT_BOUNDARY = 10; // Minimum x position (just past Y-axis)
+                  const LABEL_HALF_WIDTH = 35; // Approximate half-width of label text
 
-              // Determine text anchor and adjusted x position based on boundaries
-              let textAnchor: "start" | "middle" | "end" = "middle";
-              let adjustedX = safeX;
+                  // Determine text anchor and adjusted x position based on boundaries
+                  let textAnchor: "start" | "middle" | "end" = "middle";
+                  let adjustedX = safeX;
 
-              // Check if label would bleed off the left edge
-              if (safeX - LABEL_HALF_WIDTH < LEFT_BOUNDARY) {
-                textAnchor = "start";
-                adjustedX = Math.max(safeX, LEFT_BOUNDARY);
-              }
-              // Check if label would bleed off the right edge (no specific right boundary needed)
-              else if (point.hour >= hours - 0.5) {
-                textAnchor = "end";
-              }
+                  // Check if label would bleed off the left edge
+                  if (safeX - LABEL_HALF_WIDTH < LEFT_BOUNDARY) {
+                    textAnchor = "start";
+                    adjustedX = Math.max(safeX, LEFT_BOUNDARY);
+                  }
+                  // Check if label would bleed off the right edge (no specific right boundary needed)
+                  else if (point.hour >= hours - 0.5) {
+                    textAnchor = "end";
+                  }
 
-              // Optimized: use pre-computed placement map
-              const placeBelow = peakPlacementMap.get(point.timestamp) ?? false;
+                  // Optimized: use pre-computed placement map
+                  const placeBelow =
+                    peakPlacementMap.get(point.timestamp) ?? false;
 
-              const timeY = placeBelow ? safeY + 25 : safeY - 32;
-              const heightY = placeBelow ? safeY + 40 : safeY - 17;
+                  const timeY = placeBelow ? safeY + 25 : safeY - 32;
+                  const heightY = placeBelow ? safeY + 40 : safeY - 17;
 
-              return (
-                <g>
-                  <text
-                    x={adjustedX}
-                    y={timeY}
-                    fill="var(--foreground)"
-                    textAnchor={textAnchor}
-                    dominantBaseline="middle"
-                    fontSize={10}
-                  >
-                    {formatTime(point.timestamp)}
-                  </text>
-                  <text
-                    x={adjustedX}
-                    y={heightY}
-                    fill="var(--foreground)"
-                    textAnchor={textAnchor}
-                    fontWeight="bold"
-                    fontSize={12}
-                  >
-                    {`${point.isPeak} ft`}
-                  </text>
-                </g>
-              );
-            }}
-          />
-        </Line>
+                  return (
+                    <g>
+                      <text
+                        x={adjustedX}
+                        y={timeY}
+                        fill="var(--foreground)"
+                        textAnchor={textAnchor}
+                        dominantBaseline="middle"
+                        fontSize={10}
+                      >
+                        {formatTime(point.timestamp)}
+                      </text>
+                      <text
+                        x={adjustedX}
+                        y={heightY}
+                        fill="var(--foreground)"
+                        textAnchor={textAnchor}
+                        fontWeight="bold"
+                        fontSize={12}
+                      >
+                        {`${point.isPeak} ft`}
+                      </text>
+                    </g>
+                  );
+                }}
+              />
+            </Line>
           </LineChart>
         </ChartContainer>
       </div>

@@ -291,7 +291,7 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       buildYAxisTicks(
         chartData.map((d) => d.wind),
         0,
-        6,
+        4,
         0.2,
         10
       ),
@@ -318,7 +318,7 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           x={xNum + 6}
           y={yNum}
           // Nudge the bottom tick up so it stays visually contained within the shaded plot area.
-          dy={isMinTick ? -8 : isMaxTick ? 8 : 0}
+          dy={isMinTick ? -15 : isMaxTick ? 15 : 0}
           textAnchor={textAnchor ?? "end"}
           dominantBaseline="central"
           fontSize={typeof fontSize === "number" ? fontSize : 11}
@@ -549,7 +549,10 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
               tickMargin={8}
               fontSize={11}
               tick={yAxisTick}
-              domain={[windTicks[0] ?? 0, windTicks[windTicks.length - 1] ?? 20]}
+              domain={[
+                windTicks[0] ?? 0,
+                windTicks[windTicks.length - 1] ?? 20,
+              ]}
               ticks={windTicks}
             />
           </BarChart>
@@ -557,7 +560,10 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       </div>
 
       <div style={{ position: "relative", zIndex: 1, height: "100%" }}>
-        <ChartContainer config={chartConfig} className="aspect-auto h-full w-full">
+        <ChartContainer
+          config={chartConfig}
+          className="aspect-auto h-full w-full"
+        >
           <BarChart
             margin={{
               top: CHART_TOP_MARGIN,
@@ -574,162 +580,165 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
           >
-        {/* <CartesianGrid
+            {/* <CartesianGrid
           strokeDasharray="3 3"
           stroke="var(--foreground)"
           strokeWidth={0.1}
           vertical={false}
         /> */}
 
-        <XAxis
-          dataKey="hour"
-          type="number"
-          orientation="bottom"
-          tickLine={false}
-          tickMargin={10}
-          fontSize={11}
-          axisLine={false}
-          height={X_AXIS_SHADE_EXCLUDE_PX}
-          // padding={{ left: buffer, right: buffer }}
-          domain={[domainMin, domainMax]}
-          ticks={hourTicks}
-          scale="linear"
-          tickFormatter={(value: number) => {
-            const num = Number(value);
-            if (!Number.isFinite(num)) return "";
-            const nearestSlot =
-              Math.round(num / DATA_STEP_HOURS) * DATA_STEP_HOURS;
-            const normalized = ((nearestSlot % 24) + 24) % 24;
-            const labelHour = normalized % 12 === 0 ? 12 : normalized % 12;
-            return String(labelHour);
-          }}
-        />
-        <YAxis
-          hide
-          width={0}
-          dataKey="wind"
-          domain={[windTicks[0] ?? 0, windTicks[windTicks.length - 1] ?? 20]}
-          ticks={windTicks}
-        />
-        <ChartTooltip
-          content={
-            <ChartTooltipContent
-              className="min-w-[14rem]"
-              labelFormatter={formatHourLabel}
-              formatter={formatWindTooltipValue as any}
+            <XAxis
+              dataKey="hour"
+              type="number"
+              orientation="bottom"
+              tickLine={false}
+              tickMargin={10}
+              fontSize={11}
+              axisLine={false}
+              height={X_AXIS_SHADE_EXCLUDE_PX}
+              // padding={{ left: buffer, right: buffer }}
+              domain={[domainMin, domainMax]}
+              ticks={hourTicks}
+              scale="linear"
+              tickFormatter={(value: number) => {
+                const num = Number(value);
+                if (!Number.isFinite(num)) return "";
+                const nearestSlot =
+                  Math.round(num / DATA_STEP_HOURS) * DATA_STEP_HOURS;
+                const normalized = ((nearestSlot % 24) + 24) % 24;
+                const labelHour = normalized % 12 === 0 ? 12 : normalized % 12;
+                return String(labelHour);
+              }}
             />
-          }
-          cursor={renderTooltipCursor as any}
-          animationDuration={0}
-        />
-        {/* Hour indicator line */}
-        {centeredSelectedHour !== null && (
-          <ReferenceLine
-            x={centeredSelectedHour}
-            stroke="var(--foreground)"
-            strokeDasharray="3 3"
-          />
-        )}
-        <Bar
-          dataKey="wind"
-          fill="var(--color-wind)"
-          radius={6}
-          // stroke="#0000006e"
-          // strokeWidth={0.5}
-          minPointSize={15}
-          isAnimationActive={false}
-          animationDuration={0}
-          animationBegin={0}
-        >
-          <LabelList
-            dataKey="wind"
-            position="top"
-            content={(props: LabelProps) => {
-              const safeX = typeof props.x === "number" ? props.x : 0;
-              const safeY = typeof props.y === "number" ? props.y : 0;
-              const safeWidth =
-                typeof props.width === "number" ? props.width : 0;
-              const safeHeight =
-                typeof props.height === "number" ? props.height : 0;
-              const iconSize = Math.min(20, safeWidth * 0.8);
-
-              // Get wind direction from the data point
-              const dataPoint = chartData[props.index ?? 0];
-              const direction = dataPoint?.direction ?? 0;
-              const directionLabel = getWindDirection(direction);
-              // Arrow points at 315Â° by default, adjust rotation
-              const rotation = direction - 315;
-
-              // Calculate center point for rotation - position on top of bar
-              const centerX = safeX + safeWidth / 2;
-              const centerY = safeY - iconSize / 2 - 7; // Position above the bar
-
-              return (
-                <g pointerEvents="none">
-                  <g transform={`translate(${centerX}, ${centerY})`}>
-                    <g transform={`rotate(${rotation}, 0, 0)`}>
-                      <ArrowIcon
-                        size={iconSize}
-                        x={-iconSize / 2}
-                        y={-iconSize / 2}
-                        // fill="#8bd668ff"
-                        // color="#8bd668ff"
-                        className="fill-foreground/20 text-foreground/50"
-                      />
-                    </g>
-                  </g>
-                </g>
-              );
-            }}
-          />
-          <LabelList
-            dataKey="wind"
-            position="middle"
-            content={(props: LabelProps) => {
-              const safeX = typeof props.x === "number" ? props.x : 0;
-              const safeY = typeof props.y === "number" ? props.y : 0;
-              const safeWidth =
-                typeof props.width === "number" ? props.width : 0;
-              const safeHeight =
-                typeof props.height === "number" ? props.height : 0;
-              const fontSize = Math.max(10, safeWidth * 0.15);
-
-              // Get color based on wind value
-              const windValue =
-                typeof props.value === "number" ? props.value : 0;
-              const barColor = getWindColor(windValue);
-
-              if (typeof props.value === "number") {
-                return (
-                  <g>
-                    {/* Render the colored bar */}
-                    <rect
-                      x={safeX}
-                      y={safeY}
-                      width={safeWidth}
-                      height={safeHeight}
-                      fill={barColor}
-                      rx={6}
-                      // stroke="#0000006e"
-                      // strokeWidth={0.5}
-                    />
-                    <text
-                      x={safeX + safeWidth / 2}
-                      y={safeY + safeHeight / 2 + fontSize / 3}
-                      fill="#2c2c2cff"
-                      textAnchor="middle"
-                      fontWeight="600"
-                      fontSize={fontSize}
-                    >
-                      {`${Math.round(props.value)}`}
-                    </text>
-                  </g>
-                );
+            <YAxis
+              hide
+              width={0}
+              dataKey="wind"
+              domain={[
+                windTicks[0] ?? 0,
+                windTicks[windTicks.length - 1] ?? 20,
+              ]}
+              ticks={windTicks}
+            />
+            <ChartTooltip
+              content={
+                <ChartTooltipContent
+                  className="min-w-[14rem]"
+                  labelFormatter={formatHourLabel}
+                  formatter={formatWindTooltipValue as any}
+                />
               }
-            }}
-            fill="black"
-          />
-        </Bar>
+              cursor={renderTooltipCursor as any}
+              animationDuration={0}
+            />
+            {/* Hour indicator line */}
+            {centeredSelectedHour !== null && (
+              <ReferenceLine
+                x={centeredSelectedHour}
+                stroke="var(--foreground)"
+                strokeDasharray="3 3"
+              />
+            )}
+            <Bar
+              dataKey="wind"
+              fill="var(--color-wind)"
+              radius={6}
+              // stroke="#0000006e"
+              // strokeWidth={0.5}
+              minPointSize={15}
+              isAnimationActive={false}
+              animationDuration={0}
+              animationBegin={0}
+            >
+              <LabelList
+                dataKey="wind"
+                position="top"
+                content={(props: LabelProps) => {
+                  const safeX = typeof props.x === "number" ? props.x : 0;
+                  const safeY = typeof props.y === "number" ? props.y : 0;
+                  const safeWidth =
+                    typeof props.width === "number" ? props.width : 0;
+                  const safeHeight =
+                    typeof props.height === "number" ? props.height : 0;
+                  const iconSize = Math.min(20, safeWidth * 0.8);
+
+                  // Get wind direction from the data point
+                  const dataPoint = chartData[props.index ?? 0];
+                  const direction = dataPoint?.direction ?? 0;
+                  const directionLabel = getWindDirection(direction);
+                  // Arrow points at 315Â° by default, adjust rotation
+                  const rotation = direction - 315;
+
+                  // Calculate center point for rotation - position on top of bar
+                  const centerX = safeX + safeWidth / 2;
+                  const centerY = safeY - iconSize / 2 - 7; // Position above the bar
+
+                  return (
+                    <g pointerEvents="none">
+                      <g transform={`translate(${centerX}, ${centerY})`}>
+                        <g transform={`rotate(${rotation}, 0, 0)`}>
+                          <ArrowIcon
+                            size={iconSize}
+                            x={-iconSize / 2}
+                            y={-iconSize / 2}
+                            // fill="#8bd668ff"
+                            // color="#8bd668ff"
+                            className="fill-foreground/20 text-foreground/50"
+                          />
+                        </g>
+                      </g>
+                    </g>
+                  );
+                }}
+              />
+              <LabelList
+                dataKey="wind"
+                position="middle"
+                content={(props: LabelProps) => {
+                  const safeX = typeof props.x === "number" ? props.x : 0;
+                  const safeY = typeof props.y === "number" ? props.y : 0;
+                  const safeWidth =
+                    typeof props.width === "number" ? props.width : 0;
+                  const safeHeight =
+                    typeof props.height === "number" ? props.height : 0;
+                  const fontSize = Math.max(10, safeWidth * 0.15);
+
+                  // Get color based on wind value
+                  const windValue =
+                    typeof props.value === "number" ? props.value : 0;
+                  const barColor = getWindColor(windValue);
+
+                  if (typeof props.value === "number") {
+                    return (
+                      <g>
+                        {/* Render the colored bar */}
+                        <rect
+                          x={safeX}
+                          y={safeY}
+                          width={safeWidth}
+                          height={safeHeight}
+                          fill={barColor}
+                          rx={6}
+                          // stroke="#0000006e"
+                          // strokeWidth={0.5}
+                        />
+                        <text
+                          x={safeX + safeWidth / 2}
+                          y={safeY + safeHeight / 2 + fontSize / 3}
+                          fill="#2c2c2cff"
+                          textAnchor="middle"
+                          fontWeight="600"
+                          fontSize={fontSize}
+                        >
+                          {`${Math.round(props.value)}`}
+                        </text>
+                      </g>
+                    );
+                  }
+                }}
+                fill="black"
+              />
+            </Bar>
           </BarChart>
         </ChartContainer>
       </div>

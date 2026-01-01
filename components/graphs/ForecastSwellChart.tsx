@@ -706,10 +706,10 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
               (v): v is number => typeof v === "number" && Number.isFinite(v)
             ),
           0,
-          5,
+          4,
           0.2
         ),
-        5
+        4
       ),
     [swellData]
   );

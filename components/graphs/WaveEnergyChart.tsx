@@ -134,26 +134,23 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   });
   const windowStartMs = windowStart.getTime();
 
-  const placeholderSeries = useMemo(
-    () => {
-      const base = [
-        { hour: 0, energy: 1 },
-        { hour: 3, energy: 2 },
-        { hour: 6, energy: 2 },
-        { hour: 9, energy: 3 },
-        { hour: 12, energy: 2 },
-        { hour: 15, energy: 3 },
-        { hour: 18, energy: 2 },
-        { hour: 21, energy: 1 },
-      ];
-      const last = base[base.length - 1];
-      if (last && last.hour < hours) {
-        base.push({ hour: hours, energy: last.energy });
-      }
-      return base;
-    },
-    [hours]
-  );
+  const placeholderSeries = useMemo(() => {
+    const base = [
+      { hour: 0, energy: 1 },
+      { hour: 3, energy: 2 },
+      { hour: 6, energy: 2 },
+      { hour: 9, energy: 3 },
+      { hour: 12, energy: 2 },
+      { hour: 15, energy: 3 },
+      { hour: 18, energy: 2 },
+      { hour: 21, energy: 1 },
+    ];
+    const last = base[base.length - 1];
+    if (last && last.hour < hours) {
+      base.push({ hour: hours, energy: last.energy });
+    }
+    return base;
+  }, [hours]);
 
   const series = useMemo<EnergyPoint[]>(() => {
     if (!beachId) {
@@ -245,7 +242,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
             (v): v is number => typeof v === "number" && Number.isFinite(v)
           ),
         0,
-        6,
+        4,
         0.25
       ),
     [series]
@@ -271,7 +268,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           x={xNum + 6}
           y={yNum}
           // Nudge the bottom tick up so it stays visually contained within the shaded plot area.
-          dy={isMinTick ? -8 : isMaxTick ? 8 : 0}
+          dy={isMinTick ? -15 : isMaxTick ? 15 : 0}
           textAnchor={textAnchor ?? "end"}
           dominantBaseline="central"
           fontSize={typeof fontSize === "number" ? fontSize : 11}
@@ -373,9 +370,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   };
 
   return (
-    <div
-      className="relative aspect-auto h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px] w-full [&_.recharts-legend-wrapper]:hidden"
-    >
+    <div className="relative aspect-auto h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px] w-full [&_.recharts-legend-wrapper]:hidden">
       {/* Shade only the plot area (not the X-axis label band), matching prior ReferenceArea behavior. */}
       <div
         aria-hidden="true"
@@ -458,7 +453,10 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
               tickMargin={8}
               fontSize={11}
               tick={yAxisTick}
-              domain={[energyTicks[0] ?? 0, energyTicks[energyTicks.length - 1] ?? 8]}
+              domain={[
+                energyTicks[0] ?? 0,
+                energyTicks[energyTicks.length - 1] ?? 8,
+              ]}
               ticks={energyTicks}
             />
           </AreaChart>
@@ -466,7 +464,10 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       </div>
 
       <div style={{ position: "relative", zIndex: 1, height: "100%" }}>
-        <ChartContainer config={chartConfig} className="aspect-auto h-full w-full">
+        <ChartContainer
+          config={chartConfig}
+          className="aspect-auto h-full w-full"
+        >
           <AreaChart
             accessibilityLayer
             data={series}
@@ -481,136 +482,136 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
           >
-        {/* Clip filled areas to the same rounded plot bounds as the day/night shading (keeps bottom-right corner premium). */}
-        <Customized
-          component={(p: any) => {
-            const offset = p?.offset;
-            const fullWidth = typeof p?.width === "number" ? p.width : 0;
-            const clipWidth =
-              (typeof offset?.left === "number" ? offset.left : 0) +
-              (typeof offset?.width === "number" ? offset.width : 0);
-            if (
-              !offset ||
-              !(fullWidth > 0) ||
-              !(clipWidth > 0) ||
-              !(offset.height > 0)
-            ) {
-              return null;
-            }
-            return (
-              <defs>
-                <clipPath id={plotClipId}>
-                  <rect
-                    x={0}
-                    y={offset.top}
-                    width={Math.min(fullWidth, clipWidth)}
-                    height={offset.height}
-                    rx={8}
-                    ry={8}
-                  />
-                </clipPath>
-              </defs>
-            );
-          }}
-        />
-        {/* <CartesianGrid
+            {/* Clip filled areas to the same rounded plot bounds as the day/night shading (keeps bottom-right corner premium). */}
+            <Customized
+              component={(p: any) => {
+                const offset = p?.offset;
+                const fullWidth = typeof p?.width === "number" ? p.width : 0;
+                const clipWidth =
+                  (typeof offset?.left === "number" ? offset.left : 0) +
+                  (typeof offset?.width === "number" ? offset.width : 0);
+                if (
+                  !offset ||
+                  !(fullWidth > 0) ||
+                  !(clipWidth > 0) ||
+                  !(offset.height > 0)
+                ) {
+                  return null;
+                }
+                return (
+                  <defs>
+                    <clipPath id={plotClipId}>
+                      <rect
+                        x={0}
+                        y={offset.top}
+                        width={Math.min(fullWidth, clipWidth)}
+                        height={offset.height}
+                        rx={8}
+                        ry={8}
+                      />
+                    </clipPath>
+                  </defs>
+                );
+              }}
+            />
+            {/* <CartesianGrid
           strokeDasharray="3 3"
           stroke="var(--foreground)"
           strokeWidth={0.1}
           vertical={false}
         /> */}
-        <XAxis
-          dataKey="hour"
-          type="number"
-          domain={[0, hours]}
-          tickLine={false}
-          axisLine={false}
-          tickMargin={8}
-          minTickGap={0}
-          fontSize={11}
-          height={X_AXIS_SHADE_EXCLUDE_PX}
-          ticks={hourTicks}
-          tickFormatter={(value) =>
-            value % 3 === 0
-              ? (value % 12 === 0 ? 12 : value % 12).toString()
-              : ""
-          }
-        />
-        <YAxis
-          hide
-          width={0}
-          domain={[
-            energyTicks[0] ?? 0,
-            energyTicks[energyTicks.length - 1] ?? 8,
-          ]}
-          ticks={energyTicks}
-        />
-        <ChartTooltip
-          content={<ChartTooltipContent />}
-          cursor={{
-            stroke: "var(--foreground)",
-            strokeWidth: 1,
-            strokeDasharray: "3 3",
-            strokeOpacity: 0.5,
-          }}
-          animationDuration={0}
-          isAnimationActive={false}
-        />
-        <defs>
-          <linearGradient id={fillGradientId} x1="0" y1="0" x2="1" y2="0">
-            {/* <stop offset={off} stopColor="green" stopOpacity={1} />
+            <XAxis
+              dataKey="hour"
+              type="number"
+              domain={[0, hours]}
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+              minTickGap={0}
+              fontSize={11}
+              height={X_AXIS_SHADE_EXCLUDE_PX}
+              ticks={hourTicks}
+              tickFormatter={(value) =>
+                value % 3 === 0
+                  ? (value % 12 === 0 ? 12 : value % 12).toString()
+                  : ""
+              }
+            />
+            <YAxis
+              hide
+              width={0}
+              domain={[
+                energyTicks[0] ?? 0,
+                energyTicks[energyTicks.length - 1] ?? 8,
+              ]}
+              ticks={energyTicks}
+            />
+            <ChartTooltip
+              content={<ChartTooltipContent />}
+              cursor={{
+                stroke: "var(--foreground)",
+                strokeWidth: 1,
+                strokeDasharray: "3 3",
+                strokeOpacity: 0.5,
+              }}
+              animationDuration={0}
+              isAnimationActive={false}
+            />
+            <defs>
+              <linearGradient id={fillGradientId} x1="0" y1="0" x2="1" y2="0">
+                {/* <stop offset={off} stopColor="green" stopOpacity={1} />
             <stop offset={off} stopColor="red" stopOpacity={1} /> */}
-            {fillStops.map((s, i) => (
-              <stop
-                key={i}
-                offset={s.offset}
-                stopColor={s.color}
-                stopOpacity={0.7}
+                {fillStops.map((s, i) => (
+                  <stop
+                    key={i}
+                    offset={s.offset}
+                    stopColor={s.color}
+                    stopOpacity={0.7}
+                  />
+                ))}
+              </linearGradient>
+              <linearGradient id={strokeGradientId} x1="0" y1="0" x2="1" y2="0">
+                {strokeStops.map((s, i) => (
+                  <stop
+                    key={i}
+                    offset={s.offset}
+                    stopColor={s.color}
+                    stopOpacity={1}
+                  />
+                ))}
+              </linearGradient>
+            </defs>
+            <Area
+              type="monotone"
+              dataKey="energy"
+              stackId="1"
+              stroke={`url(#${strokeGradientId})`}
+              strokeWidth={2.5}
+              //   fill="#adf1ffff"
+              fill={`url(#${fillGradientId})`}
+              fillOpacity={1}
+              clipPath={`url(#${plotClipId})`}
+              isAnimationActive={false}
+              animationDuration={0}
+              animationBegin={0}
+            />
+            {/* Hour indicator line - rendered last so it appears on top */}
+            <ReferenceLine
+              x={selectedHour}
+              stroke="var(--foreground)"
+              // strokeWidth={2}
+              strokeDasharray="3 3"
+            />
+            {/* Hover indicator line - only show when hovering on any chart */}
+            {hoveredHour !== null && hoveredHour !== selectedHour && (
+              <ReferenceLine
+                x={hoveredHour}
+                stroke="var(--foreground)"
+                strokeWidth={1}
+                strokeOpacity={0.5}
+                strokeDasharray="5 5"
               />
-            ))}
-          </linearGradient>
-          <linearGradient id={strokeGradientId} x1="0" y1="0" x2="1" y2="0">
-            {strokeStops.map((s, i) => (
-              <stop
-                key={i}
-                offset={s.offset}
-                stopColor={s.color}
-                stopOpacity={1}
-              />
-            ))}
-          </linearGradient>
-        </defs>
-        <Area
-          type="monotone"
-          dataKey="energy"
-          stackId="1"
-          stroke={`url(#${strokeGradientId})`}
-          strokeWidth={2.5}
-          //   fill="#adf1ffff"
-          fill={`url(#${fillGradientId})`}
-          fillOpacity={1}
-          clipPath={`url(#${plotClipId})`}
-          isAnimationActive={false}
-          animationDuration={0}
-          animationBegin={0}
-        />
-        {/* Hour indicator line - rendered last so it appears on top */}
-        <ReferenceLine
-          x={selectedHour}
-          stroke="var(--foreground)"
-          // strokeWidth={2}
-          strokeDasharray="3 3"
-        />
-        {/* Hover indicator line - only show when hovering on any chart */}
-        {hoveredHour !== null && hoveredHour !== selectedHour && (
-          <ReferenceLine
-            x={hoveredHour}
-            stroke="var(--foreground)"
-            strokeWidth={1}
-            strokeOpacity={0.5}
-            strokeDasharray="5 5"
-          />
-        )}
+            )}
           </AreaChart>
         </ChartContainer>
       </div>

@@ -152,8 +152,8 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
   const surfTicks = useMemo(
     () =>
       limitYAxisTicks(
-        buildYAxisTicks(surfData.map((d) => d.surf), 0, 5, 0.2, 5),
-        5
+        buildYAxisTicks(surfData.map((d) => d.surf), 0, 4, 0.2, 5),
+        4
       ),
     [surfData]
   );
