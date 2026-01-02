@@ -103,7 +103,7 @@ const NavBar = ({
           "@min-4xl:py-11 @min-4xl:h-27.5 flex items-center justify-between @min-4xl:bg-background rounded-3xl @min-4xl:rounded-2xl @min-4xl:rounded-t-none w-full",
           !landingPage
             ? "@min-4xl:border @min-4xl:border-border/70 @min-4xl:shadow-none py-3"
-            : "py-8",
+            : "border border-border/0 py-8",
           beachesPage && "shadow-even",
           !landingPage && !beachesPage
             ? "px-2 @min-4xl:px-6"

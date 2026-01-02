@@ -13,7 +13,7 @@ type Props = {
 export default function MixedCloudSunIcon({
   className,
   size,
-  sunStroke = "#f79e55ff",
+  sunStroke = "#ffc080ff",
   cloudStroke = "#bdbdbdff",
   strokeWidth = 2,
 }: Props) {
@@ -44,4 +44,3 @@ export default function MixedCloudSunIcon({
     </svg>
   );
 }
-

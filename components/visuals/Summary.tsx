@@ -1457,7 +1457,7 @@ const Summary = ({
             </div>
 
             <div className="shrink-0 rounded-xl border border-border/25 bg-foreground/5 px-3 py-2 text-[11px] leading-4 text-muted-foreground tabular-nums">
-              <dl className="grid grid-cols-[auto_44px] gap-x-2 gap-y-1 items-center">
+              <dl className="grid grid-cols-[auto_48px] gap-x-2 gap-y-1 items-center">
                 <dt className="flex items-center gap-1.5 uppercase tracking-[0.06em]">
                   <Sunrise
                     fill="#ff9f45ff"
@@ -1468,7 +1468,7 @@ const Summary = ({
                 </dt>
                 <dd className="text-foreground font-medium tabular-nums">
                   {showSkeletons ? (
-                    <span className="-mb-0.5 inline-block h-3 w-11 rounded bg-foreground/10 animate-pulse motion-reduce:animate-none" />
+                    <span className="-mb-0.5 inline-block h-3 w-12 rounded bg-foreground/10 animate-pulse motion-reduce:animate-none" />
                   ) : (
                     tideStat?.sunrise ?? "--"
                   )}
@@ -1483,7 +1483,7 @@ const Summary = ({
                 </dt>
                 <dd className="text-foreground font-medium tabular-nums">
                   {showSkeletons ? (
-                    <span className="-mb-0.5 inline-block h-3 w-11 rounded bg-foreground/10 animate-pulse motion-reduce:animate-none" />
+                    <span className="-mb-0.5 inline-block h-3 w-12 rounded bg-foreground/10 animate-pulse motion-reduce:animate-none" />
                   ) : (
                     tideStat?.sunset ?? "--"
                   )}

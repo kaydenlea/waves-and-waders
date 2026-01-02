@@ -147,7 +147,7 @@ export default function OverviewWidget({
               ? extraPadding
                 ? "px-5 pb-[24px]"
                 : "pb-[22px]"
-              : ""
+              : "pb-[18px]"
           )}
         >
           <div className="relative">

@@ -29,6 +29,10 @@ import MixedCloudSunIcon from "@/components/icons/MixedCloudSunIcon";
 import { fetchBeachForecast, type ForecastData } from "@/lib/supabase";
 import { fetchSurfIntensityAPI } from "@/lib/api";
 import { useSurfIntensity } from "@/lib/hooks/useSurfIntensity";
+import {
+  getSurfIntensityBand,
+  getSurfIntensityColorCss,
+} from "@/lib/forecast/surfIntensity";
 import { useDateContext } from "../context/DateContext";
 import { useMapFilters } from "../context/MapFilterContext";
 import { useClientPath } from "../context/PathContext";
@@ -756,15 +760,10 @@ DatePickerProps) => {
               const weather = getWeatherIcon(code);
               const weatherSmall = getWeatherIcon(code, 16);
 
-              // Use surf intensity from API for color (matching InteractiveMap logic)
-              const color =
-                surfIntensity == null || surfIntensity < 0.1
-                  ? "bg-highlight-3"
-                  : surfIntensity >= 6
-                  ? "bg-red-400"
-                  : surfIntensity >= 3
-                  ? "bg-orange-400"
-                  : "bg-green-400";
+              // Use the shared surf intensity palette (matches HourSlider gradient vars).
+              const intensityColor = getSurfIntensityColorCss(
+                getSurfIntensityBand(surfIntensity)
+              );
               const rangeClasses = forecast
                 ? isInRange
                   ? cn(
@@ -830,9 +829,9 @@ DatePickerProps) => {
                     </span>
                     <span
                       className={cn(
-                        "inline-block w-12 @min-sm:w-16 h-1 rounded-full",
-                        color
+                        "inline-block w-12 @min-sm:w-16 h-1 rounded-full"
                       )}
+                      style={{ backgroundColor: intensityColor }}
                     />
                     <div className="mt-1.5 mb-0.5">{weather}</div>
                     {/* <div className="mt-2 mb-1 hidden @min-sm:block @min-lg:hidden">

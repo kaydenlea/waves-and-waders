@@ -2686,7 +2686,7 @@ const SelectedBeachMarker = React.memo(
 
     const scale = zoom >= 14 ? 1 : zoom / 14;
     const ringSize = 160 * scale;
-    const outerRadius = (typeof windDirection === "number" ? 110 : 76) * scale;
+    const outerRadius = 110 * scale;
     const labelDistance = 140 * scale;
     const centerOffset = ringSize / 2;
     const haloPadding = Math.max(outerRadius - ringSize / 2, 0);

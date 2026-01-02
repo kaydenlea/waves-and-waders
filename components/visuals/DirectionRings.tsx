@@ -108,6 +108,12 @@ const REF_RING_CORE = "rgba(30, 41, 59, 0.40)"; // slate-800
 const REF_TICK_HALO = "rgba(241, 245, 249, 0.22)"; // slate-100
 const REF_TICK_CORE = "rgba(15, 23, 42, 0.58)"; // slate-900
 
+const missingRingDasharray = (scale: number, isPreview: boolean) => {
+  const dash = Math.max(2, (isPreview ? 2.2 : 3.2) * scale);
+  const gap = Math.max(2, (isPreview ? 2.6 : 3.6) * scale);
+  return `${dash} ${gap}`;
+};
+
 export const SwellRings: React.FC<{
   directions: {
     primary: number | null | undefined;
@@ -167,6 +173,7 @@ export const SwellRings: React.FC<{
   const arrowGapPx = (isPreview ? 2.0 : 2.75) * scale;
   const ringCoreStroke = trackStroke + (isPreview ? 0.15 : 0.45) * scale;
   const ringHaloStroke = ringCoreStroke + (isPreview ? 0.75 : 1.1) * scale;
+  const ringMissingDash = missingRingDasharray(scale, isPreview);
 
   const textHaloStyle: React.CSSProperties = {
     paintOrder: "stroke",
@@ -193,17 +200,6 @@ export const SwellRings: React.FC<{
     if ((h ?? 0) === 0 && (p ?? 0) === 0) return false;
     return true;
   };
-
-  const rings = ringsBase.filter(({ key }) => {
-    // If labels are provided, preserve the "hide missing/zero" behavior for map overlays.
-    if (labels != null) return hasMeaningfulValue(labels?.[key] ?? null);
-
-    // Preview cards don't pass labels; still render rings when we have directions.
-    const raw = directions[key];
-    return typeof raw === "number" && Number.isFinite(raw);
-  });
-
-  if (!rings.length) return null;
 
   const renderArcCapPointer = (
     direction: number,
@@ -326,7 +322,7 @@ export const SwellRings: React.FC<{
       aria-hidden="true"
     >
       <defs>
-        {rings.map(({ key, radius }) => {
+        {ringsBase.map(({ key, radius }) => {
           const raw = directions[key];
           // Preserve previous behavior: missing directions default to North (0°).
           const direction =
@@ -365,11 +361,15 @@ export const SwellRings: React.FC<{
         })}
       </defs>
 
-      {rings.map(({ key, radius, color }) => {
+      {ringsBase.map(({ key, radius, color }) => {
         const raw = directions[key];
         const direction =
           typeof raw === "number" && !Number.isNaN(raw) ? raw : 0;
         const labelText = labels?.[key] ?? null;
+        const hasDirection = typeof raw === "number" && Number.isFinite(raw);
+        const hasLabelValue =
+          labels != null ? hasMeaningfulValue(labelText) : true;
+        const hasData = hasDirection && hasLabelValue;
         const { height, period } = parseSwellLabelParts(labelText);
         const valueLabelRaw =
           height && period ? `${height} · ${period}` : height || period;
@@ -424,6 +424,9 @@ export const SwellRings: React.FC<{
               fill="none"
               stroke={REF_RING_HALO}
               strokeWidth={ringHaloStroke}
+              strokeDasharray={hasData ? undefined : ringMissingDash}
+              strokeLinecap={hasData ? undefined : "round"}
+              opacity={hasData ? undefined : 0.55}
             />
             <circle
               cx={center}
@@ -432,37 +435,44 @@ export const SwellRings: React.FC<{
               fill="none"
               stroke={REF_RING_CORE}
               strokeWidth={ringCoreStroke}
+              strokeDasharray={hasData ? undefined : ringMissingDash}
+              strokeLinecap={hasData ? undefined : "round"}
+              opacity={hasData ? undefined : 0.42}
             />
 
-            {/* Arc halo (contrast without blurring the map) */}
-            <path
-              d={arcD}
-              fill="none"
-              stroke="rgba(0,0,0,0.55)"
-              strokeWidth={haloStroke}
-              strokeLinecap="round"
-              opacity={0.32}
-            />
+            {hasData && (
+              <>
+                {/* Arc halo (contrast without blurring the map) */}
+                <path
+                  d={arcD}
+                  fill="none"
+                  stroke="rgba(0,0,0,0.55)"
+                  strokeWidth={haloStroke}
+                  strokeLinecap="round"
+                  opacity={0.32}
+                />
 
-            {/* Highlight arc segment */}
-            <path
-              d={arcD}
-              fill="none"
-              stroke={color}
-              strokeWidth={arcStroke}
-              strokeLinecap="round"
-              opacity={0.93}
-            />
+                {/* Highlight arc segment */}
+                <path
+                  d={arcD}
+                  fill="none"
+                  stroke={color}
+                  strokeWidth={arcStroke}
+                  strokeLinecap="round"
+                  opacity={0.93}
+                />
 
-            {/* Label lane: a subtle dark pass inside the arc so text stays readable on any basemap. */}
-            <path
-              d={arcD}
-              fill="none"
-              stroke="rgba(0,0,0,0.80)"
-              strokeWidth={Math.max(1, arcStroke - 4.2 * scale)}
-              strokeLinecap="round"
-              opacity={0.18}
-            />
+                {/* Label lane: a subtle dark pass inside the arc so text stays readable on any basemap. */}
+                <path
+                  d={arcD}
+                  fill="none"
+                  stroke="rgba(0,0,0,0.80)"
+                  strokeWidth={Math.max(1, arcStroke - 4.2 * scale)}
+                  strokeLinecap="round"
+                  opacity={0.18}
+                />
+              </>
+            )}
 
             {/* Inner highlight: thin light edge for a "premium" finish (kept subtle). */}
             {/* <path
@@ -474,17 +484,19 @@ export const SwellRings: React.FC<{
               opacity={0.28}
             /> */}
 
-            {renderArcCapPointer(
-              direction,
-              arcOuterRadius,
-              color,
-              badgeText,
-              badgeBearing,
-              badgeRadius
-            )}
+            {hasData &&
+              renderArcCapPointer(
+                direction,
+                arcOuterRadius,
+                color,
+                badgeText,
+                badgeBearing,
+                badgeRadius
+              )}
 
             {/* Icon stays visible even when legend is closed; it follows the same path direction as the value text. */}
             {!isPreview &&
+              hasData &&
               valueLabel &&
               (() => {
                 const p = polar(center, center, laneR, iconBearing);
@@ -516,7 +528,7 @@ export const SwellRings: React.FC<{
               })()}
 
             {/* Swell stat value: only shown when legend is active. */}
-            {showLegend && valueLabel && (
+            {showLegend && hasData && valueLabel && (
               <g
                 transform={
                   lower ? `rotate(180 ${center} ${center})` : undefined
@@ -586,6 +598,7 @@ export const WindRing: React.FC<{
   const arrowGapPx = (isPreview ? 2.0 : 2.75) * scale;
   const ringCoreStroke = trackStroke + (isPreview ? 0.15 : 0.45) * scale;
   const ringHaloStroke = ringCoreStroke + (isPreview ? 0.75 : 1.1) * scale;
+  const ringMissingDash = missingRingDasharray(scale, isPreview);
   const textHaloStyle: React.CSSProperties = {
     paintOrder: "stroke",
     stroke: "rgba(0,0,0,0.28)",
@@ -594,8 +607,9 @@ export const WindRing: React.FC<{
   };
 
   // Preserve previous behavior: missing direction defaults to North (0°).
-  const finalDirection =
-    typeof direction === "number" && !Number.isNaN(direction) ? direction : 0;
+  const hasDirection =
+    typeof direction === "number" && Number.isFinite(direction);
+  const finalDirection = hasDirection ? (direction as number) : 0;
 
   // Hide the wind ring entirely when the stat is missing/placeholder/zero.
   const hasMeaningfulValue = React.useMemo(() => {
@@ -607,11 +621,7 @@ export const WindRing: React.FC<{
     return Number.isFinite(n) && n !== 0;
   }, [label]);
 
-  const shouldRender = isPreview
-    ? typeof direction === "number" && Number.isFinite(direction)
-    : hasMeaningfulValue;
-
-  if (!shouldRender) return null;
+  const hasData = hasDirection && (isPreview ? true : hasMeaningfulValue);
 
   const spanDeg = arcSpanDegForRadius(radius, arcLenPx);
   const start = normDeg(finalDirection - spanDeg / 2);
@@ -699,7 +709,8 @@ export const WindRing: React.FC<{
       aria-hidden="true"
     >
       <defs>
-        {(() => {
+        {hasData &&
+          (() => {
           const textRadius = radius - arcStroke * (lower ? 0.1 : -0.1);
 
           const textStart = lower ? end + 180 : start;
@@ -770,6 +781,9 @@ export const WindRing: React.FC<{
         fill="none"
         stroke={REF_RING_HALO}
         strokeWidth={ringHaloStroke}
+        strokeDasharray={hasData ? undefined : ringMissingDash}
+        strokeLinecap={hasData ? undefined : "round"}
+        opacity={hasData ? undefined : 0.55}
       />
       <circle
         cx={center}
@@ -778,34 +792,41 @@ export const WindRing: React.FC<{
         fill="none"
         stroke={REF_RING_CORE}
         strokeWidth={ringCoreStroke}
+        strokeDasharray={hasData ? undefined : ringMissingDash}
+        strokeLinecap={hasData ? undefined : "round"}
+        opacity={hasData ? undefined : 0.42}
       />
 
-      <path
-        d={arcD}
-        fill="none"
-        stroke="rgba(0,0,0,0.55)"
-        strokeWidth={haloStroke}
-        strokeLinecap="round"
-        opacity={0.32}
-      />
+      {hasData && (
+        <>
+          <path
+            d={arcD}
+            fill="none"
+            stroke="rgba(0,0,0,0.55)"
+            strokeWidth={haloStroke}
+            strokeLinecap="round"
+            opacity={0.32}
+          />
 
-      <path
-        d={arcD}
-        fill="none"
-        stroke={color}
-        strokeWidth={arcStroke}
-        strokeLinecap="round"
-        opacity={0.93}
-      />
+          <path
+            d={arcD}
+            fill="none"
+            stroke={color}
+            strokeWidth={arcStroke}
+            strokeLinecap="round"
+            opacity={0.93}
+          />
 
-      <path
-        d={arcD}
-        fill="none"
-        stroke="rgba(0,0,0,0.80)"
-        strokeWidth={Math.max(1, arcStroke - 4.2 * scale)}
-        strokeLinecap="round"
-        opacity={0.18}
-      />
+          <path
+            d={arcD}
+            fill="none"
+            stroke="rgba(0,0,0,0.80)"
+            strokeWidth={Math.max(1, arcStroke - 4.2 * scale)}
+            strokeLinecap="round"
+            opacity={0.18}
+          />
+        </>
+      )}
 
       {/* <path
         d={arcD}
@@ -816,10 +837,11 @@ export const WindRing: React.FC<{
         opacity={0.28}
       /> */}
 
-      {renderArcCapPointer(finalDirection)}
+      {hasData && renderArcCapPointer(finalDirection)}
 
       {/* Icon stays visible even when legend is closed; it follows the same path direction as the value text. */}
       {!isPreview &&
+        hasData &&
         label &&
         (() => {
           const p = polar(center, center, laneR, iconBearing);
@@ -849,7 +871,7 @@ export const WindRing: React.FC<{
         })()}
 
       {/* Wind stat value: only shown when legend is active. */}
-      {showLegend && label && (
+      {showLegend && hasData && label && (
         <>
           <g transform={lower ? `rotate(180 ${center} ${center})` : undefined}>
             <text

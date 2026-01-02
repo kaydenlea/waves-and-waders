@@ -975,7 +975,7 @@ const SelectedBeachOverlay = React.memo(
     }
     const scale = overlayZoom >= 14 ? 1 : overlayZoom / 14;
     const ringSize = 160 * scale;
-    const outerRadius = (typeof windDirection === "number" ? 110 : 76) * scale;
+    const outerRadius = 110 * scale;
     const labelDistance = 148 * scale;
     const centerOffset = ringSize / 2;
     const haloPadding = Math.max(outerRadius - ringSize / 2, 0);
@@ -1031,7 +1031,7 @@ const SelectedBeachOverlay = React.memo(
             <div
               className={cn(
                 "absolute bg-background rounded-lg border border-border px-3 py-1.5 shadow-lg whitespace-nowrap z-10 text-sm font-semibold text-foreground",
-                legendOpen ? "-top-30" : "-top-22"
+                legendOpen ? "-top-30" : "-top-24"
               )}
             >
               {selected.name}
@@ -1088,15 +1088,13 @@ const SelectedBeachOverlay = React.memo(
                 scale={scale}
                 className="absolute inset-0"
               />
-              {typeof windDirection === "number" && (
-                <WindRing
-                  direction={windDirection}
-                  label={overlayLabels?.wind ?? null}
-                  showLegend={legendOpen}
-                  scale={scale}
-                  className="absolute inset-0"
-                />
-              )}
+              <WindRing
+                direction={windDirection}
+                label={overlayLabels?.wind ?? null}
+                showLegend={legendOpen}
+                scale={scale}
+                className="absolute inset-0"
+              />
             </div>
           </div>
         </div>
@@ -1841,9 +1839,9 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
 
   React.useEffect(() => {
     const handleResize = () => {
-      const container = document.querySelector("#main-content") as
-        | HTMLElement
-        | null;
+      const container = document.querySelector(
+        "#main-content"
+      ) as HTMLElement | null;
       const measured = container?.clientWidth ?? 0;
       const width = measured > 0 ? measured : window.innerWidth;
       setSmallScreen(width < 896);
@@ -2007,7 +2005,10 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     try {
       const centerPt = map.latLngToContainerPoint(map.getCenter());
       const targetPt = map.latLngToContainerPoint(target as any);
-      const pxDist = Math.hypot(centerPt.x - targetPt.x, centerPt.y - targetPt.y);
+      const pxDist = Math.hypot(
+        centerPt.x - targetPt.x,
+        centerPt.y - targetPt.y
+      );
       // Pixel-space threshold keeps behavior stable across zoom levels and basemaps.
       setRefocusDisabled(pxDist < 8);
     } catch {
@@ -2534,20 +2535,20 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     if (!lifecycle) {
       return;
     }
-      const {
-        refreshZoomControl: latestRefreshZoomControl,
-        emitCameraUpdate: latestEmitCameraUpdate,
-        scheduleMapViewPersistence: latestScheduleMapViewPersistence,
-        clearHoverState: latestClearHoverState,
-        scheduleCommitResume: latestScheduleCommitResume,
-        scheduleResizeRecompute: latestScheduleResizeRecompute,
-        normalizeMapCenter: latestNormalizeMapCenter,
-        setAllowViewportCommit: latestSetAllowViewportCommit,
-        cancelCommitResume: latestCancelCommitResume,
-        updateZoomButtons: latestUpdateZoomButtons = () => {},
-        updateRefocusDisabled: latestUpdateRefocusDisabled = () => {},
-        primeVisibleMarkerStats: latestPrimeVisibleMarkerStats = () => {},
-      } = lifecycle;
+    const {
+      refreshZoomControl: latestRefreshZoomControl,
+      emitCameraUpdate: latestEmitCameraUpdate,
+      scheduleMapViewPersistence: latestScheduleMapViewPersistence,
+      clearHoverState: latestClearHoverState,
+      scheduleCommitResume: latestScheduleCommitResume,
+      scheduleResizeRecompute: latestScheduleResizeRecompute,
+      normalizeMapCenter: latestNormalizeMapCenter,
+      setAllowViewportCommit: latestSetAllowViewportCommit,
+      cancelCommitResume: latestCancelCommitResume,
+      updateZoomButtons: latestUpdateZoomButtons = () => {},
+      updateRefocusDisabled: latestUpdateRefocusDisabled = () => {},
+      primeVisibleMarkerStats: latestPrimeVisibleMarkerStats = () => {},
+    } = lifecycle;
     if (typeof window !== "undefined" && L?.Browser?.any3d) {
       (L.Browser as any).any3d = false;
     }
@@ -2620,11 +2621,11 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       latestScheduleResizeRecompute();
     };
 
-      const handleInteractionEnd = () => {
-        latestClearHoverState();
-        disableInteractionLock();
-        try {
-          const center = map.getCenter();
+    const handleInteractionEnd = () => {
+      latestClearHoverState();
+      disableInteractionLock();
+      try {
+        const center = map.getCenter();
         const zoom = map.getZoom();
         latestScheduleMapViewPersistence({
           longitude: center.lng,
@@ -3806,7 +3807,8 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
             border: none !important;
             border-bottom: none !important;
             box-shadow: none !important;
-            transition: color 140ms ease, box-shadow 140ms ease, opacity 140ms ease;
+            transition: color 140ms ease, box-shadow 140ms ease,
+              opacity 140ms ease;
             text-decoration: none !important;
             cursor: pointer;
             position: relative;
