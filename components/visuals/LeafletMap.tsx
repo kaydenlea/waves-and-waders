@@ -4,9 +4,11 @@ import * as React from "react";
 import { usePathname, useRouter } from "next/navigation";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import "maplibre-gl/dist/maplibre-gl.css";
 import "leaflet.markercluster";
 import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
+import "@maplibre/maplibre-gl-leaflet";
 import { createPortal } from "react-dom";
 
 import { cn } from "@/lib/utils";
@@ -63,12 +65,14 @@ type Props = {
   initialBeach?: BeachPoint | null;
 };
 
-const DEFAULT_TILE_URL =
-  process.env.NEXT_PUBLIC_BASEMAP_TILE_URL ??
-  "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
-const DEFAULT_ATTRIBUTION =
-  process.env.NEXT_PUBLIC_BASEMAP_ATTRIBUTION ??
-  "\u00A9 OpenStreetMap contributors";
+// OpenFreeMap provides vector tiles; MapLibre GL Leaflet renders them inside our existing Leaflet map.
+// Style URL is the official OpenFreeMap Liberty style (per https://openfreemap.org/quick_start/).
+const OPENFREEMAP_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
+// Attribution per https://openfreemap.org/#attribution (and OSM attribution requirements).
+const OPENFREEMAP_ATTRIBUTION_HTML =
+  '<a href="https://openfreemap.org" target="_blank" rel="noopener noreferrer">OpenFreeMap</a> ' +
+  '© <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener noreferrer">OpenMapTiles</a> ' +
+  '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>';
 const DEFAULT_CENTER: [number, number] = [37.8, -122.4];
 const DEFAULT_ZOOM = 6;
 const MAP_VIEW_STORAGE_KEY = "ww:last-map-view";
@@ -83,6 +87,17 @@ const MARKER_BUILD_MIN_BATCH = 60;
 const MIN_OVERLAY_ZOOM = 15;
 const AUTO_FOCUS_ZOOM = 16;
 const OVERLAY_PANE_ID = "ww-overlay-pane";
+// Web Mercator (EPSG:3857) valid latitude range.
+// Using solid Leaflet bounds prevents users from panning into areas where tiles don't exist (grey/empty).
+const WEB_MERCATOR_MAX_LATITUDE = 85.0511287798066;
+// Horizontal panning limits (degrees longitude).
+// Leaflet enforces these via `maxBounds` so the map stops naturally at the edges (no manual recentering/snapping).
+const WEST_LNG_LIMIT = -250;
+const EAST_LNG_LIMIT = 50;
+const WEB_MERCATOR_MAX_BOUNDS = L.latLngBounds(
+  [-WEB_MERCATOR_MAX_LATITUDE, WEST_LNG_LIMIT],
+  [WEB_MERCATOR_MAX_LATITUDE, EAST_LNG_LIMIT]
+);
 
 const logLeafletPerf = (label: string, startTs: number | null) => {
   if (
@@ -481,6 +496,12 @@ const wrapLongitude = (value: number) => {
   return lon;
 };
 
+const clampLatitudeToWebMercator = (value: number) =>
+  Math.max(
+    -WEB_MERCATOR_MAX_LATITUDE,
+    Math.min(WEB_MERCATOR_MAX_LATITUDE, value)
+  );
+
 const normalizeBoundsToWorld = (bounds: VisibleMapBounds): VisibleMapBounds => {
   if (!bounds) return bounds;
   let { west, east, south, north } = bounds;
@@ -492,11 +513,11 @@ const normalizeBoundsToWorld = (bounds: VisibleMapBounds): VisibleMapBounds => {
   }
   const latSpan = Math.max(0.0001, north - south);
   if (latSpan >= 180) {
-    south = -89.999;
-    north = 89.999;
+    south = -WEB_MERCATOR_MAX_LATITUDE;
+    north = WEB_MERCATOR_MAX_LATITUDE;
   } else {
-    south = Math.max(-89.999, Math.min(89.999, south));
-    north = Math.max(-89.999, Math.min(89.999, north));
+    south = clampLatitudeToWebMercator(south);
+    north = clampLatitudeToWebMercator(north);
   }
   return {
     south,
@@ -521,7 +542,7 @@ const readStoredView = (): StoredViewState => {
       ) {
         return {
           longitude: wrapLongitude(parsed.longitude),
-          latitude: parsed.latitude,
+          latitude: clampLatitudeToWebMercator(parsed.latitude),
           zoom:
             typeof parsed?.zoom === "number"
               ? Math.max(3, Math.min(17, parsed.zoom))
@@ -573,7 +594,7 @@ const resolveInitialView = (
   ) {
     return {
       longitude: Number(initialBeach.longitude),
-      latitude: Number(initialBeach.latitude),
+      latitude: clampLatitudeToWebMercator(Number(initialBeach.latitude)),
       zoom: AUTO_FOCUS_ZOOM,
     };
   }
@@ -687,7 +708,7 @@ const readStoredSelectionCenter = (): StoredViewState | null => {
     ) {
       return {
         longitude: parsed.longitude,
-        latitude: parsed.latitude,
+        latitude: clampLatitudeToWebMercator(parsed.latitude),
         zoom:
           typeof parsed?.zoom === "number"
             ? Math.max(3, Math.min(16, parsed.zoom))
@@ -1360,7 +1381,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const mapRef = React.useRef<L.Map | null>(null);
   const clusterLayerRef = React.useRef<L.MarkerClusterGroup | null>(null);
-  const tileLayerRef = React.useRef<L.TileLayer | null>(null);
+  const basemapLayerRef = React.useRef<L.Layer | null>(null);
   const zoomControlRef = React.useRef<L.Control.Zoom | null>(null);
   const markerRegistryRef = React.useRef<Record<string, MarkerEntry>>({});
   const statsFallbackIdsRef = React.useRef<Set<string>>(new Set());
@@ -1424,6 +1445,9 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
   const [markersLoading, setMarkersLoading] = React.useState(false);
   const [refocusDisabled, setRefocusDisabled] = React.useState(true);
   const markerBuildTokenRef = React.useRef(0);
+  const isMapInteractingRef = React.useRef(false);
+  const pendingMarkerRebuildRef = React.useRef(false);
+  const deferredMarkerRebuildTimeoutRef = React.useRef<number | null>(null);
   type MarkerBuildJob = {
     token: number;
     raf: number | null;
@@ -1435,6 +1459,15 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     nextStatsFallbackIds: Set<string>;
   };
   const markerBuildJobRef = React.useRef<MarkerBuildJob | null>(null);
+  const cancelMarkerBuild = React.useCallback(() => {
+    const job = markerBuildJobRef.current;
+    if (!job) return;
+    if (job.raf != null) {
+      window.cancelAnimationFrame(job.raf);
+    }
+    markerBuildJobRef.current = null;
+    setMarkersLoading(false);
+  }, [setMarkersLoading]);
   const [selectedBeachId, setSelectedBeachId] = React.useState<
     string | number | null
   >(null);
@@ -1599,12 +1632,48 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     return fallback;
   }, [selectedBeach, markerRevision]);
   usePrefetchAdjacentDates(selectedBeachKey, selectedDate);
-  const requestMarkerRebuild = React.useCallback(() => {
+
+  const performMarkerRebuild = React.useCallback(() => {
     rebuildMarkersRef.current = true;
     markerBuildTokenRef.current += 1;
     setMarkersLoading(true);
     forceMarkerRevision();
   }, []);
+
+  const scheduleMarkerRebuildAfterInteraction = React.useCallback(() => {
+    if (!pendingMarkerRebuildRef.current) return;
+    if (typeof window === "undefined") return;
+    if (deferredMarkerRebuildTimeoutRef.current != null) {
+      window.clearTimeout(deferredMarkerRebuildTimeoutRef.current);
+    }
+    deferredMarkerRebuildTimeoutRef.current = window.setTimeout(() => {
+      deferredMarkerRebuildTimeoutRef.current = null;
+      if (isMapInteractingRef.current) {
+        return;
+      }
+      if (!pendingMarkerRebuildRef.current) {
+        return;
+      }
+      pendingMarkerRebuildRef.current = false;
+      performMarkerRebuild();
+    }, 160);
+  }, [performMarkerRebuild]);
+
+  const requestMarkerRebuild = React.useCallback(() => {
+    pendingMarkerRebuildRef.current = true;
+    if (isMapInteractingRef.current) {
+      return;
+    }
+    if (
+      typeof window !== "undefined" &&
+      deferredMarkerRebuildTimeoutRef.current != null
+    ) {
+      window.clearTimeout(deferredMarkerRebuildTimeoutRef.current);
+      deferredMarkerRebuildTimeoutRef.current = null;
+    }
+    pendingMarkerRebuildRef.current = false;
+    performMarkerRebuild();
+  }, [performMarkerRebuild]);
 
   React.useEffect(() => {
     requestMarkerRebuild();
@@ -1713,7 +1782,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     publishCameraSnapshot({
       bounds,
       zoom,
-      center: { longitude: center.lng, latitude: center.lat },
+      center: { longitude: wrapLongitude(center.lng), latitude: center.lat },
     });
   }, [publishCameraSnapshot]);
 
@@ -1735,13 +1804,15 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
   const normalizeMapCenter = React.useCallback(() => {
     const map = mapRef.current;
     if (!map) return;
-    const center = map.getCenter();
-    const wrapped = map.wrapLatLng(center);
-    if (Math.abs(center.lng - wrapped.lng) < 1e-6) {
+    const maxBounds = map.options.maxBounds;
+    if (!maxBounds) return;
+    // Keep the view strictly inside Leaflet's maxBounds without "world copy" recentering.
+    const latLngBounds = L.latLngBounds(maxBounds);
+    if (latLngBounds.contains(map.getBounds())) {
       return;
     }
     suppressUserMoveRef.current = true;
-    map.setView(wrapped, map.getZoom(), { animate: false });
+    map.panInsideBounds(latLngBounds, { animate: false });
   }, []);
 
   const scheduleResizeRecompute = React.useCallback(() => {
@@ -1796,9 +1867,8 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
         try {
           const normalized: StoredViewState = {
             longitude: wrapLongitude(payload.longitude),
-            latitude: Math.max(
-              -89.999,
-              Math.min(89.999, payload.latitude ?? DEFAULT_VIEW.latitude)
+            latitude: clampLatitudeToWebMercator(
+              payload.latitude ?? DEFAULT_VIEW.latitude
             ),
             zoom: payload.zoom,
           };
@@ -1927,6 +1997,12 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     if (!container) return;
     const handleUserIntent = () => {
       cancelPendingAutoFocus();
+      // If we're currently rebuilding markers, yield immediately to keep interactions smooth.
+      cancelMarkerBuild();
+      if (deferredMarkerRebuildTimeoutRef.current != null) {
+        window.clearTimeout(deferredMarkerRebuildTimeoutRef.current);
+        deferredMarkerRebuildTimeoutRef.current = null;
+      }
     };
     container.addEventListener("pointerdown", handleUserIntent, {
       passive: true,
@@ -1936,7 +2012,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       container.removeEventListener("pointerdown", handleUserIntent as any);
       container.removeEventListener("wheel", handleUserIntent as any);
     };
-  }, [cancelPendingAutoFocus]);
+  }, [cancelPendingAutoFocus, cancelMarkerBuild]);
 
   React.useEffect(() => {
     if (!mapReady) return;
@@ -2076,6 +2152,78 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     refreshZoomControl();
   }, [refreshZoomControl]);
 
+  type MarkerDomGuardsState = {
+    element: HTMLElement | null;
+    stopPointerDown: ((event: Event) => void) | null;
+    preventDragStart: ((event: Event) => void) | null;
+  };
+
+  const ensureMarkerDomGuards = React.useCallback((marker: L.Marker) => {
+    const state: MarkerDomGuardsState = ((marker as any)._wwDomGuardsState as
+      | MarkerDomGuardsState
+      | undefined) ?? {
+      element: null,
+      stopPointerDown: null,
+      preventDragStart: null,
+    };
+
+    const nextElement = marker.getElement?.() as HTMLElement | null;
+    if (!nextElement || nextElement === state.element) {
+      (marker as any)._wwDomGuardsState = state;
+      return;
+    }
+
+    if (state.element && state.stopPointerDown && state.preventDragStart) {
+      state.element.removeEventListener(
+        "pointerdown",
+        state.stopPointerDown,
+        true
+      );
+      state.element.removeEventListener(
+        "mousedown",
+        state.stopPointerDown,
+        true
+      );
+      state.element.removeEventListener(
+        "touchstart",
+        state.stopPointerDown,
+        true
+      );
+      state.element.removeEventListener(
+        "dragstart",
+        state.preventDragStart,
+        true
+      );
+    }
+
+    const stopPointerDown = (event: Event) => {
+      event.stopPropagation();
+    };
+
+    const preventDragStart = (event: Event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    };
+
+    nextElement.setAttribute("draggable", "false");
+    (nextElement as any).draggable = false;
+    nextElement.style.userSelect = "none";
+    (nextElement.style as any).WebkitUserSelect = "none";
+    // Prevent native "drag" ghost image (esp. Safari) when pointer moves slightly during click.
+    (nextElement.style as any).WebkitUserDrag = "none";
+
+    // Capture phase ensures we block map dragging without interfering with Leaflet's click handling.
+    nextElement.addEventListener("pointerdown", stopPointerDown, true);
+    nextElement.addEventListener("mousedown", stopPointerDown, true);
+    nextElement.addEventListener("touchstart", stopPointerDown, true);
+    nextElement.addEventListener("dragstart", preventDragStart, true);
+
+    state.element = nextElement;
+    state.stopPointerDown = stopPointerDown;
+    state.preventDragStart = preventDragStart;
+    (marker as any)._wwDomGuardsState = state;
+  }, []);
+
   const refreshMarkerIcon = React.useCallback(
     (entry: MarkerEntry, hovered: boolean = false) => {
       entry.marker.setIcon(
@@ -2088,19 +2236,12 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
           hovered,
         })
       );
+      // Leaflet can start map-dragging from marker elements if the pointerdown bubbles up.
+      // Add DOM-level guards on the current icon element so clicking a marker never "grabs" it.
+      ensureMarkerDomGuards(entry.marker);
     },
-    [selectedBeachId]
+    [selectedBeachId, ensureMarkerDomGuards]
   );
-
-  const cancelMarkerBuild = React.useCallback(() => {
-    const job = markerBuildJobRef.current;
-    if (!job) return;
-    if (job.raf != null) {
-      window.cancelAnimationFrame(job.raf);
-    }
-    markerBuildJobRef.current = null;
-    setMarkersLoading(false);
-  }, [setMarkersLoading]);
 
   const enableInteractionLock = React.useCallback(() => {
     if (interactionLockReleaseRef.current) return;
@@ -2474,6 +2615,8 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     emitCameraUpdate: () => void;
     scheduleMapViewPersistence: (payload: StoredViewState) => void;
     clearHoverState: () => void;
+    cancelMarkerBuild: () => void;
+    scheduleMarkerRebuildAfterInteraction: () => void;
     scheduleCommitResume: () => void;
     scheduleResizeRecompute: () => void;
     normalizeMapCenter: () => void;
@@ -2498,6 +2641,8 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       emitCameraUpdate,
       scheduleMapViewPersistence,
       clearHoverState,
+      cancelMarkerBuild,
+      scheduleMarkerRebuildAfterInteraction,
       scheduleCommitResume,
       scheduleResizeRecompute,
       normalizeMapCenter,
@@ -2513,6 +2658,8 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     emitCameraUpdate,
     scheduleMapViewPersistence,
     clearHoverState,
+    cancelMarkerBuild,
+    scheduleMarkerRebuildAfterInteraction,
     scheduleCommitResume,
     scheduleResizeRecompute,
     normalizeMapCenter,
@@ -2540,6 +2687,9 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       emitCameraUpdate: latestEmitCameraUpdate,
       scheduleMapViewPersistence: latestScheduleMapViewPersistence,
       clearHoverState: latestClearHoverState,
+      cancelMarkerBuild: latestCancelMarkerBuild,
+      scheduleMarkerRebuildAfterInteraction:
+        latestScheduleMarkerRebuildAfterInteraction,
       scheduleCommitResume: latestScheduleCommitResume,
       scheduleResizeRecompute: latestScheduleResizeRecompute,
       normalizeMapCenter: latestNormalizeMapCenter,
@@ -2555,28 +2705,49 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     const initialView = resolveInitialView(initialBeach, {
       allowStoredFallback: !pathname.endsWith("/beaches"),
     });
+    // Ensure the initial view starts within our configured `maxBounds` so Leaflet doesn't need to correct it.
+    const clampedInitialLatitude = Math.min(
+      WEB_MERCATOR_MAX_LATITUDE,
+      Math.max(-WEB_MERCATOR_MAX_LATITUDE, initialView.latitude)
+    );
+    const clampedInitialLongitude = Math.min(
+      EAST_LNG_LIMIT,
+      Math.max(WEST_LNG_LIMIT, initialView.longitude)
+    );
     const map = L.map(containerRef.current, {
-      center: [initialView.latitude, initialView.longitude],
+      center: [clampedInitialLatitude, clampedInitialLongitude],
       zoom: initialView.zoom,
       zoomControl: false,
+      // Keep Leaflet's attribution control enabled/visible for legally required attribution.
+      attributionControl: true,
       preferCanvas: false,
       minZoom: 3,
       maxZoom: 18,
-      worldCopyJump: true,
-      inertia: true,
-      inertiaDeceleration: 2500,
-      zoomAnimation: true,
+      // IMPORTANT: `worldCopyJump` intentionally "jumps" back to the original world copy when crossing the antimeridian.
+      // We want continuous, uninterrupted horizontal panning instead.
+      worldCopyJump: false,
+      // Constrain panning via Leaflet's official bounds API:
+      // - latitude: Web Mercator extent (prevents grey/empty areas beyond valid world)
+      // - longitude: WEST_LNG_LIMIT..EAST_LNG_LIMIT (restrict horizontal panning only)
+      maxBounds: WEB_MERCATOR_MAX_BOUNDS,
+      // `1.0` = hard boundary (no overscroll/spring-back); keeps edge behavior feeling like a natural limit.
+      maxBoundsViscosity: 1.0,
+      // inertia: true,
+      // inertiaDeceleration: 2500,
+      // MapLibre GL Leaflet expects Leaflet's animation proxy to exist when zoomAnimation is on.
+      // Some environments disable 3D transforms (and thus the proxy), so gate this to avoid crashes.
+      zoomAnimation: Boolean(L.Browser?.any3d),
     });
-    const tileLayer = L.tileLayer(DEFAULT_TILE_URL, {
-      attribution: DEFAULT_ATTRIBUTION,
-      detectRetina: true,
-      reuseTiles: true,
-      // Keep a small buffer of tiles around the viewport so
-      // quick zooms/pans re-use already-loaded imagery.
-      keepBuffer: 2,
-      updateWhenIdle: false,
+    const basemapLayer = L.maplibreGL({
+      // Official OpenFreeMap vector basemap style.
+      style: OPENFREEMAP_STYLE_URL,
+      // We provide a single, complete attribution string via Leaflet to avoid duplicates.
+      attributionControl: false,
+      // Ensure tiles repeat seamlessly as users pan horizontally across world copies.
+      renderWorldCopies: true,
     }).addTo(map);
-    tileLayerRef.current = tileLayer;
+    basemapLayerRef.current = basemapLayer;
+    map.attributionControl?.addAttribution(OPENFREEMAP_ATTRIBUTION_HTML);
     mapRef.current = map;
     if (!map.getPane(OVERLAY_PANE_ID)) {
       const pane = map.createPane(OVERLAY_PANE_ID);
@@ -2598,7 +2769,6 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     clusterLayerRef.current = clusterGroup;
     clusterGroup.addTo(map);
     setMapReady(true);
-    latestNormalizeMapCenter();
     latestEmitCameraUpdate();
     latestPrimeVisibleMarkerStats();
     latestUpdateZoomButtons();
@@ -2609,6 +2779,12 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
         suppressUserMoveRef.current = false;
         return;
       }
+      isMapInteractingRef.current = true;
+      if (deferredMarkerRebuildTimeoutRef.current != null) {
+        window.clearTimeout(deferredMarkerRebuildTimeoutRef.current);
+        deferredMarkerRebuildTimeoutRef.current = null;
+      }
+      latestCancelMarkerBuild();
       enableInteractionLock();
       pendingAutoCenterRef.current = null;
       pendingFocusRef.current = null;
@@ -2624,6 +2800,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     const handleInteractionEnd = () => {
       latestClearHoverState();
       disableInteractionLock();
+      isMapInteractingRef.current = false;
       try {
         const center = map.getCenter();
         const zoom = map.getZoom();
@@ -2632,7 +2809,6 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
           latitude: center.lat,
           zoom,
         });
-        latestNormalizeMapCenter();
       } catch {
         // ignore persistence failures
       }
@@ -2641,9 +2817,16 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       latestPrimeVisibleMarkerStats();
       latestUpdateZoomButtons();
       latestUpdateRefocusDisabled();
+      latestScheduleMarkerRebuildAfterInteraction();
     };
 
     const handleZoomStart = () => {
+      isMapInteractingRef.current = true;
+      if (deferredMarkerRebuildTimeoutRef.current != null) {
+        window.clearTimeout(deferredMarkerRebuildTimeoutRef.current);
+        deferredMarkerRebuildTimeoutRef.current = null;
+      }
+      latestCancelMarkerBuild();
       enableInteractionLock();
       latestClearHoverState();
       cancelPrefetchVisibleMarkerStats();
@@ -2662,6 +2845,11 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       map.off("moveend", handleInteractionEnd);
       map.off("zoomend", handleInteractionEnd);
       disableInteractionLock();
+      isMapInteractingRef.current = false;
+      if (deferredMarkerRebuildTimeoutRef.current != null) {
+        window.clearTimeout(deferredMarkerRebuildTimeoutRef.current);
+        deferredMarkerRebuildTimeoutRef.current = null;
+      }
       latestCancelCommitResume();
       cancelPrefetchVisibleMarkerStats();
       resetMarkerRegistry();
@@ -2672,9 +2860,9 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
         clusterLayerRef.current.remove();
         clusterLayerRef.current = null;
       }
-      if (tileLayerRef.current) {
-        tileLayerRef.current.remove();
-        tileLayerRef.current = null;
+      if (basemapLayerRef.current) {
+        basemapLayerRef.current.remove();
+        basemapLayerRef.current = null;
       }
       map.remove();
       mapRef.current = null;
@@ -3026,6 +3214,44 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
             };
             marker.on("click", handleClick);
             marker.on("mouseover", handleMouseOver);
+            marker.on("add", () => ensureMarkerDomGuards(marker));
+            marker.on("remove", () => {
+              const state = (marker as any)._wwDomGuardsState as
+                | MarkerDomGuardsState
+                | null
+                | undefined;
+              if (
+                !state?.element ||
+                !state.stopPointerDown ||
+                !state.preventDragStart
+              ) {
+                return;
+              }
+              state.element.removeEventListener(
+                "pointerdown",
+                state.stopPointerDown,
+                true
+              );
+              state.element.removeEventListener(
+                "mousedown",
+                state.stopPointerDown,
+                true
+              );
+              state.element.removeEventListener(
+                "touchstart",
+                state.stopPointerDown,
+                true
+              );
+              state.element.removeEventListener(
+                "dragstart",
+                state.preventDragStart,
+                true
+              );
+              state.element = null;
+              state.stopPointerDown = null;
+              state.preventDragStart = null;
+              (marker as any)._wwDomGuardsState = state;
+            });
 
             markersToAdd.push(marker);
             active.addedCount += 1;
@@ -3075,6 +3301,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     },
     [
       cancelMarkerBuild,
+      ensureMarkerDomGuards,
       favoriteSet,
       filteredBeaches,
       refreshMarkerIcon,
