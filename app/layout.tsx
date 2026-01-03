@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import { ScrollToTopOnRouteChange } from "@/lib/utils/scrollTop";
@@ -6,11 +5,9 @@ import { getServerSupabase } from "@/lib/supabaseServer";
 import { SupabaseProvider } from "@/components/providers/SupabaseProvider";
 import { QueryProvider } from "@/components/providers/QueryProvider";
 import { poppins } from "@/lib/fonts";
+import { buildDefaultMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Waves and Waders",
-  description: "Check the surf conditions of your local beaches",
-};
+export const metadata = buildDefaultMetadata();
 
 export default async function RootLayout({
   children,

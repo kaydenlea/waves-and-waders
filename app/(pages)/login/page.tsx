@@ -1,9 +1,18 @@
 import { redirect } from "next/navigation";
+import type { Metadata } from "next";
 
 import { getServerSupabase } from "@/lib/supabaseServer";
 import { AuthForm } from "@/components/auth/AuthForm";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = {
+  title: "Sign in",
+  description: "Sign in to manage saved beaches and forecasts.",
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 export default async function LoginPage() {
   const supabase = await getServerSupabase();

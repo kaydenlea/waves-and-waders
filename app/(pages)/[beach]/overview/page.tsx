@@ -1,6 +1,13 @@
-import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { fetchBeachByIdLoose, extractBeachId } from "@/lib/supabase";
+import type { Metadata } from "next";
+import {
+  FEATURE_COLUMNS,
+  fetchBeachByIdLoose,
+  fetchBeachDetails,
+  extractBeachId,
+  generateBeachUrl,
+  getFeatureDisplayName,
+} from "@/lib/supabase";
 import { getServerSupabase } from "@/lib/supabaseServer";
 import OverviewPageClient from "./OverviewPageClient";
 import {
@@ -11,12 +18,76 @@ import {
   type Row,
   type WidgetId,
 } from "@/components/general/dashboardLayout";
+import { getSiteUrl, toAbsoluteUrl } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Surf Daily Forecast | Waves and Waders",
-  description:
-    "Check the daily and hourly surf conditions of your local beaches",
+const buildFeatureList = (source: Record<string, unknown> | null) => {
+  if (!source) return [];
+  return FEATURE_COLUMNS.filter((key) => Boolean(source[key]))
+    .map((key) => getFeatureDisplayName(key))
+    .filter((label) => Boolean(label));
 };
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ beach: string }>;
+}): Promise<Metadata> {
+  const { beach } = await params;
+  if (!beach || beach === "beach") {
+    return {
+      title: "Surf forecast",
+      description:
+        "Check the daily and hourly surf conditions of your local beaches.",
+      robots: { index: false, follow: false },
+    };
+  }
+
+  const beachIdOrSlug = extractBeachId(beach);
+  const resolved = await fetchBeachByIdLoose(beachIdOrSlug);
+  if (!resolved) {
+    return {
+      title: "Beach not found",
+      description: "The requested beach could not be found.",
+      robots: { index: false, follow: false },
+    };
+  }
+
+  const details = await fetchBeachDetails(String(resolved.id));
+  const features = buildFeatureList(details as Record<string, unknown> | null);
+  const featureSnippet = features.length
+    ? ` Features: ${features.slice(0, 6).join(", ")}.`
+    : "";
+
+  const title = `${resolved.Name} surf forecast`;
+  const description = `Surf forecast and conditions for ${resolved.Name} in ${resolved.COUNTY}.${featureSnippet}`;
+  const canonicalPath = `${generateBeachUrl(resolved.Name, resolved.id)}/overview`;
+  const imagePath = `/beach_pictures/${resolved.id}.png`;
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical: canonicalPath,
+    },
+    openGraph: {
+      title,
+      description,
+      url: canonicalPath,
+      images: [
+        {
+          url: toAbsoluteUrl(imagePath),
+          alt: `${resolved.Name} beach map preview`,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [toAbsoluteUrl(imagePath)],
+    },
+  };
+}
 
 const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
   const { beach } = await params;
@@ -39,6 +110,10 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
 
   const beachId = resolved.id.toString();
   const beachName = resolved.Name;
+  const beachDetails = await fetchBeachDetails(beachId);
+  const featureLabels = buildFeatureList(
+    beachDetails as Record<string, unknown> | null
+  );
   const initialBeach = (() => {
     const readLooseField = (key: string): unknown => {
       if (!Object.prototype.hasOwnProperty.call(resolved, key))
@@ -149,19 +224,55 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
     initialForecastRows = fallback.rows;
   }
 
+  const canonicalPath = `${generateBeachUrl(beachName, beachId)}/overview`;
+  const baseUrl = getSiteUrl();
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "Place",
+    name: beachName,
+    url: `${baseUrl}${canonicalPath}`,
+    geo:
+      initialBeach && Number.isFinite(initialBeach.latitude)
+        ? {
+            "@type": "GeoCoordinates",
+            latitude: initialBeach.latitude,
+            longitude: initialBeach.longitude,
+          }
+        : undefined,
+    address: resolved.COUNTY
+      ? {
+          "@type": "PostalAddress",
+          addressRegion: resolved.COUNTY,
+          addressCountry: "US",
+        }
+      : undefined,
+    image: toAbsoluteUrl(`/beach_pictures/${beachId}.png`),
+    amenityFeature: featureLabels.map((label) => ({
+      "@type": "LocationFeatureSpecification",
+      name: label,
+      value: true,
+    })),
+  };
+
   return (
-    <OverviewPageClient
-      beachId={beachId}
-      beachParam={beach}
-      beachName={beachName}
-      loggedIn={Boolean(user)}
-      isFavorite={isFav}
-      initialBeach={initialBeach}
-      initialOverviewMeta={initialOverviewMeta}
-      initialOverviewRows={initialOverviewRows}
-      initialForecastMeta={initialForecastMeta}
-      initialForecastRows={initialForecastRows}
-    />
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
+      <OverviewPageClient
+        beachId={beachId}
+        beachParam={beach}
+        beachName={beachName}
+        loggedIn={Boolean(user)}
+        isFavorite={isFav}
+        initialBeach={initialBeach}
+        initialOverviewMeta={initialOverviewMeta}
+        initialOverviewRows={initialOverviewRows}
+        initialForecastMeta={initialForecastMeta}
+        initialForecastRows={initialForecastRows}
+      />
+    </>
   );
 };
 

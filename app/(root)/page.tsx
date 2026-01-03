@@ -4,7 +4,9 @@
 import React from "react";
 import Image from "next/image";
 import Link from "next/link";
+import type { Metadata } from "next";
 import { generateBeachUrl } from "@/lib/supabase";
+import { getSiteUrl, toAbsoluteUrl } from "@/lib/seo";
 // import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import ThemeToggle from "@/components/general/ThemeToggle";
 import VisualFallback from "@/components/visuals/VisualFallback";
@@ -38,6 +40,36 @@ import AnimatedCountSection from "@/components/visuals/AnimatedCountSection";
 import FaqSection from "@/components/visuals/FaqSection";
 import NavBar from "@/components/general/NavBar";
 import BottomNav from "@/components/general/BottomNav";
+
+export const metadata: Metadata = {
+  title: "Surf forecasts, maps, and beach features",
+  description:
+    "Live surf conditions, beach maps, and feature-rich spot guides for coastal breaks.",
+  openGraph: {
+    title: "Surf forecasts, maps, and beach features",
+    description:
+      "Live surf conditions, beach maps, and feature-rich spot guides for coastal breaks.",
+    url: "/",
+    images: [
+      {
+        url: toAbsoluteUrl("/logo.png"),
+        width: 512,
+        height: 512,
+        alt: "Waves and Waders logo",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary",
+    title: "Surf forecasts, maps, and beach features",
+    description:
+      "Live surf conditions, beach maps, and feature-rich spot guides for coastal breaks.",
+    images: [toAbsoluteUrl("/logo.png")],
+  },
+  alternates: {
+    canonical: "/",
+  },
+};
 
 // const Canvas = dynamic(
 //   () => import("@react-three/fiber").then((m) => m.Canvas),
@@ -193,6 +225,7 @@ function StarRating({ value }: { value: number }) {
 }
 
 const Home = () => {
+  const baseUrl = getSiteUrl();
   // Search + feature chips
   // const [query, setQuery] = useState("");
   // const [featureFilters, setFeatureFilters] = useState<Set<string>>(new Set());
@@ -316,12 +349,12 @@ const Home = () => {
             __html: JSON.stringify({
               "@context": "https://schema.org",
               "@type": "WebSite",
-              name: "Waves&Waders",
-              url: "https://example.com",
+              name: "Waves and Waders",
+              url: baseUrl,
               potentialAction: {
                 "@type": "SearchAction",
-                target: "https://example.com/search?q={query}",
-                "query-input": "required name=query",
+                target: `${baseUrl}/beaches?search={search_term_string}`,
+                "query-input": "required name=search_term_string",
               },
             }),
           }}

@@ -1,9 +1,18 @@
 import { redirect } from "next/navigation";
+import type { Metadata } from "next";
 
 import BeachCard from "@/components/general/BeachCard";
 import { getServerSupabase } from "@/lib/supabaseServer";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = {
+  title: "Favorite beaches",
+  description: "Saved beaches and surf spots for your account.",
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 interface FavoriteBeachRow {
   id: string;

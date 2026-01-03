@@ -7,10 +7,33 @@ import { LazyLoadMap } from "@/components/general/LazyLoad/LazyLoadMap";
 import PathStyleWrapper from "@/components/general/PathStyleWrapper";
 import Footer from "@/components/general/Footer";
 import FavoriteIdsHydrator from "@/components/general/FavoriteIdsHydrator";
+import { toAbsoluteUrl } from "@/lib/seo";
 
 export const metadata: Metadata = {
-  title: "Search surf spots | Waves and Waders",
-  description: "Find your local surf spots and beaches",
+  title: "Search surf spots",
+  description: "Find surf spots, beach features, and nearby breaks on the map.",
+  openGraph: {
+    title: "Search surf spots",
+    description: "Find surf spots, beach features, and nearby breaks on the map.",
+    url: "/beaches",
+    images: [
+      {
+        url: toAbsoluteUrl("/logo.png"),
+        width: 512,
+        height: 512,
+        alt: "Waves and Waders logo",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary",
+    title: "Search surf spots",
+    description: "Find surf spots, beach features, and nearby breaks on the map.",
+    images: [toAbsoluteUrl("/logo.png")],
+  },
+  alternates: {
+    canonical: "/beaches",
+  },
 };
 
 export default async function BeachesPage() {

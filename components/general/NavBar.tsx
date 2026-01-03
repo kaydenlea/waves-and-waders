@@ -1,13 +1,8 @@
 import Link from "next/link";
+import Image from "next/image";
 import SearchBar from "./SearchBar";
 import ThemeToggle from "./ThemeToggle";
-import {
-  AlignJustify,
-  Heart,
-  MapPinned,
-  SlidersHorizontal,
-  Waves,
-} from "lucide-react";
+import { AlignJustify, Heart, MapPinned, SlidersHorizontal } from "lucide-react";
 // Popover handled inside client subcomponent
 import { UserMenu } from "@/components/auth/UserMenu";
 import { cn } from "@/lib/utils";
@@ -124,8 +119,15 @@ const NavBar = ({
               : "inline-flex"
           )}
         >
-          <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-cyan-300 to-blue-500 text-foreground shadow-lg shadow-cyan-500/20">
-            <Waves className="h-6 w-6" aria-hidden />
+          <div className="relative h-10 w-10 overflow-hidden rounded-xl">
+            <Image
+              src="/logo.png"
+              alt="Waves & Waders logo"
+              fill
+              sizes="40px"
+              className="object-contain"
+              priority
+            />
           </div>
           <span
             className={cn(
