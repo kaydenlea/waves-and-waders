@@ -22,7 +22,9 @@ import { getSiteUrl, toAbsoluteUrl } from "@/lib/seo";
 
 const buildFeatureList = (source: Record<string, unknown> | null) => {
   if (!source) return [];
-  return FEATURE_COLUMNS.filter((key) => Boolean(source[key]))
+  return FEATURE_COLUMNS.filter(
+    (key) => key !== "RSTRCTNS" && Boolean(source[key])
+  )
     .map((key) => getFeatureDisplayName(key))
     .filter((label) => Boolean(label));
 };

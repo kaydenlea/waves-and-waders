@@ -981,6 +981,7 @@ const Summary = ({
               "LIFEGUARD",
             ];
       for (const key of keys) {
+        if (key === "RSTRCTNS") continue;
         const val = (beachDetails as unknown as Record<string, unknown>)[key];
         if (val === true) {
           const label =
