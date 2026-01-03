@@ -277,7 +277,10 @@ function DirectionBadge({
           layout === "grid" && "justify-self-center",
           !showMap &&
             variant === "half" &&
-            "@min-4xl:hidden @min-5xl:inline-block"
+            "@min-4xl:hidden @min-5xl:inline-block",
+          showMap &&
+            variant === "half" &&
+            "@min-4xl:hidden @min-6xl:inline-block"
           // !showMap &&
           //   !showSecondarySwells &&
           //   "@min-5xl:hidden @min-6xl:inline-block"
@@ -2787,7 +2790,10 @@ const StatTable = ({
                           ? stableSelectedHour ?? selectedHour ?? null
                           : selectedHour ?? null;
                         if (effectiveHour != null) {
-                          const bucket = pickClosestBucket(hours, effectiveHour);
+                          const bucket = pickClosestBucket(
+                            hours,
+                            effectiveHour
+                          );
                           isSelectedHour =
                             bucket != null && entry.index === bucket;
                         }

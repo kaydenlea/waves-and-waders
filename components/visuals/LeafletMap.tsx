@@ -2154,7 +2154,6 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
 
   type MarkerDomGuardsState = {
     element: HTMLElement | null;
-    stopPointerDown: ((event: Event) => void) | null;
     preventDragStart: ((event: Event) => void) | null;
   };
 
@@ -2163,7 +2162,6 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       | MarkerDomGuardsState
       | undefined) ?? {
       element: null,
-      stopPointerDown: null,
       preventDragStart: null,
     };
 
@@ -2173,32 +2171,13 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       return;
     }
 
-    if (state.element && state.stopPointerDown && state.preventDragStart) {
-      state.element.removeEventListener(
-        "pointerdown",
-        state.stopPointerDown,
-        true
-      );
-      state.element.removeEventListener(
-        "mousedown",
-        state.stopPointerDown,
-        true
-      );
-      state.element.removeEventListener(
-        "touchstart",
-        state.stopPointerDown,
-        true
-      );
+    if (state.element && state.preventDragStart) {
       state.element.removeEventListener(
         "dragstart",
         state.preventDragStart,
         true
       );
     }
-
-    const stopPointerDown = (event: Event) => {
-      event.stopPropagation();
-    };
 
     const preventDragStart = (event: Event) => {
       event.preventDefault();
@@ -2212,14 +2191,11 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     // Prevent native "drag" ghost image (esp. Safari) when pointer moves slightly during click.
     (nextElement.style as any).WebkitUserDrag = "none";
 
-    // Capture phase ensures we block map dragging without interfering with Leaflet's click handling.
-    nextElement.addEventListener("pointerdown", stopPointerDown, true);
-    nextElement.addEventListener("mousedown", stopPointerDown, true);
-    nextElement.addEventListener("touchstart", stopPointerDown, true);
+    // Only guard against native element dragging; don't stop pointer/mouse/touch
+    // propagation or Leaflet may not receive the events it needs to dispatch clicks.
     nextElement.addEventListener("dragstart", preventDragStart, true);
 
     state.element = nextElement;
-    state.stopPointerDown = stopPointerDown;
     state.preventDragStart = preventDragStart;
     (marker as any)._wwDomGuardsState = state;
   }, []);
@@ -3220,35 +3196,15 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
                 | MarkerDomGuardsState
                 | null
                 | undefined;
-              if (
-                !state?.element ||
-                !state.stopPointerDown ||
-                !state.preventDragStart
-              ) {
+              if (!state?.element || !state.preventDragStart) {
                 return;
               }
-              state.element.removeEventListener(
-                "pointerdown",
-                state.stopPointerDown,
-                true
-              );
-              state.element.removeEventListener(
-                "mousedown",
-                state.stopPointerDown,
-                true
-              );
-              state.element.removeEventListener(
-                "touchstart",
-                state.stopPointerDown,
-                true
-              );
               state.element.removeEventListener(
                 "dragstart",
                 state.preventDragStart,
                 true
               );
               state.element = null;
-              state.stopPointerDown = null;
               state.preventDragStart = null;
               (marker as any)._wwDomGuardsState = state;
             });
