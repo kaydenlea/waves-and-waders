@@ -207,6 +207,7 @@ export default function Dashboard({
   setMeta,
   setRows,
   reset,
+  allowAnonymous = false,
 }: {
   type?: DashboardType;
   meta: Partial<Record<WidgetId, WidgetMeta>>;
@@ -220,6 +221,7 @@ export default function Dashboard({
   ) => void;
   setRows: (next: Row[] | ((prev: Row[]) => Row[])) => void;
   reset: () => void;
+  allowAnonymous?: boolean;
 }) {
   const { session } = useSessionContext();
   const [activeWidget, setActiveWidget] = useState<WidgetId | null>(null);
@@ -253,7 +255,7 @@ export default function Dashboard({
     () => rows.filter((r) => r.items.some((id) => meta[id]?.visible)),
     [rows, meta]
   );
-  if (!session) {
+  if (!session && !allowAnonymous) {
     return (
       <div className="mt-3 overflow-hidden @container">
         <div className="mx-1 my-2 rounded-2xl border border-border/40 bg-highlight-4 p-6 shadow-sm">

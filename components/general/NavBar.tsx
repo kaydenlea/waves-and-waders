@@ -106,7 +106,7 @@ const NavBar = ({
                 "py-6 @min-md:py-7",
                 "bg-transparent",
                 "supports-[backdrop-filter]:backdrop-blur-xl",
-                "border border-border/1",
+                "border border-border/1 rounded-t-none rounded-b-lg",
               ]
             : [
                 "@min-4xl:bg-background py-3",

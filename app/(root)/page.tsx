@@ -20,7 +20,6 @@ import {
   ShieldCheck,
   Zap,
   Waves,
-  Compass,
   Sparkles,
   Trophy,
   Map,
@@ -29,7 +28,6 @@ import {
 } from "lucide-react";
 import Footer from "@/components/general/Footer";
 import { LazyLoadLogoLoop } from "@/components/general/LazyLoad/LazyLoadLogoLoop";
-import { LazyLoadScrollSection } from "@/components/general/LazyLoad/LazyLoadScrollSection";
 import { LazyLoadCardsSection } from "@/components/general/LazyLoad/LazyLoadCardsSection";
 import { LazyLoadSpotlightCard } from "@/components/general/LazyLoad/LazyLoadSpotlightCard";
 import { Description } from "@/components/visuals/AnimatedCardsSection";
@@ -37,6 +35,7 @@ import AnimatedCountSection from "@/components/visuals/AnimatedCountSection";
 import FaqSection from "@/components/visuals/FaqSection";
 import NavBar from "@/components/general/NavBar";
 import BottomNav from "@/components/general/BottomNav";
+import PersonalizeForecastsSection from "@/components/marketing/PersonalizeForecastsSection";
 
 export const metadata: Metadata = {
   title: "Surf forecasts, maps, and beach features",
@@ -495,38 +494,7 @@ const Home = () => {
             </div>
           </div>
         </section>
-        <section className="relative flex flex-col xl:flex-row mt-16 mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="flex-1 p-2 space-y-4 flex flex-col items-center xl:items-start mb-16 xl:mb-0">
-            <h2 className="text-4xl sm:text-5xl font-semibold">
-              Personalize your forecasts.
-            </h2>
-            <p className="text-muted-foreground w-9/10 sm:w-3/4 md:w-3/5 lg:w-2/5 xl:w-5/6 text-center xl:text-start">
-              Decide what conditions you want to see in your forecasts. Simplify
-              your dashboard to what you need.
-            </p>
-            <div className="mt-6 flex flex-wrap items-center gap-3">
-              <div className="flex flex-row flex-wrap items-center justify-center w-full gap-2 whitespace-nowrap">
-                <Link
-                  href="/beaches#content"
-                  className="group inline-flex items-center gap-2 rounded-full bg-foreground border border-transparent px-4 py-3 font-medium text-background shadow-xl transition hover:shadow-cyan-500/20"
-                >
-                  <Compass className="h-4 w-4" /> Explore
-                  <span className="hidden md:block md:-ml-1">nearby</span>
-                </Link>
-                <Link
-                  href="/favorites"
-                  className="shadow-xl inline-flex items-center gap-2 rounded-full border border-border/40 bg-highlight-1 px-4 py-3 font-medium text-foreground/90 backdrop-blur transition hover:shadow-cyan-500/20"
-                >
-                  <Heart className="h-4 w-4" /> Saved
-                  <span className="hidden md:block md:-ml-1">spots</span>
-                </Link>
-              </div>
-            </div>
-          </div>
-          <div className="flex-1 flex w-full">
-            <LazyLoadScrollSection />
-          </div>
-        </section>
+        <PersonalizeForecastsSection />
         <section className="relative flex flex-col xl:flex-row gap-10 sm:gap-50 md:gap-55 xl:gap-65 mt-30 mx-auto max-w-7xl px-4 sm:px-6 pb-10 overflow-hidden">
           <Description className="xl:hidden" />
           <div className="flex-1 relative xl:pl-10 h-200 w-full flex -ml-7 justify-center scale-[0.5] sm:scale-[0.75] md:scale-[1]">

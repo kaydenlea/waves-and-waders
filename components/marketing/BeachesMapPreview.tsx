@@ -109,7 +109,7 @@ export default function BeachesMapPreview({
           <div className="pointer-events-none absolute inset-x-0 bottom-4 z-[1200] flex justify-center px-4">
             <div className="max-w-[36rem] rounded-2xl border border-border/60 bg-background/90 px-4 py-2.5 text-center text-xs font-medium text-foreground/85 shadow-sm backdrop-blur">
               Hold <span className="font-semibold">Ctrl</span> + scroll (or
-              pinch on trackpad) to zoom. Tap map to interact. Use + / − to zoom
+              pinch on trackpad) to zoom. Tap map to interact. Use + / - to zoom
               on mobile.
             </div>
           </div>

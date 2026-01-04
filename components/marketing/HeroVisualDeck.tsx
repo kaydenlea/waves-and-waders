@@ -710,8 +710,6 @@ export default function HeroVisualDeck({
       COUNTY: previewCounty,
       PARKING: true,
       RESTROOMS: true,
-      DOG_FRIEND: true,
-      SNDY_BEACH: true,
       SURFING: true,
     }),
     [previewCounty]
@@ -834,9 +832,9 @@ export default function HeroVisualDeck({
         style={{
           width: 540,
           height: 760,
-          transform: `translate(-63%, -63%) scale(${deckScale})`,
+          transform: `translate(-56%, -56%) scale(${deckScale})`,
           transformOrigin: "center",
-          scale: 0.8,
+          scale: 0.9,
         }}
       >
         <div className="absolute -inset-6 rounded-[46px] bg-gradient-to-br from-cyan-500/12 via-transparent to-indigo-500/12 blur-2xl ww-hero-float motion-reduce:animate-none" />
