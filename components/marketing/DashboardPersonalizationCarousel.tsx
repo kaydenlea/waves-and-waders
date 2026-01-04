@@ -3,7 +3,7 @@
 import * as React from "react";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useReducedMotion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { cn } from "@/lib/utils";
 
 import editOverviewLight from "@/public/demo_pictures/edit_overview_light.png";
@@ -69,6 +69,7 @@ function CarouselMediaFrame({
           sizes={sizes}
           className="object-cover object-top dark:hidden"
           placeholder="blur"
+          quality={95}
         />
         <Image
           src={image.dark}
@@ -77,6 +78,7 @@ function CarouselMediaFrame({
           sizes={sizes}
           className="hidden object-cover object-top dark:block"
           placeholder="blur"
+          quality={95}
         />
       </div>
     </div>
@@ -296,14 +298,30 @@ export default function DashboardPersonalizationCarousel() {
           </div>
         </div>
 
-        <CarouselMediaFrame
-          alt={active.title}
-          image={active.image}
-          onInteract={() => {
-            setInteractingFor(2200);
-            resetCycle();
-          }}
-        />
+        <div className="relative">
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={active.key}
+              initial={reducedMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={reducedMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: -8 }}
+              transition={
+                reducedMotion
+                  ? { duration: 0 }
+                  : { duration: 0.28, ease: [0.16, 1, 0.3, 1] }
+              }
+            >
+              <CarouselMediaFrame
+                alt={active.title}
+                image={active.image}
+                onInteract={() => {
+                  setInteractingFor(2200);
+                  resetCycle();
+                }}
+              />
+            </motion.div>
+          </AnimatePresence>
+        </div>
       </div>
 
       <div className="absolute inset-x-0 bottom-0 z-10 flex items-center justify-between gap-2 px-3 pb-3">

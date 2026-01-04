@@ -16,20 +16,20 @@ export default function PersonalizeForecastsSection({
         className
       )}
     >
-      <div className="grid grid-cols-1 items-start gap-10 xl:grid-cols-12 xl:gap-12">
-        <div className="xl:col-span-5">
+      <div className="grid grid-cols-1 items-start justify-items-center gap-10 xl:grid-cols-12 xl:justify-items-stretch xl:gap-12">
+        <div className="w-full max-w-xl xl:col-span-5 xl:max-w-none">
           <h2
             id="personalize-forecasts-heading"
-            className="text-balance text-4xl font-semibold tracking-tight text-foreground sm:text-5xl"
+            className="text-balance text-center xl:text-left text-4xl font-semibold tracking-tight text-foreground sm:text-5xl"
           >
             Personalize your forecasts.
           </h2>
-          <p className="mt-4 max-w-prose text-pretty text-base text-muted-foreground sm:text-lg">
+          <p className="mt-4 max-w-prose text-pretty text-center xl:text-left text-base text-muted-foreground sm:text-lg mx-auto xl:mx-0">
             Use Edit dashboard to drag and drop widgets, and toggle what you
             want to see. Keep separate layouts for Overview and Forecast.
           </p>
 
-          <div className="mt-6 flex flex-wrap items-center gap-3">
+          <div className="mt-6 flex flex-wrap items-center justify-center xl:justify-start gap-3">
             <Link
               href="/beaches#content"
               className={cn(
@@ -52,7 +52,7 @@ export default function PersonalizeForecastsSection({
             </a>
           </div>
 
-          <div className="mt-6 flex flex-wrap gap-2 text-xs font-semibold text-foreground/80">
+          <div className="mt-6 flex flex-wrap justify-center xl:justify-start gap-2 text-xs font-semibold text-foreground/80">
             <span className="rounded-full border border-border/50 bg-highlight-5/60 px-3 py-1">
               Drag & drop
             </span>
@@ -65,11 +65,10 @@ export default function PersonalizeForecastsSection({
           </div>
         </div>
 
-        <div id="personalize-demo" className="xl:col-span-7">
-          <DashboardPersonalizationPreview />
+        <div id="personalize-demo" className="w-full max-w-[46rem] xl:col-span-7 xl:max-w-none">
+          <DashboardPersonalizationPreview className="mx-auto w-full max-w-[46rem] xl:max-w-none" />
         </div>
       </div>
     </section>
   );
 }
-

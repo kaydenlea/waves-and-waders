@@ -495,12 +495,15 @@ const Home = () => {
           </div>
         </section>
         <PersonalizeForecastsSection />
-        <section className="relative flex flex-col xl:flex-row gap-10 sm:gap-50 md:gap-55 xl:gap-65 mt-30 mx-auto max-w-7xl px-4 sm:px-6 pb-10 overflow-hidden">
-          <Description className="xl:hidden" />
-          <div className="flex-1 relative xl:pl-10 h-200 w-full flex -ml-7 justify-center scale-[0.5] sm:scale-[0.75] md:scale-[1]">
-            <LazyLoadCardsSection />
+        <section className="relative mx-auto mt-25 w-full max-w-7xl px-4 pb-10 sm:px-6 overflow-hidden">
+          <div className="grid grid-cols-1 items-start justify-items-center gap-10 xl:grid-cols-12 xl:justify-items-stretch xl:gap-12">
+            <div className="w-full max-w-xl xl:col-span-5 xl:max-w-none order-1 xl:order-2">
+              <Description />
+            </div>
+            <div className="w-full max-w-[46rem] xl:col-span-7 xl:max-w-none order-2 xl:order-1 min-w-0">
+              <LazyLoadCardsSection />
+            </div>
           </div>
-          <Description className="hidden xl:flex" />
         </section>
         {/* <section
           id="nearby"
