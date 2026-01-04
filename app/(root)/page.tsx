@@ -8,9 +8,7 @@ import type { Metadata } from "next";
 import { generateBeachUrl } from "@/lib/supabase";
 import { getSiteUrl, toAbsoluteUrl } from "@/lib/seo";
 // import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import ThemeToggle from "@/components/general/ThemeToggle";
-import VisualFallback from "@/components/visuals/VisualFallback";
-import { LazyLoadOceanScene } from "@/components/general/LazyLoad/LazyLoadOceanScene";
+import Hero from "@/components/marketing/Hero";
 import BeachCard from "@/components/general/BeachCard";
 
 import type { Beach } from "@/components/general/BeachCard";
@@ -339,9 +337,7 @@ const Home = () => {
 
   return (
     <div className="touch-pan-y">
-      <header className="fixed top-0 z-40 w-full bg-background/80 backdrop-blur rounded-b-md">
-        <NavBar landingPage />
-      </header>
+      <NavBar landingPage />
       <main className="relative min-h-screen bg-background text-foreground selection:bg-cyan-300/40">
         <script
           type="application/ld+json"
@@ -360,62 +356,7 @@ const Home = () => {
           }}
         />
         <div className="relative pb-2 @min-5xl:pb-8">
-          <div className="absolute w-full h-full mx-auto px-5 md:px-10 pt-28">
-            <div className="w-full h-full bg-black/80 dark:bg-blue rounded-3xl">
-              <LazyLoadOceanScene />
-            </div>
-          </div>
-          {/* <Image
-            className="absolute z-0 rounded-b-2xl"
-            src="/surf2.png"
-            alt="Surf background"
-            width={1000}
-            height={1000}
-            priority
-          /> */}
-          <section className="@container relative mx-auto grid max-w-7xl grid-cols-1 items-center gap-10 px-6 py-20 sm:px-6 md:py-35">
-            <div className="mt-[6rem] lg:mt-[7rem]">
-              <div className="flex justify-center mb-4">
-                <Badge icon={Sparkles}>All-in-one forecasts</Badge>
-              </div>
-              <h1 className="flex flex-col text-center text-balance text-[2.5rem] font-semibold leading-[1.05] tracking-tight sm:text-6xl md:text-7xl xl:text-8xl text-white">
-                <span>Know the ocean</span>
-                <span className="pb-2 bg-gradient-to-r from-cyan-200 to-cyan-400 bg-clip-text text-transparent">
-                  before you go
-                </span>
-              </h1>
-              <p className="mx-auto text-center mt-4 text-md md:text-xl max-w-sm lg:max-w-full text-white">
-                Live surf conditions. Ultra-fast search. Personalized forecast.
-              </p>
-              <div className="mt-6 @min-4xl:mt-12 flex flex-wrap items-center gap-3">
-                <div className="flex flex-row flex-wrap items-center justify-center w-full gap-5 whitespace-nowrap">
-                  <Link
-                    href="/beaches"
-                    className="text-base @min-4xl:text-lg group inline-flex items-center gap-2 rounded-full bg-foreground border border-transparent px-4 py-3 font-medium text-background shadow-xl transition hover:shadow-cyan-500/20"
-                  >
-                    <Compass className="h-5 w-5" /> Explore
-                    <span className="hidden md:block md:-ml-1">nearby</span>
-                  </Link>
-                  <Link
-                    href="/favorites"
-                    className="text-base @min-4xl:text-lg shadow-xl inline-flex items-center gap-2 rounded-full border border-border/40 bg-highlight-1 px-4 py-3 font-medium text-foreground/90 backdrop-blur transition hover:shadow-cyan-500/20"
-                  >
-                    <Heart className="h-5 w-5" /> Saved
-                    <span className="hidden md:block md:-ml-1">spots</span>
-                  </Link>
-                </div>
-              </div>
-            </div>
-
-            {/* <Image
-              className="rounded-b-2xl"
-              src="/surf2.png"
-              alt="Surf background"
-              width={900}
-              height={900}
-              priority
-            /> */}
-          </section>
+          <Hero />
 
           {/* <section
             id="search"

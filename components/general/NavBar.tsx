@@ -2,7 +2,12 @@ import Link from "next/link";
 import Image from "next/image";
 import SearchBar from "./SearchBar";
 import ThemeToggle from "./ThemeToggle";
-import { AlignJustify, Heart, MapPinned, SlidersHorizontal } from "lucide-react";
+import {
+  AlignJustify,
+  Heart,
+  MapPinned,
+  SlidersHorizontal,
+} from "lucide-react";
 // Popover handled inside client subcomponent
 import { UserMenu } from "@/components/auth/UserMenu";
 import { cn } from "@/lib/utils";
@@ -95,14 +100,20 @@ const NavBar = ({
       <nav
         aria-label="primary navigation"
         className={cn(
-          "@min-4xl:py-11 @min-4xl:h-27.5 flex items-center justify-between @min-4xl:bg-background rounded-3xl @min-4xl:rounded-2xl @min-4xl:rounded-t-none w-full",
-          !landingPage
-            ? "@min-4xl:border @min-4xl:border-border/70 @min-4xl:shadow-none py-3"
-            : "border border-border/0 py-8",
+          "@min-4xl:py-11 @min-4xl:h-27.5 flex items-center justify-between rounded-3xl @min-4xl:rounded-2xl @min-4xl:rounded-t-none w-full",
+          landingPage
+            ? [
+                "py-6 @min-md:py-7",
+                "bg-transparent",
+                "supports-[backdrop-filter]:backdrop-blur-xl",
+                "border border-border/1",
+              ]
+            : [
+                "@min-4xl:bg-background py-3",
+                "@min-4xl:border @min-4xl:border-border/70 @min-4xl:shadow-none",
+              ],
           beachesPage && "shadow-even",
-          !landingPage && !beachesPage
-            ? "px-2 @min-4xl:px-6"
-            : "px-6 bg-background"
+          !landingPage && !beachesPage ? "px-2 @min-4xl:px-6" : "px-6"
         )}
       >
         {/* <Link href="/" className="p-3 icon-button">

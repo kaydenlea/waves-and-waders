@@ -52,6 +52,68 @@
   .shadow-no-top {
     @apply shadow-[0_1px_3px_rgba(0,0,0,0.25)];
   }
+
+  @keyframes ww-fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes ww-float {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0);
+    }
+    50% {
+      transform: translate3d(0, -10px, 0);
+    }
+  }
+
+  @keyframes ww-blob-drift {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    50% {
+      transform: translate3d(12px, -16px, 0) scale(1.03);
+    }
+  }
+
+  .ww-hero-reveal {
+    animation: ww-fade-up 650ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .ww-hero-float {
+    animation: ww-float 10s ease-in-out infinite;
+    will-change: transform;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+
+  .ww-hero-blob-1 {
+    animation: ww-blob-drift 18s ease-in-out infinite;
+  }
+
+  .ww-hero-blob-2 {
+    animation: ww-blob-drift 22s ease-in-out infinite;
+  }
+
+  .ww-hero-blob-3 {
+    animation: ww-blob-drift 26s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ww-hero-blob-1,
+    .ww-hero-blob-2,
+    .ww-hero-blob-3 {
+      animation: none !important;
+    }
+  }
 }
 
 @theme inline {

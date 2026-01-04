@@ -6,6 +6,8 @@ import { cn, getPacificDayRange } from "@/lib/utils";
 import {
   Sun,
   MoonStar,
+  ChevronLeft,
+  ChevronRight,
   Cloud as CloudIcon,
   CloudDrizzle,
   CloudRain,
@@ -1046,11 +1048,13 @@ const MoonStat = ({
   data,
   showMap,
   isFull,
+  layout,
 }: {
   label: string;
   data: string | number;
   showMap: boolean;
   isFull?: boolean;
+  layout?: string;
 }) => {
   const info = getMoonPhaseInfo(data);
   const emoji = getMoonPhaseEmoji(info.kind);
@@ -1082,24 +1086,36 @@ const MoonStat = ({
         <div className="flex flex-col leading-[1.05]">
           <span
             className={cn(
-              "text-[0.7rem] @min-sm:text-[0.82rem] font-semibold tracking-tight",
-              !showMap && "@min-4xl:text-[0.75rem] @min-5xl:text-[0.82rem]",
+              "font-semibold tracking-tight",
+              !showMap &&
+                layout !== "carousel" &&
+                "@min-4xl:text-[0.75rem] @min-5xl:text-[0.82rem]",
               showMap &&
                 !isFull &&
+                layout !== "carousel" &&
                 "@min-4xl:text-[0.7rem] @min-6xl:text-[0.82rem]",
-              isFull && "@min-6xl:text-[0.75rem]"
+              isFull && layout !== "carousel" && "@min-6xl:text-[0.75rem]",
+              layout === "carousel"
+                ? "text-[0.7rem]"
+                : "text-[0.7rem] @min-sm:text-[0.82rem]"
             )}
           >
             {info.lines[0]}
           </span>
           <span
             className={cn(
-              "text-[0.7rem] @min-sm:text-[0.82rem] font-semibold tracking-tight",
-              !showMap && "@min-4xl:text-[0.75rem] @min-5xl:text-[0.82rem]",
+              "font-semibold tracking-tight",
+              !showMap &&
+                layout !== "carousel" &&
+                "@min-4xl:text-[0.75rem] @min-5xl:text-[0.82rem]",
               showMap &&
                 !isFull &&
+                layout !== "carousel" &&
                 "@min-4xl:text-[0.7rem] @min-6xl:text-[0.82rem]",
-              isFull && "@min-6xl:text-[0.75rem]"
+              isFull && layout !== "carousel" && "@min-6xl:text-[0.75rem]",
+              layout === "carousel"
+                ? "text-[0.7rem]"
+                : "text-[0.7rem] @min-sm:text-[0.82rem]"
             )}
           >
             {info.lines[1]}
@@ -1400,6 +1416,7 @@ const PressureStat = ({
   maxScale,
   isFull,
   showMap,
+  layout,
 }: {
   data: { value: number; unit: string; trend?: Trend };
   label: string;
@@ -1407,6 +1424,7 @@ const PressureStat = ({
   maxScale?: number;
   isFull?: boolean;
   showMap?: boolean;
+  layout?: string;
 }) => {
   // Use fixed meteorological scale for accurate low/normal/high pressure display
   // Below 29.8 = low, 29.92 = normal, 30.2 = high
@@ -1463,21 +1481,32 @@ const PressureStat = ({
         <>
           <span
             className={cn(
-              "text-[1.15rem] @min-sm:text-[1.3rem] font-semibold tabular-nums tracking-tight text-foreground/85",
+              "font-semibold tabular-nums tracking-tight text-foreground/85",
               showMap &&
                 !isFull &&
+                layout !== "carousel" &&
                 "@min-4xl:text-[1.15rem] @min-6xl:text-[1.3rem]",
-              isFull && "@min-6xl:text-[1.15rem]"
+              isFull && layout !== "carousel" && "@min-6xl:text-[1.15rem]",
+              layout === "carousel"
+                ? "text-[1.15rem]"
+                : "text-[1.15rem] @min-sm:text-[1.3rem]"
             )}
           >
             {formattedValue}
           </span>
           <span
             className={cn(
-              "hidden @min-sm:block text-[0.72rem] font-medium text-muted-foreground",
-              isFull && "@min-6xl:hidden",
-              !showMap && !isFull && "@min-4xl:hidden @min-6xl:block",
-              showMap && !isFull && "@min-4xl:hidden @min-6xl:inline"
+              "text-[0.72rem] font-medium text-muted-foreground",
+              isFull && layout !== "carousel" && "@min-6xl:hidden",
+              !showMap &&
+                !isFull &&
+                layout !== "carousel" &&
+                "@min-4xl:hidden @min-6xl:block",
+              showMap &&
+                !isFull &&
+                layout !== "carousel" &&
+                "@min-4xl:hidden @min-6xl:inline",
+              layout === "carousel" ? "hidden" : "hidden @min-sm:block"
             )}
           >
             {displayUnit}
@@ -1492,18 +1521,28 @@ const PressureStat = ({
             <>
               <span
                 className={cn(
-                  "hidden @min-sm:inline",
-                  !showMap && "@min-4xl:hidden @min-6xl:inline",
-                  showMap && !isFull && "@min-4xl:hidden @min-6xl:inline"
+                  !showMap &&
+                    layout !== "carousel" &&
+                    "@min-4xl:hidden @min-6xl:inline",
+                  showMap &&
+                    !isFull &&
+                    layout !== "carousel" &&
+                    "@min-4xl:hidden @min-6xl:inline",
+                  layout === "carousel" ? "hidden" : "hidden @min-sm:inline"
                 )}
               >
                 {trendLabel}
               </span>
               <span
                 className={cn(
-                  "inline @min-sm:hidden",
-                  !showMap && "@min-4xl:inline @min-6xl:hidden",
-                  showMap && !isFull && "@min-4xl:inline @min-6xl:hidden"
+                  layout === "carousel" ? "inline" : "inline @min-sm:hidden",
+                  !showMap &&
+                    layout !== "carousel" &&
+                    "@min-4xl:inline @min-6xl:hidden",
+                  showMap &&
+                    !isFull &&
+                    layout !== "carousel" &&
+                    "@min-4xl:inline @min-6xl:hidden"
                 )}
               >
                 {displayUnit}
@@ -1622,12 +1661,14 @@ const TideStat = ({
   maxAbs,
   isFull,
   showMap,
+  layout,
 }: {
   data: { value: number | string; unit: string; pct?: number; trend?: Trend };
   label: string;
   maxAbs?: number;
   isFull?: boolean;
   showMap?: boolean;
+  layout?: string;
 }) => {
   const numeric =
     typeof data.value === "number"
@@ -1687,10 +1728,15 @@ const TideStat = ({
           {stage}{" "}
           <span
             className={cn(
-              "hidden @min-sm:inline-block",
-              isFull && "@min-6xl:hidden",
-              !showMap && "@min-4xl:hidden @min-5xl:inline-block",
-              !isFull && showMap && "@min-4xl:hidden @min-6xl:inline-block"
+              layout === "carousel" ? "hidden" : "hidden @min-sm:inline-block",
+              isFull && layout !== "carousel" && "@min-6xl:hidden",
+              !showMap &&
+                layout !== "carousel" &&
+                "@min-4xl:hidden @min-5xl:inline-block",
+              !isFull &&
+                showMap &&
+                layout !== "carousel" &&
+                "@min-4xl:hidden @min-6xl:inline-block"
             )}
           >
             / {trendLabel}
@@ -1935,8 +1981,11 @@ const Highlights = ({
   hour,
   startIdx = 0,
   endIdx = 7,
-  isFull,
+  isFull = false,
   forecastRows,
+  previewData,
+  layout = "grid",
+  carouselPageSize = 3,
 }: {
   beachId?: string;
   date?: Date;
@@ -1945,7 +1994,31 @@ const Highlights = ({
   endIdx?: number;
   isFull?: boolean;
   forecastRows?: ForecastData[] | null;
+  previewData?: {
+    county: string | null;
+    tides: TidePoint[];
+    dailyConditions: DailyConditions | null;
+    current?: ForecastData | null;
+  };
+  layout?: "grid" | "carousel";
+  carouselPageSize?: number;
 }) => {
+  const usingPreview = Boolean(previewData);
+  const [carouselPage, setCarouselPage] = useState(0);
+  const pageSize = Math.max(1, Math.min(8, Math.round(carouselPageSize)));
+
+  useEffect(() => {
+    if (layout !== "carousel") return;
+    setCarouselPage(0);
+  }, [
+    layout,
+    beachId,
+    hour,
+    startIdx,
+    endIdx,
+    date instanceof Date ? date.getTime() : null,
+  ]);
+
   // Calculate time windows (DST-aware for Pacific timezone)
   const { startWindow, endWindow } = useMemo(() => {
     const { start, end } = getPacificDayRange(
@@ -1955,13 +2028,22 @@ const Highlights = ({
   }, [date]);
 
   // Fetch beach data
-  const { data: beach } = useBeachById(beachId ?? null);
-  const resolvedId = beach?.id ?? beachId;
+  const { data: beach } = useBeachById(
+    beachId ?? null,
+    Boolean(beachId) && !usingPreview
+  );
+  const resolvedId = usingPreview ? beachId ?? null : beach?.id ?? beachId;
 
   const { showMap } = useMapFilters();
 
   // Fetch all data with React Query
-  const { data: current } = useCurrentConditions(resolvedId ?? null);
+  const { data: currentFromQuery } = useCurrentConditions(
+    resolvedId ?? null,
+    Boolean(resolvedId) && !usingPreview
+  );
+  const current = usingPreview
+    ? previewData?.current ?? null
+    : currentFromQuery;
   // TODO(overview-perf): When ForecastDataContext is present, rely on the shared daily forecast
   // rows instead of starting a separate React Query forecast pipeline here.
   const hasPrefetched = Boolean(forecastRows?.length);
@@ -1969,24 +2051,32 @@ const Highlights = ({
     resolvedId ?? null,
     startWindow,
     endWindow,
-    Boolean(resolvedId) && !hasPrefetched
+    Boolean(resolvedId) && !hasPrefetched && !usingPreview
   );
   const forecast = useMemo<ForecastData[]>(
     () =>
       hasPrefetched ? forecastRows ?? [] : (fetchedForecast as ForecastData[]),
     [hasPrefetched, forecastRows, fetchedForecast]
   );
-  const { data: tides = [], isLoading: tidesLoading } = useBeachTides(
+  const { data: tidesFromQuery = [], isLoading: tidesLoading } = useBeachTides(
     resolvedId ?? null,
     startWindow,
-    endWindow
+    endWindow,
+    Boolean(resolvedId) && !usingPreview
   );
+  const tides = usingPreview ? previewData?.tides ?? [] : tidesFromQuery;
 
-  const county = beach?.COUNTY ?? null;
-  const { data: daily, isLoading: dailyLoading } = useDailyConditions(
+  const county = usingPreview
+    ? previewData?.county ?? null
+    : beach?.COUNTY ?? null;
+  const { data: dailyFromQuery, isLoading: dailyLoading } = useDailyConditions(
     county,
-    date instanceof Date ? date : undefined
+    date instanceof Date ? date : undefined,
+    Boolean(county) && !usingPreview
   ) as { data: DailyConditions | null; isLoading: boolean };
+  const daily = usingPreview
+    ? previewData?.dailyConditions ?? null
+    : dailyFromQuery;
 
   // Dynamic scales from forecast
   const percentile = (arr: number[], p: number) => {
@@ -2042,7 +2132,11 @@ const Highlights = ({
     useState<HighlightScales>(computedScales);
 
   // Prefetch adjacent hours
-  usePrefetchAdjacentHours(resolvedId ?? null, date ?? null, hour ?? 0);
+  usePrefetchAdjacentHours(
+    usingPreview ? null : resolvedId ?? null,
+    date ?? null,
+    hour ?? 0
+  );
 
   // Memoize expensive calculations
   const baseRow = useMemo<ForecastData | undefined>(() => {
@@ -2068,12 +2162,13 @@ const Highlights = ({
 
   const statsRef = useRef<Stat[] | null>(null);
   const [statsState, setStatsState] = useState<Stat[] | null>(null);
-  const dataReady =
-    (forecast.length > 0 || hasPrefetched) &&
-    tides.length > 0 &&
-    Boolean(daily) &&
-    !tidesLoading &&
-    !dailyLoading;
+  const dataReady = usingPreview
+    ? forecast.length > 0 && tides.length > 0 && Boolean(daily)
+    : (forecast.length > 0 || hasPrefetched) &&
+      tides.length > 0 &&
+      Boolean(daily) &&
+      !tidesLoading &&
+      !dailyLoading;
 
   const computedStats = useMemo(() => {
     if (!dataReady) {
@@ -2234,575 +2329,714 @@ const Highlights = ({
   const displayStats = statsState ?? statsRef.current;
   const isHydrated = Boolean(displayStats);
   const effectiveStats = displayStats ?? PLACEHOLDER_STATS;
-  const visibleStats = effectiveStats.slice(
-    startIdx,
-    Math.min(effectiveStats.length, endIdx + 1)
-  );
+  const sliceStart = Math.max(0, startIdx);
+  const sliceEnd = Math.min(effectiveStats.length - 1, endIdx);
+  const totalInRange = Math.max(0, sliceEnd - sliceStart + 1);
+  const pageCount =
+    layout === "carousel" ? Math.max(1, Math.ceil(totalInRange / pageSize)) : 1;
+  const safePage =
+    layout === "carousel"
+      ? Math.min(Math.max(0, carouselPage), Math.max(0, pageCount - 1))
+      : 0;
+  const carouselStart = sliceStart + safePage * pageSize;
+  const visibleStats =
+    layout === "carousel"
+      ? effectiveStats.slice(
+          carouselStart,
+          Math.min(sliceEnd + 1, carouselStart + pageSize)
+        )
+      : effectiveStats.slice(sliceStart, sliceEnd + 1);
   const displayScales = scalesState;
 
+  const canPrev = layout === "carousel" && safePage > 0;
+  const canNext = layout === "carousel" && safePage < pageCount - 1;
+
   return (
-    <div className="w-full max-w-7xl mx-auto p-1">
-      <ul
-        className={cn(
-          "grid grid-cols-2 @min-xl:grid-cols-3 @min-3xl:grid-cols-4 gap-2",
-          !isFull && "@min-2xl:grid-cols-3 @min-4xl:grid-cols-3",
-          isFull && "@min-4xl:grid-cols-4 @min-6xl:grid-cols-8"
-        )}
-      >
-        {visibleStats.map((stat, idx) => {
-          let content;
-          if (!isHydrated) {
-            content = (
-              <div
-                className={cn(
-                  "w-full rounded-xl bg-highlight-6/70",
-                  isFull ? "h-[74px]" : "h-[70px]"
-                )}
-              />
-            );
-          } else {
-            switch (stat.label) {
-              case "swell": {
-                if (!stat.primary || !stat.secondary) {
-                  content = null;
+    <div className={cn("w-full", layout === "grid" && "max-w-7xl mx-auto p-1")}>
+      <div className={cn("relative", layout === "carousel" && "px-9")}>
+        <ul
+          className={cn(
+            "grid gap-2",
+            layout === "grid" &&
+              cn(
+                "grid-cols-2 @min-xl:grid-cols-3 @min-3xl:grid-cols-4",
+                !isFull && "@min-2xl:grid-cols-3 @min-4xl:grid-cols-3",
+                isFull && "@min-4xl:grid-cols-4 @min-6xl:grid-cols-8"
+              )
+          )}
+          style={
+            layout === "carousel"
+              ? {
+                  gridTemplateColumns: `repeat(${pageSize}, minmax(0, 1fr))`,
+                }
+              : undefined
+          }
+        >
+          {(layout === "carousel"
+            ? Array.from({ length: pageSize }).map(
+                (_, idx) =>
+                  visibleStats[idx] ??
+                  PLACEHOLDER_STATS[idx % PLACEHOLDER_STATS.length]!
+              )
+            : visibleStats
+          ).map((stat, idx) => {
+            let content;
+            if (!isHydrated) {
+              content = (
+                <div
+                  className={cn(
+                    "w-full rounded-xl bg-highlight-6/70",
+                    isFull ? "h-[74px]" : "h-[70px]"
+                  )}
+                />
+              );
+            } else {
+              switch (stat.label) {
+                case "swell": {
+                  if (!stat.primary || !stat.secondary) {
+                    content = null;
+                    break;
+                  }
+
+                  const SWELL_COLORS = {
+                    primary: "#1d4ed8",
+                    secondary: "#0ea5e9",
+                    tertiary: "#22d3ee",
+                  } as const;
+
+                  const dirPill = (
+                    dir: string,
+                    deg: number,
+                    primary: boolean = false
+                  ) => (
+                    <span
+                      className={cn(
+                        "grid items-center justify-center gap-1 rounded-full border border-border/25 px-1.5 py-0.5",
+                        primary ? "bg-foreground/10" : "bg-foreground/5",
+                        isFull &&
+                          "@min-3xl:grid-cols-[10px_35px] @min-4xl:grid-cols-[10px_35px_20px] @min-6xl:grid-cols-[auto]",
+                        layout === "carousel"
+                          ? "grid-cols-[auto]"
+                          : "grid-cols-[auto] @min-sm:grid-cols-[5px_30px] @min-md:grid-cols-[10px_35px_20px] @min-3xl:grid-cols-[10px_30px] @min-4xl:grid-cols-[10px_35px_20px]"
+                      )}
+                    >
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 12 12"
+                        aria-hidden="true"
+                        className="shrink-0 text-foreground/60"
+                      >
+                        <g transform={`rotate(${deg ?? 0} 6 6)`}>
+                          <line
+                            x1="6"
+                            y1="10"
+                            x2="6"
+                            y2="4"
+                            stroke="currentColor"
+                            strokeWidth="1.7"
+                            strokeLinecap="round"
+                            opacity="0.9"
+                          />
+                          <path
+                            d="M6 2 L9 5.5 L6 4.1 L3 5.5 Z"
+                            fill="currentColor"
+                            opacity="0.9"
+                          />
+                        </g>
+                      </svg>
+                      <span
+                        className={cn(
+                          "text-[0.55rem] @min-md:text-[0.6rem] mt-0.5 @min-md:mt-0 font-semibold uppercase tracking-wide text-center",
+                          primary ? "" : "text-muted-foreground",
+                          isFull && "@min-6xl:hidden",
+                          layout === "carousel"
+                            ? "hidden"
+                            : "hidden @min-sm:block"
+                        )}
+                      >
+                        {dir}
+                      </span>
+                      <span
+                        className={cn(
+                          "text-[0.6rem]",
+                          !primary && "text-muted-foreground",
+                          isFull &&
+                            "@min-3xl:hidden @min-4xl:block @min-6xl:hidden",
+                          layout === "carousel"
+                            ? "hidden"
+                            : "hidden @min-md:block @min-3xl:hidden @min-4xl:block"
+                        )}
+                      >
+                        {deg.toFixed(0)}&deg;
+                      </span>
+                    </span>
+                  );
+
+                  content = (
+                    <HighlightCard
+                      isFull={isFull}
+                      label={stat.label}
+                      primary={
+                        <div
+                          className={cn(
+                            "inline-grid min-w-0 items-center gap-x-1.5",
+                            isFull &&
+                              "@min-6xl:grid-cols-[0.375rem_2rem_1.5rem_auto]",
+                            layout === "carousel"
+                              ? "grid-cols-[0.375rem_1.75rem_1.25rem_auto]"
+                              : "grid-cols-[0.375rem_1.75rem_1.25rem_auto] @min-md:grid-cols-[0.375rem_2.3rem_1.8rem_auto]"
+                          )}
+                        >
+                          <span
+                            aria-hidden="true"
+                            className="h-1.5 w-1.5 shrink-0 rounded-full"
+                            style={{ background: SWELL_COLORS.primary }}
+                          />
+                          <span className="inline-flex w-full items-baseline justify-start gap-0.5 whitespace-nowrap tabular-nums">
+                            <span
+                              className={cn(
+                                "font-semibold tabular-nums tracking-tight",
+                                isFull && "@min-6xl:text-[0.75rem]",
+                                layout === "carousel"
+                                  ? "text-[0.7rem]"
+                                  : "text-[0.7rem] @min-md:text-[0.8rem]"
+                              )}
+                            >
+                              {stat.primary.height.toFixed(1)}
+                            </span>
+                            <span className="text-[0.58rem] @min-xs:text-[0.7rem] font-medium text-muted-foreground">
+                              ft
+                            </span>
+                          </span>
+                          <span className="inline-flex w-full items-baseline justify-start gap-0.5 whitespace-nowrap">
+                            <span
+                              className={cn(
+                                "font-semibold tabular-nums tracking-tight",
+                                isFull && "@min-6xl:text-[0.75rem]",
+                                layout === "carousel"
+                                  ? "text-[0.7rem]"
+                                  : "text-[0.7rem] @min-md:text-[0.8rem]"
+                              )}
+                            >
+                              {stat.primary.period}
+                            </span>
+                            <span className="text-[0.7rem] font-medium text-muted-foreground">
+                              s
+                            </span>
+                          </span>
+                          {dirPill(
+                            stat.primary.wind.dir,
+                            stat.primary.wind.deg,
+                            true
+                          )}
+                        </div>
+                      }
+                      secondary={
+                        <div className="-mt-0.5 grid gap-y-0.5">
+                          <div
+                            className={cn(
+                              "inline-grid min-w-0 items-center gap-x-1.5",
+                              isFull &&
+                                "@min-6xl:grid-cols-[0.375rem_2rem_1.5rem_auto]",
+                              layout === "carousel"
+                                ? "grid-cols-[0.375rem_1.75rem_1.25rem_auto]"
+                                : "grid-cols-[0.375rem_1.75rem_1.25rem_auto] @min-md:grid-cols-[0.375rem_2.3rem_1.8rem_auto]"
+                            )}
+                          >
+                            <span
+                              aria-hidden="true"
+                              className="h-1.5 w-1.5 shrink-0 rounded-full"
+                              style={{ background: SWELL_COLORS.secondary }}
+                            />
+                            <span className="inline-flex w-full items-baseline justify-start gap-0.5 whitespace-nowrap tabular-nums">
+                              <span
+                                className={cn(
+                                  "font-medium tabular-nums tracking-tight text-foreground/80",
+                                  isFull && "@min-6xl:text-[0.75rem]",
+                                  layout === "carousel"
+                                    ? "text-[0.7rem]"
+                                    : "text-[0.7rem] @min-md:text-[0.8rem]"
+                                )}
+                              >
+                                {stat.secondary[0].height.toFixed(1)}
+                              </span>
+                              <span className="text-[0.58rem] @min-xs:text-[0.7rem] font-medium text-muted-foreground">
+                                ft
+                              </span>
+                            </span>
+                            <span className="inline-flex w-full items-baseline justify-start gap-0.5 whitespace-nowrap">
+                              <span
+                                className={cn(
+                                  "font-medium tabular-nums tracking-tight text-muted-foreground",
+                                  isFull && "@min-6xl:text-[0.75rem]",
+                                  layout === "carousel"
+                                    ? "text-[0.7rem]"
+                                    : "text-[0.7rem] @min-md:text-[0.8rem]"
+                                )}
+                              >
+                                {stat.secondary[0].period}
+                              </span>
+                              <span className="text-[0.7rem] font-medium text-muted-foreground">
+                                s
+                              </span>
+                            </span>
+                            {dirPill(
+                              stat.secondary[0].wind.dir,
+                              stat.secondary[0].wind.deg
+                            )}
+                          </div>
+
+                          <div
+                            className={cn(
+                              "inline-grid min-w-0 items-center gap-x-1.5",
+                              isFull &&
+                                "@min-6xl:grid-cols-[0.375rem_2rem_1.5rem_auto]",
+                              layout === "carousel"
+                                ? "grid-cols-[0.375rem_1.75rem_1.25rem_auto]"
+                                : "grid-cols-[0.375rem_1.75rem_1.25rem_auto] @min-md:grid-cols-[0.375rem_2.3rem_1.8rem_auto]"
+                            )}
+                          >
+                            <span
+                              aria-hidden="true"
+                              className="h-1.5 w-1.5 shrink-0 rounded-full"
+                              style={{ background: SWELL_COLORS.tertiary }}
+                            />
+                            <span className="inline-flex w-full items-baseline justify-start gap-0.5 whitespace-nowrap tabular-nums">
+                              <span
+                                className={cn(
+                                  "font-medium tabular-nums tracking-tight text-foreground/80",
+                                  isFull && "@min-6xl:text-[0.75rem]",
+                                  layout === "carousel"
+                                    ? "text-[0.7rem]"
+                                    : "text-[0.7rem] @min-md:text-[0.8rem]"
+                                )}
+                              >
+                                {stat.secondary[1].height.toFixed(1)}
+                              </span>
+                              <span className="text-[0.58rem] @min-xs:text-[0.7rem] font-medium text-muted-foreground">
+                                ft
+                              </span>
+                            </span>
+                            <span className="inline-flex w-full items-baseline justify-start gap-0.5 whitespace-nowrap">
+                              <span
+                                className={cn(
+                                  "font-medium tabular-nums tracking-tight text-muted-foreground",
+                                  isFull && "@min-6xl:text-[0.75rem]",
+                                  layout === "carousel"
+                                    ? "text-[0.7rem]"
+                                    : "text-[0.7rem] @min-md:text-[0.8rem]"
+                                )}
+                              >
+                                {stat.secondary[1].period}
+                              </span>
+                              <span className="text-[0.7rem] font-medium text-muted-foreground">
+                                s
+                              </span>
+                            </span>
+                            {dirPill(
+                              stat.secondary[1].wind.dir,
+                              stat.secondary[1].wind.deg
+                            )}
+                          </div>
+                        </div>
+                      }
+                      visual={
+                        layout !== "carousel" && (
+                          <div
+                            aria-hidden="true"
+                            className={cn(
+                              "hidden @min-xl:block @min-3xl:hidden relative -mt-4 overflow-hidden rounded-xl bg-foreground/5 ring-1 ring-border/25 w-[8rem] @min-xl:w-[8rem] @min-2xl:w-[12rem] @min-6xl:w-[8rem]",
+                              "shadow-[0_1px_0_rgba(0,0,0,0.04)] dark:shadow-[0_1px_0_rgba(0,0,0,0.35)]",
+                              isFull ? "" : "@min-6xl:block"
+                            )}
+                          >
+                            <div className="flex h-full flex-col gap-1.5 px-2 py-2">
+                              <div className="text-[0.65rem] font-semibold tracking-wide text-muted-foreground/90 leading-none">
+                                SWELL MIX
+                              </div>
+                              {(() => {
+                                const swells = [
+                                  {
+                                    key: "primary",
+                                    color: SWELL_COLORS.primary,
+                                    height: Math.max(0, stat.primary.height),
+                                    period: Math.max(1, stat.primary.period),
+                                    size: 7,
+                                    opacity: 0.98,
+                                  },
+                                  {
+                                    key: "secondary",
+                                    color: SWELL_COLORS.secondary,
+                                    height: Math.max(
+                                      0,
+                                      stat.secondary[0].height
+                                    ),
+                                    period: Math.max(
+                                      1,
+                                      stat.secondary[0].period
+                                    ),
+                                    size: 7,
+                                    opacity: 0.9,
+                                  },
+                                  {
+                                    key: "tertiary",
+                                    color: SWELL_COLORS.tertiary,
+                                    height: Math.max(
+                                      0,
+                                      stat.secondary[1].height
+                                    ),
+                                    period: Math.max(
+                                      1,
+                                      stat.secondary[1].period
+                                    ),
+                                    size: 7,
+                                    opacity: 0.86,
+                                  },
+                                ] as const;
+
+                                const heightMax = Math.max(
+                                  1,
+                                  ...swells.map((s) => s.height)
+                                );
+                                const periodMax = Math.max(
+                                  1,
+                                  ...swells.map((s) => s.period)
+                                );
+
+                                const trackGradient =
+                                  "bg-gradient-to-r from-indigo-500/45 via-sky-400/35 to-cyan-300/30 dark:from-indigo-400/35 dark:via-sky-400/25 dark:to-cyan-300/20";
+
+                                const computeDotOffsets = (
+                                  pcts: number[]
+                                ): [number, number, number] => {
+                                  const sorted = pcts
+                                    .map((p, i) => ({ p, i }))
+                                    .sort((a, b) => a.p - b.p);
+                                  const thresholdPct = 4;
+                                  const collide01 =
+                                    Math.abs(sorted[1]!.p - sorted[0]!.p) <
+                                    thresholdPct;
+                                  const collide12 =
+                                    Math.abs(sorted[2]!.p - sorted[1]!.p) <
+                                    thresholdPct;
+                                  if (!collide01 && !collide12)
+                                    return [0, 0, 0];
+
+                                  const offsets: [number, number, number] = [
+                                    0, 0, 0,
+                                  ];
+                                  offsets[sorted[0]!.i] = 0;
+                                  offsets[sorted[1]!.i] = 2;
+                                  offsets[sorted[2]!.i] = -2;
+                                  return offsets;
+                                };
+
+                                const mixPowers = swells.map(
+                                  (s) => s.height * s.period
+                                );
+                                const mixTotal =
+                                  mixPowers.reduce((sum, v) => sum + v, 0) || 1;
+                                const mixPercents = mixPowers.map(
+                                  (v) => (v / mixTotal) * 100
+                                );
+
+                                const Track = ({
+                                  kind,
+                                  max,
+                                }: {
+                                  kind: "height" | "period";
+                                  max: number;
+                                }) => (
+                                  <div className="relative h-[3px] w-full overflow-visible">
+                                    <div className="relative h-[3px] w-full overflow-hidden rounded-full bg-foreground/10 ring-1 ring-foreground/5">
+                                      <div
+                                        className={cn(
+                                          "absolute inset-0 opacity-25",
+                                          trackGradient
+                                        )}
+                                      />
+                                    </div>
+                                    {(() => {
+                                      const pcts = swells.map((s) => {
+                                        const value =
+                                          kind === "height"
+                                            ? s.height
+                                            : s.period;
+                                        return toPct(value, 0, max);
+                                      });
+                                      const offsets = computeDotOffsets(pcts);
+                                      return swells.map((s, idx) => {
+                                        const size = Math.max(3, s.size - 1);
+                                        return (
+                                          <span
+                                            key={`${kind}-${s.key}`}
+                                            className="absolute top-1/2 rounded-full shadow-sm ring-1 ring-background/70 dark:ring-background/40"
+                                            style={{
+                                              left: `${pcts[idx]}%`,
+                                              width: size,
+                                              height: size,
+                                              background: s.color,
+                                              opacity: s.opacity,
+                                              transform: `translate(-50%, -50%) translateY(${offsets[idx]}px)`,
+                                            }}
+                                          />
+                                        );
+                                      });
+                                    })()}
+                                  </div>
+                                );
+
+                                return (
+                                  <div className="flex flex-1 flex-col gap-1.5">
+                                    <div className="h-[5px] w-full overflow-hidden rounded-full bg-foreground/10 ring-1 ring-foreground/5">
+                                      <div className="flex h-full w-full">
+                                        {swells.map((s, idx) => (
+                                          <div
+                                            key={`mix-${s.key}`}
+                                            className="h-full"
+                                            style={{
+                                              width: `${mixPercents[idx]}%`,
+                                              background: s.color,
+                                              opacity: 0.55,
+                                            }}
+                                          />
+                                        ))}
+                                      </div>
+                                    </div>
+
+                                    <div className="mt-1 grid grid-cols-[0.9rem_1fr] grid-rows-2 items-center gap-x-2 gap-y-0 text-foreground/70 dark:text-foreground/65">
+                                      <div className="row-start-1 col-start-1 grid place-items-center text-foreground/55 dark:text-foreground/50">
+                                        <svg
+                                          viewBox="0 0 16 16"
+                                          className="h-3.5 w-3.5"
+                                          aria-hidden="true"
+                                        >
+                                          <path
+                                            d="M1.75 10.75c2.1 0 2.1-2.5 4.2-2.5s2.1 2.5 4.2 2.5 2.1-2.5 4.2-2.5"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="1.6"
+                                            strokeLinecap="round"
+                                            opacity="0.95"
+                                          />
+                                          <path
+                                            d="M1.75 6.75c2.1 0 2.1-2.5 4.2-2.5s2.1 2.5 4.2 2.5 2.1-2.5 4.2-2.5"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="1.4"
+                                            strokeLinecap="round"
+                                            opacity="0.55"
+                                          />
+                                        </svg>
+                                      </div>
+                                      <div className="row-start-1 col-start-2">
+                                        <Track kind="height" max={heightMax} />
+                                      </div>
+                                      <div className="row-start-2 col-start-1 grid place-items-center text-foreground/55 dark:text-foreground/50">
+                                        <svg
+                                          viewBox="0 0 16 16"
+                                          className="h-3.5 w-3.5"
+                                          aria-hidden="true"
+                                        >
+                                          <circle
+                                            cx="8"
+                                            cy="8"
+                                            r="5.25"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="1.6"
+                                            opacity="0.85"
+                                          />
+                                          <path
+                                            d="M8 5.6v2.9l2.2 1.25"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="1.6"
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            opacity="0.95"
+                                          />
+                                        </svg>
+                                      </div>
+                                      <div className="row-start-2 col-start-2">
+                                        <Track kind="period" max={periodMax} />
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                          </div>
+                        )
+                      }
+                    />
+                  );
                   break;
                 }
+                case "weather":
+                  content = stat.weather && (
+                    <WeatherStat
+                      temp={stat.weather.temp}
+                      label={stat.label}
+                      weatherCode={stat.weather.code}
+                      isFull={isFull}
+                    />
+                  );
+                  break;
+                case "water":
+                  content = (
+                    <WaterStat
+                      temp={stat.temp}
+                      min={displayScales?.waterMin}
+                      max={displayScales?.waterMax}
+                    />
+                  );
+                  break;
 
-                const SWELL_COLORS = {
-                  primary: "#1d4ed8",
-                  secondary: "#0ea5e9",
-                  tertiary: "#22d3ee",
-                } as const;
-
-                const dirPill = (
-                  dir: string,
-                  deg: number,
-                  primary: boolean = false
-                ) => (
-                  <span
-                    className={cn(
-                      "grid grid-cols-[auto] @min-sm:grid-cols-[5px_30px] @min-md:grid-cols-[10px_35px_20px] @min-3xl:grid-cols-[10px_30px] @min-4xl:grid-cols-[10px_35px_20px] items-center justify-center gap-1 rounded-full border border-border/25 px-1.5 py-0.5",
-                      primary ? "bg-foreground/10" : "bg-foreground/5",
-                      isFull &&
-                        "@min-3xl:grid-cols-[10px_35px] @min-4xl:grid-cols-[10px_35px_20px] @min-6xl:grid-cols-[auto]"
-                    )}
-                  >
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 12 12"
-                      aria-hidden="true"
-                      className="shrink-0 text-foreground/60"
-                    >
-                      <g transform={`rotate(${deg ?? 0} 6 6)`}>
-                        <line
-                          x1="6"
-                          y1="10"
-                          x2="6"
-                          y2="4"
-                          stroke="currentColor"
-                          strokeWidth="1.7"
-                          strokeLinecap="round"
-                          opacity="0.9"
-                        />
-                        <path
-                          d="M6 2 L9 5.5 L6 4.1 L3 5.5 Z"
-                          fill="currentColor"
-                          opacity="0.9"
-                        />
-                      </g>
-                    </svg>
-                    <span
-                      className={cn(
-                        "text-[0.55rem] @min-md:text-[0.6rem] mt-0.5 @min-md:mt-0 font-semibold uppercase tracking-wide text-center hidden @min-sm:block",
-                        primary ? "" : "text-muted-foreground",
-                        isFull && "@min-6xl:hidden"
-                      )}
-                    >
-                      {dir}
-                    </span>
-                    <span
-                      className={cn(
-                        "hidden @min-md:block @min-3xl:hidden @min-4xl:block text-[0.6rem]",
-                        !primary && "text-muted-foreground",
-                        isFull &&
-                          "@min-3xl:hidden @min-4xl:block @min-6xl:hidden"
-                      )}
-                    >
-                      {deg.toFixed(0)}&deg;
-                    </span>
-                  </span>
-                );
-
-                content = (
-                  <HighlightCard
-                    isFull={isFull}
-                    label={stat.label}
-                    primary={
-                      <div
-                        className={cn(
-                          "inline-grid min-w-0 grid-cols-[0.375rem_1.75rem_1.25rem_auto] @min-md:grid-cols-[0.375rem_2.3rem_1.8rem_auto] items-center gap-x-1.5",
-                          isFull &&
-                            "@min-6xl:grid-cols-[0.375rem_2rem_1.5rem_auto]"
-                        )}
-                      >
-                        <span
-                          aria-hidden="true"
-                          className="h-1.5 w-1.5 shrink-0 rounded-full"
-                          style={{ background: SWELL_COLORS.primary }}
-                        />
-                        <span className="inline-flex w-full items-baseline justify-start gap-0.5 whitespace-nowrap tabular-nums">
-                          <span
-                            className={cn(
-                              "text-[0.7rem] @min-md:text-[0.8rem] font-semibold tabular-nums tracking-tight",
-                              isFull && "@min-6xl:text-[0.75rem]"
-                            )}
-                          >
-                            {stat.primary.height.toFixed(1)}
-                          </span>
-                          <span className="text-[0.58rem] @min-xs:text-[0.7rem] font-medium text-muted-foreground">
-                            ft
-                          </span>
+                case "moon": {
+                  const hasPhase =
+                    stat.phase !== null && stat.phase !== undefined;
+                  content = hasPhase ? (
+                    <MoonStat
+                      data={stat.phase}
+                      label={stat.label}
+                      showMap={showMap}
+                      isFull={isFull}
+                      layout={layout}
+                    />
+                  ) : (
+                    <HighlightCard
+                      label={stat.label}
+                      primary={
+                        <span className="text-[0.9rem] font-semibold text-muted-foreground">
+                          Unavailable
                         </span>
-                        <span className="inline-flex w-full items-baseline justify-start gap-0.5 whitespace-nowrap">
-                          <span
-                            className={cn(
-                              "text-[0.7rem] @min-md:text-[0.8rem] font-semibold tabular-nums tracking-tight",
-                              isFull && "@min-6xl:text-[0.75rem]"
-                            )}
-                          >
-                            {stat.primary.period}
-                          </span>
-                          <span className="text-[0.7rem] font-medium text-muted-foreground">
-                            s
-                          </span>
-                        </span>
-                        {dirPill(
-                          stat.primary.wind.dir,
-                          stat.primary.wind.deg,
-                          true
-                        )}
-                      </div>
-                    }
-                    secondary={
-                      <div className="-mt-0.5 grid gap-y-0.5">
-                        <div
-                          className={cn(
-                            "inline-grid min-w-0 grid-cols-[0.375rem_1.75rem_1.25rem_auto] @min-md:grid-cols-[0.375rem_2.3rem_1.8rem_auto] items-center gap-x-1.5",
-                            isFull &&
-                              "@min-6xl:grid-cols-[0.375rem_2rem_1.5rem_auto]"
-                          )}
-                        >
-                          <span
-                            aria-hidden="true"
-                            className="h-1.5 w-1.5 shrink-0 rounded-full"
-                            style={{ background: SWELL_COLORS.secondary }}
-                          />
-                          <span className="inline-flex w-full items-baseline justify-start gap-0.5 whitespace-nowrap tabular-nums">
-                            <span
-                              className={cn(
-                                "text-[0.7rem] @min-md:text-[0.8rem] font-medium tabular-nums tracking-tight text-foreground/80",
-                                isFull && "@min-6xl:text-[0.75rem]"
-                              )}
-                            >
-                              {stat.secondary[0].height.toFixed(1)}
-                            </span>
-                            <span className="text-[0.58rem] @min-xs:text-[0.7rem] font-medium text-muted-foreground">
-                              ft
-                            </span>
-                          </span>
-                          <span className="inline-flex w-full items-baseline justify-start gap-0.5 whitespace-nowrap">
-                            <span
-                              className={cn(
-                                "text-[0.7rem] @min-md:text-[0.8rem] font-medium tabular-nums tracking-tight text-muted-foreground",
-                                isFull && "@min-6xl:text-[0.75rem]"
-                              )}
-                            >
-                              {stat.secondary[0].period}
-                            </span>
-                            <span className="text-[0.7rem] font-medium text-muted-foreground">
-                              s
-                            </span>
-                          </span>
-                          {dirPill(
-                            stat.secondary[0].wind.dir,
-                            stat.secondary[0].wind.deg
-                          )}
-                        </div>
-
-                        <div
-                          className={cn(
-                            "inline-grid min-w-0 grid-cols-[0.375rem_1.75rem_1.25rem_auto] @min-md:grid-cols-[0.375rem_2.3rem_1.8rem_auto] items-center gap-x-1.5",
-                            isFull &&
-                              "@min-6xl:grid-cols-[0.375rem_2rem_1.5rem_auto]"
-                          )}
-                        >
-                          <span
-                            aria-hidden="true"
-                            className="h-1.5 w-1.5 shrink-0 rounded-full"
-                            style={{ background: SWELL_COLORS.tertiary }}
-                          />
-                          <span className="inline-flex w-full items-baseline justify-start gap-0.5 whitespace-nowrap tabular-nums">
-                            <span
-                              className={cn(
-                                "text-[0.7rem] @min-md:text-[0.8rem] font-medium tabular-nums tracking-tight text-foreground/80",
-                                isFull && "@min-6xl:text-[0.75rem]"
-                              )}
-                            >
-                              {stat.secondary[1].height.toFixed(1)}
-                            </span>
-                            <span className="text-[0.58rem] @min-xs:text-[0.7rem] font-medium text-muted-foreground">
-                              ft
-                            </span>
-                          </span>
-                          <span className="inline-flex w-full items-baseline justify-start gap-0.5 whitespace-nowrap">
-                            <span
-                              className={cn(
-                                "text-[0.7rem] @min-md:text-[0.8rem] font-medium tabular-nums tracking-tight text-muted-foreground",
-                                isFull && "@min-6xl:text-[0.75rem]"
-                              )}
-                            >
-                              {stat.secondary[1].period}
-                            </span>
-                            <span className="text-[0.7rem] font-medium text-muted-foreground">
-                              s
-                            </span>
-                          </span>
-                          {dirPill(
-                            stat.secondary[1].wind.dir,
-                            stat.secondary[1].wind.deg
-                          )}
-                        </div>
-                      </div>
-                    }
-                    visual={
-                      <div
-                        aria-hidden="true"
-                        className={cn(
-                          "hidden @min-xl:block @min-3xl:hidden relative -mt-4 overflow-hidden rounded-xl bg-foreground/5 ring-1 ring-border/25 w-[8rem] @min-xl:w-[8rem] @min-2xl:w-[12rem] @min-6xl:w-[8rem]",
-                          "shadow-[0_1px_0_rgba(0,0,0,0.04)] dark:shadow-[0_1px_0_rgba(0,0,0,0.35)]",
-                          isFull ? "" : "@min-6xl:block"
-                        )}
-                      >
-                        <div className="flex h-full flex-col gap-1.5 px-2 py-2">
-                          <div className="text-[0.65rem] font-semibold tracking-wide text-muted-foreground/90 leading-none">
-                            SWELL MIX
-                          </div>
-                          {(() => {
-                            const swells = [
-                              {
-                                key: "primary",
-                                color: SWELL_COLORS.primary,
-                                height: Math.max(0, stat.primary.height),
-                                period: Math.max(1, stat.primary.period),
-                                size: 7,
-                                opacity: 0.98,
-                              },
-                              {
-                                key: "secondary",
-                                color: SWELL_COLORS.secondary,
-                                height: Math.max(0, stat.secondary[0].height),
-                                period: Math.max(1, stat.secondary[0].period),
-                                size: 7,
-                                opacity: 0.9,
-                              },
-                              {
-                                key: "tertiary",
-                                color: SWELL_COLORS.tertiary,
-                                height: Math.max(0, stat.secondary[1].height),
-                                period: Math.max(1, stat.secondary[1].period),
-                                size: 7,
-                                opacity: 0.86,
-                              },
-                            ] as const;
-
-                            const heightMax = Math.max(
-                              1,
-                              ...swells.map((s) => s.height)
-                            );
-                            const periodMax = Math.max(
-                              1,
-                              ...swells.map((s) => s.period)
-                            );
-
-                            const trackGradient =
-                              "bg-gradient-to-r from-indigo-500/45 via-sky-400/35 to-cyan-300/30 dark:from-indigo-400/35 dark:via-sky-400/25 dark:to-cyan-300/20";
-
-                            const computeDotOffsets = (pcts: number[]) => {
-                              const sorted = pcts
-                                .map((p, i) => ({ p, i }))
-                                .sort((a, b) => a.p - b.p);
-                              const thresholdPct = 4;
-                              const collide01 =
-                                Math.abs(sorted[1]!.p - sorted[0]!.p) <
-                                thresholdPct;
-                              const collide12 =
-                                Math.abs(sorted[2]!.p - sorted[1]!.p) <
-                                thresholdPct;
-                              if (!collide01 && !collide12)
-                                return [0, 0, 0] as const;
-
-                              const offsets = [0, 0, 0];
-                              offsets[sorted[0]!.i] = 0;
-                              offsets[sorted[1]!.i] = 2;
-                              offsets[sorted[2]!.i] = -2;
-                              return offsets as const;
-                            };
-
-                            const mixPowers = swells.map(
-                              (s) => s.height * s.period
-                            );
-                            const mixTotal =
-                              mixPowers.reduce((sum, v) => sum + v, 0) || 1;
-                            const mixPercents = mixPowers.map(
-                              (v) => (v / mixTotal) * 100
-                            );
-
-                            const Track = ({
-                              kind,
-                              max,
-                            }: {
-                              kind: "height" | "period";
-                              max: number;
-                            }) => (
-                              <div className="relative h-[3px] w-full overflow-visible">
-                                <div className="relative h-[3px] w-full overflow-hidden rounded-full bg-foreground/10 ring-1 ring-foreground/5">
-                                  <div
-                                    className={cn(
-                                      "absolute inset-0 opacity-25",
-                                      trackGradient
-                                    )}
-                                  />
-                                </div>
-                                {(() => {
-                                  const pcts = swells.map((s) => {
-                                    const value =
-                                      kind === "height" ? s.height : s.period;
-                                    return toPct(value, 0, max);
-                                  });
-                                  const offsets = computeDotOffsets(pcts);
-                                  return swells.map((s, idx) => {
-                                    const size = Math.max(3, s.size - 1);
-                                    return (
-                                      <span
-                                        key={`${kind}-${s.key}`}
-                                        className="absolute top-1/2 rounded-full shadow-sm ring-1 ring-background/70 dark:ring-background/40"
-                                        style={{
-                                          left: `${pcts[idx]}%`,
-                                          width: size,
-                                          height: size,
-                                          background: s.color,
-                                          opacity: s.opacity,
-                                          transform: `translate(-50%, -50%) translateY(${offsets[idx]}px)`,
-                                        }}
-                                      />
-                                    );
-                                  });
-                                })()}
-                              </div>
-                            );
-
-                            return (
-                              <div className="flex flex-1 flex-col gap-1.5">
-                                <div className="h-[5px] w-full overflow-hidden rounded-full bg-foreground/10 ring-1 ring-foreground/5">
-                                  <div className="flex h-full w-full">
-                                    {swells.map((s, idx) => (
-                                      <div
-                                        key={`mix-${s.key}`}
-                                        className="h-full"
-                                        style={{
-                                          width: `${mixPercents[idx]}%`,
-                                          background: s.color,
-                                          opacity: 0.55,
-                                        }}
-                                      />
-                                    ))}
-                                  </div>
-                                </div>
-
-                                <div className="mt-1 grid grid-cols-[0.9rem_1fr] grid-rows-2 items-center gap-x-2 gap-y-0 text-foreground/70 dark:text-foreground/65">
-                                  <div className="row-start-1 col-start-1 grid place-items-center text-foreground/55 dark:text-foreground/50">
-                                    <svg
-                                      viewBox="0 0 16 16"
-                                      className="h-3.5 w-3.5"
-                                      aria-hidden="true"
-                                    >
-                                      <path
-                                        d="M1.75 10.75c2.1 0 2.1-2.5 4.2-2.5s2.1 2.5 4.2 2.5 2.1-2.5 4.2-2.5"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth="1.6"
-                                        strokeLinecap="round"
-                                        opacity="0.95"
-                                      />
-                                      <path
-                                        d="M1.75 6.75c2.1 0 2.1-2.5 4.2-2.5s2.1 2.5 4.2 2.5 2.1-2.5 4.2-2.5"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth="1.4"
-                                        strokeLinecap="round"
-                                        opacity="0.55"
-                                      />
-                                    </svg>
-                                  </div>
-                                  <div className="row-start-1 col-start-2">
-                                    <Track kind="height" max={heightMax} />
-                                  </div>
-                                  <div className="row-start-2 col-start-1 grid place-items-center text-foreground/55 dark:text-foreground/50">
-                                    <svg
-                                      viewBox="0 0 16 16"
-                                      className="h-3.5 w-3.5"
-                                      aria-hidden="true"
-                                    >
-                                      <circle
-                                        cx="8"
-                                        cy="8"
-                                        r="5.25"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth="1.6"
-                                        opacity="0.85"
-                                      />
-                                      <path
-                                        d="M8 5.6v2.9l2.2 1.25"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth="1.6"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        opacity="0.95"
-                                      />
-                                    </svg>
-                                  </div>
-                                  <div className="row-start-2 col-start-2">
-                                    <Track kind="period" max={periodMax} />
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })()}
-                        </div>
-                      </div>
-                    }
-                  />
-                );
-                break;
+                      }
+                      visual={
+                        <VisualSlot>
+                          <MoonStar className="h-5 w-5 text-violet-600/70 dark:text-violet-400/70" />
+                        </VisualSlot>
+                      }
+                    />
+                  );
+                  break;
+                }
+                case "wind":
+                  content = stat.wind && (
+                    <WindStat
+                      data={stat.wind}
+                      label={stat.label}
+                      maxScale={displayScales.windMax}
+                      isFull={isFull}
+                      showMap={showMap}
+                    />
+                  );
+                  break;
+                case "pressure":
+                  content = stat.pressure && (
+                    <PressureStat
+                      data={stat.pressure}
+                      label={stat.label}
+                      minScale={displayScales.pressureMin}
+                      maxScale={displayScales.pressureMax}
+                      isFull={isFull}
+                      showMap={showMap}
+                      layout={layout}
+                    />
+                  );
+                  break;
+                case "energy":
+                  content = stat.energy && (
+                    <EnergyStat
+                      data={stat.energy}
+                      label={stat.label}
+                      maxScale={displayScales.energyMax}
+                    />
+                  );
+                  break;
+                case "tide":
+                  content = stat.tide && (
+                    <TideStat
+                      data={stat.tide}
+                      label={stat.label}
+                      maxAbs={displayScales.tideAbsMax}
+                      isFull={isFull}
+                      showMap={showMap}
+                      layout={layout}
+                    />
+                  );
+                  break;
               }
-              case "weather":
-                content = stat.weather && (
-                  <WeatherStat
-                    temp={stat.weather.temp}
-                    label={stat.label}
-                    weatherCode={stat.weather.code}
-                    isFull={isFull}
-                  />
-                );
-                break;
-              case "water":
-                content = (
-                  <WaterStat
-                    temp={stat.temp}
-                    min={displayScales?.waterMin}
-                    max={displayScales?.waterMax}
-                  />
-                );
-                break;
-
-              case "moon": {
-                const hasPhase =
-                  stat.phase !== null && stat.phase !== undefined;
-                content = hasPhase ? (
-                  <MoonStat
-                    data={stat.phase}
-                    label={stat.label}
-                    showMap={showMap}
-                    isFull={isFull}
-                  />
-                ) : (
-                  <HighlightCard
-                    label={stat.label}
-                    primary={
-                      <span className="text-[0.9rem] font-semibold text-muted-foreground">
-                        Unavailable
-                      </span>
-                    }
-                    visual={
-                      <VisualSlot>
-                        <MoonStar className="h-5 w-5 text-violet-600/70 dark:text-violet-400/70" />
-                      </VisualSlot>
-                    }
-                  />
-                );
-                break;
-              }
-              case "wind":
-                content = stat.wind && (
-                  <WindStat
-                    data={stat.wind}
-                    label={stat.label}
-                    maxScale={displayScales.windMax}
-                    isFull={isFull}
-                    showMap={showMap}
-                  />
-                );
-                break;
-              case "pressure":
-                content = stat.pressure && (
-                  <PressureStat
-                    data={stat.pressure}
-                    label={stat.label}
-                    minScale={displayScales.pressureMin}
-                    maxScale={displayScales.pressureMax}
-                    isFull={isFull}
-                    showMap={showMap}
-                  />
-                );
-                break;
-              case "energy":
-                content = stat.energy && (
-                  <EnergyStat
-                    data={stat.energy}
-                    label={stat.label}
-                    maxScale={displayScales.energyMax}
-                  />
-                );
-                break;
-              case "tide":
-                content = stat.tide && (
-                  <TideStat
-                    data={stat.tide}
-                    label={stat.label}
-                    maxAbs={displayScales.tideAbsMax}
-                    isFull={isFull}
-                    showMap={showMap}
-                  />
-                );
-                break;
             }
-          }
-          if (content) {
-            return (
-              <li
-                key={`${stat.label}-${idx}`}
-                className={cn(
-                  "relative highlight-card shadow-even p-2.5 min-h-[74px] @min-3xl:min-h-[90px]",
-                  "transition-colors duration-200 motion-reduce:transition-none",
-                  "hover:bg-highlight-7/70 active:bg-highlight-7/80",
-                  stat.label === "swell" &&
-                    "col-span-1 @min-xl:col-span-2 @min-3xl:col-span-1",
-                  stat.label === "swell" && !isFull && "@min-4xl:col-span-2",
-                  stat.label === "swell" && isFull && "@min-xl:col-span-2",
-                  !isHydrated && "animate-pulse motion-reduce:animate-none"
-                )}
-              >
-                <div className="flex-1 flex items-center justify-center gap-1 h-full">
-                  {content}
-                </div>
-              </li>
-            );
-          }
-        })}
-      </ul>
+            if (content) {
+              return (
+                <li
+                  key={`${stat.label}-${idx}`}
+                  className={cn(
+                    layout === "carousel"
+                      ? "min-h-[100px]"
+                      : "min-h-[74px] @min-3xl:min-h-[90px]",
+                    "relative highlight-card shadow-even p-2.5",
+                    "transition-colors duration-200 motion-reduce:transition-none",
+                    "hover:bg-highlight-7/70 active:bg-highlight-7/80",
+                    layout === "grid" &&
+                      stat.label === "swell" &&
+                      "col-span-1 @min-xl:col-span-2 @min-3xl:col-span-1",
+                    layout === "grid" &&
+                      stat.label === "swell" &&
+                      !isFull &&
+                      "@min-4xl:col-span-2",
+                    layout === "grid" &&
+                      stat.label === "swell" &&
+                      isFull &&
+                      "@min-xl:col-span-2",
+                    !isHydrated && "animate-pulse motion-reduce:animate-none"
+                  )}
+                >
+                  <div className="flex-1 flex items-center justify-center gap-1 h-full">
+                    {content}
+                  </div>
+                </li>
+              );
+            }
+          })}
+        </ul>
+        {layout === "carousel" ? (
+          <>
+            <button
+              type="button"
+              onClick={() => setCarouselPage((p) => Math.max(0, p - 1))}
+              aria-label="Previous highlights"
+              disabled={!canPrev}
+              className={cn(
+                "absolute left-0 top-1/2 -translate-y-1/2 z-10",
+                "h-8 w-8 rounded-full border border-border/35 bg-background/90 text-foreground shadow-sm backdrop-blur-sm",
+                "transition disabled:opacity-40 disabled:pointer-events-none",
+                "hover:bg-highlight-6/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15"
+              )}
+            >
+              <ChevronLeft className="h-4 w-4 mx-auto" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                setCarouselPage((p) => Math.min(pageCount - 1, p + 1))
+              }
+              aria-label="Next highlights"
+              disabled={!canNext}
+              className={cn(
+                "absolute right-0 top-1/2 -translate-y-1/2 z-10",
+                "h-8 w-8 rounded-full border border-border/35 bg-background/90 text-foreground shadow-sm backdrop-blur-sm",
+                "transition disabled:opacity-40 disabled:pointer-events-none",
+                "hover:bg-highlight-6/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15"
+              )}
+            >
+              <ChevronRight className="h-4 w-4 mx-auto" aria-hidden="true" />
+            </button>
+          </>
+        ) : null}
+      </div>
     </div>
   );
 };

@@ -517,7 +517,7 @@ const createInitialStats = (): SummaryStat[] => [
   { type: "features", tags: [] },
 ];
 
-import type { ForecastData } from "@/lib/supabase";
+import type { DailyConditions, ForecastData, TidePoint } from "@/lib/supabase";
 
 const Summary = ({
   beachId,
@@ -525,12 +525,21 @@ const Summary = ({
   forecastRows,
   forecastLoading,
   variant = "default",
+  previewData,
 }: {
   beachId?: string;
   date?: Date;
   forecastRows?: ForecastData[] | null;
   forecastLoading?: boolean;
   variant?: "default" | "overview";
+  previewData?: {
+    current?: ForecastData | null;
+    tides?: TidePoint[] | null;
+    dailyConditions?: DailyConditions | null;
+    beachDetails?:
+      | (Record<string, unknown> & { COUNTY?: string | null })
+      | null;
+  };
 }) => {
   const isOverviewVariant = variant === "overview";
   type FeatureTag = {
@@ -593,39 +602,60 @@ const Summary = ({
     (!hasExternalForecast && forecastSuccessRaw);
 
   const forecastError = !hasExternalForecast && forecastErrorRaw ? true : false;
-  const { data: current } = useCurrentConditions(
+  const usingPreview = Boolean(previewData);
+  const shouldFetch = Boolean(beachId) && !usingPreview;
+
+  const { data: currentFromQuery } = useCurrentConditions(
     beachId ?? null,
-    Boolean(beachId)
+    shouldFetch
   );
+  const current = usingPreview
+    ? previewData?.current ?? null
+    : currentFromQuery;
   const {
-    data: tides = [],
+    data: tidesFromQuery = [],
     isSuccess: tidesSuccess,
     isError: tidesError,
   } = useBeachTides(
     beachId ?? null,
     timeWindow.tideStart,
     timeWindow.tideEnd,
-    Boolean(beachId)
+    shouldFetch
   );
   const {
-    data: beachDetails,
+    data: beachDetailsFromQuery,
     isSuccess: beachDetailsSuccess,
     isError: beachDetailsError,
-  } = useBeachDetails(beachId ?? null, Boolean(beachId));
-  const county = beachDetails?.COUNTY ?? null;
+  } = useBeachDetails(beachId ?? null, shouldFetch);
+
+  const tides = usingPreview ? previewData?.tides ?? [] : tidesFromQuery;
+  const beachDetails = usingPreview
+    ? previewData?.beachDetails ?? null
+    : (beachDetailsFromQuery as unknown as Record<string, unknown> | null);
+  const county =
+    (beachDetails as { COUNTY?: string | null } | null)?.COUNTY ?? null;
   const {
-    data: dailyConditions,
+    data: dailyConditionsFromQuery,
     isSuccess: dailySuccess,
     isError: dailyError,
   } = useDailyConditions(
     county,
     targetDateValue ?? timeWindow.dayStart,
-    Boolean(county)
+    Boolean(county) && !usingPreview
   );
-  const forecastReady = forecastSuccess || forecastError;
-  const tidesReady = tidesSuccess || tidesError;
-  const beachDetailsReady = beachDetailsSuccess || beachDetailsError;
-  const dailyReady = beachDetailsReady
+  const dailyConditions = usingPreview
+    ? previewData?.dailyConditions ?? null
+    : (dailyConditionsFromQuery as DailyConditions | null);
+  const forecastReady = usingPreview
+    ? forecast.length > 0
+    : forecastSuccess || forecastError;
+  const tidesReady = usingPreview ? true : tidesSuccess || tidesError;
+  const beachDetailsReady = usingPreview
+    ? true
+    : beachDetailsSuccess || beachDetailsError;
+  const dailyReady = usingPreview
+    ? true
+    : beachDetailsReady
     ? county
       ? dailySuccess || dailyError
       : true
@@ -1438,7 +1468,10 @@ const Summary = ({
           className={cn(
             cardBase,
             cardHover,
-            "col-span-12 @min-xl:col-span-8 @min-2xl:col-span-7 @min-3xl:col-span-9 @min-5xl:col-span-6 p-4 flex flex-col gap-3 min-h-35 overflow-hidden"
+            usingPreview
+              ? "col-span-12"
+              : "col-span-12 @min-xl:col-span-8 @min-2xl:col-span-7 @min-3xl:col-span-9 @min-5xl:col-span-6",
+            "p-4 flex flex-col gap-3 min-h-35 overflow-hidden"
           )}
           aria-label="Forecast outlook"
         >
@@ -1578,7 +1611,10 @@ const Summary = ({
           className={cn(
             cardBase,
             cardHover,
-            "col-span-6 @min-xl:col-span-4 @min-2xl:col-span-5 @min-3xl:col-span-3 p-4 flex flex-col min-h-35 overflow-hidden"
+            usingPreview
+              ? "col-span-6"
+              : "col-span-6 @min-xl:col-span-4 @min-2xl:col-span-5 @min-3xl:col-span-3",
+            "p-4 flex flex-col min-h-35 overflow-hidden"
           )}
           aria-label="Surf summary"
         >
@@ -1666,7 +1702,10 @@ const Summary = ({
           className={cn(
             cardBase,
             cardHover,
-            "col-span-6 @min-md:col-span-6 @min-2xl:col-span-4 @min-3xl:col-span-4 @min-5xl:col-span-3 p-4 flex flex-col min-h-35 overflow-hidden"
+            usingPreview
+              ? "col-span-6"
+              : "col-span-6 @min-md:col-span-6 @min-2xl:col-span-4 @min-3xl:col-span-4 @min-5xl:col-span-3",
+            "p-4 flex flex-col min-h-35 overflow-hidden"
           )}
           aria-label="Wind summary"
         >
@@ -1759,7 +1798,10 @@ const Summary = ({
           className={cn(
             cardBase,
             cardHover,
-            "col-span-6 @min-xl:col-span-6 @min-2xl:col-span-4 @min-3xl:col-span-5 @min-5xl:col-span-3 @min-6xl:col-span-4 p-4 flex flex-col min-h-35 overflow-hidden"
+            usingPreview
+              ? "col-span-6"
+              : "col-span-6 @min-xl:col-span-6 @min-2xl:col-span-4 @min-3xl:col-span-5 @min-5xl:col-span-3 @min-6xl:col-span-4",
+            "p-4 flex flex-col min-h-35 overflow-hidden"
           )}
           aria-label="Tide summary"
         >
@@ -1900,7 +1942,10 @@ const Summary = ({
           className={cn(
             cardBase,
             cardHover,
-            "col-span-6 @min-xl:col-span-4 @min-3xl:col-span-3 @min-6xl:col-span-2 p-4 flex flex-col min-h-35 overflow-hidden"
+            usingPreview
+              ? "col-span-6"
+              : "col-span-6 @min-xl:col-span-4 @min-3xl:col-span-3 @min-6xl:col-span-2",
+            "p-4 flex flex-col min-h-35 overflow-hidden"
           )}
           aria-label="Temperature summary"
         >
@@ -1992,7 +2037,10 @@ const Summary = ({
           className={cn(
             cardBase,
             cardHover,
-            "col-span-12 @min-xl:col-span-8 @min-2xl:col-span-12 @min-5xl:col-span-6 p-4 overflow-hidden flex flex-col"
+            usingPreview
+              ? "col-span-12"
+              : "col-span-12 @min-xl:col-span-8 @min-2xl:col-span-12 @min-5xl:col-span-6",
+            "p-4 overflow-hidden flex flex-col"
           )}
           aria-label="Beach features"
         >
