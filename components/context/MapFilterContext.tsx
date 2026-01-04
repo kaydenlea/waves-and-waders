@@ -9,6 +9,7 @@ export type BeachPoint = {
   county: string;
   latitude: number;
   longitude: number;
+  grid_id?: number | null;
   features?: Record<string, boolean>;
 };
 
@@ -25,7 +26,7 @@ type Ctx = {
     id: number;
     longitude: number;
     latitude: number;
-    properties: any;
+    properties: Record<string, unknown>;
   } | null>;
   popupData: string | null;
   setPopupData: React.Dispatch<React.SetStateAction<string | null>>;
@@ -57,7 +58,7 @@ export function MapFilterProvider({ children }: { children: React.ReactNode }) {
     id: number;
     longitude: number;
     latitude: number;
-    properties: any;
+    properties: Record<string, unknown>;
   } | null>(null);
   const [popupData, setPopupData] = React.useState<string | null>(null);
   const [map, setMap] = React.useState<Map | undefined>(undefined);

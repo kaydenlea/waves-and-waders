@@ -29,8 +29,8 @@ const normalizeBeachRecord = (beach: ApiBeachRecord): BeachPoint => ({
   id: beach.id,
   name: beach.name ?? "",
   county: beach.county ?? "",
-  latitude: Number(beach.latitude ?? (beach as any).LATITUDE),
-  longitude: Number(beach.longitude ?? (beach as any).LONGITUDE),
+  latitude: Number(beach.latitude ?? beach.LATITUDE),
+  longitude: Number(beach.longitude ?? beach.LONGITUDE),
   grid_id: beach.grid_id ?? null,
   features: beach.features,
 });
@@ -71,7 +71,7 @@ export function useViewportBeaches({
   }, [requestId]);
 
   React.useEffect(() => {
-    if (!boundsKey) {
+    if (!boundsKey || !bounds) {
       setStatus("idle");
       setError((prev) => (prev === null ? prev : null));
       return;

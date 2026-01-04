@@ -46,6 +46,17 @@ type Props = {
   date?: Date;
   sunSegments?: SharedSunSegments;
 };
+type YAxisTickProps = {
+  x?: number;
+  y?: number;
+  payload?: { value?: number | string };
+  textAnchor?: string;
+  fontSize?: number;
+};
+type TooltipPayload = Array<{ payload?: { hour?: number } }>;
+type TooltipItem = { dataKey?: string; payload?: Record<string, unknown> };
+type TooltipValue = number | string | Array<number | string>;
+type ChartMouseEvent = { activeLabel?: number | string | null };
 const WindTooltipIcon = () => <WindIcon className="h-3 w-3" />;
 
 const chartConfig = {
@@ -298,7 +309,7 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     [chartData]
   );
   const yAxisTick = React.useCallback(
-    (props: any) => {
+    (props: YAxisTickProps) => {
       const { x, y, payload, textAnchor, fontSize } = props ?? {};
       const xNum = typeof x === "number" ? x : Number(x);
       const yNum = typeof y === "number" ? y : Number(y);
@@ -364,7 +375,7 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       chartTheme.shadingOpacity,
     ]
   );
-  const formatHourLabel = useCallback((label: unknown, payload: any[]) => {
+  const formatHourLabel = useCallback((label: unknown, payload: TooltipPayload) => {
     let hour = payload?.[0]?.payload?.hour;
     if (typeof hour !== "number" && typeof label === "number") {
       hour = label;
@@ -377,7 +388,7 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     return `${displayHour} ${ampm}`;
   }, []);
   const formatWindTooltipValue = useCallback(
-    (value: number, _name: string, item: any) => {
+    (value: TooltipValue, _name: string, item: TooltipItem) => {
       const direction = item?.payload?.direction;
       const directionLabel = getWindDirection(
         typeof direction === "number" ? direction : 0
@@ -386,7 +397,17 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         typeof direction === "number"
           ? `${directionLabel} (${Math.round(direction)}°)`
           : directionLabel;
-      const speed = Number.isFinite(value) ? Math.round(value) : value ?? "--";
+      const numericValue =
+        typeof value === "number"
+          ? value
+          : typeof value === "string"
+          ? Number(value)
+          : Number.NaN;
+      const speed = Number.isFinite(numericValue)
+        ? Math.round(numericValue)
+        : Array.isArray(value)
+        ? value.join(", ")
+        : value ?? "--";
       const dirTextDisplay = dirText
         .replaceAll("\u00C2\u00B0", "\u00B0")
         .replaceAll("A\u0173", "\u00B0")
@@ -425,7 +446,7 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
 
   const lastHoveredRef = React.useRef<number | null>(null);
 
-  const handleMouseMove = (e: any) => {
+  const handleMouseMove = (e: ChartMouseEvent) => {
     if (e && e.activeLabel !== undefined) {
       const labelValue = Number(e.activeLabel);
       if (!isNaN(labelValue)) {
@@ -445,28 +466,11 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     setHoveredHour(null);
   };
 
-  const renderTooltipCursor = useCallback(
-    (cursorProps: any) => {
-      if (!cursorProps) return null;
-      const x = typeof cursorProps.x === "number" ? cursorProps.x : 0;
-      const y = typeof cursorProps.y === "number" ? cursorProps.y : 0;
-      const width =
-        typeof cursorProps.width === "number" ? cursorProps.width : 0;
-      const height =
-        typeof cursorProps.height === "number" ? cursorProps.height : 0;
-      if (height <= 0) return null;
-      // Dark shading rectangle only, no dotted line for bar charts
-      return (
-        <rect
-          x={x}
-          y={y}
-          width={width}
-          height={height}
-          fill="var(--foreground)"
-          fillOpacity={chartTheme.hoverOpacity}
-        />
-      );
-    },
+  const tooltipCursor = useMemo(
+    () => ({
+      fill: "var(--foreground)",
+      fillOpacity: chartTheme.hoverOpacity,
+    }),
     [chartTheme.hoverOpacity]
   );
 
@@ -625,10 +629,10 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
                 <ChartTooltipContent
                   className="min-w-[14rem]"
                   labelFormatter={formatHourLabel}
-                  formatter={formatWindTooltipValue as any}
+                  formatter={formatWindTooltipValue}
                 />
               }
-              cursor={renderTooltipCursor as any}
+              cursor={tooltipCursor}
               animationDuration={0}
             />
             {/* Hour indicator line */}

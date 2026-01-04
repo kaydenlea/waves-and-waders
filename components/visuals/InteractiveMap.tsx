@@ -13,6 +13,8 @@ import {
   NavigationControl,
 } from "react-map-gl/maplibre";
 import type { MapGeoJSONFeature, MapRef } from "react-map-gl/maplibre";
+import type { MapLayerMouseEvent, MapMouseEvent } from "maplibre-gl";
+import type { FeatureCollection, Geometry, Position } from "geojson";
 import "maplibre-gl/dist/maplibre-gl.css";
 import {
   FEATURE_CATEGORIES,
@@ -108,7 +110,7 @@ type BeachPoint = {
   county: string;
   latitude: number;
   longitude: number;
-  grid_id?: number;
+  grid_id?: number | null;
   features?: Record<string, boolean>;
   surfIntensity?: number;
 };
@@ -133,6 +135,52 @@ type OverlayLabels = {
   tertiary: string | null;
   wind: string | null;
 } | null;
+
+type MapInstance = ReturnType<MapRef["getMap"]>;
+
+type MapWithHoverState = MapInstance & {
+  __lastClusterHoverId?: number | null;
+};
+
+type PopupProperties = {
+  id: string | number;
+  name: string;
+  county: string;
+  surfIntensity: number;
+  conditions?: { windDirection?: number };
+} & Record<string, unknown>;
+
+type BeachGeoJsonCollection = FeatureCollection<Geometry, PopupProperties>;
+
+type GeoJsonSourceLike = {
+  setData?: (data: BeachGeoJsonCollection) => void;
+  getClusterExpansionZoom?: (
+    clusterId: number,
+    callback: (error: Error | null, zoom: number) => void
+  ) => void;
+};
+
+type MapStyleLayer = {
+  id?: string;
+  source?: string;
+  type?: string;
+  layout?: { visibility?: string };
+};
+
+type IdleCallbackWindow = Window & {
+  requestIdleCallback?: (
+    callback: IdleRequestCallback,
+    options?: IdleRequestOptions
+  ) => number;
+  cancelIdleCallback?: (id: number) => void;
+};
+
+type PopupEntry = {
+  id: number;
+  longitude: number;
+  latitude: number;
+  properties: PopupProperties;
+};
 
 const normalizeLon = (lon: number) => {
   let value = lon;
@@ -265,6 +313,13 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
   const lastHoverInternalIdRef = React.useRef<number | null>(null);
   // Map ref must be declared before helpers that depend on it
   const mapRef = React.useRef<MapRef>(null);
+  const getMapInstance = React.useCallback((): MapInstance | null => {
+    const ref = mapRef.current;
+    if (!ref) return null;
+    return typeof ref.getMap === "function"
+      ? ref.getMap()
+      : (ref as unknown as MapInstance);
+  }, []);
   const persistViewTimeoutRef = React.useRef<number | null>(null);
   const lastPublishedBoundsRef = React.useRef<VisibleMapBounds | null>(null);
   const lastPublishTsRef = React.useRef<number>(0);
@@ -280,7 +335,7 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
     []
   );
   const shouldTrackDetailLayer = React.useCallback(
-    (layer: any) => {
+    (layer: MapStyleLayer) => {
       if (!layer || typeof layer.id !== "string") return false;
       if (overlayLayerIds.has(layer.id)) return false;
       if (layer.source === "beaches") return false;
@@ -298,27 +353,30 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
     [overlayLayerIds]
   );
   const captureDetailLayers = React.useCallback(
-    (mapInstance: any) => {
+    (mapInstance: MapInstance | null | undefined) => {
       if (!mapInstance || typeof mapInstance.getStyle !== "function") return;
       try {
         const style = mapInstance.getStyle();
         const layers = style?.layers;
         if (!Array.isArray(layers)) return;
         const next = new globalThis.Map<string, string>();
-        layers.forEach((layer: any) => {
+        layers.forEach((layer: MapStyleLayer) => {
           if (!shouldTrackDetailLayer(layer)) return;
+          const layerId = layer.id;
+          if (typeof layerId !== "string") return;
           const visibility =
             typeof layer?.layout?.visibility === "string"
               ? (layer.layout.visibility as string)
               : "visible";
-          next.set(layer.id, visibility);
+          next.set(layerId, visibility);
         });
         detailLayerStoreRef.current = next;
       } catch {}
     },
     [shouldTrackDetailLayer]
   );
-  const hideDetailLayers = React.useCallback((mapInstance: any) => {
+  const hideDetailLayers = React.useCallback(
+    (mapInstance: MapInstance | null | undefined) => {
     if (!mapInstance || typeof mapInstance.setLayoutProperty !== "function") {
       return;
     }
@@ -327,13 +385,15 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
         mapInstance.setLayoutProperty(layerId, "visibility", "none");
       } catch {}
     });
-  }, []);
+  },
+  []
+  );
   // Removed static offset; compute exact center using symmetric pixel bounds
 
   React.useEffect(() => {
     return () => {
       if (persistViewTimeoutRef.current != null) {
-        const anyWindow = window as any;
+        const anyWindow = window as IdleCallbackWindow;
         if (typeof anyWindow.cancelIdleCallback === "function") {
           anyWindow.cancelIdleCallback(persistViewTimeoutRef.current);
         } else {
@@ -351,19 +411,18 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
     ) => {
       const cancelPending = () => {
         if (centerRafRef.current != null) {
-          cancelAnimationFrame(centerRafRef.current as any);
+          cancelAnimationFrame(centerRafRef.current);
           centerRafRef.current = null;
         }
         if (readinessRafRef.current != null) {
-          cancelAnimationFrame(readinessRafRef.current as any);
+          cancelAnimationFrame(readinessRafRef.current);
           readinessRafRef.current = null;
         }
       };
       cancelPending();
 
       const attempt = () => {
-        const ref = mapRef.current as any;
-        const mapInstance: any = ref?.getMap?.() ?? ref;
+        const mapInstance = getMapInstance();
         const canvas: HTMLCanvasElement | null =
           mapInstance?.getCanvas?.() ?? null;
         const width = canvas?.clientWidth ?? 0;
@@ -395,16 +454,16 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
       attempt();
       return cancelPending;
     },
-    [mapRef]
+    [getMapInstance]
   );
   const hoverRafRef = React.useRef<number | null>(null);
   const scheduleMapViewPersistence = React.useCallback(
     (payload: { longitude: number; latitude: number; zoom: number }) => {
       if (typeof window === "undefined") return;
       if (persistViewTimeoutRef.current != null) {
-        const anyWindow = window as any;
-        if (typeof anyWindow.cancelIdleCallback === "function") {
-          anyWindow.cancelIdleCallback(persistViewTimeoutRef.current);
+        const idleWindow = window as IdleCallbackWindow;
+        if (typeof idleWindow.cancelIdleCallback === "function") {
+          idleWindow.cancelIdleCallback(persistViewTimeoutRef.current);
         } else {
           window.clearTimeout(persistViewTimeoutRef.current);
         }
@@ -418,9 +477,9 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
         } catch {}
         persistViewTimeoutRef.current = null;
       };
-      const anyWindow = window as any;
-      if (typeof anyWindow.requestIdleCallback === "function") {
-        persistViewTimeoutRef.current = anyWindow.requestIdleCallback(run, {
+      const idleWindow = window as IdleCallbackWindow;
+      if (typeof idleWindow.requestIdleCallback === "function") {
+        persistViewTimeoutRef.current = idleWindow.requestIdleCallback(run, {
           timeout: 1000,
         });
       } else {
@@ -431,8 +490,7 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
   );
   const readCurrentBounds = React.useCallback((): VisibleMapBounds | null => {
     try {
-      const ref = mapRef.current as any;
-      const mapInstance: any = ref?.getMap?.() ?? ref;
+      const mapInstance = getMapInstance();
       if (!mapInstance || typeof mapInstance.getBounds !== "function") {
         return null;
       }
@@ -450,13 +508,12 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
     } catch {
       return null;
     }
-  }, []);
+  }, [getMapInstance]);
   const emitCameraUpdate = React.useCallback(() => {
     const bounds = readCurrentBounds();
     if (!bounds) return;
     const start = typeof performance !== "undefined" ? performance.now() : null;
-    const ref = mapRef.current as any;
-    const mapInstance: any = ref?.getMap?.() ?? ref;
+    const mapInstance = getMapInstance();
     const center = mapInstance?.getCenter?.();
     const zoomValue = mapInstance?.getZoom?.();
     onCameraChange({
@@ -472,6 +529,7 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
   }, [
     camera.center,
     camera.zoom,
+    getMapInstance,
     onCameraChange,
     readCurrentBounds,
     setVisibleBounds,
@@ -494,7 +552,7 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
     id: number;
     longitude: number;
     latitude: number;
-    properties: any;
+    properties: PopupProperties;
   } | null>(null);
   const { isOverlay, setIsOverlay } = useSearchContext();
   // Ensure we bind cluster layer click handlers once style/layers are ready
@@ -506,30 +564,26 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
   //   setOpenPanel((prev) => (prev === panel ? null : panel));
   // };
 
-  const mapToIdRef = React.useRef<
-    Record<
-      string,
-      { id: number; longitude: number; latitude: number; properties: any }
-    >
-  >({});
+  const mapToIdRef = React.useRef<Record<string, PopupEntry>>({});
   const mapToId = mapToIdRef.current;
-  const beachGeoJSONRef = React.useRef({
+  const beachGeoJSONRef = React.useRef<BeachGeoJsonCollection>({
     type: "FeatureCollection",
-    features: [] as any[],
+    features: [],
   });
   const applyBeachDataToSource = React.useCallback(
-    (geojson: { type: string; features: any[] }) => {
+    (geojson: BeachGeoJsonCollection) => {
       const start =
         typeof performance !== "undefined" ? performance.now() : null;
-      const ref = mapRef.current as any;
-      const mapInstance: any = ref?.getMap?.() ?? ref;
-      const source: any = mapInstance?.getSource?.("beaches") ?? null;
+      const mapInstance = getMapInstance();
+      const source = mapInstance?.getSource?.("beaches") as
+        | GeoJsonSourceLike
+        | undefined;
       if (source && typeof source.setData === "function") {
         source.setData(geojson);
         logPerf("beachSource:setData", start);
       }
     },
-    []
+    [getMapInstance]
   );
   const resumeCommitTimeoutRef = React.useRef<number | null>(null);
   React.useEffect(() => {
@@ -686,26 +740,27 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
       } catch {}
       lastHoverInternalIdRef.current = null;
     }
-    if ((mapInstance as any).__lastClusterHoverId != null) {
+    const mapWithHover = mapInstance as MapWithHoverState;
+    if (mapWithHover.__lastClusterHoverId != null) {
       try {
         if (mapInstance.getSource("beaches")) {
           mapInstance.setFeatureState(
             {
               source: "beaches",
-              id: (mapInstance as any).__lastClusterHoverId,
+              id: mapWithHover.__lastClusterHoverId,
             },
             { hover: false }
           );
         }
       } catch {}
-      (mapInstance as any).__lastClusterHoverId = null;
+      mapWithHover.__lastClusterHoverId = null;
     }
 
     if (!hoverCardId) {
       // No card hovered -> ensure popup closed and highlights cleared (done above)
       setPopupInfo(null);
       popupId.current = null;
-      popupRef.current = null as any;
+      popupRef.current = null;
       setHoverClusterId(null);
       return;
     }
@@ -713,25 +768,21 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
     // Default: close any previous popup. We'll reopen below if unclustered.
     setPopupInfo(null);
     popupId.current = null;
-    popupRef.current = null as any;
+    popupRef.current = null;
 
     // Detect whether the hovered beach is currently unclustered by inspecting rendered features
     try {
-      const entry = (mapToId as any)[hoverCardId];
+      const entry = mapToId[hoverCardId];
       if (!entry) return;
       const px = mapInstance.project([entry.longitude, entry.latitude]);
       const pad = 12;
+      const queryBox: [[number, number], [number, number]] = [
+        [px.x - pad, px.y - pad],
+        [px.x + pad, px.y + pad],
+      ];
       const unclustered = mapInstance
-        .queryRenderedFeatures(
-          [
-            [px.x - pad, px.y - pad],
-            [px.x + pad, px.y + pad],
-          ] as any,
-          { layers: ["unclustered-point"] as any }
-        )
-        .some(
-          (f: any) => String(f?.properties?.id) === String(entry.properties.id)
-        );
+        .queryRenderedFeatures(queryBox, { layers: ["unclustered-point"] })
+        .some((f) => String(f?.properties?.id) === String(entry.properties.id));
 
       if (unclustered) {
         // Highlight the specific unclustered circle for visual feedback
@@ -758,7 +809,7 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
           longitude: entry.longitude,
           latitude: entry.latitude,
           properties: entry.properties,
-        } as any;
+        };
         return;
       }
 
@@ -766,24 +817,23 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
       {
         try {
           const radius = 150; // px search window
-          const clusters = mapInstance.queryRenderedFeatures(
-            [
-              [px.x - radius, px.y - radius],
-              [px.x + radius, px.y + radius],
-            ] as any,
-            { layers: ["clusters"] as any }
-          ) as any[];
+          const clusterBox: [[number, number], [number, number]] = [
+            [px.x - radius, px.y - radius],
+            [px.x + radius, px.y + radius],
+          ];
+          const clusters = mapInstance.queryRenderedFeatures(clusterBox, {
+            layers: ["clusters"],
+          });
 
           if (Array.isArray(clusters) && clusters.length > 0) {
-            let best: any = null;
+            let best: MapGeoJSONFeature | null = null;
             let bestDist = Number.POSITIVE_INFINITY;
             for (const c of clusters) {
-              const coords = (c.geometry?.coordinates ?? []) as [
-                number,
-                number
-              ];
-              if (!coords || coords.length !== 2) continue;
-              const p = mapInstance.project(coords as any);
+              const coords = (
+                c.geometry as { coordinates?: Position }
+              )?.coordinates;
+              if (!coords || coords.length < 2) continue;
+              const p = mapInstance.project([coords[0], coords[1]]);
               const dx = p.x - px.x;
               const dy = p.y - px.y;
               const d2 = dx * dx + dy * dy;
@@ -798,7 +848,7 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
               // Ensure no popup is visible while clustered
               setPopupInfo(null);
               popupId.current = null;
-              popupRef.current = null as any;
+              popupRef.current = null;
             }
           }
         } catch {}
@@ -917,6 +967,7 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
     selectedDate,
     selectedHour
   );
+  const resolvedOverlayLabels: OverlayLabels = overlayLabels ?? null;
 
   // Prefetch swell directions for adjacent dates (for faster date switching)
   usePrefetchAdjacentDates(selected ? String(selected.id) : null, selectedDate);
@@ -986,6 +1037,91 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
     }
     return { longitude: -122.4, latitude: 37.8, zoom: 6 };
   }, []);
+
+  // Effect to zoom to user's location when they open the map
+  React.useEffect(() => {
+    if (typeof window === "undefined" || !navigator?.geolocation) {
+      return;
+    }
+
+    // Check if user has manually interacted with the map
+    const hasStoredView = window.localStorage.getItem("ww:last-map-view");
+    const hasStoredCenter = window.localStorage.getItem("ww:last-selected-center");
+
+    // If user has manually positioned the map, respect that
+    if (hasStoredView || hasStoredCenter) {
+      return;
+    }
+
+    // Request user location
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const userLat = position.coords.latitude;
+        const userLon = position.coords.longitude;
+
+        // Check if location has changed significantly from last time
+        const lastLocation = window.localStorage.getItem("ww:last-user-location");
+        let shouldUpdate = true;
+
+        if (lastLocation) {
+          try {
+            const parsed = JSON.parse(lastLocation);
+            const latDiff = Math.abs(parsed.lat - userLat);
+            const lonDiff = Math.abs(parsed.lon - userLon);
+
+            // Only update if moved more than ~5km (roughly 0.05 degrees)
+            if (latDiff < 0.05 && lonDiff < 0.05) {
+              shouldUpdate = false;
+            }
+          } catch {}
+        }
+
+        if (!shouldUpdate) {
+          return;
+        }
+
+        // Get map instance
+        const mapInstance = getMapInstance();
+        if (!mapInstance) {
+          // Retry after a short delay
+          setTimeout(() => {
+            const retryMap = getMapInstance();
+            if (retryMap) {
+              retryMap.flyTo({
+                center: [userLon, userLat],
+                zoom: 10,
+                duration: 2000,
+              });
+              window.localStorage.setItem(
+                "ww:last-user-location",
+                JSON.stringify({ lat: userLat, lon: userLon })
+              );
+            }
+          }, 500);
+          return;
+        }
+
+        // Smoothly fly to user location
+        mapInstance.flyTo({
+          center: [userLon, userLat],
+          zoom: 10,
+          duration: 2000,
+        });
+
+        // Store the current location
+        window.localStorage.setItem(
+          "ww:last-user-location",
+          JSON.stringify({ lat: userLat, lon: userLon })
+        );
+      },
+      () => {},
+      {
+        enableHighAccuracy: false,
+        timeout: 5000,
+        maximumAge: 0,
+      }
+    );
+  }, [getMapInstance]);
   const FILTER_KEYS = React.useMemo(
     () => [
       "RESTROOMS",
@@ -1062,7 +1198,8 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
       typeof performance !== "undefined" ? performance.now() : null;
     const registry = mapToIdRef.current;
     Object.keys(registry).forEach((key) => delete registry[key]);
-    const features = filteredBeaches.map((b, idx) => {
+    const features: BeachGeoJsonCollection["features"] = filteredBeaches.map(
+      (b, idx) => {
       const intensity = surfIntensity[b.id] || 0;
       registry[b.id] = {
         id: idx,
@@ -1075,19 +1212,23 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
           surfIntensity: intensity,
         },
       };
-      return {
-        type: "Feature",
-        id: idx,
-        geometry: { type: "Point", coordinates: [b.longitude, b.latitude] },
-        properties: {
-          id: b.id,
-          name: b.name,
-          county: b.county,
-          surfIntensity: intensity,
-        },
-      };
-    });
-    const geojson = {
+        return {
+          type: "Feature",
+          id: idx,
+          geometry: {
+            type: "Point",
+            coordinates: [b.longitude, b.latitude],
+          },
+          properties: {
+            id: b.id,
+            name: b.name,
+            county: b.county,
+            surfIntensity: intensity,
+          },
+        };
+      }
+    );
+    const geojson: BeachGeoJsonCollection = {
       type: "FeatureCollection",
       features,
     };
@@ -1099,7 +1240,7 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
   // After beaches load, align map to page context (selected beach if provided, otherwise fit to all)
   React.useEffect(() => {
     if (!beaches.length) return;
-    setMap(mapRef.current?.getMap?.());
+    setMap(getMapInstance() ?? undefined);
     if (!map) return;
 
     const beachFromPath = (() => {
@@ -1239,6 +1380,7 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
     located,
     findBeachMatch,
     map,
+    getMapInstance,
     setMap,
     storedSelectionId,
   ]);
@@ -1255,8 +1397,7 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
       const match = findBeachMatch(String(target));
       if (!match) return;
 
-      const ref = mapRef.current;
-      const mapInstance: any = ref?.getMap?.() ?? ref;
+      const mapInstance = getMapInstance();
       // ensure the map is visible when focusing
       if (fullMapPage) {
         setShowMap(true);
@@ -1300,7 +1441,7 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
         MAP_FOCUS_EVENT,
         handleRefocus as EventListener
       );
-  }, [findBeachMatch, fullMapPage, setShowMap]);
+  }, [findBeachMatch, fullMapPage, setShowMap, easeToWhenReady, getMapInstance]);
 
   // if (editPage || (forecastPage && !smallScreen)) {
   //   return <></>;
@@ -1358,8 +1499,7 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
   // Handle recentering when expanding (forecast/overview)
   React.useEffect(() => {
     if (!showMap || !selected) return;
-    const ref = mapRef.current as any;
-    const mapInstance: any = ref?.getMap?.() ?? ref;
+    const mapInstance = getMapInstance();
     if (!mapInstance || typeof mapInstance.easeTo !== "function") {
       pendingRefocusRef.current = {
         beachId: String(selected.id),
@@ -1372,12 +1512,23 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
       16,
       500
     );
-  }, [showMap, selected, easeToWhenReady]);
+  }, [showMap, selected, easeToWhenReady, getMapInstance]);
 
   const filterCount = filters?.size ?? 0;
   const overlaysHidden = mapIsMoving;
   const showUpdateBanner =
     mapIsMoving || viewportStatus === "dirty" || viewportStatus === "loading";
+  const hasPointCountFilter: ["has", "point_count"] = ["has", "point_count"];
+  const noPointCountFilter: ["!has", "point_count"] = ["!has", "point_count"];
+  const hoverClusterFilter: [
+    "all",
+    ["has", "point_count"],
+    ["==", ["get", "cluster_id"], number]
+  ] = [
+    "all",
+    ["has", "point_count"],
+    ["==", ["get", "cluster_id"], hoverClusterId ?? -1],
+  ];
 
   // Show legend by default on non-/beaches pages (overview/forecast)
   React.useEffect(() => {
@@ -1461,7 +1612,9 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
           captureDetailLayers(map);
           hideDetailLayers(map);
           try {
-            const source: any = map.getSource("beaches");
+            const source = map.getSource("beaches") as
+              | GeoJsonSourceLike
+              | undefined;
             if (source && typeof source.setData === "function") {
               source.setData(beachGeoJSONRef.current);
             }
@@ -1538,11 +1691,14 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
             const hasCount = !!map.getLayer("cluster-count");
             if (!hasClusters || !hasCount) return;
 
-            const onClusterClick = (ev: any) => {
+            const onClusterClick = (ev: MapLayerMouseEvent) => {
               const feat = ev?.features && ev.features[0];
-              const coords = (feat?.geometry as any)?.coordinates as
-                | [number, number]
-                | undefined;
+              const coords = (feat?.geometry as { coordinates?: Position })
+                ?.coordinates;
+              const center: [number, number] | undefined =
+                Array.isArray(coords) && coords.length >= 2
+                  ? [coords[0], coords[1]]
+                  : undefined;
               const current = map.getZoom?.() ?? 5;
               const target = Math.min(current + 2, 16);
               try {
@@ -1554,7 +1710,7 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
               } catch {}
               try {
                 map.easeTo({
-                  center: (coords as any) ?? ev.lngLat,
+                  center: center ?? [ev.lngLat.lng, ev.lngLat.lat],
                   zoom: target,
                   duration: 300,
                 });
@@ -1648,24 +1804,21 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
             lastHoverInternalIdRef.current = null;
           });
 
-          map.on("click", (ev: any) => {
+          map.on("click", (ev: MapMouseEvent) => {
             // If clicking a cluster or point layer, let dedicated handlers manage it
             try {
-              const p = ev?.point ?? map.project(ev?.lngLat);
-              const hits = map.queryRenderedFeatures(
-                [
-                  [p.x - 20, p.y - 20],
-                  [p.x + 20, p.y + 20],
-                ] as any,
-                {
-                  layers: [
-                    "clusters",
-                    "cluster-count",
-                    "clusters-hover",
-                    "unclustered-point",
-                  ] as any,
-                }
-              );
+              const p = ev.point ?? map.project(ev.lngLat);
+              const queryBox: [[number, number], [number, number]] = [
+                [p.x - 20, p.y - 20],
+                [p.x + 20, p.y + 20],
+              ];
+              const layers = [
+                "clusters",
+                "cluster-count",
+                "clusters-hover",
+                "unclustered-point",
+              ];
+              const hits = map.queryRenderedFeatures(queryBox, { layers });
               if (Array.isArray(hits) && hits.length > 0) return;
             } catch {}
             // Otherwise clear popup
@@ -1685,14 +1838,14 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
             }
           });
 
-          map.on("mousemove", "unclustered-point", (event) => {
+          map.on("mousemove", "unclustered-point", (event: MapLayerMouseEvent) => {
             const feature = event.features?.[0];
             if (!feature) return;
             const fid = feature.properties?.id;
             if (lastHoverFeatureIdRef.current === fid) return;
             lastHoverFeatureIdRef.current = fid;
             if (hoverRafRef.current != null) {
-              cancelAnimationFrame(hoverRafRef.current as any);
+              cancelAnimationFrame(hoverRafRef.current);
             }
             hoverRafRef.current = requestAnimationFrame(() => {
               const beach = mapToId[fid];
@@ -1729,7 +1882,7 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
             });
           });
           // Provide clear hover indication for clusters to communicate interactivity
-          const setHoverClusterFromEvent = (ev: any) => {
+          const setHoverClusterFromEvent = (ev: MapLayerMouseEvent) => {
             const f = ev?.features?.[0];
             const cid = f?.properties?.cluster_id;
             if (typeof cid === "number") setHoverClusterId(cid);
@@ -1762,29 +1915,40 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
           } catch {}
         }}
         onClick={(e) => {
-          const mapInstance: any = mapRef.current?.getMap?.();
+          const mapInstance = getMapInstance();
           const feature = e.features && e.features[0];
           if (!mapInstance || !feature) return;
 
           // Handle cluster clicks robustly
-          const isCluster =
-            feature &&
-            feature.properties &&
-            (feature.properties as any).cluster;
+          const isCluster = Boolean(
+            (feature.properties as { cluster?: boolean } | undefined)?.cluster
+          );
           const isClusterCount =
             feature && feature.layer?.id === "cluster-count";
-          const isClusterHover =
-            feature && feature.layer?.id === "clusters-hover";
 
           if (isCluster || isClusterCount) {
-            const clusterId = feature.properties?.cluster_id;
-            const source: any = mapInstance.getSource("beaches");
+            const clusterId =
+              typeof feature.properties?.cluster_id === "number"
+                ? feature.properties.cluster_id
+                : null;
+            const source = mapInstance.getSource("beaches") as
+              | GeoJsonSourceLike
+              | undefined;
             if (source && clusterId != null) {
-              const coords = (feature.geometry as any).coordinates;
+              const coords = (feature.geometry as { coordinates?: Position })
+                ?.coordinates;
+              const fallbackCenter = mapInstance.getCenter?.();
+              const center: [number, number] | undefined =
+                Array.isArray(coords) && coords.length >= 2
+                  ? [coords[0], coords[1]]
+                  : fallbackCenter
+                  ? [fallbackCenter.lng, fallbackCenter.lat]
+                  : undefined;
+              if (!center) return;
               try {
                 const current = mapInstance.getZoom?.() ?? 5;
                 mapInstance.easeTo({
-                  center: coords,
+                  center,
                   zoom: Math.min(current + 2, 16),
                   duration: 200,
                 });
@@ -1792,14 +1956,14 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
               // try {
               //   console.info("cluster click ->", { clusterId, coords });
               // } catch {}
-              (source as any).getClusterExpansionZoom(
+              source.getClusterExpansionZoom?.(
                 clusterId,
-                (err: any, expansionZoom: number) => {
-                  if (err) return;
+                (err: Error | null, expansionZoom: number) => {
+                  if (err || !center) return;
                   const targetZoom = Math.max(expansionZoom, 12.5);
                   try {
                     mapInstance.easeTo({
-                      center: coords,
+                      center,
                       zoom: targetZoom,
                       duration: 500,
                     });
@@ -1812,13 +1976,16 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
           }
 
           // Unclustered point: open popup and allow navigation
-          const props: any = feature.properties || {};
+          const props = (feature.properties ?? {}) as PopupProperties;
+          const coords = (feature.geometry as { coordinates?: Position })
+            ?.coordinates;
+          if (!coords || coords.length < 2) return;
           const point: BeachPoint = {
             id: props.id,
             name: props.name,
             county: props.county,
-            longitude: (feature.geometry as any).coordinates[0],
-            latitude: (feature.geometry as any).coordinates[1],
+            longitude: coords[0],
+            latitude: coords[1],
           };
 
           // console.log("ENTER CLICK SELECTED BEACH 1");
@@ -1888,7 +2055,7 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
           <Layer
             id="clusters"
             type="circle"
-            filter={["has", "point_count"] as any}
+            filter={hasPointCountFilter}
             layout={{ visibility: overlaysHidden ? "none" : "visible" }}
             paint={{
               "circle-color": [
@@ -1923,13 +2090,7 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
           <Layer
             id="clusters-hover"
             type="circle"
-            filter={
-              [
-                "all",
-                ["has", "point_count"],
-                ["==", ["get", "cluster_id"], hoverClusterId ?? -1],
-              ] as any
-            }
+            filter={hoverClusterFilter}
             layout={{ visibility: overlaysHidden ? "none" : "visible" }}
             paint={{
               "circle-color": "#176cff",
@@ -1945,7 +2106,7 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
           <Layer
             id="cluster-count"
             type="symbol"
-            filter={["has", "point_count"] as any}
+            filter={hasPointCountFilter}
             layout={{
               // use the raw point_count (exact) and convert to string to avoid layout/abbrev races
               "text-field": ["to-string", ["get", "point_count"]],
@@ -1966,7 +2127,7 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
           <Layer
             id="unclustered-point"
             type="circle"
-            filter={["!has", "point_count"] as any}
+            filter={noPointCountFilter}
             layout={{ visibility: overlaysHidden ? "none" : "visible" }}
             paint={{
               "circle-radius": [
@@ -2003,7 +2164,7 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
           <Layer
             id="unclustered-point-label"
             type="symbol"
-            filter={["!has", "point_count"] as any}
+            filter={noPointCountFilter}
             layout={{
               "text-field": ["get", "name"],
               "text-offset": [0, 1.8],
@@ -2028,7 +2189,7 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
           windDirection={windDirection}
           selectedPointVisible={selectedPointVisible}
           zoom={zoom}
-          overlayLabels={overlayLabels}
+          overlayLabels={resolvedOverlayLabels}
           legendOpen={openPanel === "legend"}
           overlaysHidden={overlaysHidden}
         />
@@ -2223,8 +2384,7 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
                 type="button"
                 aria-label="Refocus map on beach"
                 onClick={() => {
-                  const ref = mapRef.current;
-                  const mapInstance: any = ref?.getMap?.() ?? ref;
+                  const mapInstance = getMapInstance();
                   if (fullMapPage) {
                     setShowMap(true);
                   }

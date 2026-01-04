@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
 // Boolean coercion helper (same as beaches API)
-const toBool = (v: any): boolean => {
+const toBool = (v: unknown): boolean => {
   if (v === null || v === undefined) return false
   if (typeof v === 'boolean') return v
   if (typeof v === 'number') return v !== 0

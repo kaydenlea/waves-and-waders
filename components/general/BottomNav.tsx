@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
   User,
@@ -13,6 +13,11 @@ import {
   ArrowUp,
   Filter,
   LogOut,
+  Bike,
+  Building2,
+  CreditCard,
+  TreePine,
+  Waves,
 } from "lucide-react";
 import BackToMapButton from "./BackToMapButton";
 import Link from "next/link";
@@ -34,6 +39,7 @@ import {
   AppMenuSeparator,
   AppMenuTrigger,
 } from "@/components/ui/app-menu";
+import { FEATURE_CATEGORIES } from "@/lib/supabase";
 
 export default function BottomNav() {
   const router = useRouter();
@@ -152,6 +158,98 @@ export default function BottomNav() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, [lastScrollY]);
 
+  const handleToggle = (key: string) =>
+    setFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+
+  const clearAll = () => setFilters(new Set());
+
+  const getSectionIcon = (label: string) => {
+    const l = label.toLowerCase();
+    if (l.includes("activities"))
+      return <Bike className="w-6 h-6 text-red-300" />;
+    if (l.includes("trails") || l.includes("nature"))
+      return (
+        <TreePine className="w-6 h-6 text-green-500 dark:text-green-400" />
+      );
+    if (l.includes("beach"))
+      return <Waves className="w-6 h-6 text-cyan-400 dark:text-cyan-300" />;
+    if (l.includes("facilities") || l.includes("amenities"))
+      return <Building2 className="w-6 h-6 text-gray-500 dark:text-gray-300" />;
+    if (l.includes("access") || l.includes("fees"))
+      return (
+        <CreditCard className="w-6 h-6 text-purple-400 dark:text-purple-300" />
+      );
+    return <Waves className="w-6 h-6 text-sky-300 opacity-70" />;
+  };
+
+  const [expandedSections, setExpandedSections] = useState<
+    Record<string, boolean>
+  >(() => {
+    const initial: Record<string, boolean> = {};
+    Object.keys(FEATURE_CATEGORIES).forEach((key) => {
+      initial[key] = false; // start collapsed by default
+    });
+    return initial;
+  });
+
+  // temporary, uncommitted filters
+  const [tempFilters, setTempFilters] = useState<Set<string>>(new Set(filters));
+
+  const featureSections = useMemo(
+    () =>
+      Object.entries(FEATURE_CATEGORIES).map(([key, cat]) => ({
+        key,
+        label: cat.label || key,
+        features: Array.from(cat.features),
+      })),
+    []
+  );
+
+  const sectionSelections = useMemo(() => {
+    const result: Record<string, number> = {};
+    featureSections.forEach((section) => {
+      result[section.key] = section.features.reduce(
+        (count, key) => count + (tempFilters.has(key) ? 1 : 0),
+        0
+      );
+    });
+    return result;
+  }, [featureSections, tempFilters]);
+
+  useEffect(() => {
+    if (openPanel === "filters") {
+      setTempFilters(new Set(filters)); // sync temp filters when opening
+    }
+  }, [openPanel, filters]);
+
+  const handleTempToggle = (key: string) => {
+    setTempFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else next.add(key);
+      return next;
+    });
+  };
+
+  // const clearAll = () => setTempFilters(new Set());
+
+  const applyFilters = (newFilters: Set<string>) => {
+    setFilters(new Set(newFilters));
+    // optionally trigger data refresh or re-fetch
+  };
+
+  const toggleSection = (key: string) =>
+    setExpandedSections((prev) => ({
+      ...prev,
+      [key]: !(prev?.[key] ?? true),
+    }));
+
   return (
     <>
       {/* Floating Map Button */}
@@ -257,7 +355,7 @@ export default function BottomNav() {
             )}
           />
         </div>
-          </>
+      </>
 
       {/* floating day / hour mode button */}
       {/* {selectedTab !== "forecast" && fullMapPage && !landingPage && (

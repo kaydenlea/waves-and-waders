@@ -69,6 +69,14 @@ type TidePoint = {
   tide: number;
   isPeak?: number;
 };
+type YAxisTickProps = {
+  x?: number;
+  y?: number;
+  payload?: { value?: number | string };
+  textAnchor?: string;
+  fontSize?: number;
+};
+type ChartMouseEvent = { activeLabel?: number | string | null };
 
 type TideChartProps = {
   beachId?: string;
@@ -395,7 +403,7 @@ const TideChart: React.FC<TideChartProps> = ({
         (tideRows.length
           ? resolveStartMs(
               new Date(
-                Number(tideRows[0].x ?? tideRows[0].timestamp ?? Date.now())
+                Number(tideRows[0].x ?? Date.now())
               )
             )
           : null);
@@ -614,7 +622,7 @@ const TideChart: React.FC<TideChartProps> = ({
     return buildYAxisTicks([paddedMin, ...values, paddedMax], paddedMin, 4, 0);
   }, [renderData]);
   const yAxisTick = React.useCallback(
-    (props: any) => {
+    (props: YAxisTickProps) => {
       const { x, y, payload, textAnchor, fontSize } = props ?? {};
       const xNum = typeof x === "number" ? x : Number(x);
       const yNum = typeof y === "number" ? y : Number(y);
@@ -707,7 +715,7 @@ const TideChart: React.FC<TideChartProps> = ({
 
   const lastHoveredRef = React.useRef<number | null>(null);
 
-  const handleMouseMove = (e: any) => {
+  const handleMouseMove = (e: ChartMouseEvent) => {
     if (e && e.activeLabel !== undefined) {
       const hour = Number(e.activeLabel);
       if (!isNaN(hour)) {

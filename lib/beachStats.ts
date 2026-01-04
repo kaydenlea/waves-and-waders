@@ -303,7 +303,7 @@ export async function computeBeachStatsSnapshot(
     });
   }
 
-  const tideSeries: TidePointValue[] = (tides as any[])
+  const tideSeries: TidePointValue[] = tides
     .map((row) => {
       const tideFt =
         typeof row?.tideLevelFt === "number"

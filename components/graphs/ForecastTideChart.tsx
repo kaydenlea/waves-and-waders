@@ -15,6 +15,7 @@ import {
   YAxis,
   ReferenceLine,
   LabelList,
+  LabelProps,
 } from "recharts";
 import {
   ArrowDown,
@@ -81,6 +82,21 @@ type ChartState = {
   sunMarkers: { hour: number; type: "sunrise" | "sunset" }[];
   tideStats: { dayIndex: number; high: number; low: number }[];
 };
+
+type YAxisTickProps = {
+  x?: number;
+  y?: number;
+  payload?: { value?: number };
+  textAnchor?: string;
+  fontSize?: number;
+};
+
+type TooltipPayload = Array<{ payload?: { hour?: number } }>;
+
+type ChartMouseEvent = { activeLabel?: number | string | null };
+
+type TideDotProps = { payload?: TidePoint; cx?: number; cy?: number };
+
 
 export default React.memo(function ForecastTideChart({
   beachId,
@@ -905,7 +921,7 @@ export default React.memo(function ForecastTideChart({
     );
   }, [data]);
   const yAxisTick = useCallback(
-    (props: any) => {
+    (props: YAxisTickProps) => {
       const { x, y, payload, textAnchor, fontSize } = props ?? {};
       const xNum = typeof x === "number" ? x : Number(x);
       const yNum = typeof y === "number" ? y : Number(y);
@@ -937,7 +953,8 @@ export default React.memo(function ForecastTideChart({
     },
     [tideTicks]
   );
-  const formatHourLabel = useCallback((label: unknown, payload: any[]) => {
+  const formatHourLabel = useCallback(
+    (label: unknown, payload: TooltipPayload) => {
     let hour = payload?.[0]?.payload?.hour;
     if (typeof hour !== "number" && typeof label === "number") {
       hour = label;
@@ -950,13 +967,15 @@ export default React.memo(function ForecastTideChart({
     return minutes > 0
       ? `${displayHour}:${minutes.toString().padStart(2, "0")} ${ampm}`
       : `${displayHour} ${ampm}`;
-  }, []);
+    },
+    []
+  );
 
   // Hover sync handlers - DateContext handles RAF batching
   const lastHoveredRef = React.useRef<number | null>(null);
 
   const handleMouseMove = React.useCallback(
-    (e: any) => {
+    (e: ChartMouseEvent) => {
       if (e && e.activeLabel !== undefined) {
         const hour = Number(e.activeLabel);
         if (!isNaN(hour)) {
@@ -1382,7 +1401,10 @@ export default React.memo(function ForecastTideChart({
                         isAnimationActive={false}
                         animationDuration={0}
                         animationBegin={0}
-                        dot={({ payload, cx, cy }: any) => {
+                        dot={({ payload, cx, cy }: TideDotProps) => {
+                          if (!payload) {
+                            return null;
+                          }
                           const hour = payload.hour as number;
                           // Exact match for sun markers (no duplicates)
                           const sunMarker = sunMarkers.find(
@@ -1425,7 +1447,7 @@ export default React.memo(function ForecastTideChart({
                       >
                         <LabelList
                           dataKey="tide"
-                          content={(props: any) => {
+                          content={(props: LabelProps) => {
                             const safeX =
                               typeof props.x === "number" ? props.x : 0;
                             const hour = data[props.index ?? -1]?.hour;
@@ -1451,7 +1473,7 @@ export default React.memo(function ForecastTideChart({
                         />
                         <LabelList
                           dataKey="isPeak"
-                          content={(props: any) => {
+                          content={(props: LabelProps) => {
                             const safeX =
                               typeof props.x === "number" ? props.x : 0;
                             const safeY =

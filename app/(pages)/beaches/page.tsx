@@ -7,14 +7,33 @@ import { LazyLoadMap } from "@/components/general/LazyLoad/LazyLoadMap";
 import PathStyleWrapper from "@/components/general/PathStyleWrapper";
 import Footer from "@/components/general/Footer";
 import FavoriteIdsHydrator from "@/components/general/FavoriteIdsHydrator";
-import { toAbsoluteUrl } from "@/lib/seo";
+import { toAbsoluteUrl, getSiteUrl } from "@/lib/seo";
 
 export const metadata: Metadata = {
-  title: "Search surf spots",
-  description: "Find surf spots, beach features, and nearby breaks on the map.",
+  title: "Find surf spots and beaches near you",
+  description: "Search California beaches by location and amenities. Find surf spots with bathrooms, parking, showers, lifeguards, and more. Filter by county and features.",
+  keywords: [
+    "California beaches",
+    "surf spots California",
+    "beaches near me",
+    "beach finder",
+    "surf map",
+    "nearby beaches",
+    "beaches with bathrooms",
+    "beaches with parking",
+    "beaches with showers",
+    "Orange County beaches",
+    "San Diego beaches",
+    "Los Angeles beaches",
+    "beach amenities",
+    "surf breaks California",
+    "coastal spots",
+    "beach search",
+    "beaches by county",
+  ],
   openGraph: {
-    title: "Search surf spots",
-    description: "Find surf spots, beach features, and nearby breaks on the map.",
+    title: "Find surf spots and beaches near you",
+    description: "Search California beaches by location and amenities. Find surf spots with bathrooms, parking, showers, lifeguards, and more.",
     url: "/beaches",
     images: [
       {
@@ -27,14 +46,16 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary",
-    title: "Search surf spots",
-    description: "Find surf spots, beach features, and nearby breaks on the map.",
+    title: "Find surf spots and beaches near you",
+    description: "Search California beaches by location and amenities. Find surf spots with bathrooms, parking, showers, lifeguards, and more.",
     images: [toAbsoluteUrl("/logo.png")],
   },
   alternates: {
     canonical: "/beaches",
   },
 };
+
+export const revalidate = 300; // Revalidate every 5 minutes
 
 export default async function BeachesPage() {
   const supabase = await getServerSupabase();
@@ -55,8 +76,21 @@ export default async function BeachesPage() {
     favoriteIds = (data ?? []).map((row) => String(row.beach_id));
   }
 
+  const baseUrl = getSiteUrl();
+  const itemListSchema = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: "California Surf Spots and Beaches",
+    description: "Comprehensive list of California beaches with real-time surf conditions, amenities, and forecasts",
+    url: `${baseUrl}/beaches`,
+  };
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListSchema) }}
+      />
       <NavBar beachesPage />
       <main
         id="main-content"
@@ -87,6 +121,25 @@ export default async function BeachesPage() {
               </header>
             </div>
             <NearbyBeaches />
+
+            {/* SEO content for feature-specific searches */}
+            <section className="sr-only" aria-hidden="true">
+              <h2>Find California Beaches by Features and Location</h2>
+              <p>
+                Search beaches in Orange County, San Diego, Los Angeles, and other California counties.
+                Filter by amenities including bathrooms, restrooms, parking, showers, lifeguards,
+                picnic areas, camping, and more. Get real-time surf forecasts, wave heights,
+                swell direction, wind conditions, and tide charts for every beach.
+              </p>
+              <ul>
+                <li>Orange County beaches with bathrooms and parking</li>
+                <li>San Diego surf spots with lifeguards</li>
+                <li>Los Angeles beaches with showers</li>
+                <li>Beaches near me with amenities</li>
+                <li>California coastal access points</li>
+                <li>Family-friendly beaches with facilities</li>
+              </ul>
+            </section>
           </div>
         </PathStyleWrapper>
       </main>

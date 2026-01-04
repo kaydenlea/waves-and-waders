@@ -179,8 +179,9 @@ function ChartTooltipContent({
       item.name === "surf" ||
       item.name === "energy"
     ) {
-      const x: unknown = (item as any)?.payload?.x;
-      const hourSource: unknown = (item as any)?.payload?.hour;
+      const payload = (item as { payload?: Record<string, unknown> }).payload;
+      const x: unknown = payload?.x;
+      const hourSource: unknown = payload?.hour;
       let hourNum: number | null = null;
       if (typeof x === "number") {
         hourNum = new Date(x).getHours();
@@ -242,10 +243,12 @@ function ChartTooltipContent({
           const key = `${nameKey || item.name || item.dataKey || "value"}`;
           const itemConfig = getPayloadConfigFromPayload(config, item, key);
           const configColor = resolveConfigColor(itemConfig);
+          const payloadEntry = (item?.payload ??
+            {}) as Record<string, unknown>;
           const rawIndicatorColor =
             color ||
-            (item?.payload as any)?.fill ||
-            (item?.payload as any)?.stroke ||
+            (payloadEntry.fill as string | undefined) ||
+            (payloadEntry.stroke as string | undefined) ||
             item.color;
           const indicatorColor =
             typeof rawIndicatorColor === "string" &&

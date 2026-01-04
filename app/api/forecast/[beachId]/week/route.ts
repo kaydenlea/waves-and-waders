@@ -4,7 +4,7 @@ import { formatTimestamp, fetchBeachForecast } from '@/lib/supabase'
 
 export async function GET(
   request: NextRequest,
-  { params }: any
+  { params }: { params: { beachId: string } }
 ) {
   try {
     const beachId = parseInt(params.beachId)

@@ -42,7 +42,29 @@ import BottomNav from "@/components/general/BottomNav";
 export const metadata: Metadata = {
   title: "Surf forecasts, maps, and beach features",
   description:
-    "Live surf conditions, beach maps, and feature-rich spot guides for coastal breaks.",
+    "Live surf conditions, beach maps, and feature-rich spot guides for coastal breaks. Find California beaches with bathrooms, parking, showers, and lifeguards. Real-time wave forecasts from NOAA.",
+  keywords: [
+    "surf forecast",
+    "surf conditions",
+    "beach conditions",
+    "swell forecast",
+    "wave forecast",
+    "tide forecast",
+    "surf report",
+    "beach weather",
+    "ocean conditions",
+    "surf spots",
+    "wave height",
+    "swell direction",
+    "wind forecast",
+    "California beaches",
+    "beaches with bathrooms",
+    "beaches with parking",
+    "beaches near me",
+    "Orange County beaches",
+    "San Diego surf",
+    "Los Angeles beaches",
+  ],
   openGraph: {
     title: "Surf forecasts, maps, and beach features",
     description:
@@ -68,6 +90,8 @@ export const metadata: Metadata = {
     canonical: "/",
   },
 };
+
+export const revalidate = 3600; // Revalidate every hour
 
 // const Canvas = dynamic(
 //   () => import("@react-three/fiber").then((m) => m.Canvas),

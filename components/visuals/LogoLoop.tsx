@@ -304,48 +304,53 @@ export const LogoLoop = React.memo<LogoLoopProps>(
       (item: LogoItem, key: React.Key) => {
         const isNodeItem = "node" in item;
 
-        const content = isNodeItem ? (
-          <span
-            className={cx(
-              "space-x-2 rounded-full border border-border bg-background/20 shadow-sm px-3 py-2 backdrop-blur-md",
-              "inline-flex items-center",
-              "motion-reduce:transition-none",
-              scaleOnHover &&
-                "transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] group-hover/item:scale-120"
-            )}
-            aria-hidden={!!item.href && !item.ariaLabel}
-          >
-            <span>{item.node}</span>
-            <span className="text-base md:text-lg">{item.title}</span>
-          </span>
-        ) : (
-          <img
-            className={cx(
-              "h-[var(--logoloop-logoHeight)] w-auto block object-contain",
-              "[-webkit-user-drag:none] pointer-events-none",
-              "[image-rendering:-webkit-optimize-contrast]",
-              "motion-reduce:transition-none",
-              scaleOnHover &&
-                "transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] group-hover/item:scale-120"
-            )}
-            src={(item as any).src}
-            srcSet={(item as any).srcSet}
-            sizes={(item as any).sizes}
-            width={(item as any).width}
-            height={(item as any).height}
-            alt={(item as any).alt ?? ""}
-            title={(item as any).title}
-            loading="lazy"
-            decoding="async"
-            draggable={false}
-          />
-        );
+        let content: React.ReactNode;
+        let itemAriaLabel: string | undefined;
 
-        const itemAriaLabel = isNodeItem
-          ? (item as any).ariaLabel ?? (item as any).title
-          : (item as any).alt ?? (item as any).title;
+        if (isNodeItem) {
+          content = (
+            <span
+              className={cx(
+                "space-x-2 rounded-full border border-border bg-background/20 shadow-sm px-3 py-2 backdrop-blur-md",
+                "inline-flex items-center",
+                "motion-reduce:transition-none",
+                scaleOnHover &&
+                  "transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] group-hover/item:scale-120"
+              )}
+              aria-hidden={!!item.href && !item.ariaLabel}
+            >
+              <span>{item.node}</span>
+              <span className="text-base md:text-lg">{item.title}</span>
+            </span>
+          );
+          itemAriaLabel = item.ariaLabel ?? item.title ?? undefined;
+        } else {
+          content = (
+            <img
+              className={cx(
+                "h-[var(--logoloop-logoHeight)] w-auto block object-contain",
+                "[-webkit-user-drag:none] pointer-events-none",
+                "[image-rendering:-webkit-optimize-contrast]",
+                "motion-reduce:transition-none",
+                scaleOnHover &&
+                  "transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] group-hover/item:scale-120"
+              )}
+              src={item.src}
+              srcSet={item.srcSet}
+              sizes={item.sizes}
+              width={item.width}
+              height={item.height}
+              alt={item.alt ?? ""}
+              title={item.title}
+              loading="lazy"
+              decoding="async"
+              draggable={false}
+            />
+          );
+          itemAriaLabel = item.alt ?? item.title ?? undefined;
+        }
 
-        const inner = (item as any).href ? (
+        const inner = item.href ? (
           <a
             className={cx(
               "inline-flex items-center no-underline rounded",
@@ -353,7 +358,7 @@ export const LogoLoop = React.memo<LogoLoopProps>(
               "hover:opacity-80",
               "focus-visible:outline focus-visible:outline-current focus-visible:outline-offset-2"
             )}
-            href={(item as any).href}
+            href={item.href}
             aria-label={itemAriaLabel || "logo link"}
             target="_blank"
             rel="noreferrer noopener"

@@ -7,7 +7,7 @@ import type { SharedSunSegments } from "@/components/graphs/sharedSunSegments";
 type Props = {
   beachId?: string;
   date?: Date;
-  chartData?: any;
+  chartData?: Array<{ x: number; tide: number; isPeak?: number }> | null;
   sunSegments?: SharedSunSegments;
 };
 

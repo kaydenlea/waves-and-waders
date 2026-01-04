@@ -29,10 +29,13 @@ export async function GET(request: NextRequest) {
     response.headers.set('Cache-Control', 'public, s-maxage=21600, stale-while-revalidate=43200')
 
     return response
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching daily conditions:', error)
     return NextResponse.json(
-      { success: false, error: error?.message || 'Internal server error' },
+      {
+        success: false,
+        error: error instanceof Error ? error.message : 'Internal server error'
+      },
       { status: 500 }
     )
   }

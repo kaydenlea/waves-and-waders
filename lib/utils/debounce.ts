@@ -1,10 +1,10 @@
-type Debounced<T extends (...args: any[]) => any> = ((
+type Debounced<T extends (...args: unknown[]) => unknown> = ((
   ...args: Parameters<T>
 ) => void) & {
   cancel: () => void;
 };
 
-export function debounce<T extends (...args: any[]) => any>(
+export function debounce<T extends (...args: unknown[]) => unknown>(
   func: T,
   wait: number
 ): Debounced<T> {

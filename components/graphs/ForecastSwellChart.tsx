@@ -50,6 +50,7 @@ import {
   useForecastChartsBusyState,
 } from "../context/ForecastChartsLoadingContext";
 import { useChartTheme } from "@/components/graphs/useChartTheme";
+import type { ForecastData } from "@/lib/supabase";
 import { buildYAxisTicks, limitYAxisTicks } from "@/components/graphs/yAxisTicks";
 
 const chartConfig = {
@@ -82,6 +83,27 @@ type SwellPoint = {
 };
 
 type Props = { beachId?: string; days?: Date[] | null };
+
+type YAxisTickProps = {
+  x?: number;
+  y?: number;
+  payload?: { value?: number };
+  textAnchor?: string;
+  fontSize?: number;
+};
+
+type TooltipPayload = Array<{ payload?: { hour?: number } }>;
+
+type TooltipItem = { dataKey?: string; payload?: Record<string, unknown> };
+
+type TooltipValue = number | string | Array<number | string>;
+
+type ChartMouseEvent = { activeLabel?: number | string | null };
+
+type CustomizedProps = {
+  offset?: { left?: number; width?: number; height?: number; top?: number };
+  width?: number;
+};
 
 const HOURS_PER_DAY = 24;
 const VISIBLE_DAYS = 4;
@@ -493,9 +515,9 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
         const endMs = end.getTime();
         const coverageToleranceMs = 3 * 60 * 60 * 1000;
 
-        const filterSharedRows = () => {
+        const filterSharedRows = (): ForecastData[] => {
           if (!sharedRows?.length) {
-            return [] as typeof sharedRows;
+            return [];
           }
           const filtered =
             sharedRows
@@ -520,7 +542,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
           return coversStart && coversEnd ? filtered : [];
         };
 
-        let rows = filterSharedRows();
+        let rows: ForecastData[] = filterSharedRows();
         if (!rows?.length) {
           const resolved = await fetchBeachByIdLoose(beachId);
           const id = resolved?.id ?? beachId;
@@ -545,8 +567,8 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
         }
 
         // Sort rows
-        (rows as any[]).sort(
-          (a: any, b: any) =>
+        rows.sort(
+          (a, b) =>
             new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
         );
 
@@ -714,7 +736,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
     [swellData]
   );
   const yAxisTick = useCallback(
-    (props: any) => {
+    (props: YAxisTickProps) => {
       const { x, y, payload, textAnchor, fontSize } = props ?? {};
       const xNum = typeof x === "number" ? x : Number(x);
       const yNum = typeof y === "number" ? y : Number(y);
@@ -746,7 +768,8 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
     },
     [swellTicks]
   );
-  const formatHourLabel = useCallback((label: unknown, payload: any[]) => {
+  const formatHourLabel = useCallback(
+    (label: unknown, payload: TooltipPayload) => {
     let hour = payload?.[0]?.payload?.hour;
     if (typeof hour !== "number" && typeof label === "number") {
       hour = label;
@@ -759,13 +782,16 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
     return minutes > 0
       ? `${displayHour}:${minutes.toString().padStart(2, "0")} ${ampm}`
       : `${displayHour} ${ampm}`;
-  }, []);
+    },
+    []
+  );
   const formatSwellTooltipValue = useCallback(
-    (value: number, _name: string, item: any) => {
+    (value: TooltipValue, _name: string, item: TooltipItem) => {
       const dirKey = `${item?.dataKey}Dir`;
       const periodKey = `${item?.dataKey}Period`;
-      const direction = item?.payload?.[dirKey];
-      const period = item?.payload?.[periodKey];
+      const payload = item?.payload ?? {};
+      const direction = payload[dirKey];
+      const period = payload[periodKey];
       const periodValue =
         typeof period === "number" && Number.isFinite(period)
           ? Math.round(period)
@@ -774,8 +800,17 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
         typeof direction === "number"
           ? `${getWindDirection(direction)} (${Math.round(direction)}°)`
           : "N/A";
-      const heightValue =
-        typeof value === "number" ? value.toFixed(1) : `${value ?? "--"}`;
+      const valueNum =
+        typeof value === "number"
+          ? value
+          : typeof value === "string"
+          ? Number(value)
+          : Number.NaN;
+      const heightValue = Number.isFinite(valueNum)
+        ? valueNum.toFixed(1)
+        : Array.isArray(value)
+        ? value.join(", ")
+        : `${value ?? "--"}`;
       const dirLabelDisplay = dirLabel
         .replaceAll("\u00C2\u00B0", "\u00B0")
         .replaceAll("A\u0173", "\u00B0")
@@ -831,7 +866,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
   const lastHoveredRef = React.useRef<number | null>(null);
 
   const handleMouseMove = React.useCallback(
-    (e: any) => {
+    (e: ChartMouseEvent) => {
       if (e && e.activeLabel !== undefined) {
         const hour = Number(e.activeLabel);
         if (!isNaN(hour)) {
@@ -1181,7 +1216,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                   >
                     {/* Clip filled areas to the same rounded plot bounds as the day/night shading. */}
                     <Customized
-                      component={(p: any) => {
+                      component={(p: CustomizedProps) => {
                         const offset = p?.offset;
                         const fullWidth =
                           typeof p?.width === "number" ? p.width : 0;
@@ -1190,18 +1225,21 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                           (typeof offset?.width === "number"
                             ? offset.width
                             : 0);
+                        const height =
+                          typeof offset?.height === "number" ? offset.height : 0;
+                        const top = typeof offset?.top === "number" ? offset.top : 0;
                         if (
                           !offset ||
                           !(fullWidth > 0) ||
                           !(clipWidth > 0) ||
-                          !(offset.height > 0)
+                          !(height > 0)
                         ) {
                           return null;
                         }
                         const w = Math.min(fullWidth, clipWidth);
-                        const h = offset.height;
+                        const h = height;
                         const r = Math.min(8, h / 2, w / 2);
-                        const y0 = offset.top;
+                        const y0 = top;
                         const y1 = y0 + h;
                         const d = `M0,${y0}H${w}V${y1 - r}Q${w},${y1} ${
                           w - r
@@ -1306,7 +1344,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                       content={
                         <ChartTooltipContent
                           labelFormatter={formatHourLabel}
-                          formatter={formatSwellTooltipValue as any}
+                          formatter={formatSwellTooltipValue}
                         />
                       }
                       cursor={{
@@ -1331,8 +1369,18 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                       isAnimationActive={false}
                       animationDuration={0}
                       animationBegin={0}
-                      dot={({ payload, cx, cy, index }) => {
-                        if ((payload as any)?._terminal) {
+                      dot={({
+                        payload,
+                        cx,
+                        cy,
+                        index,
+                      }: {
+                        payload?: SwellPoint;
+                        cx?: number;
+                        cy?: number;
+                        index?: number;
+                      }) => {
+                        if (payload?._terminal) {
                           return <g key={`primary-terminal-${index}`} />;
                         }
                         const iconSize = 15;
@@ -1345,9 +1393,8 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                           return <g key={`primary-${index}`} />;
                         }
                         const isAtRightEdge =
-                          typeof (payload as any)?.hour === "number" &&
-                          Math.abs((payload as any).hour - totalFetchedDays * 24) <
-                            1e-6;
+                          typeof payload?.hour === "number" &&
+                          Math.abs(payload.hour - totalFetchedDays * 24) < 1e-6;
                         const dx = isAtRightEdge ? -iconSize / 2 : 0;
                         const projected = projectArrowAlongLastSegment(
                           "primary",
@@ -1355,7 +1402,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                           cyNum,
                           dx
                         );
-                        const direction = payload.primaryDir ?? 0;
+                        const direction = payload?.primaryDir ?? 0;
                         const rotation = direction - 315;
 
                         return (
@@ -1389,8 +1436,18 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                       isAnimationActive={false}
                       animationDuration={0}
                       animationBegin={0}
-                      dot={({ payload, cx, cy, index }) => {
-                        if ((payload as any)?._terminal) {
+                      dot={({
+                        payload,
+                        cx,
+                        cy,
+                        index,
+                      }: {
+                        payload?: SwellPoint;
+                        cx?: number;
+                        cy?: number;
+                        index?: number;
+                      }) => {
+                        if (payload?._terminal) {
                           return <g key={`secondary-terminal-${index}`} />;
                         }
                         const iconSize = 15;
@@ -1403,9 +1460,8 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                           return <g key={`secondary-${index}`} />;
                         }
                         const isAtRightEdge =
-                          typeof (payload as any)?.hour === "number" &&
-                          Math.abs((payload as any).hour - totalFetchedDays * 24) <
-                            1e-6;
+                          typeof payload?.hour === "number" &&
+                          Math.abs(payload.hour - totalFetchedDays * 24) < 1e-6;
                         const dx = isAtRightEdge ? -iconSize / 2 : 0;
                         const projected = projectArrowAlongLastSegment(
                           "secondary",
@@ -1413,7 +1469,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                           cyNum,
                           dx
                         );
-                        const direction = payload.secondaryDir ?? 0;
+                        const direction = payload?.secondaryDir ?? 0;
                         const rotation = direction - 315;
 
                         return (
@@ -1447,8 +1503,18 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                       isAnimationActive={false}
                       animationDuration={0}
                       animationBegin={0}
-                      dot={({ payload, cx, cy, index }) => {
-                        if ((payload as any)?._terminal) {
+                      dot={({
+                        payload,
+                        cx,
+                        cy,
+                        index,
+                      }: {
+                        payload?: SwellPoint;
+                        cx?: number;
+                        cy?: number;
+                        index?: number;
+                      }) => {
+                        if (payload?._terminal) {
                           return <g key={`tertiary-terminal-${index}`} />;
                         }
                         const iconSize = 15;
@@ -1461,9 +1527,8 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                           return <g key={`tertiary-${index}`} />;
                         }
                         const isAtRightEdge =
-                          typeof (payload as any)?.hour === "number" &&
-                          Math.abs((payload as any).hour - totalFetchedDays * 24) <
-                            1e-6;
+                          typeof payload?.hour === "number" &&
+                          Math.abs(payload.hour - totalFetchedDays * 24) < 1e-6;
                         const dx = isAtRightEdge ? -iconSize / 2 : 0;
                         const projected = projectArrowAlongLastSegment(
                           "tertiary",
@@ -1471,7 +1536,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                           cyNum,
                           dx
                         );
-                        const direction = payload.tertiaryDir ?? 0;
+                        const direction = payload?.tertiaryDir ?? 0;
                         const rotation = direction - 315;
 
                         return (

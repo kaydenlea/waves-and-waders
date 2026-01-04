@@ -40,6 +40,8 @@ import {
   Minimize2,
   MapIcon,
   CalendarDays,
+  Locate,
+  ZoomOut,
 } from "lucide-react";
 import PageTabs from "../general/PageTabs";
 import { SwellRings, WindRing } from "./DirectionRings";
@@ -63,6 +65,46 @@ type Props = {
   beachId?: string | number;
   loggedIn?: boolean;
   initialBeach?: BeachPoint | null;
+};
+
+type MarkerOptionsWithMeta = L.MarkerOptions & {
+  wwIntensity?: number;
+  wwBeachId?: string | number;
+};
+
+type MarkerDomGuardsState = {
+  element: HTMLElement | null;
+  preventDragStart: ((event: Event) => void) | null;
+};
+
+type MarkerWithMeta = L.Marker & {
+  options: MarkerOptionsWithMeta;
+  _wwDomGuardsState?: MarkerDomGuardsState;
+};
+
+type MarkerClusterGroupWithHelpers = L.MarkerClusterGroup & {
+  getVisibleParent?: (marker: L.Marker) => L.Marker | null;
+  _map?: L.Map | null;
+};
+
+type LeafletWindow = Window & {
+  L?: typeof L;
+  ResizeObserver?: typeof ResizeObserver;
+};
+
+type IdleCallbackWindow = LeafletWindow & {
+  requestIdleCallback?: (
+    callback: IdleRequestCallback,
+    options?: IdleRequestOptions
+  ) => number;
+  cancelIdleCallback?: (id: number) => void;
+};
+
+type LeafletBrowser = typeof L.Browser & { any3d?: boolean };
+
+type ClusterEvent = L.LeafletEvent & {
+  layer?: L.MarkerCluster;
+  originalEvent?: Event;
 };
 
 // OpenFreeMap provides vector tiles; MapLibre GL Leaflet renders them inside our existing Leaflet map.
@@ -270,7 +312,7 @@ const createMarkerIcon = ({
   // });
 };
 
-const createClusterIcon = (cluster: any) => {
+const createClusterIcon = (cluster: L.MarkerCluster) => {
   const safeCall = <T,>(fn: () => T, fallback: T): T => {
     try {
       return fn();
@@ -287,13 +329,13 @@ const createClusterIcon = (cluster: any) => {
     size = 46;
   }
 
-  const markers: any[] =
+  const markers: L.Marker[] =
     typeof cluster?.getAllChildMarkers === "function"
-      ? safeCall<any[]>(() => cluster.getAllChildMarkers(), [])
+      ? safeCall<L.Marker[]>(() => cluster.getAllChildMarkers(), [])
       : [];
   const intensities: number[] = [];
   markers.forEach((marker) => {
-    const v = (marker.options as any)?.wwIntensity;
+    const v = (marker as MarkerWithMeta).options.wwIntensity;
     if (typeof v === "number" && Number.isFinite(v)) {
       intensities.push(v);
     }
@@ -481,13 +523,17 @@ const readBounds = (map: L.Map): VisibleMapBounds => {
 };
 
 const boundsWithinThreshold = (
-  next: VisibleMapBounds,
-  prev: VisibleMapBounds
-) =>
-  Math.abs(next.north - prev.north) < BOUNDS_DELTA_THRESHOLD &&
-  Math.abs(next.south - prev.south) < BOUNDS_DELTA_THRESHOLD &&
-  Math.abs(next.east - prev.east) < BOUNDS_DELTA_THRESHOLD &&
-  Math.abs(next.west - prev.west) < BOUNDS_DELTA_THRESHOLD;
+  next: VisibleMapBounds | null,
+  prev: VisibleMapBounds | null
+) => {
+  if (!next || !prev) return false;
+  return (
+    Math.abs(next.north - prev.north) < BOUNDS_DELTA_THRESHOLD &&
+    Math.abs(next.south - prev.south) < BOUNDS_DELTA_THRESHOLD &&
+    Math.abs(next.east - prev.east) < BOUNDS_DELTA_THRESHOLD &&
+    Math.abs(next.west - prev.west) < BOUNDS_DELTA_THRESHOLD
+  );
+};
 
 const wrapLongitude = (value: number) => {
   let lon = value;
@@ -501,6 +547,52 @@ const clampLatitudeToWebMercator = (value: number) =>
     -WEB_MERCATOR_MAX_LATITUDE,
     Math.min(WEB_MERCATOR_MAX_LATITUDE, value)
   );
+
+const getNearestBeaches = (
+  origin: LatLngLiteral,
+  list: BeachPoint[],
+  count: number
+) => {
+  if (!list.length) return [];
+  const originLat = origin.lat;
+  const originLng = origin.lng;
+  const cosLat = Math.cos((originLat * Math.PI) / 180);
+  return list
+    .map((beach) => {
+      const dLat = beach.latitude - originLat;
+      const dLng = (beach.longitude - originLng) * cosLat;
+      return { beach, dist: dLat * dLat + dLng * dLng };
+    })
+    .sort((a, b) => a.dist - b.dist)
+    .slice(0, count)
+    .map((entry) => entry.beach);
+};
+
+const getBoundsForBeaches = (list: BeachPoint[]) => {
+  if (!list.length) return null;
+  let minLng = Infinity;
+  let maxLng = -Infinity;
+  let minLat = Infinity;
+  let maxLat = -Infinity;
+  list.forEach((beach) => {
+    if (beach.longitude < minLng) minLng = beach.longitude;
+    if (beach.longitude > maxLng) maxLng = beach.longitude;
+    if (beach.latitude < minLat) minLat = beach.latitude;
+    if (beach.latitude > maxLat) maxLat = beach.latitude;
+  });
+  if (!Number.isFinite(minLng) || !Number.isFinite(minLat)) {
+    return null;
+  }
+  if (minLng === maxLng) {
+    minLng -= 0.02;
+    maxLng += 0.02;
+  }
+  if (minLat === maxLat) {
+    minLat -= 0.02;
+    maxLat += 0.02;
+  }
+  return L.latLngBounds([minLat, minLng], [maxLat, maxLng]);
+};
 
 const normalizeBoundsToWorld = (bounds: VisibleMapBounds): VisibleMapBounds => {
   if (!bounds) return bounds;
@@ -860,7 +952,7 @@ const useSurfIntensityData = (selectedDate: Date | null) => {
       if (!cancelled) {
         setData(current);
       }
-      const preload: Promise<any>[] = [];
+      const preload: Promise<unknown>[] = [];
       for (let i = -3; i <= 3; i++) {
         if (i === 0) continue;
         const copy = new Date(selectedDate);
@@ -1132,6 +1224,14 @@ const FilterPanel: React.FC<{
   disableBlur: boolean;
 }> = ({ filters, setFilters, onClose, disableBlur }) => {
   const filterCount = filters.size;
+  const categoryEntries = Object.entries(
+    FEATURE_CATEGORIES
+  ) as Array<
+    [
+      keyof typeof FEATURE_CATEGORIES,
+      (typeof FEATURE_CATEGORIES)[keyof typeof FEATURE_CATEGORIES]
+    ]
+  >;
   return (
     <div
       className="absolute right-3 top-24 z-[1010] w-[calc(100%-1.5rem)] max-w-sm"
@@ -1155,13 +1255,13 @@ const FilterPanel: React.FC<{
           </button>
         </div>
         <div className="max-h-[45vh] overflow-auto px-3 py-2 space-y-3">
-          {Object.entries(FEATURE_CATEGORIES).map(([catKey, cat]) => (
+          {categoryEntries.map(([catKey, cat]) => (
             <div key={catKey}>
               <div className="px-1 py-1 text-[11px] uppercase text-muted-foreground font-semibold">
-                {(cat as any).label}
+                {cat.label}
               </div>
               <div className="grid grid-cols-1 gap-1 px-1">
-                {(cat as any).features.map((key: string) => {
+                {cat.features.map((key) => {
                   const checked = filters.has(key);
                   const label = getFeatureDisplayName(key) || key;
                   return (
@@ -1354,6 +1454,38 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       setShowMap(true);
     }
   }, [pathname, showMap, setShowMap]);
+  React.useEffect(() => {
+    if (!pathname.endsWith("/beaches")) return;
+    if (geoRequestedRef.current) {
+      console.log("[LeafletGeo] Request already in flight");
+      return;
+    }
+    geoRequestedRef.current = true;
+    if (typeof window === "undefined" || !navigator?.geolocation) {
+      console.log("[LeafletGeo] Navigator not available");
+      return;
+    }
+    console.log("[LeafletGeo] Requesting user position");
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const next = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        };
+        console.log("[LeafletGeo] Position received", next);
+        console.log("[LeafletGeo] Setting user location state");
+        setUserLocation(next);
+        console.log("[LeafletGeo] Forcing marker revision");
+        // Force component update to ensure button appears
+        forceMarkerRevision();
+        console.log("[LeafletGeo] Location update complete");
+      },
+      (error) => {
+        console.log("[LeafletGeo] Error", error.message);
+      },
+      { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 }
+    );
+  }, [pathname]);
   const {
     setVisibleBounds,
     setViewportRequestId,
@@ -1393,8 +1525,9 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
   }>({ card: null, marker: null });
   const appliedHoverIdRef = React.useRef<string | null>(null);
   const clearHoverStateRef = React.useRef<(() => void) | null>(null);
-  const hoveredClusterRef = React.useRef<any>(null);
-  const updateClusterHighlight = React.useCallback((cluster: any | null) => {
+  const hoveredClusterRef = React.useRef<L.MarkerCluster | null>(null);
+  const updateClusterHighlight = React.useCallback(
+    (cluster: L.MarkerCluster | null) => {
     const prev = hoveredClusterRef.current;
     if (prev && prev !== cluster) {
       const prevElement = prev.getElement?.();
@@ -1403,13 +1536,15 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       }
     }
     hoveredClusterRef.current = cluster ?? null;
-    if (cluster) {
-      const element = cluster.getElement?.();
-      if (element) {
-        element.classList.add("ww-cluster-hovered");
+      if (cluster) {
+        const element = cluster.getElement?.();
+        if (element) {
+          element.classList.add("ww-cluster-hovered");
+        }
       }
-    }
-  }, []);
+    },
+    []
+  );
   const persistViewTimeoutRef = React.useRef<number | null>(null);
   const resumeCommitTimeoutRef = React.useRef<number | null>(null);
   const prefetchStatsTimeoutRef = React.useRef<number | null>(null);
@@ -1478,6 +1613,11 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     (value) => value + 1,
     0
   );
+  const [userLocation, setUserLocation] = React.useState<LatLngLiteral | null>(
+    null
+  );
+  const geoFocusDoneRef = React.useRef(false);
+  const geoRequestedRef = React.useRef(false);
 
   const beachesPage = pathname.endsWith("/beaches");
   const fullMapPage = !beachesPage;
@@ -1537,6 +1677,108 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       lng: Number(selectedBeach.longitude),
     };
   }, [selectedBeach]);
+
+  React.useEffect(() => {
+    console.log("[LeafletGeo] Focus check", {
+      beachesPage,
+      mapReady,
+      hasLocation: !!userLocation,
+      selectedBeachId,
+      filteredCount: filteredBeaches.length,
+      combinedCount: combinedBeaches.length,
+      geoFocusDone: geoFocusDoneRef.current,
+    });
+    if (!beachesPage || !mapReady || !userLocation) {
+      console.log("[LeafletGeo] Early exit - conditions not met");
+      return;
+    }
+    if (geoFocusDoneRef.current || selectedBeachId) {
+      console.log("[LeafletGeo] Early exit - already focused or beach selected");
+      return;
+    }
+    const map = mapRef.current;
+    if (!map) {
+      console.log("[LeafletGeo] Map not ready for focus");
+      return;
+    }
+    const list = filteredBeaches.length ? filteredBeaches : combinedBeaches;
+
+    // Wait for beaches to load before attempting to zoom
+    if (!list.length) {
+      console.log("[LeafletGeo] Waiting for beaches to load");
+      return;
+    }
+
+    console.log("[LeafletGeo] All conditions met, zooming to nearby beaches");
+    suppressUserMoveRef.current = true;
+    const nearest = getNearestBeaches(userLocation, list, 20);
+    const bounds = getBoundsForBeaches(nearest);
+    if (bounds) {
+      console.log("[LeafletGeo] Fitting nearest beaches", nearest.length);
+      map.fitBounds(bounds, {
+        padding: [80, 80],
+        maxZoom: 12,
+        animate: true,
+        duration: 0.6,
+      });
+    } else {
+      console.log("[LeafletGeo] Fallback zoom (no bounds)");
+      map.flyTo([userLocation.lat, userLocation.lng], 10, { duration: 0.6 });
+    }
+    geoFocusDoneRef.current = true;
+    console.log("[LeafletGeo] Zoom complete, geoFocusDone set to true");
+  }, [
+    beachesPage,
+    mapReady,
+    userLocation,
+    selectedBeachId,
+    filteredBeaches,
+    combinedBeaches,
+  ]);
+
+  const handleZoomToNearby = React.useCallback(() => {
+    console.log("[LeafletGeo] handleZoomToNearby called", {
+      hasMap: !!mapRef.current,
+      hasLocation: !!userLocation,
+      userLocation,
+    });
+    const map = mapRef.current;
+    if (!map || !userLocation) {
+      console.log("[LeafletGeo] handleZoomToNearby - early exit, no map or location");
+      return;
+    }
+
+    const list = filteredBeaches.length ? filteredBeaches : combinedBeaches;
+    if (!list.length) {
+      console.log("[LeafletGeo] handleZoomToNearby - no beaches available");
+      return;
+    }
+
+    console.log("[LeafletGeo] handleZoomToNearby - zooming to nearby beaches");
+    const nearest = getNearestBeaches(userLocation, list, 20);
+    const bounds = getBoundsForBeaches(nearest);
+
+    if (bounds) {
+      map.fitBounds(bounds, {
+        padding: [80, 80],
+        maxZoom: 12,
+        animate: true,
+        duration: 0.6,
+      });
+    } else {
+      map.flyTo([userLocation.lat, userLocation.lng], 10, { duration: 0.6 });
+    }
+  }, [userLocation, filteredBeaches, combinedBeaches]);
+
+  const handleZoomToCaliforniaView = React.useCallback(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    map.flyTo(DEFAULT_CENTER, DEFAULT_ZOOM, {
+      animate: true,
+      duration: 0.8
+    });
+  }, []);
 
   const surfIntensity = useSurfIntensityData(selectedDate);
   const effectiveStatsDate = React.useMemo(
@@ -1856,7 +2098,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     (payload: StoredViewState) => {
       if (typeof window === "undefined") return;
       if (persistViewTimeoutRef.current != null) {
-        const globalWindow = window as any;
+        const globalWindow = window as IdleCallbackWindow;
         if (typeof globalWindow.cancelIdleCallback === "function") {
           globalWindow.cancelIdleCallback(persistViewTimeoutRef.current);
         } else {
@@ -1881,7 +2123,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
         }
         persistViewTimeoutRef.current = null;
       };
-      const globalWindow = window as any;
+      const globalWindow = window as IdleCallbackWindow;
       if (typeof globalWindow.requestIdleCallback === "function") {
         persistViewTimeoutRef.current = globalWindow.requestIdleCallback(
           persist,
@@ -1897,7 +2139,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
   React.useEffect(() => {
     return () => {
       if (persistViewTimeoutRef.current != null) {
-        const globalWindow = window as any;
+        const globalWindow = window as IdleCallbackWindow;
         if (typeof globalWindow.cancelIdleCallback === "function") {
           globalWindow.cancelIdleCallback(persistViewTimeoutRef.current);
         } else {
@@ -1923,7 +2165,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
-    const ResizeObserverCtor = (window as any).ResizeObserver;
+    const ResizeObserverCtor = (window as LeafletWindow).ResizeObserver;
     const target = containerRef.current;
     if (!ResizeObserverCtor || !target) return;
     const observer = new ResizeObserverCtor(() => {
@@ -1965,7 +2207,8 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
 
   React.useEffect(() => {
     const pathParts = (pathname || "").split("/").filter(Boolean);
-    const fromPath = pathParts.length ? extractBeachId(pathParts[0]) : null;
+    const fromPath =
+      beachesPage || !pathParts.length ? null : extractBeachId(pathParts[0]);
     const stored =
       beachesPage || selectedBeachId ? null : readStoredSelectionId();
     const candidate =
@@ -2004,13 +2247,15 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
         deferredMarkerRebuildTimeoutRef.current = null;
       }
     };
-    container.addEventListener("pointerdown", handleUserIntent, {
+    container.addEventListener("pointerdown", handleUserIntent as EventListener, {
       passive: true,
     });
-    container.addEventListener("wheel", handleUserIntent, { passive: true });
+    container.addEventListener("wheel", handleUserIntent as EventListener, {
+      passive: true,
+    });
     return () => {
-      container.removeEventListener("pointerdown", handleUserIntent as any);
-      container.removeEventListener("wheel", handleUserIntent as any);
+      container.removeEventListener("pointerdown", handleUserIntent as EventListener);
+      container.removeEventListener("wheel", handleUserIntent as EventListener);
     };
   }, [cancelPendingAutoFocus, cancelMarkerBuild]);
 
@@ -2080,7 +2325,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     }
     try {
       const centerPt = map.latLngToContainerPoint(map.getCenter());
-      const targetPt = map.latLngToContainerPoint(target as any);
+      const targetPt = map.latLngToContainerPoint(target as L.LatLngExpression);
       const pxDist = Math.hypot(
         centerPt.x - targetPt.x,
         centerPt.y - targetPt.y
@@ -2116,6 +2361,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       })
       .addTo(map);
     const zoomContainer = zoomControlRef.current.getContainer();
+    if (!zoomContainer) return;
     Object.assign(zoomContainer.style, {
       background: "color-mix(in oklch, var(--highlight-4) 60%, transparent)",
       border: "1px solid color-mix(in oklch, var(--border) 55%, transparent)",
@@ -2123,7 +2369,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       padding: "0px 6px",
       backdropFilter: "blur(12px)",
       WebkitBackdropFilter: "blur(12px)",
-      marginTop: !fullMapPage ? "125px" : smallScreen ? "260px" : "0px",
+      marginTop: !fullMapPage ? "240px" : smallScreen ? "260px" : "0px",
       marginBottom: !fullMapPage
         ? smallScreen
           ? "0px"
@@ -2152,22 +2398,17 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     refreshZoomControl();
   }, [refreshZoomControl]);
 
-  type MarkerDomGuardsState = {
-    element: HTMLElement | null;
-    preventDragStart: ((event: Event) => void) | null;
-  };
-
   const ensureMarkerDomGuards = React.useCallback((marker: L.Marker) => {
-    const state: MarkerDomGuardsState = ((marker as any)._wwDomGuardsState as
-      | MarkerDomGuardsState
-      | undefined) ?? {
-      element: null,
-      preventDragStart: null,
-    };
+    const markerWithState = marker as MarkerWithMeta;
+    const state: MarkerDomGuardsState =
+      markerWithState._wwDomGuardsState ?? {
+        element: null,
+        preventDragStart: null,
+      };
 
     const nextElement = marker.getElement?.() as HTMLElement | null;
     if (!nextElement || nextElement === state.element) {
-      (marker as any)._wwDomGuardsState = state;
+      markerWithState._wwDomGuardsState = state;
       return;
     }
 
@@ -2185,11 +2426,15 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     };
 
     nextElement.setAttribute("draggable", "false");
-    (nextElement as any).draggable = false;
+    nextElement.draggable = false;
     nextElement.style.userSelect = "none";
-    (nextElement.style as any).WebkitUserSelect = "none";
+    const style = nextElement.style as CSSStyleDeclaration & {
+      WebkitUserSelect?: string;
+      WebkitUserDrag?: string;
+    };
+    style.WebkitUserSelect = "none";
     // Prevent native "drag" ghost image (esp. Safari) when pointer moves slightly during click.
-    (nextElement.style as any).WebkitUserDrag = "none";
+    style.WebkitUserDrag = "none";
 
     // Only guard against native element dragging; don't stop pointer/mouse/touch
     // propagation or Leaflet may not receive the events it needs to dispatch clicks.
@@ -2197,7 +2442,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
 
     state.element = nextElement;
     state.preventDragStart = preventDragStart;
-    (marker as any)._wwDomGuardsState = state;
+    markerWithState._wwDomGuardsState = state;
   }, []);
 
   const refreshMarkerIcon = React.useCallback(
@@ -2329,7 +2574,8 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
   const highlightClusterForBeach = React.useCallback(
     (beachId: string | null): boolean => {
       if (!beachId) return false;
-      const group: any = clusterLayerRef.current;
+      const group =
+        clusterLayerRef.current as MarkerClusterGroupWithHelpers | null;
       if (!group || typeof group.getVisibleParent !== "function") return false;
       const entry = markerRegistryRef.current[beachId];
       if (!entry) return false;
@@ -2404,7 +2650,8 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
 
   const prefetchVisibleMarkerStats = React.useCallback(() => {
     const map = mapRef.current;
-    const group: any = clusterLayerRef.current;
+    const group =
+      clusterLayerRef.current as MarkerClusterGroupWithHelpers | null;
     if (!map || !group || typeof map.getBounds !== "function") {
       return;
     }
@@ -2450,7 +2697,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
 
   const cancelPrefetchVisibleMarkerStats = React.useCallback(() => {
     if (prefetchStatsTimeoutRef.current == null) return;
-    const globalWindow = window as any;
+    const globalWindow = window as IdleCallbackWindow;
     if (typeof globalWindow.cancelIdleCallback === "function") {
       globalWindow.cancelIdleCallback(prefetchStatsTimeoutRef.current);
     } else {
@@ -2466,7 +2713,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       prefetchStatsTimeoutRef.current = null;
       prefetchVisibleMarkerStats();
     };
-    const globalWindow = window as any;
+    const globalWindow = window as IdleCallbackWindow;
     if (typeof globalWindow.requestIdleCallback === "function") {
       prefetchStatsTimeoutRef.current = globalWindow.requestIdleCallback(run, {
         timeout: 800,
@@ -2525,10 +2772,10 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
         if (nextHoverId) {
           const entry = markerRegistryRef.current[nextHoverId];
           if (entry) {
+            const group =
+              clusterLayerRef.current as MarkerClusterGroupWithHelpers | null;
             hoverOps.updateClusterHighlight(
-              (clusterLayerRef.current as any)?.getVisibleParent?.(
-                entry.marker
-              ) ?? null
+              group?.getVisibleParent?.(entry.marker) ?? null
             );
           } else if (
             source === "card" &&
@@ -2557,13 +2804,10 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
           hoverOps.refreshMarkerIcon(entry, true);
           hoverOps.ensureMarkerPopup(entry);
           entry.marker.openPopup();
-          const group = clusterLayerRef.current;
-          if (
-            group &&
-            typeof (group as any).getVisibleParent === "function" &&
-            (group as any)._map
-          ) {
-            const parent = (group as any).getVisibleParent(entry.marker);
+          const group =
+            clusterLayerRef.current as MarkerClusterGroupWithHelpers | null;
+          if (group && typeof group.getVisibleParent === "function" && group._map) {
+            const parent = group.getVisibleParent(entry.marker);
             if (parent && parent !== entry.marker) {
               hoverOps.updateClusterHighlight(parent);
             } else {
@@ -2675,8 +2919,9 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       updateRefocusDisabled: latestUpdateRefocusDisabled = () => {},
       primeVisibleMarkerStats: latestPrimeVisibleMarkerStats = () => {},
     } = lifecycle;
-    if (typeof window !== "undefined" && L?.Browser?.any3d) {
-      (L.Browser as any).any3d = false;
+    const browser = L.Browser as LeafletBrowser;
+    if (typeof window !== "undefined" && browser.any3d) {
+      browser.any3d = false;
     }
     const initialView = resolveInitialView(initialBeach, {
       allowStoredFallback: !pathname.endsWith("/beaches"),
@@ -2740,7 +2985,8 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       removeOutsideVisibleBounds: false,
       animateAddingMarkers: false,
       chunkedLoading: false,
-      iconCreateFunction: (cluster: any) => createClusterIcon(cluster),
+      iconCreateFunction: (cluster: L.MarkerCluster) =>
+        createClusterIcon(cluster),
     });
     clusterLayerRef.current = clusterGroup;
     clusterGroup.addTo(map);
@@ -2982,6 +3228,12 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       cancelMarkerBuild();
       setMarkersLoading(true);
 
+      const groupWithBatch = group as MarkerClusterGroupWithHelpers & {
+        addLayers?: (layers: L.Layer[]) => void;
+        removeLayers?: (layers: L.Layer[]) => void;
+        hasLayer?: (layer: L.Layer) => boolean;
+      };
+
       const registry = markerRegistryRef.current;
       const incomingIds = new Set(
         filteredBeaches.map((beach) => String(beach.id))
@@ -3003,8 +3255,8 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
           .map((entry) => entry.marker)
           .filter(Boolean);
         try {
-          if (typeof (group as any).removeLayers === "function") {
-            (group as any).removeLayers(markersToRemove);
+          if (typeof groupWithBatch.removeLayers === "function") {
+            groupWithBatch.removeLayers(markersToRemove);
           } else {
             markersToRemove.forEach((marker: L.Marker) => {
               group.removeLayer(marker);
@@ -3014,8 +3266,8 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
           markersToRemove.forEach((marker: L.Marker) => {
             try {
               if (
-                typeof (group as any).hasLayer !== "function" ||
-                (group as any).hasLayer(marker)
+                typeof groupWithBatch.hasLayer !== "function" ||
+                groupWithBatch.hasLayer(marker)
               ) {
                 group.removeLayer(marker);
               }
@@ -3057,8 +3309,8 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       const addMarkers = (markers: L.Marker[]) => {
         if (!markers.length) return;
         try {
-          if (typeof (group as any).addLayers === "function") {
-            (group as any).addLayers(markers);
+          if (typeof groupWithBatch.addLayers === "function") {
+            groupWithBatch.addLayers(markers);
           } else {
             markers.forEach((marker) => group.addLayer(marker));
           }
@@ -3128,15 +3380,16 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
               changed = true;
             }
             if (changed) {
-              (existing.marker.options as any).wwIntensity = iconIntensity;
+              const markerWithMeta = existing.marker as MarkerWithMeta;
+              markerWithMeta.options.wwIntensity = iconIntensity;
               const hoveredId = appliedHoverIdRef.current;
               refreshMarkerIcon(existing, hoveredId === id);
               active.updatedCount += 1;
             }
             try {
               if (
-                typeof (group as any).hasLayer !== "function" ||
-                !(group as any).hasLayer(existing.marker)
+                typeof groupWithBatch.hasLayer !== "function" ||
+                !groupWithBatch.hasLayer(existing.marker)
               ) {
                 markersToAdd.push(existing.marker);
               }
@@ -3158,7 +3411,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
                 bubblingMouseEvents: false,
                 wwIntensity: iconIntensity,
                 wwBeachId: id,
-              } as any
+              } as MarkerOptionsWithMeta
             );
 
             const entry: MarkerEntry = {
@@ -3192,10 +3445,8 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
             marker.on("mouseover", handleMouseOver);
             marker.on("add", () => ensureMarkerDomGuards(marker));
             marker.on("remove", () => {
-              const state = (marker as any)._wwDomGuardsState as
-                | MarkerDomGuardsState
-                | null
-                | undefined;
+              const markerWithState = marker as MarkerWithMeta;
+              const state = markerWithState._wwDomGuardsState;
               if (!state?.element || !state.preventDragStart) {
                 return;
               }
@@ -3206,7 +3457,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
               );
               state.element = null;
               state.preventDragStart = null;
-              (marker as any)._wwDomGuardsState = state;
+              markerWithState._wwDomGuardsState = state;
             });
 
             markersToAdd.push(marker);
@@ -3340,7 +3591,8 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
         return;
       }
       entry.intensity = iconIntensity;
-      (entry.marker.options as any).wwIntensity = iconIntensity;
+      const markerWithMeta = entry.marker as MarkerWithMeta;
+      markerWithMeta.options.wwIntensity = iconIntensity;
       refreshMarkerIcon(entry, hoveredId === id);
       didUpdate = true;
       if (hoveredId === id) {
@@ -3369,9 +3621,10 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     });
   }, [selectedBeachId, refreshMarkerIcon]);
   React.useEffect(() => {
-    const group = clusterLayerRef.current;
+    const group =
+      clusterLayerRef.current as MarkerClusterGroupWithHelpers | null;
     if (!group || !mapReady) return;
-    const handleClusterOver = (event: any) => {
+    const handleClusterOver = (event: ClusterEvent) => {
       if (!interactionsReadyRef.current) return;
       updateClusterHighlight(event.layer ?? null);
     };
@@ -3379,14 +3632,14 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       if (!interactionsReadyRef.current) return;
       updateClusterHighlight(null);
     };
-    const handleClusterClick = (event: any) => {
+    const handleClusterClick = (event: ClusterEvent) => {
       event?.originalEvent?.preventDefault?.();
       event?.originalEvent?.stopPropagation?.();
       const map = mapRef.current;
       if (!map) return;
       const layer = event.layer;
       if (!layer) return;
-      if (!(group as any)?._map) return;
+      if (!group?._map) return;
 
       const markers: L.Marker[] =
         typeof layer.getAllChildMarkers === "function"
@@ -3659,6 +3912,36 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
             )}
           >
             <CalendarDays className="w-5 h-5 mx-auto" />
+          </button>
+        )}
+        {!fullMapPage && (
+          <button
+            type="button"
+            aria-label="Zoom to California view"
+            onClick={handleZoomToCaliforniaView}
+            className={cn(
+              "z-[1000] absolute left-3 top-[7.5rem] @min-4xl:top-auto @min-4xl:bottom-[13.75rem]",
+              overlayButtonBase,
+              "text-sm font-medium"
+            )}
+          >
+            <ZoomOut className="w-5 h-5 mx-auto" />
+          </button>
+        )}
+        {!fullMapPage && (
+          <button
+            type="button"
+            aria-label="Zoom to nearby beaches"
+            onClick={handleZoomToNearby}
+            disabled={!userLocation}
+            className={cn(
+              "z-[1000] absolute left-3 top-[11.25rem] @min-4xl:top-auto @min-4xl:bottom-[10rem]",
+              overlayButtonBase,
+              "text-sm font-medium",
+              !userLocation && "opacity-50 cursor-not-allowed"
+            )}
+          >
+            <Locate className="w-5 h-5 mx-auto" />
           </button>
         )}
         {fullMapPage && !smallScreen && (

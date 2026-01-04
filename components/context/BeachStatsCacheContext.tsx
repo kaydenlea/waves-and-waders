@@ -84,7 +84,9 @@ export function BeachStatsCacheProvider({
 }) {
   const [cache, setCache] = React.useState<Record<string, CacheEntry>>({});
   const [version, setVersion] = React.useState(0);
-  const inFlightRef = React.useRef<Record<string, Promise<void>>>({});
+  const inFlightRef = React.useRef<Record<string, Promise<void> | undefined>>(
+    {}
+  );
 
   const getSnapshot = React.useCallback(
     (beachId: string | number, dateKey: string, hourKey: string | number) => {
@@ -139,11 +141,11 @@ export function BeachStatsCacheProvider({
                     dateKey,
                     hourKey,
                   };
+                });
+                return next;
               });
-              return next;
-            });
-            setVersion((prev) => prev + 1);
-          })
+              setVersion((prev) => prev + 1);
+            })
             .finally(() => {
               inflightKeys.forEach((key) => {
                 delete inFlightRef.current[key];

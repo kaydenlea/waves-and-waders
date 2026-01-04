@@ -58,6 +58,18 @@ type Props = {
   sunSegments?: SharedSunSegments;
 };
 type EnergyPoint = { hour: number; energy: number };
+type YAxisTickProps = {
+  x?: number;
+  y?: number;
+  payload?: { value?: number | string };
+  textAnchor?: string;
+  fontSize?: number;
+};
+type ChartMouseEvent = { activeLabel?: number | string | null };
+type ClipProps = {
+  width?: number;
+  offset?: { left?: number; width?: number; top?: number; height?: number };
+};
 
 const HOURS_TO_MS = 60 * 60 * 1000;
 
@@ -248,7 +260,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     [series]
   );
   const yAxisTick = React.useCallback(
-    (props: any) => {
+    (props: YAxisTickProps) => {
       const { x, y, payload, textAnchor, fontSize } = props ?? {};
       const xNum = typeof x === "number" ? x : Number(x);
       const yNum = typeof y === "number" ? y : Number(y);
@@ -351,7 +363,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
 
   const lastHoveredRef = React.useRef<number | null>(null);
 
-  const handleMouseMove = (e: any) => {
+  const handleMouseMove = (e: ChartMouseEvent) => {
     if (e && e.activeLabel !== undefined) {
       const hour = Number(e.activeLabel);
       if (!isNaN(hour)) {
@@ -484,7 +496,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           >
             {/* Clip filled areas to the same rounded plot bounds as the day/night shading (keeps bottom-right corner premium). */}
             <Customized
-              component={(p: any) => {
+              component={(p: ClipProps) => {
                 const offset = p?.offset;
                 const fullWidth = typeof p?.width === "number" ? p.width : 0;
                 const clipWidth =
