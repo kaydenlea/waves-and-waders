@@ -43,7 +43,7 @@ const FaqSection = () => {
   };
 
   return (
-    <section className="max-w-4xl mx-auto my-20 px-5">
+    <section className="max-w-5xl mx-auto my-20 px-5">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
@@ -55,7 +55,10 @@ const FaqSection = () => {
       </header>
       <Accordion type="single" collapsible>
         {faqData.map((faq, index) => (
-          <AccordionItem key={`question-${index + 1}`} value={`question-${index + 1}`}>
+          <AccordionItem
+            key={`question-${index + 1}`}
+            value={`question-${index + 1}`}
+          >
             <AccordionTrigger>{faq.question}</AccordionTrigger>
             <AccordionContent>{faq.answer}</AccordionContent>
           </AccordionItem>

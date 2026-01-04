@@ -11,21 +11,25 @@ export function SectionHeader({
   title,
   subtitle,
 }: {
-  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+  icon?: React.ComponentType<React.SVGProps<SVGSVGElement>>;
   title: string;
   subtitle?: string;
 }) {
   return (
-    <div className="mt-1 mb-12 flex items-start gap-3">
-      <div className="mt-1 p-1.5 rounded-xl bg-gradient-to-br from-cyan-300 to-blue-500 text-foreground shadow-lg shadow-cyan-500/20">
-        <Icon className="h-7 w-7" aria-hidden />
-      </div>
+    <div className="mt-1 mb-9 flex items-start justify-center gap-3">
+      {Icon && (
+        <div className="mt-1 p-1.5 rounded-xl bg-gradient-to-br from-cyan-300 to-blue-500 text-foreground shadow-lg shadow-cyan-500/20">
+          <Icon className="h-7 w-7" aria-hidden />
+        </div>
+      )}
       <div>
-        <h2 className="text-foreground font-semibold tracking-tight text-4xl sm:text-5xl">
+        <h2 className="text-center text-foreground font-semibold tracking-tight text-4xl sm:text-5xl">
           {title}
         </h2>
         {subtitle && (
-          <p className="mt-1 max-w-2xl text-foreground/70">{subtitle}</p>
+          <p className="text-center mt-4 max-w-2xl text-foreground/70 text-pretty text-lg">
+            {subtitle}
+          </p>
         )}
       </div>
     </div>
@@ -57,8 +61,8 @@ const AnimatedCountSection = async () => {
   return (
     <section className="mt-16 mx-auto max-w-7xl px-4 sm:px-6">
       <SectionHeader
-        icon={Zap}
-        title="Features"
+        // icon={Zap}
+        title="Explore Beaches"
         subtitle="Explore beaches on an interactive map. Scan surf spots, open details, and jump to the full Beaches experience."
       />
       <div className="w-full grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,18rem)] lg:gap-10 lg:items-stretch min-w-0">

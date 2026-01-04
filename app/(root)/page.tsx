@@ -36,6 +36,7 @@ import FaqSection from "@/components/visuals/FaqSection";
 import NavBar from "@/components/general/NavBar";
 import BottomNav from "@/components/general/BottomNav";
 import PersonalizeForecastsSection from "@/components/marketing/PersonalizeForecastsSection";
+import AllEssentialsSection from "@/components/marketing/AllEssentialsSection";
 
 export const metadata: Metadata = {
   title: "Surf forecasts, maps, and beach features",
@@ -468,7 +469,8 @@ const Home = () => {
           </div>
         </section> */}
         <AnimatedCountSection />
-        <section
+        <AllEssentialsSection />
+        {/* <section
           id="why"
           className="mx-auto max-w-7xl px-4 pt-24 pb-16 sm:px-6"
         >
@@ -493,9 +495,9 @@ const Home = () => {
               </WhyItem>
             </div>
           </div>
-        </section>
+        </section> */}
         <PersonalizeForecastsSection />
-        <section className="relative mx-auto mt-25 w-full max-w-7xl px-4 pb-10 sm:px-6 overflow-hidden">
+        <section className="relative mx-auto mt-35 w-full max-w-7xl px-4 pb-10 sm:px-6 overflow-hidden">
           <div className="grid grid-cols-1 items-start justify-items-center gap-10 xl:grid-cols-12 xl:justify-items-stretch xl:gap-12">
             <div className="w-full max-w-xl xl:col-span-5 xl:max-w-none order-1 xl:order-2">
               <Description />
@@ -666,37 +668,5 @@ const Home = () => {
     </div>
   );
 };
-
-function EmptyState() {
-  return (
-    <div className="grid place-items-center rounded-2xl border border-border/50 bg-foreground/5 p-10 text-center text-foreground/70">
-      <Heart className="mb-2 h-6 w-6" />
-      Save a beach to find it fast later.
-    </div>
-  );
-}
-
-function WhyItem({
-  icon: Icon,
-  title,
-  children,
-}: {
-  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="mx-auto max-w-160 flex flex-col gap-5 rounded-2xl border border-border/50 bg-white/5 p-5 shadow-sm">
-      <div className="flex items-center gap-2">
-        <div className="grid h-9 w-9 place-items-center rounded-lg bg-gradient-to-br from-cyan-300 to-blue-500 text-foreground shadow-cyan-500/20">
-          <Icon className="h-5 w-5" aria-hidden />
-        </div>
-        <h3 className="text-lg font-semibold">{title}</h3>
-      </div>
-      <div className="w-full h-60 bg-highlight-5 rounded-xl" />
-      <p className="text-foreground/70">{children}</p>
-    </div>
-  );
-}
 
 export default Home;

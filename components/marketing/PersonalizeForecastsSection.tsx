@@ -17,7 +17,7 @@ export default function PersonalizeForecastsSection({
       )}
     >
       <div className="grid grid-cols-1 items-start justify-items-center gap-10 xl:grid-cols-12 xl:justify-items-stretch xl:gap-12">
-        <div className="w-full max-w-xl xl:col-span-5 xl:max-w-none">
+        <div className="w-full max-w-2xl xl:col-span-5 xl:max-w-none">
           <h2
             id="personalize-forecasts-heading"
             className="text-balance text-center xl:text-left text-4xl font-semibold tracking-tight text-foreground sm:text-5xl"
@@ -52,7 +52,7 @@ export default function PersonalizeForecastsSection({
             </a>
           </div>
 
-          <div className="mt-6 flex flex-wrap justify-center xl:justify-start gap-2 text-xs font-semibold text-foreground/80">
+          {/* <div className="mt-6 flex flex-wrap justify-center xl:justify-start gap-2 text-xs font-semibold text-foreground/80">
             <span className="rounded-full border border-border/50 bg-highlight-5/60 px-3 py-1">
               Drag & drop
             </span>
@@ -62,10 +62,13 @@ export default function PersonalizeForecastsSection({
             <span className="rounded-full border border-border/50 bg-highlight-5/60 px-3 py-1">
               Per-tab layouts
             </span>
-          </div>
+          </div> */}
         </div>
 
-        <div id="personalize-demo" className="w-full max-w-[46rem] xl:col-span-7 xl:max-w-none">
+        <div
+          id="personalize-demo"
+          className="w-full max-w-[46rem] xl:col-span-7 xl:max-w-none"
+        >
           <DashboardPersonalizationPreview className="mx-auto w-full max-w-[46rem] xl:max-w-none" />
         </div>
       </div>

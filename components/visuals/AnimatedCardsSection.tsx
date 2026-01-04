@@ -7,14 +7,14 @@ export const Description = ({ className }: { className?: string }) => {
   return (
     <div
       className={cn(
-        "p-2 space-y-4 flex-1 flex flex-col items-center xl:items-start",
+        "p-2 space-y-0 flex-1 flex flex-col items-center xl:items-end",
         className
       )}
     >
-      <h2 className="text-balance text-center xl:text-left text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
+      <h2 className="text-balance text-center xl:text-right text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
         Forecasts made simple.
       </h2>
-      <p className="mt-4 max-w-prose text-pretty text-center xl:text-left text-base text-muted-foreground sm:text-lg mx-auto xl:mx-0">
+      <p className="mt-4 max-w-prose text-pretty text-center xl:text-right text-base text-muted-foreground sm:text-lg mx-auto xl:mx-0">
         Find nearby and saved beaches fast, then scan conditions at a glance
         with time + direction cues built into the overview.
       </p>
@@ -28,7 +28,7 @@ export const Description = ({ className }: { className?: string }) => {
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
           )}
         >
-          <MapPinned className="h-4 w-4" /> See your forecast
+          <MapPinned className="h-4 w-4 mr-1.5" /> See your forecast
         </Link>
         <Link
           href="/beaches"
@@ -38,11 +38,11 @@ export const Description = ({ className }: { className?: string }) => {
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
           )}
         >
-          <Compass className="h-4 w-4" /> Explore beaches
+          <Compass className="h-4 w-4 mr-1.5" /> Explore beaches
         </Link>
       </div>
 
-      <div className="mt-6 flex flex-wrap justify-center xl:justify-start gap-2 text-xs font-semibold text-foreground/80">
+      {/* <div className="mt-6 flex flex-wrap justify-center xl:justify-start gap-2 text-xs font-semibold text-foreground/80">
         <span className="rounded-full border border-border/50 bg-highlight-5/60 px-3 py-1">
           Nearby + saved
         </span>
@@ -52,7 +52,7 @@ export const Description = ({ className }: { className?: string }) => {
         <span className="rounded-full border border-border/50 bg-highlight-5/60 px-3 py-1">
           Time + direction cues
         </span>
-      </div>
+      </div> */}
     </div>
   );
 };
