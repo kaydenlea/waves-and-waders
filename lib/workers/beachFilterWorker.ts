@@ -11,7 +11,7 @@ type OutgoingMessage = {
   beaches: BeachPoint[];
 };
 
-const ctx: DedicatedWorkerGlobalScope = self as any;
+const ctx: DedicatedWorkerGlobalScope = self as DedicatedWorkerGlobalScope;
 
 const passesFilters = (beach: BeachPoint, filters: string[]): boolean => {
   if (!beach || beach.features?.INLND_AREA) {

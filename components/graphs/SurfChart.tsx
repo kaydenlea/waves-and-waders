@@ -47,6 +47,16 @@ type Row = {
   max: number | null;
   rangeLabel: string;
 };
+type YAxisTickProps = {
+  x?: number;
+  y?: number;
+  payload?: { value?: number | string };
+  textAnchor?: string;
+  fontSize?: number;
+};
+type ChartMouseEvent = {
+  activeLabel?: number | string;
+};
 
 const SurfTooltipIcon = () => <Droplets className="h-3 w-3" />;
 
@@ -351,7 +361,7 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     [chartData]
   );
   const yAxisTick = React.useCallback(
-    (props: any) => {
+    (props: YAxisTickProps) => {
       const { x, y, payload, textAnchor, fontSize } = props ?? {};
       const xNum = typeof x === "number" ? x : Number(x);
       const yNum = typeof y === "number" ? y : Number(y);
@@ -443,7 +453,7 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
 
   const lastHoveredRef = React.useRef<number | null>(null);
 
-  const handleMouseMove = (e: any) => {
+  const handleMouseMove = (e: ChartMouseEvent) => {
     if (e && e.activeLabel !== undefined) {
       const labelValue = Number(e.activeLabel);
       if (!isNaN(labelValue)) {
@@ -463,28 +473,11 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     setHoveredHour(null);
   };
 
-  const renderTooltipCursor = useCallback(
-    (cursorProps: any) => {
-      if (!cursorProps) return null;
-      const x = typeof cursorProps.x === "number" ? cursorProps.x : 0;
-      const y = typeof cursorProps.y === "number" ? cursorProps.y : 0;
-      const width =
-        typeof cursorProps.width === "number" ? cursorProps.width : 0;
-      const height =
-        typeof cursorProps.height === "number" ? cursorProps.height : 0;
-      if (height <= 0) return null;
-      // Dark shading rectangle only, no dotted line for bar charts
-      return (
-        <rect
-          x={x}
-          y={y}
-          width={width}
-          height={height}
-          fill="var(--foreground)"
-          fillOpacity={chartTheme.hoverOpacity}
-        />
-      );
-    },
+  const tooltipCursor = useMemo(
+    () => ({
+      fill: "var(--foreground)",
+      fillOpacity: chartTheme.hoverOpacity,
+    }),
     [chartTheme.hoverOpacity]
   );
 
@@ -633,7 +626,7 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
             />
             <ChartTooltip
               content={<ChartTooltipContent />}
-              cursor={renderTooltipCursor as any}
+              cursor={tooltipCursor}
               animationDuration={0}
             />
             {/* Hour indicator line */}

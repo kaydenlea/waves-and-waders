@@ -44,6 +44,7 @@ import {
   useForecastChartsBusyState,
 } from "../context/ForecastChartsLoadingContext";
 import { useChartTheme } from "@/components/graphs/useChartTheme";
+import type { ForecastData } from "@/lib/supabase";
 
 const SurfTooltipIcon = () => <Droplets className="h-3 w-3" />;
 
@@ -61,6 +62,20 @@ type SurfPoint = {
 };
 
 type Props = { beachId?: string; days?: Date[] | null };
+
+type YAxisTickProps = {
+  x?: number;
+  y?: number;
+  payload?: { value?: number };
+  textAnchor?: string;
+  fontSize?: number;
+};
+
+type TooltipPayload = Array<{ payload?: { hour?: number } }>;
+
+type ChartMouseEvent = { activeLabel?: number | string | null };
+
+type CursorProps = { x?: number; y?: number; width?: number; height?: number };
 
 const HOURS_PER_DAY = 24;
 const VISIBLE_DAYS = 4;
@@ -158,7 +173,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
     [surfData]
   );
   const yAxisTick = useCallback(
-    (props: any) => {
+    (props: YAxisTickProps) => {
       const { x, y, payload, textAnchor, fontSize } = props ?? {};
       const xNum = typeof x === "number" ? x : Number(x);
       const yNum = typeof y === "number" ? y : Number(y);
@@ -541,9 +556,9 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
         const endMs = end.getTime();
         const coverageToleranceMs = 3 * 60 * 60 * 1000;
 
-        const filterSharedRows = () => {
+        const filterSharedRows = (): ForecastData[] => {
           if (!sharedRows?.length) {
-            return [] as typeof sharedRows;
+            return [];
           }
           const filtered =
             sharedRows
@@ -568,7 +583,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
           return coversStart && coversEnd ? filtered : [];
         };
 
-        let rows = filterSharedRows();
+        let rows: ForecastData[] = filterSharedRows();
         if (!rows?.length) {
           rows = await getForecastCached(String(beachId), start, end);
         }
@@ -582,7 +597,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
         }
 
         rows.sort(
-          (a: any, b: any) =>
+          (a, b) =>
             new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
         );
 
@@ -633,7 +648,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
           const centerHour = windowStart + HALF_STEP_HOURS;
 
           // Filter rows close to this 3-hour window center (within 1.5 hours)
-          const nearbyRows = rows.filter((r: any) => {
+          const nearbyRows = rows.filter((r) => {
             const ts = new Date(r.timestamp).getTime();
             const rowHour = Math.round((ts - baseMs) / 3600000);
             return Math.abs(rowHour - centerHour) <= HALF_STEP_HOURS;
@@ -642,7 +657,10 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
           if (nearbyRows.length === 0) continue;
 
           // Find the closest row to this hour
-          const closest = nearbyRows.reduce((best: any, cur: any) => {
+          const closest = nearbyRows.reduce<{
+            dist: number;
+            row: ForecastData;
+          } | null>((best, cur) => {
             const ts = new Date(cur.timestamp).getTime();
             const rowHour = Math.round((ts - baseMs) / 3600000);
             const dist = Math.abs(rowHour - centerHour);
@@ -776,24 +794,27 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
     }
     return ticks;
   }, [totalFetchedDays]);
-  const formatHourLabel = useCallback((label: unknown, payload: any[]) => {
-    let hour = payload?.[0]?.payload?.hour;
-    if (typeof hour !== "number" && typeof label === "number") {
-      hour = label;
-    }
-    if (typeof hour !== "number") return "";
-    const nearestSlot = Math.round(hour / DATA_STEP_HOURS) * DATA_STEP_HOURS;
-    const normalized = ((nearestSlot % 24) + 24) % 24;
-    const displayHour = normalized % 12 === 0 ? 12 : normalized % 12;
-    const ampm = normalized >= 12 ? "PM" : "AM";
-    return `${displayHour} ${ampm}`;
-  }, []);
+  const formatHourLabel = useCallback(
+    (label: unknown, payload: TooltipPayload) => {
+      let hour = payload?.[0]?.payload?.hour;
+      if (typeof hour !== "number" && typeof label === "number") {
+        hour = label;
+      }
+      if (typeof hour !== "number") return "";
+      const nearestSlot = Math.round(hour / DATA_STEP_HOURS) * DATA_STEP_HOURS;
+      const normalized = ((nearestSlot % 24) + 24) % 24;
+      const displayHour = normalized % 12 === 0 ? 12 : normalized % 12;
+      const ampm = normalized >= 12 ? "PM" : "AM";
+      return `${displayHour} ${ampm}`;
+    },
+    []
+  );
 
   // Hover sync handlers
   const lastHoveredRef = useRef<number | null>(null);
 
   const handleMouseMove = useCallback(
-    (e: any) => {
+    (e: ChartMouseEvent) => {
       if (e?.activeLabel !== undefined) {
         const hour = Number(e.activeLabel);
         if (!isNaN(hour)) {
@@ -815,28 +836,11 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
     setHoveredHour(null);
   }, [setHoveredHour]);
 
-  const renderTooltipCursor = useCallback(
-    (cursorProps: any) => {
-      if (!cursorProps) return null;
-      const x = typeof cursorProps.x === "number" ? cursorProps.x : 0;
-      const y = typeof cursorProps.y === "number" ? cursorProps.y : 0;
-      const width =
-        typeof cursorProps.width === "number" ? cursorProps.width : 0;
-      const height =
-        typeof cursorProps.height === "number" ? cursorProps.height : 0;
-      if (height <= 0) return null;
-      // Dark shading rectangle only, no dotted line for bar charts
-      return (
-        <rect
-          x={x}
-          y={y}
-          width={width}
-          height={height}
-          fill="var(--foreground)"
-          fillOpacity={chartTheme.hoverOpacity}
-        />
-      );
-    },
+  const tooltipCursor = useMemo(
+    () => ({
+      fill: "var(--foreground)",
+      fillOpacity: chartTheme.hoverOpacity,
+    }),
     [chartTheme.hoverOpacity]
   );
 
@@ -1183,7 +1187,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                       content={
                         <ChartTooltipContent labelFormatter={formatHourLabel} />
                       }
-                      cursor={renderTooltipCursor as any}
+                      cursor={tooltipCursor}
                       animationDuration={0}
                       isAnimationActive={false}
                     />

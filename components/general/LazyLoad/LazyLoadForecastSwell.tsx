@@ -6,7 +6,11 @@ import { ForecastChartSkeleton } from "@/components/graphs/ForecastChartSkeleton
 
 type Props = { beachId?: string; days?: Date[] | null };
 
-const ForecastSwellChart = dynamic<React.ComponentProps<any>>(
+type ForecastSwellChartProps = React.ComponentProps<
+  typeof import("../../graphs/ForecastSwellChart").default
+>;
+
+const ForecastSwellChart = dynamic<ForecastSwellChartProps>(
   () => import("../../graphs/ForecastSwellChart"),
   {
     ssr: false,

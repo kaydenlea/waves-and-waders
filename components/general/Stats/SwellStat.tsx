@@ -16,16 +16,10 @@ const SwellStat = ({
   small?: boolean;
   isFull?: boolean;
 }) => {
-  const heightVal =
-    typeof data.height === "number"
-      ? Number(data.height.toFixed(1))
-      : (data.height as any);
+  const heightVal = Number(data.height.toFixed(1));
 
   // Keep period as whole number (no decimals)
-  const periodVal =
-    typeof data.period === "number"
-      ? Math.round(data.period)
-      : (data.period as any);
+  const periodVal = Math.round(data.period);
 
   const degVal = typeof data.wind.deg === "number" ? data.wind.deg : 0;
 

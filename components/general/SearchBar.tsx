@@ -92,9 +92,9 @@ const SearchBar = ({
           setHits([]);
           setOpen(false);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         // ignore AbortError (expected); log other unexpected errors optionally
-        if (err?.name === "AbortError") return;
+        if (err instanceof DOMException && err.name === "AbortError") return;
         // optional: console.error(err);
       }
     }, 200);

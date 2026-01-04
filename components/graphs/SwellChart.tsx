@@ -87,6 +87,22 @@ type Row = {
   secondaryPeriod?: number;
   tertiaryPeriod?: number;
 };
+type YAxisTickProps = {
+  x?: number;
+  y?: number;
+  payload?: { value?: number | string };
+  textAnchor?: string;
+  fontSize?: number;
+};
+type TooltipPayload = Array<{ payload?: Row }>;
+type TooltipItem = { dataKey?: string; payload?: Record<string, unknown> };
+type TooltipValue = number | string | Array<number | string>;
+type ChartMouseEvent = { activeLabel?: number | string | null };
+type ClipProps = {
+  width?: number;
+  offset?: { left?: number; width?: number; top?: number; height?: number };
+};
+type DotProps = { payload?: Row; cx?: number; cy?: number; index?: number };
 
 export const SwellStatsHeader = ({
   beachId,
@@ -154,7 +170,7 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   >({ primary: null, secondary: null, tertiary: null });
 
   const formatHourLabel = React.useCallback(
-    (label: unknown, payload: any[]) => {
+    (label: unknown, payload: TooltipPayload) => {
       let hour = payload?.[0]?.payload?.time;
       if (typeof hour !== "number" && typeof label === "number") {
         hour = label;
@@ -172,7 +188,7 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   );
 
   const formatSwellTooltipValue = React.useCallback(
-    (value: number, _name: string, item: any) => {
+    (value: TooltipValue, _name: string, item: TooltipItem) => {
       const dirKey = `${item?.dataKey}Dir`;
       const periodKey = `${item?.dataKey}Period`;
       const direction = item?.payload?.[dirKey];
@@ -185,8 +201,17 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         typeof direction === "number"
           ? `${getWindDirection(direction)} (${Math.round(direction)}°)`
           : "N/A";
-      const heightValue =
-        typeof value === "number" ? value.toFixed(1) : `${value ?? "--"}`;
+      const valueNum =
+        typeof value === "number"
+          ? value
+          : typeof value === "string"
+          ? Number(value)
+          : Number.NaN;
+      const heightValue = Number.isFinite(valueNum)
+        ? valueNum.toFixed(1)
+        : Array.isArray(value)
+        ? value.join(", ")
+        : `${value ?? "--"}`;
       const dirLabelDisplay = dirLabel
         .replaceAll("\u00C2\u00B0", "\u00B0")
         .replaceAll("A\u0173", "\u00B0")
@@ -356,7 +381,7 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     [data]
   );
   const yAxisTick = React.useCallback(
-    (props: any) => {
+    (props: YAxisTickProps) => {
       const { x, y, payload, textAnchor, fontSize } = props ?? {};
       const xNum = typeof x === "number" ? x : Number(x);
       const yNum = typeof y === "number" ? y : Number(y);
@@ -439,7 +464,7 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
 
   const lastHoveredRef = React.useRef<number | null>(null);
 
-  const handleMouseMove = (e: any) => {
+  const handleMouseMove = (e: ChartMouseEvent) => {
     if (e && e.activeLabel !== undefined) {
       const hour = Number(e.activeLabel);
       if (!isNaN(hour)) {
@@ -606,17 +631,20 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           >
             {/* Clip filled areas to the same rounded plot bounds as the day/night shading (keeps bottom-right corner premium). */}
             <Customized
-              component={(p: any) => {
+              component={(p: ClipProps) => {
                 const offset = p?.offset;
                 const fullWidth = typeof p?.width === "number" ? p.width : 0;
                 const clipWidth =
                   (typeof offset?.left === "number" ? offset.left : 0) +
                   (typeof offset?.width === "number" ? offset.width : 0);
+                const height =
+                  typeof offset?.height === "number" ? offset.height : 0;
+                const top = typeof offset?.top === "number" ? offset.top : 0;
                 if (
                   !offset ||
                   !(fullWidth > 0) ||
                   !(clipWidth > 0) ||
-                  !(offset.height > 0)
+                  !(height > 0)
                 ) {
                   return null;
                 }
@@ -625,9 +653,9 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
                     <clipPath id={plotClipId}>
                       <rect
                         x={0}
-                        y={offset.top}
+                        y={top}
                         width={Math.min(fullWidth, clipWidth)}
-                        height={offset.height}
+                        height={height}
                         rx={8}
                         ry={8}
                       />
@@ -673,7 +701,7 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
               content={
                 <ChartTooltipContent
                   labelFormatter={formatHourLabel}
-                  formatter={formatSwellTooltipValue as any}
+                  formatter={formatSwellTooltipValue}
                 />
               }
               cursor={{
@@ -698,14 +726,14 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
               isAnimationActive={false}
               animationDuration={0}
               animationBegin={0}
-              dot={({ payload, cx, cy, index }) => {
+              dot={({ payload, cx, cy, index }: DotProps) => {
                 const iconSize = 15;
                 const cxNum = typeof cx === "number" ? cx : Number(cx);
                 const cyNum = typeof cy === "number" ? cy : Number(cy);
                 if (!Number.isFinite(cxNum) || !Number.isFinite(cyNum)) {
                   return <g key={`primary-${index}`} />;
                 }
-                const isLastPoint = (payload as any)?.time === hours;
+                const isLastPoint = payload?.time === hours;
                 const dx = isLastPoint ? -iconSize / 2 : 0;
                 const projected = projectArrowAlongLastSegment(
                   "primary",
@@ -713,7 +741,7 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
                   cyNum,
                   dx
                 );
-                const direction = payload.primaryDir ?? 0;
+                const direction = payload?.primaryDir ?? 0;
                 const rotation = direction - 315; // Arrow points at 315° by default
 
                 return (
@@ -745,14 +773,14 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
               isAnimationActive={false}
               animationDuration={0}
               animationBegin={0}
-              dot={({ payload, cx, cy, index }) => {
+              dot={({ payload, cx, cy, index }: DotProps) => {
                 const iconSize = 15;
                 const cxNum = typeof cx === "number" ? cx : Number(cx);
                 const cyNum = typeof cy === "number" ? cy : Number(cy);
                 if (!Number.isFinite(cxNum) || !Number.isFinite(cyNum)) {
                   return <g key={`secondary-${index}`} />;
                 }
-                const isLastPoint = (payload as any)?.time === hours;
+                const isLastPoint = payload?.time === hours;
                 const dx = isLastPoint ? -iconSize / 2 : 0;
                 const projected = projectArrowAlongLastSegment(
                   "secondary",
@@ -760,7 +788,7 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
                   cyNum,
                   dx
                 );
-                const direction = payload.secondaryDir ?? 0;
+                const direction = payload?.secondaryDir ?? 0;
                 const rotation = direction - 315;
 
                 return (
@@ -792,14 +820,14 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
               isAnimationActive={false}
               animationDuration={0}
               animationBegin={0}
-              dot={({ payload, cx, cy, index }) => {
+              dot={({ payload, cx, cy, index }: DotProps) => {
                 const iconSize = 15;
                 const cxNum = typeof cx === "number" ? cx : Number(cx);
                 const cyNum = typeof cy === "number" ? cy : Number(cy);
                 if (!Number.isFinite(cxNum) || !Number.isFinite(cyNum)) {
                   return <g key={`tertiary-${index}`} />;
                 }
-                const isLastPoint = (payload as any)?.time === hours;
+                const isLastPoint = payload?.time === hours;
                 const dx = isLastPoint ? -iconSize / 2 : 0;
                 const projected = projectArrowAlongLastSegment(
                   "tertiary",
@@ -807,7 +835,7 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
                   cyNum,
                   dx
                 );
-                const direction = payload.tertiaryDir ?? 0;
+                const direction = payload?.tertiaryDir ?? 0;
                 const rotation = direction - 315;
 
                 return (

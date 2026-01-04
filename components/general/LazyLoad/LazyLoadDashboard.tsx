@@ -1,10 +1,9 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import type { DashboardType } from "../dashboardLayout";
 
-export const LazyLoadDashboard = dynamic<{ type?: DashboardType }>(
-  () => import("../Dashboard"),
+export const LazyLoadDashboard = dynamic(
+  () => import("../Dashboard").then((mod) => mod.default),
   {
     ssr: false,
     loading: () => (

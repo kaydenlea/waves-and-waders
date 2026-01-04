@@ -349,20 +349,23 @@ export async function fetchBeachesInBoundsAPI(
     throw new Error(json.error || "Failed to fetch viewport beaches");
   }
   if (bounds.includeStats) {
-    const payload = json.data;
+    const payload = json.data as unknown;
     if (
       !payload ||
       typeof payload !== "object" ||
-      !Array.isArray((payload as any).beaches)
+      !Array.isArray((payload as { beaches?: unknown }).beaches)
     ) {
       throw new Error("Malformed viewport beaches response");
     }
+    const payloadObj = payload as {
+      beaches: ApiBeachRecord[];
+      stats?: ViewportBeachesStatsPayload | null;
+    };
     return {
-      beaches: (payload as any).beaches as ApiBeachRecord[],
+      beaches: payloadObj.beaches,
       stats:
-        (payload as any).stats && typeof (payload as any).stats === "object"
-          ? ((payload as any)
-              .stats as ViewportBeachesStatsPayload | null)
+        payloadObj.stats && typeof payloadObj.stats === "object"
+          ? (payloadObj.stats as ViewportBeachesStatsPayload | null)
           : null,
     };
   }

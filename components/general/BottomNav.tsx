@@ -207,8 +207,8 @@ export default function BottomNav() {
     () =>
       Object.entries(FEATURE_CATEGORIES).map(([key, cat]) => ({
         key,
-        label: (cat as any).label || key,
-        features: (cat as any).features as string[],
+        label: cat.label || key,
+        features: Array.from(cat.features),
       })),
     []
   );

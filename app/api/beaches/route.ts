@@ -5,6 +5,15 @@ import { supabase, FEATURE_COLUMNS } from '@/lib/supabase'
 
 export const revalidate = 300;
 
+type BeachRow = {
+  id: string | number;
+  Name: string;
+  COUNTY: string;
+  LATITUDE: number;
+  LONGITUDE: number;
+  grid_id?: number | string | null;
+} & Record<(typeof FEATURE_COLUMNS)[number], boolean | number | string | null>;
+
 export async function GET(request: NextRequest) {
   try {
     // Build select with common columns + feature flags
@@ -23,7 +32,7 @@ export async function GET(request: NextRequest) {
 
     // Fetch all beaches using pagination to bypass the 1000 row limit
     const PAGE_SIZE = 1000
-    let allData: any[] = []
+    let allData: BeachRow[] = []
     let page = 0
     let hasMore = true
 
@@ -61,7 +70,7 @@ export async function GET(request: NextRequest) {
     }
 
     // beaches_optimized view already returns proper booleans, no conversion needed
-    const beaches = allData.map((beach: any) => {
+    const beaches = allData.map((beach) => {
       const features: Record<string, boolean> = {}
       for (const key of FEATURE_COLUMNS as readonly string[]) {
         // View already converts to boolean, just assign directly
@@ -87,11 +96,17 @@ export async function GET(request: NextRequest) {
       'public, s-maxage=300, stale-while-revalidate=600'
     )
     return response
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching beaches:', error)
-    console.error('Error details:', error?.message, error?.stack)
+    if (error instanceof Error) {
+      console.error('Error details:', error.message, error.stack)
+    }
     return NextResponse.json(
-      { success: false, error: 'Internal server error', details: error?.message || String(error) },
+      {
+        success: false,
+        error: 'Internal server error',
+        details: error instanceof Error ? error.message : String(error)
+      },
       { status: 500 }
     )
   }

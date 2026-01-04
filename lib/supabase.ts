@@ -395,7 +395,7 @@ type BeachDetailsRow = Beach & {
 };
 
 // Coerce common DB encodings (Y/Yes/1/true) → boolean
-const toBool = (v: any): boolean => {
+const toBool = (v: unknown): boolean => {
   if (v === null || v === undefined) return false;
   if (typeof v === "boolean") return v;
   if (typeof v === "number") return v !== 0;
@@ -593,23 +593,27 @@ export function transformToComponentFormat(
   data: SupabaseForecastData[]
 ): ForecastData[] {
   return data.map((row) => {
-    const anyRow: any = row as any;
+    const anyRow = row as Record<string, unknown>;
+    const readNumber = (value: unknown): number | null =>
+      typeof value === "number" ? value : null;
 
-    const waterTempF = row.water_temp_f ?? toF(anyRow.water_temp_c ?? null);
-    const tideFt = row.tide_level_ft ?? mToFt(anyRow.tide_level_m ?? null);
+    const waterTempF =
+      row.water_temp_f ?? toF(readNumber(anyRow["water_temp_c"]));
+    const tideFt = row.tide_level_ft ?? mToFt(readNumber(anyRow["tide_level_m"]));
     const windMph =
-      row.wind_speed_mph ?? kphToMph(anyRow.wind_speed_kph ?? null);
-    let gustMph = row.wind_gust_mph ?? kphToMph(anyRow.wind_gust_kph ?? null);
+      row.wind_speed_mph ?? kphToMph(readNumber(anyRow["wind_speed_kph"]));
+    let gustMph =
+      row.wind_gust_mph ?? kphToMph(readNumber(anyRow["wind_gust_kph"]));
     // Guardrail: ensure gust is never lower than sustained when both present
     if (gustMph != null && windMph != null && gustMph < windMph) {
       gustMph = windMph;
     }
     const pressureInHg =
-      row.pressure_inhg ?? hPaToInHg(anyRow.pressure_hpa ?? null);
+      row.pressure_inhg ?? hPaToInHg(readNumber(anyRow["pressure_hpa"]));
     const energyKj =
       row.wave_energy_kj ??
-      (anyRow.wave_energy_joules != null
-        ? anyRow.wave_energy_joules / 1000
+      (readNumber(anyRow["wave_energy_joules"]) != null
+        ? (readNumber(anyRow["wave_energy_joules"]) as number) / 1000
         : null);
 
     return {
@@ -643,7 +647,7 @@ export function transformToComponentFormat(
         windSpeed: windMph,
         windGust: gustMph,
         windDirection: row.wind_direction_deg,
-        airTemp: row.temperature ?? toF(anyRow.temperature_c ?? null),
+        airTemp: row.temperature ?? toF(readNumber(anyRow["temperature_c"])),
         pressure: pressureInHg,
         weather: row.weather,
       },
@@ -804,10 +808,10 @@ export async function fetchBeachDetails(id: string): Promise<Beach | null> {
 
   console.log("Raw data from database:", data);
   console.log("Sample feature values from raw data:", {
-    FISHING: (data as any).FISHING,
-    PARKING: (data as any).PARKING,
-    RESTROOMS: (data as any).RESTROOMS,
-    LIFEGUARD: (data as any).LIFEGUARD,
+    FISHING: data.FISHING,
+    PARKING: data.PARKING,
+    RESTROOMS: data.RESTROOMS,
+    LIFEGUARD: data.LIFEGUARD,
   });
 
   // Return Beach object with all features populated
@@ -819,67 +823,67 @@ export async function fetchBeachDetails(id: string): Promise<Beach | null> {
     COUNTY: data.COUNTY,
 
     // Access & Fees
-    O_PUBLIC: toBool((data as any).O_PUBLIC),
-    FEE: toBool((data as any).FEE),
-    PARKING: toBool((data as any).PARKING),
-    RSTRCTNS: toBool((data as any).RSTRCTNS),
-    DSABLDACSS: toBool((data as any).DSABLDACSS),
+    O_PUBLIC: toBool(data.O_PUBLIC),
+    FEE: toBool(data.FEE),
+    PARKING: toBool(data.PARKING),
+    RSTRCTNS: toBool(data.RSTRCTNS),
+    DSABLDACSS: toBool(data.DSABLDACSS),
 
     // Facilities
-    RESTROOMS: toBool((data as any).RESTROOMS),
-    VISTOR_CTR: toBool((data as any).VISTOR_CTR),
-    DOG_FRIEND: toBool((data as any).DOG_FRIEND),
-    EZ4STROLLE: toBool((data as any).EZ4STROLLE),
-    LIFEGUARD: toBool((data as any).LIFEGUARD),
-    SHOWERS: toBool((data as any).SHOWERS),
-    FOOD: toBool((data as any).FOOD),
-    DRINKWTR: toBool((data as any).DRINKWTR),
-    PCNC_AREA: toBool((data as any).PCNC_AREA),
-    FIREPITS: toBool((data as any).FIREPITS),
-    CAMPGROUND: toBool((data as any).CAMPGROUND),
-    RV_CMP: toBool((data as any).RV_CMP),
-    BT_FACILIT: toBool((data as any).BT_FACILIT),
+    RESTROOMS: toBool(data.RESTROOMS),
+    VISTOR_CTR: toBool(data.VISTOR_CTR),
+    DOG_FRIEND: toBool(data.DOG_FRIEND),
+    EZ4STROLLE: toBool(data.EZ4STROLLE),
+    LIFEGUARD: toBool(data.LIFEGUARD),
+    SHOWERS: toBool(data.SHOWERS),
+    FOOD: toBool(data.FOOD),
+    DRINKWTR: toBool(data.DRINKWTR),
+    PCNC_AREA: toBool(data.PCNC_AREA),
+    FIREPITS: toBool(data.FIREPITS),
+    CAMPGROUND: toBool(data.CAMPGROUND),
+    RV_CMP: toBool(data.RV_CMP),
+    BT_FACILIT: toBool(data.BT_FACILIT),
     BT_FACIL_T: data.BT_FACIL_T, // Keep as string
-    LIGHTHOUSE: toBool((data as any).LIGHTHOUSE),
-    PIER: toBool((data as any).PIER),
-    HAND_LAUNCH: toBool((data as any).HAND_LAUNCH),
+    LIGHTHOUSE: toBool(data.LIGHTHOUSE),
+    PIER: toBool(data.PIER),
+    HAND_LAUNCH: toBool(data.HAND_LAUNCH),
 
     // Beach Types
-    SNDY_BEACH: toBool((data as any).SNDY_BEACH),
-    DUNES: toBool((data as any).DUNES),
-    RKY_SHORE: toBool((data as any).RKY_SHORE),
-    UPLAND_BCH: toBool((data as any).UPLAND_BCH),
-    STRM_CRDOR: toBool((data as any).STRM_CRDOR),
-    WETLAND: toBool((data as any).WETLAND),
-    BLUFF: toBool((data as any).BLUFF),
-    BAY_LGN_LK: toBool((data as any).BAY_LGN_LK),
-    URBN_WFRNT: toBool((data as any).URBN_WFRNT),
-    INLND_AREA: toBool((data as any).INLND_AREA),
-    STRS_BEACH: toBool((data as any).STRS_BEACH),
-    PTH_BEACH: toBool((data as any).PTH_BEACH),
-    BOARDWLK: toBool((data as any).BOARDWLK),
+    SNDY_BEACH: toBool(data.SNDY_BEACH),
+    DUNES: toBool(data.DUNES),
+    RKY_SHORE: toBool(data.RKY_SHORE),
+    UPLAND_BCH: toBool(data.UPLAND_BCH),
+    STRM_CRDOR: toBool(data.STRM_CRDOR),
+    WETLAND: toBool(data.WETLAND),
+    BLUFF: toBool(data.BLUFF),
+    BAY_LGN_LK: toBool(data.BAY_LGN_LK),
+    URBN_WFRNT: toBool(data.URBN_WFRNT),
+    INLND_AREA: toBool(data.INLND_AREA),
+    STRS_BEACH: toBool(data.STRS_BEACH),
+    PTH_BEACH: toBool(data.PTH_BEACH),
+    BOARDWLK: toBool(data.BOARDWLK),
 
     // Trails & Paths
-    BLFTP_TRLS: toBool((data as any).BLFTP_TRLS),
-    BLFTP_PRK: toBool((data as any).BLFTP_PRK),
-    TRAIL_OR_P: toBool((data as any).TRAIL_OR_P),
-    BIKE_PATH: toBool((data as any).BIKE_PATH),
-    EQUEST_TRL: toBool((data as any).EQUEST_TRL),
-    WLDLFE_VWG: toBool((data as any).WLDLFE_VWG),
+    BLFTP_TRLS: toBool(data.BLFTP_TRLS),
+    BLFTP_PRK: toBool(data.BLFTP_PRK),
+    TRAIL_OR_P: toBool(data.TRAIL_OR_P),
+    BIKE_PATH: toBool(data.BIKE_PATH),
+    EQUEST_TRL: toBool(data.EQUEST_TRL),
+    WLDLFE_VWG: toBool(data.WLDLFE_VWG),
 
     // Activities
-    SWIMMING: toBool((data as any).SWIMMING),
-    DIVING: toBool((data as any).DIVING),
-    SNORKLNG: toBool((data as any).SNORKLNG),
-    TIDEPOOL: toBool((data as any).TIDEPOOL),
-    PLAYGROUND: toBool((data as any).PLAYGROUND),
-    SPORT_FLDS: toBool((data as any).SPORT_FLDS),
-    VOLLEYBALL: toBool((data as any).VOLLEYBALL),
-    WNDSRF_KIT: toBool((data as any).WNDSRF_KIT),
-    KAYAKING: toBool((data as any).KAYAKING),
-    SURFING: toBool((data as any).SURFING),
-    FISHING: toBool((data as any).FISHING),
-    BOATING: toBool((data as any).BOATING),
+    SWIMMING: toBool(data.SWIMMING),
+    DIVING: toBool(data.DIVING),
+    SNORKLNG: toBool(data.SNORKLNG),
+    TIDEPOOL: toBool(data.TIDEPOOL),
+    PLAYGROUND: toBool(data.PLAYGROUND),
+    SPORT_FLDS: toBool(data.SPORT_FLDS),
+    VOLLEYBALL: toBool(data.VOLLEYBALL),
+    WNDSRF_KIT: toBool(data.WNDSRF_KIT),
+    KAYAKING: toBool(data.KAYAKING),
+    SURFING: toBool(data.SURFING),
+    FISHING: toBool(data.FISHING),
+    BOATING: toBool(data.BOATING),
   };
 
   console.log("Final processed beach object:", beachWithFeatures);
@@ -898,7 +902,7 @@ const BEACH_SELECT_COLUMNS = `${BEACH_BASE_COLUMNS.join(", ")}, ${FEATURE_COLUMN
 const ALL_BEACHES_CACHE_MS = 5 * 60 * 1000;
 let cachedAllBeaches: { timestamp: number; data: Beach[] } | null = null;
 
-const normalizeOptimizedRow = (row: Record<string, any>): Beach | null => {
+const normalizeOptimizedRow = (row: Record<string, unknown>): Beach | null => {
   const rawLat = Number(row.LATITUDE);
   const rawLon = Number(row.LONGITUDE);
   if (
@@ -1000,7 +1004,11 @@ export async function fetchBeachByIdLoose(id: string): Promise<Beach | null> {
   }
 
   if (data) {
-    console.log("Beach found:", (data as any).Name);
+    const resolvedName =
+      typeof (data as { Name?: unknown }).Name === "string"
+        ? (data as { Name: string }).Name
+        : null;
+    console.log("Beach found:", resolvedName ?? "(unknown)");
   } else {
     console.log("Beach not found for:", target);
   }

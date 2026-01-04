@@ -54,6 +54,7 @@ import {
 } from "../context/ForecastChartsLoadingContext";
 import { useChartTheme } from "@/components/graphs/useChartTheme";
 import { buildYAxisTicks, limitYAxisTicks } from "@/components/graphs/yAxisTicks";
+import type { ForecastData } from "@/lib/supabase";
 
 const EnergyTooltipIcon = () => <Atom className="h-3 w-3" />;
 
@@ -71,6 +72,23 @@ type WavePoint = {
 };
 
 type Props = { beachId?: string; days?: Date[] | null };
+
+type YAxisTickProps = {
+  x?: number;
+  y?: number;
+  payload?: { value?: number };
+  textAnchor?: string;
+  fontSize?: number;
+};
+
+type TooltipPayload = Array<{ payload?: { hour?: number } }>;
+
+type ChartMouseEvent = { activeLabel?: number | string | null };
+
+type CustomizedProps = {
+  offset?: { left?: number; width?: number; height?: number; top?: number };
+  width?: number;
+};
 
 const HOURS_PER_DAY = 24;
 const VISIBLE_DAYS = 4;
@@ -555,9 +573,9 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
         const endMs = end.getTime();
         const coverageToleranceMs = 3 * 60 * 60 * 1000;
 
-        const filterSharedRows = () => {
+        const filterSharedRows = (): ForecastData[] => {
           if (!sharedRows?.length) {
-            return [] as typeof sharedRows;
+            return [];
           }
           const filtered =
             sharedRows
@@ -582,7 +600,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
           return coversStart && coversEnd ? filtered : [];
         };
 
-        let rows = filterSharedRows();
+        let rows: ForecastData[] = filterSharedRows();
         if (!rows?.length) {
           const resolved = await fetchBeachByIdLoose(beachId);
           const id = resolved?.id ?? beachId;
@@ -598,7 +616,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
         }
 
         rows.sort(
-          (a: any, b: any) =>
+          (a, b) =>
             new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
         );
 
@@ -637,12 +655,12 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
 
         const series: WavePoint[] = [];
         const maxHour = numDaysToFetch * 24;
-        for (const r of rows as any[]) {
+        for (const r of rows) {
           const ts = new Date(r.timestamp).getTime();
           const hour = Math.round((ts - baseMs) / 3600000);
           if (hour >= 0 && hour <= maxHour) {
-            const v =
-              (r as any)?.surf?.waveEnergy ?? (r as any)?.wave_energy_kj ?? 0;
+            const legacy = (r as { wave_energy_kj?: number }).wave_energy_kj;
+            const v = r.surf?.waveEnergy ?? legacy ?? 0;
             series.push({ hour, energy: Number(v) || 0 });
           }
         }
@@ -712,7 +730,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
     [energyData]
   );
   const yAxisTick = useCallback(
-    (props: any) => {
+    (props: YAxisTickProps) => {
       const { x, y, payload, textAnchor, fontSize } = props ?? {};
       const xNum = typeof x === "number" ? x : Number(x);
       const yNum = typeof y === "number" ? y : Number(y);
@@ -744,7 +762,8 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
     },
     [energyTicks]
   );
-  const formatHourLabel = useCallback((label: unknown, payload: any[]) => {
+  const formatHourLabel = useCallback(
+    (label: unknown, payload: TooltipPayload) => {
     let hour = payload?.[0]?.payload?.hour;
     if (typeof hour !== "number" && typeof label === "number") {
       hour = label;
@@ -757,7 +776,9 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
     return minutes > 0
       ? `${displayHour}:${minutes.toString().padStart(2, "0")} ${ampm}`
       : `${displayHour} ${ampm}`;
-  }, []);
+    },
+    []
+  );
 
   const plotClipIdRaw = React.useId();
   const plotClipId = useMemo(
@@ -816,7 +837,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
   const lastHoveredRef = React.useRef<number | null>(null);
 
   const handleMouseMove = React.useCallback(
-    (e: any) => {
+    (e: ChartMouseEvent) => {
       if (e && e.activeLabel !== undefined) {
         const hour = Number(e.activeLabel);
         if (!isNaN(hour)) {
@@ -1100,7 +1121,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
                   >
                     {/* Clip filled areas to the same rounded plot bounds as the day/night shading. */}
                     <Customized
-                      component={(p: any) => {
+                      component={(p: CustomizedProps) => {
                         const offset = p?.offset;
                         const fullWidth =
                           typeof p?.width === "number" ? p.width : 0;
@@ -1109,18 +1130,21 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
                           (typeof offset?.width === "number"
                             ? offset.width
                             : 0);
+                        const height =
+                          typeof offset?.height === "number" ? offset.height : 0;
+                        const top = typeof offset?.top === "number" ? offset.top : 0;
                         if (
                           !offset ||
                           !(fullWidth > 0) ||
                           !(clipWidth > 0) ||
-                          !(offset.height > 0)
+                          !(height > 0)
                         ) {
                           return null;
                         }
                         const w = Math.min(fullWidth, clipWidth);
-                        const h = offset.height;
+                        const h = height;
                         const r = Math.min(8, h / 2, w / 2);
-                        const y0 = offset.top;
+                        const y0 = top;
                         const y1 = y0 + h;
                         const d = `M0,${y0}H${w}V${y1 - r}Q${w},${y1} ${
                           w - r

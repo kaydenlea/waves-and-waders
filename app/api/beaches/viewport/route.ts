@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase, FEATURE_COLUMNS } from "@/lib/supabase";
 import { getBeachStatsBatch } from "@/lib/beachStats";
+import type { BeachStatsSnapshot } from "@/lib/beachStatsShared";
 
 const PAGE_SIZE = 1000;
 const MAX_RESULTS = 4000;
@@ -11,6 +12,19 @@ type Bounds = {
   north: number;
   east: number;
 };
+
+type BeachRow = {
+  id: string;
+  Name: string;
+  COUNTY: string;
+  LATITUDE: number;
+  LONGITUDE: number;
+  grid_id?: number | string | null;
+} & Record<(typeof FEATURE_COLUMNS)[number], boolean | number | string | null>;
+
+type BeachSelectQuery = ReturnType<
+  ReturnType<typeof supabase.from<BeachRow>>["select"]
+>;
 
 const parseNumber = (value: string | null, name: string) => {
   if (value == null) {
@@ -47,7 +61,7 @@ const buildSelectColumns = () => {
   return `${baseCols}, ${featureCols}`;
 };
 
-const mapRowToBeach = (row: Record<string, any>) => {
+const mapRowToBeach = (row: BeachRow) => {
   const features: Record<string, boolean> = {};
   for (const key of FEATURE_COLUMNS) {
     features[key] = Boolean(row[key]);
@@ -68,12 +82,16 @@ const mapRowToBeach = (row: Record<string, any>) => {
   };
 };
 
-const normalizeFilterKeys = (values: string[] | null) => {
+const normalizeFilterKeys = (
+  values: string[] | null
+): Array<(typeof FEATURE_COLUMNS)[number]> => {
   if (!values?.length) return [];
   const valid = new Set(FEATURE_COLUMNS);
   return values
     .map((value) => (value ? value.trim().toUpperCase() : ""))
-    .filter((value) => value && valid.has(value));
+    .filter((value): value is (typeof FEATURE_COLUMNS)[number] =>
+      value ? valid.has(value as (typeof FEATURE_COLUMNS)[number]) : false
+    );
 };
 
 const parseFavoriteIds = (values: string[] | null) => {
@@ -88,10 +106,10 @@ const parseDateParam = (value: string | null) => {
 };
 
 const fetchPagedResults = async (
-  buildQuery: () => any,
+  buildQuery: () => BeachSelectQuery,
   totalLimit: number
 ) => {
-  const rows: Record<string, any>[] = [];
+  const rows: BeachRow[] = [];
   let offset = 0;
   while (rows.length < totalLimit) {
     const chunkSize = Math.min(PAGE_SIZE, totalLimit - rows.length);
@@ -142,7 +160,7 @@ export async function GET(request: NextRequest) {
     const filterKeys = normalizeFilterKeys(params.getAll("filter"));
     const favoriteIds = parseFavoriteIds(params.getAll("favoriteId"));
 
-    const applyQueryFilters = (query: any) => {
+    const applyQueryFilters = (query: BeachSelectQuery) => {
       let next = query;
       if (filterKeys.length) {
         for (const key of filterKeys) {
@@ -158,7 +176,7 @@ export async function GET(request: NextRequest) {
     const baseQuery = () =>
       applyQueryFilters(
         supabase
-          .from("beaches_optimized")
+          .from<BeachRow>("beaches_optimized")
           .select(selectCols)
           .gte("LATITUDE", bounds.south)
           .lte("LATITUDE", bounds.north)
@@ -200,7 +218,7 @@ export async function GET(request: NextRequest) {
       if (deduped.size >= limit) break;
     }
 
-    let statsPayload: Record<string, any> | null = null;
+    let statsPayload: Record<string, BeachStatsSnapshot | null> | null = null;
     if (includeStats && statsLimit > 0 && deduped.size) {
       const ids = Array.from(deduped.keys()).slice(0, statsLimit);
       if (ids.length) {
@@ -227,12 +245,13 @@ export async function GET(request: NextRequest) {
       success: true,
       data: Array.from(deduped.values()),
     });
-  } catch (error: any) {
-    const status = error?.message?.startsWith("Missing") ? 400 : 500;
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    const status = message.startsWith("Missing") ? 400 : 500;
     return NextResponse.json(
       {
         success: false,
-        error: error?.message ?? "Failed to fetch beaches",
+        error: message || "Failed to fetch beaches",
       },
       { status }
     );

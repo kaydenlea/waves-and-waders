@@ -5,6 +5,7 @@ import Image from "next/image";
 import { generateBeachUrl } from "@/lib/supabase";
 import type { ForecastData } from "@/lib/supabase";
 import { Waves, Wind, MousePointer2 as ArrowIcon, Info } from "lucide-react";
+import type { Map as MaplibreMap } from "maplibre-gl";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { cn } from "@/lib/utils";
 import SaveButton from "./SaveButton";
@@ -35,7 +36,7 @@ type BeachCardProps = {
   b: Beach;
   useMiles?: boolean;
   isFav: boolean;
-  map?: any;
+  map?: MaplibreMap;
   setHoverCardId?: (id: string | null) => void;
   loadingStats?: boolean;
   priorityImage?: boolean;
@@ -152,10 +153,10 @@ const BeachCard = React.memo(
       if (!map) return;
       try {
         const coord: [number, number] = [b.coords[1], b.coords[0]];
-        const pt = (map as any).project(coord);
+        const pt = map.project(coord);
         const pad = 6;
         if (map?.getLayer?.("unclustered-point")) {
-          (map as any).queryRenderedFeatures(
+          map.queryRenderedFeatures(
             [
               [pt.x - pad, pt.y - pad],
               [pt.x + pad, pt.y + pad],
@@ -584,6 +585,8 @@ const BeachCard = React.memo(
     prev.map === next.map &&
     prev.setHoverCardId === next.setHoverCardId
 );
+
+BeachCard.displayName = "BeachCard";
 
 const BeachCardWithContext = ({
   b,

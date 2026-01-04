@@ -1935,7 +1935,7 @@ const Highlights = ({
   hour,
   startIdx = 0,
   endIdx = 7,
-  isFull,
+  isFull = false,
   forecastRows,
 }: {
   beachId?: string;
@@ -2542,11 +2542,13 @@ const Highlights = ({
                               if (!collide01 && !collide12)
                                 return [0, 0, 0] as const;
 
-                              const offsets = [0, 0, 0];
+                              const offsets: [number, number, number] = [
+                                0, 0, 0,
+                              ];
                               offsets[sorted[0]!.i] = 0;
                               offsets[sorted[1]!.i] = 2;
                               offsets[sorted[2]!.i] = -2;
-                              return offsets as const;
+                              return offsets;
                             };
 
                             const mixPowers = swells.map(

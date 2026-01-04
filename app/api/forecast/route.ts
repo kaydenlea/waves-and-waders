@@ -31,10 +31,13 @@ export async function GET(request: NextRequest) {
     response.headers.set('Cache-Control', 'public, s-maxage=1800, stale-while-revalidate=3600')
 
     return response
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching forecast:', error)
     return NextResponse.json(
-      { success: false, error: error?.message || 'Internal server error' },
+      {
+        success: false,
+        error: error instanceof Error ? error.message : 'Internal server error'
+      },
       { status: 500 }
     )
   }

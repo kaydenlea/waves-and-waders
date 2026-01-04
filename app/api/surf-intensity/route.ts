@@ -13,6 +13,11 @@ type GridForecastRow = {
   surf_height_max_ft: number | null
 }
 
+type BeachGridRow = {
+  id: string | number
+  grid_id: number | null
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
@@ -93,7 +98,7 @@ async function loadBeachGridMap(): Promise<Map<number, string[]>> {
 
   // Fetch all beaches with pagination (Supabase limits to 1000 per request)
   const PAGE_SIZE = 1000
-  let allData: any[] = []
+  let allData: BeachGridRow[] = []
   let page = 0
   let hasMore = true
 

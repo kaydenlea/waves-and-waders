@@ -9,7 +9,11 @@ type Props = { beachId?: string; date?: Date; days?: Date[] };
 // Preload the chunk as soon as this module loads
 const forecastTideImport = () => import("../../graphs/ForecastTideChart");
 
-const ForecastTideChart = dynamic<React.ComponentProps<any>>(
+type ForecastTideChartProps = React.ComponentProps<
+  typeof import("../../graphs/ForecastTideChart").default
+>;
+
+const ForecastTideChart = dynamic<ForecastTideChartProps>(
   forecastTideImport,
   {
     ssr: false,
