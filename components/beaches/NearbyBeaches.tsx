@@ -9,7 +9,7 @@ import {
   useState,
   useTransition,
 } from "react";
-import { useMapFilters } from "@/components/context/MapFilterContext";
+import { useMapData } from "@/components/context/MapFilterContext";
 import { useDateContext } from "@/components/context/DateContext";
 import {
   Pagination,
@@ -100,7 +100,7 @@ export default function NearbyBeaches() {
     filters,
     beaches: sharedBeaches,
     favoriteIds: favoriteIdsSet,
-  } = useMapFilters();
+  } = useMapData();
   const { status: viewportStatus } = useViewportBeachesContext();
   const deferredBeaches = useDeferredValue(sharedBeaches);
   const { selected: selectedDate, hour } = useDateContext();

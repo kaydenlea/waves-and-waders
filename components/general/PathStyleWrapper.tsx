@@ -3,7 +3,7 @@
 import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
 import { useMemo } from "react";
-import { useMapFilters } from "../context/MapFilterContext";
+import { useMapUI } from "../context/MapFilterContext";
 import { useOptionalDashboardEditMode } from "../context/DashboardEditModeContext";
 
 export default function PathStyleWrapper({
@@ -12,7 +12,7 @@ export default function PathStyleWrapper({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const { showMap } = useMapFilters();
+  const { showMap } = useMapUI();
   const dashboardEditMode = useOptionalDashboardEditMode();
   const isEditing = dashboardEditMode?.isEditing ?? false;
   const beachPage = pathname.endsWith("/beaches");

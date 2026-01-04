@@ -34,7 +34,7 @@ import {
   getSurfIntensityColorCss,
 } from "@/lib/forecast/surfIntensity";
 import { useDateContext } from "../context/DateContext";
-import { useMapFilters } from "../context/MapFilterContext";
+import { useMapData } from "../context/MapFilterContext";
 import { useClientPath } from "../context/PathContext";
 import { acquireInteractionLock } from "@/lib/uiInteractionLock";
 
@@ -161,7 +161,7 @@ DatePickerProps) => {
   const carouselScrollingRef = useRef(false);
 
   const { setSelectedDays, setSurfRange } = useDateContext();
-  const { setSurfIntensityForDate } = useMapFilters();
+  const { setSurfIntensityForDate } = useMapData();
 
   const scrollBy = 3;
 

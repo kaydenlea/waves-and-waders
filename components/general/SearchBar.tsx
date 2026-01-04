@@ -1,7 +1,16 @@
 "use client";
 
 import { createPortal } from "react-dom";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  memo,
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { useRouter } from "next/navigation";
 import { Map, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -16,7 +25,39 @@ type BeachHit = {
   longitude?: number | null;
 };
 
-const BREAKPOINT_4XL = 911; // adjust to match your @min-4xl breakpoint
+// Memoized search result item for faster list rendering
+const SearchResultItem = memo(function SearchResultItem({
+  hit,
+  isActive,
+  onMouseEnter,
+  onSelect,
+}: {
+  hit: BeachHit;
+  isActive: boolean;
+  onMouseEnter: () => void;
+  onSelect: () => void;
+}) {
+  return (
+    <li
+      className={cn(
+        "p-3.5 cursor-pointer rounded-lg transition-colors",
+        isActive ? "bg-highlight-3" : "hover:bg-highlight-3"
+      )}
+      onMouseEnter={onMouseEnter}
+      onMouseDown={(e) => {
+        e.preventDefault();
+        onSelect();
+      }}
+    >
+      <div className="flex flex-col @min-4xl:flex-row items-start @min-4xl:items-center justify-between">
+        <span className="font-medium text-sm">{hit.name}</span>
+        {hit.county && (
+          <span className="text-xs text-muted-foreground">{hit.county}</span>
+        )}
+      </div>
+    </li>
+  );
+});
 
 const SearchBar = ({
   className,
@@ -30,34 +71,66 @@ const SearchBar = ({
   const [open, setOpen] = useState(false);
   const [hits, setHits] = useState<BeachHit[]>([]);
   const [active, setActive] = useState(0);
-  // const [isOverlay, setIsOverlay] = useState(false);
-  const [wideScreen, setWideScreen] = useState(false);
+  const [, startTransition] = useTransition();
   const abortRef = useRef<AbortController | null>(null);
   const boxRef = useRef<HTMLFormElement | null>(null);
 
   const { isOverlay, setIsOverlay } = useSearchContext();
 
+  // Deferred query for smoother typing - input stays responsive
+  const deferredQuery = useDeferredValue(query);
+
   // keep a ref to always know the latest query value
   const latestQueryRef = useRef<string>(query);
 
+  // Memoized input handler to prevent re-renders
+  const handleInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setQuery(e.target.value);
+    },
+    []
+  );
+
+  // Memoized select handler
+  const onSelect = useCallback(
+    (hit: BeachHit) => {
+      setOpen(false);
+      setQuery("");
+      setIsOverlay(false);
+      router.push(`/${hit.id}/overview`);
+    },
+    [router, setIsOverlay]
+  );
+
+  // Memoized results list for stable reference
+  const searchResults = useMemo(() => {
+    if (!open || hits.length === 0) return null;
+    return hits.map((h, idx) => ({
+      hit: h,
+      isActive: idx === active,
+      index: idx,
+    }));
+  }, [hits, open, active]);
+
   useEffect(() => {
-    console.log("SEE QUERY VAL", query);
     // keep ref in sync
-    latestQueryRef.current = query;
+    latestQueryRef.current = deferredQuery;
 
     // If empty or shorter than 2 chars — immediately clear and abort any in-flight request.
-    if (!query || query.trim().length < 2) {
+    if (!deferredQuery || deferredQuery.trim().length < 2) {
       // abort outstanding fetch (if any)
       abortRef.current?.abort();
-      setHits([]);
-      setOpen(false);
+      startTransition(() => {
+        setHits([]);
+        setOpen(false);
+      });
       return;
     }
 
-    // schedule the debounced search
+    // schedule the debounced search - reduced to 150ms for snappier feel
     const timer = setTimeout(async () => {
       // capture the query value for this scheduled request
-      const qSnapshot = query;
+      const qSnapshot = deferredQuery;
 
       // abort previous request before making a new one
       abortRef.current?.abort();
@@ -67,9 +140,7 @@ const SearchBar = ({
       try {
         const res = await fetch(
           `/api/search/beaches?q=${encodeURIComponent(qSnapshot)}`,
-          {
-            signal: ac.signal,
-          }
+          { signal: ac.signal }
         );
 
         // non-OK response -> ignore
@@ -84,27 +155,28 @@ const SearchBar = ({
         }
 
         if (json?.success && Array.isArray(json.data)) {
-          setHits(json.data as BeachHit[]);
-          setOpen(true);
-          setActive(0);
+          startTransition(() => {
+            setHits(json.data as BeachHit[]);
+            setOpen(true);
+            setActive(0);
+          });
         } else {
           // If API returned no data, ensure UI reflects that
-          setHits([]);
-          setOpen(false);
+          startTransition(() => {
+            setHits([]);
+            setOpen(false);
+          });
         }
       } catch (err: unknown) {
-        // ignore AbortError (expected); log other unexpected errors optionally
+        // ignore AbortError (expected)
         if (err instanceof DOMException && err.name === "AbortError") return;
-        // optional: console.error(err);
       }
-    }, 200);
+    }, 150);
 
     return () => {
       clearTimeout(timer);
-      // do NOT abort here automatically — we abort explicitly before starting new request.
-      // leaving previous abort to the next invocation is fine; but clearing timer is required.
     };
-  }, [query]);
+  }, [deferredQuery]);
 
   // Close results on outside click (for non-overlay)
   useEffect(() => {
@@ -135,13 +207,6 @@ const SearchBar = ({
       if (isOverlay) setIsOverlay(false);
       setOpen(false);
     }
-  };
-
-  const onSelect = (hit: BeachHit) => {
-    setOpen(false);
-    setQuery("");
-    setIsOverlay(false);
-    router.push(`/${hit.id}/overview`);
   };
 
   // Handle resize – close overlay on large screens
@@ -271,9 +336,7 @@ const SearchBar = ({
                   name="overlay-query"
                   type="text"
                   value={query}
-                  onChange={(e) => {
-                    setQuery(e.target.value);
-                  }}
+                  onChange={handleInputChange}
                   onFocus={() => hits.length > 0 && setOpen(true)}
                   onKeyDown={onKeyDown}
                   placeholder="Search beaches..."
@@ -310,28 +373,13 @@ const SearchBar = ({
               <div className="mt-4 w-full max-w-2xl bg-background border border-border/30 shadow-even rounded-md">
                 <ul className="rounded-xl overflow-y-auto max-h-[80vh] p-2">
                   {hits.map((h, idx) => (
-                    <li
+                    <SearchResultItem
                       key={`${h.id}`}
-                      className={`p-3.5 cursor-pointer rounded-lg ${
-                        idx === active
-                          ? "bg-highlight-3"
-                          : "hover:bg-highlight-3"
-                      }`}
+                      hit={h}
+                      isActive={idx === active}
                       onMouseEnter={() => setActive(idx)}
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        onSelect(h);
-                      }}
-                    >
-                      <div className="flex flex-col @min-4xl:flex-row items-start @min-4xl:items-center justify-between">
-                        <span className="font-medium text-sm">{h.name}</span>
-                        {h.county && (
-                          <span className="text-xs text-muted-foreground">
-                            {h.county}
-                          </span>
-                        )}
-                      </div>
-                    </li>
+                      onSelect={() => onSelect(h)}
+                    />
                   ))}
                 </ul>
               </div>

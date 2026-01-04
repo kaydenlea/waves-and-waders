@@ -15,12 +15,15 @@ export type BeachPoint = {
 
 type PanelKey = "filters" | "legend" | "date";
 
-type Ctx = {
+type MapUIContextValue = {
   openPanel: PanelKey | null;
   setOpenPanel: React.Dispatch<React.SetStateAction<PanelKey | null>>;
   togglePanel: (panel: PanelKey) => void;
   showMap: boolean;
   setShowMap: React.Dispatch<React.SetStateAction<boolean>>;
+};
+
+type MapDataContextValue = {
   popupId: React.RefObject<string | null>;
   popupRef: React.RefObject<{
     id: number;
@@ -45,7 +48,8 @@ type Ctx = {
   setHoverCardId: React.Dispatch<React.SetStateAction<string | null>>;
 };
 
-const MapFilterContext = React.createContext<Ctx | null>(null);
+const MapUIContext = React.createContext<MapUIContextValue | null>(null);
+const MapDataContext = React.createContext<MapDataContextValue | null>(null);
 
 export function MapFilterProvider({ children }: { children: React.ReactNode }) {
   const [openPanel, setOpenPanel] = React.useState<PanelKey | null>(null);
@@ -72,13 +76,19 @@ export function MapFilterProvider({ children }: { children: React.ReactNode }) {
     () => new Set()
   );
   const [hoverCardId, setHoverCardId] = React.useState<string | null>(null);
-  const value = React.useMemo(
+  const uiValue = React.useMemo(
     () => ({
       openPanel,
       setOpenPanel,
       togglePanel,
       showMap,
       setShowMap,
+    }),
+    [openPanel, togglePanel, showMap]
+  );
+
+  const dataValue = React.useMemo(
+    () => ({
       popupId,
       popupRef,
       popupData,
@@ -98,9 +108,6 @@ export function MapFilterProvider({ children }: { children: React.ReactNode }) {
       setHoverCardId,
     }),
     [
-      openPanel,
-      togglePanel,
-      showMap,
       popupId,
       popupData,
       map,
@@ -112,15 +119,28 @@ export function MapFilterProvider({ children }: { children: React.ReactNode }) {
     ]
   );
   return (
-    <MapFilterContext.Provider value={value}>
-      {children}
-    </MapFilterContext.Provider>
+    <MapUIContext.Provider value={uiValue}>
+      <MapDataContext.Provider value={dataValue}>
+        {children}
+      </MapDataContext.Provider>
+    </MapUIContext.Provider>
   );
 }
 
-export function useMapFilters(): Ctx {
-  const ctx = React.useContext(MapFilterContext);
-  if (!ctx)
-    throw new Error("useMapFilters must be used within MapFilterProvider");
+export function useMapUI(): MapUIContextValue {
+  const ctx = React.useContext(MapUIContext);
+  if (!ctx) throw new Error("useMapUI must be used within MapFilterProvider");
   return ctx;
+}
+
+export function useMapData(): MapDataContextValue {
+  const ctx = React.useContext(MapDataContext);
+  if (!ctx) throw new Error("useMapData must be used within MapFilterProvider");
+  return ctx;
+}
+
+export function useMapFilters(): MapUIContextValue & MapDataContextValue {
+  const ui = useMapUI();
+  const data = useMapData();
+  return React.useMemo(() => ({ ...ui, ...data }), [ui, data]);
 }

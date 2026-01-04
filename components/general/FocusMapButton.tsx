@@ -7,7 +7,7 @@ import { MapPin } from "lucide-react";
 import { MAP_FOCUS_EVENT } from "./mapEvents";
 import type { MapFocusEventDetail } from "./mapEvents";
 import { scrollToMap } from "./BackToMapButton";
-import { useMapFilters } from "../context/MapFilterContext";
+import { useMapUI } from "../context/MapFilterContext";
 
 type FocusMapButtonProps = {
   beach?: string;
@@ -15,7 +15,7 @@ type FocusMapButtonProps = {
 };
 
 const FocusMapButton = ({ beach, className }: FocusMapButtonProps) => {
-  const { showMap } = useMapFilters();
+  const { showMap } = useMapUI();
   const handleClick = () => {
     if (typeof window === "undefined") return;
     if (!beach) return;

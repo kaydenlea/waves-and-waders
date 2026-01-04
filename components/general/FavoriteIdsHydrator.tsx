@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
-import { useMapFilters } from "@/components/context/MapFilterContext";
+import { useMapData } from "@/components/context/MapFilterContext";
 
 type Props = {
   favoriteIds: string[];
 };
 
 const FavoriteIdsHydrator = ({ favoriteIds }: Props) => {
-  const { setFavoriteIds } = useMapFilters();
+  const { setFavoriteIds } = useMapData();
   const setValue = useMemo(() => new Set((favoriteIds ?? []).map(String)), [favoriteIds]);
 
   useEffect(() => {
@@ -19,4 +19,3 @@ const FavoriteIdsHydrator = ({ favoriteIds }: Props) => {
 };
 
 export default FavoriteIdsHydrator;
-

@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import SaveButton from "./SaveButton";
 import { SwellRings, WindRing } from "../visuals/DirectionRings";
 import { useRouter } from "next/navigation";
-import { useMapFilters } from "../context/MapFilterContext";
+import { useMapData } from "../context/MapFilterContext";
 
 export type Beach = {
   id: string;
@@ -593,7 +593,7 @@ const BeachCardWithContext = ({
   isFav,
   loadingStats,
 }: Omit<BeachCardProps, "map" | "setHoverCardId">) => {
-  const { map, setHoverCardId } = useMapFilters();
+  const { map, setHoverCardId } = useMapData();
   return (
     <BeachCard
       b={b}

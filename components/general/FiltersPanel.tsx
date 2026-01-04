@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Bike,
   Building2,
@@ -18,10 +17,15 @@ import {
 import { FEATURE_CATEGORIES, getFeatureDisplayName } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 
+type FeatureOption = {
+  key: string;
+  label: string;
+};
+
 type FeatureSection = {
   key: string;
   label: string;
-  features: readonly string[];
+  features: FeatureOption[];
 };
 
 type Props = {
@@ -56,6 +60,69 @@ const getSectionIcon = (label: string) => {
   return <Waves className="w-6 h-6 text-sky-300 opacity-70" />;
 };
 
+const FEATURE_SECTIONS: FeatureSection[] = Object.entries(
+  FEATURE_CATEGORIES
+).map(([key, cat]) => ({
+  key,
+  label: (cat as { label?: string }).label || key,
+  features: (cat as { features: readonly string[] }).features.map((feature) => ({
+    key: feature,
+    label: getFeatureDisplayName(feature) || feature,
+  })),
+}));
+
+const FEATURE_TO_SECTION = FEATURE_SECTIONS.reduce<Record<string, string>>(
+  (acc, section) => {
+    section.features.forEach((feature) => {
+      acc[feature.key] = section.key;
+    });
+    return acc;
+  },
+  {}
+);
+
+const EMPTY_SECTION_SELECTIONS = FEATURE_SECTIONS.reduce<
+  Record<string, number>
+>((acc, section) => {
+  acc[section.key] = 0;
+  return acc;
+}, {});
+
+const FeatureOptionRow = React.memo(
+  ({
+    checked,
+    label,
+    featureKey,
+    onToggle,
+  }: {
+    checked: boolean;
+    label: string;
+    featureKey: string;
+    onToggle: (key: string) => void;
+  }) => (
+    <label
+      className={cn(
+        "flex items-center gap-3 px-3 py-1.5 rounded-lg cursor-pointer select-none transition-colors border border-transparent",
+        checked
+          ? "bg-sky-50 dark:bg-sky-900/30 text-foreground border-sky-100 dark:border-sky-800"
+          : "hover:bg-highlight-5 text-muted-foreground"
+      )}
+    >
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={() => onToggle(featureKey)}
+        className="w-4 h-4 accent-sky-300 rounded-sm flex-shrink-0"
+      />
+      <span className="text-[13px] leading-tight text-foreground">
+        {label}
+      </span>
+    </label>
+  )
+);
+
+FeatureOptionRow.displayName = "FeatureOptionRow";
+
 export default function FiltersPanel({
   open = true,
   appliedFilters,
@@ -63,16 +130,6 @@ export default function FiltersPanel({
   onClose,
   className,
 }: Props) {
-  const featureSections = useMemo<FeatureSection[]>(
-    () =>
-      Object.entries(FEATURE_CATEGORIES).map(([key, cat]) => ({
-        key,
-        label: (cat as any).label || key,
-        features: (cat as any).features as readonly string[],
-      })),
-    []
-  );
-
   const [expandedSections, setExpandedSections] = useState<
     Record<string, boolean>
   >(() => {
@@ -93,17 +150,16 @@ export default function FiltersPanel({
   }, [open, appliedFilters]);
 
   const sectionSelections = useMemo(() => {
-    const result: Record<string, number> = {};
-    featureSections.forEach((section) => {
-      result[section.key] = section.features.reduce(
-        (count, key) => count + (tempFilters.has(key) ? 1 : 0),
-        0
-      );
+    const result = { ...EMPTY_SECTION_SELECTIONS };
+    tempFilters.forEach((key) => {
+      const sectionKey = FEATURE_TO_SECTION[key];
+      if (!sectionKey) return;
+      result[sectionKey] = (result[sectionKey] ?? 0) + 1;
     });
     return result;
-  }, [featureSections, tempFilters]);
+  }, [tempFilters]);
 
-  const handleTempToggle = (key: string) => {
+  const handleTempToggle = useCallback((key: string) => {
     setTempFilters((prev) => {
       const next = new Set(prev);
       if (next.has(key)) {
@@ -113,13 +169,16 @@ export default function FiltersPanel({
       }
       return next;
     });
-  };
+  }, []);
 
-  const toggleSection = (key: string) =>
+  const toggleSection = useCallback(
+    (key: string) =>
     setExpandedSections((prev) => ({
       ...prev,
       [key]: !(prev?.[key] ?? true),
-    }));
+    })),
+    []
+  );
 
   return (
     <div
@@ -156,7 +215,7 @@ export default function FiltersPanel({
         className="overflow-y-auto px-5 py-4 space-y-4"
         style={{ WebkitOverflowScrolling: "touch" }}
       >
-        {featureSections.map((section) => {
+        {FEATURE_SECTIONS.map((section) => {
           const catKey = section.key;
           const label = section.label;
           const selectedCount = sectionSelections[catKey] ?? 0;
@@ -197,46 +256,25 @@ export default function FiltersPanel({
                 </div>
               </button>
 
-              <AnimatePresence initial={false}>
-                {isOpen && (
-                  <motion.div
-                    id={`filters-cat-${catKey}`}
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.12, ease: "easeInOut" }}
-                    className="overflow-hidden"
-                  >
-                    <div className="grid grid-cols-1 gap-1">
-                      {section.features.map((key) => {
-                        const checked = tempFilters.has(key);
-                        const display = getFeatureDisplayName(key) || key;
-                        return (
-                          <label
-                            key={key}
-                            className={cn(
-                              "flex items-center gap-3 px-3 py-1.5 rounded-lg cursor-pointer select-none transition-colors border border-transparent",
-                              checked
-                                ? "bg-sky-50 dark:bg-sky-900/30 text-foreground border-sky-100 dark:border-sky-800"
-                                : "hover:bg-highlight-5 text-muted-foreground"
-                            )}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={() => handleTempToggle(key)}
-                              className="w-4 h-4 accent-sky-300 rounded-sm flex-shrink-0"
-                            />
-                            <span className="text-[13px] leading-tight text-foreground">
-                              {display}
-                            </span>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </motion.div>
+              <div
+                id={`filters-cat-${catKey}`}
+                className={cn(
+                  "overflow-hidden transition-[max-height,opacity] duration-150 ease-in-out",
+                  isOpen ? "max-h-[700px] opacity-100" : "max-h-0 opacity-0"
                 )}
-              </AnimatePresence>
+              >
+                <div className="grid grid-cols-1 gap-1">
+                  {section.features.map((feature) => (
+                    <FeatureOptionRow
+                      key={feature.key}
+                      checked={tempFilters.has(feature.key)}
+                      label={feature.label}
+                      featureKey={feature.key}
+                      onToggle={handleTempToggle}
+                    />
+                  ))}
+                </div>
+              </div>
             </section>
           );
         })}
@@ -276,4 +314,3 @@ export default function FiltersPanel({
     </div>
   );
 }
-

@@ -1,10 +1,11 @@
 "use client";
 
 import { SlidersHorizontal } from "lucide-react";
-import { useMapFilters } from "../context/MapFilterContext";
+import { useMapData, useMapUI } from "../context/MapFilterContext";
 
 const ToggleFilters = () => {
-  const { togglePanel, filters } = useMapFilters();
+  const { togglePanel } = useMapUI();
+  const { filters } = useMapData();
   const filterCount = filters?.size ?? 0;
 
   return (

@@ -1903,7 +1903,7 @@ import {
   useBeachById,
   usePrefetchAdjacentHours,
 } from "@/lib/hooks/useBeachData";
-import { useMapFilters } from "../context/MapFilterContext";
+import { useMapUI } from "../context/MapFilterContext";
 
 type HighlightScales = {
   windMax: number;
@@ -2034,7 +2034,7 @@ const Highlights = ({
   );
   const resolvedId = usingPreview ? beachId ?? null : beach?.id ?? beachId;
 
-  const { showMap } = useMapFilters();
+  const { showMap } = useMapUI();
 
   // Fetch all data with React Query
   const { data: currentFromQuery } = useCurrentConditions(

@@ -24,7 +24,7 @@ import ThemeToggle from "./ThemeToggle";
 import { useSearchContext } from "../context/SearchContext";
 import { usePathname } from "next/navigation";
 import { useDateContext } from "../context/DateContext";
-import { useMapFilters } from "../context/MapFilterContext";
+import { useMapData, useMapUI } from "../context/MapFilterContext";
 import { useClientPath } from "../context/PathContext";
 import { useOptionalDashboardEditMode } from "../context/DashboardEditModeContext";
 import FiltersPanel from "./FiltersPanel";
@@ -54,7 +54,8 @@ export default function BottomNav() {
   const { mode, setMode } = useDateContext();
   const { setIsOverlay } = useSearchContext();
   const [mobile, setIsMobile] = useState(false);
-  const { openPanel, setOpenPanel, filters, setFilters } = useMapFilters();
+  const { openPanel, setOpenPanel } = useMapUI();
+  const { filters, setFilters } = useMapData();
   const { selectedTab } = useClientPath();
   const forecastPage = selectedTab === "forecast";
   const [profileOpen, setProfileOpen] = useState(false);

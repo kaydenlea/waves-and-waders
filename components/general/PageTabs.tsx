@@ -7,7 +7,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import PeekingSideTab from "./PeekingSideTab";
 import SaveButton from "./SaveButton";
-import { useMapFilters } from "../context/MapFilterContext";
+import { useMapUI } from "../context/MapFilterContext";
 import { Calendar1, CalendarDays, MapPinned, Pencil } from "lucide-react";
 import { useClientPath } from "../context/PathContext";
 import { poppins } from "@/lib/fonts";
@@ -49,7 +49,7 @@ const PageTabs = ({
   const [favorite, setFavorite] = useState(isFavorite);
   const [isDesktop, setIsDesktop] = useState(false);
   const { selectedTab, setSelectedTab } = useClientPath();
-  const { showMap, setShowMap } = useMapFilters();
+  const { showMap, setShowMap } = useMapUI();
   const { enterEdit } = useDashboardEditMode();
 
   const tabsRef = useRef<HTMLDivElement>(null);

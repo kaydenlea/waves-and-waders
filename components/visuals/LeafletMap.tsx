@@ -21,7 +21,7 @@ import {
   extractBeachId,
 } from "@/lib/supabase";
 import type { BeachPoint } from "@/components/context/MapFilterContext";
-import { useMapFilters } from "@/components/context/MapFilterContext";
+import { useMapData, useMapUI } from "@/components/context/MapFilterContext";
 import {
   VisibleMapBounds,
   useMapViewport,
@@ -1462,17 +1462,9 @@ const LeafletMap: React.FC<Props> = ({
   const embedded = variant === "embed";
   const previewUi = ui === "preview";
   const showChrome = !previewUi && !embedded;
-  const {
-    showMap,
-    setShowMap,
-    filters,
-    setFilters,
-    openPanel,
-    setOpenPanel,
-    togglePanel,
-    favoriteIds,
-    hoverCardId,
-  } = useMapFilters();
+  const { filters, setFilters, favoriteIds, hoverCardId } = useMapData();
+  const { showMap, setShowMap, openPanel, setOpenPanel, togglePanel } =
+    useMapUI();
 
   // Beaches page should always render with the map visible, even if another page hid it.
   React.useEffect(() => {

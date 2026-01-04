@@ -51,7 +51,7 @@ import {
   useOptionalForecastChartLoading,
   useOptionalForecastChartsBusyState,
 } from "../context/ForecastChartsLoadingContext";
-import { useMapFilters } from "../context/MapFilterContext";
+import { useMapUI } from "../context/MapFilterContext";
 
 type MetricGroup =
   | "hour"
@@ -1095,7 +1095,7 @@ const StatTable = ({
     setShowSecondarySwells,
   } = useDateContext();
   const { selectedTab } = useClientPath();
-  const { showMap } = useMapFilters();
+  const { showMap } = useMapUI();
   const forecastPage = selectedTab === "forecast";
   const headerBgClass =
     "bg-[var(--widget-header-surface,var(--widget-surface,var(--highlight-4)))]";

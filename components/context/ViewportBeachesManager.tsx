@@ -2,14 +2,14 @@
 
 import * as React from "react";
 import { useViewportBeaches } from "@/lib/hooks/useViewportBeaches";
-import { useMapFilters } from "./MapFilterContext";
+import { useMapData } from "./MapFilterContext";
 import { useMapViewport } from "./MapViewportContext";
 import { useClientPath } from "./PathContext";
 import { useViewportBeachesContext } from "./ViewportBeachesContext";
 
 const MAX_VIEWPORT_BEACHES = 1500;
 const ViewportBeachesManager = () => {
-  const { filters, favoriteIds, setBeaches } = useMapFilters();
+  const { filters, favoriteIds, setBeaches } = useMapData();
   const {
     visibleBounds,
     viewportRequestId,

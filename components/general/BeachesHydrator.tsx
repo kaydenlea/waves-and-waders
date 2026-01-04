@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
-import { useMapFilters } from "@/components/context/MapFilterContext";
+import { useMapData } from "@/components/context/MapFilterContext";
 
 type HydratorBeach = {
   id: string | number;
@@ -17,7 +17,7 @@ type Props = {
 };
 
 export default function BeachesHydrator({ beaches }: Props) {
-  const { setBeaches } = useMapFilters();
+  const { setBeaches } = useMapData();
 
   const normalized = useMemo(
     () =>
