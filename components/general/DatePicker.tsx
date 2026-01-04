@@ -36,8 +36,6 @@ import {
 import { useDateContext } from "../context/DateContext";
 import { useMapFilters } from "../context/MapFilterContext";
 import { useClientPath } from "../context/PathContext";
-import { getForecastCached } from "@/lib/dataCache";
-import { getPacificDayRange } from "@/lib/utils";
 import { acquireInteractionLock } from "@/lib/uiInteractionLock";
 
 type DatePickerProps = {

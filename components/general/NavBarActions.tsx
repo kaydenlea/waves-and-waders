@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { LazyLoadDatePicker } from "./LazyLoad/LazyLoadDatePicker";
 import SearchBar from "./SearchBar";
 import { useOptionalDateContext } from "../context/DateContext";
 import { LazyLoadHourSlider } from "./LazyLoad/LazyLoadHourSlider";
-import { Calendar, Clock, MapIcon, Search } from "lucide-react";
+import { Calendar, Clock, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSearchContext } from "../context/SearchContext";
 import { useClientPath } from "../context/PathContext";
@@ -14,7 +14,6 @@ import TimeRail from "./TimeRail";
 
 const NavBarActions = () => {
   const pathname = usePathname();
-  const router = useRouter();
   const homePage = pathname === "/";
   const beachesPage = pathname.endsWith("/beaches");
   const dateCtx = useOptionalDateContext();

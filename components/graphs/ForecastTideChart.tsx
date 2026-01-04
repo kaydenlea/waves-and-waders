@@ -1403,7 +1403,7 @@ export default React.memo(function ForecastTideChart({
                         animationBegin={0}
                         dot={({ payload, cx, cy }: TideDotProps) => {
                           if (!payload) {
-                            return null;
+                            return <g />;
                           }
                           const hour = payload.hour as number;
                           // Exact match for sun markers (no duplicates)

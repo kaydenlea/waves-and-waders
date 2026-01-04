@@ -35,37 +35,11 @@ import { useClientPath } from "../context/PathContext";
 import { useViewportBeachesContext } from "../context/ViewportBeachesContext";
 import { useBeachStatsCache } from "@/components/context/BeachStatsCacheContext";
 import {
-  getForecastCached,
-  getTidesCached,
-  getDailyConditionsCached,
-} from "@/lib/dataCache";
-
-import {
   type BeachStatsSnapshot,
   normalizeHour,
   extractDailySurfWindStats,
   mergeDailyStatsIntoConditions,
 } from "@/lib/beachStatsShared";
-
-type DbBeach = {
-  id: string | number;
-  Name: string;
-  COUNTY: string;
-  LATITUDE: number;
-  LONGITUDE: number;
-};
-
-type TidePointValue = { x: number; tide: number };
-type TidePeak = { kind: "high" | "low"; time: Date; level: number | null };
-
-type ApiBeach = {
-  id: string | number;
-  name: string;
-  county: string;
-  latitude: number;
-  longitude: number;
-  features?: Record<string, boolean>;
-};
 
 const haversineKm = (a: [number, number], b: [number, number]) => {
   const toRad = (d: number) => (d * Math.PI) / 180;
@@ -109,6 +83,7 @@ const decorateBeachWithStats = (
       surf: beach.conditions.surf,
       wind: beach.conditions.wind,
       windDir: beach.conditions.windDir,
+      temp: beach.conditions.temp,
       rating: beach.conditions.rating ?? 0,
     },
     dailyStats

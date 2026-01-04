@@ -1,6 +1,5 @@
 import React from "react";
 
-import Highlights from "@/components/visuals/Highlights";
 import TideSun from "@/components/general/Stats/TideSun";
 import { LazyLoadTide } from "@/components/general/LazyLoad/LazyLoadTide";
 import { LazyLoadSwell } from "@/components/general/LazyLoad/LazyLoadSwell";

@@ -117,6 +117,9 @@ const OPENFREEMAP_ATTRIBUTION_HTML =
   // '<a href="https://openfreemap.org" target="_blank" rel="noopener noreferrer">OpenFreeMap</a> ' +
   '© <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener noreferrer">OpenMapTiles</a> ' +
   '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>';
+const OSM_RASTER_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+const OSM_ATTRIBUTION_HTML =
+  '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>';
 const DEFAULT_CENTER: [number, number] = [37.8, -122.4];
 const DEFAULT_ZOOM = 6;
 const MAP_VIEW_STORAGE_KEY = "ww:last-map-view";
@@ -154,6 +157,20 @@ const logLeafletPerf = (label: string, startTs: number | null) => {
   const duration = performance.now() - startTs;
   // eslint-disable-next-line no-console
   console.log(`[LeafletPerf] ${label}: ${duration.toFixed(1)}ms`);
+};
+
+const canUseWebGL = () => {
+  if (typeof window === "undefined" || !window.WebGLRenderingContext) {
+    return false;
+  }
+  try {
+    const canvas = document.createElement("canvas");
+    return Boolean(
+      canvas.getContext("webgl") || canvas.getContext("experimental-webgl")
+    );
+  } catch (error) {
+    return false;
+  }
 };
 
 type StoredViewState = {
@@ -1537,9 +1554,9 @@ const LeafletMap: React.FC<Props> = ({
   }>({ card: null, marker: null });
   const appliedHoverIdRef = React.useRef<string | null>(null);
   const clearHoverStateRef = React.useRef<(() => void) | null>(null);
-  const hoveredClusterRef = React.useRef<L.MarkerCluster | null>(null);
+  const hoveredClusterRef = React.useRef<L.Marker | null>(null);
   const updateClusterHighlight = React.useCallback(
-    (cluster: L.MarkerCluster | null) => {
+    (cluster: L.Marker | null) => {
       const prev = hoveredClusterRef.current;
       if (prev && prev !== cluster) {
         const prevElement = prev.getElement?.();
@@ -2065,7 +2082,10 @@ const LeafletMap: React.FC<Props> = ({
     const maxBounds = map.options.maxBounds;
     if (!maxBounds) return;
     // Keep the view strictly inside Leaflet's maxBounds without "world copy" recentering.
-    const latLngBounds = L.latLngBounds(maxBounds);
+    const latLngBounds =
+      maxBounds instanceof L.LatLngBounds
+        ? maxBounds
+        : L.latLngBounds(maxBounds as L.LatLngExpression[]);
     if (latLngBounds.contains(map.getBounds())) {
       return;
     }
@@ -3066,16 +3086,26 @@ const LeafletMap: React.FC<Props> = ({
       // Some environments disable 3D transforms (and thus the proxy), so gate this to avoid crashes.
       zoomAnimation: Boolean(L.Browser?.any3d),
     });
-    const basemapLayer = L.maplibreGL({
-      // Official OpenFreeMap vector basemap style.
-      style: OPENFREEMAP_STYLE_URL,
-      // We provide a single, complete attribution string via Leaflet to avoid duplicates.
-      attributionControl: false,
-      // Ensure tiles repeat seamlessly as users pan horizontally across world copies.
-      renderWorldCopies: true,
-    }).addTo(map);
+    const useVectorBasemap = canUseWebGL();
+    const basemapLayer = useVectorBasemap
+      ? L.maplibreGL({
+          // Official OpenFreeMap vector basemap style.
+          style: OPENFREEMAP_STYLE_URL,
+          // We provide a single, complete attribution string via Leaflet to avoid duplicates.
+          attributionControl: false,
+          // Ensure tiles repeat seamlessly as users pan horizontally across world copies.
+          renderWorldCopies: true,
+        })
+      : L.tileLayer(OSM_RASTER_URL, {
+          maxZoom: 19,
+        });
+    basemapLayer.addTo(map);
     basemapLayerRef.current = basemapLayer;
-    map.attributionControl?.addAttribution(OPENFREEMAP_ATTRIBUTION_HTML);
+    map.attributionControl?.addAttribution(
+      useVectorBasemap
+        ? OPENFREEMAP_ATTRIBUTION_HTML
+        : OSM_ATTRIBUTION_HTML
+    );
     mapRef.current = map;
     if (!map.getPane(OVERLAY_PANE_ID)) {
       const pane = map.createPane(OVERLAY_PANE_ID);

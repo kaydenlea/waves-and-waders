@@ -54,7 +54,7 @@ type YAxisTickProps = {
   fontSize?: number;
 };
 type TooltipPayload = Array<{ payload?: { hour?: number } }>;
-type TooltipItem = { dataKey?: string; payload?: Record<string, unknown> };
+type TooltipItem = { dataKey?: string | number; payload?: Record<string, unknown> };
 type TooltipValue = number | string | Array<number | string>;
 type ChartMouseEvent = { activeLabel?: number | string | null };
 const WindTooltipIcon = () => <WindIcon className="h-3 w-3" />;
@@ -388,7 +388,7 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     return `${displayHour} ${ampm}`;
   }, []);
   const formatWindTooltipValue = useCallback(
-    (value: TooltipValue, _name: string, item: TooltipItem) => {
+    (value: TooltipValue, _name: string | number, item: TooltipItem) => {
       const direction = item?.payload?.direction;
       const directionLabel = getWindDirection(
         typeof direction === "number" ? direction : 0

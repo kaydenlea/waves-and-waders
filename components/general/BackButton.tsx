@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Undo2 } from "lucide-react";
+import { Undo2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type BackButtonProps = {

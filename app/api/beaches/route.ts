@@ -14,7 +14,7 @@ type BeachRow = {
   grid_id?: number | string | null;
 } & Record<(typeof FEATURE_COLUMNS)[number], boolean | number | string | null>;
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     // Build select with common columns + feature flags
     const baseCols = 'id, Name, COUNTY, LATITUDE, LONGITUDE, grid_id'
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
       if (!data || data.length === 0) {
         hasMore = false
       } else {
-        allData = allData.concat(data)
+        allData = allData.concat(data as unknown as BeachRow[])
         hasMore = data.length === PAGE_SIZE
         page++
       }
@@ -72,9 +72,10 @@ export async function GET(request: NextRequest) {
     // beaches_optimized view already returns proper booleans, no conversion needed
     const beaches = allData.map((beach) => {
       const features: Record<string, boolean> = {}
+      const beachRecord = beach as Record<string, unknown>
       for (const key of FEATURE_COLUMNS as readonly string[]) {
         // View already converts to boolean, just assign directly
-        features[key] = beach[key] ?? false
+        features[key] = (beachRecord[key] ?? false) as boolean
       }
       return {
         id: beach.id,

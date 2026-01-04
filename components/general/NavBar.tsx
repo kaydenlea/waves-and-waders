@@ -2,21 +2,10 @@ import Link from "next/link";
 import Image from "next/image";
 import SearchBar from "./SearchBar";
 import ThemeToggle from "./ThemeToggle";
-import {
-  AlignJustify,
-  Heart,
-  MapPinned,
-  SlidersHorizontal,
-} from "lucide-react";
 // Popover handled inside client subcomponent
 import { UserMenu } from "@/components/auth/UserMenu";
 import { cn } from "@/lib/utils";
-import { LazyLoadDatePicker } from "./LazyLoad/LazyLoadDatePicker";
-import { LazyLoadHourSlider } from "./LazyLoad/LazyLoadHourSlider";
 import NavBarActions from "./NavBarActions";
-import { useClientPath } from "../context/PathContext";
-import { useMapFilters } from "../context/MapFilterContext";
-import ToggleFilters from "./ToggleFilters";
 import NavMoreMenu from "./NavMoreMenu";
 
 {

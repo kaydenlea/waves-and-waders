@@ -35,38 +35,6 @@ export function extractBeachId(param: string): string {
   return param;
 }
 
-// Cache for beach slug -> ID mapping (server-side only)
-let beachSlugCache: Map<string, string> | null = null;
-let beachCacheTimestamp: number = 0;
-const CACHE_DURATION_MS = 5 * 60 * 1000; // 5 minutes
-
-async function getBeachSlugCache(): Promise<Map<string, string>> {
-  const now = Date.now();
-
-  // Return cached data if still valid
-  if (beachSlugCache && now - beachCacheTimestamp < CACHE_DURATION_MS) {
-    return beachSlugCache;
-  }
-
-  // Rebuild cache
-  const { data } = await supabase
-    .from("beaches")
-    .select("id, Name")
-    .limit(10000);
-
-  beachSlugCache = new Map();
-
-  if (data) {
-    for (const beach of data) {
-      const slug = generateBeachSlug(beach.Name);
-      beachSlugCache.set(slug, beach.id);
-    }
-  }
-
-  beachCacheTimestamp = now;
-  return beachSlugCache;
-}
-
 const supabaseUrl =
   process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL!;
 const supabaseKey =
@@ -593,7 +561,7 @@ export function transformToComponentFormat(
   data: SupabaseForecastData[]
 ): ForecastData[] {
   return data.map((row) => {
-    const anyRow = row as Record<string, unknown>;
+    const anyRow = row as unknown as Record<string, unknown>;
     const readNumber = (value: unknown): number | null =>
       typeof value === "number" ? value : null;
 
@@ -966,7 +934,7 @@ export async function fetchAllBeaches(): Promise<Beach[]> {
     }
 
     const normalized = data
-      .map((row) => normalizeOptimizedRow(row))
+      .map((row) => normalizeOptimizedRow(row as unknown as Record<string, unknown>))
       .filter((row): row is Beach => Boolean(row));
 
     beaches.push(...normalized);

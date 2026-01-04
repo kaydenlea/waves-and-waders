@@ -6,7 +6,6 @@ import type {
   ForecastData,
   TidePoint,
   DailyConditions,
-  Beach,
 } from "./supabase";
 import type { BeachStatsSnapshot } from "./beachStatsShared";
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronUp, MapPin } from "lucide-react";
+import { MapPin } from "lucide-react";
 
 const wideScreenWidth = 911;
 // export const scrollToMap = () => {

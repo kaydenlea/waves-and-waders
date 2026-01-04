@@ -95,7 +95,7 @@ type YAxisTickProps = {
   fontSize?: number;
 };
 type TooltipPayload = Array<{ payload?: Row }>;
-type TooltipItem = { dataKey?: string; payload?: Record<string, unknown> };
+type TooltipItem = { dataKey?: string | number; payload?: Record<string, unknown> };
 type TooltipValue = number | string | Array<number | string>;
 type ChartMouseEvent = { activeLabel?: number | string | null };
 type ClipProps = {
@@ -188,7 +188,7 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   );
 
   const formatSwellTooltipValue = React.useCallback(
-    (value: TooltipValue, _name: string, item: TooltipItem) => {
+    (value: TooltipValue, _name: string | number, item: TooltipItem) => {
       const dirKey = `${item?.dataKey}Dir`;
       const periodKey = `${item?.dataKey}Period`;
       const direction = item?.payload?.[dirKey];

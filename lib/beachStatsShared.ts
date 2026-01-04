@@ -124,6 +124,7 @@ export type BeachConditionsLike = {
   surf: string;
   wind: string;
   windDir: number;
+  temp: number;
   rating: number;
 };
 

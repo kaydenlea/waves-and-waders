@@ -109,7 +109,7 @@ function AppFrame({
 }
 
 function useInView(
-  ref: React.RefObject<HTMLElement>,
+  ref: React.RefObject<HTMLElement | null>,
   rootMargin = "200px 0px"
 ) {
   const [inView, setInView] = React.useState(true);

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useTransition } from "react";
+import React, { createContext, useContext, useTransition } from "react";
 
 type LoadingContextType = {
   isTransitioning: boolean;

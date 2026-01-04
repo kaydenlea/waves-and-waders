@@ -4,10 +4,11 @@ import { formatTimestamp, fetchBeachForecast } from '@/lib/supabase'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { beachId: string } }
+  { params }: { params: Promise<{ beachId: string }> }
 ) {
   try {
-    const beachId = parseInt(params.beachId)
+    const { beachId: beachIdParam } = await params
+    const beachId = parseInt(beachIdParam)
     
     if (isNaN(beachId)) {
       return NextResponse.json(

@@ -74,7 +74,7 @@ type YAxisTickProps = {
 
 type TooltipPayload = Array<{ payload?: { hour?: number } }>;
 
-type TooltipItem = { dataKey?: string; payload?: Record<string, unknown> };
+type TooltipItem = { dataKey?: string | number; payload?: Record<string, unknown> };
 
 type TooltipValue = number | string | Array<number | string>;
 
@@ -805,7 +805,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
     []
   );
   const formatWindTooltipValue = useCallback(
-    (value: TooltipValue, _name: string, item: TooltipItem) => {
+    (value: TooltipValue, _name: string | number, item: TooltipItem) => {
       const direction = item?.payload?.direction;
       const directionLabel = getWindDirection(
         typeof direction === "number" ? direction : 0

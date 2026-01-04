@@ -502,11 +502,12 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
                 const clipWidth =
                   (typeof offset?.left === "number" ? offset.left : 0) +
                   (typeof offset?.width === "number" ? offset.width : 0);
+                const offsetHeight = typeof offset?.height === "number" ? offset.height : 0;
                 if (
                   !offset ||
                   !(fullWidth > 0) ||
                   !(clipWidth > 0) ||
-                  !(offset.height > 0)
+                  !(offsetHeight > 0)
                 ) {
                   return null;
                 }
@@ -517,7 +518,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
                         x={0}
                         y={offset.top}
                         width={Math.min(fullWidth, clipWidth)}
-                        height={offset.height}
+                        height={offsetHeight}
                         rx={8}
                         ry={8}
                       />

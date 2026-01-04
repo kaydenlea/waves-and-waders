@@ -11,7 +11,6 @@ import { cn } from "@/lib/utils";
 import SaveButton from "./SaveButton";
 import { SwellRings, WindRing } from "../visuals/DirectionRings";
 import { useRouter } from "next/navigation";
-import Tag from "./Tag";
 import { useMapFilters } from "../context/MapFilterContext";
 
 export type Beach = {

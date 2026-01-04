@@ -94,7 +94,7 @@ type YAxisTickProps = {
 
 type TooltipPayload = Array<{ payload?: { hour?: number } }>;
 
-type TooltipItem = { dataKey?: string; payload?: Record<string, unknown> };
+type TooltipItem = { dataKey?: string | number; payload?: Record<string, unknown> };
 
 type TooltipValue = number | string | Array<number | string>;
 
@@ -786,7 +786,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
     []
   );
   const formatSwellTooltipValue = useCallback(
-    (value: TooltipValue, _name: string, item: TooltipItem) => {
+    (value: TooltipValue, _name: string | number, item: TooltipItem) => {
       const dirKey = `${item?.dataKey}Dir`;
       const periodKey = `${item?.dataKey}Period`;
       const payload = item?.payload ?? {};

@@ -22,9 +22,8 @@ type BeachRow = {
   grid_id?: number | string | null;
 } & Record<(typeof FEATURE_COLUMNS)[number], boolean | number | string | null>;
 
-type BeachSelectQuery = ReturnType<
-  ReturnType<typeof supabase.from<BeachRow>>["select"]
->;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type BeachSelectQuery = any;
 
 const parseNumber = (value: string | null, name: string) => {
   if (value == null) {
@@ -122,7 +121,7 @@ const fetchPagedResults = async (
     if (!data?.length) {
       break;
     }
-    rows.push(...data);
+    rows.push(...(data as BeachRow[]));
     if (data.length < chunkSize) {
       break;
     }
@@ -176,7 +175,7 @@ export async function GET(request: NextRequest) {
     const baseQuery = () =>
       applyQueryFilters(
         supabase
-          .from<BeachRow>("beaches_optimized")
+          .from("beaches_optimized")
           .select(selectCols)
           .gte("LATITUDE", bounds.south)
           .lte("LATITUDE", bounds.north)

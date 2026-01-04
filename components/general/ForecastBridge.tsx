@@ -9,7 +9,6 @@ import React, {
   useState,
 } from "react";
 import { cn } from "@/lib/utils";
-import { LazyLoadDatePicker } from "@/components/general/LazyLoad/LazyLoadDatePicker";
 import VisualWrapper from "@/components/general/VisualWrapper";
 import OverviewWidget from "@/components/general/overview/OverviewWidget";
 import { LazyLoadForecastTide } from "@/components/general/LazyLoad/LazyLoadForecastTide";
@@ -18,12 +17,9 @@ import type {
   StatTableDensity,
   StatTableUiState,
 } from "@/components/general/LazyLoad/LazyLoadTable";
-import Link from "next/link";
-import { Pencil } from "lucide-react";
 import { useDateContext } from "../context/DateContext";
 import { useDashboardEditMode } from "../context/DashboardEditModeContext";
 import { useSunData } from "../context/SunDataContext";
-import dayjs from "dayjs";
 import { LazyLoadForecastWaveEnergy } from "./LazyLoad/LazyLoadForecastWaveEnergy";
 import { LazyLoadForecastSurf } from "./LazyLoad/LazyLoadForecastSurf";
 import { LazyLoadForecastWind } from "./LazyLoad/LazyLoadForecastWind";
