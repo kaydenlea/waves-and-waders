@@ -5,7 +5,7 @@ import { getServerSupabase } from "@/lib/supabaseServer";
 import { SupabaseProvider } from "@/components/providers/SupabaseProvider";
 import { QueryProvider } from "@/components/providers/QueryProvider";
 import { poppins } from "@/lib/fonts";
-import { buildDefaultMetadata } from "@/lib/seo";
+import { buildDefaultMetadata, getSiteUrl } from "@/lib/seo";
 
 export const metadata = buildDefaultMetadata();
 
@@ -24,9 +24,36 @@ export default async function RootLayout({
   }
 
   const initialSession = session;
+  const baseUrl = getSiteUrl();
+
+  const organizationSchema = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "Waves and Waders",
+    url: baseUrl,
+    logo: `${baseUrl}/logo.png`,
+    description: "Live surf conditions, beach maps, and feature-rich spot guides for coastal breaks.",
+    sameAs: [
+      // Add your social media profiles here when available
+      // "https://twitter.com/wavesandwaders",
+      // "https://facebook.com/wavesandwaders",
+      // "https://instagram.com/wavesandwaders"
+    ],
+  };
 
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <meta name="theme-color" content="#0891b2" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        <link rel="manifest" href="/manifest.json" />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
+        />
+      </head>
       <body
         className={`${poppins.variable} font-poppins antialiased`}
         suppressHydrationWarning

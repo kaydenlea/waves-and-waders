@@ -43,7 +43,7 @@ export const toAbsoluteUrl = (path: string): string => {
 
 export const buildDefaultMetadata = (): Metadata => {
   const title = "Waves and Waders";
-  const description = "Check the surf conditions of your local beaches";
+  const description = "Get real-time surf forecasts, wave heights, swell direction, and tide charts for your favorite beaches. Plan your surf sessions with accurate NOAA data and interactive maps.";
   const base = new URL(getSiteUrl());
 
   return {
@@ -53,6 +53,17 @@ export const buildDefaultMetadata = (): Metadata => {
       template: `%s | ${title}`,
     },
     description,
+    keywords: [
+      "surf forecast",
+      "surf report",
+      "wave forecast",
+      "beach conditions",
+      "swell forecast",
+      "tide charts",
+      "surf conditions",
+      "ocean weather",
+      "NOAA surf data",
+    ],
     openGraph: {
       type: "website",
       siteName: title,

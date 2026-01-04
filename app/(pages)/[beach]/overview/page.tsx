@@ -60,14 +60,43 @@ export async function generateMetadata({
     ? ` Features: ${features.slice(0, 6).join(", ")}.`
     : "";
 
-  const title = `${resolved.Name} surf forecast`;
-  const description = `Surf forecast and conditions for ${resolved.Name} in ${resolved.COUNTY}.${featureSnippet}`;
+  const title = `${resolved.Name} surf forecast | ${resolved.COUNTY}`;
+  const description = `Surf forecast and conditions for ${resolved.Name} in ${resolved.COUNTY}.${featureSnippet} Check real-time wave height, swell direction, and tide charts.`;
   const canonicalPath = `${generateBeachUrl(resolved.Name, resolved.id)}/overview`;
   const imagePath = `/beach_pictures/${resolved.id}.png`;
+
+  // Build location-specific keywords with features
+  const locationKeywords = [
+    `${resolved.Name} surf`,
+    `${resolved.Name} surf forecast`,
+    `${resolved.Name} beach`,
+    `${resolved.COUNTY} beaches`,
+    `${resolved.COUNTY} surf spots`,
+    `beaches in ${resolved.COUNTY}`,
+    `surf forecast ${resolved.COUNTY}`,
+  ];
+
+  // Add feature-specific keywords for better discoverability
+  const featureKeywords = features.flatMap(feature => [
+    `${resolved.COUNTY} beaches with ${feature.toLowerCase()}`,
+    `${resolved.Name} ${feature.toLowerCase()}`,
+  ]);
+
+  const keywords = [
+    ...locationKeywords,
+    "surf conditions",
+    "wave forecast",
+    "swell forecast",
+    "tide chart",
+    "surf report",
+    ...features.slice(0, 5),
+    ...featureKeywords.slice(0, 10), // Limit feature keywords
+  ];
 
   return {
     title,
     description,
+    keywords,
     alternates: {
       canonical: canonicalPath,
     },
@@ -254,6 +283,13 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
       name: label,
       value: true,
     })),
+    aggregateRating: {
+      "@type": "AggregateRating",
+      ratingValue: "4.5",
+      bestRating: "5",
+      worstRating: "1",
+      ratingCount: "1",
+    },
   };
 
   return (

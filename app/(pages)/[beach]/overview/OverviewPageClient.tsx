@@ -10,6 +10,7 @@ import { LazyLoadMap } from "@/components/general/LazyLoad/LazyLoadMap";
 import NavBar from "@/components/general/NavBar";
 import PathStyleWrapper from "@/components/general/PathStyleWrapper";
 import SaveButton from "@/components/general/SaveButton";
+import Breadcrumbs from "@/components/general/Breadcrumbs";
 import { SunDataProvider } from "@/components/context/SunDataContext";
 import { useDashboardEditMode } from "@/components/context/DashboardEditModeContext";
 import DashboardEditorScreen from "@/components/general/DashboardEditorScreen";
@@ -99,6 +100,12 @@ export default function OverviewPageClient({
                 id="content"
                 className="relative w-full flex flex-col gap-5 px-2 pt-3 @min-md:pt-4 pb-0 scroll-mt-30"
               >
+                <Breadcrumbs
+                  items={[
+                    { label: "Beaches", href: "/beaches" },
+                    { label: beachName, href: `/beach/${beachParam}/overview` },
+                  ]}
+                />
                 <div className="flex items-center gap-3">
                   <h1 className="pb-0.5 font-semibold text-3xl @min-md:text-4xl tracking-tight w-full whitespace-nowrap truncate">
                     {beachName}

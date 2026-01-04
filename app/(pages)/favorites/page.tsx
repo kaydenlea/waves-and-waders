@@ -7,7 +7,14 @@ import { getServerSupabase } from "@/lib/supabaseServer";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Favorite beaches",
-  description: "Saved beaches and surf spots for your account.",
+  description: "Quick access to your saved surf spots and favorite beaches. Check conditions at your go-to breaks instantly.",
+  keywords: [
+    "saved beaches",
+    "favorite surf spots",
+    "saved surf locations",
+    "my beaches",
+    "bookmarked surf spots",
+  ],
   robots: {
     index: false,
     follow: false,
