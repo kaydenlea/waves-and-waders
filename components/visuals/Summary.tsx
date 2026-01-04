@@ -999,14 +999,13 @@ const Summary = ({
       }
       featureTags.sort((a, b) => (a.rank ?? 999) - (b.rank ?? 999));
     }
-    const topTags = featureTags.slice(0, 5);
-    nextStats.push({ type: "features", tags: topTags });
+    nextStats.push({ type: "features", tags: featureTags });
 
     if (nextStats.length > 0 && pendingKey) {
       const nextCommitted: CommittedSummary = {
         key: pendingKey,
         stats: nextStats,
-        tags: topTags,
+        tags: featureTags,
         forecast,
       };
       committedRef.current = nextCommitted;

@@ -1473,7 +1473,12 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
           lng: position.coords.longitude,
         };
         console.log("[LeafletGeo] Position received", next);
+        console.log("[LeafletGeo] Setting user location state");
         setUserLocation(next);
+        console.log("[LeafletGeo] Forcing marker revision");
+        // Force component update to ensure button appears
+        forceMarkerRevision();
+        console.log("[LeafletGeo] Location update complete");
       },
       (error) => {
         console.log("[LeafletGeo] Error", error.message);
@@ -1612,7 +1617,6 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     null
   );
   const geoFocusDoneRef = React.useRef(false);
-  const geoFallbackDoneRef = React.useRef(false);
   const geoRequestedRef = React.useRef(false);
 
   const beachesPage = pathname.endsWith("/beaches");
@@ -1682,38 +1686,47 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       selectedBeachId,
       filteredCount: filteredBeaches.length,
       combinedCount: combinedBeaches.length,
+      geoFocusDone: geoFocusDoneRef.current,
     });
-    if (!beachesPage || !mapReady || !userLocation) return;
-    if (geoFocusDoneRef.current || selectedBeachId) return;
+    if (!beachesPage || !mapReady || !userLocation) {
+      console.log("[LeafletGeo] Early exit - conditions not met");
+      return;
+    }
+    if (geoFocusDoneRef.current || selectedBeachId) {
+      console.log("[LeafletGeo] Early exit - already focused or beach selected");
+      return;
+    }
     const map = mapRef.current;
     if (!map) {
       console.log("[LeafletGeo] Map not ready for focus");
       return;
     }
     const list = filteredBeaches.length ? filteredBeaches : combinedBeaches;
-    suppressUserMoveRef.current = true;
-    if (list.length) {
-      const nearest = getNearestBeaches(userLocation, list, 20);
-      const bounds = getBoundsForBeaches(nearest);
-      if (bounds) {
-        console.log("[LeafletGeo] Fitting nearest beaches");
-        map.fitBounds(bounds, {
-          padding: [80, 80],
-          maxZoom: 12,
-          animate: true,
-          duration: 0.6,
-        });
-      } else {
-        console.log("[LeafletGeo] Fallback zoom (no bounds)");
-        map.flyTo([userLocation.lat, userLocation.lng], 10, { duration: 0.6 });
-      }
-      geoFocusDoneRef.current = true;
-      geoFallbackDoneRef.current = true;
-    } else if (!geoFallbackDoneRef.current) {
-      console.log("[LeafletGeo] Fallback zoom (no beaches yet)");
-      map.flyTo([userLocation.lat, userLocation.lng], 10, { duration: 0.6 });
-      geoFallbackDoneRef.current = true;
+
+    // Wait for beaches to load before attempting to zoom
+    if (!list.length) {
+      console.log("[LeafletGeo] Waiting for beaches to load");
+      return;
     }
+
+    console.log("[LeafletGeo] All conditions met, zooming to nearby beaches");
+    suppressUserMoveRef.current = true;
+    const nearest = getNearestBeaches(userLocation, list, 20);
+    const bounds = getBoundsForBeaches(nearest);
+    if (bounds) {
+      console.log("[LeafletGeo] Fitting nearest beaches", nearest.length);
+      map.fitBounds(bounds, {
+        padding: [80, 80],
+        maxZoom: 12,
+        animate: true,
+        duration: 0.6,
+      });
+    } else {
+      console.log("[LeafletGeo] Fallback zoom (no bounds)");
+      map.flyTo([userLocation.lat, userLocation.lng], 10, { duration: 0.6 });
+    }
+    geoFocusDoneRef.current = true;
+    console.log("[LeafletGeo] Zoom complete, geoFocusDone set to true");
   }, [
     beachesPage,
     mapReady,
@@ -1724,12 +1737,24 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
   ]);
 
   const handleZoomToNearby = React.useCallback(() => {
+    console.log("[LeafletGeo] handleZoomToNearby called", {
+      hasMap: !!mapRef.current,
+      hasLocation: !!userLocation,
+      userLocation,
+    });
     const map = mapRef.current;
-    if (!map || !userLocation) return;
+    if (!map || !userLocation) {
+      console.log("[LeafletGeo] handleZoomToNearby - early exit, no map or location");
+      return;
+    }
 
     const list = filteredBeaches.length ? filteredBeaches : combinedBeaches;
-    if (!list.length) return;
+    if (!list.length) {
+      console.log("[LeafletGeo] handleZoomToNearby - no beaches available");
+      return;
+    }
 
+    console.log("[LeafletGeo] handleZoomToNearby - zooming to nearby beaches");
     const nearest = getNearestBeaches(userLocation, list, 20);
     const bounds = getBoundsForBeaches(nearest);
 
@@ -3889,32 +3914,34 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
             <CalendarDays className="w-5 h-5 mx-auto" />
           </button>
         )}
-        {!fullMapPage && userLocation && (
-          <button
-            type="button"
-            aria-label="Zoom to nearby beaches"
-            onClick={handleZoomToNearby}
-            className={cn(
-              "z-[1000] absolute left-3 top-[7.5rem] @min-4xl:top-auto @min-4xl:bottom-[10rem]",
-              overlayButtonBase,
-              "text-sm font-medium"
-            )}
-          >
-            <Locate className="w-5 h-5 mx-auto" />
-          </button>
-        )}
         {!fullMapPage && (
           <button
             type="button"
             aria-label="Zoom to California view"
             onClick={handleZoomToCaliforniaView}
             className={cn(
-              "z-[1000] absolute left-3 top-[11.25rem] @min-4xl:top-auto @min-4xl:bottom-[13.75rem]",
+              "z-[1000] absolute left-3 top-[7.5rem] @min-4xl:top-auto @min-4xl:bottom-[13.75rem]",
               overlayButtonBase,
               "text-sm font-medium"
             )}
           >
             <ZoomOut className="w-5 h-5 mx-auto" />
+          </button>
+        )}
+        {!fullMapPage && (
+          <button
+            type="button"
+            aria-label="Zoom to nearby beaches"
+            onClick={handleZoomToNearby}
+            disabled={!userLocation}
+            className={cn(
+              "z-[1000] absolute left-3 top-[11.25rem] @min-4xl:top-auto @min-4xl:bottom-[10rem]",
+              overlayButtonBase,
+              "text-sm font-medium",
+              !userLocation && "opacity-50 cursor-not-allowed"
+            )}
+          >
+            <Locate className="w-5 h-5 mx-auto" />
           </button>
         )}
         {fullMapPage && !smallScreen && (
