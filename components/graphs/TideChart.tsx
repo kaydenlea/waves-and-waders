@@ -27,7 +27,7 @@ import {
   buildSunSegments,
   parseSunTimeToHour,
 } from "@/components/graphs/sunSegments";
-import { getPacificMidnightUTC } from "@/lib/utils";
+import { cn, getPacificMidnightUTC } from "@/lib/utils";
 import { useChartTheme } from "@/components/graphs/useChartTheme";
 import { buildYAxisTicks } from "@/components/graphs/yAxisTicks";
 import {
@@ -79,6 +79,7 @@ type YAxisTickProps = {
 type ChartMouseEvent = { activeLabel?: number | string | null };
 
 type TideChartProps = {
+  preview?: boolean;
   beachId?: string;
   hours?: number;
   chartData?: ExternalTidePoint[];
@@ -161,6 +162,7 @@ const formatHourTick = (value: number) => {
 };
 
 const TideChart: React.FC<TideChartProps> = ({
+  preview = false,
   beachId,
   hours = 24,
   chartData: chartDataProp,
@@ -401,11 +403,7 @@ const TideChart: React.FC<TideChartProps> = ({
       const effectiveStartMs =
         tideStartMs ??
         (tideRows.length
-          ? resolveStartMs(
-              new Date(
-                Number(tideRows[0].x ?? Date.now())
-              )
-            )
+          ? resolveStartMs(new Date(Number(tideRows[0].x ?? Date.now())))
           : null);
 
       if (tideRows.length && effectiveStartMs != null) {
@@ -736,7 +734,14 @@ const TideChart: React.FC<TideChartProps> = ({
   };
 
   return (
-    <div className="relative aspect-auto h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px] w-full [&_.recharts-legend-wrapper]:hidden">
+    <div
+      className={cn(
+        "relative aspect-auto w-full [&_.recharts-legend-wrapper]:hidden",
+        preview
+          ? "h-[300px]"
+          : "h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px]"
+      )}
+    >
       {/* Shade only the plot area (not the X-axis label band), matching prior ReferenceArea behavior. */}
       <div
         aria-hidden="true"

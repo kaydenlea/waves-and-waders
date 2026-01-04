@@ -1,7 +1,10 @@
-// import { useRef, useState } from "react";
-import Image from "next/image";
-import CountUpNums from "./CountUpNums";
+import type React from "react";
 import { Zap } from "lucide-react";
+import BeachesMapPreview from "@/components/marketing/BeachesMapPreview";
+import PremiumStatsStrip from "@/components/visuals/PremiumStatsStrip";
+import { fetchBeachCount } from "@/lib/supabase";
+import { FEATURE_CATEGORIES, FEATURE_COLUMNS } from "@/lib/supabase";
+import { ALL_WIDGET_IDS } from "@/components/general/dashboardLayout";
 
 export function SectionHeader({
   icon: Icon,
@@ -13,8 +16,8 @@ export function SectionHeader({
   subtitle?: string;
 }) {
   return (
-    <div className="mt-1 mb-12 flex items-center gap-3">
-      <div className="p-1.5 rounded-xl bg-gradient-to-br from-cyan-300 to-blue-500 text-foreground shadow-lg shadow-cyan-500/20">
+    <div className="mt-1 mb-12 flex items-start gap-3">
+      <div className="mt-1 p-1.5 rounded-xl bg-gradient-to-br from-cyan-300 to-blue-500 text-foreground shadow-lg shadow-cyan-500/20">
         <Icon className="h-7 w-7" aria-hidden />
       </div>
       <div>
@@ -29,7 +32,8 @@ export function SectionHeader({
   );
 }
 
-const AnimatedCountSection = () => {
+const AnimatedCountSection = async () => {
+  const beachesCount = await fetchBeachCount();
   //   const ref = useRef<HTMLDivElement | null>(null);
   //   const [isVisible, setIsVisible] = useState(false);
 
@@ -55,56 +59,39 @@ const AnimatedCountSection = () => {
       <SectionHeader
         icon={Zap}
         title="Features"
-        // subtitle="Calculated from your device location for a fast, privacy-first experience."
+        subtitle="Explore beaches on an interactive map. Scan surf spots, open details, and jump to the full Beaches experience."
       />
-      <div className="flex flex-col lg:flex-row justify-between gap-20 w-full px-4">
-        {/* <Image
-          className="rounded-b-2xl w-full h-full"
-          src="/surf2.png"
-          alt="Surf background"
-          width={0}
-          height={0}
-          priority
-        /> */}
-        <div className="bg-highlight-5 rounded-xl w-full lg:w-7/10 h-80 lg:h-120 my-auto" />
-        <ul className="text-6xl font-semibold flex flex-col gap-3">
-          <li className="flex flex-col text-end">
-            <span>
-              <CountUpNums from={1000} to={1100} separator="," direction="up" />
-              +
-            </span>
-            <span className="text-lg font-medium text-foreground/70">
-              Beaches
-            </span>
-          </li>
-          <hr className="w-full lg:w-60 ml-auto" />
-          <li className="flex flex-col py-2 text-end">
-            <span>
-              <CountUpNums from={300} to={400} separator="," direction="up" />+
-            </span>
-            <span className="text-lg font-medium text-foreground/70">
-              Beach Tags
-            </span>
-          </li>
-          <hr className="w-full lg:w-60 ml-auto" />
-          <li className="flex flex-col py-2 text-end">
-            <span>
-              <CountUpNums from={0} to={16} separator="," direction="up" />+
-            </span>
-            <span className="text-lg font-medium text-foreground/70">
-              Day Forecasts
-            </span>
-          </li>
-          <hr className="w-full lg:w-60 ml-auto" />
-          <li className="flex flex-col py-2 text-end">
-            <span>
-              <CountUpNums from={0} to={8} separator="," direction="up" />+
-            </span>
-            <span className="text-lg font-medium text-foreground/70">
-              Features
-            </span>
-          </li>
-        </ul>
+      <div className="w-full grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,18rem)] lg:gap-10 lg:items-stretch min-w-0">
+        <BeachesMapPreview className="w-full min-w-0" />
+        <PremiumStatsStrip
+          className="min-w-0"
+          stats={[
+            {
+              id: "beaches",
+              label: "Beaches",
+              helper: "California coverage.",
+              value: beachesCount,
+            },
+            {
+              id: "amenityFilters",
+              label: "Amenity filters",
+              helper: "Bathrooms, parking, lifeguards.",
+              value: FEATURE_COLUMNS.length,
+            },
+            {
+              id: "filterGroups",
+              label: "Filter groups",
+              helper: "Access, trails, activities.",
+              value: Object.keys(FEATURE_CATEGORIES).length,
+            },
+            {
+              id: "dashboardWidgets",
+              label: "Dashboard widgets",
+              helper: "Tides, swell, wind, more.",
+              value: ALL_WIDGET_IDS.length,
+            },
+          ]}
+        />
       </div>
     </section>
   );

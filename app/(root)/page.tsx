@@ -29,7 +29,6 @@ import {
 } from "lucide-react";
 import Footer from "@/components/general/Footer";
 import { LazyLoadLogoLoop } from "@/components/general/LazyLoad/LazyLoadLogoLoop";
-import { LazyLoadCountSection } from "@/components/general/LazyLoad/LazyLoadCountSection";
 import { LazyLoadScrollSection } from "@/components/general/LazyLoad/LazyLoadScrollSection";
 import { LazyLoadCardsSection } from "@/components/general/LazyLoad/LazyLoadCardsSection";
 import { LazyLoadSpotlightCard } from "@/components/general/LazyLoad/LazyLoadSpotlightCard";

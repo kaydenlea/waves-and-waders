@@ -358,6 +358,7 @@ function ChartsSlide({
               }
             >
               <TideChart
+                preview
                 beachId={beachId}
                 date={date}
                 hours={PREVIEW_HOURS}
@@ -619,6 +620,30 @@ export default function HeroVisualDeck({
   const [filtersPreview, setFiltersPreview] = React.useState<Set<string>>(
     () => new Set(["PARKING", "RESTROOMS"])
   );
+  const deckContainerRef = React.useRef<HTMLDivElement | null>(null);
+  const [deckScale, setDeckScale] = React.useState(1);
+
+  React.useLayoutEffect(() => {
+    const el = deckContainerRef.current;
+    if (!el) return;
+
+    const BASE_W = 540;
+    const BASE_H = 760;
+
+    const update = () => {
+      const rect = el.getBoundingClientRect();
+      const widthScale = rect.width / BASE_W;
+      const heightScale = rect.height / BASE_H;
+      const next = Math.min(1, widthScale, heightScale);
+      const rounded = Math.max(0.72, Math.round(next * 100) / 100);
+      setDeckScale(rounded);
+    };
+
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const basisDate = React.useMemo(() => {
     return selected instanceof Date && !Number.isNaN(selected.getTime())
@@ -797,76 +822,88 @@ export default function HeroVisualDeck({
 
   return (
     <div
-      className="relative w-full h-[760px] scale-[0.8]"
+      ref={deckContainerRef}
+      className="relative w-full h-[760px]"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onFocusCapture={() => setPaused(true)}
       onBlurCapture={() => setPaused(false)}
     >
-      <div className="absolute -inset-6 rounded-[46px] bg-gradient-to-br from-cyan-500/12 via-transparent to-indigo-500/12 blur-2xl ww-hero-float motion-reduce:animate-none" />
-
       <div
-        className={cn(
-          "relative h-full rounded-[38px] border border-border/50 bg-highlight-7 p-3 shadow-[0_18px_55px_rgba(0,0,0,0.10)] flex flex-col"
-        )}
+        className="absolute xl:left-3/5 left-1/2 top-1/2"
+        style={{
+          width: 540,
+          height: 760,
+          transform: `translate(-63%, -63%) scale(${deckScale})`,
+          transformOrigin: "center",
+          scale: 0.8,
+        }}
       >
-        <div className="pointer-events-none absolute inset-0 rounded-[38px] ring-1 ring-inset ring-white/10" />
+        <div className="absolute -inset-6 rounded-[46px] bg-gradient-to-br from-cyan-500/12 via-transparent to-indigo-500/12 blur-2xl ww-hero-float motion-reduce:animate-none" />
 
-        <div className="relative z-10 flex items-start justify-between gap-3 px-4 pt-2 pb-2">
-          <div className="inline-flex items-center gap-2 rounded-full border border-border/40 bg-background px-3 py-2 text-xs font-semibold text-foreground shadow-sm">
-            {(() => {
-              const Icon = activeSlide?.icon ?? Sparkles;
-              return <Icon className="h-4 w-4" aria-hidden="true" />;
-            })()}
-            <span className="hidden @min-sm:inline">
-              {activeSlide?.eyebrow}
-            </span>
-            <span className="text-muted-foreground">•</span>
-            <span>{activeSlide?.label}</span>
+        <div
+          className={cn(
+            "relative h-full rounded-[38px] border border-border/50 bg-highlight-7 p-3 shadow-[0_18px_55px_rgba(0,0,0,0.10)] flex flex-col"
+          )}
+        >
+          <div className="pointer-events-none absolute inset-0 rounded-[38px] ring-1 ring-inset ring-white/10" />
+
+          <div className="relative z-10 flex items-start justify-between gap-3 px-4 pt-2 pb-2">
+            <div className="inline-flex items-center gap-2 rounded-full border border-border/40 bg-background px-3 py-2 text-xs font-semibold text-foreground shadow-sm">
+              {(() => {
+                const Icon = activeSlide?.icon ?? Sparkles;
+                return <Icon className="h-4 w-4" aria-hidden="true" />;
+              })()}
+              <span className="hidden @min-sm:inline">
+                {activeSlide?.eyebrow}
+              </span>
+              <span className="text-muted-foreground">•</span>
+              <span>{activeSlide?.label}</span>
+            </div>
+
+            <div className="flex items-center gap-1">
+              {slides.map((s, idx) => (
+                <button
+                  key={s.key}
+                  type="button"
+                  aria-label={`Show ${s.label}`}
+                  aria-pressed={idx === active}
+                  onClick={() => setActive(idx)}
+                  className={cn(
+                    "h-8 w-8 rounded-full border border-border/40 bg-background text-xs font-semibold text-foreground/80 shadow-sm transition",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15",
+                    idx === active
+                      ? "bg-foreground text-background"
+                      : "hover:bg-highlight-6/50"
+                  )}
+                >
+                  {idx + 1}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="flex items-center gap-1">
-            {slides.map((s, idx) => (
-              <button
-                key={s.key}
-                type="button"
-                aria-label={`Show ${s.label}`}
-                aria-pressed={idx === active}
-                onClick={() => setActive(idx)}
-                className={cn(
-                  "h-8 w-8 rounded-full border border-border/40 bg-background text-xs font-semibold text-foreground/80 shadow-sm transition",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15",
-                  idx === active
-                    ? "bg-foreground text-background"
-                    : "hover:bg-highlight-6/50"
-                )}
-              >
-                {idx + 1}
-              </button>
-            ))}
+          <div className="relative flex-1 min-h-0 overflow-hidden rounded-[32px]">
+            <AnimatePresence mode="wait" initial={false}>
+              {activeSlide ? (
+                <motion.div
+                  key={activeSlide.key}
+                  className="absolute inset-0"
+                  initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: prefersReducedMotion ? 0 : -6 }}
+                  transition={{
+                    duration: prefersReducedMotion ? 0 : 0.28,
+                    ease: [0.16, 1, 0.3, 1],
+                  }}
+                >
+                  <div className="h-full rounded-[32px] border border-border/35 bg-background shadow-even overflow-hidden">
+                    {activeSlide.render()}
+                  </div>
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
           </div>
-        </div>
-
-        <div className="relative flex-1 min-h-0 overflow-hidden rounded-[32px]">
-          <AnimatePresence mode="wait" initial={false}>
-            {activeSlide ? (
-              <motion.div
-                key={activeSlide.key}
-                className="absolute inset-0"
-                initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: prefersReducedMotion ? 0 : -6 }}
-                transition={{
-                  duration: prefersReducedMotion ? 0 : 0.28,
-                  ease: [0.16, 1, 0.3, 1],
-                }}
-              >
-                <div className="h-full rounded-[32px] border border-border/35 bg-background shadow-even overflow-hidden">
-                  {activeSlide.render()}
-                </div>
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
         </div>
       </div>
     </div>

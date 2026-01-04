@@ -65,6 +65,8 @@ type Props = {
   beachId?: string | number;
   loggedIn?: boolean;
   initialBeach?: BeachPoint | null;
+  variant?: "page" | "embed";
+  ui?: "full" | "preview";
 };
 
 type MarkerOptionsWithMeta = L.MarkerOptions & {
@@ -112,7 +114,7 @@ type ClusterEvent = L.LeafletEvent & {
 const OPENFREEMAP_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
 // Attribution per https://openfreemap.org/#attribution (and OSM attribution requirements).
 const OPENFREEMAP_ATTRIBUTION_HTML =
-  '<a href="https://openfreemap.org" target="_blank" rel="noopener noreferrer">OpenFreeMap</a> ' +
+  // '<a href="https://openfreemap.org" target="_blank" rel="noopener noreferrer">OpenFreeMap</a> ' +
   '© <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener noreferrer">OpenMapTiles</a> ' +
   '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>';
 const DEFAULT_CENTER: [number, number] = [37.8, -122.4];
@@ -1224,9 +1226,7 @@ const FilterPanel: React.FC<{
   disableBlur: boolean;
 }> = ({ filters, setFilters, onClose, disableBlur }) => {
   const filterCount = filters.size;
-  const categoryEntries = Object.entries(
-    FEATURE_CATEGORIES
-  ) as Array<
+  const categoryEntries = Object.entries(FEATURE_CATEGORIES) as Array<
     [
       keyof typeof FEATURE_CATEGORIES,
       (typeof FEATURE_CATEGORIES)[keyof typeof FEATURE_CATEGORIES]
@@ -1433,9 +1433,18 @@ const MapDateOverlay: React.FC<{
     </div>
   );
 };
-const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
+const LeafletMap: React.FC<Props> = ({
+  beachId,
+  loggedIn,
+  initialBeach,
+  variant = "page",
+  ui = "full",
+}) => {
   const router = useRouter();
   const pathname = usePathname() ?? "";
+  const embedded = variant === "embed";
+  const previewUi = ui === "preview";
+  const showChrome = !previewUi && !embedded;
   const {
     showMap,
     setShowMap,
@@ -1510,6 +1519,9 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
   } = useBeachStatsCache();
   const [smallScreen, setSmallScreen] = React.useState<boolean | null>(null);
   const [navigationPending, setNavigationPending] = React.useState(false);
+  const [previewEngaged, setPreviewEngaged] = React.useState(
+    () => !(embedded && previewUi)
+  );
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const mapRef = React.useRef<L.Map | null>(null);
   const clusterLayerRef = React.useRef<L.MarkerClusterGroup | null>(null);
@@ -1528,14 +1540,14 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
   const hoveredClusterRef = React.useRef<L.MarkerCluster | null>(null);
   const updateClusterHighlight = React.useCallback(
     (cluster: L.MarkerCluster | null) => {
-    const prev = hoveredClusterRef.current;
-    if (prev && prev !== cluster) {
-      const prevElement = prev.getElement?.();
-      if (prevElement) {
-        prevElement.classList.remove("ww-cluster-hovered");
+      const prev = hoveredClusterRef.current;
+      if (prev && prev !== cluster) {
+        const prevElement = prev.getElement?.();
+        if (prevElement) {
+          prevElement.classList.remove("ww-cluster-hovered");
+        }
       }
-    }
-    hoveredClusterRef.current = cluster ?? null;
+      hoveredClusterRef.current = cluster ?? null;
       if (cluster) {
         const element = cluster.getElement?.();
         if (element) {
@@ -1573,7 +1585,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     setShowMap: (value: boolean) => void;
   }>({
     findBeachMatch: () => null,
-    fullMapPage: !pathname.endsWith("/beaches"),
+    fullMapPage: !embedded && !pathname.endsWith("/beaches"),
     setShowMap,
   });
   const [mapReady, setMapReady] = React.useState(false);
@@ -1620,11 +1632,11 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
   const geoRequestedRef = React.useRef(false);
 
   const beachesPage = pathname.endsWith("/beaches");
-  const fullMapPage = !beachesPage;
+  const fullMapPage = !beachesPage && !embedded;
   const editPage = pathname.includes("edit");
   const isDesktop = smallScreen === false;
   const layoutVersion = smallScreen === null ? 0 : smallScreen ? 1 : 2;
-  const effectiveShowMap = showMap || smallScreen === true;
+  const effectiveShowMap = embedded || showMap || smallScreen === true;
 
   const combinedBeaches = React.useMemo(() => {
     if (!initialBeach) {
@@ -1693,7 +1705,9 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       return;
     }
     if (geoFocusDoneRef.current || selectedBeachId) {
-      console.log("[LeafletGeo] Early exit - already focused or beach selected");
+      console.log(
+        "[LeafletGeo] Early exit - already focused or beach selected"
+      );
       return;
     }
     const map = mapRef.current;
@@ -1744,7 +1758,9 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     });
     const map = mapRef.current;
     if (!map || !userLocation) {
-      console.log("[LeafletGeo] handleZoomToNearby - early exit, no map or location");
+      console.log(
+        "[LeafletGeo] handleZoomToNearby - early exit, no map or location"
+      );
       return;
     }
 
@@ -1776,7 +1792,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
 
     map.flyTo(DEFAULT_CENTER, DEFAULT_ZOOM, {
       animate: true,
-      duration: 0.8
+      duration: 0.8,
     });
   }, []);
 
@@ -2199,18 +2215,87 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
   ]);
 
   React.useEffect(() => {
-    if (!selectedBeach) return;
+    if (!embedded || !previewUi || !mapReady) return;
+    const map = mapRef.current;
+    const container = containerRef.current;
+    if (!map || !container) return;
+
+    const setLocked = (locked: boolean) => {
+      try {
+        map.scrollWheelZoom.disable();
+      } catch {
+        // ignore
+      }
+
+      if (locked) {
+        map.dragging.disable();
+        map.doubleClickZoom.disable();
+        map.boxZoom.disable();
+        map.keyboard.disable();
+        // Keep pinch-zoom enabled on touch devices even while "locked".
+        map.touchZoom.enable();
+        return;
+      }
+      map.dragging.enable();
+      map.touchZoom.enable();
+      map.doubleClickZoom.enable();
+      map.boxZoom.enable();
+      map.keyboard.enable();
+    };
+
+    setLocked(!previewEngaged);
+
+    const handleWheel = (event: WheelEvent) => {
+      if (!event.ctrlKey) return;
+      event.preventDefault();
+      event.stopPropagation();
+      setPreviewEngaged(true);
+      const direction = Math.sign(event.deltaY);
+      if (direction < 0) {
+        map.zoomIn(1);
+      } else if (direction > 0) {
+        map.zoomOut(1);
+      }
+    };
+
+    const engage = (event: Event) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest?.(".leaflet-control-zoom")) {
+        setPreviewEngaged(true);
+        return;
+      }
+      if (event instanceof PointerEvent && event.pointerType === "touch") return;
+      if (event.type === "pointerdown") setPreviewEngaged(true);
+    };
+
+    container.addEventListener("wheel", handleWheel, { passive: false });
+    container.addEventListener("pointerdown", engage, { passive: true });
+    container.addEventListener("click", engage, true);
+
+    return () => {
+      container.removeEventListener("wheel", handleWheel);
+      container.removeEventListener("pointerdown", engage);
+      container.removeEventListener("click", engage, true);
+    };
+  }, [embedded, mapReady, previewEngaged, previewUi]);
+
+  React.useEffect(() => {
+    if (!selectedBeach || embedded || previewUi) return;
     const map = mapRef.current;
     const zoom = map?.getZoom() ?? DEFAULT_ZOOM;
     saveStoredSelection(selectedBeach, zoom);
-  }, [selectedBeach]);
+  }, [embedded, previewUi, selectedBeach]);
 
   React.useEffect(() => {
     const pathParts = (pathname || "").split("/").filter(Boolean);
     const fromPath =
-      beachesPage || !pathParts.length ? null : extractBeachId(pathParts[0]);
+      beachesPage || embedded || !pathParts.length
+        ? null
+        : extractBeachId(pathParts[0]);
     const stored =
-      beachesPage || selectedBeachId ? null : readStoredSelectionId();
+      beachesPage || embedded || selectedBeachId
+        ? null
+        : readStoredSelectionId();
     const candidate =
       beachId != null
         ? String(beachId)
@@ -2247,14 +2332,21 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
         deferredMarkerRebuildTimeoutRef.current = null;
       }
     };
-    container.addEventListener("pointerdown", handleUserIntent as EventListener, {
-      passive: true,
-    });
+    container.addEventListener(
+      "pointerdown",
+      handleUserIntent as EventListener,
+      {
+        passive: true,
+      }
+    );
     container.addEventListener("wheel", handleUserIntent as EventListener, {
       passive: true,
     });
     return () => {
-      container.removeEventListener("pointerdown", handleUserIntent as EventListener);
+      container.removeEventListener(
+        "pointerdown",
+        handleUserIntent as EventListener
+      );
       container.removeEventListener("wheel", handleUserIntent as EventListener);
     };
   }, [cancelPendingAutoFocus, cancelMarkerBuild]);
@@ -2352,12 +2444,14 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       zoomControlRef.current.remove();
       zoomControlRef.current = null;
     }
+    const embeddedPreview = embedded && previewUi;
     zoomControlRef.current = L.control
       .zoom({
-        position:
-          (fullMapPage && !smallScreen) || !smallScreen
-            ? "bottomleft"
-            : "topleft",
+        position: embeddedPreview
+          ? "bottomleft"
+          : (fullMapPage && !smallScreen) || !smallScreen
+          ? "bottomleft"
+          : "topleft",
       })
       .addTo(map);
     const zoomContainer = zoomControlRef.current.getContainer();
@@ -2369,8 +2463,16 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       padding: "0px 6px",
       backdropFilter: "blur(12px)",
       WebkitBackdropFilter: "blur(12px)",
-      marginTop: !fullMapPage ? "240px" : smallScreen ? "260px" : "0px",
-      marginBottom: !fullMapPage
+      marginTop: embeddedPreview
+        ? "0px"
+        : !fullMapPage
+        ? "240px"
+        : smallScreen
+        ? "260px"
+        : "0px",
+      marginBottom: embeddedPreview
+        ? "12px"
+        : !fullMapPage
         ? smallScreen
           ? "0px"
           : "12px"
@@ -2378,7 +2480,9 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
         ? "80px"
         : "70px",
       marginLeft: "0.8rem",
-      boxShadow: "0px 0px 15px rgba(0, 0, 0, 0.2)",
+      boxShadow: embeddedPreview
+        ? "0px 0px 10px rgba(0, 0, 0, 0.16)"
+        : "0px 0px 15px rgba(0, 0, 0, 0.2)",
     });
     const zoomButtons = zoomContainer.querySelectorAll("a");
     zoomButtons.forEach((button) => {
@@ -2392,7 +2496,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       button.setAttribute("role", "button");
     });
     updateZoomButtonState();
-  }, [fullMapPage, smallScreen, updateZoomButtonState]);
+  }, [embedded, fullMapPage, previewUi, smallScreen, updateZoomButtonState]);
 
   React.useEffect(() => {
     refreshZoomControl();
@@ -2400,11 +2504,10 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
 
   const ensureMarkerDomGuards = React.useCallback((marker: L.Marker) => {
     const markerWithState = marker as MarkerWithMeta;
-    const state: MarkerDomGuardsState =
-      markerWithState._wwDomGuardsState ?? {
-        element: null,
-        preventDragStart: null,
-      };
+    const state: MarkerDomGuardsState = markerWithState._wwDomGuardsState ?? {
+      element: null,
+      preventDragStart: null,
+    };
 
     const nextElement = marker.getElement?.() as HTMLElement | null;
     if (!nextElement || nextElement === state.element) {
@@ -2806,7 +2909,11 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
           entry.marker.openPopup();
           const group =
             clusterLayerRef.current as MarkerClusterGroupWithHelpers | null;
-          if (group && typeof group.getVisibleParent === "function" && group._map) {
+          if (
+            group &&
+            typeof group.getVisibleParent === "function" &&
+            group._map
+          ) {
             const parent = group.getVisibleParent(entry.marker);
             if (parent && parent !== entry.marker) {
               hoverOps.updateClusterHighlight(parent);
@@ -2924,7 +3031,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       browser.any3d = false;
     }
     const initialView = resolveInitialView(initialBeach, {
-      allowStoredFallback: !pathname.endsWith("/beaches"),
+      allowStoredFallback: !embedded && !pathname.endsWith("/beaches"),
     });
     // Ensure the initial view starts within our configured `maxBounds` so Leaflet doesn't need to correct it.
     const clampedInitialLatitude = Math.min(
@@ -2939,7 +3046,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
       center: [clampedInitialLatitude, clampedInitialLongitude],
       zoom: initialView.zoom,
       zoomControl: false,
-      // Keep Leaflet's attribution control enabled/visible for legally required attribution.
+      // Keep Leaflet attribution control enabled/visible.
       attributionControl: true,
       preferCanvas: false,
       minZoom: 3,
@@ -3703,11 +3810,11 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
   const legendInitializedRef = React.useRef(false);
   React.useEffect(() => {
     if (legendInitializedRef.current) return;
-    if (fullMapPage) {
+    if (fullMapPage && !previewUi) {
       legendInitializedRef.current = true;
       setOpenPanel((prev) => prev ?? "legend");
     }
-  }, [fullMapPage, setOpenPanel]);
+  }, [fullMapPage, previewUi, setOpenPanel]);
   const filterCount = filters.size;
 
   const overlayButtonBase = cn(
@@ -3725,7 +3832,9 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     "bg-sky-200/80 border-sky-300/70 text-sky-950",
     "dark:bg-sky-600/40 dark:border-sky-300/35 dark:text-sky-50"
   );
-  const wrapperHeight = smallScreen
+  const wrapperHeight = embedded
+    ? null
+    : smallScreen
     ? {
         minHeight: "calc(100dvh)",
         height: "calc(100dvh)",
@@ -3737,18 +3846,24 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     return (
       <aside
         id="map-container"
-        className={cn(
-          "fixed w-full mx-auto max-w-screen transition-all duration-300",
-          "@min-4xl:sticky @min-4xl:top-[7.5rem] @min-4xl:flex-1 @min-4xl:py-3 @min-4xl:pl-5 @min-4xl:pr-3 @min-4xl:h-[calc(100vh-8rem)] flex"
-        )}
-        style={smallScreen ? wrapperHeight : undefined}
+        className={
+          embedded
+            ? "relative flex h-full w-full"
+            : cn(
+                "fixed w-full mx-auto max-w-screen transition-all duration-300",
+                "@min-4xl:sticky @min-4xl:top-[7.5rem] @min-4xl:flex-1 @min-4xl:py-3 @min-4xl:pl-5 @min-4xl:pr-3 @min-4xl:h-[calc(100vh-8rem)] flex"
+              )
+        }
+        style={
+          !embedded && smallScreen ? wrapperHeight ?? undefined : undefined
+        }
       >
         <div
           className="flex w-full h-full items-center justify-center text-sm text-muted-foreground"
           style={{
-            ...wrapperHeight,
-            borderRadius: !smallScreen ? "18px" : "0px",
-            boxShadow: "0px 0px 5px rgba(0, 0, 0, 0.2)",
+            ...(wrapperHeight ?? {}),
+            borderRadius: embedded ? "0px" : !smallScreen ? "18px" : "0px",
+            boxShadow: embedded ? "none" : "0px 0px 5px rgba(0, 0, 0, 0.2)",
             background: "var(--highlight-5)",
           }}
         >
@@ -3758,25 +3873,29 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
     );
   }
 
-  if (editPage || (isDesktop && fullMapPage && !showMap)) {
+  if (!embedded && (editPage || (isDesktop && fullMapPage && !showMap))) {
     return null;
   }
 
   return (
     <aside
       id="map-container"
-      className={cn(
-        "fixed w-full mx-auto max-w-screen transition-all duration-300",
-        "@min-4xl:sticky @min-4xl:top-[7.5rem] @min-4xl:flex-1 @min-4xl:py-3 @min-4xl:pl-5 @min-4xl:pr-3 @min-4xl:h-[calc(100vh-8rem)] flex"
-      )}
-      style={smallScreen ? wrapperHeight : undefined}
+      className={
+        embedded
+          ? "relative flex h-full w-full"
+          : cn(
+              "fixed w-full mx-auto max-w-screen transition-all duration-300",
+              "@min-4xl:sticky @min-4xl:top-[7.5rem] @min-4xl:flex-1 @min-4xl:py-3 @min-4xl:pl-5 @min-4xl:pr-3 @min-4xl:h-[calc(100vh-8rem)] flex"
+            )
+      }
+      style={!embedded && smallScreen ? wrapperHeight ?? undefined : undefined}
     >
       <div
         className="relative w-full h-full"
         style={{
-          ...wrapperHeight,
-          borderRadius: !smallScreen ? "18px" : "0px",
-          boxShadow: "0px 0px 5px rgba(0, 0, 0, 0.2)",
+          ...(wrapperHeight ?? {}),
+          borderRadius: embedded ? "0px" : !smallScreen ? "18px" : "0px",
+          boxShadow: embedded ? "none" : "0px 0px 5px rgba(0, 0, 0, 0.2)",
           overflow: "hidden",
         }}
       >
@@ -3787,7 +3906,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
             height: "100%",
           }}
         />
-        {!showMap && fullMapPage && !smallScreen && (
+        {!embedded && !showMap && fullMapPage && !smallScreen && (
           <div className="absolute inset-0 z-[600] bg-black/70 backdrop-blur-md" />
         )}
         {/* {showUpdateBanner && (
@@ -3799,7 +3918,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
             </div>
           </div>
         )} */}
-        {showLoadingPill && (
+        {!previewUi && showLoadingPill && (
           <div
             className={cn(
               "pointer-events-none absolute left-1/2 z-[1200] -translate-x-1/2",
@@ -3812,7 +3931,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
             </div>
           </div>
         )}
-        {(showMap || smallScreen) && (
+        {!previewUi && (showMap || smallScreen) && (
           <div
             className={cn(
               "absolute left-3 z-[1000] flex flex-col gap-3 transition-opacity duration-200",
@@ -3899,7 +4018,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
             )}
           </div>
         )}
-        {!fullMapPage && (
+        {showChrome && !fullMapPage && (
           <button
             type="button"
             aria-label="select date"
@@ -3914,7 +4033,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
             <CalendarDays className="w-5 h-5 mx-auto" />
           </button>
         )}
-        {!fullMapPage && (
+        {showChrome && !fullMapPage && (
           <button
             type="button"
             aria-label="Zoom to California view"
@@ -3928,7 +4047,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
             <ZoomOut className="w-5 h-5 mx-auto" />
           </button>
         )}
-        {!fullMapPage && (
+        {showChrome && !fullMapPage && (
           <button
             type="button"
             aria-label="Zoom to nearby beaches"
@@ -3944,7 +4063,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
             <Locate className="w-5 h-5 mx-auto" />
           </button>
         )}
-        {fullMapPage && !smallScreen && (
+        {showChrome && fullMapPage && !smallScreen && (
           <button
             type="button"
             aria-label={`${showMap ? "Minimize" : "Maximize"} map`}
@@ -3965,7 +4084,7 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
             )}
           </button>
         )}
-        {!fullMapPage && openPanel === "date" && (
+        {!previewUi && !fullMapPage && openPanel === "date" && (
           <MapDateOverlay
             selectedDate={effectiveStatsDate}
             onSelectDate={handleMapDateSelect}
@@ -3973,25 +4092,29 @@ const LeafletMap: React.FC<Props> = ({ beachId, loggedIn, initialBeach }) => {
             disableBlur={false}
           />
         )}
-        {fullMapPage && openPanel === "legend" && (
+        {!previewUi && fullMapPage && openPanel === "legend" && (
           <LegendPanel onClose={() => setOpenPanel(null)} disableBlur={false} />
         )}
-        {mapReady && selectedBeach && overlayAnchor && swellDirections && (
-          <SelectedBeachOverlay
-            key={layoutVersion}
-            mapRef={mapRef}
-            anchor={overlayAnchor}
-            selected={selectedBeach}
-            swellDirections={swellDirections}
-            windDirection={windDirection}
-            overlayLabels={overlayLabels}
-            legendOpen={openPanel === "legend"}
-            mapReady={mapReady}
-            overlayPane={OVERLAY_PANE_ID}
-            layoutVersion={layoutVersion}
-          />
-        )}
-        {!fullMapPage && (
+        {!previewUi &&
+          mapReady &&
+          selectedBeach &&
+          overlayAnchor &&
+          swellDirections && (
+            <SelectedBeachOverlay
+              key={layoutVersion}
+              mapRef={mapRef}
+              anchor={overlayAnchor}
+              selected={selectedBeach}
+              swellDirections={swellDirections}
+              windDirection={windDirection}
+              overlayLabels={overlayLabels}
+              legendOpen={openPanel === "legend"}
+              mapReady={mapReady}
+              overlayPane={OVERLAY_PANE_ID}
+              layoutVersion={layoutVersion}
+            />
+          )}
+        {!previewUi && !fullMapPage && (
           <PageTabs
             buttons={false}
             tabs={["nearby", "saved"]}
