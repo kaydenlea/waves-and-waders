@@ -7,6 +7,7 @@ import { UserMenu } from "@/components/auth/UserMenu";
 import { cn } from "@/lib/utils";
 import NavBarActions from "./NavBarActions";
 import NavMoreMenu from "./NavMoreMenu";
+import MarketingSearchButton from "@/components/general/MarketingSearchButton";
 
 {
   /* <div className="mx-auto flex items-center justify-between px-4 py-5.5 sm:px-6">
@@ -75,10 +76,31 @@ import NavMoreMenu from "./NavMoreMenu";
 const NavBar = ({
   landingPage,
   beachesPage,
+  variant = "app",
 }: {
   landingPage?: boolean;
   beachesPage?: boolean;
+  variant?: "app" | "marketing";
 }) => {
+  const marketingLinks: { href: string; label: string }[] = [
+    { href: "/beaches", label: "Beaches" },
+    { href: "/#features", label: "Features" },
+    { href: "/#personalize", label: "Personalize" },
+    { href: "/#forecast", label: "Forecasts" },
+    { href: "/#why", label: "Essentials" },
+  ];
+
+  const marketingMenuLinks: {
+    href: string;
+    label: string;
+    iconKey: "contact" | "donate" | "privacy" | "terms";
+  }[] = [
+    { href: "/donate", label: "Donate", iconKey: "donate" },
+    { href: "/contact", label: "Contact", iconKey: "contact" },
+    { href: "/privacy", label: "Privacy", iconKey: "privacy" },
+    { href: "/terms", label: "Terms", iconKey: "terms" },
+  ];
+
   return (
     <header
       className={cn(
@@ -89,7 +111,7 @@ const NavBar = ({
       <nav
         aria-label="primary navigation"
         className={cn(
-          "@min-4xl:py-11 @min-4xl:h-27.5 flex items-center justify-between rounded-3xl @min-4xl:rounded-2xl @min-4xl:rounded-t-none w-full",
+          "@min-4xl:py-11 @min-4xl:h-27.5 relative flex items-center justify-between rounded-3xl @min-4xl:rounded-2xl @min-4xl:rounded-t-none w-full",
           landingPage
             ? [
                 "py-6 @min-md:py-7",
@@ -149,7 +171,22 @@ const NavBar = ({
             <span>Waders</span>
           </span>
         </Link>
-        <NavBarActions />
+
+        {variant === "marketing" ? (
+          <div className="hidden @min-4xl:flex absolute left-1/2 -translate-x-1/2 items-center justify-center gap-8 text-sm font-medium text-foreground/75">
+            {marketingLinks.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="rounded-md px-1 py-1 transition hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring/40"
+              >
+                {item.label}
+              </Link>
+            ))}
+          </div>
+        ) : null}
+
+        {variant === "marketing" ? null : <NavBarActions />}
         {/* {landingPage && (
           <div className="gap-10 justify-center mr-8 hidden @min-lg:flex @min-4xl:hidden">
             <Link
@@ -179,6 +216,11 @@ const NavBar = ({
             landingPage ? "flex" : "hidden @min-4xl:flex"
           )}
         >
+          {variant === "marketing" ? <MarketingSearchButton /> : null}
+          {variant === "marketing" ? (
+            // Mounted to render the overlay portal when the marketing search button opens it.
+            <SearchBar className="hidden" />
+          ) : null}
           <div
             className={cn(
               // landingPage ? "hidden @min-md:flex" : "hidden @min-5xl:flex"
@@ -187,9 +229,14 @@ const NavBar = ({
           >
             <UserMenu landingPage />
           </div>
-          <SearchBar className="max-w-[12rem] sm:max-w-none @min-4xl:hidden" />
+          {variant === "marketing" ? null : (
+            <SearchBar className="max-w-[12rem] sm:max-w-none @min-4xl:hidden" />
+          )}
           <ThemeToggle className="hidden @min-5xl:flex" />
-          <NavMoreMenu landingPage={landingPage} />
+          <NavMoreMenu
+            landingPage={landingPage}
+            links={variant === "marketing" ? marketingMenuLinks : undefined}
+          />
         </div>
       </nav>
     </header>

@@ -21,11 +21,12 @@ export default function TermsPage() {
       <article className="space-y-10 text-foreground/80 leading-relaxed">
         <div className="rounded-2xl border border-border/40 bg-background/40 p-6 shadow-xs">
           <p className="text-sm text-muted-foreground">
-            Last updated: <span className="font-medium text-foreground/80">{LAST_UPDATED}</span>
+            Last updated:{" "}
+            <span className="font-medium text-foreground/80">{LAST_UPDATED}</span>
           </p>
           <p className="mt-4">
-            By accessing or using Waves and Waders, you agree to these Terms. If you don’t agree,
-            please don’t use the service.
+            By accessing or using Waves and Waders, you agree to these Terms. If you
+            don’t agree, please don’t use the service.
           </p>
         </div>
 
@@ -34,8 +35,9 @@ export default function TermsPage() {
             The service
           </h2>
           <p className="mt-4">
-            Waves and Waders provides surf forecasts, beach information, and planning tools. We may
-            change, improve, or discontinue parts of the service over time.
+            Waves and Waders provides surf forecasts, beach information, and planning
+            tools. We may change, improve, or discontinue parts of the service over
+            time.
           </p>
         </section>
 
@@ -51,7 +53,10 @@ export default function TermsPage() {
         </section>
 
         <section aria-labelledby="terms-acceptable">
-          <h2 id="terms-acceptable" className="text-xl font-semibold tracking-tight text-foreground">
+          <h2
+            id="terms-acceptable"
+            className="text-xl font-semibold tracking-tight text-foreground"
+          >
             Acceptable use
           </h2>
           <ul className="mt-4 list-disc pl-5 space-y-1">
@@ -66,22 +71,25 @@ export default function TermsPage() {
             Intellectual property
           </h2>
           <p className="mt-4">
-            The site, design, and content are owned by Waves and Waders or its licensors. You may
-            not copy or redistribute it except as allowed by law.
+            The site, design, and content are owned by Waves and Waders or its licensors.
+            You may not copy or redistribute it except as allowed by law.
           </p>
         </section>
 
         <section aria-labelledby="terms-forecast">
-          <h2 id="terms-forecast" className="text-xl font-semibold tracking-tight text-foreground">
+          <h2
+            id="terms-forecast"
+            className="text-xl font-semibold tracking-tight text-foreground"
+          >
             Forecast disclaimer and limitation of liability
           </h2>
           <p className="mt-4">
-            Forecasts are estimates and may be inaccurate or out of date. Conditions can change
-            quickly. You are responsible for your decisions and safety.
+            Forecasts are estimates and may be inaccurate or out of date. Conditions can
+            change quickly. You are responsible for your decisions and safety.
           </p>
           <p className="mt-3">
-            To the maximum extent permitted by law, Waves and Waders is not liable for losses or
-            damages arising from your use of the service.
+            To the maximum extent permitted by law, Waves and Waders is not liable for
+            losses or damages arising from your use of the service.
           </p>
         </section>
 
@@ -90,8 +98,8 @@ export default function TermsPage() {
             Donations
           </h2>
           <p className="mt-4">
-            Donations are voluntary and not a purchase. Donations are processed by Square’s hosted
-            checkout when available.
+            Donations are voluntary and not a purchase. Donations are processed by Square’s
+            hosted checkout when available.
           </p>
         </section>
 

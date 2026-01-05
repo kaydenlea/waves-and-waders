@@ -5,14 +5,11 @@ import { getSiteUrl, toAbsoluteUrl } from "@/lib/seo";
 import Hero from "@/components/marketing/Hero";
 
 import { Sparkles, Pencil } from "lucide-react";
-import Footer from "@/components/general/Footer";
 import { LazyLoadCardsSection } from "@/components/general/LazyLoad/LazyLoadCardsSection";
 import { LazyLoadSpotlightCard } from "@/components/general/LazyLoad/LazyLoadSpotlightCard";
 import { Description } from "@/components/visuals/AnimatedCardsSection";
 import AnimatedCountSection from "@/components/visuals/AnimatedCountSection";
 import FaqSection from "@/components/visuals/FaqSection";
-import NavBar from "@/components/general/NavBar";
-import BottomNav from "@/components/general/BottomNav";
 import PersonalizeForecastsSection from "@/components/marketing/PersonalizeForecastsSection";
 import AllEssentialsSection from "@/components/marketing/AllEssentialsSection";
 
@@ -185,7 +182,6 @@ const Home = () => {
 
   return (
     <div className="touch-pan-y">
-      <NavBar landingPage />
       <main className="relative min-h-screen bg-background text-foreground selection:bg-cyan-300/40">
         <script
           type="application/ld+json"
@@ -322,7 +318,10 @@ const Home = () => {
           </div>
         </section> */}
         <PersonalizeForecastsSection />
-        <section className="relative mx-auto mt-35 w-full max-w-7xl px-4 pb-10 sm:px-6 overflow-hidden">
+        <section
+          id="forecast"
+          className="relative mx-auto w-full max-w-7xl px-4 sm:px-6 py-16 sm:py-20 overflow-hidden scroll-mt-28"
+        >
           <div className="grid grid-cols-1 items-start justify-items-center gap-10 xl:grid-cols-12 xl:justify-items-stretch xl:gap-12">
             <div className="w-full max-w-xl xl:col-span-5 xl:max-w-none order-1 xl:order-2">
               <Description />
@@ -361,7 +360,7 @@ const Home = () => {
             ))}
           </div>
         </section> */}
-        <section className="px-6 max-w-2xl lg:max-w-7xl my-18 mx-auto">
+        <section className="mx-auto max-w-7xl px-4 sm:px-6 py-16 sm:py-20">
           <div className="flex flex-col lg:flex-row gap-10">
             <LazyLoadSpotlightCard
               className="flex-1"
@@ -488,8 +487,6 @@ const Home = () => {
           </div>
         </section> */}
       </main>
-      <BottomNav />
-      <Footer />
     </div>
   );
 };

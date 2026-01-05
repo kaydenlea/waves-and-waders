@@ -9,7 +9,7 @@ const Footer = ({ className }: { className?: string }) => {
   return (
     <footer
       className={cn(
-        "touch-pan-y absolute inset-x-0 @min-4xl:static border-t border-border/10 bg-highlight-3 rounded-t-none @min-4xl:rounded-t-xl",
+        "touch-pan-y w-full border-t border-border/10 bg-highlight-3 rounded-t-xl",
         className
       )}
     >
@@ -31,7 +31,7 @@ const Footer = ({ className }: { className?: string }) => {
               </span>
             </Link>
 
-            <p className="mt-0 max-w-sm text-sm leading-relaxed text-foreground/60">
+            <p className="mt-4 max-w-sm text-sm leading-relaxed text-foreground/60">
               Surf forecasts, beach discovery, and planning tools built for
               coastal sessions.
             </p>
@@ -54,7 +54,7 @@ const Footer = ({ className }: { className?: string }) => {
           </div>
 
           {/* Desktop columns */}
-          <div className="hidden lg:col-span-8 lg:grid lg:grid-cols-3 lg:gap-10 justify-items-center">
+          <div className="hidden lg:col-span-8 lg:grid lg:grid-cols-3 lg:gap-10 lg:justify-items-start lg:justify-self-end">
             <div className="space-y-3">
               <div className="text-xs font-semibold tracking-wider text-foreground/70 uppercase">
                 Product
@@ -73,7 +73,7 @@ const Footer = ({ className }: { className?: string }) => {
                     className="transition hover:text-foreground"
                     href="/beaches"
                   >
-                    Forecast dashboard
+                    Forecast
                   </Link>
                 </li>
                 <li>
@@ -169,7 +169,7 @@ const Footer = ({ className }: { className?: string }) => {
                       className="transition hover:text-foreground"
                       href="/beaches"
                     >
-                      Forecast dashboard
+                      Forecast
                     </Link>
                   </li>
                   <li className="py-1">

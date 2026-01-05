@@ -9,12 +9,12 @@ const faqData = [
   {
     question: "How accurate are the surf forecasts?",
     answer:
-      "Our forecasts are sourced directly from NOAA/NDBC buoys and tide stations, providing highly accurate real-time data. We update conditions frequently to ensure you have the most current information before heading to the beach.",
+      "Forecasts are built using public NOAA/NDBC buoy observations and tide data. They’re best-effort estimates—conditions can change quickly, so always use judgment on the water.",
   },
   {
     question: "What data sources do you use?",
     answer:
-      "We pull data from multiple reliable sources including NOAA buoys, NDBC wave stations, tide prediction stations, and weather services. This multi-source approach ensures comprehensive and accurate surf conditions.",
+      "We use public NOAA and NDBC buoy data and tide prediction stations to power surf and tide views.",
   },
   {
     question: "Can I save my favorite surf spots?",
@@ -24,7 +24,7 @@ const faqData = [
   {
     question: "How often is the data updated?",
     answer:
-      "Beach conditions are updated every 5 minutes, surf forecasts refresh every 30 minutes, and tide data updates hourly. We use smart caching to ensure fast load times while keeping data fresh.",
+      "Updates are refreshed on a schedule (typically every few minutes for beach conditions, ~30 minutes for forecasts, and about hourly for tides). Caching keeps pages fast while data stays current.",
   },
 ];
 
@@ -43,17 +43,18 @@ const FaqSection = () => {
   };
 
   return (
-    <section className="max-w-5xl mx-auto my-20 px-5">
+    <section className="mx-auto max-w-5xl px-4 sm:px-6 py-16 sm:py-20">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
       />
-      <header className="p-10 text-center">
-        <h2 className="text-4xl md:text-5xl font-semibold">
+      <header className="text-center">
+        <h2 className="text-balance text-4xl md:text-5xl font-semibold tracking-tight">
           Frequently Asked Questions
         </h2>
       </header>
-      <Accordion type="single" collapsible>
+      <div className="mx-auto mt-10 rounded-3xl border border-border/30 bg-background/40 p-3 shadow-xs sm:p-6">
+        <Accordion type="single" collapsible>
         {faqData.map((faq, index) => (
           <AccordionItem
             key={`question-${index + 1}`}
@@ -63,7 +64,8 @@ const FaqSection = () => {
             <AccordionContent>{faq.answer}</AccordionContent>
           </AccordionItem>
         ))}
-      </Accordion>
+        </Accordion>
+      </div>
     </section>
   );
 };

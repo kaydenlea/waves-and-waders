@@ -2,7 +2,16 @@
 
 import React from "react";
 import Link from "next/link";
-import { AlignJustify, Heart, LogIn, MapPinned } from "lucide-react";
+import {
+  AlignJustify,
+  HandHeart,
+  Heart,
+  LogIn,
+  Mail,
+  MapPinned,
+  ScrollText,
+  Shield,
+} from "lucide-react";
 import ThemeToggle from "./ThemeToggle";
 import { cn } from "@/lib/utils";
 import { useUser } from "@supabase/auth-helpers-react";
@@ -14,10 +23,25 @@ import {
   AppMenuTrigger,
 } from "@/components/ui/app-menu";
 
+type MenuLink = {
+  href: string;
+  label: string;
+  iconKey?: "contact" | "donate" | "privacy" | "terms";
+};
+
+const iconMap: Record<NonNullable<MenuLink["iconKey"]>, React.ElementType> = {
+  contact: Mail,
+  donate: HandHeart,
+  privacy: Shield,
+  terms: ScrollText,
+};
+
 export default function NavMoreMenu({
   landingPage = false,
+  links,
 }: {
   landingPage?: boolean;
+  links?: MenuLink[];
 }) {
   const [open, setOpen] = React.useState(false);
   const user = useUser();
@@ -35,6 +59,30 @@ export default function NavMoreMenu({
         <AlignJustify className="icon-md" />
       </AppMenuTrigger>
       <AppMenuContent align="end" className="w-72">
+        {links?.length ? (
+          <>
+            {links.map((item) => (
+              <AppMenuItem
+                key={item.href}
+                asChild
+                onSelect={() => {
+                  setOpen(false);
+                }}
+              >
+                <Link href={item.href}>
+                  {item.iconKey ? (
+                    (() => {
+                      const Icon = iconMap[item.iconKey];
+                      return <Icon className="w-5 h-5 -mt-0.5" />;
+                    })()
+                  ) : null}
+                  {item.label}
+                </Link>
+              </AppMenuItem>
+            ))}
+            <AppMenuSeparator />
+          </>
+        ) : null}
         <AppMenuItem
           asChild
           onSelect={() => {

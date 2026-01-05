@@ -28,7 +28,8 @@ export default function DonatePage() {
           Donate with Square
         </h2>
         <p className="mt-3 text-sm text-muted-foreground">
-          We use Square’s hosted checkout for secure donations. Donations are voluntary and not a purchase.
+          We use Square’s hosted checkout for secure donations. Donations are voluntary and not a
+          purchase.
         </p>
         <div className="mt-6 flex flex-col items-stretch justify-center gap-3 sm:flex-row">
           {squareUrl ? (

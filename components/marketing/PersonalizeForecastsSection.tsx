@@ -10,9 +10,10 @@ export default function PersonalizeForecastsSection({
 }) {
   return (
     <section
+      id="personalize"
       aria-labelledby="personalize-forecasts-heading"
       className={cn(
-        "relative mx-auto mt-16 w-full max-w-7xl px-4 sm:px-6",
+        "relative mx-auto w-full max-w-7xl px-4 sm:px-6 py-16 sm:py-20 scroll-mt-28",
         className
       )}
     >

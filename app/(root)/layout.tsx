@@ -1,3 +1,6 @@
+import NavBar from "@/components/general/NavBar";
+import Footer from "@/components/general/Footer";
+import type { ReactNode } from "react";
 import { DateProvider } from "@/components/context/DateContext";
 import { MapFilterProvider } from "@/components/context/MapFilterContext";
 import { MapViewportProvider } from "@/components/context/MapViewportContext";
@@ -6,9 +9,8 @@ import { PathProvider } from "@/components/context/PathContext";
 import { SearchProvider } from "@/components/context/SearchContext";
 import { BeachStatsCacheProvider } from "@/components/context/BeachStatsCacheContext";
 import ViewportBeachesManager from "@/components/context/ViewportBeachesManager";
-import React from "react";
 
-const Layout = ({ children }: { children: React.ReactNode }) => {
+const Layout = ({ children }: { children: ReactNode }) => {
   return (
     <DateProvider>
       <MapViewportProvider>
@@ -18,7 +20,9 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
               <BeachStatsCacheProvider>
                 <PathProvider>
                   <ViewportBeachesManager />
-                  <main>{children}</main>
+                  <NavBar landingPage variant="marketing" />
+                  {children}
+                  <Footer className="rounded-t-xl" />
                 </PathProvider>
               </BeachStatsCacheProvider>
             </SearchProvider>
