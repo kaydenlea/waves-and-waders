@@ -301,9 +301,9 @@ const Home = () => {
             </h2>
             <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
               <WhyItem icon={ShieldCheck} title="Reliable data">
-                Sourced from NOAA/NDBC buoys, tide stations, and curated
-                reports. Redundant caching keeps the app fast—even on flaky
-                beach Wi‑Fi.
+                Sourced from NOAA model grids and tide stations. A daily refresh
+                plus 3-hour nowcast runs keep conditions current, and caching
+                keeps the app fast even on flaky beach Wi-Fi.
               </WhyItem>
               <WhyItem icon={Zap} title="Real-time insights">
                 We fuse multiple signals (swell height, direction, wind shear,
@@ -470,9 +470,9 @@ const Home = () => {
             </h2>
             <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
               <WhyItem icon={ShieldCheck} title="Reliable data">
-                Sourced from NOAA/NDBC buoys, tide stations, and curated
-                reports. Redundant caching keeps the app fast—even on flaky
-                beach Wi‑Fi.
+                Sourced from NOAA model grids and tide stations. A daily refresh
+                plus 3-hour nowcast runs keep conditions current, and caching
+                keeps the app fast even on flaky beach Wi-Fi.
               </WhyItem>
               <WhyItem icon={Zap} title="Real-time insights">
                 We fuse multiple signals (swell height, direction, wind shear,
