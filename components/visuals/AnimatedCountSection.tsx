@@ -5,6 +5,7 @@ import PremiumStatsStrip from "@/components/visuals/PremiumStatsStrip";
 import { fetchBeachCount } from "@/lib/supabase";
 import { FEATURE_CATEGORIES, FEATURE_COLUMNS } from "@/lib/supabase";
 import { ALL_WIDGET_IDS } from "@/components/general/dashboardLayout";
+import InViewOnce from "@/components/marketing/InViewOnce";
 
 export function SectionHeader({
   icon: Icon,
@@ -61,14 +62,20 @@ const AnimatedCountSection = async () => {
   return (
     <section
       id="features"
-      className="mx-auto max-w-7xl px-4 sm:px-6 py-16 sm:py-20 scroll-mt-28"
+      data-ww-section
+      data-inview="false"
+      className="ww-section mx-auto max-w-7xl px-4 sm:px-6 py-16 sm:py-20 scroll-mt-28"
     >
+      <InViewOnce rootAttr="data-ww-section" />
       <SectionHeader
         // icon={Zap}
         title="Explore Beaches"
         subtitle="Explore beaches on an interactive map. Scan surf spots, open details, and jump to the full Beaches experience."
       />
-      <div className="w-full grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,18rem)] lg:gap-10 lg:items-stretch min-w-0">
+      <div
+        className="ww-reveal w-full grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,18rem)] lg:gap-10 lg:items-stretch min-w-0"
+        style={{ ["--delay" as any]: "60ms" }}
+      >
         <BeachesMapPreview className="w-full min-w-0" />
         <PremiumStatsStrip
           className="min-w-0"

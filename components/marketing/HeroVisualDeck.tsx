@@ -478,13 +478,13 @@ function BeachPreviewSlide({
   return (
     <div className="h-full flex flex-col">
       <div className="flex-1 min-h-0 flex flex-col gap-3 p-4">
-        <div className="w-full max-w-[460px] mx-auto flex-1 min-h-0">
+        <div className="w-full flex-1 min-h-0">
           <div className="relative h-full overflow-hidden rounded-3xl border border-border/35 bg-gradient-to-br from-sky-100 to-blue-200 dark:from-slate-900 dark:to-slate-950">
             <Image
               src={`/beach_pictures/${beach.id}.png`}
               alt={`Map view of ${beach.name}`}
               fill
-              sizes="460px"
+              sizes="540px"
               className="object-cover"
               priority={false}
             />
@@ -882,16 +882,16 @@ export default function HeroVisualDeck({
           </div>
 
           <div className="relative flex-1 min-h-0 overflow-hidden rounded-[32px]">
-            <AnimatePresence mode="wait" initial={false}>
+            <AnimatePresence mode="sync" initial={false}>
               {activeSlide ? (
                 <motion.div
                   key={activeSlide.key}
                   className="absolute inset-0"
-                  initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 8 }}
+                  initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: prefersReducedMotion ? 0 : -6 }}
                   transition={{
-                    duration: prefersReducedMotion ? 0 : 0.28,
+                    duration: prefersReducedMotion ? 0 : 0.42,
                     ease: [0.16, 1, 0.3, 1],
                   }}
                 >

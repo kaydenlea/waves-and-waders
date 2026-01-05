@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import type { ElementType } from "react";
 import SearchBar from "./SearchBar";
 import ThemeToggle from "./ThemeToggle";
 // Popover handled inside client subcomponent
@@ -8,6 +9,7 @@ import { cn } from "@/lib/utils";
 import NavBarActions from "./NavBarActions";
 import NavMoreMenu from "./NavMoreMenu";
 import MarketingSearchButton from "@/components/general/MarketingSearchButton";
+import { HandHeart } from "lucide-react";
 
 {
   /* <div className="mx-auto flex items-center justify-between px-4 py-5.5 sm:px-6">
@@ -82,12 +84,12 @@ const NavBar = ({
   beachesPage?: boolean;
   variant?: "app" | "marketing";
 }) => {
-  const marketingLinks: { href: string; label: string }[] = [
-    { href: "/beaches", label: "Beaches" },
+  const marketingLinks: { href: string; label: string; icon?: ElementType }[] = [
     { href: "/#features", label: "Features" },
     { href: "/#personalize", label: "Personalize" },
     { href: "/#forecast", label: "Forecasts" },
     { href: "/#why", label: "Essentials" },
+    { href: "/donate?from=navbar", label: "Donate", icon: HandHeart },
   ];
 
   const marketingMenuLinks: {
@@ -95,8 +97,8 @@ const NavBar = ({
     label: string;
     iconKey: "contact" | "donate" | "privacy" | "terms";
   }[] = [
-    { href: "/donate", label: "Donate", iconKey: "donate" },
-    { href: "/contact", label: "Contact", iconKey: "contact" },
+    { href: "/donate?from=menu", label: "Donate", iconKey: "donate" },
+    { href: "/contact?from=menu", label: "Contact", iconKey: "contact" },
     { href: "/privacy", label: "Privacy", iconKey: "privacy" },
     { href: "/terms", label: "Terms", iconKey: "terms" },
   ];
@@ -173,13 +175,19 @@ const NavBar = ({
         </Link>
 
         {variant === "marketing" ? (
-          <div className="hidden @min-4xl:flex absolute left-1/2 -translate-x-1/2 items-center justify-center gap-8 text-sm font-medium text-foreground/75">
+          <div className="hidden @min-4xl:flex absolute left-1/2 -translate-x-1/2 w-full max-w-[min(40rem,calc(100%-18rem))] items-center justify-center gap-5 text-sm font-medium text-foreground/75 whitespace-nowrap">
             {marketingLinks.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className="rounded-md px-1 py-1 transition hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring/40"
+                className={cn(
+                  "rounded-md px-1 py-1 transition hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring/40",
+                  item.label === "Donate" ? "inline-flex items-center gap-2" : undefined
+                )}
               >
+                {item.icon ? (
+                  <item.icon className="h-4 w-4 text-foreground/70" aria-hidden="true" />
+                ) : null}
                 {item.label}
               </Link>
             ))}
@@ -216,11 +224,6 @@ const NavBar = ({
             landingPage ? "flex" : "hidden @min-4xl:flex"
           )}
         >
-          {variant === "marketing" ? <MarketingSearchButton /> : null}
-          {variant === "marketing" ? (
-            // Mounted to render the overlay portal when the marketing search button opens it.
-            <SearchBar className="hidden" />
-          ) : null}
           <div
             className={cn(
               // landingPage ? "hidden @min-md:flex" : "hidden @min-5xl:flex"
@@ -229,6 +232,11 @@ const NavBar = ({
           >
             <UserMenu landingPage />
           </div>
+          {variant === "marketing" ? <MarketingSearchButton /> : null}
+          {variant === "marketing" ? (
+            // Mounted to render the overlay portal when the marketing search button opens it.
+            <SearchBar className="hidden" />
+          ) : null}
           {variant === "marketing" ? null : (
             <SearchBar className="max-w-[12rem] sm:max-w-none @min-4xl:hidden" />
           )}

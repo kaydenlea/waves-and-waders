@@ -4,6 +4,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import InViewOnce from "@/components/marketing/InViewOnce";
 
 const faqData = [
   {
@@ -43,7 +44,12 @@ const FaqSection = () => {
   };
 
   return (
-    <section className="mx-auto max-w-5xl px-4 sm:px-6 py-16 sm:py-20">
+    <section
+      data-ww-section
+      data-inview="false"
+      className="ww-section mx-auto max-w-5xl px-4 sm:px-6 py-16 sm:py-20"
+    >
+      <InViewOnce rootAttr="data-ww-section" />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
@@ -53,17 +59,20 @@ const FaqSection = () => {
           Frequently Asked Questions
         </h2>
       </header>
-      <div className="mx-auto mt-10 rounded-3xl border border-border/30 bg-background/40 p-3 shadow-xs sm:p-6">
+      <div
+        className="ww-reveal mx-auto mt-10 rounded-3xl border border-border/30 bg-background/40 p-3 shadow-xs sm:p-6"
+        style={{ ["--delay" as any]: "60ms" }}
+      >
         <Accordion type="single" collapsible>
-        {faqData.map((faq, index) => (
-          <AccordionItem
-            key={`question-${index + 1}`}
-            value={`question-${index + 1}`}
-          >
-            <AccordionTrigger>{faq.question}</AccordionTrigger>
-            <AccordionContent>{faq.answer}</AccordionContent>
-          </AccordionItem>
-        ))}
+          {faqData.map((faq, index) => (
+            <AccordionItem
+              key={`question-${index + 1}`}
+              value={`question-${index + 1}`}
+            >
+              <AccordionTrigger>{faq.question}</AccordionTrigger>
+              <AccordionContent>{faq.answer}</AccordionContent>
+            </AccordionItem>
+          ))}
         </Accordion>
       </div>
     </section>

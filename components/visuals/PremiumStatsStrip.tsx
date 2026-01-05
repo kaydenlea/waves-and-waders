@@ -86,7 +86,7 @@ function usePrefersReducedMotion() {
 function AnimatedOverlayNumber({
   value,
   play,
-  durationMs = 820,
+  durationMs = 1400,
 }: {
   value: number;
   play: boolean;

@@ -53,6 +53,32 @@
     @apply shadow-[0_1px_3px_rgba(0,0,0,0.25)];
   }
 
+  .ww-section {
+    position: relative;
+  }
+
+  .ww-section .ww-reveal {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0);
+    transition: opacity 420ms ease-out,
+      transform 700ms cubic-bezier(0.16, 1, 0.3, 1);
+    transition-delay: var(--delay, 0ms);
+    will-change: transform, opacity;
+  }
+
+  .ww-section[data-inview="true"] .ww-reveal {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ww-section .ww-reveal {
+      opacity: 1 !important;
+      transform: none !important;
+      transition: none !important;
+    }
+  }
+
   @keyframes ww-fade-up {
     from {
       opacity: 0;

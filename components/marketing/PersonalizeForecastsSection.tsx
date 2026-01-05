@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import DashboardPersonalizationPreview from "@/components/marketing/DashboardPersonalizationPreview";
+import InViewOnce from "@/components/marketing/InViewOnce";
 import { cn } from "@/lib/utils";
 
 export default function PersonalizeForecastsSection({
@@ -13,10 +14,13 @@ export default function PersonalizeForecastsSection({
       id="personalize"
       aria-labelledby="personalize-forecasts-heading"
       className={cn(
-        "relative mx-auto w-full max-w-7xl px-4 sm:px-6 py-16 sm:py-20 scroll-mt-28",
+        "ww-section relative mx-auto w-full max-w-7xl px-4 sm:px-6 py-16 sm:py-20 scroll-mt-28",
         className
       )}
+      data-ww-section
+      data-inview="false"
     >
+      <InViewOnce rootAttr="data-ww-section" />
       <div className="grid grid-cols-1 items-start justify-items-center gap-10 xl:grid-cols-12 xl:justify-items-stretch xl:gap-12">
         <div className="w-full max-w-2xl xl:col-span-5 xl:max-w-none">
           <h2
@@ -30,7 +34,10 @@ export default function PersonalizeForecastsSection({
             want to see. Keep separate layouts for Overview and Forecast.
           </p>
 
-          <div className="mt-6 flex flex-wrap items-center justify-center xl:justify-start gap-3">
+          <div
+            className="ww-reveal mt-6 flex flex-wrap items-center justify-center xl:justify-start gap-3"
+            style={{ ["--delay" as any]: "80ms" }}
+          >
             <Link
               href="/beaches#content"
               className={cn(
@@ -70,7 +77,12 @@ export default function PersonalizeForecastsSection({
           id="personalize-demo"
           className="w-full max-w-[46rem] xl:col-span-7 xl:max-w-none"
         >
-          <DashboardPersonalizationPreview className="mx-auto w-full max-w-[46rem] xl:max-w-none" />
+          <div
+            className="ww-reveal"
+            style={{ ["--delay" as any]: "120ms" }}
+          >
+            <DashboardPersonalizationPreview className="mx-auto w-full max-w-[46rem] xl:max-w-none" />
+          </div>
         </div>
       </div>
     </section>

@@ -5,9 +5,13 @@ import { useEffect, useRef } from "react";
 export default function InViewOnce({
   rootAttr = "data-essentials-root",
   inViewAttr = "data-inview",
+  rootMargin = "0px 0px -20% 0px",
+  threshold = 0.2,
 }: {
   rootAttr?: string;
   inViewAttr?: string;
+  rootMargin?: string;
+  threshold?: number | number[];
 }) {
   const sentinelRef = useRef<HTMLSpanElement | null>(null);
 
@@ -32,12 +36,12 @@ export default function InViewOnce({
         setInView();
         observer.disconnect();
       },
-      { rootMargin: "20% 0px", threshold: 0.15 }
+      { rootMargin, threshold }
     );
 
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [inViewAttr, rootAttr]);
+  }, [inViewAttr, rootAttr, rootMargin, threshold]);
 
   return (
     <span
@@ -47,4 +51,3 @@ export default function InViewOnce({
     />
   );
 }
-

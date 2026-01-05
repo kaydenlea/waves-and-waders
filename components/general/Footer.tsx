@@ -38,7 +38,7 @@ const Footer = ({ className }: { className?: string }) => {
 
             <div className="mt-5 flex flex-wrap items-center gap-3">
               <Link
-                href="/donate"
+                href="/donate?from=footer"
                 className="inline-flex items-center gap-2 rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background shadow-sm transition hover:opacity-95 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring/50 motion-reduce:transition-none"
               >
                 Support the forecast
@@ -103,7 +103,7 @@ const Footer = ({ className }: { className?: string }) => {
                 <li>
                   <Link
                     className="transition hover:text-foreground"
-                    href="/donate"
+                    href="/donate?from=footer"
                   >
                     Donate
                   </Link>
@@ -203,7 +203,7 @@ const Footer = ({ className }: { className?: string }) => {
                   <li className="py-1">
                     <Link
                       className="transition hover:text-foreground"
-                      href="/donate"
+                      href="/donate?from=footer"
                     >
                       Donate
                     </Link>

@@ -12,7 +12,7 @@ const DashboardPersonalizationCarousel = dynamic(
 
 function Skeleton() {
   return (
-    <div className="relative w-full bg-background-2 p-3 pb-16 sm:p-4 sm:pb-16">
+    <div className="absolute inset-0 bg-background-2 p-3 pb-16 sm:p-4 sm:pb-16">
       <div className="flex items-start justify-between gap-3 pb-3">
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1.5">
@@ -30,8 +30,7 @@ function Skeleton() {
         </div>
       </div>
 
-      <div className="relative w-full overflow-hidden rounded-xl border border-border/40 bg-background shadow-sm">
-        <div className="aspect-[16/10]" />
+      <div className="relative h-full w-full overflow-hidden rounded-xl border border-border/40 bg-background shadow-sm">
         <div className="absolute inset-0 animate-pulse bg-gradient-to-br from-highlight-5 via-highlight-3/40 to-highlight-5 motion-reduce:animate-none" />
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(56,189,248,0.18),transparent_55%),radial-gradient(circle_at_80%_30%,rgba(37,99,235,0.12),transparent_50%)]" />
       </div>
@@ -88,6 +87,7 @@ export default function DashboardPersonalizationPreview({
       ref={containerRef}
       className={cn(
         "relative isolate z-0 w-full min-w-0 max-w-full overflow-hidden rounded-2xl border border-border/60 bg-highlight-5 shadow-lg shadow-black/10 ring-1 ring-black/5",
+        "aspect-[16/10] min-h-[18rem] sm:min-h-[20rem]",
         className
       )}
     >
