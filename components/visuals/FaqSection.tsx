@@ -10,12 +10,12 @@ const faqData = [
   {
     question: "How accurate are the surf forecasts?",
     answer:
-      "Forecasts are built using public NOAA/NDBC buoy observations and tide data. They’re best-effort estimates—conditions can change quickly, so always use judgment on the water.",
+      "Our forecasts are sourced from NOAA model grids and tide stations, then refreshed on a steady schedule so conditions stay current before you head out.",
   },
   {
     question: "What data sources do you use?",
     answer:
-      "We use public NOAA and NDBC buoy data and tide prediction stations to power surf and tide views.",
+      "We use NOAA model grid data for surf conditions and NOAA tide stations for tide predictions. These sources provide consistent coverage across the coast.",
   },
   {
     question: "Can I save my favorite surf spots?",
@@ -25,7 +25,7 @@ const faqData = [
   {
     question: "How often is the data updated?",
     answer:
-      "Updates are refreshed on a schedule (typically every few minutes for beach conditions, ~30 minutes for forecasts, and about hourly for tides). Caching keeps pages fast while data stays current.",
+      "Nowcast updates run every 3 hours, and a full daily refresh runs around 00:30 PT to update surf and tides. We also cache results for faster load times.",
   },
 ];
 

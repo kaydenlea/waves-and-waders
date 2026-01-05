@@ -11,8 +11,12 @@ export const metadata: Metadata = {
   },
 };
 
-const getContactEmail = (): string | null => {
-  return process.env.CONTACT_EMAIL ?? process.env.NEXT_PUBLIC_CONTACT_EMAIL ?? null;
+const getContactEmail = (): string => {
+  return (
+    process.env.CONTACT_EMAIL ??
+    process.env.NEXT_PUBLIC_CONTACT_EMAIL ??
+    "waveandwaders@gmail.com"
+  );
 };
 
 export default function ContactPage() {
