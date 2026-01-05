@@ -130,7 +130,7 @@ export default function AllEssentialsSection() {
     <section
       id="why"
       aria-labelledby="essentials-title"
-      className="mx-auto max-w-7xl px-4 sm:px-6 py-16 sm:py-20 scroll-mt-28"
+      className="mx-auto max-w-3xl xl:max-w-7xl px-4 sm:px-6 py-16 sm:py-20 scroll-mt-28"
     >
       <header className="mx-auto max-w-3xl text-center">
         <h2

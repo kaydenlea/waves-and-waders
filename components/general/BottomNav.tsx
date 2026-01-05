@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
   User,
@@ -46,7 +46,7 @@ export default function BottomNav() {
   const dashboardEditMode = useOptionalDashboardEditMode();
   const isEditing = dashboardEditMode?.isEditing ?? false;
   const [showBottomUI, setShowBottomUI] = useState(true);
-  const [lastScrollY, setLastScrollY] = useState(0);
+  const lastScrollYRef = useRef(0);
   const [atTop, setAtTop] = useState(true);
   const pathname = usePathname();
   const fullMapPage = !pathname.endsWith("/beaches");
@@ -133,19 +133,24 @@ export default function BottomNav() {
     let ticking = false;
 
     const handleScroll = () => {
+      if (landingPage) return;
       if (!ticking) {
         window.requestAnimationFrame(() => {
           const currentY = window.scrollY;
-          const diff = currentY - lastScrollY;
+          const diff = currentY - lastScrollYRef.current;
 
           // scroll direction detection
-          if (diff > 5) setShowBottomUI(false);
-          else if (diff < -5) setShowBottomUI(true);
+          setShowBottomUI((prev) => {
+            if (diff > 5) return false;
+            if (diff < -5) return true;
+            return prev;
+          });
 
           // near top detection
-          setAtTop(currentY < 350);
+          const nextAtTop = currentY < 350;
+          setAtTop((prev) => (prev === nextAtTop ? prev : nextAtTop));
 
-          setLastScrollY(currentY);
+          lastScrollYRef.current = currentY;
           ticking = false;
         });
         ticking = true;
@@ -154,7 +159,7 @@ export default function BottomNav() {
 
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [lastScrollY]);
+  }, [landingPage]);
 
   const handleToggle = (key: string) =>
     setFilters((prev) => {
@@ -380,13 +385,13 @@ export default function BottomNav() {
       {/* Bottom Navigation */}
       <div
         className={cn(
-          "shadow-md @min-4xl:hidden safe-area-inset-bottom rounded-2xl bg-highlight-4 backdrop-blur border border-border mb-1 mx-1 fixed bottom-0 left-0 right-0 z-30 transition-all duration-300",
-          showBottomUI ? "translate-y-0" : "mb-0 translate-y-full"
+          "shadow-md @min-4xl:hidden safe-area-inset-bottom bg-highlight-4 backdrop-blur border-t border-border fixed bottom-0 left-0 right-0 z-30 transition-all duration-300",
+          showBottomUI ? "translate-y-0" : "translate-y-full"
         )}
       >
         <nav
           aria-label="bottom navigation"
-          className="max-w-150 mx-auto flex justify-around items-center h-17 -mb-0.5"
+          className="max-w-150 mx-auto flex justify-around items-center h-17"
         >
           <button
             type="button"

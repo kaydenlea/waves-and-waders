@@ -34,8 +34,9 @@ const Loading = () => {
   const isDesktop = !smallScreen;
   const wrapperHeight = smallScreen
     ? {
-        minHeight: "calc(100svh)",
-        height: "calc(100svh)",
+        minHeight:
+          "calc(100dvh - 4.25rem - env(safe-area-inset-bottom, 0px))",
+        height: "calc(100dvh - 4.25rem - env(safe-area-inset-bottom, 0px))",
       }
     : {
         minHeight: "28rem",
@@ -49,7 +50,7 @@ const Loading = () => {
       id="map-container"
       className={cn(
         "fixed w-full mx-auto max-w-screen transition-all duration-300",
-        "max-[895px]:min-h-[100svh] max-[895px]:h-[100svh]",
+        "max-[895px]:min-h-[calc(100dvh-4.25rem-env(safe-area-inset-bottom,0px))] max-[895px]:h-[calc(100dvh-4.25rem-env(safe-area-inset-bottom,0px))]",
         "@min-4xl:sticky @min-4xl:top-[7.5rem] @min-4xl:flex-1 @min-4xl:py-3 @min-4xl:pl-5 @min-4xl:pr-3 @min-4xl:h-[calc(100vh-8rem)] flex"
       )}
       style={isDesktop ? undefined : wrapperHeight}

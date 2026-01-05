@@ -47,7 +47,7 @@ const FaqSection = () => {
     <section
       data-ww-section
       data-inview="false"
-      className="ww-section mx-auto max-w-5xl px-4 sm:px-6 py-16 sm:py-20"
+      className="ww-section mx-auto max-w-3xl xl:max-w-5xl px-4 sm:px-6 py-16 sm:py-20"
     >
       <InViewOnce rootAttr="data-ww-section" />
       <script

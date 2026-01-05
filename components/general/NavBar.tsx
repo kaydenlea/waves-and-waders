@@ -84,13 +84,14 @@ const NavBar = ({
   beachesPage?: boolean;
   variant?: "app" | "marketing";
 }) => {
-  const marketingLinks: { href: string; label: string; icon?: ElementType }[] = [
-    { href: "/#features", label: "Features" },
-    { href: "/#personalize", label: "Personalize" },
-    { href: "/#forecast", label: "Forecasts" },
-    { href: "/#why", label: "Essentials" },
-    { href: "/donate?from=navbar", label: "Donate", icon: HandHeart },
-  ];
+  const marketingLinks: { href: string; label: string; icon?: ElementType }[] =
+    [
+      { href: "/#features", label: "Features" },
+      { href: "/#personalize", label: "Personalize" },
+      { href: "/#forecast", label: "Forecasts" },
+      { href: "/#why", label: "Essentials" },
+      { href: "/donate?from=navbar", label: "Donate", icon: HandHeart },
+    ];
 
   const marketingMenuLinks: {
     href: string;
@@ -182,11 +183,16 @@ const NavBar = ({
                 href={item.href}
                 className={cn(
                   "rounded-md px-1 py-1 transition hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring/40",
-                  item.label === "Donate" ? "inline-flex items-center gap-2" : undefined
+                  item.label === "Donate"
+                    ? "inline-flex items-center gap-2"
+                    : undefined
                 )}
               >
                 {item.icon ? (
-                  <item.icon className="h-4 w-4 text-foreground/70" aria-hidden="true" />
+                  <item.icon
+                    className="h-4 w-4 text-foreground/70"
+                    aria-hidden="true"
+                  />
                 ) : null}
                 {item.label}
               </Link>
@@ -227,7 +233,7 @@ const NavBar = ({
           <div
             className={cn(
               // landingPage ? "hidden @min-md:flex" : "hidden @min-5xl:flex"
-              "hidden @min-4xl:flex"
+              landingPage ? "hidden @min-5xl:flex" : "hidden @min-4xl:flex"
             )}
           >
             <UserMenu landingPage />

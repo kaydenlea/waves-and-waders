@@ -64,7 +64,7 @@ const AnimatedCountSection = async () => {
       id="features"
       data-ww-section
       data-inview="false"
-      className="ww-section mx-auto max-w-7xl px-4 sm:px-6 py-16 sm:py-20 scroll-mt-28"
+      className="ww-section mx-auto max-w-3xl xl:max-w-7xl px-4 sm:px-6 py-16 sm:py-20 scroll-mt-28"
     >
       <InViewOnce rootAttr="data-ww-section" />
       <SectionHeader

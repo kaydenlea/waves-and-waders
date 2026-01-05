@@ -2109,6 +2109,17 @@ const LeafletMap: React.FC<Props> = ({
         } catch {
           // ignore invalidation errors
         }
+        // Fix occasional "grey tiles" after resizes by forcing the basemap layer to redraw/resize.
+        try {
+          const layer = basemapLayerRef.current as any;
+          layer?.redraw?.();
+          const gl =
+            layer?._maplibreMap ?? layer?._glMap ?? layer?._mapboxMap ?? null;
+          gl?.resize?.();
+          gl?.triggerRepaint?.();
+        } catch {
+          // ignore transient basemap refresh errors
+        }
         try {
           clusterLayerRef.current?.refreshClusters();
         } catch {
@@ -2276,7 +2287,8 @@ const LeafletMap: React.FC<Props> = ({
         setPreviewEngaged(true);
         return;
       }
-      if (event instanceof PointerEvent && event.pointerType === "touch") return;
+      if (event instanceof PointerEvent && event.pointerType === "touch")
+        return;
       if (event.type === "pointerdown") setPreviewEngaged(true);
     };
 
@@ -3094,9 +3106,7 @@ const LeafletMap: React.FC<Props> = ({
     basemapLayer.addTo(map);
     basemapLayerRef.current = basemapLayer;
     map.attributionControl?.addAttribution(
-      useVectorBasemap
-        ? OPENFREEMAP_ATTRIBUTION_HTML
-        : OSM_ATTRIBUTION_HTML
+      useVectorBasemap ? OPENFREEMAP_ATTRIBUTION_HTML : OSM_ATTRIBUTION_HTML
     );
     mapRef.current = map;
     if (!map.getPane(OVERLAY_PANE_ID)) {
@@ -3858,8 +3868,9 @@ const LeafletMap: React.FC<Props> = ({
     ? null
     : smallScreen
     ? {
-        minHeight: "calc(100dvh)",
-        height: "calc(100dvh)",
+        minHeight:
+          "calc(100dvh - 4.25rem - env(safe-area-inset-bottom, 0px))",
+        height: "calc(100dvh - 4.25rem - env(safe-area-inset-bottom, 0px))",
       }
     : {
         minHeight: "28rem",
@@ -4061,7 +4072,7 @@ const LeafletMap: React.FC<Props> = ({
             aria-label="Zoom to California view"
             onClick={handleZoomToCaliforniaView}
             className={cn(
-              "z-[1000] absolute left-3 top-[7.5rem] @min-4xl:top-auto @min-4xl:bottom-[13.75rem]",
+              "z-[1000] absolute left-3 top-[7.8rem] @min-4xl:top-auto @min-4xl:bottom-[13.75rem]",
               overlayButtonBase,
               "text-sm font-medium"
             )}
@@ -4076,7 +4087,7 @@ const LeafletMap: React.FC<Props> = ({
             onClick={handleZoomToNearby}
             disabled={!userLocation}
             className={cn(
-              "z-[1000] absolute left-3 top-[11.25rem] @min-4xl:top-auto @min-4xl:bottom-[10rem]",
+              "z-[1000] absolute left-3 top-[11.4rem] @min-4xl:top-auto @min-4xl:bottom-[10rem]",
               overlayButtonBase,
               "text-sm font-medium",
               !userLocation && "opacity-50 cursor-not-allowed"

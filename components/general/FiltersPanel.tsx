@@ -38,19 +38,16 @@ type Props = {
 
 const getSectionIcon = (label: string) => {
   const l = label.toLowerCase();
-  if (l.includes("activities")) return <Bike className="w-6 h-6 text-red-300" />;
+  if (l.includes("activities"))
+    return <Bike className="w-6 h-6 text-red-300" />;
   if (l.includes("trails") || l.includes("nature")) {
-    return (
-      <TreePine className="w-6 h-6 text-green-500 dark:text-green-400" />
-    );
+    return <TreePine className="w-6 h-6 text-green-500 dark:text-green-400" />;
   }
   if (l.includes("beach")) {
     return <Waves className="w-6 h-6 text-cyan-400 dark:text-cyan-300" />;
   }
   if (l.includes("facilities") || l.includes("amenities")) {
-    return (
-      <Building2 className="w-6 h-6 text-gray-500 dark:text-gray-300" />
-    );
+    return <Building2 className="w-6 h-6 text-gray-500 dark:text-gray-300" />;
   }
   if (l.includes("access") || l.includes("fees")) {
     return (
@@ -65,10 +62,12 @@ const FEATURE_SECTIONS: FeatureSection[] = Object.entries(
 ).map(([key, cat]) => ({
   key,
   label: (cat as { label?: string }).label || key,
-  features: (cat as { features: readonly string[] }).features.map((feature) => ({
-    key: feature,
-    label: getFeatureDisplayName(feature) || feature,
-  })),
+  features: (cat as { features: readonly string[] }).features.map(
+    (feature) => ({
+      key: feature,
+      label: getFeatureDisplayName(feature) || feature,
+    })
+  ),
 }));
 
 const FEATURE_TO_SECTION = FEATURE_SECTIONS.reduce<Record<string, string>>(
@@ -114,9 +113,7 @@ const FeatureOptionRow = React.memo(
         onChange={() => onToggle(featureKey)}
         className="w-4 h-4 accent-sky-300 rounded-sm flex-shrink-0"
       />
-      <span className="text-[13px] leading-tight text-foreground">
-        {label}
-      </span>
+      <span className="text-[13px] leading-tight text-foreground">{label}</span>
     </label>
   )
 );
@@ -173,10 +170,10 @@ export default function FiltersPanel({
 
   const toggleSection = useCallback(
     (key: string) =>
-    setExpandedSections((prev) => ({
-      ...prev,
-      [key]: !(prev?.[key] ?? true),
-    })),
+      setExpandedSections((prev) => ({
+        ...prev,
+        [key]: !(prev?.[key] ?? true),
+      })),
     []
   );
 
@@ -212,8 +209,11 @@ export default function FiltersPanel({
       </div>
 
       <div
-        className="overflow-y-auto px-5 py-4 space-y-4"
-        style={{ WebkitOverflowScrolling: "touch" }}
+        className="flex-1 min-h-0 overflow-y-auto pl-5 pr-2 py-4 space-y-4"
+        style={{
+          WebkitOverflowScrolling: "touch",
+          scrollbarGutter: "stable",
+        }}
       >
         {FEATURE_SECTIONS.map((section) => {
           const catKey = section.key;

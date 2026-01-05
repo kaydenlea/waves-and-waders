@@ -310,7 +310,7 @@ export default function ForecastsMadeSimpleVisual({
                   key={card.key}
                   className={cn(
                     "absolute inset-0 origin-bottom-left transition-[transform,opacity] duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]",
-                    "motion-reduce:transition-none"
+                    "motion-reduce:transition-none dark:border dark:border-border/20 rounded-2xl bg-highlight-5"
                   )}
                   style={{
                     transform: `translate(${x}px, ${y}px) scale(${scale})`,

@@ -6,6 +6,8 @@ import { AnimatePresence, motion } from "motion/react";
 import {
   ArrowDown,
   ArrowUp,
+  ChevronLeft,
+  ChevronRight,
   Droplets,
   Filter,
   Info,
@@ -402,6 +404,56 @@ function BeachPreviewSlide({
   forecast: ForecastData;
 }) {
   const [legendOpen, setLegendOpen] = React.useState(true);
+  const [activeBeachIndex, setActiveBeachIndex] = React.useState(0);
+
+  const beachVariants = React.useMemo(
+    () =>
+      [
+        {
+          id: "000b44bb-e4b7-452b-b28b-dd596d202cdf",
+          name: "10th Street Beach",
+          region: "Orange County, CA",
+        },
+        {
+          id: "003bd538-eb66-457b-912a-57a2d3336b67",
+          name: "Salt Creek Beach",
+          region: "Orange County, CA",
+        },
+        {
+          id: "0073154c-5806-4419-9f5a-86b7aeb284b1",
+          name: "Bolsa Chica State Beach",
+          region: "Orange County, CA",
+        },
+        {
+          id: "00a0797c-3a06-4aff-8eb4-f0866c95ae7e",
+          name: "Malibu Surfrider Beach",
+          region: "Los Angeles County, CA",
+        },
+      ] satisfies Array<Pick<Beach, "id" | "name" | "region">>,
+    []
+  );
+
+  const previewBeaches = React.useMemo(
+    () => beachVariants.map((variant) => ({ ...beach, ...variant })),
+    [beach, beachVariants]
+  );
+
+  React.useEffect(() => {
+    setActiveBeachIndex(0);
+  }, [beach.id]);
+
+  const activeBeach = previewBeaches[activeBeachIndex] ?? previewBeaches[0];
+  const beachCount = previewBeaches.length;
+
+  const goPrevBeach = React.useCallback(() => {
+    setActiveBeachIndex((idx) =>
+      beachCount ? (idx - 1 + beachCount) % beachCount : 0
+    );
+  }, [beachCount]);
+
+  const goNextBeach = React.useCallback(() => {
+    setActiveBeachIndex((idx) => (beachCount ? (idx + 1) % beachCount : 0));
+  }, [beachCount]);
 
   const ringScale = 1.05;
   const ringSize = 160 * ringScale;
@@ -481,8 +533,8 @@ function BeachPreviewSlide({
         <div className="w-full flex-1 min-h-0">
           <div className="relative h-full overflow-hidden rounded-3xl border border-border/35 bg-gradient-to-br from-sky-100 to-blue-200 dark:from-slate-900 dark:to-slate-950">
             <Image
-              src={`/beach_pictures/${beach.id}.png`}
-              alt={`Map view of ${beach.name}`}
+              src={`/beach_pictures/${activeBeach.id}.png`}
+              alt={`Map view of ${activeBeach.name}`}
               fill
               sizes="540px"
               className="object-cover"
@@ -546,7 +598,7 @@ function BeachPreviewSlide({
                     legendOpen ? "-top-30" : "-top-24"
                   )}
                 >
-                  {beach.name}
+                  {activeBeach.name}
                 </div>
 
                 <div
@@ -598,8 +650,43 @@ function BeachPreviewSlide({
           </div>
         </div>
 
-        <div className="w-full max-w-[460px] mx-auto pointer-events-none shrink-0">
-          <BeachCard b={{ ...beach, current: forecast }} isFav={false} />
+        <div className="w-full max-w-[480px] mx-auto shrink-0">
+          <div className="rounded-3xl border border-border/35 bg-highlight-7/60 p-2 border border-border/40">
+            <div className="flex items-center justify-center gap-2">
+              <button
+                type="button"
+                aria-label="Previous beach"
+                onClick={goPrevBeach}
+                className={cn(
+                  "h-9 w-9 shrink-0 rounded-full border border-border/40 bg-background/75 text-foreground/80 shadow-sm backdrop-blur-md transition",
+                  "hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15",
+                  "active:scale-95 motion-reduce:transition-none"
+                )}
+              >
+                <ChevronLeft className="mx-auto h-4 w-4" aria-hidden="true" />
+              </button>
+
+              <div className="pointer-events-none w-full max-w-[380px] min-w-0">
+                <BeachCard
+                  b={{ ...activeBeach, current: forecast }}
+                  isFav={false}
+                />
+              </div>
+
+              <button
+                type="button"
+                aria-label="Next beach"
+                onClick={goNextBeach}
+                className={cn(
+                  "h-9 w-9 shrink-0 rounded-full border border-border/40 bg-background/75 text-foreground/80 shadow-sm backdrop-blur-md transition",
+                  "hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15",
+                  "active:scale-95 motion-reduce:transition-none"
+                )}
+              >
+                <ChevronRight className="mx-auto h-4 w-4" aria-hidden="true" />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

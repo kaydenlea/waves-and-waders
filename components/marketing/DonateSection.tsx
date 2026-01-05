@@ -10,13 +10,11 @@ export default function DonateSection({ className }: { className?: string }) {
       data-ww-section
       data-inview="false"
       className={cn(
-        "ww-section mx-auto w-full max-w-7xl px-4 sm:px-6 py-16 sm:py-20",
+        "ww-section mx-auto w-full max-w-3xl xl:max-w-7xl px-4 sm:px-6 py-16 sm:py-20",
         className
       )}
     >
-      <div
-        className="relative overflow-hidden rounded-3xl border border-border/50 bg-gradient-to-b from-foreground/[0.035] to-foreground/[0.015] p-6 shadow-sm sm:p-10"
-      >
+      <div className="relative overflow-hidden rounded-3xl border border-border/50 bg-gradient-to-b from-foreground/[0.035] to-foreground/[0.015] p-6 shadow-sm sm:p-10">
         <InViewOnce rootAttr="data-ww-section" />
 
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(56,189,248,0.10),transparent_55%),radial-gradient(circle_at_80%_20%,rgba(37,99,235,0.09),transparent_55%)]" />
@@ -34,17 +32,23 @@ export default function DonateSection({ className }: { className?: string }) {
               Keep it free, keep it improving.
             </h2>
             <p className="mt-4 max-w-prose text-pretty text-base text-muted-foreground sm:text-lg">
-              Donations help cover hosting, data costs, and ongoing development. Forecasts
-              remain free to use.
+              Donations help cover hosting, data costs, and ongoing development.
+              Forecasts remain free to use.
             </p>
 
             <div className="mt-6 flex flex-wrap items-center gap-3 text-sm text-foreground/70">
               <span className="inline-flex items-center gap-2 rounded-full border border-border/40 bg-background/40 px-3 py-1.5">
-                <ShieldCheck className="h-4 w-4 text-emerald-500" aria-hidden="true" />
+                <ShieldCheck
+                  className="h-4 w-4 text-emerald-500"
+                  aria-hidden="true"
+                />
                 Secure checkout via Square
               </span>
               <span className="inline-flex items-center gap-2 rounded-full border border-border/40 bg-background/40 px-3 py-1.5">
-                <HandHeart className="h-4 w-4 text-rose-500" aria-hidden="true" />
+                <HandHeart
+                  className="h-4 w-4 text-rose-500"
+                  aria-hidden="true"
+                />
                 Donations are optional
               </span>
             </div>
@@ -72,7 +76,10 @@ export default function DonateSection({ className }: { className?: string }) {
                 </div>
               </div>
 
-              <div className="mt-5 flex flex-wrap gap-2" aria-label="Suggested amounts">
+              <div
+                className="mt-5 flex flex-wrap gap-2"
+                aria-label="Suggested amounts"
+              >
                 {["$5", "$15", "$30"].map((amount) => (
                   <span
                     key={amount}
