@@ -79,6 +79,9 @@ const SearchBar = ({
 
   // Deferred query for smoother typing - input stays responsive
   const deferredQuery = useDeferredValue(query);
+  const deferredHits = useDeferredValue(hits);
+  const deferredOpen = useDeferredValue(open);
+  const visibleHits = deferredOpen ? deferredHits : [];
 
   // keep a ref to always know the latest query value
   const latestQueryRef = useRef<string>(query);
@@ -104,13 +107,13 @@ const SearchBar = ({
 
   // Memoized results list for stable reference
   const searchResults = useMemo(() => {
-    if (!open || hits.length === 0) return null;
-    return hits.map((h, idx) => ({
+    if (!deferredOpen || visibleHits.length === 0) return null;
+    return visibleHits.map((h, idx) => ({
       hit: h,
       isActive: idx === active,
       index: idx,
     }));
-  }, [hits, open, active]);
+  }, [visibleHits, deferredOpen, active]);
 
   useEffect(() => {
     // keep ref in sync
@@ -369,10 +372,10 @@ const SearchBar = ({
             </div>
 
             {/* Search results in overlay */}
-            {open && hits.length > 0 && (
+            {deferredOpen && visibleHits.length > 0 && (
               <div className="mt-4 w-full max-w-2xl bg-background border border-border/30 shadow-even rounded-md">
                 <ul className="rounded-xl overflow-y-auto max-h-[80vh] p-2">
-                  {hits.map((h, idx) => (
+                  {visibleHits.map((h, idx) => (
                     <SearchResultItem
                       key={`${h.id}`}
                       hit={h}

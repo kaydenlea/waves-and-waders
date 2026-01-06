@@ -841,6 +841,7 @@ const useFilteredBeaches = (
   const beachesRef = React.useRef(beaches);
   const filtersRef = React.useRef(filters);
   const selectionRef = React.useRef<string | number | null>(selectedId);
+  const updateTimeoutRef = React.useRef<number | null>(null);
   const [filtered, setFiltered] = React.useState<BeachPoint[]>(() =>
     ensureSelectionPresent(
       inlineFilterBeaches(beaches, filters ?? new Set()),
@@ -915,20 +916,27 @@ const useFilteredBeaches = (
     const currentFilters = filtersRef.current ?? new Set<string>();
     const selection = selectionRef.current;
     const worker = workerRef.current;
-    if (worker) {
-      worker.postMessage({
-        beaches: currentBeaches,
-        filters: Array.from(currentFilters),
-      });
-      return;
+    if (updateTimeoutRef.current != null) {
+      window.clearTimeout(updateTimeoutRef.current);
+      updateTimeoutRef.current = null;
     }
-    setFiltered(
-      ensureSelectionPresent(
-        inlineFilterBeaches(currentBeaches, currentFilters),
-        currentBeaches,
-        selection
-      )
-    );
+    updateTimeoutRef.current = window.setTimeout(() => {
+      if (worker) {
+        worker.postMessage({
+          beaches: currentBeaches,
+          filters: Array.from(currentFilters),
+        });
+      } else {
+        setFiltered(
+          ensureSelectionPresent(
+            inlineFilterBeaches(currentBeaches, currentFilters),
+            currentBeaches,
+            selection
+          )
+        );
+      }
+      updateTimeoutRef.current = null;
+    }, 120);
   }, [beachesKey, filtersKey]);
 
   React.useEffect(() => {
@@ -936,6 +944,15 @@ const useFilteredBeaches = (
       ensureSelectionPresent(prev, beachesRef.current, selectedId)
     );
   }, [selectedId]);
+
+  React.useEffect(() => {
+    return () => {
+      if (updateTimeoutRef.current != null) {
+        window.clearTimeout(updateTimeoutRef.current);
+        updateTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   return filtered;
 };
@@ -1291,11 +1308,13 @@ const FilterPanel: React.FC<{
                         checked={checked}
                         onChange={(event) => {
                           const nextChecked = event.currentTarget.checked;
-                          setFilters((prev) => {
-                            const next = new Set(prev ?? new Set());
-                            if (nextChecked) next.add(key);
-                            else next.delete(key);
-                            return next;
+                          React.startTransition(() => {
+                            setFilters((prev) => {
+                              const next = new Set(prev ?? new Set());
+                              if (nextChecked) next.add(key);
+                              else next.delete(key);
+                              return next;
+                            });
                           });
                         }}
                       />
@@ -1311,7 +1330,11 @@ const FilterPanel: React.FC<{
           {filterCount > 0 && (
             <button
               className="text-[11px] font-semibold px-2 py-1 rounded-xl border bg-highlight-3 dark:bg-background border border-border/90 hover:bg-highlight-5 dark:hover:bg-highlight-2"
-              onClick={() => setFilters(new Set())}
+              onClick={() => {
+                React.startTransition(() => {
+                  setFilters(new Set());
+                });
+              }}
             >
               Clear
             </button>
@@ -1463,6 +1486,7 @@ const LeafletMap: React.FC<Props> = ({
   const previewUi = ui === "preview";
   const showChrome = !previewUi && !embedded;
   const { filters, setFilters, favoriteIds, hoverCardId } = useMapData();
+  const deferredFilters = React.useDeferredValue(filters);
   const { showMap, setShowMap, openPanel, setOpenPanel, togglePanel } =
     useMapUI();
 
@@ -1674,7 +1698,7 @@ const LeafletMap: React.FC<Props> = ({
 
   const filteredBeaches = useFilteredBeaches(
     combinedBeaches,
-    filters ?? new Set(),
+    deferredFilters ?? new Set(),
     selectedBeachId
   );
 

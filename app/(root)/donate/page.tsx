@@ -31,6 +31,10 @@ export default function DonatePage() {
           We use Square’s hosted checkout for secure donations. Donations are voluntary and not a
           purchase.
         </p>
+        <p className="mt-3 text-sm text-muted-foreground">
+          Donations support the development and maintenance of Waves & Waders.
+          Donations are not tax-deductible.
+        </p>
         <div className="mt-6 flex flex-col items-stretch justify-center gap-3 sm:flex-row">
           {squareUrl ? (
             <a

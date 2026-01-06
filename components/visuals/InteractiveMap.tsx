@@ -281,6 +281,7 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
     filters,
     setFilters,
   } = useMapData();
+  const deferredFilters = React.useDeferredValue(filters);
   const { setVisibleBounds, setViewportRequestId, setAllowViewportCommit } =
     useMapViewport();
   const { selected: selectedDate, hour } = useDateContext();
@@ -292,14 +293,14 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
   >({});
   const filterBeachesSync = React.useCallback(() => {
     if (!renderBeaches.length) return [];
-    const filterList = Array.from(filters ?? []);
+    const filterList = Array.from(deferredFilters ?? []);
     return renderBeaches.filter((beach) => {
       if (beach.features?.INLND_AREA) return false;
       if (!filterList.length) return true;
       const feats = beach.features ?? {};
       return filterList.every((key) => feats[key]);
     });
-  }, [filters, renderBeaches]);
+  }, [deferredFilters, renderBeaches]);
 
   const [workerFilteredBeaches, setWorkerFilteredBeaches] = React.useState<
     BeachPoint[]
@@ -332,6 +333,7 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
     new globalThis.Map<string, string>()
   );
   const filterWorkerRef = React.useRef<Worker | null>(null);
+  const filterUpdateTimeoutRef = React.useRef<number | null>(null);
   const overlayLayerIds = React.useMemo(
     () => new Set<string>(MAP_POINT_LAYER_IDS),
     []
@@ -1171,16 +1173,32 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
   }, []); // initialize once
 
   React.useEffect(() => {
-    const worker = filterWorkerRef.current;
-    if (worker) {
-      worker.postMessage({
-        beaches: renderBeaches,
-        filters: Array.from(filters ?? []),
-      });
-    } else {
-      setWorkerFilteredBeaches(filterBeachesSync());
+    if (filterUpdateTimeoutRef.current != null) {
+      window.clearTimeout(filterUpdateTimeoutRef.current);
+      filterUpdateTimeoutRef.current = null;
     }
-  }, [renderBeaches, filters, filterBeachesSync]);
+    filterUpdateTimeoutRef.current = window.setTimeout(() => {
+      const worker = filterWorkerRef.current;
+      if (worker) {
+        worker.postMessage({
+          beaches: renderBeaches,
+          filters: Array.from(deferredFilters ?? []),
+        });
+      } else {
+        setWorkerFilteredBeaches(filterBeachesSync());
+      }
+      filterUpdateTimeoutRef.current = null;
+    }, 120);
+  }, [renderBeaches, deferredFilters, filterBeachesSync]);
+
+  React.useEffect(() => {
+    return () => {
+      if (filterUpdateTimeoutRef.current != null) {
+        window.clearTimeout(filterUpdateTimeoutRef.current);
+        filterUpdateTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   const filteredBeaches = React.useMemo(() => {
     if (!workerFilteredBeaches.length) {
@@ -2330,14 +2348,16 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
                                 checked={checked}
                                 onChange={(e) => {
                                   const che = e.currentTarget.checked;
-                                  setFilters((prev) => {
-                                    const next = new Set(prev);
-                                    if (che) next.add(key);
-                                    else next.delete(key);
-                                    return next;
-                                  });
-                                }}
-                              />
+                                    React.startTransition(() => {
+                                      setFilters((prev) => {
+                                        const next = new Set(prev);
+                                        if (che) next.add(key);
+                                        else next.delete(key);
+                                        return next;
+                                      });
+                                    });
+                                  }}
+                                />
                               <span>{label}</span>
                             </label>
                           );
@@ -2354,9 +2374,11 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
                       className="text-[11px] font-semibold px-2 py-1 rounded-xl border bg-highlight-3 dark:bg-background border border-border/90 hover:bg-highlight-5 dark:hover:bg-highlight-2"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setFilters(new Set());
-                      }}
-                    >
+                          React.startTransition(() => {
+                            setFilters(new Set());
+                          });
+                        }}
+                      >
                       Clear
                     </button>
                   )}
@@ -2597,11 +2619,13 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
                                       checked={checked}
                                       onChange={(e) => {
                                         const che = e.currentTarget.checked;
-                                        setFilters((prev) => {
-                                          const next = new Set(prev);
-                                          if (che) next.add(key);
-                                          else next.delete(key);
-                                          return next;
+                                        React.startTransition(() => {
+                                          setFilters((prev) => {
+                                            const next = new Set(prev);
+                                            if (che) next.add(key);
+                                            else next.delete(key);
+                                            return next;
+                                          });
                                         });
                                       }}
                                     />
@@ -2622,7 +2646,9 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
                           className="text-[11px] font-semibold px-2 py-1 rounded-xl border bg-highlight-3 dark:bg-background border border-border/90 hover:bg-highlight-5 dark:hover:bg-highlight-2"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setFilters(new Set());
+                            React.startTransition(() => {
+                              setFilters(new Set());
+                            });
                           }}
                         >
                           Clear
