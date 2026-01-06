@@ -30,6 +30,7 @@ export default function DonateStickyPill({
 
   const [dismissed, setDismissed] = React.useState(false);
   const [eligibleByScroll, setEligibleByScroll] = React.useState(false);
+  const eligibleByScrollRef = React.useRef(false);
 
   React.useEffect(() => {
     if (pathname === "/donate") {
@@ -49,7 +50,11 @@ export default function DonateStickyPill({
       if (rafId != null) return;
       rafId = window.requestAnimationFrame(() => {
         rafId = null;
-        setEligibleByScroll(window.scrollY > threshold());
+        // Avoid state updates every scroll tick; only commit when the boolean flips.
+        const nextEligible = window.scrollY > threshold();
+        if (nextEligible === eligibleByScrollRef.current) return;
+        eligibleByScrollRef.current = nextEligible;
+        setEligibleByScroll(nextEligible);
       });
     };
 

@@ -123,14 +123,17 @@
 
   .ww-hero-blob-1 {
     animation: ww-blob-drift 18s ease-in-out infinite;
+    will-change: transform;
   }
 
   .ww-hero-blob-2 {
     animation: ww-blob-drift 22s ease-in-out infinite;
+    will-change: transform;
   }
 
   .ww-hero-blob-3 {
     animation: ww-blob-drift 26s ease-in-out infinite;
+    will-change: transform;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -138,6 +141,25 @@
     .ww-hero-blob-2,
     .ww-hero-blob-3 {
       animation: none !important;
+    }
+  }
+
+  .ww-hero-noise {
+    will-change: opacity;
+  }
+
+  /* Perf: disable continuous hero effects on low-end devices (helps reduce scroll stutter). */
+  @media (update: slow) {
+    .ww-hero-blob-1,
+    .ww-hero-blob-2,
+    .ww-hero-blob-3,
+    .ww-hero-float {
+      animation: none !important;
+    }
+
+    .ww-hero-noise {
+      mix-blend-mode: normal !important;
+      opacity: 0.03 !important;
     }
   }
 }

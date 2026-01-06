@@ -8,6 +8,7 @@ import { ViewportBeachesProvider } from "@/components/context/ViewportBeachesCon
 import { PathProvider } from "@/components/context/PathContext";
 import { SearchProvider } from "@/components/context/SearchContext";
 import { BeachStatsCacheProvider } from "@/components/context/BeachStatsCacheContext";
+import { DashboardEditModeProvider } from "@/components/context/DashboardEditModeContext";
 import ViewportBeachesManager from "@/components/context/ViewportBeachesManager";
 
 const Layout = ({ children }: { children: ReactNode }) => {
@@ -19,10 +20,12 @@ const Layout = ({ children }: { children: ReactNode }) => {
             <SearchProvider>
               <BeachStatsCacheProvider>
                 <PathProvider>
-                  <ViewportBeachesManager />
-                  <NavBar landingPage variant="marketing" />
-                  {children}
-                  <Footer className="rounded-t-xl" />
+                  <DashboardEditModeProvider>
+                    <ViewportBeachesManager />
+                    <NavBar landingPage variant="marketing" />
+                    {children}
+                    <Footer className="rounded-t-xl" />
+                  </DashboardEditModeProvider>
                 </PathProvider>
               </BeachStatsCacheProvider>
             </SearchProvider>

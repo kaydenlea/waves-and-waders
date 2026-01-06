@@ -87,8 +87,8 @@ const Badge = ({
 
 export default function Hero() {
   return (
-    <section className="relative overflow-hidden min-h-[100svh]">
-      <div aria-hidden className="absolute inset-0">
+    <section className="relative isolate overflow-hidden min-h-[100svh]">
+      <div aria-hidden className="absolute inset-0 [contain:paint]">
         <div className="absolute inset-0 bg-gradient-to-b from-background via-background-2 to-background" />
 
         <div className="absolute -top-56 left-1/2 h-[720px] w-[1220px] -translate-x-1/2 rounded-full bg-cyan-500/14 blur-3xl ww-hero-blob-1" />
@@ -99,7 +99,7 @@ export default function Hero() {
         <div className="absolute inset-0 bg-[radial-gradient(700px_circle_at_15%_20%,rgba(99,102,241,0.14),transparent_60%)]" />
 
         <div
-          className="absolute inset-0 opacity-[0.06] mix-blend-overlay pointer-events-none"
+          className="ww-hero-noise absolute inset-0 opacity-[0.06] mix-blend-overlay pointer-events-none"
           style={{ backgroundImage: `url('${heroNoiseUrl}')` }}
         />
         <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-b from-transparent to-background" />

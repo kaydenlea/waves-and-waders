@@ -14,8 +14,8 @@ const Footer = ({ className }: { className?: string }) => {
       )}
     >
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
-        <div className="grid gap-10 lg:grid-cols-12 lg:items-start">
-          <div className="lg:col-span-4">
+        <div className="grid gap-10 md:grid-cols-12 md:items-start">
+          <div className="md:col-span-4">
             <Link href="/" className="inline-flex items-center gap-2">
               <span className="relative grid h-10 w-10 place-items-center overflow-hidden rounded-xl border border-border/20 bg-background/40 shadow-sm">
                 <Image
@@ -41,7 +41,7 @@ const Footer = ({ className }: { className?: string }) => {
                 href="/donate?from=footer"
                 className="inline-flex items-center gap-2 rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background shadow-sm transition hover:opacity-95 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring/50 motion-reduce:transition-none"
               >
-                Support the forecast
+                Support
                 <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
               </Link>
               <Link
@@ -54,7 +54,7 @@ const Footer = ({ className }: { className?: string }) => {
           </div>
 
           {/* Desktop columns */}
-          <div className="hidden lg:col-span-8 lg:grid lg:grid-cols-3 lg:gap-10 lg:justify-items-start lg:justify-self-end">
+          <div className="hidden md:col-span-8 md:grid md:grid-cols-3 md:gap-10 md:justify-items-start md:justify-self-end">
             <div className="space-y-3">
               <div className="text-xs font-semibold tracking-wider text-foreground/70 uppercase">
                 Product
@@ -145,7 +145,7 @@ const Footer = ({ className }: { className?: string }) => {
           </div>
 
           {/* Mobile/tablet accordions (no JS) */}
-          <div className="lg:hidden">
+          <div className="md:hidden">
             <div className="divide-y divide-border/10 rounded-2xl border border-border/20 bg-background/30">
               <details className="group px-4">
                 <summary className="flex list-none cursor-pointer items-center justify-between py-4 text-sm font-semibold text-foreground/80 [&::-webkit-details-marker]:hidden">

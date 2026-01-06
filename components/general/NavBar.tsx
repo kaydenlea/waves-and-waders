@@ -189,10 +189,11 @@ const NavBar = ({
                     : undefined
                 )}
               >
-                {item.icon && React.createElement(item.icon, {
-                  className: "h-4 w-4 text-foreground/70",
-                  "aria-hidden": true,
-                })}
+                {item.icon &&
+                  React.createElement(item.icon, {
+                    className: "h-4 w-4 text-foreground/70",
+                    "aria-hidden": true,
+                  })}
                 {item.label}
               </Link>
             ))}
@@ -248,7 +249,9 @@ const NavBar = ({
           <ThemeToggle className="hidden @min-5xl:flex" />
           <NavMoreMenu
             landingPage={landingPage}
-            links={variant === "marketing" ? marketingMenuLinks : undefined}
+            links={
+              variant === "marketing" ? marketingMenuLinks : marketingMenuLinks
+            }
           />
         </div>
       </nav>

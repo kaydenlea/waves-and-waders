@@ -704,11 +704,28 @@ export default function HeroVisualDeck({
   const { selected, hour } = useDateContext();
   const [active, setActive] = React.useState(0);
   const [paused, setPaused] = React.useState(false);
+  const [inView, setInView] = React.useState(true);
   const [filtersPreview, setFiltersPreview] = React.useState<Set<string>>(
     () => new Set(["PARKING", "RESTROOMS"])
   );
   const deckContainerRef = React.useRef<HTMLDivElement | null>(null);
   const [deckScale, setDeckScale] = React.useState(1);
+
+  React.useEffect(() => {
+    const el = deckContainerRef.current;
+    if (!el) return;
+
+    // Perf: stop the carousel timer when the hero is offscreen.
+    if (typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setInView(Boolean(entry?.isIntersecting));
+      },
+      { rootMargin: "240px 0px", threshold: 0.01 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   React.useLayoutEffect(() => {
     const el = deckContainerRef.current;
@@ -896,12 +913,13 @@ export default function HeroVisualDeck({
   );
 
   React.useEffect(() => {
-    if (paused || prefersReducedMotion) return;
+    if (paused || prefersReducedMotion || !inView) return;
     const id = window.setInterval(() => {
+      if (document.visibilityState !== "visible") return;
       setActive((v) => (v + 1) % slides.length);
     }, 5600);
     return () => window.clearInterval(id);
-  }, [paused, prefersReducedMotion, slides.length]);
+  }, [paused, prefersReducedMotion, slides.length, inView]);
 
   const activeSlide = slides[active] ?? slides[0];
 
