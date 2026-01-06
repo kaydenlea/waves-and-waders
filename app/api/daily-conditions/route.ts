@@ -1,5 +1,5 @@
 // app/api/daily-conditions/route.ts
-// Daily sunrise/sunset/moon data changes slowly; cached for 6h.
+// Daily sunrise/sunset/moon data changes slowly; cached for 12h.
 import { NextRequest, NextResponse } from 'next/server'
 import { fetchDailyConditions } from '@/lib/supabase'
 
@@ -25,8 +25,8 @@ export async function GET(request: NextRequest) {
       data
     })
 
-    // Cache for 6 hours (daily conditions like sunrise/sunset don't change often)
-    response.headers.set('Cache-Control', 'public, s-maxage=21600, stale-while-revalidate=43200')
+    // Cache for 12 hours (daily conditions update nightly)
+    response.headers.set('Cache-Control', 'public, s-maxage=43200, stale-while-revalidate=86400')
 
     return response
   } catch (error: unknown) {

@@ -70,12 +70,10 @@ export default function NavMoreMenu({
                 }}
               >
                 <Link href={item.href}>
-                  {item.iconKey ? (
-                    (() => {
-                      const Icon = iconMap[item.iconKey];
-                      return <Icon className="w-5 h-5 -mt-0.5" />;
-                    })()
-                  ) : null}
+                  {item.iconKey &&
+                    React.createElement(iconMap[item.iconKey], {
+                      className: "w-5 h-5 -mt-0.5",
+                    })}
                   {item.label}
                 </Link>
               </AppMenuItem>

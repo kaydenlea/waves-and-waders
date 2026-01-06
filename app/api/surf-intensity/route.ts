@@ -1,5 +1,5 @@
 // app/api/surf-intensity/route.ts
-// Surf intensity lookups are cached for 1 hour with SWR.
+// Surf intensity lookups are cached for 3 hours with SWR.
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
@@ -17,6 +17,11 @@ type BeachGridRow = {
   id: string | number
   grid_id: number | null
 }
+
+// Cache beach→grid mapping in memory (refreshed every 6 hours)
+let beachGridMapCache: Map<number, string[]> | null = null;
+let beachGridMapCacheTime = 0;
+const BEACH_GRID_CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours
 
 export async function GET(request: NextRequest) {
   try {
@@ -48,7 +53,7 @@ export async function GET(request: NextRequest) {
       })
       response.headers.set(
         'Cache-Control',
-        'public, s-maxage=3600, stale-while-revalidate=7200'
+        'public, s-maxage=10800, stale-while-revalidate=21600'
       )
       return response
     }
@@ -80,7 +85,7 @@ export async function GET(request: NextRequest) {
 
     response.headers.set(
       'Cache-Control',
-      'public, s-maxage=3600, stale-while-revalidate=7200'
+      'public, s-maxage=10800, stale-while-revalidate=21600'
     )
 
     return response
@@ -94,6 +99,14 @@ export async function GET(request: NextRequest) {
 }
 
 async function loadBeachGridMap(): Promise<Map<number, string[]>> {
+  // Check if we have a valid cached map
+  const now = Date.now();
+  if (beachGridMapCache && (now - beachGridMapCacheTime) < BEACH_GRID_CACHE_TTL) {
+    console.log('Using cached beach→grid map');
+    return beachGridMapCache;
+  }
+
+  console.log('Refreshing beach→grid map from database');
   const map = new Map<number, string[]>()
 
   // Fetch all beaches with pagination (Supabase limits to 1000 per request)
@@ -111,7 +124,7 @@ async function loadBeachGridMap(): Promise<Map<number, string[]>> {
 
     if (error) {
       console.error('Failed to load beaches for grid mapping:', error)
-      return map
+      return beachGridMapCache ?? map
     }
 
     if (!data || data.length === 0) {
@@ -130,6 +143,10 @@ async function loadBeachGridMap(): Promise<Map<number, string[]>> {
     }
     map.get(row.grid_id)!.push(String(row.id))
   }
+
+  // Update cache
+  beachGridMapCache = map;
+  beachGridMapCacheTime = now;
 
   console.log(`Loaded beach→grid map: ${allData.length} beaches with grid_id`)
   return map

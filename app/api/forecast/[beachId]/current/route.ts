@@ -26,10 +26,18 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       data: current,
     });
+
+    // Cache current conditions for 1 hour (data updates every ~3 hours)
+    response.headers.set(
+      'Cache-Control',
+      'public, s-maxage=3600, stale-while-revalidate=7200'
+    );
+
+    return response;
   } catch (error) {
     console.error("Error fetching current forecast:", error);
     return NextResponse.json(

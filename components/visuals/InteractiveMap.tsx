@@ -82,7 +82,7 @@ import {
   Compass,
 } from "lucide-react";
 import { SwellRings, WindRing } from "./DirectionRings";
-import { useMapData } from "../context/MapFilterContext";
+import { useMapData, useMapUI } from "../context/MapFilterContext";
 import { useMapViewport } from "../context/MapViewportContext";
 import { useViewportBeachesContext } from "../context/ViewportBeachesContext";
 import { useDateContext } from "../context/DateContext";
@@ -268,6 +268,10 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
     openPanel,
     setOpenPanel,
     togglePanel,
+    showMap,
+    setShowMap,
+  } = useMapUI();
+  const {
     popupData,
     setPopupData,
     popupId,
@@ -276,8 +280,6 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
     setMap,
     filters,
     setFilters,
-    showMap,
-    setShowMap,
   } = useMapData();
   const { setVisibleBounds, setViewportRequestId, setAllowViewportCommit } =
     useMapViewport();

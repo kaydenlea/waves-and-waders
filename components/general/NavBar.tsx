@@ -1,3 +1,4 @@
+import React from "react";
 import Link from "next/link";
 import Image from "next/image";
 import type { ElementType } from "react";
@@ -188,12 +189,10 @@ const NavBar = ({
                     : undefined
                 )}
               >
-                {item.icon ? (
-                  <item.icon
-                    className="h-4 w-4 text-foreground/70"
-                    aria-hidden="true"
-                  />
-                ) : null}
+                {item.icon && React.createElement(item.icon, {
+                  className: "h-4 w-4 text-foreground/70",
+                  "aria-hidden": true,
+                })}
                 {item.label}
               </Link>
             ))}

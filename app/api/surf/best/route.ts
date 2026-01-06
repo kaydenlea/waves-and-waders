@@ -103,10 +103,15 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       data: bestSpots.slice(0, limit)
     })
+    response.headers.set(
+      'Cache-Control',
+      'public, s-maxage=10800, stale-while-revalidate=21600'
+    )
+    return response
   } catch (error) {
     console.error('Error fetching best surf conditions:', error)
     return NextResponse.json(

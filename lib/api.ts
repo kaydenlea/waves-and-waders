@@ -196,7 +196,7 @@ export async function fetchSurfIntensityAPI(
 
 export async function fetchAllBeachesAPI(): Promise<ApiBeachRecord[]> {
   const res = await fetch(resolveApiUrl("/api/beaches"), {
-    next: { revalidate: 300 },
+    next: { revalidate: 21600 },
   });
 
   if (!res.ok) {

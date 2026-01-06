@@ -53,10 +53,18 @@ export async function GET(request: NextRequest) {
         longitude: beach.LONGITUDE
       }))
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       data: beaches
     })
+
+    // Cache search results for 1 hour (beach data rarely changes)
+    response.headers.set(
+      'Cache-Control',
+      'public, s-maxage=3600, stale-while-revalidate=7200'
+    )
+
+    return response
   } catch (error) {
     console.error('Error searching beaches:', error)
     return NextResponse.json(
