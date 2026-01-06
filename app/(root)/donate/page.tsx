@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import StaticPageShell from "@/components/general/StaticPageShell";
 import { toAbsoluteUrl } from "@/lib/seo";
+import { MessageSquareHeart } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Donate",
@@ -62,7 +63,10 @@ export default function DonatePage({
           We use Square&apos;s hosted checkout for secure donations. Donations
           are voluntary and not a purchase.
         </p>
-
+        <p className="mt-3 text-sm text-muted-foreground">
+          Donations support the development and maintenance of Waves & Waders.
+          Donations are not tax-deductible.
+        </p>
         <div className="mt-5">
           <div className="text-xs font-semibold tracking-wide text-foreground/70">
             Suggested
@@ -90,11 +94,6 @@ export default function DonatePage({
             })}
           </div>
         </div>
-
-        <p className="mt-3 text-sm text-muted-foreground">
-          Donations support the development and maintenance of Waves & Waders.
-          Donations are not tax-deductible.
-        </p>
         <div className="mt-6 flex flex-col items-stretch justify-center gap-3 sm:flex-row">
           {squareUrl ? (
             <a
@@ -107,16 +106,17 @@ export default function DonatePage({
             </a>
           ) : (
             <div className="rounded-2xl border border-border/50 bg-background/50 p-4 text-sm text-muted-foreground">
-              Donation link isn&apos;t configured yet. Set{" "}
+              Link isn&apos;t configured yet. Set{" "}
               <code className="font-mono">NEXT_PUBLIC_SQUARE_DONATE_URL</code>{" "}
-              to enable donations.
+              to enable.
             </div>
           )}
           <Link
             href="/contact"
             className="inline-flex items-center justify-center rounded-full border border-border/50 bg-background/50 px-5 py-2.5 text-sm font-medium text-foreground shadow-xs transition hover:bg-background/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 motion-reduce:transition-none"
           >
-            Share feedback
+            <MessageSquareHeart className="h-4 w-4 mr-1.5" aria-hidden="true" />
+            Feedback
           </Link>
         </div>
         <p className="mt-5 text-xs text-muted-foreground">

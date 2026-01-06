@@ -134,7 +134,7 @@ function WindowPickerVisual() {
     <div className="relative aspect-[4/3] w-full">
       <div className="absolute inset-0 bg-gradient-to-b from-highlight-5/30 via-transparent to-transparent" />
 
-      <div className="relative flex h-full w-full flex-col gap-8 px-4 py-4">
+      <div className="relative flex h-full w-full flex-col gap-3 @min-[375px]:gap-6 @min-md:gap-14 px-4 py-4">
         <div className="flex items-center justify-between gap-3">
           <div className="inline-flex items-center gap-2 rounded-full border border-border/50 bg-background/70 px-2.5 py-1.5 text-xs font-semibold text-foreground shadow-sm">
             <TimerReset className="h-4 w-4" aria-hidden="true" />
@@ -146,7 +146,7 @@ function WindowPickerVisual() {
           </div>
         </div>
 
-        <div className="w-full">
+        <div className="w-full @min-md:-mt-7">
           <LazyLoadDatePicker
             beachId={PREVIEW_BEACH_ID}
             maxDays={3}
@@ -323,7 +323,7 @@ export default function AllEssentialsCardsDeck() {
           node: (
             <EssentialsCard
               icon={<Clock className="h-4 w-4" aria-hidden="true" />}
-              title="Pick the right window"
+              title="Pick a window"
               description="Scan conditions hour-by-hour for the next 7 days."
               cta={<SecondaryLink href="/beaches">Beaches</SecondaryLink>}
             >
@@ -349,7 +349,7 @@ export default function AllEssentialsCardsDeck() {
           node: (
             <EssentialsCard
               icon={<Waves className="h-4 w-4" aria-hidden="true" />}
-              title="Direction made clear"
+              title="Visualize data"
               description="Visual data to speed up and simplify reading forecasts."
               cta={<SecondaryLink href="/beaches">Explore</SecondaryLink>}
             >
