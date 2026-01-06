@@ -44,11 +44,14 @@ export default function NavMoreMenu({
   links?: MenuLink[];
 }) {
   const [open, setOpen] = React.useState(false);
+  const [mounted, setMounted] = React.useState(false);
   const user = useUser();
-  const savedSpotsHref = user
+  const effectiveUser = mounted ? user : null;
+  const savedSpotsHref = effectiveUser
     ? "/beaches?tab=saved"
     : `/login?next=${encodeURIComponent("/beaches?tab=saved")}`;
   React.useEffect(() => {
+    setMounted(true);
     const onResize = () => setOpen(false);
     window.addEventListener("resize", onResize, { passive: true });
     return () => window.removeEventListener("resize", onResize);
@@ -100,7 +103,7 @@ export default function NavMoreMenu({
           asChild
           onSelect={() => {
             try {
-              if (user && typeof window !== "undefined") {
+              if (effectiveUser && typeof window !== "undefined") {
                 window.localStorage.setItem("tab:/beaches", "saved");
               }
             } catch {}
@@ -113,7 +116,7 @@ export default function NavMoreMenu({
         </AppMenuItem>
         <AppMenuSeparator className="@min-5xl:hidden" />
         <ThemeToggle switchMode />
-        {!user && (
+        {!effectiveUser && (
           <>
             <AppMenuSeparator
               className={cn(landingPage ? "@min-md:hidden" : "@min-5xl:hidden")}
