@@ -326,7 +326,7 @@ export default function BottomNav() {
       <>
         <div
           className={cn(
-            "fixed inset-0 z-50 bg-black/30 backdrop-blur-sm transition-opacity duration-150",
+            "fixed inset-0 z-50 bg-black/30 transition-opacity duration-100",
             openPanel === "filters"
               ? "opacity-100 pointer-events-auto"
               : "opacity-0 pointer-events-none"
@@ -338,7 +338,7 @@ export default function BottomNav() {
         <div
           style={{ touchAction: "pan-y" }}
           className={cn(
-            "fixed bottom-0 left-0 right-0 z-50 flex flex-col max-h-[85vh] transition-all duration-200 will-change-transform translate-y-4 opacity-0 pointer-events-none",
+            "fixed bottom-0 left-0 right-0 z-50 flex flex-col max-h-[85vh] transition-[transform,opacity] duration-150 will-change-transform translate-y-4 opacity-0 pointer-events-none",
             openPanel === "filters" &&
               "translate-y-0 opacity-100 pointer-events-auto",
             "@min-4xl:bottom-auto @min-4xl:left-1/2 @min-4xl:top-1/2 @min-4xl:right-auto @min-4xl:-translate-x-1/2 @min-4xl:-translate-y-1/2 @min-4xl:max-h-[80vh] @min-4xl:w-[800px]"
