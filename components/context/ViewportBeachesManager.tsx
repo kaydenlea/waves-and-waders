@@ -10,6 +10,7 @@ import { useViewportBeachesContext } from "./ViewportBeachesContext";
 const MAX_VIEWPORT_BEACHES = 1500;
 const ViewportBeachesManager = () => {
   const { filters, favoriteIds, setBeaches } = useMapData();
+  const deferredFilters = React.useDeferredValue(filters);
   const {
     visibleBounds,
     viewportRequestId,
@@ -31,7 +32,7 @@ const ViewportBeachesManager = () => {
     searchBounds ?? committedBounds ?? pendingBounds ?? visibleBounds;
   const { beaches, status } = useViewportBeaches({
     bounds: effectiveBounds,
-    filters,
+    filters: deferredFilters,
     favoriteIds,
     selectedTab,
     requestId: viewportRequestId,

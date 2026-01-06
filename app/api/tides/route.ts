@@ -1,5 +1,5 @@
 // app/api/tides/route.ts
-// Tide series are cacheable for 1 hour; see Cache-Control below.
+// Tide series are cacheable for 6 hours; see Cache-Control below.
 import { NextRequest, NextResponse } from 'next/server'
 import { fetchBeachTides } from '@/lib/supabase'
 
@@ -27,8 +27,8 @@ export async function GET(request: NextRequest) {
       data
     })
 
-    // Cache for 1 hour (tide data is predictable and changes slowly)
-    response.headers.set('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=7200')
+    // Cache for 6 hours (tide data is predictable and changes slowly)
+    response.headers.set('Cache-Control', 'public, s-maxage=21600, stale-while-revalidate=43200')
 
     return response
   } catch (error: unknown) {

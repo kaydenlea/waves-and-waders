@@ -1,9 +1,10 @@
 // app/api/beaches/route.ts
 // Returns full beach metadata; responses can be CDN cached client-side as needed.
+import crypto from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase, FEATURE_COLUMNS } from '@/lib/supabase'
 
-export const revalidate = 300;
+export const revalidate = 21600;
 
 type BeachRow = {
   id: string | number;
@@ -14,7 +15,7 @@ type BeachRow = {
   grid_id?: number | string | null;
 } & Record<(typeof FEATURE_COLUMNS)[number], boolean | number | string | null>;
 
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
     // Build select with common columns + feature flags
     const baseCols = 'id, Name, COUNTY, LATITUDE, LONGITUDE, grid_id'
@@ -88,14 +89,28 @@ export async function GET(_request: NextRequest) {
       }
     })
 
-    const response = NextResponse.json({
+    const payload = JSON.stringify({
       success: true,
       data: beaches
     })
+
+    // Generate ETag for conditional requests (reduces bandwidth when data hasn't changed)
+    const etag = crypto.createHash('sha1').update(payload).digest('base64url')
+
+    // Check if client already has this version
+    if (request.headers.get('if-none-match') === etag) {
+      return new NextResponse(null, { status: 304, statusText: 'Not Modified' })
+    }
+
+    const response = new NextResponse(payload, {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    })
     response.headers.set(
       'Cache-Control',
-      'public, s-maxage=300, stale-while-revalidate=600'
+      'public, s-maxage=21600, stale-while-revalidate=43200'
     )
+    response.headers.set('ETag', etag)
     return response
   } catch (error: unknown) {
     console.error('Error fetching beaches:', error)

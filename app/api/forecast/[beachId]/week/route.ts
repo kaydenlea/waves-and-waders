@@ -68,13 +68,21 @@ export async function GET(
       }
     }))
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       data: {
         beachId: beachId,
         forecasts
       }
     })
+
+    // Cache week forecast for 3 hours (data updates every ~3 hours)
+    response.headers.set(
+      'Cache-Control',
+      'public, s-maxage=10800, stale-while-revalidate=21600'
+    )
+
+    return response
   } catch (error) {
     console.error('Error fetching week forecast:', error)
     return NextResponse.json(

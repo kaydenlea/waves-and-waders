@@ -1,5 +1,5 @@
 // app/api/forecast/route.ts
-// Returns beach forecast windows and is cached for 30 minutes via Cache-Control.
+// Returns beach forecast windows and is cached for 3 hours via Cache-Control.
 import { NextRequest, NextResponse } from 'next/server'
 import { fetchBeachForecast } from '@/lib/supabase'
 
@@ -27,8 +27,8 @@ export async function GET(request: NextRequest) {
       data
     })
 
-    // Cache for 30 minutes (forecast data changes infrequently)
-    response.headers.set('Cache-Control', 'public, s-maxage=1800, stale-while-revalidate=3600')
+    // Cache for 3 hours (forecast data updates every ~3 hours)
+    response.headers.set('Cache-Control', 'public, s-maxage=10800, stale-while-revalidate=21600')
 
     return response
   } catch (error: unknown) {

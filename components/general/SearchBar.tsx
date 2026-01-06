@@ -29,24 +29,25 @@ type BeachHit = {
 const SearchResultItem = memo(function SearchResultItem({
   hit,
   isActive,
-  onMouseEnter,
   onSelect,
 }: {
   hit: BeachHit;
   isActive: boolean;
-  onMouseEnter: () => void;
-  onSelect: () => void;
+  onSelect: (hit: BeachHit) => void;
 }) {
+  const handleSelect = useCallback(() => {
+    onSelect(hit);
+  }, [hit, onSelect]);
+
   return (
     <li
       className={cn(
-        "p-3.5 cursor-pointer rounded-lg transition-colors",
+        "p-3.5 cursor-pointer rounded-lg",
         isActive ? "bg-highlight-3" : "hover:bg-highlight-3"
       )}
-      onMouseEnter={onMouseEnter}
       onMouseDown={(e) => {
         e.preventDefault();
-        onSelect();
+        handleSelect();
       }}
     >
       <div className="flex flex-col @min-4xl:flex-row items-start @min-4xl:items-center justify-between">
@@ -70,7 +71,7 @@ const SearchBar = ({
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [hits, setHits] = useState<BeachHit[]>([]);
-  const [active, setActive] = useState(0);
+  const [active, setActive] = useState(-1);
   const [, startTransition] = useTransition();
   const abortRef = useRef<AbortController | null>(null);
   const boxRef = useRef<HTMLFormElement | null>(null);
@@ -79,6 +80,9 @@ const SearchBar = ({
 
   // Deferred query for smoother typing - input stays responsive
   const deferredQuery = useDeferredValue(query);
+  const deferredHits = useDeferredValue(hits);
+  const deferredOpen = useDeferredValue(open);
+  const visibleHits = deferredOpen ? deferredHits : [];
 
   // keep a ref to always know the latest query value
   const latestQueryRef = useRef<string>(query);
@@ -102,15 +106,16 @@ const SearchBar = ({
     [router, setIsOverlay]
   );
 
+
   // Memoized results list for stable reference
   const searchResults = useMemo(() => {
-    if (!open || hits.length === 0) return null;
-    return hits.map((h, idx) => ({
+    if (!deferredOpen || visibleHits.length === 0) return null;
+    return visibleHits.map((h, idx) => ({
       hit: h,
       isActive: idx === active,
       index: idx,
     }));
-  }, [hits, open, active]);
+  }, [visibleHits, deferredOpen, active]);
 
   useEffect(() => {
     // keep ref in sync
@@ -158,7 +163,7 @@ const SearchBar = ({
           startTransition(() => {
             setHits(json.data as BeachHit[]);
             setOpen(true);
-            setActive(0);
+            setActive(-1);
           });
         } else {
           // If API returned no data, ensure UI reflects that
@@ -195,13 +200,15 @@ const SearchBar = ({
     if (!open || hits.length === 0) return;
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setActive((i) => (i + 1) % hits.length);
+      setActive((i) => (i < 0 ? 0 : (i + 1) % hits.length));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setActive((i) => (i - 1 + hits.length) % hits.length);
+      setActive((i) =>
+        i < 0 ? hits.length - 1 : (i - 1 + hits.length) % hits.length
+      );
     } else if (e.key === "Enter") {
       e.preventDefault();
-      const hit = hits[active];
+      const hit = active >= 0 ? hits[active] : undefined;
       if (hit) onSelect(hit);
     } else if (e.key === "Escape") {
       if (isOverlay) setIsOverlay(false);
@@ -369,16 +376,15 @@ const SearchBar = ({
             </div>
 
             {/* Search results in overlay */}
-            {open && hits.length > 0 && (
+            {deferredOpen && visibleHits.length > 0 && (
               <div className="mt-4 w-full max-w-2xl bg-background border border-border/30 shadow-even rounded-md">
                 <ul className="rounded-xl overflow-y-auto max-h-[80vh] p-2">
-                  {hits.map((h, idx) => (
+                  {visibleHits.map((h, idx) => (
                     <SearchResultItem
                       key={`${h.id}`}
                       hit={h}
                       isActive={idx === active}
-                      onMouseEnter={() => setActive(idx)}
-                      onSelect={() => onSelect(h)}
+                      onSelect={onSelect}
                     />
                   ))}
                 </ul>

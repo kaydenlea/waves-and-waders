@@ -20,7 +20,9 @@ const parseAmount = (raw: string | string[] | undefined): Amount | null => {
   const value = Array.isArray(raw) ? raw[0] : raw;
   const parsed = Number.parseInt(value, 10);
   if (!Number.isFinite(parsed)) return null;
-  return (AMOUNTS as readonly number[]).includes(parsed) ? (parsed as Amount) : null;
+  return (AMOUNTS as readonly number[]).includes(parsed)
+    ? (parsed as Amount)
+    : null;
 };
 
 const getSquareDonateUrl = (
@@ -32,8 +34,8 @@ const getSquareDonateUrl = (
     amount === 1
       ? process.env.NEXT_PUBLIC_SQUARE_DONATE_URL_1
       : amount === 3
-        ? process.env.NEXT_PUBLIC_SQUARE_DONATE_URL_3
-        : process.env.NEXT_PUBLIC_SQUARE_DONATE_URL_5;
+      ? process.env.NEXT_PUBLIC_SQUARE_DONATE_URL_3
+      : process.env.NEXT_PUBLIC_SQUARE_DONATE_URL_5;
   if (byAmount) return { url: byAmount, isAmountSpecific: true };
   return { url: base, isAmountSpecific: false };
 };
@@ -57,8 +59,8 @@ export default function DonatePage({
           Donate with Square
         </h2>
         <p className="mt-3 text-sm text-muted-foreground">
-          We use Square&apos;s hosted checkout for secure donations. Donations are
-          voluntary and not a purchase.
+          We use Square&apos;s hosted checkout for secure donations. Donations
+          are voluntary and not a purchase.
         </p>
 
         <div className="mt-5">
@@ -89,6 +91,10 @@ export default function DonatePage({
           </div>
         </div>
 
+        <p className="mt-3 text-sm text-muted-foreground">
+          Donations support the development and maintenance of Waves & Waders.
+          Donations are not tax-deductible.
+        </p>
         <div className="mt-6 flex flex-col items-stretch justify-center gap-3 sm:flex-row">
           {squareUrl ? (
             <a
@@ -102,8 +108,8 @@ export default function DonatePage({
           ) : (
             <div className="rounded-2xl border border-border/50 bg-background/50 p-4 text-sm text-muted-foreground">
               Donation link isn&apos;t configured yet. Set{" "}
-              <code className="font-mono">NEXT_PUBLIC_SQUARE_DONATE_URL</code> to
-              enable donations.
+              <code className="font-mono">NEXT_PUBLIC_SQUARE_DONATE_URL</code>{" "}
+              to enable donations.
             </div>
           )}
           <Link

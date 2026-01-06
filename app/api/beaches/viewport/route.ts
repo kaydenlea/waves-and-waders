@@ -231,19 +231,28 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    if (includeStats) {
-      return NextResponse.json({
-        success: true,
-        data: {
-          beaches: Array.from(deduped.values()),
-          stats: statsPayload,
-        },
-      });
-    }
-    return NextResponse.json({
-      success: true,
-      data: Array.from(deduped.values()),
-    });
+    const response = includeStats
+      ? NextResponse.json({
+          success: true,
+          data: {
+            beaches: Array.from(deduped.values()),
+            stats: statsPayload,
+          },
+        })
+      : NextResponse.json({
+          success: true,
+          data: Array.from(deduped.values()),
+        });
+
+    // Cache viewport queries for 10-20 minutes; stats update ~every 3 hours
+    response.headers.set(
+      'Cache-Control',
+      includeStats
+        ? 'public, s-maxage=600, stale-while-revalidate=1200'
+        : 'public, s-maxage=1200, stale-while-revalidate=2400'
+    );
+
+    return response;
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     const status = message.startsWith("Missing") ? 400 : 500;

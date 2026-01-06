@@ -181,7 +181,6 @@ export default function FiltersPanel({
     <div
       className={cn(
         "h-full rounded-3xl border border-border/30 bg-background/95",
-        "supports-[backdrop-filter]:backdrop-blur-sm",
         "overflow-hidden flex flex-col",
         className
       )}
