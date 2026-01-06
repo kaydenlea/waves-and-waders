@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { CSSProperties } from "react";
 
 import DashboardPersonalizationPreview from "@/components/marketing/DashboardPersonalizationPreview";
 import InViewOnce from "@/components/marketing/InViewOnce";
@@ -36,7 +37,7 @@ export default function PersonalizeForecastsSection({
 
           <div
             className="ww-reveal mt-6 flex flex-wrap items-center justify-center xl:justify-start gap-3"
-            style={{ ["--delay" as any]: "80ms" }}
+            style={{ "--delay": "80ms" } as CSSProperties}
           >
             <Link
               href="/beaches#content"
@@ -79,7 +80,7 @@ export default function PersonalizeForecastsSection({
         >
           <div
             className="ww-reveal"
-            style={{ ["--delay" as any]: "120ms" }}
+            style={{ "--delay": "120ms" } as CSSProperties}
           >
             <DashboardPersonalizationPreview className="mx-auto w-full max-w-[46rem] xl:max-w-none" />
           </div>

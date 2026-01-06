@@ -11,7 +11,7 @@ import { Description } from "@/components/visuals/AnimatedCardsSection";
 import AnimatedCountSection from "@/components/visuals/AnimatedCountSection";
 import FaqSection from "@/components/visuals/FaqSection";
 import PersonalizeForecastsSection from "@/components/marketing/PersonalizeForecastsSection";
-import AllEssentialsSection from "@/components/marketing/AllEssentialsSection";
+import AllEssentialsCardsSection from "@/components/marketing/AllEssentialsCardsSection";
 import DonateInlineCallout from "@/components/marketing/DonateInlineCallout";
 import DonateSection from "@/components/marketing/DonateSection";
 import DonateStickyPill from "@/components/marketing/DonateStickyPill";
@@ -186,7 +186,7 @@ const Home = () => {
 
   return (
     <div className="touch-pan-y">
-      <main className="relative min-h-screen bg-background text-foreground selection:bg-cyan-300/40">
+      <main className="ww-disable-backdrop relative min-h-screen bg-background text-foreground selection:bg-cyan-300/40">
         <DonateStickyPill />
         <script
           type="application/ld+json"
@@ -294,8 +294,8 @@ const Home = () => {
             ))}
           </div>
         </section> */}
+        <AllEssentialsCardsSection />
         <AnimatedCountSection />
-        <AllEssentialsSection />
         {/* <section
           id="why"
           className="mx-auto max-w-7xl px-4 pt-24 pb-16 sm:px-6"
@@ -332,7 +332,7 @@ const Home = () => {
           <InViewOnce rootAttr="data-ww-section" />
           <div
             className="ww-reveal grid grid-cols-1 items-start justify-items-center gap-10 xl:grid-cols-12 xl:justify-items-stretch xl:gap-12"
-            style={{ ["--delay" as any]: "60ms" }}
+            style={{ "--delay": "60ms" } as React.CSSProperties}
           >
             <div className="w-full max-w-xl xl:col-span-5 xl:max-w-none order-1 xl:order-2">
               <Description />
@@ -342,7 +342,6 @@ const Home = () => {
             </div>
           </div>
         </section>
-
         {/* <DonateInlineCallout className="pb-16 sm:pb-20" /> */}
         {/* <section
           id="nearby"

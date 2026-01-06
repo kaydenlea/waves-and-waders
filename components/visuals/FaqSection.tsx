@@ -5,6 +5,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import InViewOnce from "@/components/marketing/InViewOnce";
+import type { CSSProperties } from "react";
 
 const faqData = [
   {
@@ -47,7 +48,7 @@ const FaqSection = () => {
     <section
       data-ww-section
       data-inview="false"
-      className="ww-section mx-auto max-w-3xl xl:max-w-5xl px-4 sm:px-6 py-16 sm:py-20"
+      className="ww-section mx-auto max-w-4xl xl:max-w-5xl px-4 sm:px-6 py-16 sm:py-20"
     >
       <InViewOnce rootAttr="data-ww-section" />
       <script
@@ -61,7 +62,7 @@ const FaqSection = () => {
       </header>
       <div
         className="ww-reveal mx-auto mt-10 rounded-3xl border border-border/30 bg-background/40 p-3 shadow-xs sm:p-6"
-        style={{ ["--delay" as any]: "60ms" }}
+        style={{ "--delay": "60ms" } as CSSProperties}
       >
         <Accordion type="single" collapsible>
           {faqData.map((faq, index) => (

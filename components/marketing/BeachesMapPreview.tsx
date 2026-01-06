@@ -107,10 +107,10 @@ export default function BeachesMapPreview({
 
         {showGestureHint && (
           <div className="pointer-events-none absolute inset-0 z-[1200] grid place-items-center">
-            <div className="absolute inset-0 bg-background/10 backdrop-blur-[1px]" />
+            <div className="absolute inset-0 bg-background/30 backdrop-blur-sm" />
             <div className="relative mx-4 max-w-[34rem] rounded-2xl border border-border/60 bg-background/85 px-4 py-3 text-center text-xs font-medium text-foreground/85 shadow-sm backdrop-blur">
               <span className="font-semibold">Ctrl</span> + scroll to zoom.
-              <span className="hidden sm:inline"> Pinch on trackpad.</span>
+              <span className="hidden sm:inline"> Pinch to zoom on trackpad.</span>
             </div>
           </div>
         )}

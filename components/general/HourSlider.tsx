@@ -24,6 +24,7 @@ type Props = {
   min?: number;
   max?: number;
   step?: number;
+  previewTrackGradient?: string;
   className?: string;
 };
 
@@ -36,6 +37,7 @@ const HourSlider = ({
   min = 0,
   max = 21,
   step = 3,
+  previewTrackGradient,
   className = "",
 }: Props) => {
   const [internal, setInternal] = useState<number>(() => {
@@ -72,11 +74,16 @@ const HourSlider = ({
     return out;
   }, [max, min, step]);
 
-  const lastGradientRef = useRef<string | null>(getCachedHourSliderTrackGradient());
+  const lastGradientRef = useRef<string | null>(
+    getCachedHourSliderTrackGradient()
+  );
   const pendingWindowStartMsRef = useRef<number | null>(null);
   const pendingSinceMsRef = useRef<number | null>(null);
 
   const computedTrackGradient = useMemo(() => {
+    if (!beachId && previewTrackGradient) {
+      return previewTrackGradient;
+    }
     const safeRows = Array.isArray(forecastRows) ? forecastRows : [];
     const startMs = windowStart.getTime();
     const endMs = windowEnd.getTime();
@@ -88,7 +95,8 @@ const HourSlider = ({
         return Number.isFinite(ts) && ts >= startMs && ts <= endMs;
       });
 
-    const isWindowPending = !hasRowInWindow && (forecastLoading || safeRows.length > 0);
+    const isWindowPending =
+      !hasRowInWindow && (forecastLoading || safeRows.length > 0);
 
     if (pendingWindowStartMsRef.current !== startMs) {
       pendingWindowStartMsRef.current = startMs;
@@ -144,8 +152,10 @@ const HourSlider = ({
     forecastRows,
     max,
     min,
+    previewTrackGradient,
     step,
     stepSegments,
+    beachId,
     windowEnd,
     windowStart,
   ]);
@@ -237,7 +247,10 @@ const HourSlider = ({
         )}
         thumbClassName="relative z-10 size-5 bg-white dark:bg-slate-900 border-2 border-slate-800 dark:border-white shadow-md"
         trackStyle={{
-          backgroundImage: computedTrackGradient,
+          backgroundImage:
+            computedTrackGradient ??
+            previewTrackGradient ??
+            "linear-gradient(90deg, var(--ww-surf-intensity-unknown) 0%, var(--ww-surf-intensity-unknown) 100%)",
           backgroundColor: "var(--ww-surf-intensity-unknown)",
         }}
         // rangeStyle={{ background: rangeTint }}
@@ -273,7 +286,7 @@ const HourSlider = ({
       <div className="w-full flex justify-between pl-1.5 pr-2.5">
         {Array.from({ length: 8 }, (_, i) => (
           <div key={i}>
-            <div className="absolute bottom-0 h-[15px] @min-md:h-[16px] w-[2px] rounded-full bg-gray-300" />
+            <div className="absolute bottom-1 h-[11px] @min-md:h-[12px] w-[2px] rounded-full bg-gray-300" />
           </div>
         ))}
       </div>

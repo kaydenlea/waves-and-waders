@@ -44,6 +44,9 @@ type DatePickerProps = {
   value?: Date | null; // controlled selected date (optional)
   onSelect?: (date: Date) => void; // notify parent on selection
   forecast?: boolean;
+  maxDays?: number;
+  showNav?: boolean;
+  itemsPerView?: 2 | 3;
 };
 
 type DaySummary = {
@@ -133,6 +136,9 @@ const DatePicker = ({
   beachId,
   value,
   onSelect,
+  maxDays,
+  showNav = true,
+  itemsPerView,
 }: // forecast = false,
 DatePickerProps) => {
   const { selectedTab } = useClientPath();
@@ -729,9 +735,10 @@ DatePickerProps) => {
           setApi={setApi}
           className="w-full flex items-center gap-1"
         >
-          <CarouselPrevious onClick={handlePrev} />
+          {showNav ? <CarouselPrevious onClick={handlePrev} /> : null}
           <CarouselContent className="mx-0">
-            {orderedKeys.map((key, index) => {
+            {(maxDays ? orderedKeys.slice(0, maxDays) : orderedKeys).map(
+              (key, index) => {
               // restrict days for forecast (4 day ranges)
               // const disabledDay = forecast && index > orderedKeys.length - 4;
               const summary = summaries[key];
@@ -798,7 +805,9 @@ DatePickerProps) => {
                 <CarouselItem
                   key={index}
                   className={cn(
-                    "basis-1/2 @min-[350px]:basis-1/3 @min-md:basis-1/4 @min-xl:basis-1/5 @min-2xl:basis-1/6 @min-3xl:basis-1/7 flex justify-center"
+                    itemsPerView === 3
+                      ? "basis-1/3 flex justify-center"
+                      : "basis-1/2 @min-[350px]:basis-1/3 @min-md:basis-1/4 @min-xl:basis-1/5 @min-2xl:basis-1/6 @min-3xl:basis-1/7 flex justify-center"
                   )}
                 >
                   <button
@@ -866,9 +875,10 @@ DatePickerProps) => {
                   </button>
                 </CarouselItem>
               );
-            })}
+              }
+            )}
           </CarouselContent>
-          <CarouselNext onClick={handleNext} />
+          {showNav ? <CarouselNext onClick={handleNext} /> : null}
         </Carousel>
       )}
     </div>

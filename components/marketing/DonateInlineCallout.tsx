@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { HandHeart } from "lucide-react";
+import type { CSSProperties } from "react";
 import { cn } from "@/lib/utils";
 import InViewOnce from "@/components/marketing/InViewOnce";
 
@@ -21,7 +22,7 @@ export default function DonateInlineCallout({
       <InViewOnce rootAttr="data-ww-section" />
       <div
         className="ww-reveal rounded-3xl border border-border/40 bg-background/40 p-5 shadow-xs sm:p-6"
-        style={{ ["--delay" as any]: "40ms" }}
+        style={{ "--delay": "40ms" } as CSSProperties}
       >
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-3">

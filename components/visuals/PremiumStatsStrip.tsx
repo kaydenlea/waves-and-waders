@@ -86,66 +86,58 @@ function usePrefersReducedMotion() {
 function AnimatedOverlayNumber({
   value,
   play,
-  durationMs = 1400,
+  durationMs = 2200,
 }: {
   value: number;
   play: boolean;
   durationMs?: number;
 }) {
   const prefersReducedMotion = usePrefersReducedMotion();
-  const [overlayValue, setOverlayValue] = React.useState(0);
-  const [overlayVisible, setOverlayVisible] = React.useState(false);
+  const [displayValue, setDisplayValue] = React.useState(0);
+  const hasPlayedRef = React.useRef(false);
 
   React.useEffect(() => {
-    if (!play || prefersReducedMotion) return;
+    if (prefersReducedMotion) {
+      hasPlayedRef.current = true;
+      setDisplayValue(value);
+      return;
+    }
+    if (!play || hasPlayedRef.current) return;
     let rafId = 0;
-    let timeoutId: number | null = null;
     const start = performance.now();
 
-    setOverlayVisible(true);
-    setOverlayValue(0);
+    hasPlayedRef.current = true;
+    setDisplayValue(0);
 
     const tick = (now: number) => {
       const t = (now - start) / durationMs;
       const eased = easeOutCubic(t);
       const next = Math.round(value * eased);
-      setOverlayValue(next);
+      setDisplayValue(next);
       if (t < 1) {
         rafId = window.requestAnimationFrame(tick);
         return;
       }
-      setOverlayValue(value);
-      timeoutId = window.setTimeout(() => setOverlayVisible(false), 140);
+      setDisplayValue(value);
     };
 
     rafId = window.requestAnimationFrame(tick);
     return () => {
       window.cancelAnimationFrame(rafId);
-      if (timeoutId != null) window.clearTimeout(timeoutId);
     };
   }, [durationMs, play, prefersReducedMotion, value]);
 
   const finalText = formatInteger(value);
 
   return (
-    <span className="relative inline-grid tabular-nums">
-      <span
-        className={cn(
-          "col-start-1 row-start-1 transition-opacity duration-200 motion-reduce:transition-none",
-          overlayVisible ? "opacity-0" : "opacity-100"
-        )}
-      >
+    <span className="relative inline-grid tabular-nums" aria-label={finalText}>
+      <span aria-hidden className="col-start-1 row-start-1 opacity-0">
         {finalText}
       </span>
-      <span
-        aria-hidden
-        className={cn(
-          "col-start-1 row-start-1 transition-opacity duration-200 motion-reduce:hidden",
-          overlayVisible ? "opacity-100" : "opacity-0"
-        )}
-      >
-        {formatInteger(overlayValue)}
+      <span aria-hidden className="col-start-1 row-start-1">
+        {formatInteger(displayValue)}
       </span>
+      <span className="sr-only">{finalText}</span>
     </span>
   );
 }
@@ -159,8 +151,8 @@ export default function PremiumStatsStrip({
 }) {
   const inViewOptions = React.useMemo<IntersectionObserverInit>(
     () => ({
-      rootMargin: "0px 0px -20% 0px",
-      threshold: 0,
+      rootMargin: "0px 0px -10% 0px",
+      threshold: 0.12,
     }),
     []
   );
