@@ -82,6 +82,49 @@ export default function BottomNav() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // Mobile map pages: prevent accidental page scroll while the map is in view.
+  // The content drawer should only be revealed via the "View …" button, not by
+  // dragging UI chrome (map controls, bottom nav, etc).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!mobile) return;
+    if (landingPage) return;
+    if (isEditing) return;
+    if (!atTop) return;
+    if (openPanel === "filters") return;
+
+    const mapContainer = document.getElementById("map-container");
+    if (!mapContainer) return;
+
+    if (window.scrollY !== 0) {
+      try {
+        window.scrollTo({ top: 0 });
+      } catch {
+        window.scrollTo(0, 0);
+      }
+    }
+
+    const prevHtmlOverscroll = document.documentElement.style.overscrollBehaviorY;
+    const prevBodyOverscroll = document.body.style.overscrollBehaviorY;
+    document.documentElement.style.overscrollBehaviorY = "none";
+    document.body.style.overscrollBehaviorY = "none";
+
+    const preventScroll = (event: Event) => {
+      if (!event.cancelable) return;
+      event.preventDefault();
+    };
+
+    window.addEventListener("touchmove", preventScroll, { passive: false });
+    window.addEventListener("wheel", preventScroll, { passive: false });
+
+    return () => {
+      window.removeEventListener("touchmove", preventScroll);
+      window.removeEventListener("wheel", preventScroll);
+      document.documentElement.style.overscrollBehaviorY = prevHtmlOverscroll;
+      document.body.style.overscrollBehaviorY = prevBodyOverscroll;
+    };
+  }, [mobile, landingPage, isEditing, atTop, openPanel, pathname]);
+
   useEffect(() => {
     if (isEditing) return;
     let scrollTimeout: NodeJS.Timeout | null = null;

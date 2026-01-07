@@ -9,7 +9,8 @@ import { useViewportBeachesContext } from "./ViewportBeachesContext";
 
 const MAX_VIEWPORT_BEACHES = 1500;
 const ViewportBeachesManager = () => {
-  const { filters, favoriteIds, setBeaches } = useMapData();
+  const { filters, favoriteIds, setBeaches, beaches: mapBeaches } = useMapData();
+  const mapBeachesCount = mapBeaches.length;
   const deferredFilters = React.useDeferredValue(filters);
   const {
     visibleBounds,
@@ -37,6 +38,7 @@ const ViewportBeachesManager = () => {
     selectedTab,
     requestId: viewportRequestId,
     limit: MAX_VIEWPORT_BEACHES,
+    enabled: allowViewportCommit,
   });
 
   React.useEffect(() => {
@@ -49,9 +51,18 @@ const ViewportBeachesManager = () => {
   }, [visibleBounds, onCameraChange, camera.center, camera.zoom]);
 
   React.useEffect(() => {
-    setViewportStatus(status);
-    setViewportContextStatus(status);
-  }, [status, setViewportContextStatus, setViewportStatus]);
+    const shouldMaskSuccess =
+      status === "success" && beaches.length > 0 && mapBeachesCount === 0;
+    const next = shouldMaskSuccess ? "loading" : status;
+    setViewportStatus(next);
+    setViewportContextStatus(next);
+  }, [
+    status,
+    beaches.length,
+    mapBeachesCount,
+    setViewportContextStatus,
+    setViewportStatus,
+  ]);
 
   const pendingBeachesRef = React.useRef<typeof beaches | null>(null);
 
@@ -60,9 +71,11 @@ const ViewportBeachesManager = () => {
       return;
     }
     if (allowViewportCommit) {
-      setViewportContextBeaches(beaches);
-      setBeaches(beaches);
-      commitPending();
+      React.startTransition(() => {
+        setViewportContextBeaches(beaches);
+        setBeaches(beaches);
+        commitPending();
+      });
       pendingBeachesRef.current = null;
     } else {
       pendingBeachesRef.current = beaches;
@@ -77,9 +90,12 @@ const ViewportBeachesManager = () => {
   ]);
   React.useEffect(() => {
     if (allowViewportCommit && pendingBeachesRef.current) {
-      setViewportContextBeaches(pendingBeachesRef.current);
-      setBeaches(pendingBeachesRef.current);
-      commitPending();
+      const next = pendingBeachesRef.current;
+      React.startTransition(() => {
+        setViewportContextBeaches(next);
+        setBeaches(next);
+        commitPending();
+      });
       pendingBeachesRef.current = null;
     }
   }, [

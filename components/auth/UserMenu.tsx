@@ -24,9 +24,7 @@ export const UserMenu = ({
   const user = useUser();
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
-  const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => {
-    setMounted(true);
     const onResize = () => setOpen(false);
     if (typeof window !== "undefined") {
       window.addEventListener("resize", onResize, { passive: true });
@@ -34,9 +32,7 @@ export const UserMenu = ({
     }
   }, []);
 
-  const effectiveUser = mounted ? user : null;
-
-  if (!effectiveUser) {
+  if (!user) {
     return (
       <Link
         className={cn(
@@ -65,7 +61,7 @@ export const UserMenu = ({
     );
   }
 
-  const displayEmail = effectiveUser.email ?? "Account";
+  const displayEmail = user.email ?? "Account";
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();

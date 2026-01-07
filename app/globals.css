@@ -162,6 +162,21 @@
       opacity: 0.03 !important;
     }
   }
+
+  /* Perf: mobile browsers often struggle with large blurred animations during scroll. */
+  @media (hover: none) and (pointer: coarse) {
+    .ww-hero-blob-1,
+    .ww-hero-blob-2,
+    .ww-hero-blob-3,
+    .ww-hero-float {
+      animation: none !important;
+    }
+
+    .ww-hero-noise {
+      mix-blend-mode: normal !important;
+      opacity: 0.03 !important;
+    }
+  }
 }
 
 @theme inline {
@@ -283,10 +298,10 @@
   --energy-stroke-dec: oklch(55.855% 0.18038 25.848 / 0.178);
 
   /* Surf intensity (low → mid → high) used by DatePicker + HourSlider */
-  --ww-surf-intensity-unknown: oklch(93.5% 0.01 250);
-  --ww-surf-intensity-low: oklch(90% 0.085 145);
-  --ww-surf-intensity-mid: oklch(90% 0.095 80);
-  --ww-surf-intensity-high: oklch(89% 0.095 28);
+  --ww-surf-intensity-unknown: oklch(86% 0.02 250);
+  --ww-surf-intensity-low: oklch(86% 0.16 145);
+  --ww-surf-intensity-mid: oklch(82% 0.16 82);
+  --ww-surf-intensity-high: oklch(76% 0.18 28);
 
   /* Map marker rings (direction overlay) */
   --ww-ring-swell-primary: #60a5fa;
@@ -365,9 +380,9 @@
   /* Surf intensity (low → mid → high) used by DatePicker + HourSlider */
   --ww-surf-intensity-unknown: oklch(33% 0.02 250);
   /* Dark mode: slightly richer to match the rest of the UI (DatePicker markers). */
-  --ww-surf-intensity-low: oklch(91.322% 0.16386 145.367 / 0.801);
-  --ww-surf-intensity-mid: oklch(86.708% 0.1172 76.638 / 0.822);
-  --ww-surf-intensity-high: oklch(74.834% 0.15204 27.929 / 0.767);
+  --ww-surf-intensity-low: oklch(88% 0.17 145 / 0.86);
+  --ww-surf-intensity-mid: oklch(82% 0.14 82 / 0.86);
+  --ww-surf-intensity-high: oklch(72% 0.18 28 / 0.84);
 
   /* Map marker rings (direction overlay) */
   --ww-ring-swell-primary: #60a5fa;

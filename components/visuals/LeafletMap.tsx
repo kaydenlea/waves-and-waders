@@ -127,6 +127,7 @@ const LAST_SELECTION_KEY = "ww:last-selected-beach";
 const LAST_SELECTION_CENTER_KEY = "ww:last-selected-center";
 const CAMERA_MIN_INTERVAL = 120;
 const COMMIT_IDLE_DELAY = 180;
+const CAMERA_UPDATE_DEBOUNCE_MS = 220;
 const RESIZE_SETTLE_DELAY = 180;
 const BOUNDS_DELTA_THRESHOLD = 0.0005;
 const MARKER_BUILD_FRAME_BUDGET_MS = 10;
@@ -1592,6 +1593,8 @@ const LeafletMap: React.FC<Props> = ({
   );
   const persistViewTimeoutRef = React.useRef<number | null>(null);
   const resumeCommitTimeoutRef = React.useRef<number | null>(null);
+  const cameraUpdateTimeoutRef = React.useRef<number | null>(null);
+  const cameraUpdateVersionRef = React.useRef(0);
   const prefetchStatsTimeoutRef = React.useRef<number | null>(null);
   const resizeTimeoutRef = React.useRef<number | null>(null);
   const resizeRafRef = React.useRef<number | null>(null);
@@ -1981,6 +1984,41 @@ const LeafletMap: React.FC<Props> = ({
     mapReady &&
     mapViewportStatus !== "error" &&
     (markersLoading || mapViewportStatus === "loading");
+  const [showLoadingPillStable, setShowLoadingPillStable] =
+    React.useState(false);
+  const loadingPillHideTimeoutRef = React.useRef<number | null>(null);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    if (showLoadingPill) {
+      if (loadingPillHideTimeoutRef.current != null) {
+        window.clearTimeout(loadingPillHideTimeoutRef.current);
+        loadingPillHideTimeoutRef.current = null;
+      }
+      setShowLoadingPillStable(true);
+      return;
+    }
+
+    if (!showLoadingPillStable) {
+      return;
+    }
+
+    if (loadingPillHideTimeoutRef.current != null) {
+      window.clearTimeout(loadingPillHideTimeoutRef.current);
+    }
+    loadingPillHideTimeoutRef.current = window.setTimeout(() => {
+      loadingPillHideTimeoutRef.current = null;
+      setShowLoadingPillStable(false);
+    }, 250);
+
+    return () => {
+      if (loadingPillHideTimeoutRef.current != null) {
+        window.clearTimeout(loadingPillHideTimeoutRef.current);
+        loadingPillHideTimeoutRef.current = null;
+      }
+    };
+  }, [showLoadingPill, showLoadingPillStable]);
 
   const findBeachMatch = React.useCallback(
     (identifier: string | number | null | undefined): BeachPoint | null => {
@@ -2077,6 +2115,30 @@ const LeafletMap: React.FC<Props> = ({
     });
   }, [publishCameraSnapshot]);
 
+  const cancelScheduledCameraUpdate = React.useCallback(() => {
+    if (cameraUpdateTimeoutRef.current != null) {
+      window.clearTimeout(cameraUpdateTimeoutRef.current);
+      cameraUpdateTimeoutRef.current = null;
+    }
+    cameraUpdateVersionRef.current += 1;
+  }, []);
+
+  const scheduleCameraUpdate = React.useCallback(
+    (delayMs: number = CAMERA_UPDATE_DEBOUNCE_MS) => {
+      if (typeof window === "undefined") return;
+      if (!mapRef.current) return;
+      cancelScheduledCameraUpdate();
+      const version = cameraUpdateVersionRef.current;
+      cameraUpdateTimeoutRef.current = window.setTimeout(() => {
+        if (cameraUpdateVersionRef.current !== version) return;
+        cameraUpdateTimeoutRef.current = null;
+        if (isMapInteractingRef.current) return;
+        emitCameraUpdate();
+      }, delayMs);
+    },
+    [cancelScheduledCameraUpdate, emitCameraUpdate]
+  );
+
   const cancelCommitResume = React.useCallback(() => {
     if (resumeCommitTimeoutRef.current != null) {
       window.clearTimeout(resumeCommitTimeoutRef.current);
@@ -2152,10 +2214,10 @@ const LeafletMap: React.FC<Props> = ({
         normalizeMapCenter();
         requestMarkerRebuild();
         clearHoverStateRef.current?.();
-        emitCameraUpdate();
+        scheduleCameraUpdate(0);
       });
     }, RESIZE_SETTLE_DELAY);
-  }, [emitCameraUpdate, normalizeMapCenter, requestMarkerRebuild]);
+  }, [normalizeMapCenter, requestMarkerRebuild, scheduleCameraUpdate]);
 
   const scheduleMapViewPersistence = React.useCallback(
     (payload: StoredViewState) => {
@@ -2208,6 +2270,15 @@ const LeafletMap: React.FC<Props> = ({
         } else {
           window.clearTimeout(persistViewTimeoutRef.current);
         }
+      }
+    };
+  }, []);
+
+  React.useEffect(() => {
+    return () => {
+      if (cameraUpdateTimeoutRef.current != null) {
+        window.clearTimeout(cameraUpdateTimeoutRef.current);
+        cameraUpdateTimeoutRef.current = null;
       }
     };
   }, []);
@@ -2401,9 +2472,9 @@ const LeafletMap: React.FC<Props> = ({
 
   React.useEffect(() => {
     if (!mapReady) return;
-    emitCameraUpdate();
+    scheduleCameraUpdate(0);
     requestMarkerRebuild();
-  }, [mapReady, emitCameraUpdate, requestMarkerRebuild]);
+  }, [mapReady, scheduleCameraUpdate, requestMarkerRebuild]);
 
   React.useEffect(() => {
     if (!mapReady) return;
@@ -2497,7 +2568,7 @@ const LeafletMap: React.FC<Props> = ({
       .zoom({
         position: embeddedPreview
           ? "bottomleft"
-          : (fullMapPage && !smallScreen) || !smallScreen
+          : isDesktop
           ? "bottomleft"
           : "topleft",
       })
@@ -2988,6 +3059,8 @@ const LeafletMap: React.FC<Props> = ({
   type MapLifecycleCallbacks = {
     refreshZoomControl: () => void;
     emitCameraUpdate: () => void;
+    scheduleCameraUpdate: (delayMs?: number) => void;
+    cancelScheduledCameraUpdate: () => void;
     scheduleMapViewPersistence: (payload: StoredViewState) => void;
     clearHoverState: () => void;
     cancelMarkerBuild: () => void;
@@ -3014,6 +3087,8 @@ const LeafletMap: React.FC<Props> = ({
     mapLifecycleCallbacksRef.current = {
       refreshZoomControl,
       emitCameraUpdate,
+      scheduleCameraUpdate,
+      cancelScheduledCameraUpdate,
       scheduleMapViewPersistence,
       clearHoverState,
       cancelMarkerBuild,
@@ -3031,6 +3106,8 @@ const LeafletMap: React.FC<Props> = ({
   }, [
     refreshZoomControl,
     emitCameraUpdate,
+    scheduleCameraUpdate,
+    cancelScheduledCameraUpdate,
     scheduleMapViewPersistence,
     clearHoverState,
     cancelMarkerBuild,
@@ -3060,6 +3137,8 @@ const LeafletMap: React.FC<Props> = ({
     const {
       refreshZoomControl: latestRefreshZoomControl,
       emitCameraUpdate: latestEmitCameraUpdate,
+      scheduleCameraUpdate: latestScheduleCameraUpdate,
+      cancelScheduledCameraUpdate: latestCancelScheduledCameraUpdate,
       scheduleMapViewPersistence: latestScheduleMapViewPersistence,
       clearHoverState: latestClearHoverState,
       cancelMarkerBuild: latestCancelMarkerBuild,
@@ -3154,7 +3233,7 @@ const LeafletMap: React.FC<Props> = ({
     clusterLayerRef.current = clusterGroup;
     clusterGroup.addTo(map);
     setMapReady(true);
-    latestEmitCameraUpdate();
+    latestScheduleCameraUpdate(0);
     latestPrimeVisibleMarkerStats();
     latestUpdateZoomButtons();
     latestUpdateRefocusDisabled();
@@ -3174,6 +3253,7 @@ const LeafletMap: React.FC<Props> = ({
       pendingAutoCenterRef.current = null;
       pendingFocusRef.current = null;
       latestCancelCommitResume();
+      latestCancelScheduledCameraUpdate();
       latestSetAllowViewportCommit(false);
       latestClearHoverState();
       cancelPrefetchVisibleMarkerStats();
@@ -3197,7 +3277,7 @@ const LeafletMap: React.FC<Props> = ({
       } catch {
         // ignore persistence failures
       }
-      latestEmitCameraUpdate();
+      latestScheduleCameraUpdate();
       latestScheduleCommitResume();
       latestPrimeVisibleMarkerStats();
       latestUpdateZoomButtons();
@@ -3213,6 +3293,9 @@ const LeafletMap: React.FC<Props> = ({
       }
       latestCancelMarkerBuild();
       enableInteractionLock();
+      latestCancelCommitResume();
+      latestCancelScheduledCameraUpdate();
+      latestSetAllowViewportCommit(false);
       latestClearHoverState();
       cancelPrefetchVisibleMarkerStats();
     };
@@ -3220,7 +3303,6 @@ const LeafletMap: React.FC<Props> = ({
     map.on("movestart", handleMoveStart);
     map.on("zoomstart", handleZoomStart);
     map.on("moveend", handleInteractionEnd);
-    map.on("zoomend", handleInteractionEnd);
     map.on("resize", handleResizeEvent);
 
     return () => {
@@ -3228,7 +3310,6 @@ const LeafletMap: React.FC<Props> = ({
       map.off("movestart", handleMoveStart);
       map.off("zoomstart", handleZoomStart);
       map.off("moveend", handleInteractionEnd);
-      map.off("zoomend", handleInteractionEnd);
       disableInteractionLock();
       isMapInteractingRef.current = false;
       if (deferredMarkerRebuildTimeoutRef.current != null) {
@@ -3236,6 +3317,7 @@ const LeafletMap: React.FC<Props> = ({
         deferredMarkerRebuildTimeoutRef.current = null;
       }
       latestCancelCommitResume();
+      latestCancelScheduledCameraUpdate();
       cancelPrefetchVisibleMarkerStats();
       resetMarkerRegistry();
       setMarkersLoading(false);
@@ -3414,6 +3496,9 @@ const LeafletMap: React.FC<Props> = ({
       });
 
       if (removedEntries.length) {
+        const hoveredId = appliedHoverIdRef.current;
+        const shouldClearHover =
+          hoveredId != null && !incomingIds.has(String(hoveredId));
         const markersToRemove = removedEntries
           .map((entry) => entry.marker)
           .filter(Boolean);
@@ -3453,7 +3538,9 @@ const LeafletMap: React.FC<Props> = ({
           }
         });
 
-        clearHoverState();
+        if (shouldClearHover) {
+          clearHoverState();
+        }
       }
 
       const job: MarkerBuildJob = {
@@ -3919,7 +4006,7 @@ const LeafletMap: React.FC<Props> = ({
           className="flex w-full h-full items-center justify-center text-sm text-muted-foreground"
           style={{
             ...(wrapperHeight ?? {}),
-            borderRadius: embedded ? "0px" : !smallScreen ? "18px" : "0px",
+            borderRadius: embedded ? "0px" : isDesktop ? "18px" : "0px",
             boxShadow: embedded ? "none" : "0px 0px 5px rgba(0, 0, 0, 0.2)",
             background: "var(--highlight-5)",
           }}
@@ -3951,19 +4038,22 @@ const LeafletMap: React.FC<Props> = ({
         className="relative w-full h-full"
         style={{
           ...(wrapperHeight ?? {}),
-          borderRadius: embedded ? "0px" : !smallScreen ? "18px" : "0px",
+          borderRadius: embedded ? "0px" : isDesktop ? "18px" : "0px",
           boxShadow: embedded ? "none" : "0px 0px 5px rgba(0, 0, 0, 0.2)",
           overflow: "hidden",
         }}
       >
         <div
           ref={containerRef}
+          className={
+            embedded && previewUi ? "touch-pan-y" : "touch-none overscroll-none"
+          }
           style={{
             width: "100%",
             height: "100%",
           }}
         />
-        {!embedded && !showMap && fullMapPage && !smallScreen && (
+        {!embedded && !showMap && fullMapPage && isDesktop && (
           <div className="absolute inset-0 z-[600] bg-black/70 backdrop-blur-md" />
         )}
         {/* {showUpdateBanner && (
@@ -3975,7 +4065,7 @@ const LeafletMap: React.FC<Props> = ({
             </div>
           </div>
         )} */}
-        {!previewUi && showLoadingPill && (
+        {!previewUi && showLoadingPillStable && (
           <div
             className={cn(
               "pointer-events-none absolute left-1/2 z-[1200] -translate-x-1/2",
@@ -4060,7 +4150,7 @@ const LeafletMap: React.FC<Props> = ({
                 <Info className="w-5 h-5 mx-auto" />
               </button>
             )}
-            {fullMapPage && !smallScreen && (
+            {fullMapPage && isDesktop && (
               <button
                 type="button"
                 aria-label="open map"
@@ -4120,7 +4210,7 @@ const LeafletMap: React.FC<Props> = ({
             <Locate className="w-5 h-5 mx-auto" />
           </button>
         )}
-        {showChrome && fullMapPage && !smallScreen && (
+        {showChrome && fullMapPage && isDesktop && (
           <button
             type="button"
             aria-label={`${showMap ? "Minimize" : "Maximize"} map`}

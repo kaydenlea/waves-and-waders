@@ -705,6 +705,8 @@ export default function HeroVisualDeck({
   const [active, setActive] = React.useState(0);
   const [paused, setPaused] = React.useState(false);
   const [inView, setInView] = React.useState(true);
+  const scrollingRef = React.useRef(false);
+  const scrollStopTimerRef = React.useRef<number | null>(null);
   const [filtersPreview, setFiltersPreview] = React.useState<Set<string>>(
     () => new Set(["PARKING", "RESTROOMS"])
   );
@@ -725,6 +727,31 @@ export default function HeroVisualDeck({
     );
     observer.observe(el);
     return () => observer.disconnect();
+  }, []);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const onScroll = () => {
+      scrollingRef.current = true;
+      if (scrollStopTimerRef.current != null) {
+        window.clearTimeout(scrollStopTimerRef.current);
+      }
+      scrollStopTimerRef.current = window.setTimeout(() => {
+        scrollStopTimerRef.current = null;
+        scrollingRef.current = false;
+      }, 180);
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (scrollStopTimerRef.current != null) {
+        window.clearTimeout(scrollStopTimerRef.current);
+        scrollStopTimerRef.current = null;
+      }
+      scrollingRef.current = false;
+    };
   }, []);
 
   React.useLayoutEffect(() => {
@@ -916,6 +943,7 @@ export default function HeroVisualDeck({
     if (paused || prefersReducedMotion || !inView) return;
     const id = window.setInterval(() => {
       if (document.visibilityState !== "visible") return;
+      if (scrollingRef.current) return;
       setActive((v) => (v + 1) % slides.length);
     }, 5600);
     return () => window.clearInterval(id);
