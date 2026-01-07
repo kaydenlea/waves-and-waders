@@ -21,7 +21,7 @@ const faqData = [
   {
     question: "Can I save my favorite surf spots?",
     answer:
-      "Yes! You can save your favorite beaches for quick access. Your saved spots will appear in your favorites page, making it easy to check conditions at your go-to breaks.",
+      "Yes! You can save your favorite beaches for quick access. Your saved spots appear under the Favorites tab in Beaches, making it easy to check conditions at your go-to breaks.",
   },
   {
     question: "How often is the data updated?",

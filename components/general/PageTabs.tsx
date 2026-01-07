@@ -117,7 +117,7 @@ const PageTabs = ({
     <div
       ref={tabsRef}
       className={cn(
-        `${poppins.variable} font-poppins antialiased`,
+        `${poppins.variable} font-poppins antialiased touch-none`,
         placement === "inline"
           ? "flex w-full items-center gap-1 @min-sm:gap-2 justify-center @min-xl:ml-auto @min-xl:justify-end @min-xl:w-auto"
           : "mx-auto flex gap-1 @min-sm:gap-2 w-full justify-center",
@@ -175,7 +175,8 @@ const PageTabs = ({
                 </button>
               )}
               {(() => {
-                const editType = selectedTab === "forecast" ? "forecast" : "overview";
+                const editType =
+                  selectedTab === "forecast" ? "forecast" : "overview";
                 const nextTarget =
                   selectedTab === "forecast"
                     ? `/${beachId}/forecast/edit#forecast-content`
@@ -219,7 +220,9 @@ const PageTabs = ({
                         const targetBase = beach ? `/${beach}/overview` : null;
                         if (!targetBase) return;
                         router.push(
-                          `${targetBase}?tab=${encodeURIComponent(selectedTab)}`,
+                          `${targetBase}?tab=${encodeURIComponent(
+                            selectedTab
+                          )}`,
                           { scroll: false }
                         );
                       }
@@ -279,7 +282,7 @@ const PageTabs = ({
           //       : "/beaches"
           //     : beach
           //     ? `/${beach}/forecast`
-          //     : "/favorites";
+          //     : "/beaches?tab=saved";
 
           return (
             <button
@@ -355,7 +358,7 @@ const PageTabs = ({
               ? "bg-background dark:bg-highlight-5"
               : "hover:bg-background/50 dark:hover:bg-highlight-5/50"
           )}
-          href={beach ? `/${beach}/forecast` : "/favorites"}
+          href={beach ? `/${beach}/forecast` : "/beaches?tab=saved"}
         >
           {tabs[1]}
         </Link>

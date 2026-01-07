@@ -11,7 +11,8 @@ import { toAbsoluteUrl, getSiteUrl } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "Find surf spots and beaches near you",
-  description: "Search California beaches by location and amenities. Find surf spots with bathrooms, parking, showers, lifeguards, and more. Filter by county and features.",
+  description:
+    "Search California beaches by location and amenities. Find surf spots with bathrooms, parking, showers, lifeguards, and more. Filter by county and features.",
   keywords: [
     "California beaches",
     "surf spots California",
@@ -33,7 +34,8 @@ export const metadata: Metadata = {
   ],
   openGraph: {
     title: "Find surf spots and beaches near you",
-    description: "Search California beaches by location and amenities. Find surf spots with bathrooms, parking, showers, lifeguards, and more.",
+    description:
+      "Search California beaches by location and amenities. Find surf spots with bathrooms, parking, showers, lifeguards, and more.",
     url: "/beaches",
     images: [
       {
@@ -47,7 +49,8 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary",
     title: "Find surf spots and beaches near you",
-    description: "Search California beaches by location and amenities. Find surf spots with bathrooms, parking, showers, lifeguards, and more.",
+    description:
+      "Search California beaches by location and amenities. Find surf spots with bathrooms, parking, showers, lifeguards, and more.",
     images: [toAbsoluteUrl("/logo.png")],
   },
   alternates: {
@@ -81,7 +84,8 @@ export default async function BeachesPage() {
     "@context": "https://schema.org",
     "@type": "ItemList",
     name: "California Surf Spots and Beaches",
-    description: "Comprehensive list of California beaches with real-time surf conditions, amenities, and forecasts",
+    description:
+      "Comprehensive list of California beaches with real-time surf conditions, amenities, and forecasts",
     url: `${baseUrl}/beaches`,
   };
 
@@ -94,7 +98,7 @@ export default async function BeachesPage() {
       <NavBar beachesPage />
       <main
         id="main-content"
-        className="bg-background-2 min-h-[calc(100vh-4rem)] @min-4xl:flex @min-4xl:flex-1 @min-4xl:mt-[5.5rem] @min-4xl:pb-4 @min-4xl:pr-3"
+        className="touch-pan-y bg-background-2 min-h-[calc(100vh-4rem)] @min-4xl:flex @min-4xl:flex-1 @min-4xl:mt-[5.5rem] @min-4xl:pb-4 @min-4xl:pr-3"
       >
         <LazyLoadMap loggedIn={Boolean(user)} />
         <PathStyleWrapper>
@@ -116,7 +120,7 @@ export default async function BeachesPage() {
                   Surf spots
                 </h1>
                 <span className="text-xs @min-4xl/main:text-sm text-muted-foreground">
-                Explore nearby beaches on the map
+                  Explore nearby beaches on the map
                 </span>
               </header>
             </div>
@@ -126,10 +130,12 @@ export default async function BeachesPage() {
             <section className="sr-only" aria-hidden="true">
               <h2>Find California Beaches by Features and Location</h2>
               <p>
-                Search beaches in Orange County, San Diego, Los Angeles, and other California counties.
-                Filter by amenities including bathrooms, restrooms, parking, showers, lifeguards,
-                picnic areas, camping, and more. Get real-time surf forecasts, wave heights,
-                swell direction, wind conditions, and tide charts for every beach.
+                Search beaches in Orange County, San Diego, Los Angeles, and
+                other California counties. Filter by amenities including
+                bathrooms, restrooms, parking, showers, lifeguards, picnic
+                areas, camping, and more. Get real-time surf forecasts, wave
+                heights, swell direction, wind conditions, and tide charts for
+                every beach.
               </p>
               <ul>
                 <li>Orange County beaches with bathrooms and parking</li>

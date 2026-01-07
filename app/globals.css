@@ -148,6 +148,20 @@
     will-change: opacity;
   }
 
+  /* Perf: pause continuous hero animations while the user is actively scrolling. */
+  body[data-ww-scrolling="1"] .ww-hero-float,
+  body[data-ww-scrolling="1"] .ww-hero-blob-1,
+  body[data-ww-scrolling="1"] .ww-hero-blob-2,
+  body[data-ww-scrolling="1"] .ww-hero-blob-3 {
+    animation-play-state: paused !important;
+  }
+
+  /* Perf: avoid chart hover work while the user is scrolling. */
+  body[data-ww-scrolling="1"] .recharts-wrapper,
+  body[data-ww-scrolling="1"] .recharts-surface {
+    pointer-events: none !important;
+  }
+
   /* Perf: disable continuous hero effects on low-end devices (helps reduce scroll stutter). */
   @media (update: slow) {
     .ww-hero-blob-1,

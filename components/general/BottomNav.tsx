@@ -20,7 +20,6 @@ import BackToMapButton from "./BackToMapButton";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useUser, useSupabaseClient } from "@supabase/auth-helpers-react";
-import ThemeToggle from "./ThemeToggle";
 import { useSearchContext } from "../context/SearchContext";
 import { usePathname } from "next/navigation";
 import { useDateContext } from "../context/DateContext";
@@ -28,6 +27,7 @@ import { useMapData, useMapUI } from "../context/MapFilterContext";
 import { useClientPath } from "../context/PathContext";
 import { useOptionalDashboardEditMode } from "../context/DashboardEditModeContext";
 import FiltersPanel from "./FiltersPanel";
+import NavMoreMenu from "./NavMoreMenu";
 import {
   AppMenu,
   AppMenuContent,
@@ -37,6 +37,13 @@ import {
   AppMenuTrigger,
 } from "@/components/ui/app-menu";
 import { FEATURE_CATEGORIES } from "@/lib/supabase";
+
+const BOTTOM_NAV_MORE_LINKS = [
+  { href: "/donate?from=menu", label: "Donate", iconKey: "donate" as const },
+  { href: "/contact?from=menu", label: "Contact", iconKey: "contact" as const },
+  // { href: "/privacy", label: "Privacy", iconKey: "privacy" as const },
+  // { href: "/terms", label: "Terms", iconKey: "terms" as const },
+];
 
 export default function BottomNav() {
   const router = useRouter();
@@ -104,7 +111,8 @@ export default function BottomNav() {
       }
     }
 
-    const prevHtmlOverscroll = document.documentElement.style.overscrollBehaviorY;
+    const prevHtmlOverscroll =
+      document.documentElement.style.overscrollBehaviorY;
     const prevBodyOverscroll = document.body.style.overscrollBehaviorY;
     document.documentElement.style.overscrollBehaviorY = "none";
     document.body.style.overscrollBehaviorY = "none";
@@ -124,32 +132,6 @@ export default function BottomNav() {
       document.body.style.overscrollBehaviorY = prevBodyOverscroll;
     };
   }, [mobile, landingPage, isEditing, atTop, openPanel, pathname]);
-
-  useEffect(() => {
-    if (isEditing) return;
-    let scrollTimeout: NodeJS.Timeout | null = null;
-
-    const handleScroll = () => {
-      if (window.innerWidth >= 911 || landingPage) return;
-      // Clear previous timeout
-      if (scrollTimeout) clearTimeout(scrollTimeout);
-
-      // Wait for user to *stop scrolling* for 120ms
-      scrollTimeout = setTimeout(() => {
-        const scrollY = window.scrollY;
-        if (scrollY > 0 && scrollY < 150) {
-          // Near top → snap smoothly to top
-          window.scrollTo({ top: 0, behavior: "smooth" });
-        }
-      }, 120);
-    };
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => {
-      if (scrollTimeout) clearTimeout(scrollTimeout);
-      window.removeEventListener("scroll", handleScroll);
-    };
-  }, [isEditing, landingPage]);
 
   // hide main scrollbar when filters panel is open
   useEffect(() => {
@@ -176,22 +158,22 @@ export default function BottomNav() {
     let ticking = false;
 
     const handleScroll = () => {
-      if (landingPage) return;
       if (!ticking) {
         window.requestAnimationFrame(() => {
           const currentY = window.scrollY;
           const diff = currentY - lastScrollYRef.current;
 
-          // scroll direction detection
+          // Show the "View ..." button when near the top (small tolerance).
+          const nextAtTop = currentY < 150;
+          setAtTop((prev) => (prev === nextAtTop ? prev : nextAtTop));
+
+          // Keep the nav visible while at the top; otherwise use scroll direction detection.
           setShowBottomUI((prev) => {
+            if (nextAtTop) return true;
             if (diff > 5) return false;
             if (diff < -5) return true;
             return prev;
           });
-
-          // near top detection
-          const nextAtTop = currentY < 350;
-          setAtTop((prev) => (prev === nextAtTop ? prev : nextAtTop));
 
           lastScrollYRef.current = currentY;
           ticking = false;
@@ -545,7 +527,11 @@ export default function BottomNav() {
               </span>
             </button>
           )}
-          <ThemeToggle bottomNavMode />
+          <NavMoreMenu
+            bottomNavMode
+            landingPage={landingPage}
+            links={BOTTOM_NAV_MORE_LINKS}
+          />
         </nav>
       </div>
     </>

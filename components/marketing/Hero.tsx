@@ -156,7 +156,7 @@ export default function Hero() {
                 Explore beaches
               </Link>
               <Link
-                href="/favorites"
+                href="/beaches?tab=saved"
                 className={cn(
                   "inline-flex items-center gap-2 rounded-full border border-border/60 px-4 py-3 font-medium",
                   "bg-background/60 text-foreground shadow-sm transition",

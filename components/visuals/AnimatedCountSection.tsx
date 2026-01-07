@@ -3,7 +3,7 @@ import { Zap } from "lucide-react";
 import BeachesMapPreview from "@/components/marketing/BeachesMapPreview";
 import PremiumStatsStrip from "@/components/visuals/PremiumStatsStrip";
 import { fetchBeachCount } from "@/lib/supabase";
-import { FEATURE_CATEGORIES, FEATURE_COLUMNS } from "@/lib/supabase";
+import { FEATURE_COLUMNS } from "@/lib/supabase";
 import { ALL_WIDGET_IDS } from "@/components/general/dashboardLayout";
 import InViewOnce from "@/components/marketing/InViewOnce";
 
@@ -93,10 +93,10 @@ const AnimatedCountSection = async () => {
               value: FEATURE_COLUMNS.length,
             },
             {
-              id: "filterGroups",
-              label: "Filter groups",
-              helper: "Access, trails, activities.",
-              value: Object.keys(FEATURE_CATEGORIES).length,
+              id: "forecastDays",
+              label: "Forecast days",
+              helper: "7-day outlook.",
+              value: 7,
             },
             {
               id: "dashboardWidgets",

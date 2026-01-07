@@ -3979,8 +3979,7 @@ const LeafletMap: React.FC<Props> = ({
     ? null
     : smallScreen
     ? {
-        minHeight:
-          "calc(100dvh - 4.25rem - env(safe-area-inset-bottom, 0px))",
+        minHeight: "calc(100dvh - 4.25rem - env(safe-area-inset-bottom, 0px))",
         height: "calc(100dvh - 4.25rem - env(safe-area-inset-bottom, 0px))",
       }
     : {
@@ -3992,9 +3991,9 @@ const LeafletMap: React.FC<Props> = ({
         id="map-container"
         className={
           embedded
-            ? "relative flex h-full w-full"
+            ? "touch-none relative flex h-full w-full"
             : cn(
-                "fixed w-full mx-auto max-w-screen transition-all duration-300",
+                "touch-none overscroll-none fixed w-full mx-auto max-w-screen transition-all duration-300",
                 "@min-4xl:sticky @min-4xl:top-[7.5rem] @min-4xl:flex-1 @min-4xl:py-3 @min-4xl:pl-5 @min-4xl:pr-3 @min-4xl:h-[calc(100vh-8rem)] flex"
               )
         }
@@ -4026,9 +4025,9 @@ const LeafletMap: React.FC<Props> = ({
       id="map-container"
       className={
         embedded
-          ? "relative flex h-full w-full"
+          ? "touch-none relative flex h-full w-full"
           : cn(
-              "fixed w-full mx-auto max-w-screen transition-all duration-300",
+              "touch-none overscroll-none fixed w-full mx-auto max-w-screen transition-all duration-300",
               "@min-4xl:sticky @min-4xl:top-[7.5rem] @min-4xl:flex-1 @min-4xl:py-3 @min-4xl:pl-5 @min-4xl:pr-3 @min-4xl:h-[calc(100vh-8rem)] flex"
             )
       }

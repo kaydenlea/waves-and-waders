@@ -5,7 +5,6 @@ import { cn } from "@/lib/utils";
 import { acquireInteractionLock } from "@/lib/uiInteractionLock";
 import { useForecastWindowData } from "@/lib/hooks/useForecastWindow";
 import {
-  getCachedHourSliderTrackGradient,
   setCachedHourSliderTrackGradient,
 } from "@/lib/ui/hourSliderTrackCache";
 import {
@@ -74,11 +73,21 @@ const HourSlider = ({
     return out;
   }, [max, min, step]);
 
-  const lastGradientRef = useRef<string | null>(
-    getCachedHourSliderTrackGradient()
-  );
+  const lastGradientRef = useRef<string | null>(null);
   const pendingWindowStartMsRef = useRef<number | null>(null);
   const pendingSinceMsRef = useRef<number | null>(null);
+  const lastBeachKeyRef = useRef<string>("");
+
+  useEffect(() => {
+    const nextKey = `${beachId ?? ""}::${date?.toISOString?.() ?? ""}`;
+    if (lastBeachKeyRef.current !== nextKey) {
+      lastBeachKeyRef.current = nextKey;
+      lastGradientRef.current = null;
+      setCachedHourSliderTrackGradient(null);
+      pendingWindowStartMsRef.current = null;
+      pendingSinceMsRef.current = null;
+    }
+  }, [beachId, date]);
 
   const computedTrackGradient = useMemo(() => {
     if (!beachId && previewTrackGradient) {

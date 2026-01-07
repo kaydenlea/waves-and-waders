@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import {
+  CalendarDays,
   Filter,
   Layers,
   LayoutDashboard,
@@ -12,7 +13,7 @@ import {
 import { cn } from "@/lib/utils";
 
 export type PremiumStat = {
-  id: "beaches" | "amenityFilters" | "filterGroups" | "dashboardWidgets";
+  id: "beaches" | "amenityFilters" | "filterGroups" | "forecastDays" | "dashboardWidgets";
   label: string;
   helper?: string;
   value: number;
@@ -22,6 +23,7 @@ const ICONS: Record<PremiumStat["id"], LucideIcon> = {
   beaches: MapPin,
   amenityFilters: Filter,
   filterGroups: Layers,
+  forecastDays: CalendarDays,
   dashboardWidgets: LayoutDashboard,
 };
 

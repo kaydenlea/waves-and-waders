@@ -14,14 +14,14 @@ const defaultLight: ChartTheme = {
   // nightShading: "oklch(75% 0.1 290)",
   dayShading: "#ffe58f7e",
   nightShading: "#ccc1ffce",
-  hoverOpacity: 0.15,
+  hoverOpacity: 0.24,
   shadingOpacity: 0.35,
 };
 
 const defaultDark: ChartTheme = {
   dayShading: "#FFE58F",
   nightShading: "#ccc1ffff",
-  hoverOpacity: 0.08,
+  hoverOpacity: 0.16,
   shadingOpacity: 0.2,
 };
 

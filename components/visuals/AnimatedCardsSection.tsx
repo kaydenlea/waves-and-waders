@@ -1,6 +1,6 @@
 import Link from "next/link";
 import ForecastsMadeSimpleVisual from "@/components/visuals/ForecastsMadeSimpleVisual";
-import { Compass, MapPinned } from "lucide-react";
+import { Heart, MapPinned } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Description = ({ className }: { className?: string }) => {
@@ -21,14 +21,14 @@ export const Description = ({ className }: { className?: string }) => {
 
       <div className="mt-6 flex flex-wrap items-center justify-center xl:justify-start gap-3">
         <Link
-          href="/beaches#content"
+          href="/beaches?tab=saved"
           className={cn(
             "inline-flex items-center justify-center rounded-full bg-foreground px-5 py-3 text-sm font-medium text-background shadow-xl",
             "transition-shadow motion-reduce:transition-none hover:shadow-cyan-500/20",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
           )}
         >
-          <MapPinned className="h-4 w-4 mr-1.5" /> See your forecast
+          <Heart className="h-4 w-4 mr-1.5" /> Favorites
         </Link>
         <Link
           href="/beaches"
@@ -38,7 +38,7 @@ export const Description = ({ className }: { className?: string }) => {
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
           )}
         >
-          <Compass className="h-4 w-4 mr-1.5" /> Explore beaches
+          <MapPinned className="h-4 w-4 mr-1.5" /> Browse
         </Link>
       </div>
 

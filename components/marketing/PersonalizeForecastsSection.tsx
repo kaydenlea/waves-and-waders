@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
+import { Heart, LayoutDashboard } from "lucide-react";
 
 import DashboardPersonalizationPreview from "@/components/marketing/DashboardPersonalizationPreview";
 import InViewOnce from "@/components/marketing/InViewOnce";
@@ -40,25 +41,27 @@ export default function PersonalizeForecastsSection({
             style={{ "--delay": "80ms" } as CSSProperties}
           >
             <Link
-              href="/beaches#content"
+              href="/beaches"
               className={cn(
                 "inline-flex items-center justify-center rounded-full bg-foreground px-5 py-3 text-sm font-medium text-background shadow-xl",
                 "transition-shadow motion-reduce:transition-none hover:shadow-cyan-500/20",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
               )}
             >
-              Try personalization
+              <LayoutDashboard className="h-4 w-4 mr-1.5" aria-hidden="true" />
+              Personalize
             </Link>
-            <a
-              href="#personalize-demo"
+            <Link
+              href="/beaches?tab=saved"
               className={cn(
                 "inline-flex items-center justify-center rounded-full border border-border/40 bg-highlight-1 px-5 py-3 text-sm font-medium text-foreground/90 shadow-sm backdrop-blur",
                 "transition-colors motion-reduce:transition-none hover:bg-highlight-3",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
               )}
             >
-              See example layouts
-            </a>
+              <Heart className="h-4 w-4 mr-1.5" aria-hidden="true" />
+              Favorites
+            </Link>
           </div>
 
           {/* <div className="mt-6 flex flex-wrap justify-center xl:justify-start gap-2 text-xs font-semibold text-foreground/80">

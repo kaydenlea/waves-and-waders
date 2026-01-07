@@ -6,6 +6,7 @@ import {
   AlignJustify,
   HandHeart,
   Heart,
+  Home,
   LogIn,
   Mail,
   MapPinned,
@@ -39,9 +40,11 @@ const iconMap: Record<NonNullable<MenuLink["iconKey"]>, React.ElementType> = {
 export default function NavMoreMenu({
   landingPage = false,
   links,
+  bottomNavMode = false,
 }: {
   landingPage?: boolean;
   links?: MenuLink[];
+  bottomNavMode?: boolean;
 }) {
   const [open, setOpen] = React.useState(false);
   const user = useUser();
@@ -55,31 +58,37 @@ export default function NavMoreMenu({
   }, []);
   return (
     <AppMenu open={open} onOpenChange={setOpen}>
-      <AppMenuTrigger className="icon-button p-3 dark:bg-highlight-5 hover:bg-highlight-3 dark:hover:bg-highlight-3">
-        <AlignJustify className="icon-md" />
+      <AppMenuTrigger
+        className={
+          bottomNavMode
+            ? "hover:bg-highlight-5 p-2 rounded-2xl flex flex-col items-center gap-1 @min-[350px]:min-w-15"
+            : "icon-button p-3 dark:bg-highlight-5 hover:bg-highlight-3 dark:hover:bg-highlight-3"
+        }
+        aria-label="more options"
+      >
+        <AlignJustify
+          className={bottomNavMode ? "w-6 h-6 @min-[350px]:w-5 @min-[350px]:h-5 -mt-0.5" : "icon-md"}
+        />
+        {bottomNavMode ? (
+          <span className="text-xs sr-only @min-[350px]:not-sr-only">More</span>
+        ) : null}
       </AppMenuTrigger>
-      <AppMenuContent align="end" className="w-72">
-        {links?.length ? (
-          <>
-            {links.map((item) => (
-              <AppMenuItem
-                key={item.href}
-                asChild
-                onSelect={() => {
-                  setOpen(false);
-                }}
-              >
-                <Link href={item.href}>
-                  {item.iconKey &&
-                    React.createElement(iconMap[item.iconKey], {
-                      className: "w-5 h-5 -mt-0.5",
-                    })}
-                  {item.label}
-                </Link>
-              </AppMenuItem>
-            ))}
-            <AppMenuSeparator />
-          </>
+      <AppMenuContent
+        align="end"
+        sideOffset={bottomNavMode ? 10 : undefined}
+        className="w-72"
+      >
+        {bottomNavMode ? (
+          <AppMenuItem
+            asChild
+            onSelect={() => {
+              setOpen(false);
+            }}
+          >
+            <Link href="/">
+              <Home className="w-5 h-5 -mt-0.5" /> Home
+            </Link>
+          </AppMenuItem>
         ) : null}
         <AppMenuItem
           asChild
@@ -131,6 +140,28 @@ export default function NavMoreMenu({
             </AppMenuItem>
           </>
         )}
+        {links?.length ? (
+          <>
+            <AppMenuSeparator />
+            {links.map((item) => (
+              <AppMenuItem
+                key={item.href}
+                asChild
+                onSelect={() => {
+                  setOpen(false);
+                }}
+              >
+                <Link href={item.href}>
+                  {item.iconKey &&
+                    React.createElement(iconMap[item.iconKey], {
+                      className: "w-5 h-5 -mt-0.5",
+                    })}
+                  {item.label}
+                </Link>
+              </AppMenuItem>
+            ))}
+          </>
+        ) : null}
       </AppMenuContent>
     </AppMenu>
   );

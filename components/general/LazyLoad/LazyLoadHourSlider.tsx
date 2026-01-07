@@ -2,7 +2,6 @@
 
 import { Slider } from "@/components/ui/slider";
 import dynamic from "next/dynamic";
-import { getCachedHourSliderTrackGradient } from "@/lib/ui/hourSliderTrackCache";
 
 export const LazyLoadHourSlider = dynamic(() => import("../HourSlider"), {
   ssr: false,
@@ -14,7 +13,6 @@ export const LazyLoadHourSlider = dynamic(() => import("../HourSlider"), {
       className="animate-pulse"
       trackStyle={{
         backgroundImage:
-          getCachedHourSliderTrackGradient() ??
           "linear-gradient(90deg, var(--ww-surf-intensity-unknown) 0%, var(--ww-surf-intensity-unknown) 100%)",
         backgroundColor: "var(--ww-surf-intensity-unknown)",
       }}

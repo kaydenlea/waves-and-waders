@@ -36,7 +36,7 @@ const CARDS: Card[] = [
   {
     key: "saved",
     title: "Saved beaches",
-    description: "Jump straight to favorites.",
+    description: "Jump straight to saved spots.",
     image: { light: savedLight, dark: savedDark },
   },
   {

@@ -134,7 +134,7 @@ function WindowPickerVisual() {
     <div className="relative aspect-[4/3] w-full">
       <div className="absolute inset-0 bg-gradient-to-b from-highlight-5/30 via-transparent to-transparent" />
 
-      <div className="relative flex h-full w-full flex-col gap-3 @min-[375px]:gap-6 @min-md:gap-14 px-4 py-4">
+      <div className="relative flex h-full w-full flex-col gap-8 px-4 py-4">
         <div className="flex items-center justify-between gap-3">
           <div className="inline-flex items-center gap-2 rounded-full border border-border/50 bg-background/70 px-2.5 py-1.5 text-xs font-semibold text-foreground shadow-sm">
             <TimerReset className="h-4 w-4" aria-hidden="true" />
@@ -146,7 +146,7 @@ function WindowPickerVisual() {
           </div>
         </div>
 
-        <div className="w-full @min-md:-mt-7">
+        <div className="w-full">
           <LazyLoadDatePicker
             beachId={PREVIEW_BEACH_ID}
             maxDays={3}
@@ -171,6 +171,57 @@ function WindowPickerVisual() {
 }
 
 function DirectionsVisual() {
+  const [ringScale, setRingScale] = React.useState(0.74);
+
+  React.useEffect(() => {
+    const compute = () => {
+      const w = window.innerWidth;
+      const next = w < 390 ? 0.66 : w < 520 ? 0.74 : 0.8;
+      setRingScale((prev) => (prev === next ? prev : next));
+    };
+    compute();
+    window.addEventListener("resize", compute, { passive: true });
+    return () => window.removeEventListener("resize", compute);
+  }, []);
+
+  const ringSize = 160 * ringScale;
+  const labelDistance = 148 * ringScale;
+  const centerOffset = ringSize / 2;
+  const cardinalLabels = [
+    {
+      id: "N" as const,
+      style: {
+        top: `${centerOffset - labelDistance}px`,
+        left: `${centerOffset}px`,
+        transform: "translate(-50%, -50%)",
+      },
+    },
+    {
+      id: "S" as const,
+      style: {
+        top: `${centerOffset + labelDistance}px`,
+        left: `${centerOffset}px`,
+        transform: "translate(-50%, -50%)",
+      },
+    },
+    {
+      id: "E" as const,
+      style: {
+        top: `${centerOffset}px`,
+        left: `${centerOffset + labelDistance}px`,
+        transform: "translate(-50%, -50%)",
+      },
+    },
+    {
+      id: "W" as const,
+      style: {
+        top: `${centerOffset}px`,
+        left: `${centerOffset - labelDistance}px`,
+        transform: "translate(-50%, -50%)",
+      },
+    },
+  ];
+
   return (
     <div className="relative aspect-[4/3] w-full">
       <div className="absolute inset-0 bg-gradient-to-br from-sky-100 to-blue-200 dark:from-slate-900 dark:to-slate-950" />
@@ -188,26 +239,39 @@ function DirectionsVisual() {
 
       <div className="pointer-events-none absolute inset-0 grid place-items-center">
         <div
-          className="relative"
-          style={{ width: 160 * 0.74, height: 160 * 0.74 }}
+          className="pointer-events-none relative flex items-center justify-center overflow-visible"
+          style={{ width: ringSize, height: ringSize }}
           aria-hidden="true"
         >
+          <div className="pointer-events-none absolute inset-0">
+            {cardinalLabels.map(({ id, style }) => (
+              <span
+                key={id}
+                className="w-5 text-center bg-background/85 dark:bg-highlight-5/85 p-1 rounded-sm font-black absolute text-[10px] uppercase leading-none text-foreground drop-shadow-[0_1px_3px_rgba(0,0,0,0.35)] select-none"
+                style={style}
+              >
+                {id}
+              </span>
+            ))}
+          </div>
           <SwellRings
-            variant="preview"
-            scale={0.74}
+            variant="full"
+            scale={ringScale}
             directions={{ primary: 300, secondary: 250, tertiary: 210 }}
             labels={{
               primary: "4.8 ft • 12s",
               secondary: "2.3 ft • 9s",
               tertiary: "1.2 ft • 7s",
             }}
+            showLegend
             className="absolute inset-0"
           />
           <WindRing
-            variant="preview"
-            scale={0.74}
+            variant="full"
+            scale={ringScale}
             direction={315}
             label="9 mph"
+            showLegend
             className="absolute inset-0"
           />
           <div className="absolute left-1/2 top-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-background/80 shadow-sm ring-1 ring-border/60" />
@@ -422,37 +486,43 @@ export default function AllEssentialsCardsDeck() {
                   } as React.CSSProperties
                 }
               >
-                <div className="relative z-20">{cards[active]?.node}</div>
+                {cards.map((card, idx) => {
+                  const isActive = idx === active;
+                  const isLeft = idx === leftIndex;
+                  const x = isLeft
+                    ? "calc(-1 * (var(--ww-card-w) * 0.72 + var(--ww-gap)))"
+                    : "calc(var(--ww-card-w) * 0.72 + var(--ww-gap))";
+
+                  if (isActive) {
+                    return (
+                      <div key={card.key} className="relative z-20">
+                        {card.node}
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div
+                      key={card.key}
+                      className={cn(
+                        "pointer-events-none absolute top-0 left-1/2 z-10 rounded-3xl",
+                        "opacity-55 saturate-75 blur-[0.6px]",
+                        "transition-[opacity,filter,transform] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none"
+                      )}
+                      style={
+                        {
+                          width: "var(--ww-card-w)",
+                          transform: `translateX(-50%) translateX(${x}) scale(0.94)`,
+                        } as React.CSSProperties
+                      }
+                      aria-hidden="true"
+                    >
+                      {card.node}
+                    </div>
+                  );
+                })}
               </div>
 
-              {[
-                {
-                  idx: leftIndex,
-                  x: "calc(-1 * (var(--ww-card-w) * 0.72 + var(--ww-gap)))",
-                },
-                {
-                  idx: rightIndex,
-                  x: "calc(var(--ww-card-w) * 0.72 + var(--ww-gap))",
-                },
-              ].map(({ idx, x }) => (
-                <div
-                  key={`peek-${cards[idx]?.key}`}
-                  className={cn(
-                    "pointer-events-none absolute top-0 left-1/2 z-10 rounded-3xl",
-                    "opacity-55 saturate-75 blur-[0.6px]",
-                    "transition-[opacity,filter,transform] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none"
-                  )}
-                  style={
-                    {
-                      width: "var(--ww-card-w)",
-                      transform: `translateX(-50%) translateX(${x}) scale(0.94)`,
-                    } as React.CSSProperties
-                  }
-                  aria-hidden="true"
-                >
-                  {cards[idx]?.node}
-                </div>
-              ))}
             </div>
           </div>
 

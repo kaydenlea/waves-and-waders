@@ -71,15 +71,7 @@ const Footer = ({ className }: { className?: string }) => {
                 <li>
                   <Link
                     className="transition hover:text-foreground"
-                    href="/beaches"
-                  >
-                    Forecast
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    className="transition hover:text-foreground"
-                    href="/favorites"
+                    href="/beaches?tab=saved"
                   >
                     Favorites
                   </Link>
@@ -167,15 +159,7 @@ const Footer = ({ className }: { className?: string }) => {
                   <li className="py-1">
                     <Link
                       className="transition hover:text-foreground"
-                      href="/beaches"
-                    >
-                      Forecast
-                    </Link>
-                  </li>
-                  <li className="py-1">
-                    <Link
-                      className="transition hover:text-foreground"
-                      href="/favorites"
+                      href="/beaches?tab=saved"
                     >
                       Favorites
                     </Link>

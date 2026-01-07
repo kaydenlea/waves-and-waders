@@ -8,3 +8,7 @@ export function setCachedHourSliderTrackGradient(value: string | null): void {
   cachedTrackGradient = value;
 }
 
+export function clearCachedHourSliderTrackGradient(): void {
+  cachedTrackGradient = null;
+}
+

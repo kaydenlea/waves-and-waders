@@ -890,6 +890,9 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
     () => ({
       fill: "var(--foreground)",
       fillOpacity: chartTheme.hoverOpacity,
+      stroke: "var(--foreground)",
+      strokeOpacity: Math.min(0.28, chartTheme.hoverOpacity + 0.08),
+      strokeWidth: 1,
     }),
     [chartTheme.hoverOpacity]
   );

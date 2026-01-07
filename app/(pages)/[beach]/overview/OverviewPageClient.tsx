@@ -15,7 +15,11 @@ import { SunDataProvider } from "@/components/context/SunDataContext";
 import { useDashboardEditMode } from "@/components/context/DashboardEditModeContext";
 import DashboardEditorScreen from "@/components/general/DashboardEditorScreen";
 import type { BeachPoint } from "@/components/context/MapFilterContext";
-import type { Row, WidgetId, WidgetMeta } from "@/components/general/dashboardLayout";
+import type {
+  Row,
+  WidgetId,
+  WidgetMeta,
+} from "@/components/general/dashboardLayout";
 
 type Props = {
   beachId: string;
@@ -88,7 +92,7 @@ export default function OverviewPageClient({
         <NavBar />
         <main
           id="main-content"
-          className="bg-background-2 min-h-[calc(100vh-4rem)] @min-4xl:flex @min-4xl:flex-1 @min-4xl:mt-[5.5rem] @min-4xl:pb-4"
+          className="touch-pan-y bg-background-2 min-h-[calc(100vh-4rem)] @min-4xl:flex @min-4xl:flex-1 @min-4xl:mt-[5.5rem] @min-4xl:pb-4"
         >
           <LazyLoadMap
             beachId={beachId}

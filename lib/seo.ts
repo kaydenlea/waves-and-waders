@@ -85,6 +85,15 @@ export const buildDefaultMetadata = (): Metadata => {
       description,
       images: [toAbsoluteUrl("/logo.png")],
     },
+    icons: {
+      icon: [
+        { url: "/logo.png", type: "image/png" },
+      ],
+      apple: [
+        { url: "/logo.png", type: "image/png" },
+      ],
+      shortcut: ["/logo.png"],
+    },
     alternates: {
       canonical: base.toString(),
     },
