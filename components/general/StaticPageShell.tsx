@@ -10,8 +10,8 @@ export default function StaticPageShell({
   children: ReactNode;
 }) {
   return (
-    <main className="mx-auto w-full max-w-4xl px-4 pb-16 pt-[calc(7rem+env(safe-area-inset-top))] sm:px-6 sm:pt-[calc(7.5rem+env(safe-area-inset-top))]">
-      <header className="mx-auto max-w-3xl text-center">
+    <main className="mx-auto w-full max-w-4xl px-8 @min-4xl:px-4 pb-16 pt-[calc(7rem+env(safe-area-inset-top))] sm:px-6 sm:pt-[calc(7.5rem+env(safe-area-inset-top))]">
+      <header className="mx-auto text-center">
         <h1 className="text-balance text-foreground text-4xl sm:text-5xl font-semibold tracking-tight">
           {title}
         </h1>

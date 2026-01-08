@@ -3,10 +3,9 @@
 import * as React from "react";
 import Link from "next/link";
 import {
+  CreditCard,
   HandHeart,
   MessageSquareHeart,
-  Square,
-  SquareStop,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -41,9 +40,9 @@ export default function DonateOptionsCard({
               aria-hidden="true"
               className="grid size-8 place-items-center rounded-full border border-border/50 bg-background/60"
             >
-              <SquareStop className="h-4 w-4" />
+              <CreditCard className="h-4 w-4" />
             </span>
-            Donate with Square
+            Donate with Stripe
           </div>
           <div className="mt-1 text-sm text-muted-foreground">
             Pick an amount (or choose custom).

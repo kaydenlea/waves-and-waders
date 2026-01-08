@@ -22,9 +22,12 @@ const Layout = ({ children }: { children: ReactNode }) => {
                 <PathProvider>
                   <DashboardEditModeProvider>
                     <ViewportBeachesManager />
-                    <NavBar landingPage variant="marketing" />
-                    {children}
-                    <Footer className="rounded-t-xl" />
+                    <div className="min-h-screen bg-background overscroll-y-none">
+                      <div aria-hidden className="fixed inset-0 -z-50 bg-background" />
+                      <NavBar landingPage variant="marketing" />
+                      {children}
+                      <Footer className="rounded-t-xl" />
+                    </div>
                   </DashboardEditModeProvider>
                 </PathProvider>
               </BeachStatsCacheProvider>
