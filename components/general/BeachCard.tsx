@@ -47,33 +47,33 @@ const IMAGE_PLACEHOLDER =
 
 const BeachCard = React.memo(
   ({
-      b,
-      useMiles = true,
-      isFav,
-      map,
-      setHoverCardId = () => {},
-      loadingStats = false,
-      priorityImage = false,
-    }: BeachCardProps) => {
-      const router = useRouter();
-      const tagsRowRef = React.useRef<HTMLDivElement | null>(null);
-      const hoveringRef = React.useRef(false);
-      const [fitCount, setFitCount] = React.useState<number>(0);
-      const measureTagRefs = React.useRef<Array<HTMLDivElement | null>>([]);
-      const moreMeasureRef = React.useRef<HTMLDivElement | null>(null);
-      const [imageLoaded, setImageLoaded] = React.useState(false);
+    b,
+    useMiles = true,
+    isFav,
+    map,
+    setHoverCardId = () => {},
+    loadingStats = false,
+    priorityImage = false,
+  }: BeachCardProps) => {
+    const router = useRouter();
+    const tagsRowRef = React.useRef<HTMLDivElement | null>(null);
+    const hoveringRef = React.useRef(false);
+    const [fitCount, setFitCount] = React.useState<number>(0);
+    const measureTagRefs = React.useRef<Array<HTMLDivElement | null>>([]);
+    const moreMeasureRef = React.useRef<HTMLDivElement | null>(null);
+    const [imageLoaded, setImageLoaded] = React.useState(false);
 
-      React.useEffect(() => {
-        setImageLoaded(false);
-      }, [b.image]);
+    React.useEffect(() => {
+      setImageLoaded(false);
+    }, [b.image]);
 
-      React.useEffect(() => {
-        return () => {
-          if (hoveringRef.current) {
-            setHoverCardId(null);
-          }
-        };
-      }, [setHoverCardId]);
+    React.useEffect(() => {
+      return () => {
+        if (hoveringRef.current) {
+          setHoverCardId(null);
+        }
+      };
+    }, [setHoverCardId]);
 
     const distance =
       b.distanceKm != null
@@ -93,7 +93,7 @@ const BeachCard = React.memo(
     const rotation =
       typeof b.conditions.windDir === "number" ? b.conditions.windDir - 315 : 0;
 
-    const beachUrl = `${generateBeachUrl(b.name, b.id)}/overview#content`;
+    const beachUrl = `${generateBeachUrl(b.name, b.id)}/overview`;
 
     const goToOverview = () => {
       router.push(beachUrl);
@@ -199,385 +199,386 @@ const BeachCard = React.memo(
         aria-busy={loadingStats}
       >
         <article>
-        <section className="rounded-2xl relative w-full p-3 aspect-auto bg-gradient-to-br from-blue-50 to-blue-100">
-          <div className="rounded-2xl h-35 w-full">
-            <Image
-              src={`/beach_pictures/${b.id}.png`}
-              alt={`Map view of ${b.name}`}
-            fill
-            className="object-cover rounded-2xl"
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-              placeholder="blur"
-              blurDataURL={IMAGE_PLACEHOLDER}
-              priority={priorityImage}
-              loading={priorityImage ? "eager" : undefined}
-              onLoadingComplete={() => setImageLoaded(true)}
-              onError={(e) => {
-                e.currentTarget.style.display = "none";
-                setImageLoaded(true);
-              }}
-            />
-          </div>
-          {!imageLoaded && (
-            <div className="pointer-events-none absolute inset-0 rounded-2xl bg-background/40 backdrop-blur-sm transition-opacity duration-200" />
-          )}
-          <header className="flex gap-1 truncate absolute top-0.5 left-1 w-[73%] bg-slate-900/0 p-2 text-black backdrop-blur-none transition rounded-4xl">
-            <div className={cn("min-w-1.5 rounded-full", color)} />
-          <div className="min-w-0">
-            <h3 className="truncate text-md font-semibold leading-tight -mb-0.5">
-              {b.name}
-            </h3>
-            <p className="truncate text-[0.7rem]">{b.region}</p>
-          </div>
-        </header>
-        <div className="flex flex-col text-[0.6rem] gap-0 absolute bottom-2 left-2 text-black">
-          <span className="inline-flex items-center gap-1">
-            <span className="flex items-center justify-center p-0.5 bg-blue-100 rounded-full border border-black/10">
-              <Waves className="h-3 w-3 text-blue-500" />
-            </span>
-            <span className="flex items-baseline gap-0.5">
-              <span className="font-semibold text-[0.9rem]">
-                {b.conditions.surf}
-              </span>
-              ft
-            </span>
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <span className="flex items-center justify-center p-0.5 bg-gray-50 rounded-full border border-black/10">
-              <Wind className="h-3 w-3 text-gray-700" />
-            </span>
-            <span className="flex items-baseline gap-0.5">
-              <span className="font-semibold text-[0.9rem]">
-                {b.conditions.wind}
-              </span>
-              mph
-            </span>
-            <ArrowIcon
-              style={{
-                transform: `rotate(${rotation}deg)`,
-                display: "inline-block",
-              }}
-              className="h-3 w-3 fill-black/50 text-black/50"
-            />
-          </span>
-        </div>
-        <Popover>
-          <PopoverTrigger
-            asChild
-            onClick={(e) => {
-              e.stopPropagation();
-            }}
-          >
-            <span className="text-white absolute bottom-3 right-3 z-50 p-1.5 rounded-full bg-black/60 hover:bg-black/90">
-              <Info className="w-4 h-4" />
-            </span>
-          </PopoverTrigger>
-          <PopoverContent
-            side="bottom"
-            align="end"
-            sideOffset={8}
-            className="w-80 touch-pan-y max-w-[150px]"
-          >
-            <span className="text-[11px] font-semibold uppercase text-muted-foreground">
-              Direction Rings
-            </span>
-            <div className="mt-1.5 flex flex-col gap-1 text-[11px] text-foreground">
-              <div className="flex items-center gap-2">
-                <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#1d4ed8]" />
-                <span>Primary swell</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#0ea5e9]" />
-                <span>Secondary swell</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#22d3ee]" />
-                <span>Tertiary swell</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#a855f7]" />
-                <span>Wind direction</span>
-              </div>
-            </div>
-          </PopoverContent>
-        </Popover>
-        {distance != null && (
-          <span className="absolute right-11 bottom-[12px] z-10 font-semibold text-[0.7rem] whitespace-nowrap bg-slate-900/70 px-2 py-[5px] text-white/90 backdrop-blur transition rounded-full">
-            {Math.round(Number(distance.toFixed(1)))} {useMiles ? "mi" : "km"}
-          </span>
-        )}
-        {b.current && (
-          <>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <SwellRings
-                directions={{
-                  primary: b.current.swell.primary.direction,
-                  secondary: b.current.swell.secondary.direction,
-                  tertiary: b.current.swell.tertiary.direction,
+          <section className="rounded-2xl relative w-full p-3 aspect-auto bg-gradient-to-br from-blue-50 to-blue-100">
+            <div className="rounded-2xl h-35 w-full">
+              <Image
+                src={`/beach_pictures/${b.id}.png`}
+                alt={`Map view of ${b.name}`}
+                fill
+                className="object-cover rounded-2xl"
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                placeholder="blur"
+                blurDataURL={IMAGE_PLACEHOLDER}
+                priority={priorityImage}
+                loading={priorityImage ? "eager" : undefined}
+                onLoadingComplete={() => setImageLoaded(true)}
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                  setImageLoaded(true);
                 }}
-                scale={0.35}
-                variant="preview"
               />
             </div>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <WindRing
-                direction={b.current.conditions.windDirection}
-                scale={0.35}
-                variant="preview"
+            {!imageLoaded && (
+              <div className="pointer-events-none absolute inset-0 rounded-2xl bg-background/40 backdrop-blur-sm transition-opacity duration-200" />
+            )}
+            <header className="flex gap-1 truncate absolute top-0.5 left-1 w-[73%] bg-slate-900/0 p-2 text-black backdrop-blur-none transition rounded-4xl">
+              <div className={cn("min-w-1.5 rounded-full", color)} />
+              <div className="min-w-0">
+                <h3 className="truncate text-md font-semibold leading-tight -mb-0.5">
+                  {b.name}
+                </h3>
+                <p className="truncate text-[0.7rem]">{b.region}</p>
+              </div>
+            </header>
+            <div className="flex flex-col text-[0.6rem] gap-0 absolute bottom-2 left-2 text-black">
+              <span className="inline-flex items-center gap-1">
+                <span className="flex items-center justify-center p-0.5 bg-blue-100 rounded-full border border-black/10">
+                  <Waves className="h-3 w-3 text-blue-500" />
+                </span>
+                <span className="flex items-baseline gap-0.5">
+                  <span className="font-semibold text-[0.9rem]">
+                    {b.conditions.surf}
+                  </span>
+                  ft
+                </span>
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <span className="flex items-center justify-center p-0.5 bg-gray-50 rounded-full border border-black/10">
+                  <Wind className="h-3 w-3 text-gray-700" />
+                </span>
+                <span className="flex items-baseline gap-0.5">
+                  <span className="font-semibold text-[0.9rem]">
+                    {b.conditions.wind}
+                  </span>
+                  mph
+                </span>
+                <ArrowIcon
+                  style={{
+                    transform: `rotate(${rotation}deg)`,
+                    display: "inline-block",
+                  }}
+                  className="h-3 w-3 fill-black/50 text-black/50"
+                />
+              </span>
+            </div>
+            <Popover>
+              <PopoverTrigger
+                asChild
+                onClick={(e) => {
+                  e.stopPropagation();
+                }}
+              >
+                <span className="text-white absolute bottom-3 right-3 z-50 p-1.5 rounded-full bg-black/60 hover:bg-black/90">
+                  <Info className="w-4 h-4" />
+                </span>
+              </PopoverTrigger>
+              <PopoverContent
+                side="bottom"
+                align="end"
+                sideOffset={8}
+                className="w-80 touch-pan-y max-w-[150px]"
+              >
+                <span className="text-[11px] font-semibold uppercase text-muted-foreground">
+                  Direction Rings
+                </span>
+                <div className="mt-1.5 flex flex-col gap-1 text-[11px] text-foreground">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#1d4ed8]" />
+                    <span>Primary swell</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#0ea5e9]" />
+                    <span>Secondary swell</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#22d3ee]" />
+                    <span>Tertiary swell</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#a855f7]" />
+                    <span>Wind direction</span>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+            {distance != null && (
+              <span className="absolute right-11 bottom-[12px] z-10 font-semibold text-[0.7rem] whitespace-nowrap bg-slate-900/70 px-2 py-[5px] text-white/90 backdrop-blur transition rounded-full">
+                {Math.round(Number(distance.toFixed(1)))}{" "}
+                {useMiles ? "mi" : "km"}
+              </span>
+            )}
+            {b.current && (
+              <>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <SwellRings
+                    directions={{
+                      primary: b.current.swell.primary.direction,
+                      secondary: b.current.swell.secondary.direction,
+                      tertiary: b.current.swell.tertiary.direction,
+                    }}
+                    scale={0.35}
+                    variant="preview"
+                  />
+                </div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <WindRing
+                    direction={b.current.conditions.windDirection}
+                    scale={0.35}
+                    variant="preview"
+                  />
+                </div>
+              </>
+            )}
+            <div className="absolute right-2 top-2 z-10">
+              <SaveButton
+                beachId={String(b.id)}
+                initialIsFav={isFav}
+                variant="overlay"
+                stopPropagation
               />
             </div>
-          </>
-        )}
-        <div className="absolute right-2 top-2 z-10">
-          <SaveButton
-            beachId={String(b.id)}
-            initialIsFav={isFav}
-            variant="overlay"
-            stopPropagation
-          />
-        </div>
-        {loadingStats && (
-          <div className="pointer-events-none absolute inset-0 rounded-2xl bg-background/40 backdrop-blur-[2px]">
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse rounded-2xl" />
-          </div>
-        )}
-      </section>
-    </article>
+            {loadingStats && (
+              <div className="pointer-events-none absolute inset-0 rounded-2xl bg-background/40 backdrop-blur-[2px]">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse rounded-2xl" />
+              </div>
+            )}
+          </section>
+        </article>
       </Link>
-  );
+    );
 
-  // return (
-  //   <article
-  //     onMouseEnter={() => {
-  //       setHoverCardId(b.id);
-  //       if (!map) return;
-  //       try {
-  //         const coord: [number, number] = [b.coords[1], b.coords[0]]; // lon, lat
-  //         const pt = (map as any).project(coord);
-  //         const pad = 6;
-  //         (map as any).queryRenderedFeatures(
-  //           [
-  //             [pt.x - pad, pt.y - pad],
-  //             [pt.x + pad, pt.y + pad],
-  //           ],
-  //           { layers: ["unclustered-point"] }
-  //         );
-  //       } catch {}
-  //     }}
-  //     onMouseLeave={() => {
-  //       setHoverCardId(null);
-  //     }}
-  //     onClick={goToOverview}
-  //     onKeyDown={(e) => {
-  //       if (e.key === "Enter" || e.key === " ") {
-  //         e.preventDefault();
-  //         goToOverview();
-  //       }
-  //     }}
-  //     role="link"
-  //     tabIndex={0}
-  //     id={`beach-${b.id}`}
-  //     className="hover:cursor-pointer transition-colors duration-200 ease-out hover:bg-highlight-5/40 group flex flex-col overflow-hidden rounded-3xl border border-border/50 bg-highlight-7/60 shadow-even hover:shadow-lg backdrop-blur focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-400"
-  //   >
-  //     <div className="relative w-full p-3 mx-auto aspect-auto">
-  //       <div className="rounded-4xl h-53 w-full bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900">
-  //         <Image
-  //           src={`/beach_pictures/${b.id}.png`}
-  //           alt={`Map view of ${b.name}`}
-  //           fill
-  //           className="object-cover rounded-4xl p-3"
-  //           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-  //           unoptimized
-  //           onError={(e) => {
-  //             e.currentTarget.style.display = "none";
-  //           }}
-  //         />
-  //       </div>
-  //       <Popover>
-  //         <PopoverTrigger
-  //           asChild
-  //           onClick={(e) => {
-  //             e.stopPropagation();
-  //           }}
-  //         >
-  //           <span className="text-white absolute bottom-5 right-5 z-50 p-1.5 rounded-full bg-black/60 hover:bg-black/90">
-  //             <Info className="w-4 h-4" />
-  //           </span>
-  //         </PopoverTrigger>
-  //         <PopoverContent
-  //           side="bottom"
-  //           align="end"
-  //           sideOffset={8}
-  //           className="w-80 touch-pan-y max-w-[150px]"
-  //         >
-  //           <span className="text-[11px] font-semibold uppercase text-muted-foreground">
-  //             Direction Rings
-  //           </span>
-  //           <div className="mt-1.5 flex flex-col gap-1 text-[11px] text-foreground">
-  //             <div className="flex items-center gap-2">
-  //               <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#1d4ed8]" />
-  //               <span>Primary swell</span>
-  //             </div>
-  //             <div className="flex items-center gap-2">
-  //               <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#0ea5e9]" />
-  //               <span>Secondary swell</span>
-  //             </div>
-  //             <div className="flex items-center gap-2">
-  //               <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#22d3ee]" />
-  //               <span>Tertiary swell</span>
-  //             </div>
-  //             <div className="flex items-center gap-2">
-  //               <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#a855f7]" />
-  //               <span>Wind direction</span>
-  //             </div>
-  //           </div>
-  //         </PopoverContent>
-  //       </Popover>
-  //       <div className="absolute bottom-3 left-3 w-[75%] bg-slate-900/0 p-2 text-black backdrop-blur-none transition rounded-4xl">
-  //         <div className="flex gap-1 truncate">
-  //           <div className={cn("w-1 p-1 rounded-full", color)} />
-  //           <div className="min-w-0">
-  //             <h3 className="truncate text-md font-semibold leading-tight">
-  //               {b.name}
-  //             </h3>
-  //             <p className="truncate text-xs">{b.region}</p>
-  //           </div>
-  //         </div>
-  //       </div>
-  //       {b.current && (
-  //         <>
-  //           <div className="absolute inset-0 flex items-center justify-center">
-  //             <SwellRings
-  //               directions={{
-  //                 primary: b.current.swell.primary.direction,
-  //                 secondary: b.current.swell.secondary.direction,
-  //                 tertiary: b.current.swell.tertiary.direction,
-  //               }}
-  //               scale={0.5}
-  //               variant="preview"
-  //             />
-  //           </div>
-  //           <div className="absolute inset-0 flex items-center justify-center">
-  //             <WindRing
-  //               direction={b.current.conditions.windDirection}
-  //               scale={0.5}
-  //               variant="preview"
-  //             />
-  //           </div>
-  //         </>
-  //       )}
-  //       <div className="absolute right-5 top-5 z-10 flex items-center gap-2">
-  //         {distance != null && (
-  //           <span className="font-semibold text-xs whitespace-nowrap bg-slate-900/70 p-3 text-white/90 backdrop-blur transition rounded-full">
-  //             {Math.round(Number(distance.toFixed(1)))} {useMiles ? "mi" : "km"}
-  //           </span>
-  //         )}
-  //         <SaveButton
-  //           beachId={String(b.id)}
-  //           initialIsFav={isFav}
-  //           variant="overlay"
-  //           stopPropagation
-  //         />
-  //       </div>
-  //     </div>
+    // return (
+    //   <article
+    //     onMouseEnter={() => {
+    //       setHoverCardId(b.id);
+    //       if (!map) return;
+    //       try {
+    //         const coord: [number, number] = [b.coords[1], b.coords[0]]; // lon, lat
+    //         const pt = (map as any).project(coord);
+    //         const pad = 6;
+    //         (map as any).queryRenderedFeatures(
+    //           [
+    //             [pt.x - pad, pt.y - pad],
+    //             [pt.x + pad, pt.y + pad],
+    //           ],
+    //           { layers: ["unclustered-point"] }
+    //         );
+    //       } catch {}
+    //     }}
+    //     onMouseLeave={() => {
+    //       setHoverCardId(null);
+    //     }}
+    //     onClick={goToOverview}
+    //     onKeyDown={(e) => {
+    //       if (e.key === "Enter" || e.key === " ") {
+    //         e.preventDefault();
+    //         goToOverview();
+    //       }
+    //     }}
+    //     role="link"
+    //     tabIndex={0}
+    //     id={`beach-${b.id}`}
+    //     className="hover:cursor-pointer transition-colors duration-200 ease-out hover:bg-highlight-5/40 group flex flex-col overflow-hidden rounded-3xl border border-border/50 bg-highlight-7/60 shadow-even hover:shadow-lg backdrop-blur focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-400"
+    //   >
+    //     <div className="relative w-full p-3 mx-auto aspect-auto">
+    //       <div className="rounded-4xl h-53 w-full bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900">
+    //         <Image
+    //           src={`/beach_pictures/${b.id}.png`}
+    //           alt={`Map view of ${b.name}`}
+    //           fill
+    //           className="object-cover rounded-4xl p-3"
+    //           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+    //           unoptimized
+    //           onError={(e) => {
+    //             e.currentTarget.style.display = "none";
+    //           }}
+    //         />
+    //       </div>
+    //       <Popover>
+    //         <PopoverTrigger
+    //           asChild
+    //           onClick={(e) => {
+    //             e.stopPropagation();
+    //           }}
+    //         >
+    //           <span className="text-white absolute bottom-5 right-5 z-50 p-1.5 rounded-full bg-black/60 hover:bg-black/90">
+    //             <Info className="w-4 h-4" />
+    //           </span>
+    //         </PopoverTrigger>
+    //         <PopoverContent
+    //           side="bottom"
+    //           align="end"
+    //           sideOffset={8}
+    //           className="w-80 touch-pan-y max-w-[150px]"
+    //         >
+    //           <span className="text-[11px] font-semibold uppercase text-muted-foreground">
+    //             Direction Rings
+    //           </span>
+    //           <div className="mt-1.5 flex flex-col gap-1 text-[11px] text-foreground">
+    //             <div className="flex items-center gap-2">
+    //               <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#1d4ed8]" />
+    //               <span>Primary swell</span>
+    //             </div>
+    //             <div className="flex items-center gap-2">
+    //               <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#0ea5e9]" />
+    //               <span>Secondary swell</span>
+    //             </div>
+    //             <div className="flex items-center gap-2">
+    //               <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#22d3ee]" />
+    //               <span>Tertiary swell</span>
+    //             </div>
+    //             <div className="flex items-center gap-2">
+    //               <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#a855f7]" />
+    //               <span>Wind direction</span>
+    //             </div>
+    //           </div>
+    //         </PopoverContent>
+    //       </Popover>
+    //       <div className="absolute bottom-3 left-3 w-[75%] bg-slate-900/0 p-2 text-black backdrop-blur-none transition rounded-4xl">
+    //         <div className="flex gap-1 truncate">
+    //           <div className={cn("w-1 p-1 rounded-full", color)} />
+    //           <div className="min-w-0">
+    //             <h3 className="truncate text-md font-semibold leading-tight">
+    //               {b.name}
+    //             </h3>
+    //             <p className="truncate text-xs">{b.region}</p>
+    //           </div>
+    //         </div>
+    //       </div>
+    //       {b.current && (
+    //         <>
+    //           <div className="absolute inset-0 flex items-center justify-center">
+    //             <SwellRings
+    //               directions={{
+    //                 primary: b.current.swell.primary.direction,
+    //                 secondary: b.current.swell.secondary.direction,
+    //                 tertiary: b.current.swell.tertiary.direction,
+    //               }}
+    //               scale={0.5}
+    //               variant="preview"
+    //             />
+    //           </div>
+    //           <div className="absolute inset-0 flex items-center justify-center">
+    //             <WindRing
+    //               direction={b.current.conditions.windDirection}
+    //               scale={0.5}
+    //               variant="preview"
+    //             />
+    //           </div>
+    //         </>
+    //       )}
+    //       <div className="absolute right-5 top-5 z-10 flex items-center gap-2">
+    //         {distance != null && (
+    //           <span className="font-semibold text-xs whitespace-nowrap bg-slate-900/70 p-3 text-white/90 backdrop-blur transition rounded-full">
+    //             {Math.round(Number(distance.toFixed(1)))} {useMiles ? "mi" : "km"}
+    //           </span>
+    //         )}
+    //         <SaveButton
+    //           beachId={String(b.id)}
+    //           initialIsFav={isFav}
+    //           variant="overlay"
+    //           stopPropagation
+    //         />
+    //       </div>
+    //     </div>
 
-  //     <div className="px-2 flex-1 flex flex-col justify-between">
-  //       <div className="flex flex-col gap-2">
-  //         {Array.isArray(b.features) && b.features.length > 0 && (
-  //           <>
-  //             {/* visible row */}
-  //             <div
-  //               ref={tagsRowRef}
-  //               className="px-2 pt-1 pb-1 flex items-center gap-1"
-  //             >
-  //               {b.features.slice(0, fitCount).map((t) => (
-  //                 <Tag
-  //                   key={t.label}
-  //                   data={t}
-  //                   className="px-2 py-1 text-[11px]"
-  //                 />
-  //               ))}
-  //               {fitCount < b.features.length && (
-  //                 <Popover>
-  //                   <PopoverTrigger
-  //                     onClick={(e) => e.stopPropagation()}
-  //                     className="inline-flex items-center px-2 py-1 rounded-full bg-highlight-5/70 hover:bg-highlight-3 hover:cursor-pointer border border-border/50 text-[11px] text-foreground/80"
-  //                     aria-label="Show all tags"
-  //                   >
-  //                     +{b.features.length - fitCount}
-  //                   </PopoverTrigger>
-  //                   <PopoverContent className="w-80 touch-pan-y">
-  //                     <div className="flex flex-wrap gap-2">
-  //                       {b.features.slice(fitCount).map((t) => (
-  //                         <Tag key={t.label} data={t} />
-  //                       ))}
-  //                     </div>
-  //                   </PopoverContent>
-  //                 </Popover>
-  //               )}
-  //             </div>
-  //             {/* hidden measurer row */}
-  //             <div className="absolute -z-50 opacity-0 pointer-events-none fixed -top-[9999px] left-0">
-  //               <div className="flex items-center gap-1">
-  //                 {b.features.map((t, idx) => (
-  //                   <div
-  //                     key={`m-${t.label}`}
-  //                     ref={(el) => {
-  //                       measureTagRefs.current[idx] = el;
-  //                     }}
-  //                   >
-  //                     <Tag data={t} className="px-2 py-1 text-[11px]" />
-  //                   </div>
-  //                 ))}
-  //                 <div
-  //                   ref={moreMeasureRef}
-  //                   className="inline-flex items-center px-2 py-1 rounded-full bg-highlight-5/70 border border-border/50 text-[11px] text-foreground/80"
-  //                 >
-  //                   +99
-  //                 </div>
-  //               </div>
-  //             </div>
-  //           </>
-  //         )}
+    //     <div className="px-2 flex-1 flex flex-col justify-between">
+    //       <div className="flex flex-col gap-2">
+    //         {Array.isArray(b.features) && b.features.length > 0 && (
+    //           <>
+    //             {/* visible row */}
+    //             <div
+    //               ref={tagsRowRef}
+    //               className="px-2 pt-1 pb-1 flex items-center gap-1"
+    //             >
+    //               {b.features.slice(0, fitCount).map((t) => (
+    //                 <Tag
+    //                   key={t.label}
+    //                   data={t}
+    //                   className="px-2 py-1 text-[11px]"
+    //                 />
+    //               ))}
+    //               {fitCount < b.features.length && (
+    //                 <Popover>
+    //                   <PopoverTrigger
+    //                     onClick={(e) => e.stopPropagation()}
+    //                     className="inline-flex items-center px-2 py-1 rounded-full bg-highlight-5/70 hover:bg-highlight-3 hover:cursor-pointer border border-border/50 text-[11px] text-foreground/80"
+    //                     aria-label="Show all tags"
+    //                   >
+    //                     +{b.features.length - fitCount}
+    //                   </PopoverTrigger>
+    //                   <PopoverContent className="w-80 touch-pan-y">
+    //                     <div className="flex flex-wrap gap-2">
+    //                       {b.features.slice(fitCount).map((t) => (
+    //                         <Tag key={t.label} data={t} />
+    //                       ))}
+    //                     </div>
+    //                   </PopoverContent>
+    //                 </Popover>
+    //               )}
+    //             </div>
+    //             {/* hidden measurer row */}
+    //             <div className="absolute -z-50 opacity-0 pointer-events-none fixed -top-[9999px] left-0">
+    //               <div className="flex items-center gap-1">
+    //                 {b.features.map((t, idx) => (
+    //                   <div
+    //                     key={`m-${t.label}`}
+    //                     ref={(el) => {
+    //                       measureTagRefs.current[idx] = el;
+    //                     }}
+    //                   >
+    //                     <Tag data={t} className="px-2 py-1 text-[11px]" />
+    //                   </div>
+    //                 ))}
+    //                 <div
+    //                   ref={moreMeasureRef}
+    //                   className="inline-flex items-center px-2 py-1 rounded-full bg-highlight-5/70 border border-border/50 text-[11px] text-foreground/80"
+    //                 >
+    //                   +99
+    //                 </div>
+    //               </div>
+    //             </div>
+    //           </>
+    //         )}
 
-  //         <div className="pt-1 pb-1 px-2 flex flex-col gap-3 text-xs">
-  //           <div className="flex gap-3">
-  //             <span className="inline-flex items-center gap-1">
-  //               <div className="flex items-center justify-center p-1 bg-blue-100 rounded-full border border-border/40">
-  //                 <Waves className="h-4 w-4 text-blue-500" />
-  //               </div>
-  //               <span className="flex items-baseline gap-0.5">
-  //                 <span className="font-semibold text-xl">
-  //                   {b.conditions.surf}
-  //                 </span>
-  //                 ft
-  //               </span>
-  //             </span>
-  //             <span className="inline-flex items-center gap-1">
-  //               <div className="flex items-center justify-center p-1 bg-gray-50 rounded-full border border-border/40">
-  //                 <Wind className="h-4 w-4 text-gray-700" />
-  //               </div>
-  //               <span className="flex items-baseline gap-0.5">
-  //                 <span className="font-semibold text-xl">
-  //                   {b.conditions.wind}
-  //                 </span>
-  //                 mph
-  //               </span>
-  //               <ArrowIcon
-  //                 style={{
-  //                   transform: `rotate(${rotation}deg)`,
-  //                   display: "inline-block",
-  //                 }}
-  //                 className="ml-1 h-4 w-4 fill-foreground/50 text-foreground/50"
-  //               />
-  //             </span>
-  //           </div>
-  //         </div>
-  //       </div>
-  //       <div className="px-2 pb-2 mt-2" />
-  //     </div>
-  //   </article>
-  // );
+    //         <div className="pt-1 pb-1 px-2 flex flex-col gap-3 text-xs">
+    //           <div className="flex gap-3">
+    //             <span className="inline-flex items-center gap-1">
+    //               <div className="flex items-center justify-center p-1 bg-blue-100 rounded-full border border-border/40">
+    //                 <Waves className="h-4 w-4 text-blue-500" />
+    //               </div>
+    //               <span className="flex items-baseline gap-0.5">
+    //                 <span className="font-semibold text-xl">
+    //                   {b.conditions.surf}
+    //                 </span>
+    //                 ft
+    //               </span>
+    //             </span>
+    //             <span className="inline-flex items-center gap-1">
+    //               <div className="flex items-center justify-center p-1 bg-gray-50 rounded-full border border-border/40">
+    //                 <Wind className="h-4 w-4 text-gray-700" />
+    //               </div>
+    //               <span className="flex items-baseline gap-0.5">
+    //                 <span className="font-semibold text-xl">
+    //                   {b.conditions.wind}
+    //                 </span>
+    //                 mph
+    //               </span>
+    //               <ArrowIcon
+    //                 style={{
+    //                   transform: `rotate(${rotation}deg)`,
+    //                   display: "inline-block",
+    //                 }}
+    //                 className="ml-1 h-4 w-4 fill-foreground/50 text-foreground/50"
+    //               />
+    //             </span>
+    //           </div>
+    //         </div>
+    //       </div>
+    //       <div className="px-2 pb-2 mt-2" />
+    //     </div>
+    //   </article>
+    // );
   },
   (prev, next) =>
     prev.b === next.b &&

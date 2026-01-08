@@ -2502,7 +2502,7 @@ const StatTable = ({
       </div> */}
         <div
           className={cn(
-            "sticky top-16 @min-4xl:top-27.5 z-40 @min-md:mx-0 rounded-b-[10px] px-0.5 py-0.5",
+            "sticky top-16 @min-4xl/main:top-27.5 z-40 @min-md:mx-0 rounded-b-[10px] px-0.5 py-0.5",
             headerBgClass
           )}
         >

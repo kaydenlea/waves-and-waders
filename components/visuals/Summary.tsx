@@ -1703,7 +1703,7 @@ const Summary = ({
             cardHover,
             usingPreview
               ? "col-span-6"
-              : "col-span-6 @min-md:col-span-6 @min-2xl:col-span-4 @min-3xl:col-span-4 @min-5xl:col-span-3",
+              : "col-span-6 @min-md:col-span-6 @min-xl:col-span-4 @min-2xl:col-span-4 @min-3xl:col-span-4 @min-5xl:col-span-3",
             "p-4 flex flex-col min-h-35 overflow-hidden"
           )}
           aria-label="Wind summary"
@@ -1799,7 +1799,7 @@ const Summary = ({
             cardHover,
             usingPreview
               ? "col-span-6"
-              : "col-span-6 @min-xl:col-span-6 @min-2xl:col-span-4 @min-3xl:col-span-5 @min-5xl:col-span-3 @min-6xl:col-span-4",
+              : "col-span-6 @min-xl:col-span-8 @min-2xl:col-span-4 @min-3xl:col-span-5 @min-5xl:col-span-3 @min-6xl:col-span-4",
             "p-4 flex flex-col min-h-35 overflow-hidden"
           )}
           aria-label="Tide summary"

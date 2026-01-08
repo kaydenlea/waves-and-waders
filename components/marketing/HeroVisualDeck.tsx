@@ -712,6 +712,7 @@ export default function HeroVisualDeck({
   );
   const deckContainerRef = React.useRef<HTMLDivElement | null>(null);
   const [deckScale, setDeckScale] = React.useState(1);
+  const [deckReady, setDeckReady] = React.useState(false);
 
   React.useEffect(() => {
     const el = deckContainerRef.current;
@@ -771,6 +772,7 @@ export default function HeroVisualDeck({
     };
 
     update();
+    setDeckReady(true);
     const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => ro.disconnect();
@@ -968,6 +970,7 @@ export default function HeroVisualDeck({
           transform: `translate(-56%, -56%) scale(${deckScale})`,
           transformOrigin: "center",
           scale: 0.9,
+          visibility: deckReady ? "visible" : "hidden",
         }}
       >
         <div className="absolute -inset-6 rounded-[46px] bg-gradient-to-br from-cyan-500/12 via-transparent to-indigo-500/12 blur-2xl ww-hero-float motion-reduce:animate-none" />

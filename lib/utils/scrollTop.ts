@@ -15,30 +15,35 @@ export function ScrollToTopOnRouteChange() {
   }, [pathname]);
 
   useEffect(() => {
+    const SCROLL_IDLE_MS = 160;
     let timeoutId: number | null = null;
-    let ticking = false;
     let active = false;
+    let lastScrollAt = 0;
 
-    const setScrolling = () => {
+    const stopScrolling = () => {
+      delete document.body.dataset.wwScrolling;
+      active = false;
+      timeoutId = null;
+    };
+
+    const checkIdle = () => {
+      const elapsed = window.performance.now() - lastScrollAt;
+      if (elapsed < SCROLL_IDLE_MS) {
+        timeoutId = window.setTimeout(checkIdle, SCROLL_IDLE_MS - elapsed);
+        return;
+      }
+      stopScrolling();
+    };
+
+    const onScroll = () => {
+      lastScrollAt = window.performance.now();
       if (!active) {
         document.body.dataset.wwScrolling = "1";
         active = true;
       }
-      if (timeoutId != null) window.clearTimeout(timeoutId);
-      timeoutId = window.setTimeout(() => {
-        delete document.body.dataset.wwScrolling;
-        active = false;
-        timeoutId = null;
-      }, 160);
-    };
-
-    const onScroll = () => {
-      if (ticking) return;
-      ticking = true;
-      window.requestAnimationFrame(() => {
-        ticking = false;
-        setScrolling();
-      });
+      if (timeoutId == null) {
+        timeoutId = window.setTimeout(checkIdle, SCROLL_IDLE_MS);
+      }
     };
 
     window.addEventListener("scroll", onScroll, { passive: true });
