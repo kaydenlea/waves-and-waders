@@ -3672,7 +3672,7 @@ const LeafletMap: React.FC<Props> = ({
             };
             registry[id] = entry;
 
-            const handleClick = () => {
+            const handleClick = (e: L.LeafletMouseEvent) => {
               if (!interactionsReadyRef.current) return;
               const normalizedId = String(beach.id);
               setSelectedBeachId(beach.id);
@@ -3683,6 +3683,13 @@ const LeafletMap: React.FC<Props> = ({
                 beach.name,
                 beach.id
               )}/overview#content`;
+
+              // Check if Ctrl/Cmd+Click to open in new tab
+              if (e.originalEvent && (e.originalEvent.ctrlKey || e.originalEvent.metaKey)) {
+                window.open(destination, '_blank', 'noopener,noreferrer');
+                return;
+              }
+
               if (router) {
                 setNavigationPending(true);
                 router.push(destination);

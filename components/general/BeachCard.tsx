@@ -2,6 +2,7 @@
 
 import React, { type ReactNode } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { generateBeachUrl } from "@/lib/supabase";
 import type { ForecastData } from "@/lib/supabase";
 import { Waves, Wind, MousePointer2 as ArrowIcon, Info } from "lucide-react";
@@ -92,8 +93,10 @@ const BeachCard = React.memo(
     const rotation =
       typeof b.conditions.windDir === "number" ? b.conditions.windDir - 315 : 0;
 
+    const beachUrl = `${generateBeachUrl(b.name, b.id)}/overview#content`;
+
     const goToOverview = () => {
-      router.push(`${generateBeachUrl(b.name, b.id)}/overview#content`);
+      router.push(beachUrl);
     };
 
     // Compute how many tags fit in the visible row; others go under a +N popover
@@ -187,17 +190,15 @@ const BeachCard = React.memo(
     );
 
     return (
-      <article
+      <Link
+        href={beachUrl}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
-        onClick={handleClick}
-        onKeyDown={handleClick}
-      role="link"
-      tabIndex={0}
-      id={`beach-${b.id}`}
-      className="hover:cursor-pointer transition-all duration-300 p-1.5 ease-out hover:translate-y-0.5 hover:bg-highlight-5/40 group overflow-hidden rounded-3xl border border-border/50 bg-highlight-7/60 shadow-even hover:shadow-lg backdrop-blur focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-400"
-      aria-busy={loadingStats}
-    >
+        id={`beach-${b.id}`}
+        className="block hover:cursor-pointer transition-all duration-300 p-1.5 ease-out hover:translate-y-0.5 hover:bg-highlight-5/40 group overflow-hidden rounded-3xl border border-border/50 bg-highlight-7/60 shadow-even hover:shadow-lg backdrop-blur focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-400"
+        aria-busy={loadingStats}
+      >
+        <article>
         <section className="rounded-2xl relative w-full p-3 aspect-auto bg-gradient-to-br from-blue-50 to-blue-100">
           <div className="rounded-2xl h-35 w-full">
             <Image
@@ -342,6 +343,7 @@ const BeachCard = React.memo(
         )}
       </section>
     </article>
+      </Link>
   );
 
   // return (

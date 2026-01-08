@@ -19,7 +19,13 @@ const clamp = (n: number, min: number, max: number) =>
 // Compass-style polar coordinates: 0° = North, 90° = East, clockwise positive.
 const polar = (cx: number, cy: number, r: number, bearingDeg: number) => {
   const a = toRad(bearingDeg - 90);
-  return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
+  // Round to avoid hydration mismatches from floating-point precision differences
+  const roundTo = (n: number, decimals: number = 10) =>
+    Math.round(n * Math.pow(10, decimals)) / Math.pow(10, decimals);
+  return {
+    x: roundTo(cx + r * Math.cos(a)),
+    y: roundTo(cy + r * Math.sin(a))
+  };
 };
 
 const isLowerHalf = (bearingDeg: number) => {
