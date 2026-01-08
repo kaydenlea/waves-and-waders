@@ -4,12 +4,22 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSupabaseClient } from "@supabase/auth-helpers-react";
 import type { Provider } from "@supabase/supabase-js";
+import { AlertTriangle, CheckCircle2, KeyRound, Lock, Mail } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
+import type { ReactNode } from "react";
 
 type Mode = "signin" | "signup" | "forgot-password" | "reset-password";
 
-export const AuthForm = () => {
+export const AuthForm = ({
+  className,
+  footer,
+}: {
+  className?: string;
+  footer?: ReactNode;
+}) => {
   const supabase = useSupabaseClient();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -28,6 +38,12 @@ export const AuthForm = () => {
 
   const toggleMode = () => {
     setMode((current) => (current === "signin" ? "signup" : "signin"));
+    setError(null);
+    setMessage(null);
+  };
+
+  const setPrimaryMode = (nextMode: Extract<Mode, "signin" | "signup">) => {
+    setMode(nextMode);
     setError(null);
     setMessage(null);
   };
@@ -216,93 +232,173 @@ export const AuthForm = () => {
     }
   };
 
+  const showOAuth = mode === "signin" || mode === "signup";
+  const showResetBack = mode === "forgot-password" || mode === "reset-password";
+
   return (
-    <div className="mx-auto flex w-full max-w-md flex-col gap-6 rounded-3xl border border-border bg-background/80 p-8 shadow-lg backdrop-blur">
-      <header className="space-y-1 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {getTitle()}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {getDescription()}
-        </p>
+    <div
+      className={cn(
+        "ww-hero-reveal motion-reduce:animate-none w-full rounded-[2rem] border border-border/60 bg-background/90 p-6 shadow-[0_24px_70px_rgba(2,6,23,0.12)] supports-[backdrop-filter]:bg-background/70 supports-[backdrop-filter]:backdrop-blur-xl sm:p-8 dark:bg-background/40 dark:shadow-[0_24px_70px_rgba(0,0,0,0.35)]",
+        className
+      )}
+    >
+      <header className="space-y-4 text-center">
+        {showOAuth ? (
+          <div className="space-y-3">
+            <Tabs
+              value={mode}
+              onValueChange={(value) =>
+                setPrimaryMode(value as "signin" | "signup")
+              }
+            >
+              <TabsList className="mx-auto h-11 w-full max-w-[20rem] rounded-2xl border border-border/60 bg-background/70 p-1 shadow-sm supports-[backdrop-filter]:bg-background/55 supports-[backdrop-filter]:backdrop-blur-md dark:bg-background/35">
+                <TabsTrigger
+                  value="signin"
+                  className="h-9 rounded-xl text-sm font-semibold"
+                >
+                  Sign in
+                </TabsTrigger>
+                <TabsTrigger
+                  value="signup"
+                  className="h-9 rounded-xl text-sm font-semibold"
+                >
+                  Sign up
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+            <p className="text-pretty text-sm text-muted-foreground">
+              {getDescription()}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-1">
+            <h1 className="text-balance text-2xl font-semibold tracking-tight sm:text-3xl">
+              {getTitle()}
+            </h1>
+            <p className="text-pretty text-sm text-muted-foreground">
+              {getDescription()}
+            </p>
+          </div>
+        )}
       </header>
 
-      <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+      <form
+        className="mt-2 flex flex-col gap-4"
+        onSubmit={handleSubmit}
+        aria-busy={loading}
+      >
         {mode === "reset-password" ? (
           <>
-            <label className="flex flex-col gap-1">
+            <label className="flex flex-col gap-2">
               <span className="text-sm font-medium text-muted-foreground">
                 New Password
               </span>
-              <input
-                required
-                type="password"
-                autoComplete="new-password"
-                value={newPassword}
-                onChange={(event) => setNewPassword(event.target.value)}
-                className="w-full rounded-xl border border-border bg-background/90 px-3 py-2 text-sm outline-none ring-offset-background transition focus:border-primary focus:ring-2 focus:ring-primary/40"
-                minLength={6}
-              />
+              <div className="relative">
+                <KeyRound
+                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                  aria-hidden="true"
+                />
+                <input
+                  required
+                  type="password"
+                  autoComplete="new-password"
+                  value={newPassword}
+                  onChange={(event) => setNewPassword(event.target.value)}
+                  className="h-11 w-full rounded-xl border border-border bg-background/75 px-3 pl-10 text-sm outline-none ring-offset-background transition focus:border-foreground/30 focus:ring-2 focus:ring-ring/40 dark:bg-background/35"
+                  minLength={6}
+                />
+              </div>
             </label>
-            <label className="flex flex-col gap-1">
+            <label className="flex flex-col gap-2">
               <span className="text-sm font-medium text-muted-foreground">
                 Confirm New Password
               </span>
-              <input
-                required
-                type="password"
-                autoComplete="new-password"
-                value={confirmPassword}
-                onChange={(event) => setConfirmPassword(event.target.value)}
-                className="w-full rounded-xl border border-border bg-background/90 px-3 py-2 text-sm outline-none ring-offset-background transition focus:border-primary focus:ring-2 focus:ring-primary/40"
-                minLength={6}
-              />
+              <div className="relative">
+                <Lock
+                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                  aria-hidden="true"
+                />
+                <input
+                  required
+                  type="password"
+                  autoComplete="new-password"
+                  value={confirmPassword}
+                  onChange={(event) => setConfirmPassword(event.target.value)}
+                  className="h-11 w-full rounded-xl border border-border bg-background/75 px-3 pl-10 text-sm outline-none ring-offset-background transition focus:border-foreground/30 focus:ring-2 focus:ring-ring/40 dark:bg-background/35"
+                  minLength={6}
+                />
+              </div>
             </label>
           </>
         ) : (
           <>
-            <label className="flex flex-col gap-1">
+            <label className="flex flex-col gap-2">
               <span className="text-sm font-medium text-muted-foreground">
                 Email
               </span>
-              <input
-                required
-                type="email"
-                autoComplete="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                className="w-full rounded-xl border border-border bg-background/90 px-3 py-2 text-sm outline-none ring-offset-background transition focus:border-primary focus:ring-2 focus:ring-primary/40"
-              />
+              <div className="relative">
+                <Mail
+                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                  aria-hidden="true"
+                />
+                <input
+                  required
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  className="h-11 w-full rounded-xl border border-border bg-background/75 px-3 pl-10 text-sm outline-none ring-offset-background transition focus:border-foreground/30 focus:ring-2 focus:ring-ring/40 dark:bg-background/35"
+                />
+              </div>
             </label>
             {mode !== "forgot-password" && (
-              <label className="flex flex-col gap-1">
+              <label className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-muted-foreground">
                     Password
                   </span>
-                  {mode === "signin" && (
+                  {mode === "signin" ? (
                     <button
                       type="button"
                       onClick={showForgotPassword}
-                      className="text-xs text-primary underline-offset-4 hover:underline"
+                      className="text-xs text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 rounded-sm"
                     >
                       Forgot password?
                     </button>
+                  ) : (
+                    <span
+                      aria-hidden="true"
+                      className="text-xs text-transparent select-none"
+                    >
+                      Forgot password?
+                    </span>
                   )}
                 </div>
-                <input
-                  required
-                  type="password"
-                  autoComplete={mode === "signin" ? "current-password" : "new-password"}
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  className="w-full rounded-xl border border-border bg-background/90 px-3 py-2 text-sm outline-none ring-offset-background transition focus:border-primary focus:ring-2 focus:ring-primary/40"
-                />
+                <div className="relative">
+                  <Lock
+                    className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                    aria-hidden="true"
+                  />
+                  <input
+                    required
+                    type="password"
+                    autoComplete={
+                      mode === "signin" ? "current-password" : "new-password"
+                    }
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    className="h-11 w-full rounded-xl border border-border bg-background/75 px-3 pl-10 text-sm outline-none ring-offset-background transition focus:border-foreground/30 focus:ring-2 focus:ring-ring/40 dark:bg-background/35"
+                  />
+                </div>
               </label>
             )}
           </>
         )}
-        <Button type="submit" disabled={loading}>
+        <Button
+          type="submit"
+          disabled={loading}
+          className="h-11 w-full rounded-xl text-sm font-semibold shadow-sm shadow-foreground/10"
+        >
           {loading
             ? "Working..."
             : mode === "signin"
@@ -315,39 +411,78 @@ export const AuthForm = () => {
         </Button>
       </form>
 
-      {(mode === "signin" || mode === "signup") && (
-        <div className="flex flex-col gap-3">
-          <Button
-            variant="outline"
-            onClick={() => handleOAuthSignIn("google")}
-            disabled={loading}
+      {showOAuth && (
+        <div className="mt-6">
+          <div
+            role="separator"
+            aria-label="or"
+            className="flex items-center gap-3"
           >
-            Continue with Google
-          </Button>
-          <button
-            type="button"
-            onClick={toggleMode}
-            className="text-sm text-primary underline-offset-4 hover:underline"
-          >
-            {mode === "signin"
-              ? "New here? Create an account"
-              : "Already have an account? Sign in"}
-          </button>
+            <div className="h-px flex-1 bg-border/70" aria-hidden="true" />
+            <span className="text-xs font-medium text-muted-foreground">
+              or
+            </span>
+            <div className="h-px flex-1 bg-border/70" aria-hidden="true" />
+          </div>
+
+          <div className="mt-6 flex flex-col gap-3">
+            <Button
+              variant="outline"
+              onClick={() => handleOAuthSignIn("google")}
+              disabled={loading}
+              className="h-11 w-full rounded-xl bg-background/60 hover:bg-highlight-6/50 supports-[backdrop-filter]:bg-background/45 supports-[backdrop-filter]:backdrop-blur-md"
+            >
+              Continue with Google
+            </Button>
+
+            <button
+              type="button"
+              onClick={toggleMode}
+              className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 rounded-sm"
+            >
+              {mode === "signin"
+                ? "New here? Create an account"
+                : "Already have an account? Sign in"}
+            </button>
+          </div>
         </div>
       )}
 
-      {(mode === "forgot-password" || mode === "reset-password") && (
+      {showResetBack && (
         <button
           type="button"
           onClick={backToSignIn}
-          className="text-sm text-primary underline-offset-4 hover:underline"
+          className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 rounded-sm"
         >
           Back to sign in
         </button>
       )}
 
-      {error && <p className="text-sm text-destructive">Error: {error}</p>}
-      {message && <p className="text-sm text-muted-foreground">{message}</p>}
+      <div className="min-h-[3.25rem] space-y-2" aria-live="polite">
+        {error ? (
+          <div
+            role="alert"
+            className="flex gap-2 rounded-2xl border border-destructive/25 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          >
+            <AlertTriangle
+              className="mt-0.5 h-4 w-4 shrink-0"
+              aria-hidden="true"
+            />
+            <p className="min-w-0">Error: {error}</p>
+          </div>
+        ) : null}
+        {message ? (
+          <div className="flex gap-2 rounded-2xl border border-border/60 bg-background/50 px-3 py-2 text-sm text-muted-foreground supports-[backdrop-filter]:bg-background/40 supports-[backdrop-filter]:backdrop-blur-md">
+            <CheckCircle2
+              className="mt-0.5 h-4 w-4 shrink-0 text-foreground/70"
+              aria-hidden="true"
+            />
+            <p className="min-w-0">{message}</p>
+          </div>
+        ) : null}
+      </div>
+
+      {footer ? <div className="mt-6">{footer}</div> : null}
     </div>
   );
 };
