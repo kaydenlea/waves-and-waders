@@ -2,11 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import {
-  CreditCard,
-  HandHeart,
-  MessageSquareHeart,
-} from "lucide-react";
+import { CreditCard, HandHeart, MessageSquareHeart } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -28,7 +24,7 @@ export default function DonateOptionsCard({
   return (
     <div
       className={cn(
-        "ww-reveal rounded-3xl border border-border/50 bg-background/60 p-5 shadow-lg shadow-black/10 ring-1 ring-black/5",
+        "ww-reveal rounded-3xl max-w-lg mx-auto border border-border/50 bg-background/60 p-5 shadow-lg shadow-black/10 ring-1 ring-black/5",
         "transition-[transform,box-shadow] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none",
         className
       )}
@@ -42,18 +38,18 @@ export default function DonateOptionsCard({
             >
               <CreditCard className="h-4 w-4" />
             </span>
-            Donate with Stripe
+            Donate
           </div>
-          <div className="mt-1 text-sm text-muted-foreground">
+          {/* <div className="mt-1 text-sm text-muted-foreground">
             Pick an amount (or choose custom).
-          </div>
+          </div> */}
         </div>
         <div className="inline-flex items-center gap-1 rounded-full border border-border/50 bg-highlight-5/60 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-foreground/80">
           Secure
         </div>
       </div>
 
-      <div className="mt-5">
+      <div className="mt-3 flex flex-col items-center">
         <div className="text-xs font-semibold tracking-wide text-foreground/65 dark:text-foreground/75">
           Suggested
         </div>
@@ -97,11 +93,11 @@ export default function DonateOptionsCard({
         </div>
       </div>
 
-      <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+      <div className="mt-8 flex flex-col gap-3 sm:flex-row max-w-md mx-auto">
         <Link
           href={donateHref}
           className={cn(
-            "inline-flex items-center justify-center gap-2 rounded-full bg-foreground px-5 py-3 text-sm font-medium text-background shadow-sm",
+            "flex-1 inline-flex items-center justify-center gap-2 rounded-full bg-foreground px-5 py-3 text-sm font-medium text-background shadow-sm",
             "transition-opacity duration-200 motion-reduce:transition-none hover:opacity-95",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
           )}
@@ -112,7 +108,7 @@ export default function DonateOptionsCard({
         <Link
           href="/contact?from=donate-section"
           className={cn(
-            "inline-flex items-center justify-center gap-2 rounded-full border border-border/50 bg-background/50 px-5 py-3 text-sm font-medium text-foreground shadow-sm",
+            "flex-1 inline-flex items-center justify-center gap-2 rounded-full border border-border/50 bg-background/50 px-5 py-3 text-sm font-medium text-foreground shadow-sm",
             "transition-colors duration-200 motion-reduce:transition-none hover:bg-background/70",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
           )}

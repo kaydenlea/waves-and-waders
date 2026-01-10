@@ -24,11 +24,11 @@ export function SectionHeader({
         </div>
       )}
       <div>
-        <h2 className="text-center text-foreground font-semibold tracking-tight text-4xl sm:text-5xl">
+        <h2 className="text-center text-foreground font-semibold tracking-tight text-4xl xl:text-5xl">
           {title}
         </h2>
         {subtitle && (
-          <p className="text-center mt-4 max-w-2xl text-foreground/70 text-pretty text-lg">
+          <p className="text-center mt-3 xl:mt-4 max-w-2xl text-foreground/70 text-pretty text-sm xl:text-base">
             {subtitle}
           </p>
         )}
@@ -73,7 +73,7 @@ const AnimatedCountSection = async () => {
         subtitle="Explore beaches on an interactive map. Scan surf spots, open details, and jump to the full Beaches experience."
       />
       <div
-        className="ww-reveal w-full grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,18rem)] lg:gap-10 lg:items-stretch min-w-0"
+        className="ww-reveal w-full grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,18rem)] lg:gap-8 lg:items-stretch min-w-0"
         style={{ "--delay": "60ms" } as CSSProperties}
       >
         <BeachesMapPreview className="w-full min-w-0" />

@@ -27,29 +27,29 @@ export default function DonateSection({ className }: { className?: string }) {
             </div>
             <h2
               id="support-heading"
-              className="mt-4 text-balance text-3xl font-semibold tracking-tight text-foreground sm:text-4xl"
+              className="mt-4 text-balance text-3xl font-semibold tracking-tight text-foreground sm:text-3xl"
             >
               Keep it free, keep it improving.
             </h2>
-            <p className="mt-4 max-w-prose text-pretty text-base text-muted-foreground sm:text-base">
+            <p className="mt-3 max-w-prose text-pretty text-base text-muted-foreground sm:text-base">
               Donations cover hosting, data costs, and ongoing development.
               Forecasts remain free to use.
             </p>
 
             <div className="mt-6 flex flex-wrap items-center gap-3 text-sm text-foreground/70">
-              <span className="shadow-xs inline-flex items-center gap-2 font-medium rounded-full border border-border/40 bg-background/40 px-3 py-1.5">
+              <span className="shadow-xs inline-flex items-center gap-2 font-medium rounded-full border border-border/40 bg-background/40 pl-3 pr-4.5 py-1.5">
                 <ShieldCheck
                   className="h-4 w-4 text-emerald-500"
                   aria-hidden="true"
                 />
-                Secure checkout
+                Secure
               </span>
-              <span className="shadow-xs inline-flex items-center gap-2 font-medium rounded-full border border-border/40 bg-background/40 px-3 py-1.5">
+              <span className="shadow-xs inline-flex items-center gap-2 font-medium rounded-full border border-border/40 bg-background/40 pl-3 pr-4.5 py-1.5">
                 <HandHeart
                   className="h-4 w-4 text-rose-500"
                   aria-hidden="true"
                 />
-                Optional Donations
+                Optional
               </span>
             </div>
           </div>

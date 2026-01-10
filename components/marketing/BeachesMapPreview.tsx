@@ -11,6 +11,7 @@ const BeachesLeafletMap = dynamic(
   () => import("@/components/visuals/LeafletMap"),
   {
     ssr: false,
+    loading: () => <Skeleton />,
   }
 );
 
@@ -41,26 +42,49 @@ export default function BeachesMapPreview({
   React.useEffect(() => {
     if (shouldLoad) return;
     if (typeof window === "undefined") return;
-    if (!("IntersectionObserver" in window)) {
-      setShouldLoad(true);
-      return;
-    }
 
     const node = containerRef.current;
     if (!node) return;
+
+    const requestIdle = (cb: () => void) => {
+      if ("requestIdleCallback" in window) {
+        (window as any).requestIdleCallback(cb, { timeout: 900 });
+        return;
+      }
+      window.setTimeout(cb, 0);
+    };
+
+    let timeoutId: number | null = null;
+    const attemptLoad = () => {
+      if (document.body.dataset.wwScrolling === "1") {
+        timeoutId = window.setTimeout(attemptLoad, 220);
+        return;
+      }
+      requestIdle(() => setShouldLoad(true));
+    };
+
+    if (!("IntersectionObserver" in window)) {
+      attemptLoad();
+      return () => {
+        if (timeoutId != null) window.clearTimeout(timeoutId);
+      };
+    }
 
     const observer = new IntersectionObserver(
       (entries) => {
         const entry = entries[0];
         if (!entry?.isIntersecting) return;
-        setShouldLoad(true);
         observer.disconnect();
+        attemptLoad();
       },
       { root: null, rootMargin, threshold: 0 }
     );
 
     observer.observe(node);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      if (timeoutId != null) window.clearTimeout(timeoutId);
+    };
   }, [rootMargin, shouldLoad]);
 
   return (
@@ -92,7 +116,7 @@ export default function BeachesMapPreview({
             <Map className="h-4 w-4 text-sky-600" aria-hidden />
             <span className="font-semibold">Beaches</span>
             <Link
-              href="/beaches"
+              href="/beaches?tab=nearby"
               prefetch={false}
               className={cn(
                 "pointer-events-auto rounded-full border border-border/60 bg-highlight-5/60 px-2 py-1 text-[11px] font-semibold tracking-wide text-foreground/90",

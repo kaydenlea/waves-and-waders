@@ -27,11 +27,11 @@ export default function PersonalizeForecastsSection({
         <div className="w-full max-w-2xl xl:col-span-5 xl:max-w-none">
           <h2
             id="personalize-forecasts-heading"
-            className="text-balance text-center xl:text-left text-4xl font-semibold tracking-tight text-foreground sm:text-5xl"
+            className="text-balance text-center xl:text-left text-4xl font-semibold tracking-tight text-foreground xl:text-5xl"
           >
             Personalize your forecasts.
           </h2>
-          <p className="mt-4 max-w-prose text-pretty text-center xl:text-left text-base text-muted-foreground sm:text-lg mx-auto xl:mx-0">
+          <p className="mt-3 xl:mt-4 max-w-prose text-pretty text-center xl:text-left text-sm text-muted-foreground xl:text-base mx-auto xl:mx-0">
             Use Edit dashboard to drag and drop widgets, and toggle what you
             want to see. Keep separate layouts for Overview and Forecast.
           </p>
@@ -41,7 +41,7 @@ export default function PersonalizeForecastsSection({
             style={{ "--delay": "80ms" } as CSSProperties}
           >
             <Link
-              href="/beaches"
+              href="/beaches?tab=nearby"
               className={cn(
                 "inline-flex items-center justify-center rounded-full bg-foreground px-5 py-3 text-sm font-medium text-background shadow-xl",
                 "transition-shadow motion-reduce:transition-none hover:shadow-cyan-500/20",

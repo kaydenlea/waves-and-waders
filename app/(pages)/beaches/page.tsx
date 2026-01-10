@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import NearbyBeaches from "@/components/beaches/NearbyBeaches";
 import { getServerSupabase } from "@/lib/supabaseServer";
 import BottomNav from "@/components/general/BottomNav";
@@ -60,7 +61,11 @@ export const metadata: Metadata = {
 
 export const revalidate = 300; // Revalidate every 5 minutes
 
-export default async function BeachesPage() {
+export default async function BeachesPage({
+  searchParams,
+}: {
+  searchParams?: { tab?: string };
+}) {
   const supabase = await getServerSupabase();
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError) {
@@ -68,6 +73,12 @@ export default async function BeachesPage() {
   }
 
   const user = userData.user ?? null;
+  const tab = searchParams?.tab;
+
+  if (!user && tab === "saved") {
+    const next = "/beaches?tab=saved";
+    redirect(`/login?next=${encodeURIComponent(next)}`);
+  }
 
   let favoriteIds: string[] = [];
 

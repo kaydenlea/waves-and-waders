@@ -441,7 +441,9 @@ export default function BottomNav() {
             onClick={() => {
               try {
                 if (!user) {
-                  router.push(`/login?next=${encodeURIComponent("/beaches")}`);
+                  router.push(
+                    `/login?next=${encodeURIComponent("/beaches?tab=saved")}`
+                  );
                   return;
                 }
                 if (typeof window !== "undefined") {

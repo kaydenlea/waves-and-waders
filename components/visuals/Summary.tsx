@@ -1391,8 +1391,9 @@ const Summary = ({
 
   const cardBase =
     "relative rounded-[22px] border border-border/25 bg-highlight-7/70 shadow-even supports-[backdrop-filter]:bg-highlight-7/40 supports-[backdrop-filter]:backdrop-blur-md";
-  const cardHover =
-    "transition-shadow duration-200 ease-out motion-reduce:transition-none hover:z-10 hover:shadow-[0_10px_30px_rgba(0,0,0,0.12)] dark:hover:shadow-[0_18px_50px_rgba(0,0,0,0.70),0_0_0_1px_rgba(255,255,255,0.08),0_12px_26px_rgba(255,255,255,0.04)] focus-within:ring-1 focus-within:ring-foreground/10";
+  const cardHover = isOverviewVariant
+    ? ""
+    : "transition-shadow duration-200 ease-out motion-reduce:transition-none hover:z-10 hover:shadow-[0_10px_30px_rgba(0,0,0,0.12)] dark:hover:shadow-[0_18px_50px_rgba(0,0,0,0.70),0_0_0_1px_rgba(255,255,255,0.08),0_12px_26px_rgba(255,255,255,0.04)] focus-within:ring-1 focus-within:ring-foreground/10";
 
   const kickerClass =
     "text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground";
@@ -2084,7 +2085,7 @@ const Summary = ({
                   <PopoverTrigger className="more-button shrink-0 px-2.5 py-1.5 rounded-full bg-foreground/5 hover:bg-foreground/8 border border-border/25 text-[13px] text-muted-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0">
                     +{hiddenItems.length}
                   </PopoverTrigger>
-                  <PopoverContent className="w-80 touch-pan-y">
+                  <PopoverContent className="z-50 w-80 touch-pan-y">
                     <div className="flex flex-wrap gap-2">
                       {hiddenItems.map((tag) => (
                         <Tag key={tag.label} data={tag} />

@@ -1,19 +1,22 @@
 "use client";
 
 import * as React from "react";
-import Image from "next/image";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import {
+  AnimatePresence,
+  motion,
+  useReducedMotion,
+} from "motion/react";
 import { cn } from "@/lib/utils";
 
-import editOverviewLight from "@/public/demo_pictures/edit_overview_light.png";
-import editOverviewDark from "@/public/demo_pictures/edit_overview_dark.png";
-import overviewLight1 from "@/public/demo_pictures/overview_light_1.png";
-import overviewDark1 from "@/public/demo_pictures/overview_dark_1.png";
+import {
+  FORECAST_PREVIEW_CARDS,
+  type ForecastPreviewImage,
+} from "@/components/visuals/ForecastPreviewCards";
+import ForecastPreviewFrame from "@/components/visuals/ForecastPreviewFrame";
 
 type SlideImage = {
-  light: typeof overviewLight1;
-  dark: typeof overviewDark1;
+  light: ForecastPreviewImage["light"];
+  dark: ForecastPreviewImage["dark"];
 };
 
 type Slide = {
@@ -23,67 +26,12 @@ type Slide = {
   image: SlideImage;
 };
 
-const SLIDES: Slide[] = [
-  {
-    key: "edit-overview",
-    title: "Enter Edit dashboard",
-    helper: "Rearrange and toggle widgets.",
-    image: { light: editOverviewLight, dark: editOverviewDark },
-  },
-  {
-    key: "overview-layout-1",
-    title: "Example layout",
-    helper: "A clean, quick-glance setup.",
-    image: { light: overviewLight1, dark: overviewDark1 },
-  },
-];
-
-function CarouselMediaFrame({
-  alt,
-  image,
-  sizes = "(max-width: 640px) 100vw, (max-width: 1280px) 60vw, 50vw",
-  onInteract,
-}: {
-  alt: string;
-  image: SlideImage;
-  sizes?: string;
-  onInteract?: () => void;
-}) {
-  return (
-    <div
-      className={cn(
-        "relative w-full overflow-hidden rounded-xl",
-        "aspect-[16/10]",
-        "flex items-center justify-center"
-      )}
-      onPointerDownCapture={onInteract}
-      onTouchStartCapture={onInteract}
-    >
-      <div className="absolute inset-0 bg-gradient-to-b from-background/20 via-transparent to-background/10 pointer-events-none" />
-
-      <div className="relative h-full w-full">
-        <Image
-          src={image.light}
-          alt={alt}
-          fill
-          sizes={sizes}
-          className="object-cover object-top dark:hidden"
-          placeholder="blur"
-          quality={95}
-        />
-        <Image
-          src={image.dark}
-          alt={alt}
-          fill
-          sizes={sizes}
-          className="hidden object-cover object-top dark:block"
-          placeholder="blur"
-          quality={95}
-        />
-      </div>
-    </div>
-  );
-}
+const SLIDES: Slide[] = FORECAST_PREVIEW_CARDS.map((card) => ({
+  key: card.key,
+  title: card.title,
+  helper: card.description,
+  image: card.image,
+}));
 
 export default function DashboardPersonalizationCarousel() {
   const reducedMotion = useReducedMotion();
@@ -100,6 +48,7 @@ export default function DashboardPersonalizationCarousel() {
   const autoRotateMs = 6500;
   const interactionTimeoutRef = React.useRef<number | null>(null);
   const rafRef = React.useRef<number | null>(null);
+  const resumeTimeoutRef = React.useRef<number | null>(null);
   const lastFrameRef = React.useRef<number | null>(null);
   const elapsedRef = React.useRef(0);
 
@@ -164,13 +113,15 @@ export default function DashboardPersonalizationCarousel() {
   const autoRotateEnabled =
     !reducedMotion && inView && isPageVisible && !isHovered && !isInteracting;
 
-  const [progress, setProgress] = React.useState(0);
-
   const stopLoop = React.useCallback(() => {
     if (typeof window === "undefined") return;
     if (rafRef.current != null) {
       window.cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
+    }
+    if (resumeTimeoutRef.current != null) {
+      window.clearTimeout(resumeTimeoutRef.current);
+      resumeTimeoutRef.current = null;
     }
     lastFrameRef.current = null;
   }, []);
@@ -178,7 +129,6 @@ export default function DashboardPersonalizationCarousel() {
   const resetCycle = React.useCallback(() => {
     elapsedRef.current = 0;
     lastFrameRef.current = null;
-    setProgress(0);
   }, []);
 
   React.useEffect(() => {
@@ -193,18 +143,40 @@ export default function DashboardPersonalizationCarousel() {
     const tick = (ts: number) => {
       if (!autoRotateEnabled) return;
 
+      // Perf: avoid frequent React updates during active scroll.
+      if (document.body.dataset.wwScrolling === "1") {
+        lastFrameRef.current = ts;
+        if (rafRef.current != null) {
+          window.cancelAnimationFrame(rafRef.current);
+          rafRef.current = null;
+        }
+        if (resumeTimeoutRef.current == null) {
+          const scheduleResume = () => {
+            resumeTimeoutRef.current = window.setTimeout(() => {
+              resumeTimeoutRef.current = null;
+              if (!autoRotateEnabled) return;
+              if (document.body.dataset.wwScrolling === "1") {
+                scheduleResume();
+                return;
+              }
+              rafRef.current = window.requestAnimationFrame(tick);
+            }, 180);
+          };
+          scheduleResume();
+        }
+        return;
+      }
+
       const last = lastFrameRef.current ?? ts;
       const dt = ts - last;
       lastFrameRef.current = ts;
 
       elapsedRef.current += dt;
       const pct = Math.min(1, elapsedRef.current / autoRotateMs);
-      setProgress(pct * 100);
 
       if (pct >= 1) {
         elapsedRef.current = 0;
         lastFrameRef.current = ts;
-        setProgress(0);
         setActiveIndex((prev) => (prev + 1) % SLIDES.length);
       }
 
@@ -232,7 +204,7 @@ export default function DashboardPersonalizationCarousel() {
     <div
       ref={rootRef}
       className={cn(
-        "relative h-full w-full bg-background-2 outline-none",
+        "relative h-full w-full outline-none",
         "focus-visible:ring-2 focus-visible:ring-foreground/20"
       )}
       tabIndex={0}
@@ -273,122 +245,47 @@ export default function DashboardPersonalizationCarousel() {
         resetCycle();
       }}
     >
-      <div className="relative flex w-full flex-col p-3 pb-16 sm:p-4 sm:pb-16">
-        <div className="flex items-start justify-between gap-3 pb-3">
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-red-400/70" />
-              <span className="h-2.5 w-2.5 rounded-full bg-amber-400/70" />
-              <span className="h-2.5 w-2.5 rounded-full bg-emerald-400/70" />
-            </div>
-            <span className="ml-2 rounded-full border border-border/50 bg-highlight-5/60 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-foreground/80">
-              Demo
-            </span>
-          </div>
-
-          <div className="min-w-0 text-right">
-            <div className="text-sm font-semibold text-foreground truncate max-w-[16rem] sm:max-w-[22rem]">
-              {active.title}
-            </div>
-            {active.helper ? (
-              <div className="text-xs font-medium text-muted-foreground truncate max-w-[16rem] sm:max-w-[22rem]">
-                {active.helper}
-              </div>
-            ) : null}
-          </div>
-        </div>
-
-        <div className="relative">
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={active.key}
-              initial={reducedMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={reducedMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: -8 }}
-              transition={
-                reducedMotion
-                  ? { duration: 0 }
-                  : { duration: 0.28, ease: [0.16, 1, 0.3, 1] }
-              }
-            >
-              <CarouselMediaFrame
-                alt={active.title}
-                image={active.image}
-                onInteract={() => {
-                  setInteractingFor(2200);
-                  resetCycle();
-                }}
-              />
-            </motion.div>
-          </AnimatePresence>
-        </div>
-      </div>
-
-      <div className="absolute inset-x-0 bottom-0 z-10 flex items-center justify-between gap-2 px-3 pb-3">
-        <button
-          type="button"
-          onClick={() => {
-            goWithReset(activeIndex - 1);
-            resetCycle();
-          }}
-          className={cn(
-            "inline-flex h-10 w-10 items-center justify-center rounded-full border border-border/60 bg-background/80 shadow-sm backdrop-blur",
-            "transition-colors motion-reduce:transition-none hover:bg-highlight-5",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
-          )}
-          aria-label="Previous slide"
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={active.key}
+          className="absolute inset-0"
+          initial={reducedMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={reducedMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: -8 }}
+          transition={
+            reducedMotion
+              ? { duration: 0 }
+              : { duration: 0.28, ease: [0.16, 1, 0.3, 1] }
+          }
         >
-          <ChevronLeft className="h-5 w-5" aria-hidden />
-        </button>
-
-        <div className="flex min-w-0 flex-1 items-center justify-center gap-1.5">
-          {SLIDES.map((slide, idx) => {
-            const isActive = idx === activeIndex;
-            return (
-              <button
-                key={slide.key}
-                type="button"
-                onClick={() => {
-                  goWithReset(idx);
-                  resetCycle();
-                }}
-                className={cn(
-                  "relative h-2.5 overflow-hidden rounded-full border border-border/60 bg-background/70 backdrop-blur",
-                  "transition-all motion-reduce:transition-none",
-                  isActive ? "w-12" : "w-2.5 hover:bg-highlight-5"
-                )}
-                aria-label={`Go to slide ${idx + 1}`}
-                aria-current={isActive ? "true" : undefined}
-              >
-                {isActive ? (
-                  <span
-                    className="absolute inset-y-0 left-0 bg-foreground/70"
-                    style={{ width: `${progress}%` }}
-                    aria-hidden
-                  />
-                ) : null}
-                <span className="sr-only">{slide.title}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        <button
-          type="button"
-          onClick={() => {
-            goWithReset(activeIndex + 1);
-            resetCycle();
-          }}
-          className={cn(
-            "inline-flex h-10 w-10 items-center justify-center rounded-full border border-border/60 bg-background/80 shadow-sm backdrop-blur",
-            "transition-colors motion-reduce:transition-none hover:bg-highlight-5",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
-          )}
-          aria-label="Next slide"
-        >
-          <ChevronRight className="h-5 w-5" aria-hidden />
-        </button>
-      </div>
+          <div
+            className="h-full w-full"
+            onPointerDownCapture={() => {
+              setInteractingFor(2200);
+              resetCycle();
+            }}
+            onTouchStartCapture={() => {
+              setInteractingFor(2200);
+              resetCycle();
+            }}
+          >
+            <ForecastPreviewFrame
+              title={active.title}
+              description={active.helper ?? ""}
+              image={active.image}
+              sizes="(max-width: 640px) 92vw, (max-width: 1280px) 60vw, 48vw"
+              onPrev={() => {
+                goWithReset(activeIndex - 1);
+                resetCycle();
+              }}
+              onNext={() => {
+                goWithReset(activeIndex + 1);
+                resetCycle();
+              }}
+            />
+          </div>
+        </motion.div>
+      </AnimatePresence>
     </div>
   );
 }

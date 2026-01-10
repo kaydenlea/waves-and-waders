@@ -54,7 +54,7 @@ export default function AllEssentialsSectionBody() {
                   Open forecast
                 </Link>
                 <Link
-                  href="/beaches"
+                  href="/beaches?tab=nearby"
                   className={cn(
                     "inline-flex items-center justify-center rounded-full border border-border/40 bg-highlight-1 px-4 py-2 text-sm font-medium text-foreground/90 shadow-sm backdrop-blur",
                     "transition-colors motion-reduce:transition-none hover:bg-highlight-3",

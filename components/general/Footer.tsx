@@ -63,7 +63,7 @@ const Footer = ({ className }: { className?: string }) => {
                 <li>
                   <Link
                     className="transition hover:text-foreground"
-                    href="/beaches"
+                    href="/beaches?tab=nearby"
                   >
                     Beaches
                   </Link>
@@ -151,7 +151,7 @@ const Footer = ({ className }: { className?: string }) => {
                   <li className="py-1">
                     <Link
                       className="transition hover:text-foreground"
-                      href="/beaches"
+                      href="/beaches?tab=nearby"
                     >
                       Beaches
                     </Link>

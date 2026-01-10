@@ -111,7 +111,7 @@ type ClusterEvent = L.LeafletEvent & {
 
 // OpenFreeMap provides vector tiles; MapLibre GL Leaflet renders them inside our existing Leaflet map.
 // Style URL is the official OpenFreeMap Liberty style (per https://openfreemap.org/quick_start/).
-const OPENFREEMAP_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
+const OPENFREEMAP_STYLE_URL = "https://tiles.openfreemap.org/styles/bright";
 // Attribution per https://openfreemap.org/#attribution (and OSM attribution requirements).
 const OPENFREEMAP_ATTRIBUTION_HTML =
   // '<a href="https://openfreemap.org" target="_blank" rel="noopener noreferrer">OpenFreeMap</a> ' +
@@ -3685,8 +3685,11 @@ const LeafletMap: React.FC<Props> = ({
               )}/overview#content`;
 
               // Check if Ctrl/Cmd+Click to open in new tab
-              if (e.originalEvent && (e.originalEvent.ctrlKey || e.originalEvent.metaKey)) {
-                window.open(destination, '_blank', 'noopener,noreferrer');
+              if (
+                e.originalEvent &&
+                (e.originalEvent.ctrlKey || e.originalEvent.metaKey)
+              ) {
+                window.open(destination, "_blank", "noopener,noreferrer");
                 return;
               }
 

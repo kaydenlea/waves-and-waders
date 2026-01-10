@@ -46,9 +46,11 @@ const FaqSection = () => {
 
   return (
     <section
+      id="faq"
+      aria-labelledby="faq-title"
       data-ww-section
       data-inview="false"
-      className="ww-section mx-auto max-w-4xl xl:max-w-5xl px-4 sm:px-6 py-16 sm:py-20"
+      className="ww-section mx-auto max-w-4xl xl:max-w-5xl px-4 sm:px-6 py-16 sm:py-20 scroll-mt-28"
     >
       <InViewOnce rootAttr="data-ww-section" />
       <script
@@ -56,7 +58,10 @@ const FaqSection = () => {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
       />
       <header className="text-center">
-        <h2 className="text-balance text-4xl md:text-5xl font-semibold tracking-tight">
+        <h2
+          id="faq-title"
+          className="text-balance text-4xl xl:text-5xl font-semibold tracking-tight"
+        >
           Frequently Asked Questions
         </h2>
       </header>

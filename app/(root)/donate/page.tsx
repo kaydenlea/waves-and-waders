@@ -67,6 +67,12 @@ export default function DonatePage({
           Donations support the development and maintenance of Waves & Waders. Donations
           are not tax-deductible.
         </p>
+        <p className="mt-3 text-sm text-muted-foreground">
+          If you&apos;re able, recurring monthly support is especially appreciated.
+          This kind of site has ongoing costs (hosting, data, and maintenance), and
+          monthly donations help keep forecasts accessible to as many people as
+          possible while the product keeps improving.
+        </p>
         <div className="mt-5">
           <div className="text-xs font-semibold tracking-wide text-foreground/70">
             Suggested

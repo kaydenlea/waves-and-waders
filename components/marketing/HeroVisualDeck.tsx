@@ -919,6 +919,7 @@ export default function HeroVisualDeck({
             appliedFilters={filtersPreview}
             onClose={() => {}}
             onApply={(next) => setFiltersPreview(new Set(next))}
+            scrollBehavior="always"
             className="h-full rounded-none border-none"
           />
         ),

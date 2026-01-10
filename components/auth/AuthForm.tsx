@@ -4,7 +4,13 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSupabaseClient } from "@supabase/auth-helpers-react";
 import type { Provider } from "@supabase/supabase-js";
-import { AlertTriangle, CheckCircle2, KeyRound, Lock, Mail } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  KeyRound,
+  Lock,
+  Mail,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -73,7 +79,9 @@ export const AuthForm = ({
     if (redirectTarget && redirectTarget !== "/") {
       params.set("next", redirectTarget);
     }
-    const callbackPath = params.size ? `/api/auth/callback?${params}` : "/api/auth/callback";
+    const callbackPath = params.size
+      ? `/api/auth/callback?${params}`
+      : "/api/auth/callback";
     const redirectTo = origin ? `${origin}${callbackPath}` : undefined;
     const { error: providerError } = await supabase.auth.signInWithOAuth({
       provider,
@@ -84,19 +92,25 @@ export const AuthForm = ({
     if (providerError) setError(providerError.message);
   };
 
-  const handleForgotPassword = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleForgotPassword = async (
+    event: React.FormEvent<HTMLFormElement>
+  ) => {
     event.preventDefault();
     setLoading(true);
     setError(null);
     setMessage(null);
 
     try {
-      const origin = typeof window !== "undefined" ? window.location.origin : undefined;
+      const origin =
+        typeof window !== "undefined" ? window.location.origin : undefined;
       const resetUrl = origin ? `${origin}/login?mode=reset` : undefined;
 
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: resetUrl,
-      });
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+        email,
+        {
+          redirectTo: resetUrl,
+        }
+      );
 
       if (resetError) {
         setError(resetError.message);
@@ -111,7 +125,9 @@ export const AuthForm = ({
     }
   };
 
-  const handleResetPassword = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleResetPassword = async (
+    event: React.FormEvent<HTMLFormElement>
+  ) => {
     event.preventDefault();
     setLoading(true);
     setError(null);
@@ -238,7 +254,7 @@ export const AuthForm = ({
   return (
     <div
       className={cn(
-        "ww-hero-reveal motion-reduce:animate-none w-full rounded-[2rem] border border-border/60 bg-background/90 p-6 shadow-[0_24px_70px_rgba(2,6,23,0.12)] supports-[backdrop-filter]:bg-background/70 supports-[backdrop-filter]:backdrop-blur-xl sm:p-8 dark:bg-background/40 dark:shadow-[0_24px_70px_rgba(0,0,0,0.35)]",
+        "max-w-xl mx-auto ww-hero-reveal motion-reduce:animate-none w-full rounded-[2rem] border border-border/60 bg-background/90 p-6 shadow-[0_24px_70px_rgba(2,6,23,0.12)] supports-[backdrop-filter]:bg-background/70 supports-[backdrop-filter]:backdrop-blur-xl sm:p-8 dark:bg-background/40 dark:shadow-[0_24px_70px_rgba(0,0,0,0.35)]",
         className
       )}
     >

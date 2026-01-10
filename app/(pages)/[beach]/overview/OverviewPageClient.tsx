@@ -12,7 +12,7 @@ import PathStyleWrapper from "@/components/general/PathStyleWrapper";
 import SaveButton from "@/components/general/SaveButton";
 import Breadcrumbs from "@/components/general/Breadcrumbs";
 import { SunDataProvider } from "@/components/context/SunDataContext";
-import { useDashboardEditMode } from "@/components/context/DashboardEditModeContext";
+import { useOptionalDashboardEditMode } from "@/components/context/DashboardEditModeContext";
 import DashboardEditorScreen from "@/components/general/DashboardEditorScreen";
 import type { BeachPoint } from "@/components/context/MapFilterContext";
 import type {
@@ -46,13 +46,14 @@ export default function OverviewPageClient({
   initialForecastMeta,
   initialForecastRows,
 }: Props) {
-  const {
-    isEditing,
-    dashboardType,
-    pendingScrollToId,
-    clearPendingScrollTo,
-    getCachedLayout,
-  } = useDashboardEditMode();
+  const dashboardEdit = useOptionalDashboardEditMode();
+  const noop = React.useCallback(() => {}, []);
+  const getCachedLayoutFallback = React.useCallback((_type: unknown) => null, []);
+  const isEditing = dashboardEdit?.isEditing ?? false;
+  const dashboardType = dashboardEdit?.dashboardType ?? null;
+  const pendingScrollToId = dashboardEdit?.pendingScrollToId ?? null;
+  const clearPendingScrollTo = dashboardEdit?.clearPendingScrollTo ?? noop;
+  const getCachedLayout = dashboardEdit?.getCachedLayout ?? getCachedLayoutFallback;
 
   React.useLayoutEffect(() => {
     if (isEditing || !pendingScrollToId) return;

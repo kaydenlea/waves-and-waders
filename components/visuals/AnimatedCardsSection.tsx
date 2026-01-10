@@ -11,10 +11,10 @@ export const Description = ({ className }: { className?: string }) => {
         className
       )}
     >
-      <h2 className="text-balance text-center xl:text-right text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
+      <h2 className="text-balance text-center xl:text-right text-4xl font-semibold tracking-tight text-foreground xl:text-5xl">
         Forecasts made simple.
       </h2>
-      <p className="mt-4 max-w-prose text-pretty text-center xl:text-right text-base text-muted-foreground sm:text-lg mx-auto xl:mx-0">
+      <p className="mt-3 xl:mt-4 max-w-prose text-pretty text-center xl:text-right text-sm text-muted-foreground xl:text-base mx-auto xl:mx-0">
         Find nearby and saved beaches fast, then scan conditions at a glance
         with time + direction cues built into the overview.
       </p>
@@ -31,7 +31,7 @@ export const Description = ({ className }: { className?: string }) => {
           <Heart className="h-4 w-4 mr-1.5" /> Favorites
         </Link>
         <Link
-          href="/beaches"
+          href="/beaches?tab=nearby"
           className={cn(
             "inline-flex items-center justify-center rounded-full border border-border/40 bg-highlight-1 px-5 py-3 text-sm font-medium text-foreground/90 shadow-sm backdrop-blur",
             "transition-colors motion-reduce:transition-none hover:bg-highlight-3",

@@ -13,7 +13,12 @@ import {
 import { cn } from "@/lib/utils";
 
 export type PremiumStat = {
-  id: "beaches" | "amenityFilters" | "filterGroups" | "forecastDays" | "dashboardWidgets";
+  id:
+    | "beaches"
+    | "amenityFilters"
+    | "filterGroups"
+    | "forecastDays"
+    | "dashboardWidgets";
   label: string;
   helper?: string;
   value: number;
@@ -36,9 +41,7 @@ function formatInteger(value: number) {
   return Intl.NumberFormat("en-US").format(Math.round(value));
 }
 
-function useInViewOnce<T extends Element>(
-  options?: IntersectionObserverInit
-) {
+function useInViewOnce<T extends Element>(options?: IntersectionObserverInit) {
   const ref = React.useRef<T | null>(null);
   const [inView, setInView] = React.useState(false);
 
@@ -174,7 +177,10 @@ export default function PremiumStatsStrip({
         {stats.map((stat) => {
           const Icon = ICONS[stat.id];
           return (
-            <div key={stat.id} className="flex flex-col justify-between p-5 sm:p-6">
+            <div
+              key={stat.id}
+              className="flex flex-col justify-between p-5 sm:p-5"
+            >
               <dt className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-foreground/70">
                 <Icon className="h-4 w-4 text-sky-600/70" aria-hidden />
                 <span>{stat.label}</span>
@@ -184,7 +190,7 @@ export default function PremiumStatsStrip({
                   {stat.helper}
                 </p>
               ) : null}
-              <dd className="mt-5 text-3xl font-semibold leading-none tracking-tight text-foreground sm:text-4xl">
+              <dd className="mt-4 text-3xl font-semibold leading-none tracking-tight text-foreground sm:text-3xl">
                 <AnimatedOverlayNumber value={stat.value} play={inView} />
               </dd>
             </div>

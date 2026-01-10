@@ -94,6 +94,16 @@ const NavBar = ({
       { href: "/donate?from=navbar", label: "Donate", icon: HandHeart },
     ];
 
+  const marketingLinksCompact: {
+    href: string;
+    label: string;
+    icon?: ElementType;
+  }[] = [
+    { href: "/#why", label: "Features" },
+    { href: "/#faq", label: "FAQ" },
+    { href: "/donate?from=navbar", label: "Donate", icon: HandHeart },
+  ];
+
   const marketingMenuLinks: {
     href: string;
     label: string;
@@ -177,27 +187,50 @@ const NavBar = ({
         </Link>
 
         {variant === "marketing" ? (
-          <div className="hidden @min-4xl:flex absolute left-1/2 -translate-x-1/2 w-full max-w-[min(40rem,calc(100%-18rem))] items-center justify-center gap-5 text-sm font-medium text-foreground/75 whitespace-nowrap">
-            {marketingLinks.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "rounded-md px-1 py-1 transition hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring/40",
-                  item.label === "Donate"
-                    ? "inline-flex items-center gap-2"
-                    : undefined
-                )}
-              >
-                {item.icon &&
-                  React.createElement(item.icon, {
-                    className: "h-4 w-4 text-foreground/70",
-                    "aria-hidden": true,
-                  })}
-                {item.label}
-              </Link>
-            ))}
-          </div>
+          <>
+            <div className="hidden @min-2xl:flex @min-6xl:hidden absolute left-1/2 -translate-x-1/2 w-full max-w-[min(32rem,calc(100%-18rem))] items-center justify-center gap-5 text-sm font-medium text-foreground/75 whitespace-nowrap">
+              {marketingLinksCompact.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "rounded-md px-1 py-1 transition hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring/40",
+                    item.label === "Donate"
+                      ? "inline-flex items-center gap-2"
+                      : undefined
+                  )}
+                >
+                  {item.icon &&
+                    React.createElement(item.icon, {
+                      className: "h-4 w-4 text-foreground/70",
+                      "aria-hidden": true,
+                    })}
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+            <div className="hidden @min-6xl:flex absolute left-1/2 -translate-x-1/2 w-full max-w-[min(40rem,calc(100%-18rem))] items-center justify-center gap-5 text-sm font-medium text-foreground/75 whitespace-nowrap">
+              {marketingLinks.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "rounded-md px-1 py-1 transition hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring/40",
+                    item.label === "Donate"
+                      ? "inline-flex items-center gap-2"
+                      : undefined
+                  )}
+                >
+                  {item.icon &&
+                    React.createElement(item.icon, {
+                      className: "h-4 w-4 text-foreground/70",
+                      "aria-hidden": true,
+                    })}
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+          </>
         ) : null}
 
         {variant === "marketing" ? null : <NavBarActions />}

@@ -67,7 +67,11 @@ export default function NavMoreMenu({
         aria-label="more options"
       >
         <AlignJustify
-          className={bottomNavMode ? "w-6 h-6 @min-[350px]:w-5 @min-[350px]:h-5 -mt-0.5" : "icon-md"}
+          className={
+            bottomNavMode
+              ? "w-6 h-6 @min-[350px]:w-5 @min-[350px]:h-5 -mt-0.5"
+              : "icon-md"
+          }
         />
         {bottomNavMode ? (
           <span className="text-xs sr-only @min-[350px]:not-sr-only">More</span>
@@ -101,7 +105,7 @@ export default function NavMoreMenu({
             setOpen(false);
           }}
         >
-          <Link href="/beaches">
+          <Link href="/beaches?tab=nearby">
             <MapPinned className="w-5 h-5 -mt-0.5" /> Browse spots
           </Link>
         </AppMenuItem>
@@ -125,11 +129,15 @@ export default function NavMoreMenu({
         {!user && (
           <>
             <AppMenuSeparator
-              className={cn(landingPage ? "@min-md:hidden" : "@min-5xl:hidden")}
+              className={cn(
+                landingPage ? "@min-5xl:hidden" : "@min-5xl:hidden"
+              )}
             />
             <AppMenuItem
               asChild
-              className={cn(landingPage ? "@min-md:hidden" : "@min-5xl:hidden")}
+              className={cn(
+                landingPage ? "@min-5xl:hidden" : "@min-5xl:hidden"
+              )}
               onSelect={() => {
                 setOpen(false);
               }}

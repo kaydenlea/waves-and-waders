@@ -1,112 +1,16 @@
 "use client";
 
 import * as React from "react";
-import Image from "next/image";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useReducedMotion } from "motion/react";
 
 import { cn } from "@/lib/utils";
 
-import nearbyLight from "@/public/demo_pictures/nearby_beaches_light.png";
-import nearbyDark from "@/public/demo_pictures/nearby_beaches_dark.png";
-import savedLight from "@/public/demo_pictures/saved_beaches_light.png";
-import savedDark from "@/public/demo_pictures/saved_beaches_dark.png";
-import overviewLight from "@/public/demo_pictures/overview_light.png";
-import overviewDark from "@/public/demo_pictures/overview_dark.png";
+import {
+  FORECAST_PREVIEW_CARDS,
+} from "@/components/visuals/ForecastPreviewCards";
+import ForecastPreviewFrame from "@/components/visuals/ForecastPreviewFrame";
 
-type ThemedImage = {
-  light: typeof nearbyLight;
-  dark: typeof nearbyDark;
-};
-
-type Card = {
-  key: string;
-  title: string;
-  description: string;
-  image: ThemedImage;
-};
-
-const CARDS: Card[] = [
-  {
-    key: "nearby",
-    title: "Nearby beaches",
-    description: "Discover the right spot fast.",
-    image: { light: nearbyLight, dark: nearbyDark },
-  },
-  {
-    key: "saved",
-    title: "Saved beaches",
-    description: "Jump straight to saved spots.",
-    image: { light: savedLight, dark: savedDark },
-  },
-  {
-    key: "overview",
-    title: "At-a-glance overview",
-    description: "Scan conditions, time, and direction in seconds.",
-    image: { light: overviewLight, dark: overviewDark },
-  },
-];
-
-function AppFrame({
-  title,
-  description,
-  image,
-  sizes,
-}: {
-  title: string;
-  description: string;
-  image: ThemedImage;
-  sizes: string;
-}) {
-  return (
-    <div className="relative h-full w-full overflow-hidden rounded-2xl border border-border/60 bg-background shadow-lg shadow-black/10 ring-1 ring-black/5">
-      <div className="flex items-center justify-between gap-3 border-b border-border/40 bg-background/70 px-4 py-3 backdrop-blur">
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-red-400/70" />
-            <span className="h-2.5 w-2.5 rounded-full bg-amber-400/70" />
-            <span className="h-2.5 w-2.5 rounded-full bg-emerald-400/70" />
-          </div>
-          <span className="ml-2 rounded-full border border-border/50 bg-highlight-5/60 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-foreground/80">
-            Preview
-          </span>
-        </div>
-        <div className="min-w-0 text-right">
-          <div className="truncate text-sm font-semibold text-foreground">
-            {title}
-          </div>
-          <div className="truncate text-xs font-medium text-muted-foreground">
-            {description}
-          </div>
-        </div>
-      </div>
-
-      <div className="relative h-[calc(100%-3.25rem)] w-full bg-background">
-        <div className="absolute inset-0 p-3 sm:p-4">
-          <div className="relative h-full w-full overflow-hidden rounded-xl border border-border/40 bg-background shadow-sm">
-            <div className="absolute inset-0 bg-gradient-to-b from-background/15 via-transparent to-background/15 pointer-events-none" />
-            <Image
-              src={image.light}
-              alt=""
-              fill
-              sizes={sizes}
-              className="object-cover object-top dark:hidden"
-              placeholder="blur"
-            />
-            <Image
-              src={image.dark}
-              alt=""
-              fill
-              sizes={sizes}
-              className="hidden object-cover object-top dark:block"
-              placeholder="blur"
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+const CARDS = FORECAST_PREVIEW_CARDS;
 
 function useInView(
   ref: React.RefObject<HTMLElement | null>,
@@ -159,9 +63,9 @@ export default function ForecastsMadeSimpleVisual({
 
   const autoRotateMs = 6500;
   const [activeIndex, setActiveIndex] = React.useState(0);
-  const [progress, setProgress] = React.useState(0);
 
   const rafRef = React.useRef<number | null>(null);
+  const resumeTimeoutRef = React.useRef<number | null>(null);
   const lastFrameRef = React.useRef<number | null>(null);
   const elapsedRef = React.useRef(0);
   const interactionTimeoutRef = React.useRef<number | null>(null);
@@ -172,13 +76,16 @@ export default function ForecastsMadeSimpleVisual({
       window.cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     }
+    if (resumeTimeoutRef.current != null) {
+      window.clearTimeout(resumeTimeoutRef.current);
+      resumeTimeoutRef.current = null;
+    }
     lastFrameRef.current = null;
   }, []);
 
   const resetCycle = React.useCallback(() => {
     elapsedRef.current = 0;
     lastFrameRef.current = null;
-    setProgress(0);
   }, []);
 
   const setInteractingFor = React.useCallback((ms: number) => {
@@ -211,17 +118,39 @@ export default function ForecastsMadeSimpleVisual({
 
     const tick = (ts: number) => {
       if (!autoRotateEnabled) return;
+
+      // Perf: avoid frequent React updates during active scroll.
+      if (document.body.dataset.wwScrolling === "1") {
+        lastFrameRef.current = ts;
+        if (rafRef.current != null) {
+          window.cancelAnimationFrame(rafRef.current);
+          rafRef.current = null;
+        }
+        if (resumeTimeoutRef.current == null) {
+          const scheduleResume = () => {
+            resumeTimeoutRef.current = window.setTimeout(() => {
+              resumeTimeoutRef.current = null;
+              if (!autoRotateEnabled) return;
+              if (document.body.dataset.wwScrolling === "1") {
+                scheduleResume();
+                return;
+              }
+              rafRef.current = window.requestAnimationFrame(tick);
+            }, 180);
+          };
+          scheduleResume();
+        }
+        return;
+      }
+
       const last = lastFrameRef.current ?? ts;
       const dt = ts - last;
       lastFrameRef.current = ts;
       elapsedRef.current += dt;
 
-      const pct = Math.min(1, elapsedRef.current / autoRotateMs);
-      setProgress(pct * 100);
-      if (pct >= 1) {
+      if (elapsedRef.current >= autoRotateMs) {
         elapsedRef.current = 0;
         lastFrameRef.current = ts;
-        setProgress(0);
         setActiveIndex((prev) => (prev + 1) % CARDS.length);
       }
 
@@ -310,7 +239,7 @@ export default function ForecastsMadeSimpleVisual({
                   key={card.key}
                   className={cn(
                     "absolute inset-0 origin-bottom-left transition-[transform,opacity] duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]",
-                    "motion-reduce:transition-none dark:border dark:border-border/20 rounded-2xl bg-highlight-5"
+                    "motion-reduce:transition-none rounded-2xl"
                   )}
                   style={{
                     transform: `translate(${x}px, ${y}px) scale(${scale})`,
@@ -320,80 +249,19 @@ export default function ForecastsMadeSimpleVisual({
                   }}
                   aria-hidden={pos !== 0}
                 >
-                  <AppFrame
+                  <ForecastPreviewFrame
                     title={card.title}
                     description={card.description}
                     image={card.image}
                     sizes={sizes}
+                    onPrev={() => go(activeIndex - 1)}
+                    onNext={() => go(activeIndex + 1)}
                   />
                 </div>
               );
             })}
           </>
         )}
-
-        <div className="absolute inset-x-0 bottom-0 z-20 flex items-center justify-between gap-2 px-3 pb-3">
-          <div className="pointer-events-none absolute left-1/2 top-0 h-1.5 w-40 -translate-x-1/2 overflow-hidden rounded-full bg-foreground/10">
-            <div
-              className="h-full bg-foreground/40 transition-[width] duration-150 motion-reduce:transition-none"
-              style={{ width: `${progress}%` }}
-              aria-hidden
-            />
-          </div>
-          <button
-            type="button"
-            onClick={() => go(activeIndex - 1)}
-            className={cn(
-              "inline-flex h-10 w-10 items-center justify-center rounded-full border border-border/60 bg-background/80 shadow-sm backdrop-blur",
-              "transition-colors motion-reduce:transition-none hover:bg-highlight-5",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
-            )}
-            aria-label="Previous card"
-          >
-            <ChevronLeft className="h-5 w-5" aria-hidden />
-          </button>
-
-          <div className="flex min-w-0 flex-1 items-center justify-center gap-1.5">
-            {CARDS.map((card, idx) => {
-              const isActive = idx === activeIndex;
-              return (
-                <button
-                  key={card.key}
-                  type="button"
-                  onClick={() => go(idx)}
-                  className={cn(
-                    "relative h-2.5 overflow-hidden rounded-full border border-border/60 bg-background/70 backdrop-blur",
-                    "transition-all motion-reduce:transition-none",
-                    isActive ? "w-12" : "w-2.5 hover:bg-highlight-5"
-                  )}
-                  aria-label={`Show ${card.title}`}
-                  aria-current={isActive ? "true" : undefined}
-                >
-                  {isActive ? (
-                    <span
-                      className="absolute inset-y-0 left-0 bg-foreground/70"
-                      style={{ width: `${progress}%` }}
-                      aria-hidden
-                    />
-                  ) : null}
-                </button>
-              );
-            })}
-          </div>
-
-          <button
-            type="button"
-            onClick={() => go(activeIndex + 1)}
-            className={cn(
-              "inline-flex h-10 w-10 items-center justify-center rounded-full border border-border/60 bg-background/80 shadow-sm backdrop-blur",
-              "transition-colors motion-reduce:transition-none hover:bg-highlight-5",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
-            )}
-            aria-label="Next card"
-          >
-            <ChevronRight className="h-5 w-5" aria-hidden />
-          </button>
-        </div>
       </div>
     </div>
   );

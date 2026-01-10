@@ -2374,9 +2374,7 @@ const Highlights = ({
         >
           {(layout === "carousel"
             ? Array.from({ length: pageSize }).map(
-                (_, idx) =>
-                  visibleStats[idx] ??
-                  PLACEHOLDER_STATS[idx % PLACEHOLDER_STATS.length]!
+                (_, idx) => visibleStats[idx] ?? null
               )
             : visibleStats
           ).map((stat, idx) => {
@@ -2388,6 +2386,16 @@ const Highlights = ({
                     "w-full rounded-xl bg-highlight-6/70",
                     isFull ? "h-[74px]" : "h-[70px]"
                   )}
+                />
+              );
+            } else if (!stat) {
+              content = (
+                <div
+                  className={cn(
+                    "w-full rounded-xl bg-highlight-6/60",
+                    isFull ? "h-[74px]" : "h-[70px]"
+                  )}
+                  aria-hidden="true"
                 />
               );
             } else {
@@ -2972,7 +2980,7 @@ const Highlights = ({
             if (content) {
               return (
                 <li
-                  key={`${stat.label}-${idx}`}
+                  key={stat ? `${stat.label}-${idx}` : `placeholder-${safePage}-${idx}`}
                   className={cn(
                     layout === "carousel"
                       ? "min-h-[100px]"
@@ -2981,18 +2989,19 @@ const Highlights = ({
                     "transition-colors duration-200 motion-reduce:transition-none",
                     "hover:bg-highlight-7/70 active:bg-highlight-7/80",
                     layout === "grid" &&
-                      stat.label === "swell" &&
+                      stat?.label === "swell" &&
                       "col-span-1 @min-xl:col-span-2 @min-3xl:col-span-1",
                     layout === "grid" &&
-                      stat.label === "swell" &&
+                      stat?.label === "swell" &&
                       !isFull &&
                       "@min-4xl:col-span-2",
                     layout === "grid" &&
-                      stat.label === "swell" &&
+                      stat?.label === "swell" &&
                       isFull &&
                       "@min-xl:col-span-2",
                     !isHydrated && "animate-pulse motion-reduce:animate-none"
                   )}
+                  aria-hidden={!stat ? "true" : undefined}
                 >
                   <div className="flex-1 flex items-center justify-center gap-1 h-full">
                     {content}

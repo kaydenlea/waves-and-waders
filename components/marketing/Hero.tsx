@@ -117,7 +117,7 @@ export default function Hero() {
 
             <h1
               id="hero-title"
-              className="mt-5 text-balance text-5xl font-semibold leading-[1.12] tracking-tight sm:text-7xl"
+              className="mt-5 text-balance text-5xl font-semibold leading-[1.12] tracking-tight sm:text-6xl"
             >
               <span
                 className="ww-hero-reveal motion-reduce:animate-none block"
@@ -134,10 +134,10 @@ export default function Hero() {
             </h1>
 
             <p
-              className="mt-4 text-pretty text-base text-muted-foreground sm:text-lg ww-hero-reveal motion-reduce:animate-none"
+              className="mt-4 max-w-md mx-auto text-pretty text-base text-muted-foreground sm:text-lg ww-hero-reveal motion-reduce:animate-none"
               style={{ animationDelay: "260ms" }}
             >
-              Live surf conditions. Ultra-fast search. Personalized forecast.
+              Live surf conditions. Easy search. Personalized forecast.
             </p>
 
             <div
@@ -145,7 +145,7 @@ export default function Hero() {
               style={{ animationDelay: "320ms" }}
             >
               <Link
-                href="/beaches"
+                href="/beaches?tab=nearby"
                 className={cn(
                   "group inline-flex items-center gap-2 rounded-full border border-transparent px-4 py-2.5 font-medium",
                   "bg-foreground text-background shadow-xl transition",
@@ -170,7 +170,10 @@ export default function Hero() {
             </div>
           </div>
 
-          <div className="mx-auto w-full max-w-[540px] lg:mx-0">
+          <div
+            className="mx-auto w-full max-w-[480px] lg:mx-0 ww-hero-reveal motion-reduce:animate-none"
+            style={{ animationDelay: "380ms" }}
+          >
             <SunDataProvider>
               <HeroVisualDeck
                 previewBeach={previewBeach}

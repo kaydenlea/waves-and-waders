@@ -18,11 +18,11 @@ export default function AllEssentialsCardsSection() {
         </p>
         <h2
           id="essentials-title"
-          className="mt-3 text-balance text-foreground text-4xl sm:text-5xl font-semibold tracking-tight"
+          className="mt-3 text-balance text-foreground text-4xl xl:text-5xl font-semibold tracking-tight"
         >
           Everything you need to plan.
         </h2>
-        <p className="mt-4 text-pretty text-foreground/70 dark:text-foreground/82 text-base sm:text-lg">
+        <p className="mt-3 xl:mt-4 text-pretty text-foreground/70 text-sm xl:text-base">
           Hour-by-hour surf forecasts with clear direction, charts, and spot
           context—powered by reputable public data sources.
         </p>
@@ -32,4 +32,3 @@ export default function AllEssentialsCardsSection() {
     </section>
   );
 }
-

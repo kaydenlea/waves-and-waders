@@ -33,6 +33,7 @@ type Props = {
   appliedFilters: Set<string>;
   onApply: (next: Set<string>) => void;
   onClose?: () => void;
+  scrollBehavior?: "auto" | "always";
   className?: string;
 };
 
@@ -125,6 +126,7 @@ export default function FiltersPanel({
   appliedFilters,
   onApply,
   onClose,
+  scrollBehavior = "auto",
   className,
 }: Props) {
   const [expandedSections, setExpandedSections] = useState<
@@ -180,7 +182,7 @@ export default function FiltersPanel({
   return (
     <div
       className={cn(
-        "h-full rounded-3xl border border-border/30 bg-background/95",
+        "h-full rounded-3xl border border-border/30 bg-background",
         "overflow-hidden flex flex-col",
         className
       )}
@@ -208,10 +210,13 @@ export default function FiltersPanel({
       </div>
 
       <div
-        className="flex-1 min-h-0 overflow-y-auto pl-5 pr-2 py-4 space-y-4"
+        className={cn(
+          "flex-1 min-h-0 px-5 py-4 space-y-4",
+          scrollBehavior === "always" ? "overflow-y-scroll" : "overflow-y-auto"
+        )}
         style={{
           WebkitOverflowScrolling: "touch",
-          scrollbarGutter: "stable",
+          scrollbarGutter: "stable both-edges",
         }}
       >
         {FEATURE_SECTIONS.map((section) => {

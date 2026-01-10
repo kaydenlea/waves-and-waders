@@ -98,6 +98,22 @@ const PageTabs = ({
     if (!beachPage) return;
     if (loggedIn) return;
     if (selectedTab !== "saved") return;
+
+    // If Saved is active only due to persisted local state, don't hijack `/beaches`.
+    // Only redirect when the user explicitly requested Saved via `?tab=saved`.
+    const explicitSaved =
+      typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search).get("tab") === "saved";
+    if (!explicitSaved) {
+      try {
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem("tab:/beaches", "nearby");
+        }
+      } catch {}
+      setSelectedTab("nearby");
+      return;
+    }
+
     try {
       if (typeof window !== "undefined") {
         window.localStorage.setItem("tab:/beaches", "nearby");
@@ -290,7 +306,9 @@ const PageTabs = ({
                 const next = tab.toLowerCase();
                 if (beachPage && next === "saved" && !loggedIn) {
                   // Redirect unauthenticated users to login when selecting Saved on beaches page
-                  router.push(`/login?next=${encodeURIComponent("/beaches")}`);
+                  router.push(
+                    `/login?next=${encodeURIComponent("/beaches?tab=saved")}`
+                  );
                   return;
                 }
                 setSelectedTab(next);

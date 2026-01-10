@@ -57,10 +57,10 @@ function CardHeader({
     <header className="flex items-start justify-between gap-4 px-4 pt-3">
       <div className="min-w-0">
         <div className="flex items-center gap-2">
-          <span className="grid size-8 place-items-center rounded-full bg-foreground/5 text-foreground/75 ring-1 ring-border/25 dark:bg-highlight-4/60 dark:text-foreground/90">
+          <span className="grid size-7 place-items-center rounded-full bg-foreground/5 text-foreground/75 ring-1 ring-border/25 dark:bg-highlight-4/60 dark:text-foreground/90">
             {icon}
           </span>
-          <h3 className="text-sm font-semibold tracking-tight text-foreground">
+          <h3 className="text-base font-semibold tracking-tight text-foreground">
             {title}
           </h3>
         </div>
@@ -116,7 +116,7 @@ function SecondaryLink({
     <Link
       href={href}
       className={cn(
-        "inline-flex items-center justify-center rounded-full border border-border/40 bg-highlight-1 px-4 py-2 text-sm font-medium text-foreground/90 shadow-sm backdrop-blur",
+        "inline-flex items-center justify-center rounded-full border border-border/40 bg-highlight-1 px-3 py-1.5 text-xs font-medium text-foreground/90 shadow-sm backdrop-blur",
         "transition-colors motion-reduce:transition-none hover:bg-highlight-3",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
       )}
@@ -389,7 +389,11 @@ export default function AllEssentialsCardsDeck() {
               icon={<Clock className="h-4 w-4" aria-hidden="true" />}
               title="Pick a window"
               description="Scan conditions hour-by-hour for the next 7 days."
-              cta={<SecondaryLink href="/beaches">Beaches</SecondaryLink>}
+              cta={
+                <SecondaryLink href="/beaches?tab=nearby">
+                  Beaches
+                </SecondaryLink>
+              }
             >
               <WindowPickerVisual />
             </EssentialsCard>
@@ -415,7 +419,11 @@ export default function AllEssentialsCardsDeck() {
               icon={<Waves className="h-4 w-4" aria-hidden="true" />}
               title="Visualize data"
               description="Visual data to speed up and simplify reading forecasts."
-              cta={<SecondaryLink href="/beaches">Explore</SecondaryLink>}
+              cta={
+                <SecondaryLink href="/beaches?tab=nearby">
+                  Explore
+                </SecondaryLink>
+              }
             >
               <DirectionsVisual />
             </EssentialsCard>
@@ -522,7 +530,6 @@ export default function AllEssentialsCardsDeck() {
                   );
                 })}
               </div>
-
             </div>
           </div>
 
@@ -534,7 +541,7 @@ export default function AllEssentialsCardsDeck() {
               }}
               aria-label="Previous card"
               className={cn(
-                "inline-flex h-10 w-10 items-center justify-center rounded-full border border-border/60 bg-background/70 shadow-sm backdrop-blur",
+                "inline-flex h-10 w-10 items-center justify-center rounded-full border border-border/60 bg-highlight-7 shadow-sm backdrop-blur",
                 "transition-colors motion-reduce:transition-none hover:bg-highlight-5/60",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
               )}
@@ -542,7 +549,7 @@ export default function AllEssentialsCardsDeck() {
               <ChevronLeft className="h-5 w-5" aria-hidden="true" />
             </button>
 
-            <div className="flex items-center justify-center gap-1.5">
+            <div className="flex items-center justify-center gap-1.5 min-w-25">
               {cards.map((card, idx) => {
                 const isActive = idx === active;
                 return (
@@ -555,7 +562,7 @@ export default function AllEssentialsCardsDeck() {
                       goTo(idx);
                     }}
                     className={cn(
-                      "relative h-2.5 overflow-hidden rounded-full border border-border/60 bg-background/70 backdrop-blur",
+                      "relative h-2.5 overflow-hidden rounded-full border border-border/60 bg-highlight-5 backdrop-blur",
                       "transition-all motion-reduce:transition-none",
                       isActive ? "w-12" : "w-2.5 hover:bg-highlight-5/70"
                     )}
@@ -573,7 +580,7 @@ export default function AllEssentialsCardsDeck() {
               }}
               aria-label="Next card"
               className={cn(
-                "inline-flex h-10 w-10 items-center justify-center rounded-full border border-border/60 bg-background/70 shadow-sm backdrop-blur",
+                "inline-flex h-10 w-10 items-center justify-center rounded-full border border-border/60 bg-highlight-7 shadow-sm backdrop-blur",
                 "transition-colors motion-reduce:transition-none hover:bg-highlight-5/60",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
               )}
