@@ -975,6 +975,28 @@ export async function fetchBeachByIdLoose(id: string): Promise<Beach | null> {
     return null;
   }
 
+  if (typeof window !== "undefined") {
+    try {
+      const response = await fetch(
+        `/api/beaches/lookup?search=${encodeURIComponent(target)}`,
+        { cache: "no-store" }
+      );
+      if (response.ok) {
+        const payload = (await response.json()) as {
+          success?: boolean;
+          data?: Beach | null;
+        };
+        if (payload?.success) {
+          return (payload.data as Beach | null) ?? null;
+        }
+      } else {
+        console.warn("Lookup route returned non-OK status:", response.status);
+      }
+    } catch (err) {
+      console.warn("Lookup route failed:", err);
+    }
+  }
+
   console.log("Looking up beach:", target);
 
   // Use optimized RPC function (reduces 4 queries to 1)

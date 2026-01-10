@@ -28,15 +28,16 @@ import {
   GiTable,
   GiCaravan,
   GiLighthouse,
-  GiStoneBlock,
+  GiStonePile,
   GiFootprint,
+  GiStairs,
   GiWaterfall,
   GiSwamp,
   GiCliffCrossing,
   GiBeachBall,
   GiVolleyballBall,
   GiWaveSurfer,
-  GiDivingDagger,
+  GiDivingHelmet,
   GiSnorkel,
 } from "react-icons/gi";
 
@@ -45,6 +46,7 @@ import {
   MdOutlinePark,
   MdRestaurant,
   MdLocalParking,
+  MdLocalDrink,
   MdAccessible,
   MdPublic,
   MdPets,
@@ -62,6 +64,7 @@ import {
   FaBiking,
   FaTrophy,
   FaTree,
+  FaWater,
 } from "react-icons/fa";
 
 export type BeachFeatureIcon = {
@@ -87,12 +90,12 @@ export const BEACH_FEATURE_ICONS: Record<string, BeachFeatureIcon> = {
   // Beach Types - Important for beach selection
   SNDY_BEACH: { icon: <FaUmbrellaBeach size={16} />, color: "bg-orange-100", rank: 8 },
   DUNES: { icon: <GiSandsOfTime size={16} />, color: "bg-amber-100", rank: 12 },
-  RKY_SHORE: { icon: <GiStoneBlock size={16} />, color: "bg-slate-200", rank: 9 },
+  RKY_SHORE: { icon: <GiStonePile size={16} />, color: "bg-slate-200", rank: 9 },
   UPLAND_BCH: { icon: <FaTree size={16} />, color: "bg-emerald-100", rank: 11 },
-  BAY_LGN_LK: { icon: <GiWaveCrest size={16} />, color: "bg-sky-100", rank: 10 },
+  BAY_LGN_LK: { icon: <FaWater size={16} />, color: "bg-sky-100", rank: 10 },
 
   // Additional Activities
-  DIVING: { icon: <GiDivingDagger size={16} />, color: "bg-cyan-100", rank: 13 },
+  DIVING: { icon: <GiDivingHelmet size={16} />, color: "bg-cyan-100", rank: 13 },
   SNORKLNG: { icon: <GiSnorkel size={16} />, color: "bg-cyan-100", rank: 14 },
   WNDSRF_KIT: { icon: <GiWaveSurfer size={16} />, color: "bg-sky-100", rank: 15 },
   KAYAKING: { icon: <GiSailboat size={16} />, color: "bg-teal-100", rank: 16 },
@@ -103,7 +106,7 @@ export const BEACH_FEATURE_ICONS: Record<string, BeachFeatureIcon> = {
   PLAYGROUND: { icon: <GiBeachBall size={16} />, color: "bg-yellow-100", rank: 21 },
 
   // Additional Facilities
-  DRINKWTR: { icon: <GiWaterTower size={16} />, color: "bg-blue-100", rank: 22 },
+  DRINKWTR: { icon: <MdLocalDrink size={16} />, color: "bg-blue-100", rank: 22 },
   FOOD: { icon: <MdRestaurant size={16} />, color: "bg-orange-100", rank: 23 },
   DOG_FRIEND: { icon: <MdPets size={16} />, color: "bg-pink-100", rank: 24 },
   DSABLDACSS: { icon: <MdAccessible size={16} />, color: "bg-indigo-100", rank: 25 },
@@ -127,7 +130,7 @@ export const BEACH_FEATURE_ICONS: Record<string, BeachFeatureIcon> = {
   BLUFF: { icon: <GiCliffCrossing size={16} />, color: "bg-lime-100", rank: 37 },
   BOARDWLK: { icon: <FaWalking size={16} />, color: "bg-slate-100", rank: 38 },
   URBN_WFRNT: { icon: <MapPin size={16} />, color: "bg-gray-200", rank: 40 },
-  STRS_BEACH: { icon: <GiFootprint size={16} />, color: "bg-slate-100", rank: 41 },
+  STRS_BEACH: { icon: <GiStairs size={16} />, color: "bg-slate-100", rank: 41 },
   PTH_BEACH: { icon: <GiFootprint size={16} />, color: "bg-slate-100", rank: 42 },
   BLFTP_TRLS: { icon: <FaWalking size={16} />, color: "bg-emerald-100", rank: 43 },
   BLFTP_PRK: { icon: <MdOutlinePark size={16} />, color: "bg-emerald-100", rank: 44 },
