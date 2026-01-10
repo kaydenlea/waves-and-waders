@@ -869,7 +869,6 @@ const BEACH_BASE_COLUMNS = ["id", "Name", "COUNTY", "LATITUDE", "LONGITUDE", "gr
 const BEACH_SELECT_COLUMNS = `${BEACH_BASE_COLUMNS.join(", ")}, ${FEATURE_COLUMNS.join(", ")}`;
 const ALL_BEACHES_CACHE_MS = 5 * 60 * 1000;
 let cachedAllBeaches: { timestamp: number; data: Beach[] } | null = null;
-let cachedBeachCount: { timestamp: number; count: number } | null = null;
 
 const normalizeOptimizedRow = (row: Record<string, unknown>): Beach | null => {
   const rawLat = Number(row.LATITUDE);
@@ -944,28 +943,6 @@ export async function fetchAllBeaches(): Promise<Beach[]> {
 
   cachedAllBeaches = { timestamp: now, data: beaches };
   return beaches;
-}
-
-export async function fetchBeachCount(): Promise<number> {
-  const now = Date.now();
-  if (cachedBeachCount && now - cachedBeachCount.timestamp < ALL_BEACHES_CACHE_MS) {
-    return cachedBeachCount.count;
-  }
-
-  const { count, error } = await supabase
-    .from("beaches_optimized")
-    .select("id", { count: "exact", head: true })
-    .or("INLND_AREA.is.null,INLND_AREA.neq.Yes");
-
-  if (error) {
-    console.error("Failed to fetch beach count:", error);
-    cachedBeachCount = { timestamp: now, count: 0 };
-    return 0;
-  }
-
-  const resolved = typeof count === "number" ? count : 0;
-  cachedBeachCount = { timestamp: now, count: resolved };
-  return resolved;
 }
 
 export async function fetchBeachByIdLoose(id: string): Promise<Beach | null> {

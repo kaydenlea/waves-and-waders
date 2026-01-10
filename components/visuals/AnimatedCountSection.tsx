@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 import { Zap } from "lucide-react";
 import BeachesMapPreview from "@/components/marketing/BeachesMapPreview";
 import PremiumStatsStrip from "@/components/visuals/PremiumStatsStrip";
-import { fetchBeachCount } from "@/lib/supabase";
+import { fetchBeachCount } from "@/lib/beachCount";
 import { FEATURE_COLUMNS } from "@/lib/supabase";
 import { ALL_WIDGET_IDS } from "@/components/general/dashboardLayout";
 import InViewOnce from "@/components/marketing/InViewOnce";
