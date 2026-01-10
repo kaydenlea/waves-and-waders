@@ -922,8 +922,16 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
     null
   );
   const { setReady } = useForecastChartLoading("forecast-swell");
+  const daysReady = Array.isArray(days) && days.length > 0;
   const dashboardBusy = useForecastChartsBusyState();
   const wasBusyRef = useRef(dashboardBusy);
+
+  // Mark this widget as not ready until the day range exists (day headers depend on it).
+  useEffect(() => {
+    if (!daysReady) {
+      setReady(false);
+    }
+  }, [daysReady, setReady]);
 
   // Mark this widget as not ready whenever its local loading flag is true.
   useEffect(() => {
@@ -934,10 +942,10 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
 
   // Mark ready only after data and sun/shading are fully ready.
   useEffect(() => {
-    if (!loading && sunReady) {
+    if (daysReady && !loading && sunReady) {
       setReady(true);
     }
-  }, [loading, sunReady, setReady]);
+  }, [daysReady, loading, sunReady, setReady]);
 
   useEffect(() => {
     if (dashboardBusy && !wasBusyRef.current) {

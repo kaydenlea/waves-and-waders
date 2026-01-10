@@ -29,7 +29,7 @@ export default function ForecastPreviewFrame({
     <div
       className={cn(
         "relative h-full w-full overflow-hidden rounded-2xl border border-border/60 bg-background shadow-lg shadow-black/10 ring-1 ring-black/5",
-        "dark:border-border/80 dark:bg-highlight-6/15 dark:shadow-black/40 dark:ring-white/10",
+        "dark:border-border/80 dark:shadow-black/40 dark:ring-white/10",
         className
       )}
     >

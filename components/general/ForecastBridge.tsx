@@ -27,7 +27,10 @@ import { LazyLoadForecastSwell } from "./LazyLoad/LazyLoadForecastSwell";
 import { type Row, type WidgetId, type WidgetMeta } from "./dashboardLayout";
 import { useDashboardLayout } from "./useDashboardLayout";
 import { useForecastData } from "../context/ForecastDataContext";
-import { useForecastChartsLoadingState } from "../context/ForecastChartsLoadingContext";
+import {
+  useForecastChartsLoadingControls,
+  useForecastChartsLoadingState,
+} from "../context/ForecastChartsLoadingContext";
 import { useStableOverlay } from "../hooks/useStableOverlay";
 
 // ------------------------------------------------------
@@ -186,6 +189,35 @@ const ForecastBridge: React.FC<Props> = ({
   const { prefetchSunData } = useSunData();
   const { rows: forecastRows, loading: forecastLoading } = useForecastData();
   const chartsLoading = useForecastChartsLoadingState();
+  const { setExpectedCharts } = useForecastChartsLoadingControls();
+
+  const expectedChartIds = useMemo(() => {
+    const ids = new Set<string>();
+    const widgetToCharts: Partial<Record<WidgetId, readonly string[]>> = {
+      tide: ["forecast-tide"],
+      surf: ["forecast-surf"],
+      wind: ["forecast-wind"],
+      swell: ["forecast-swell"],
+      energy: ["forecast-energy"],
+      table: ["forecast-table"],
+      surfAndWind: ["forecast-surf", "forecast-wind"],
+    };
+
+    for (const row of layoutRows) {
+      for (const widgetId of row.items) {
+        if (layoutMeta[widgetId]?.visible === false) continue;
+        const charts = widgetToCharts[widgetId];
+        if (!charts) continue;
+        for (const chartId of charts) ids.add(chartId);
+      }
+    }
+
+    return Array.from(ids).sort();
+  }, [layoutMeta, layoutRows]);
+
+  useLayoutEffect(() => {
+    setExpectedCharts(expectedChartIds);
+  }, [expectedChartIds, setExpectedCharts]);
 
   useEffect(() => {
     setIsMounted(true);

@@ -5,6 +5,7 @@ import React from "react";
 type Ctx = {
   reportStatus: (id: string, ready: boolean) => void;
   unregister: (id: string) => void;
+  setExpectedCharts: (ids: readonly string[] | null) => void;
   loading: boolean;
   busy: boolean;
 };
@@ -23,6 +24,9 @@ export function ForecastChartsLoadingProvider({
   const [statusMap, setStatusMap] = React.useState<Map<string, boolean>>(
     () => new Map()
   );
+  const [expectedCharts, setExpectedCharts] = React.useState<
+    readonly string[] | null
+  >(null);
 
   const reportStatus = React.useCallback((id: string, ready: boolean) => {
     setStatusMap((prev) => {
@@ -41,19 +45,50 @@ export function ForecastChartsLoadingProvider({
     });
   }, []);
 
+  const setExpectedChartsSafe = React.useCallback(
+    (ids: readonly string[] | null) => {
+      setExpectedCharts((prev) => {
+        if (ids === prev) return prev;
+        if (ids == null || prev == null) return ids;
+        if (ids.length !== prev.length) return ids;
+        for (let i = 0; i < ids.length; i++) {
+          if (ids[i] !== prev[i]) return ids;
+        }
+        return prev;
+      });
+    },
+    []
+  );
+
   const rawLoading = React.useMemo(() => {
-    if (statusMap.size === 0) {
-      return true;
+    // When the dashboard declares expected charts, consider missing registrations as "not ready".
+    if (expectedCharts != null) {
+      for (const id of expectedCharts) {
+        if (statusMap.get(id) !== true) return true;
+      }
+      for (const ready of statusMap.values()) {
+        if (!ready) return true;
+      }
+      return false;
     }
+
+    // Fallback behavior when no expected charts have been declared yet.
+    if (statusMap.size === 0) return true;
     for (const ready of statusMap.values()) {
       if (!ready) return true;
     }
     return false;
-  }, [statusMap]);
+  }, [expectedCharts, statusMap]);
 
   const value = React.useMemo(
-    () => ({ reportStatus, unregister, loading: rawLoading, busy: rawLoading }),
-    [reportStatus, unregister, rawLoading]
+    () => ({
+      reportStatus,
+      unregister,
+      setExpectedCharts: setExpectedChartsSafe,
+      loading: rawLoading,
+      busy: rawLoading,
+    }),
+    [reportStatus, unregister, setExpectedChartsSafe, rawLoading]
   );
 
   return (
@@ -70,7 +105,7 @@ export function useForecastChartLoading(name?: string) {
       "useForecastChartLoading must be used within ForecastChartsLoadingProvider"
     );
   }
-  const idRef = React.useRef<string>(makeId(name));
+  const idRef = React.useRef<string>(name ?? makeId());
 
   React.useEffect(() => {
     ctx.reportStatus(idRef.current, false);
@@ -91,7 +126,7 @@ export function useForecastChartLoading(name?: string) {
 // that may be rendered both inside and outside forecast dashboards.
 export function useOptionalForecastChartLoading(name?: string) {
   const ctx = React.useContext(ForecastChartsLoadingContext);
-  const idRef = React.useRef<string>(makeId(name));
+  const idRef = React.useRef<string>(name ?? makeId());
 
   React.useEffect(() => {
     if (!ctx) return;
@@ -120,6 +155,16 @@ export function useForecastChartsLoadingState() {
     );
   }
   return ctx.loading;
+}
+
+export function useForecastChartsLoadingControls() {
+  const ctx = React.useContext(ForecastChartsLoadingContext);
+  if (!ctx) {
+    throw new Error(
+      "useForecastChartsLoadingControls must be used within ForecastChartsLoadingProvider"
+    );
+  }
+  return { setExpectedCharts: ctx.setExpectedCharts };
 }
 
 export function useForecastChartsBusyState() {

@@ -160,6 +160,7 @@ export default React.memo(function ForecastTideChart({
     null
   );
   const { setReady } = useForecastChartLoading("forecast-tide");
+  const daysReady = Array.isArray(days) && days.length > 0;
   const dashboardBusy = useForecastChartsBusyState();
   const wasBusyRef = useRef(dashboardBusy);
 
@@ -176,6 +177,14 @@ export default React.memo(function ForecastTideChart({
   useEffect(() => {
     setLoading(data.length === 0);
   }, [data]);
+
+  // Mark this widget as not ready until the day range exists (day headers depend on it).
+  useEffect(() => {
+    if (!daysReady) {
+      setReady(false);
+    }
+  }, [daysReady, setReady]);
+
   // Mark this widget as not ready whenever its local loading flag is true.
   useEffect(() => {
     if (loading) {
@@ -184,10 +193,10 @@ export default React.memo(function ForecastTideChart({
   }, [loading, setReady]);
   // Mark ready only after data and shading are fully ready.
   useEffect(() => {
-    if (!loading && shadingReady) {
+    if (daysReady && !loading && shadingReady) {
       setReady(true);
     }
-  }, [loading, shadingReady, setReady]);
+  }, [daysReady, loading, shadingReady, setReady]);
   useEffect(() => {
     if (dashboardBusy && !wasBusyRef.current) {
       setStableSelectedHour(selectedHour ?? null);
