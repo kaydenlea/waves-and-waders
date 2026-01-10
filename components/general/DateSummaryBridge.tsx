@@ -40,6 +40,7 @@ import {
 import type { SharedSunSegments } from "@/components/graphs/sharedSunSegments";
 import { ForecastChartsLoadingProvider } from "../context/ForecastChartsLoadingContext";
 import { useStableOverlay } from "../hooks/useStableOverlay";
+import { useOptionalOverviewPageBusyControls } from "../context/OverviewPageBusyContext";
 
 type Props = {
   beachId: string;
@@ -550,6 +551,66 @@ const DateSummaryBridge: React.FC<Props> = ({
     overviewChartsLoading || tabOverlayActive || layoutOverlayActive,
     250
   );
+
+  const [forecastBridgeBusy, setForecastBridgeBusy] = React.useState(true);
+  const [forecastTabOverlayActive, setForecastTabOverlayActive] =
+    React.useState(false);
+  const prevForecastTabRef = React.useRef<string | null>(null);
+  const prevForecastBusyRef = React.useRef<boolean>(false);
+
+  React.useLayoutEffect(() => {
+    const prevTab = prevForecastTabRef.current;
+    const wasBusy = prevForecastBusyRef.current;
+
+    if (isOverview) {
+      if (forecastTabOverlayActive) setForecastTabOverlayActive(false);
+      prevForecastTabRef.current = selectedTab;
+      prevForecastBusyRef.current = forecastBridgeBusy;
+      return;
+    }
+
+    const switchedToForecast = prevTab != null && prevTab !== "forecast";
+    const busyBecameTrue = !wasBusy && forecastBridgeBusy;
+    if (switchedToForecast || busyBecameTrue) {
+      if (!forecastTabOverlayActive) setForecastTabOverlayActive(true);
+    }
+
+    prevForecastTabRef.current = selectedTab;
+    prevForecastBusyRef.current = forecastBridgeBusy;
+  }, [
+    forecastBridgeBusy,
+    forecastTabOverlayActive,
+    isOverview,
+    selectedTab,
+  ]);
+
+  React.useEffect(() => {
+    if (isOverview) return;
+    if (!forecastTabOverlayActive) return;
+    if (forecastBridgeBusy) return;
+    const timeout = window.setTimeout(
+      () => setForecastTabOverlayActive(false),
+      250
+    );
+    return () => window.clearTimeout(timeout);
+  }, [forecastBridgeBusy, forecastTabOverlayActive, isOverview]);
+
+  const forecastBusyVisible = useStableOverlay(
+    forecastBridgeBusy || forecastTabOverlayActive,
+    250
+  );
+  const setOverviewPageBusy = useOptionalOverviewPageBusyControls();
+  const overviewPageBusy = isOverview ? overlayVisible : forecastBusyVisible;
+
+  React.useLayoutEffect(() => {
+    if (!setOverviewPageBusy) return;
+    setOverviewPageBusy(overviewPageBusy);
+  }, [overviewPageBusy, setOverviewPageBusy]);
+
+  React.useEffect(() => {
+    if (!setOverviewPageBusy) return;
+    return () => setOverviewPageBusy(false);
+  }, [setOverviewPageBusy]);
 
   const { windStats, surfStats, swellStats, energyStats } =
     React.useMemo(() => {
@@ -1069,15 +1130,16 @@ const DateSummaryBridge: React.FC<Props> = ({
                           loading: forecastTabLoading,
                         }}
                       >
-                        <ForecastBridge
-                          beachId={beachId}
-                          hideHeader
-                          onWindowStringChange={setForecastWindow}
-                          initialMeta={initialForecastMeta ?? undefined}
-                          initialRows={initialForecastRows ?? undefined}
-                          cardVariant="forecast"
-                          tableDensity={dailyTableDensity}
-                          onTableDensityChange={(next) =>
+                    <ForecastBridge
+                      beachId={beachId}
+                      hideHeader
+                      onWindowStringChange={setForecastWindow}
+                      onBusyChange={setForecastBridgeBusy}
+                      initialMeta={initialForecastMeta ?? undefined}
+                      initialRows={initialForecastRows ?? undefined}
+                      cardVariant="forecast"
+                      tableDensity={dailyTableDensity}
+                      onTableDensityChange={(next) =>
                             setDailyTableDensity(next)
                           }
                         />

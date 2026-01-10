@@ -39,6 +39,7 @@ type Props = {
   beachId: string;
   hideHeader?: boolean;
   onWindowStringChange?: (value: string) => void;
+  onBusyChange?: (busy: boolean) => void;
   initialMeta?: Partial<Record<WidgetId, WidgetMeta>> | null;
   initialRows?: Row[] | null;
   cardVariant?: "default" | "overview" | "forecast";
@@ -55,6 +56,7 @@ const ForecastBridge: React.FC<Props> = ({
   beachId,
   hideHeader = false,
   onWindowStringChange,
+  onBusyChange,
   initialMeta = null,
   initialRows = null,
   cardVariant = "default",
@@ -301,6 +303,10 @@ const ForecastBridge: React.FC<Props> = ({
   const rawWidgetLoading =
     chartsLoading || !layoutHydrated || forecastLoading || layoutOverlayActive;
   const stableWidgetLoading = useStableOverlay(rawWidgetLoading, 220);
+
+  useLayoutEffect(() => {
+    onBusyChange?.(stableWidgetLoading);
+  }, [onBusyChange, stableWidgetLoading]);
 
   const Wrapper = useMemo(
     () =>

@@ -49,7 +49,30 @@ type MapDataContextValue = {
 };
 
 const MapUIContext = React.createContext<MapUIContextValue | null>(null);
-const MapDataContext = React.createContext<MapDataContextValue | null>(null);
+const MapPopupContext = React.createContext<
+  Pick<
+    MapDataContextValue,
+    "popupId" | "popupRef" | "popupData" | "setPopupData"
+  > | null
+>(null);
+const MaplibreMapContext = React.createContext<
+  Pick<MapDataContextValue, "map" | "setMap" | "mapRef"> | null
+>(null);
+const MapFiltersContext = React.createContext<
+  Pick<MapDataContextValue, "filters" | "setFilters"> | null
+>(null);
+const MapSurfIntensityContext = React.createContext<
+  Pick<MapDataContextValue, "surfIntensityForDate" | "setSurfIntensityForDate"> | null
+>(null);
+const MapBeachesContext = React.createContext<
+  Pick<MapDataContextValue, "beaches" | "setBeaches"> | null
+>(null);
+const MapFavoritesContext = React.createContext<
+  Pick<MapDataContextValue, "favoriteIds" | "setFavoriteIds"> | null
+>(null);
+const MapHoverCardContext = React.createContext<
+  Pick<MapDataContextValue, "hoverCardId" | "setHoverCardId"> | null
+>(null);
 
 export function MapFilterProvider({ children }: { children: React.ReactNode }) {
   const [openPanel, setOpenPanel] = React.useState<PanelKey | null>(null);
@@ -87,42 +110,48 @@ export function MapFilterProvider({ children }: { children: React.ReactNode }) {
     [openPanel, togglePanel, showMap]
   );
 
-  const dataValue = React.useMemo(
-    () => ({
-      popupId,
-      popupRef,
-      popupData,
-      setPopupData,
-      map,
-      setMap,
-      mapRef,
-      filters,
-      setFilters,
-      surfIntensityForDate,
-      setSurfIntensityForDate,
-      beaches,
-      setBeaches,
-      favoriteIds,
-      setFavoriteIds,
-      hoverCardId,
-      setHoverCardId,
-    }),
-    [
-      popupId,
-      popupData,
-      map,
-      filters,
-      surfIntensityForDate,
-      beaches,
-      favoriteIds,
-      hoverCardId,
-    ]
+  const popupValue = React.useMemo(
+    () => ({ popupId, popupRef, popupData, setPopupData }),
+    [popupData]
+  );
+  const mapValue = React.useMemo(() => ({ map, setMap, mapRef }), [map]);
+  const filtersValue = React.useMemo(
+    () => ({ filters, setFilters }),
+    [filters]
+  );
+  const surfIntensityValue = React.useMemo(
+    () => ({ surfIntensityForDate, setSurfIntensityForDate }),
+    [surfIntensityForDate]
+  );
+  const beachesValue = React.useMemo(
+    () => ({ beaches, setBeaches }),
+    [beaches]
+  );
+  const favoritesValue = React.useMemo(
+    () => ({ favoriteIds, setFavoriteIds }),
+    [favoriteIds]
+  );
+  const hoverCardValue = React.useMemo(
+    () => ({ hoverCardId, setHoverCardId }),
+    [hoverCardId]
   );
   return (
     <MapUIContext.Provider value={uiValue}>
-      <MapDataContext.Provider value={dataValue}>
-        {children}
-      </MapDataContext.Provider>
+      <MapPopupContext.Provider value={popupValue}>
+        <MaplibreMapContext.Provider value={mapValue}>
+          <MapFiltersContext.Provider value={filtersValue}>
+            <MapSurfIntensityContext.Provider value={surfIntensityValue}>
+              <MapBeachesContext.Provider value={beachesValue}>
+                <MapFavoritesContext.Provider value={favoritesValue}>
+                  <MapHoverCardContext.Provider value={hoverCardValue}>
+                    {children}
+                  </MapHoverCardContext.Provider>
+                </MapFavoritesContext.Provider>
+              </MapBeachesContext.Provider>
+            </MapSurfIntensityContext.Provider>
+          </MapFiltersContext.Provider>
+        </MaplibreMapContext.Provider>
+      </MapPopupContext.Provider>
     </MapUIContext.Provider>
   );
 }
@@ -134,13 +163,79 @@ export function useMapUI(): MapUIContextValue {
 }
 
 export function useMapData(): MapDataContextValue {
-  const ctx = React.useContext(MapDataContext);
-  if (!ctx) throw new Error("useMapData must be used within MapFilterProvider");
-  return ctx;
+  const popup = React.useContext(MapPopupContext);
+  const map = React.useContext(MaplibreMapContext);
+  const filters = React.useContext(MapFiltersContext);
+  const surf = React.useContext(MapSurfIntensityContext);
+  const beaches = React.useContext(MapBeachesContext);
+  const favorites = React.useContext(MapFavoritesContext);
+  const hover = React.useContext(MapHoverCardContext);
+  if (
+    !popup ||
+    !map ||
+    !filters ||
+    !surf ||
+    !beaches ||
+    !favorites ||
+    !hover
+  ) {
+    throw new Error("useMapData must be used within MapFilterProvider");
+  }
+  return React.useMemo(
+    () => ({
+      ...popup,
+      ...map,
+      ...filters,
+      ...surf,
+      ...beaches,
+      ...favorites,
+      ...hover,
+    }),
+    [popup, map, filters, surf, beaches, favorites, hover]
+  );
 }
 
 export function useMapFilters(): MapUIContextValue & MapDataContextValue {
   const ui = useMapUI();
   const data = useMapData();
   return React.useMemo(() => ({ ...ui, ...data }), [ui, data]);
+}
+
+export function useMapFiltersData(): Pick<
+  MapDataContextValue,
+  "filters" | "setFilters"
+> {
+  const ctx = React.useContext(MapFiltersContext);
+  if (!ctx) {
+    throw new Error(
+      "useMapFiltersData must be used within MapFilterProvider"
+    );
+  }
+  return ctx;
+}
+
+export function useMapFavoriteIdsData(): Pick<
+  MapDataContextValue,
+  "favoriteIds" | "setFavoriteIds"
+> {
+  const ctx = React.useContext(MapFavoritesContext);
+  if (!ctx) {
+    throw new Error(
+      "useMapFavoriteIdsData must be used within MapFilterProvider"
+    );
+  }
+  return ctx;
+}
+
+export function useMapHoverCardData(): Pick<
+  MapDataContextValue,
+  "hoverCardId" | "setHoverCardId"
+> {
+  const ctx = React.useContext(MapHoverCardContext);
+  if (!ctx) {
+    throw new Error(
+      "useMapHoverCardData must be used within MapFilterProvider"
+    );
+  }
+  return ctx;
 }

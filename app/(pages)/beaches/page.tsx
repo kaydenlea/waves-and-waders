@@ -64,7 +64,7 @@ export const revalidate = 300; // Revalidate every 5 minutes
 export default async function BeachesPage({
   searchParams,
 }: {
-  searchParams?: { tab?: string };
+  searchParams?: { tab?: string } | Promise<{ tab?: string }>;
 }) {
   const supabase = await getServerSupabase();
   const { data: userData, error: userError } = await supabase.auth.getUser();
@@ -73,7 +73,8 @@ export default async function BeachesPage({
   }
 
   const user = userData.user ?? null;
-  const tab = searchParams?.tab;
+  const resolvedSearchParams = await searchParams;
+  const tab = resolvedSearchParams?.tab;
 
   if (!user && tab === "saved") {
     const next = "/beaches?tab=saved";

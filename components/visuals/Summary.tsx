@@ -1705,7 +1705,7 @@ const Summary = ({
             usingPreview
               ? "col-span-6"
               : "col-span-6 @min-md:col-span-6 @min-xl:col-span-4 @min-2xl:col-span-4 @min-3xl:col-span-4 @min-5xl:col-span-3",
-            "p-4 flex flex-col min-h-35 overflow-hidden"
+            "p-4 flex flex-col min-h-45 overflow-hidden"
           )}
           aria-label="Wind summary"
         >

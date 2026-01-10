@@ -134,7 +134,7 @@ function WindowPickerVisual() {
     <div className="relative aspect-[4/3] w-full">
       <div className="absolute inset-0 bg-gradient-to-b from-highlight-5/30 via-transparent to-transparent" />
 
-      <div className="relative flex h-full w-full flex-col gap-8 px-4 py-4">
+      <div className="relative flex h-full w-full flex-col gap-4 @min-[385px]:gap-8 px-2 py-4">
         <div className="flex items-center justify-between gap-3">
           <div className="inline-flex items-center gap-2 rounded-full border border-border/50 bg-background/70 px-2.5 py-1.5 text-xs font-semibold text-foreground shadow-sm">
             <TimerReset className="h-4 w-4" aria-hidden="true" />
@@ -146,7 +146,7 @@ function WindowPickerVisual() {
           </div>
         </div>
 
-        <div className="w-full">
+        <div className="-mt-2 @min-[350px]:mt-0 w-full">
           <LazyLoadDatePicker
             beachId={PREVIEW_BEACH_ID}
             maxDays={3}
@@ -156,7 +156,7 @@ function WindowPickerVisual() {
           />
         </div>
 
-        <div className="w-full">
+        <div className="w-full px-1">
           <div className="mb-2 text-xs font-semibold tracking-wide text-foreground/70 dark:text-foreground/85">
             Slide to scan the day
           </div>

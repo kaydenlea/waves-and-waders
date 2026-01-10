@@ -57,7 +57,7 @@ const Footer = ({ className }: { className?: string }) => {
           <div className="hidden md:col-span-8 md:grid md:grid-cols-3 md:gap-10 md:justify-items-start md:justify-self-end">
             <div className="space-y-3">
               <div className="text-xs font-semibold tracking-wider text-foreground/70 uppercase">
-                Product
+                Tools
               </div>
               <ul className="space-y-2 text-sm text-foreground/60">
                 <li>

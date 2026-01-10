@@ -13,6 +13,7 @@ import SaveButton from "@/components/general/SaveButton";
 import Breadcrumbs from "@/components/general/Breadcrumbs";
 import { SunDataProvider } from "@/components/context/SunDataContext";
 import { useOptionalDashboardEditMode } from "@/components/context/DashboardEditModeContext";
+import { OverviewPageBusyProvider } from "@/components/context/OverviewPageBusyContext";
 import DashboardEditorScreen from "@/components/general/DashboardEditorScreen";
 import type { BeachPoint } from "@/components/context/MapFilterContext";
 import type {
@@ -48,7 +49,10 @@ export default function OverviewPageClient({
 }: Props) {
   const dashboardEdit = useOptionalDashboardEditMode();
   const noop = React.useCallback(() => {}, []);
-  const getCachedLayoutFallback = React.useCallback((_type: unknown) => null, []);
+  const getCachedLayoutFallback = React.useCallback((type: unknown) => {
+    void type;
+    return null;
+  }, []);
   const isEditing = dashboardEdit?.isEditing ?? false;
   const dashboardType = dashboardEdit?.dashboardType ?? null;
   const pendingScrollToId = dashboardEdit?.pendingScrollToId ?? null;
@@ -91,52 +95,60 @@ export default function OverviewPageClient({
 
       <div className={isEditing ? "hidden" : undefined} aria-hidden={isEditing}>
         <NavBar />
-        <main
-          id="main-content"
-          className="touch-pan-y bg-background-2 min-h-[calc(100vh-4rem)] @min-4xl:flex @min-4xl:flex-1 @min-4xl:mt-[5.5rem] @min-4xl:pb-4"
-        >
-          <LazyLoadMap
-            beachId={beachId}
-            initialBeach={initialBeach ?? undefined}
-          />
-          <PathStyleWrapper>
-            <div className="@container pb-6 @min-4xl:pb-3 pt-2 @min-4xl:pt-8 px-1 @min-md:px-3">
-              <header
-                id="content"
-                className="relative w-full flex flex-col gap-5 px-2 pt-3 @min-md:pt-4 pb-0 scroll-mt-30"
-              >
-                <Breadcrumbs
-                  items={[
-                    { label: "Beaches", href: "/beaches" },
-                    { label: beachName, href: `/beach/${beachParam}/overview` },
-                  ]}
-                />
-                <div className="flex items-center gap-3">
-                  <h1 className="pb-0.5 font-semibold text-3xl @min-md:text-4xl tracking-tight w-full whitespace-nowrap truncate">
-                    {beachName}
-                  </h1>
-                  <div className="ml-auto flex items-center gap-2 shrink-0">
-                    <BackButton loggedIn={loggedIn} />
-                    <SaveButton beachId={beachId} initialIsFav={isFavorite} />
+        <OverviewPageBusyProvider initialBusy>
+          <main
+            id="main-content"
+            className="touch-pan-y bg-background-2 min-h-[calc(100vh-4rem)] @min-4xl:flex @min-4xl:flex-1 @min-4xl:mt-[5.5rem] @min-4xl:pb-4"
+          >
+            <LazyLoadMap
+              beachId={beachId}
+              initialBeach={initialBeach ?? undefined}
+            />
+            <PathStyleWrapper>
+              <div className="@container pb-6 @min-4xl:pb-3 pt-2 @min-4xl:pt-8 px-1 @min-md:px-3">
+                <header
+                  id="content"
+                  className="relative w-full flex flex-col gap-5 px-2 pt-3 @min-md:pt-4 pb-0 scroll-mt-30"
+                >
+                  <Breadcrumbs
+                    items={[
+                      { label: "Beaches", href: "/beaches" },
+                      {
+                        label: beachName,
+                        href: `/beach/${beachParam}/overview`,
+                      },
+                    ]}
+                  />
+                  <div className="flex items-center gap-3">
+                    <h1 className="pb-0.5 font-semibold text-3xl @min-md:text-4xl tracking-tight w-full whitespace-nowrap truncate">
+                      {beachName}
+                    </h1>
+                    <div className="ml-auto flex items-center gap-2 shrink-0">
+                      <BackButton loggedIn={loggedIn} />
+                      <SaveButton
+                        beachId={beachId}
+                        initialIsFav={isFavorite}
+                      />
+                    </div>
                   </div>
-                </div>
-              </header>
+                </header>
 
-              <SunDataProvider>
-                <DateSummaryBridge
-                  beachId={beachId}
-                  beachParam={beachParam}
-                  isFavorite={isFavorite}
-                  loggedIn={loggedIn}
-                  initialOverviewMeta={initialOverviewMeta}
-                  initialOverviewRows={initialOverviewRows}
-                  initialForecastMeta={initialForecastMeta}
-                  initialForecastRows={initialForecastRows}
-                />
-              </SunDataProvider>
-            </div>
-          </PathStyleWrapper>
-        </main>
+                <SunDataProvider>
+                  <DateSummaryBridge
+                    beachId={beachId}
+                    beachParam={beachParam}
+                    isFavorite={isFavorite}
+                    loggedIn={loggedIn}
+                    initialOverviewMeta={initialOverviewMeta}
+                    initialOverviewRows={initialOverviewRows}
+                    initialForecastMeta={initialForecastMeta}
+                    initialForecastRows={initialForecastRows}
+                  />
+                </SunDataProvider>
+              </div>
+            </PathStyleWrapper>
+          </main>
+        </OverviewPageBusyProvider>
         <BottomNav />
         <Footer />
       </div>

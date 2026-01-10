@@ -277,7 +277,8 @@ export default function NearbyBeaches() {
     const start = (page - 1) * perPage;
     return visibleList.slice(start, start + perPage);
   }, [visibleList, page, perPage]);
-  const { getSnapshot, prefetchSnapshots } = useBeachStatsCache();
+  const { getSnapshot, prefetchSnapshots, version: statsVersion } =
+    useBeachStatsCache();
   const decoratedCacheRef = useRef<
     Record<
       string,
@@ -297,7 +298,7 @@ export default function NearbyBeaches() {
       map.set(id, cached);
     });
     return map;
-  }, [currentItems, getSnapshot, statsDateKey, statsHourKey]);
+  }, [currentItems, getSnapshot, statsDateKey, statsHourKey, statsVersion]);
 
   useEffect(() => {
     if (!currentItems.length) return;

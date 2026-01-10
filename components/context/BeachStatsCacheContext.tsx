@@ -82,17 +82,30 @@ export function BeachStatsCacheProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const [cache, setCache] = React.useState<Record<string, CacheEntry>>({});
+  const cacheRef = React.useRef<Record<string, CacheEntry>>({});
   const [version, setVersion] = React.useState(0);
+  const versionBumpRafRef = React.useRef<number | null>(null);
   const inFlightRef = React.useRef<Record<string, Promise<void> | undefined>>(
     {}
   );
 
+  const scheduleVersionBump = React.useCallback(() => {
+    if (typeof window === "undefined") {
+      setVersion((prev) => prev + 1);
+      return;
+    }
+    if (versionBumpRafRef.current != null) return;
+    versionBumpRafRef.current = window.requestAnimationFrame(() => {
+      versionBumpRafRef.current = null;
+      setVersion((prev) => prev + 1);
+    });
+  }, []);
+
   const getSnapshot = React.useCallback(
     (beachId: string | number, dateKey: string, hourKey: string | number) => {
-      return cache[makeCacheKey(beachId, dateKey, hourKey)]?.data;
+      return cacheRef.current[makeCacheKey(beachId, dateKey, hourKey)]?.data;
     },
-    [cache]
+    []
   );
 
   const prefetchSnapshots = React.useCallback(
@@ -103,7 +116,7 @@ export function BeachStatsCacheProvider({
         .map((id) => String(id))
         .filter((id) => {
           const cacheKey = makeCacheKey(id, dateKey, hourKey);
-          if (cache[cacheKey]) return false;
+          if (cacheRef.current[cacheKey]) return false;
           if (inFlightRef.current[makeInflightKey(id, dateKey, hourKey)]) {
             return false;
           }
@@ -133,18 +146,14 @@ export function BeachStatsCacheProvider({
             hour: typeof options?.hour === "number" ? options.hour : undefined,
           })
             .then((data) => {
-              setCache((prev) => {
-                const next = { ...prev };
-                sortedChunk.forEach((id) => {
-                  next[makeCacheKey(id, dateKey, hourKey)] = {
-                    data: data?.[id] ?? null,
-                    dateKey,
-                    hourKey,
-                  };
-                });
-                return next;
+              sortedChunk.forEach((id) => {
+                cacheRef.current[makeCacheKey(id, dateKey, hourKey)] = {
+                  data: data?.[id] ?? null,
+                  dateKey,
+                  hourKey,
+                };
               });
-              setVersion((prev) => prev + 1);
+              scheduleVersionBump();
             })
             .finally(() => {
               inflightKeys.forEach((key) => {
@@ -161,7 +170,7 @@ export function BeachStatsCacheProvider({
         Array.from({ length: workerCount || 1 }, () => runWorker())
       );
     },
-    [cache]
+    [scheduleVersionBump]
   );
 
   const primeSnapshots = React.useCallback(
@@ -171,22 +180,27 @@ export function BeachStatsCacheProvider({
       hourKey: string | number
     ) => {
       if (!data || Object.keys(data).length === 0) return;
-      setCache((prev) => {
-        const next = { ...prev };
-        Object.entries(data).forEach(([id, snapshot]) => {
-          const key = makeCacheKey(id, dateKey, hourKey);
-          next[key] = {
-            data: snapshot ?? null,
-            dateKey,
-            hourKey,
-          };
-        });
-        return next;
+      Object.entries(data).forEach(([id, snapshot]) => {
+        const key = makeCacheKey(id, dateKey, hourKey);
+        cacheRef.current[key] = {
+          data: snapshot ?? null,
+          dateKey,
+          hourKey,
+        };
       });
-      setVersion((prev) => prev + 1);
+      scheduleVersionBump();
     },
-    []
+    [scheduleVersionBump]
   );
+
+  React.useEffect(() => {
+    return () => {
+      if (versionBumpRafRef.current != null) {
+        window.cancelAnimationFrame(versionBumpRafRef.current);
+        versionBumpRafRef.current = null;
+      }
+    };
+  }, []);
 
   return (
     <BeachStatsCacheContext.Provider

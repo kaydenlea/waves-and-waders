@@ -211,8 +211,8 @@ export default function FiltersPanel({
 
       <div
         className={cn(
-          "flex-1 min-h-0 px-5 py-4 space-y-4",
-          scrollBehavior === "always" ? "overflow-y-scroll" : "overflow-y-auto"
+          "flex-1 min-h-0 px-5 py-4 space-y-4"
+          // scrollBehavior === "always" ? "overflow-y-scroll" : "overflow-y-auto"
         )}
         style={{
           WebkitOverflowScrolling: "touch",

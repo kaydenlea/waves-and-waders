@@ -105,7 +105,7 @@ export default function Hero() {
         <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-b from-transparent to-background" />
       </div>
 
-      <div className="relative mx-auto max-w-7xl px-6 pt-26 pb-16 sm:pt-30 sm:pb-20">
+      <div className="relative mx-auto max-w-7xl px-6 pt-26 pb-0 sm:pt-30 sm:pb-20">
         <div className="grid grid-cols-1 items-center lg:gap-12 lg:grid-cols-2">
           <div className="mx-auto max-w-xl text-center lg:mx-0 lg:text-center">
             <div
@@ -147,7 +147,7 @@ export default function Hero() {
               <Link
                 href="/beaches?tab=nearby"
                 className={cn(
-                  "group inline-flex items-center gap-2 rounded-full border border-transparent px-4 py-2.5 font-medium",
+                  "min-w-50 justify-center group inline-flex items-center gap-2 rounded-full border border-transparent px-4 py-2.5 font-medium",
                   "bg-foreground text-background shadow-xl transition",
                   "hover:shadow-cyan-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
                 )}
@@ -158,7 +158,7 @@ export default function Hero() {
               <Link
                 href="/beaches?tab=saved"
                 className={cn(
-                  "inline-flex items-center gap-2 rounded-full border border-border/60 px-4 py-3 font-medium",
+                  "min-w-50 justify-center inline-flex items-center gap-2 rounded-full border border-border/60 px-4 py-3 font-medium",
                   "bg-background/60 text-foreground shadow-sm transition",
                   "supports-[backdrop-filter]:bg-background/45 supports-[backdrop-filter]:backdrop-blur-md",
                   "hover:bg-highlight-6/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15"

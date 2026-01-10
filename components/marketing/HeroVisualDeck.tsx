@@ -767,7 +767,7 @@ export default function HeroVisualDeck({
       const widthScale = rect.width / BASE_W;
       const heightScale = rect.height / BASE_H;
       const next = Math.min(1, widthScale, heightScale);
-      const rounded = Math.max(0.72, Math.round(next * 100) / 100);
+      const rounded = Math.max(0, Math.round(next * 100) / 100);
       setDeckScale(rounded);
     };
 
@@ -957,7 +957,7 @@ export default function HeroVisualDeck({
   return (
     <div
       ref={deckContainerRef}
-      className="relative w-full h-[760px]"
+      className="relative w-full h-[500px] @min-sm:h-[700px] @min-md:h-[760px]"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onFocusCapture={() => setPaused(true)}
@@ -967,19 +967,26 @@ export default function HeroVisualDeck({
         className="absolute xl:left-3/5 left-1/2 top-1/2"
         style={{
           width: 540,
-          height: 760,
+          height: 765,
           transform: `translate(-56%, -56%) scale(${deckScale})`,
           transformOrigin: "center",
           scale: 0.9,
-          visibility: deckReady ? "visible" : "hidden",
         }}
       >
         <div className="absolute -inset-6 rounded-[46px] bg-gradient-to-br from-cyan-500/12 via-transparent to-indigo-500/12 blur-2xl ww-hero-float motion-reduce:animate-none" />
 
-        <div
+        <motion.div
           className={cn(
-            "relative h-full rounded-[38px] border border-border/50 bg-highlight-7 p-3 shadow-[0_18px_55px_rgba(0,0,0,0.10)] flex flex-col"
+            "relative h-full rounded-[38px] border border-border/50 bg-highlight-7 p-2 shadow-[0_18px_55px_rgba(0,0,0,0.10)] flex flex-col"
           )}
+          initial={false}
+          animate={{
+            opacity: deckReady ? 1 : 0,
+            y: deckReady ? 0 : 10,
+            scale: deckReady ? 1 : 0.985,
+          }}
+          transition={{ duration: 0.38, ease: "easeOut" }}
+          style={{ pointerEvents: deckReady ? "auto" : "none" }}
         >
           <div className="pointer-events-none absolute inset-0 rounded-[38px] ring-1 ring-inset ring-white/10" />
 
@@ -1039,7 +1046,7 @@ export default function HeroVisualDeck({
               ) : null}
             </AnimatePresence>
           </div>
-        </div>
+        </motion.div>
       </div>
     </div>
   );

@@ -21,7 +21,12 @@ import {
   extractBeachId,
 } from "@/lib/supabase";
 import type { BeachPoint } from "@/components/context/MapFilterContext";
-import { useMapData, useMapUI } from "@/components/context/MapFilterContext";
+import {
+  useMapFavoriteIdsData,
+  useMapFiltersData,
+  useMapHoverCardData,
+  useMapUI,
+} from "@/components/context/MapFilterContext";
 import {
   VisibleMapBounds,
   useMapViewport,
@@ -32,6 +37,7 @@ import {
   MAP_FOCUS_EVENT,
   type MapFocusEventDetail,
 } from "@/components/general/mapEvents";
+import { useOptionalOverviewPageBusy } from "@/components/context/OverviewPageBusyContext";
 import {
   SlidersHorizontal,
   Info,
@@ -117,7 +123,6 @@ const OPENFREEMAP_ATTRIBUTION_HTML =
   // '<a href="https://openfreemap.org" target="_blank" rel="noopener noreferrer">OpenFreeMap</a> ' +
   '© <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener noreferrer">OpenMapTiles</a> ' +
   '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>';
-const OSM_RASTER_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 const OSM_ATTRIBUTION_HTML =
   '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>';
 const DEFAULT_CENTER: [number, number] = [37.8, -122.4];
@@ -158,6 +163,16 @@ const logLeafletPerf = (label: string, startTs: number | null) => {
   const duration = performance.now() - startTs;
   // eslint-disable-next-line no-console
   console.log(`[LeafletPerf] ${label}: ${duration.toFixed(1)}ms`);
+};
+
+const readLeafletDebugFlag = () => {
+  if (process.env.NODE_ENV === "production") return false;
+  if (typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem("ww:debug-leaflet") === "1";
+  } catch {
+    return false;
+  }
 };
 
 const canUseWebGL = () => {
@@ -252,31 +267,34 @@ const createMarkerIcon = ({
   // Selected marker: keep a clean circle so it works well
   // with the direction rings overlay on the overview page.
   const size = hovered ? 28 : 24;
+  const hitSize = size;
   const border = favorite || hovered ? 3 : 2;
   const borderColor = favorite ? "#facc15" : "#ffffff";
   const color = getIntensityColor(intensity);
   const html = `
-      <div
-        class="ww-marker-circle"
-        style="
-          width:${size}px;
-          height:${size}px;
-          border-radius:999px;
-          border:${border}px solid ${borderColor};
-          background:${color};
-          box-shadow:${
-            hovered
-              ? "0 0 12px rgba(37,99,235,0.6)"
-              : "0 1px 4px rgba(15,23,42,0.35)"
-          };
-        "
-      ></div>
+      <div style="width:${hitSize}px;height:${hitSize}px;display:flex;align-items:center;justify-content:center;">
+        <div
+          class="ww-marker-circle"
+          style="
+            width:${size}px;
+            height:${size}px;
+            border-radius:999px;
+            border:${border}px solid ${borderColor};
+            background:${color};
+            box-shadow:${
+              hovered
+                ? "0 0 12px rgba(37,99,235,0.6)"
+                : "0 1px 4px rgba(15,23,42,0.35)"
+            };
+          "
+        ></div>
+      </div>
     `;
   return L.divIcon({
     className: "ww-leaflet-point-icon",
     html,
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
+    iconSize: [hitSize, hitSize],
+    iconAnchor: [hitSize / 2, hitSize / 2],
   });
 
   // Non-selected marker: map-style pin with a slightly larger
@@ -727,6 +745,11 @@ const escapeHtml = (value: string) =>
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+
+const isTouchDevice = () =>
+  typeof window !== "undefined" &&
+  typeof window.matchMedia === "function" &&
+  window.matchMedia("(pointer: coarse)").matches;
 
 const buildPopupHtml = (
   beach: BeachPoint,
@@ -1486,7 +1509,18 @@ const LeafletMap: React.FC<Props> = ({
   const embedded = variant === "embed";
   const previewUi = ui === "preview";
   const showChrome = !previewUi && !embedded;
-  const { filters, setFilters, favoriteIds, hoverCardId } = useMapData();
+  const debugLeaflet = React.useMemo(() => readLeafletDebugFlag(), []);
+  const debugLog = React.useCallback(
+    (...args: unknown[]) => {
+      if (!debugLeaflet) return;
+      // eslint-disable-next-line no-console
+      console.log(...args);
+    },
+    [debugLeaflet]
+  );
+  const { filters, setFilters } = useMapFiltersData();
+  const { favoriteIds } = useMapFavoriteIdsData();
+  const { hoverCardId } = useMapHoverCardData();
   const deferredFilters = React.useDeferredValue(filters);
   const { showMap, setShowMap, openPanel, setOpenPanel, togglePanel } =
     useMapUI();
@@ -1500,35 +1534,35 @@ const LeafletMap: React.FC<Props> = ({
   React.useEffect(() => {
     if (!pathname.endsWith("/beaches")) return;
     if (geoRequestedRef.current) {
-      console.log("[LeafletGeo] Request already in flight");
+      debugLog("[LeafletGeo] Request already in flight");
       return;
     }
     geoRequestedRef.current = true;
     if (typeof window === "undefined" || !navigator?.geolocation) {
-      console.log("[LeafletGeo] Navigator not available");
+      debugLog("[LeafletGeo] Navigator not available");
       return;
     }
-    console.log("[LeafletGeo] Requesting user position");
+    debugLog("[LeafletGeo] Requesting user position");
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const next = {
           lat: position.coords.latitude,
           lng: position.coords.longitude,
         };
-        console.log("[LeafletGeo] Position received", next);
-        console.log("[LeafletGeo] Setting user location state");
+        debugLog("[LeafletGeo] Position received", next);
+        debugLog("[LeafletGeo] Setting user location state");
         setUserLocation(next);
-        console.log("[LeafletGeo] Forcing marker revision");
+        debugLog("[LeafletGeo] Forcing marker revision");
         // Force component update to ensure button appears
         forceMarkerRevision();
-        console.log("[LeafletGeo] Location update complete");
+        debugLog("[LeafletGeo] Location update complete");
       },
       (error) => {
-        console.log("[LeafletGeo] Error", error.message);
+        debugLog("[LeafletGeo] Error", error.message);
       },
       { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 }
     );
-  }, [pathname]);
+  }, [pathname, debugLog]);
   const {
     setVisibleBounds,
     setViewportRequestId,
@@ -1672,6 +1706,7 @@ const LeafletMap: React.FC<Props> = ({
   const editPage = pathname.includes("edit");
   const isDesktop = smallScreen === false;
   const layoutVersion = smallScreen === null ? 0 : smallScreen ? 1 : 2;
+  const overviewPageBusy = useOptionalOverviewPageBusy();
   const effectiveShowMap = embedded || showMap || smallScreen === true;
 
   const combinedBeaches = React.useMemo(() => {
@@ -1727,7 +1762,7 @@ const LeafletMap: React.FC<Props> = ({
   }, [selectedBeach]);
 
   React.useEffect(() => {
-    console.log("[LeafletGeo] Focus check", {
+    debugLog("[LeafletGeo] Focus check", {
       beachesPage,
       mapReady,
       hasLocation: !!userLocation,
@@ -1737,34 +1772,32 @@ const LeafletMap: React.FC<Props> = ({
       geoFocusDone: geoFocusDoneRef.current,
     });
     if (!beachesPage || !mapReady || !userLocation) {
-      console.log("[LeafletGeo] Early exit - conditions not met");
+      debugLog("[LeafletGeo] Early exit - conditions not met");
       return;
     }
     if (geoFocusDoneRef.current || selectedBeachId) {
-      console.log(
-        "[LeafletGeo] Early exit - already focused or beach selected"
-      );
+      debugLog("[LeafletGeo] Early exit - already focused or beach selected");
       return;
     }
     const map = mapRef.current;
     if (!map) {
-      console.log("[LeafletGeo] Map not ready for focus");
+      debugLog("[LeafletGeo] Map not ready for focus");
       return;
     }
     const list = filteredBeaches.length ? filteredBeaches : combinedBeaches;
 
     // Wait for beaches to load before attempting to zoom
     if (!list.length) {
-      console.log("[LeafletGeo] Waiting for beaches to load");
+      debugLog("[LeafletGeo] Waiting for beaches to load");
       return;
     }
 
-    console.log("[LeafletGeo] All conditions met, zooming to nearby beaches");
+    debugLog("[LeafletGeo] All conditions met, zooming to nearby beaches");
     suppressUserMoveRef.current = true;
     const nearest = getNearestBeaches(userLocation, list, 20);
     const bounds = getBoundsForBeaches(nearest);
     if (bounds) {
-      console.log("[LeafletGeo] Fitting nearest beaches", nearest.length);
+      debugLog("[LeafletGeo] Fitting nearest beaches", nearest.length);
       map.fitBounds(bounds, {
         padding: [80, 80],
         maxZoom: 12,
@@ -1772,11 +1805,11 @@ const LeafletMap: React.FC<Props> = ({
         duration: 0.6,
       });
     } else {
-      console.log("[LeafletGeo] Fallback zoom (no bounds)");
+      debugLog("[LeafletGeo] Fallback zoom (no bounds)");
       map.flyTo([userLocation.lat, userLocation.lng], 10, { duration: 0.6 });
     }
     geoFocusDoneRef.current = true;
-    console.log("[LeafletGeo] Zoom complete, geoFocusDone set to true");
+    debugLog("[LeafletGeo] Zoom complete, geoFocusDone set to true");
   }, [
     beachesPage,
     mapReady,
@@ -1784,17 +1817,18 @@ const LeafletMap: React.FC<Props> = ({
     selectedBeachId,
     filteredBeaches,
     combinedBeaches,
+    debugLog,
   ]);
 
   const handleZoomToNearby = React.useCallback(() => {
-    console.log("[LeafletGeo] handleZoomToNearby called", {
+    debugLog("[LeafletGeo] handleZoomToNearby called", {
       hasMap: !!mapRef.current,
       hasLocation: !!userLocation,
       userLocation,
     });
     const map = mapRef.current;
     if (!map || !userLocation) {
-      console.log(
+      debugLog(
         "[LeafletGeo] handleZoomToNearby - early exit, no map or location"
       );
       return;
@@ -1802,11 +1836,11 @@ const LeafletMap: React.FC<Props> = ({
 
     const list = filteredBeaches.length ? filteredBeaches : combinedBeaches;
     if (!list.length) {
-      console.log("[LeafletGeo] handleZoomToNearby - no beaches available");
+      debugLog("[LeafletGeo] handleZoomToNearby - no beaches available");
       return;
     }
 
-    console.log("[LeafletGeo] handleZoomToNearby - zooming to nearby beaches");
+    debugLog("[LeafletGeo] handleZoomToNearby - zooming to nearby beaches");
     const nearest = getNearestBeaches(userLocation, list, 20);
     const bounds = getBoundsForBeaches(nearest);
 
@@ -1820,7 +1854,7 @@ const LeafletMap: React.FC<Props> = ({
     } else {
       map.flyTo([userLocation.lat, userLocation.lng], 10, { duration: 0.6 });
     }
-  }, [userLocation, filteredBeaches, combinedBeaches]);
+  }, [userLocation, filteredBeaches, combinedBeaches, debugLog]);
 
   const handleZoomToCaliforniaView = React.useCallback(() => {
     const map = mapRef.current;
@@ -1983,10 +2017,119 @@ const LeafletMap: React.FC<Props> = ({
   const showLoadingPill =
     mapReady &&
     mapViewportStatus !== "error" &&
-    (markersLoading || mapViewportStatus === "loading");
+    (markersLoading || mapViewportStatus === "loading" || overviewPageBusy);
+  const [loadingPillKind, setLoadingPillKind] = React.useState<
+    "markers" | "content"
+  >("markers");
+  const nextLoadingPillKind =
+    markersLoading || mapViewportStatus === "loading"
+      ? "markers"
+      : overviewPageBusy
+      ? "content"
+      : "markers";
+  React.useEffect(() => {
+    if (!showLoadingPill) return;
+    setLoadingPillKind(nextLoadingPillKind);
+  }, [showLoadingPill, nextLoadingPillKind]);
+
+  const loadingPillLabel =
+    loadingPillKind === "markers" ? "Updating markers" : "Loading";
   const [showLoadingPillStable, setShowLoadingPillStable] =
     React.useState(false);
   const loadingPillHideTimeoutRef = React.useRef<number | null>(null);
+
+  const mapLoadingOverlayActive = !embedded && !previewUi && overviewPageBusy;
+  const mapLoadingInteractionsDisabledRef = React.useRef(false);
+
+  React.useEffect(() => {
+    if (!mapReady) return;
+    if (
+      !(mapLoadingOverlayActive && !isTouchDevice()) &&
+      !mapLoadingInteractionsDisabledRef.current
+    ) {
+      return;
+    }
+
+    const map = mapRef.current;
+    if (!map) return;
+
+    const shouldDisableInteractions =
+      mapLoadingOverlayActive && !isTouchDevice();
+
+    const disableInteractions = () => {
+      try {
+        map.dragging.disable();
+      } catch {}
+      try {
+        map.scrollWheelZoom.disable();
+      } catch {}
+      try {
+        map.doubleClickZoom.disable();
+      } catch {}
+      try {
+        map.boxZoom.disable();
+      } catch {}
+      try {
+        map.keyboard.disable();
+      } catch {}
+      try {
+        map.touchZoom.disable();
+      } catch {}
+      try {
+        map.tap?.disable();
+      } catch {}
+    };
+
+    const enableInteractions = () => {
+      try {
+        map.dragging.enable();
+      } catch {}
+      try {
+        map.scrollWheelZoom.enable();
+      } catch {}
+      try {
+        map.doubleClickZoom.enable();
+      } catch {}
+      try {
+        map.boxZoom.enable();
+      } catch {}
+      try {
+        map.keyboard.enable();
+      } catch {}
+      try {
+        map.touchZoom.enable();
+      } catch {}
+      try {
+        map.tap?.enable();
+      } catch {}
+    };
+
+    if (shouldDisableInteractions) {
+      if (!mapLoadingInteractionsDisabledRef.current) {
+        disableInteractions();
+        mapLoadingInteractionsDisabledRef.current = true;
+      }
+      try {
+        map.closePopup();
+      } catch {}
+
+      const handlePopupOpen = () => {
+        try {
+          map.closePopup();
+        } catch {}
+      };
+
+      map.on("popupopen", handlePopupOpen);
+      return () => {
+        map.off("popupopen", handlePopupOpen);
+      };
+    }
+
+    if (mapLoadingInteractionsDisabledRef.current) {
+      enableInteractions();
+      mapLoadingInteractionsDisabledRef.current = false;
+    }
+  }, [mapLoadingOverlayActive, mapReady]);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -2661,6 +2804,10 @@ const LeafletMap: React.FC<Props> = ({
     // Only guard against native element dragging; don't stop pointer/mouse/touch
     // propagation or Leaflet may not receive the events it needs to dispatch clicks.
     nextElement.addEventListener("dragstart", preventDragStart, true);
+    if (isTouchDevice()) {
+      L.DomEvent.disableClickPropagation(nextElement);
+      L.DomEvent.disableScrollPropagation(nextElement);
+    }
 
     state.element = nextElement;
     state.preventDragStart = preventDragStart;
@@ -2834,30 +2981,88 @@ const LeafletMap: React.FC<Props> = ({
     });
   }, []);
 
+  const getDesktopPopupContent = buildPopupHtmlForBeach;
+
+  const getTouchPopupContent = React.useCallback(
+    (beach: BeachPoint) => {
+      const destination = `${generateBeachUrl(beach.name, beach.id)}/overview`;
+      const base = getDesktopPopupContent(beach);
+      return `${base}
+        <div class="ww-touch-popup__actions">
+          <a class="ww-touch-popup__open" href="${escapeHtml(
+            destination
+          )}" data-ww-touch-open="true">View beach</a>
+        </div>`;
+    },
+    [getDesktopPopupContent]
+  );
+
   const ensureMarkerPopup = React.useCallback(
     (entry: MarkerEntry) => {
-      const popupHtml = buildPopupHtmlForBeach(entry.beach);
+      const touch = isTouchDevice();
+      const popupHtml = touch
+        ? getTouchPopupContent(entry.beach)
+        : getDesktopPopupContent(entry.beach);
       const popup = entry.marker.getPopup();
       if (popup) {
         popup.setContent(popupHtml);
         return;
       }
-      entry.marker.bindPopup(popupHtml, { closeButton: false, autoPan: false });
+      entry.marker.bindPopup(
+        popupHtml,
+        touch
+          ? {
+              closeButton: false,
+              autoPan: true,
+              keepInView: true,
+              className: "ww-touch-popup",
+              interactive: true,
+            }
+          : { closeButton: false, autoPan: false }
+      );
     },
-    [buildPopupHtmlForBeach]
+    [getDesktopPopupContent, getTouchPopupContent]
   );
+
+  const openMarkerPopup = React.useCallback((marker: L.Marker) => {
+    try {
+      marker.openPopup();
+      return;
+    } catch {
+      // fall through to map-level open, which is more resilient during cluster/map transitions
+    }
+    const map = mapRef.current;
+    if (!map) return;
+    const popup = marker.getPopup?.();
+    if (!popup) return;
+    const latLng = (() => {
+      try {
+        return marker.getLatLng?.() ?? null;
+      } catch {
+        return null;
+      }
+    })();
+    try {
+      if (latLng) {
+        popup.setLatLng(latLng);
+      }
+      map.openPopup(popup);
+    } catch {
+      // ignore popup open errors
+    }
+  }, []);
 
   const ensureStatsForBeachId = React.useCallback(
     (beachId: string | number | null | undefined) => {
-      if (beachId == null) return;
+      if (beachId == null) return null;
       const ctx = statsContextRef.current;
       const snapshot = ctx.getStatsSnapshot(
         String(beachId),
         ctx.statsDateKey,
         ctx.statsHourKey
       );
-      if (snapshot !== undefined) return;
-      ctx
+      if (snapshot !== undefined) return null;
+      return ctx
         .prefetchSnapshots([beachId], {
           date: ctx.effectiveStatsDate ?? undefined,
           hour:
@@ -2957,6 +3162,7 @@ const LeafletMap: React.FC<Props> = ({
     highlightClusterForBeach,
     ensureStatsForBeachId,
     ensureMarkerPopup,
+    openMarkerPopup,
   });
 
   React.useEffect(() => {
@@ -2966,6 +3172,7 @@ const LeafletMap: React.FC<Props> = ({
       highlightClusterForBeach,
       ensureStatsForBeachId,
       ensureMarkerPopup,
+      openMarkerPopup,
     };
   }, [
     refreshMarkerIcon,
@@ -2973,6 +3180,7 @@ const LeafletMap: React.FC<Props> = ({
     highlightClusterForBeach,
     ensureStatsForBeachId,
     ensureMarkerPopup,
+    openMarkerPopup,
   ]);
 
   const setHoveredMarkerSource = React.useCallback(
@@ -3024,21 +3232,26 @@ const LeafletMap: React.FC<Props> = ({
         const entry = markerRegistryRef.current[nextHoverId];
         if (entry) {
           hoverOps.refreshMarkerIcon(entry, true);
-          hoverOps.ensureMarkerPopup(entry);
-          entry.marker.openPopup();
           const group =
             clusterLayerRef.current as MarkerClusterGroupWithHelpers | null;
-          if (
-            group &&
-            typeof group.getVisibleParent === "function" &&
-            group._map
-          ) {
-            const parent = group.getVisibleParent(entry.marker);
-            if (parent && parent !== entry.marker) {
-              hoverOps.updateClusterHighlight(parent);
-            } else {
-              hoverOps.updateClusterHighlight(null);
-            }
+          const visibleParent =
+            group && typeof group.getVisibleParent === "function" && group._map
+              ? (() => {
+                  try {
+                    return group.getVisibleParent(entry.marker);
+                  } catch {
+                    return null;
+                  }
+                })()
+              : null;
+          const markerVisible =
+            !visibleParent || visibleParent === entry.marker;
+          if (markerVisible) {
+            hoverOps.ensureMarkerPopup(entry);
+            hoverOps.openMarkerPopup(entry.marker);
+          }
+          if (visibleParent && visibleParent !== entry.marker) {
+            hoverOps.updateClusterHighlight(visibleParent);
           } else {
             hoverOps.updateClusterHighlight(null);
           }
@@ -3169,6 +3382,8 @@ const LeafletMap: React.FC<Props> = ({
       EAST_LNG_LIMIT,
       Math.max(WEST_LNG_LIMIT, initialView.longitude)
     );
+    const embeddedPreview = embedded && previewUi;
+    const coarsePointer = isTouchDevice();
     const map = L.map(containerRef.current, {
       center: [clampedInitialLatitude, clampedInitialLongitude],
       zoom: initialView.zoom,
@@ -3190,27 +3405,193 @@ const LeafletMap: React.FC<Props> = ({
       // inertia: true,
       // inertiaDeceleration: 2500,
       // MapLibre GL Leaflet expects Leaflet's animation proxy to exist when zoomAnimation is on.
-      // Some environments disable 3D transforms (and thus the proxy), so gate this to avoid crashes.
-      zoomAnimation: Boolean(L.Browser?.any3d),
+      // Keep zoom animation off; Leaflet panning still uses 3D transforms when supported,
+      // but disabling zoom animation avoids proxy edge-cases with GL basemap layers.
+      zoomAnimation: false,
+      // Avoid missed taps on touch devices when the finger shifts slightly.
+      tapTolerance: coarsePointer ? 35 : undefined,
     });
+
+    const mapContainer = map.getContainer();
+    if (!embeddedPreview) {
+      mapContainer.classList.add("touch-none", "overscroll-contain");
+      mapContainer.style.touchAction = "none";
+      (
+        mapContainer.style as CSSStyleDeclaration & {
+          overscrollBehavior?: string;
+          overscrollBehaviorX?: string;
+          overscrollBehaviorY?: string;
+        }
+      ).overscrollBehavior = "contain";
+      (
+        mapContainer.style as CSSStyleDeclaration & {
+          overscrollBehavior?: string;
+          overscrollBehaviorX?: string;
+          overscrollBehaviorY?: string;
+        }
+      ).overscrollBehaviorX = "contain";
+      (
+        mapContainer.style as CSSStyleDeclaration & {
+          overscrollBehavior?: string;
+          overscrollBehaviorX?: string;
+          overscrollBehaviorY?: string;
+        }
+      ).overscrollBehaviorY = "contain";
+    }
+
+    const mapOuterContainer =
+      mapContainer.closest<HTMLElement>("#map-container");
+    if (mapOuterContainer) {
+      if (!embeddedPreview) {
+        mapOuterContainer.style.touchAction = "none";
+        (
+          mapOuterContainer.style as CSSStyleDeclaration & {
+            overscrollBehavior?: string;
+            overscrollBehaviorX?: string;
+            overscrollBehaviorY?: string;
+          }
+        ).overscrollBehavior = "contain";
+        (
+          mapOuterContainer.style as CSSStyleDeclaration & {
+            overscrollBehavior?: string;
+            overscrollBehaviorX?: string;
+            overscrollBehaviorY?: string;
+          }
+        ).overscrollBehaviorX = "contain";
+        (
+          mapOuterContainer.style as CSSStyleDeclaration & {
+            overscrollBehavior?: string;
+            overscrollBehaviorX?: string;
+            overscrollBehaviorY?: string;
+          }
+        ).overscrollBehaviorY = "contain";
+      }
+    }
+
+    const handleTouchMove = (event: TouchEvent) => {
+      if (event.touches.length > 1) return;
+      event.preventDefault();
+    };
+
+    let touchStartedOnMap = false;
+    const touchOriginTarget = mapOuterContainer ?? mapContainer;
+    const handleTouchStartCapture = (event: TouchEvent) => {
+      if (event.touches.length === 0) return;
+      touchStartedOnMap = true;
+    };
+    const handleTouchEndOrCancelCapture = (event: TouchEvent) => {
+      if (event.touches.length === 0) {
+        touchStartedOnMap = false;
+      }
+    };
+    const handleDocumentTouchMoveCapture = (event: TouchEvent) => {
+      if (!touchStartedOnMap) return;
+      if (event.touches.length > 1) return;
+      if (!event.cancelable) return;
+      event.preventDefault();
+    };
+
+    const touchPointerIds = new Set<number>();
+    const handlePointerDown = (event: PointerEvent) => {
+      if (event.pointerType !== "touch") return;
+      touchPointerIds.add(event.pointerId);
+    };
+    const handlePointerUpOrCancel = (event: PointerEvent) => {
+      if (event.pointerType !== "touch") return;
+      touchPointerIds.delete(event.pointerId);
+    };
+    const handlePointerMove = (event: PointerEvent) => {
+      if (event.pointerType !== "touch") return;
+      if (touchPointerIds.size > 1) return;
+      event.preventDefault();
+    };
+
+    if (coarsePointer && !embeddedPreview) {
+      touchOriginTarget.addEventListener(
+        "touchstart",
+        handleTouchStartCapture,
+        {
+          passive: true,
+          capture: true,
+        }
+      );
+      touchOriginTarget.addEventListener(
+        "touchend",
+        handleTouchEndOrCancelCapture,
+        { passive: true, capture: true }
+      );
+      touchOriginTarget.addEventListener(
+        "touchcancel",
+        handleTouchEndOrCancelCapture,
+        { passive: true, capture: true }
+      );
+      document.addEventListener("touchmove", handleDocumentTouchMoveCapture, {
+        passive: false,
+        capture: true,
+      });
+      document.addEventListener("touchend", handleTouchEndOrCancelCapture, {
+        passive: true,
+        capture: true,
+      });
+      document.addEventListener("touchcancel", handleTouchEndOrCancelCapture, {
+        passive: true,
+        capture: true,
+      });
+      mapContainer.addEventListener("touchmove", handleTouchMove, {
+        passive: false,
+        capture: true,
+      });
+      mapOuterContainer?.addEventListener("touchmove", handleTouchMove, {
+        passive: false,
+        capture: true,
+      });
+      mapContainer.addEventListener("pointerdown", handlePointerDown, true);
+      mapContainer.addEventListener("pointerup", handlePointerUpOrCancel, true);
+      mapContainer.addEventListener(
+        "pointercancel",
+        handlePointerUpOrCancel,
+        true
+      );
+      mapContainer.addEventListener("pointermove", handlePointerMove, true);
+      mapOuterContainer?.addEventListener(
+        "pointerdown",
+        handlePointerDown,
+        true
+      );
+      mapOuterContainer?.addEventListener(
+        "pointerup",
+        handlePointerUpOrCancel,
+        true
+      );
+      mapOuterContainer?.addEventListener(
+        "pointercancel",
+        handlePointerUpOrCancel,
+        true
+      );
+      mapOuterContainer?.addEventListener(
+        "pointermove",
+        handlePointerMove,
+        true
+      );
+    }
     const useVectorBasemap = canUseWebGL();
-    const basemapLayer = useVectorBasemap
-      ? L.maplibreGL({
-          // Official OpenFreeMap vector basemap style.
-          style: OPENFREEMAP_STYLE_URL,
-          // We provide a single, complete attribution string via Leaflet to avoid duplicates.
-          attributionControl: false,
-          // Ensure tiles repeat seamlessly as users pan horizontally across world copies.
-          renderWorldCopies: true,
-        })
-      : L.tileLayer(OSM_RASTER_URL, {
-          maxZoom: 19,
-        });
-    basemapLayer.addTo(map);
-    basemapLayerRef.current = basemapLayer;
-    map.attributionControl?.addAttribution(
-      useVectorBasemap ? OPENFREEMAP_ATTRIBUTION_HTML : OSM_ATTRIBUTION_HTML
-    );
+    if (useVectorBasemap) {
+      const basemapLayer = L.maplibreGL({
+        // Official OpenFreeMap vector basemap style.
+        style: OPENFREEMAP_STYLE_URL,
+        // Basemap only: Leaflet owns interactions.
+        interactive: false,
+        // We provide a single, complete attribution string via Leaflet to avoid duplicates.
+        attributionControl: false,
+        // Ensure tiles repeat seamlessly as users pan horizontally across world copies.
+        renderWorldCopies: true,
+      });
+      basemapLayer.addTo(map);
+      basemapLayerRef.current = basemapLayer;
+      map.attributionControl?.addAttribution(OPENFREEMAP_ATTRIBUTION_HTML);
+    } else {
+      debugLog("[LeafletMap] WebGL unavailable; basemap disabled");
+    }
     mapRef.current = map;
     if (!map.getPane(OVERLAY_PANE_ID)) {
       const pane = map.createPane(OVERLAY_PANE_ID);
@@ -3255,7 +3636,9 @@ const LeafletMap: React.FC<Props> = ({
       latestCancelCommitResume();
       latestCancelScheduledCameraUpdate();
       latestSetAllowViewportCommit(false);
-      latestClearHoverState();
+      if (!isTouchDevice()) {
+        latestClearHoverState();
+      }
       cancelPrefetchVisibleMarkerStats();
     };
     const handleResizeEvent = () => {
@@ -3263,7 +3646,9 @@ const LeafletMap: React.FC<Props> = ({
     };
 
     const handleInteractionEnd = () => {
-      latestClearHoverState();
+      if (!isTouchDevice()) {
+        latestClearHoverState();
+      }
       disableInteractionLock();
       isMapInteractingRef.current = false;
       try {
@@ -3296,7 +3681,9 @@ const LeafletMap: React.FC<Props> = ({
       latestCancelCommitResume();
       latestCancelScheduledCameraUpdate();
       latestSetAllowViewportCommit(false);
-      latestClearHoverState();
+      if (!isTouchDevice()) {
+        latestClearHoverState();
+      }
       cancelPrefetchVisibleMarkerStats();
     };
 
@@ -3306,6 +3693,134 @@ const LeafletMap: React.FC<Props> = ({
     map.on("resize", handleResizeEvent);
 
     return () => {
+      if (coarsePointer && !embeddedPreview) {
+        touchOriginTarget.removeEventListener(
+          "touchstart",
+          handleTouchStartCapture,
+          true
+        );
+        touchOriginTarget.removeEventListener(
+          "touchend",
+          handleTouchEndOrCancelCapture,
+          true
+        );
+        touchOriginTarget.removeEventListener(
+          "touchcancel",
+          handleTouchEndOrCancelCapture,
+          true
+        );
+        document.removeEventListener(
+          "touchmove",
+          handleDocumentTouchMoveCapture,
+          true
+        );
+        document.removeEventListener(
+          "touchend",
+          handleTouchEndOrCancelCapture,
+          true
+        );
+        document.removeEventListener(
+          "touchcancel",
+          handleTouchEndOrCancelCapture,
+          true
+        );
+        mapContainer.removeEventListener("touchmove", handleTouchMove, true);
+        mapOuterContainer?.removeEventListener(
+          "touchmove",
+          handleTouchMove,
+          true
+        );
+        mapContainer.removeEventListener(
+          "pointerdown",
+          handlePointerDown,
+          true
+        );
+        mapContainer.removeEventListener(
+          "pointerup",
+          handlePointerUpOrCancel,
+          true
+        );
+        mapContainer.removeEventListener(
+          "pointercancel",
+          handlePointerUpOrCancel,
+          true
+        );
+        mapContainer.removeEventListener(
+          "pointermove",
+          handlePointerMove,
+          true
+        );
+        mapOuterContainer?.removeEventListener(
+          "pointerdown",
+          handlePointerDown,
+          true
+        );
+        mapOuterContainer?.removeEventListener(
+          "pointerup",
+          handlePointerUpOrCancel,
+          true
+        );
+        mapOuterContainer?.removeEventListener(
+          "pointercancel",
+          handlePointerUpOrCancel,
+          true
+        );
+        mapOuterContainer?.removeEventListener(
+          "pointermove",
+          handlePointerMove,
+          true
+        );
+      }
+      if (!embeddedPreview) {
+        mapContainer.style.touchAction = "";
+        (
+          mapContainer.style as CSSStyleDeclaration & {
+            overscrollBehavior?: string;
+            overscrollBehaviorX?: string;
+            overscrollBehaviorY?: string;
+          }
+        ).overscrollBehavior = "";
+        (
+          mapContainer.style as CSSStyleDeclaration & {
+            overscrollBehavior?: string;
+            overscrollBehaviorX?: string;
+            overscrollBehaviorY?: string;
+          }
+        ).overscrollBehaviorX = "";
+        (
+          mapContainer.style as CSSStyleDeclaration & {
+            overscrollBehavior?: string;
+            overscrollBehaviorX?: string;
+            overscrollBehaviorY?: string;
+          }
+        ).overscrollBehaviorY = "";
+      }
+      if (mapOuterContainer) {
+        if (!embeddedPreview) {
+          mapOuterContainer.style.touchAction = "";
+          (
+            mapOuterContainer.style as CSSStyleDeclaration & {
+              overscrollBehavior?: string;
+              overscrollBehaviorX?: string;
+              overscrollBehaviorY?: string;
+            }
+          ).overscrollBehavior = "";
+          (
+            mapOuterContainer.style as CSSStyleDeclaration & {
+              overscrollBehavior?: string;
+              overscrollBehaviorX?: string;
+              overscrollBehaviorY?: string;
+            }
+          ).overscrollBehaviorX = "";
+          (
+            mapOuterContainer.style as CSSStyleDeclaration & {
+              overscrollBehavior?: string;
+              overscrollBehaviorX?: string;
+              overscrollBehaviorY?: string;
+            }
+          ).overscrollBehaviorY = "";
+        }
+      }
       map.off("resize", handleResizeEvent);
       map.off("movestart", handleMoveStart);
       map.off("zoomstart", handleZoomStart);
@@ -3672,13 +4187,40 @@ const LeafletMap: React.FC<Props> = ({
             };
             registry[id] = entry;
 
+            const touchPopup = isTouchDevice();
+            marker.bindPopup(
+              () =>
+                touchPopup
+                  ? getTouchPopupContent(beach)
+                  : getDesktopPopupContent(beach),
+              touchPopup
+                ? {
+                    closeButton: false,
+                    autoPan: true,
+                    keepInView: true,
+                    className: "ww-touch-popup",
+                    interactive: true,
+                  }
+                : { closeButton: false, autoPan: false }
+            );
+
             const handleClick = (e: L.LeafletMouseEvent) => {
               if (!interactionsReadyRef.current) return;
+              if (isTouchDevice()) {
+                const prefetch = ensureStatsForBeachId(beach.id);
+                ensureMarkerPopup(entry);
+                openMarkerPopup(marker);
+                if (e.originalEvent) {
+                  L.DomEvent.stopPropagation(e.originalEvent);
+                }
+                prefetch?.then?.(() => ensureMarkerPopup(entry));
+                return;
+              }
               const normalizedId = String(beach.id);
               setSelectedBeachId(beach.id);
               pendingAutoCenterRef.current = normalizedId;
               ensureMarkerPopup(entry);
-              marker.openPopup();
+              openMarkerPopup(marker);
               const destination = `${generateBeachUrl(
                 beach.name,
                 beach.id
@@ -3780,6 +4322,10 @@ const LeafletMap: React.FC<Props> = ({
       surfIntensity,
       clearHoverState,
       ensureMarkerPopup,
+      ensureStatsForBeachId,
+      getDesktopPopupContent,
+      getTouchPopupContent,
+      openMarkerPopup,
     ]
   );
 
@@ -4001,12 +4547,15 @@ const LeafletMap: React.FC<Props> = ({
         id="map-container"
         className={
           embedded
-            ? "touch-none relative flex h-full w-full"
+            ? previewUi
+              ? "touch-pan-y relative flex h-full w-full"
+              : "touch-none relative flex h-full w-full"
             : cn(
                 "touch-none overscroll-none fixed w-full mx-auto max-w-screen transition-all duration-300",
                 "@min-4xl:sticky @min-4xl:top-[7.5rem] @min-4xl:flex-1 @min-4xl:py-3 @min-4xl:pl-5 @min-4xl:pr-3 @min-4xl:h-[calc(100vh-8rem)] flex"
               )
         }
+        data-ww-embed-preview={embedded && previewUi ? "true" : undefined}
         style={
           !embedded && smallScreen ? wrapperHeight ?? undefined : undefined
         }
@@ -4035,12 +4584,15 @@ const LeafletMap: React.FC<Props> = ({
       id="map-container"
       className={
         embedded
-          ? "touch-none relative flex h-full w-full"
+          ? previewUi
+            ? "touch-pan-y relative flex h-full w-full"
+            : "touch-none overscroll-contain relative flex h-full w-full"
           : cn(
-              "touch-none overscroll-none fixed w-full mx-auto max-w-screen transition-all duration-300",
+              "touch-none overscroll-contain fixed w-full mx-auto max-w-screen transition-all duration-300",
               "@min-4xl:sticky @min-4xl:top-[7.5rem] @min-4xl:flex-1 @min-4xl:py-3 @min-4xl:pl-5 @min-4xl:pr-3 @min-4xl:h-[calc(100vh-8rem)] flex"
             )
       }
+      data-ww-embed-preview={embedded && previewUi ? "true" : undefined}
       style={!embedded && smallScreen ? wrapperHeight ?? undefined : undefined}
     >
       <div
@@ -4055,7 +4607,9 @@ const LeafletMap: React.FC<Props> = ({
         <div
           ref={containerRef}
           className={
-            embedded && previewUi ? "touch-pan-y" : "touch-none overscroll-none"
+            embedded && previewUi
+              ? "touch-pan-y"
+              : "touch-none overscroll-contain"
           }
           style={{
             width: "100%",
@@ -4064,6 +4618,14 @@ const LeafletMap: React.FC<Props> = ({
         />
         {!embedded && !showMap && fullMapPage && isDesktop && (
           <div className="absolute inset-0 z-[600] bg-black/70 backdrop-blur-md" />
+        )}
+        {mapLoadingOverlayActive && (
+          <div
+            className="pointer-events-none absolute inset-0 z-[1100] bg-background/35 supports-[backdrop-filter]:bg-background/20 supports-[backdrop-filter]:backdrop-blur-xs"
+            aria-hidden="true"
+          >
+            <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-background/15 to-background/40" />
+          </div>
         )}
         {/* {showUpdateBanner && (
           <div className="pointer-events-none absolute left-1/2 top-3 z-[650] -translate-x-1/2">
@@ -4083,7 +4645,7 @@ const LeafletMap: React.FC<Props> = ({
           >
             <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/95 px-3 py-1 text-xs font-semibold text-foreground shadow-md ring-1 ring-black/5 backdrop-blur">
               <span className="h-3 w-3 animate-spin rounded-full border-2 border-border/60 border-t-sky-500 motion-reduce:animate-none" />
-              Updating markers
+              {loadingPillLabel}
             </div>
           </div>
         )}
@@ -4517,9 +5079,50 @@ const LeafletMap: React.FC<Props> = ({
             transform: translate3d(0, -14px, 0);
             pointer-events: none;
           }
+          #map-container:not([data-ww-embed-preview="true"]) .leaflet-container,
+          #map-container:not([data-ww-embed-preview="true"])
+            .leaflet-container
+            * {
+            touch-action: none;
+            overscroll-behavior: contain;
+          }
           .leaflet-popup-content-wrapper,
           .leaflet-popup-tip {
             pointer-events: none;
+          }
+          .leaflet-popup.ww-touch-popup {
+            pointer-events: auto;
+            font-family: var(--font-poppins), ui-sans-serif, system-ui,
+              -apple-system, "Segoe UI", Roboto, Helvetica, Arial;
+          }
+          .leaflet-popup.ww-touch-popup .leaflet-popup-content-wrapper,
+          .leaflet-popup.ww-touch-popup .leaflet-popup-tip {
+            pointer-events: auto;
+          }
+          .leaflet-popup.ww-touch-popup .ww-touch-popup__actions {
+            display: flex;
+            margin-top: 8px;
+          }
+          .leaflet-popup.ww-touch-popup .ww-touch-popup__open {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            box-sizing: border-box;
+            padding: 8px 12px;
+            border-radius: 14px;
+            background: var(--highlight-4);
+            border: 1px solid rgba(148, 163, 184, 0.5);
+            color: var(--foreground);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.85rem;
+          }
+          .leaflet-popup.ww-touch-popup .ww-touch-popup__open:focus {
+            outline: none;
+          }
+          .leaflet-popup.ww-touch-popup .ww-touch-popup__open:focus-visible {
+            box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.35);
           }
           @media (prefers-reduced-motion: reduce) {
             .ww-leaflet-cluster-icon,
@@ -4600,7 +5203,7 @@ const LeafletMap: React.FC<Props> = ({
   );
 };
 
-export default LeafletMap;
+export default React.memo(LeafletMap);
 const resolveSurfIntensity = (
   source: Record<string | number, number>,
   beach: BeachPoint

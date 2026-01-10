@@ -24,7 +24,19 @@ type Props = {
 function Skeleton() {
   return (
     <div className="absolute inset-0 grid place-items-center bg-highlight-5">
-      <div className="h-full w-full animate-pulse bg-gradient-to-br from-highlight-5 via-highlight-3/40 to-highlight-5 motion-reduce:animate-none" />
+      <picture className="h-full w-full">
+        <source
+          srcSet="/demo_pictures/map_dark_1.png"
+          media="(prefers-color-scheme: dark)"
+        />
+        <img
+          src="/demo_pictures/map_light_1.png"
+          alt="Map preview"
+          className="h-full w-full object-cover"
+          loading="lazy"
+          decoding="async"
+        />
+      </picture>
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(56,189,248,0.18),transparent_55%),radial-gradient(circle_at_80%_30%,rgba(37,99,235,0.12),transparent_50%)]" />
     </div>
   );
@@ -33,69 +45,37 @@ function Skeleton() {
 export default function BeachesMapPreview({
   className,
   frameClassName,
-  rootMargin = "240px 0px",
 }: Props) {
-  const containerRef = React.useRef<HTMLDivElement | null>(null);
   const [shouldLoad, setShouldLoad] = React.useState(false);
   const [showGestureHint, setShowGestureHint] = React.useState(true);
 
-  React.useEffect(() => {
+  const requestInteractivePreview = React.useCallback(() => {
     if (shouldLoad) return;
-    if (typeof window === "undefined") return;
-
-    const node = containerRef.current;
-    if (!node) return;
-
-    const requestIdle = (cb: () => void) => {
-      if ("requestIdleCallback" in window) {
-        (window as any).requestIdleCallback(cb, { timeout: 900 });
-        return;
-      }
-      window.setTimeout(cb, 0);
-    };
-
-    let timeoutId: number | null = null;
-    const attemptLoad = () => {
-      if (document.body.dataset.wwScrolling === "1") {
-        timeoutId = window.setTimeout(attemptLoad, 220);
-        return;
-      }
-      requestIdle(() => setShouldLoad(true));
-    };
-
-    if (!("IntersectionObserver" in window)) {
-      attemptLoad();
-      return () => {
-        if (timeoutId != null) window.clearTimeout(timeoutId);
-      };
+    if (typeof window === "undefined") {
+      setShouldLoad(true);
+      return;
     }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        if (!entry?.isIntersecting) return;
-        observer.disconnect();
-        attemptLoad();
-      },
-      { root: null, rootMargin, threshold: 0 }
-    );
-
-    observer.observe(node);
-    return () => {
-      observer.disconnect();
-      if (timeoutId != null) window.clearTimeout(timeoutId);
+    const w = window as Window & {
+      requestIdleCallback?: (
+        callback: IdleRequestCallback,
+        options?: IdleRequestOptions
+      ) => number;
     };
-  }, [rootMargin, shouldLoad]);
+    if (typeof w.requestIdleCallback === "function") {
+      w.requestIdleCallback(() => setShouldLoad(true), { timeout: 800 });
+      return;
+    }
+    window.setTimeout(() => setShouldLoad(true), 0);
+  }, [shouldLoad]);
 
   return (
     <div className={cn("w-full", className)}>
       <div
-        ref={containerRef}
         className={cn(
           "relative isolate z-0 overflow-hidden rounded-2xl border border-border/60 bg-highlight-5 max-w-full",
           "shadow-lg shadow-black/10 ring-1 ring-black/5",
           "h-[clamp(17rem,58vw,22rem)] sm:h-[clamp(18rem,50vw,24rem)] lg:h-full",
-          "min-w-0",
+          "min-w-0 transform-gpu",
           frameClassName
         )}
         onClickCapture={() => setShowGestureHint(false)}
@@ -110,6 +90,27 @@ export default function BeachesMapPreview({
             <Skeleton />
           )}
         </div>
+
+        {!shouldLoad && (
+          <div className="absolute inset-0 z-[1100] grid place-items-center">
+            <div className="pointer-events-none absolute inset-0 bg-background/25 backdrop-blur-[2px]" />
+            <button
+              type="button"
+              onClick={() => {
+                setShowGestureHint(true);
+                requestInteractivePreview();
+              }}
+              className={cn(
+                "pointer-events-auto inline-flex items-center justify-center rounded-full border border-border/60",
+                "bg-background/90 px-4 py-2 text-sm font-semibold text-foreground shadow-sm",
+                "transition-colors motion-reduce:transition-none hover:bg-background",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
+              )}
+            >
+              Enable interactive preview
+            </button>
+          </div>
+        )}
 
         <div className="pointer-events-none absolute inset-x-0 top-0 z-[1200] flex items-start justify-between gap-3 p-4">
           <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/30 px-3 py-2 text-sm font-medium text-foreground shadow-sm backdrop-blur">
@@ -129,7 +130,7 @@ export default function BeachesMapPreview({
           </div>
         </div>
 
-        {showGestureHint && (
+        {shouldLoad && showGestureHint && (
           <div className="pointer-events-none absolute inset-0 z-[1200] grid place-items-center">
             <div className="absolute inset-0 bg-background/30 backdrop-blur-sm" />
             <div className="relative mx-4 max-w-[34rem] rounded-2xl border border-border/60 bg-background/85 px-4 py-3 text-center text-xs font-medium text-foreground/85 shadow-sm backdrop-blur">
