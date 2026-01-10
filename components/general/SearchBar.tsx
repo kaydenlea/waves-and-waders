@@ -80,9 +80,7 @@ const SearchBar = ({
 
   // Deferred query for smoother typing - input stays responsive
   const deferredQuery = useDeferredValue(query);
-  const deferredHits = useDeferredValue(hits);
-  const deferredOpen = useDeferredValue(open);
-  const visibleHits = deferredOpen ? deferredHits : [];
+  const visibleHits = open ? hits : [];
 
   // keep a ref to always know the latest query value
   const latestQueryRef = useRef<string>(query);
@@ -109,13 +107,13 @@ const SearchBar = ({
 
   // Memoized results list for stable reference
   const searchResults = useMemo(() => {
-    if (!deferredOpen || visibleHits.length === 0) return null;
+    if (!open || visibleHits.length === 0) return null;
     return visibleHits.map((h, idx) => ({
       hit: h,
       isActive: idx === active,
       index: idx,
     }));
-  }, [visibleHits, deferredOpen, active]);
+  }, [visibleHits, open, active]);
 
   useEffect(() => {
     // keep ref in sync
@@ -325,7 +323,7 @@ const SearchBar = ({
       {isOverlay &&
         createPortal(
           <div
-            className="fixed inset-0 z-[50] backdrop-blur-sm bg-background/50 dark:bg-background/80 flex flex-col items-center pt-5.5 px-8"
+            className="fixed inset-0 z-[50] bg-background/50 dark:bg-background/80 flex flex-col items-center pt-5.5 px-8"
             onClick={(e) => {
               if (e.target === e.currentTarget)
                 // setQuery("");
@@ -376,7 +374,7 @@ const SearchBar = ({
             </div>
 
             {/* Search results in overlay */}
-            {deferredOpen && visibleHits.length > 0 && (
+            {open && visibleHits.length > 0 && (
               <div className="mt-4 w-full max-w-2xl bg-background border border-border/30 shadow-even rounded-md">
                 <ul className="rounded-xl overflow-y-auto max-h-[80vh] p-2">
                   {visibleHits.map((h, idx) => (
