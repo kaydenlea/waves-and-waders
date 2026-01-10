@@ -135,6 +135,7 @@ export default function BottomNav() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (!mobile) return;
     if (!atTop) return;
 
     if (window.scrollY !== 0) {
@@ -144,7 +145,7 @@ export default function BottomNav() {
         window.scrollTo(0, 0);
       }
     }
-  }, [atTop]);
+  }, [atTop, mobile]);
 
   // hide main scrollbar when filters panel is open
   useEffect(() => {
