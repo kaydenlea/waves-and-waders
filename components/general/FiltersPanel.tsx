@@ -209,7 +209,7 @@ export default function FiltersPanel({
 
       <div
         className={cn(
-          "flex-1 min-h-0 px-5 py-4 space-y-4 overflow-y-auto"
+          "flex-1 min-h-0 pl-5 pr-2 py-4 space-y-4 overflow-y-auto"
         )}
         style={{
           WebkitOverflowScrolling: "touch",
@@ -259,9 +259,7 @@ export default function FiltersPanel({
 
               <div
                 id={`filters-cat-${catKey}`}
-                className={cn(
-                  isOpen ? "block" : "hidden"
-                )}
+                className={cn(isOpen ? "block" : "hidden")}
                 aria-hidden={!isOpen}
               >
                 <div className="grid grid-cols-1 gap-1">

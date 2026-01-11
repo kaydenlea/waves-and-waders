@@ -16,7 +16,7 @@ export default function PersonalizeForecastsSection({
       id="personalize"
       aria-labelledby="personalize-forecasts-heading"
       className={cn(
-        "ww-section relative mx-auto w-full max-w-7xl px-4 sm:px-6 py-16 sm:py-20 scroll-mt-28",
+        "ww-section relative mx-auto w-full max-w-7xl px-4 sm:px-6 py-16 sm:py-20 scroll-mt-28 overflow-hidden",
         className
       )}
       data-ww-section

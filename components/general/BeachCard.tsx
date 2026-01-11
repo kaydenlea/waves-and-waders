@@ -11,7 +11,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { cn } from "@/lib/utils";
 import SaveButton from "./SaveButton";
 import { SwellRings, WindRing } from "../visuals/DirectionRings";
-import { useRouter } from "next/navigation";
 import { useMapData } from "../context/MapFilterContext";
 
 export type Beach = {
@@ -55,10 +54,9 @@ const BeachCard = React.memo(
     loadingStats = false,
     priorityImage = false,
   }: BeachCardProps) => {
-    const router = useRouter();
     const tagsRowRef = React.useRef<HTMLDivElement | null>(null);
     const hoveringRef = React.useRef(false);
-    const [fitCount, setFitCount] = React.useState<number>(0);
+    const [, setFitCount] = React.useState<number>(0);
     const measureTagRefs = React.useRef<Array<HTMLDivElement | null>>([]);
     const moreMeasureRef = React.useRef<HTMLDivElement | null>(null);
     const [imageLoaded, setImageLoaded] = React.useState(false);
@@ -94,10 +92,6 @@ const BeachCard = React.memo(
       typeof b.conditions.windDir === "number" ? b.conditions.windDir - 315 : 0;
 
     const beachUrl = `${generateBeachUrl(b.name, b.id)}/overview`;
-
-    const goToOverview = () => {
-      router.push(beachUrl);
-    };
 
     // Compute how many tags fit in the visible row; others go under a +N popover
     React.useEffect(() => {
@@ -174,31 +168,20 @@ const BeachCard = React.memo(
       setHoverCardId(null);
     }, [setHoverCardId]);
 
-    const handleClick = React.useCallback(
-      (event: React.MouseEvent | React.KeyboardEvent) => {
-        if ("key" in event) {
-          if (event.key !== "Enter" && event.key !== " ") {
-            return;
-          }
-          event.preventDefault();
-        }
-        hoveringRef.current = false;
-        setHoverCardId(null);
-        goToOverview();
-      },
-      [goToOverview, setHoverCardId]
-    );
-
     return (
-      <Link
-        href={beachUrl}
+      <article
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         id={`beach-${b.id}`}
-        className="block hover:cursor-pointer transition-all duration-300 p-1.5 ease-out hover:translate-y-0.5 hover:bg-highlight-5/40 group overflow-hidden rounded-3xl border border-border/50 bg-highlight-7/60 shadow-even hover:shadow-lg backdrop-blur focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-400"
+        className="relative block hover:cursor-pointer transition-all duration-300 p-1.5 ease-out hover:translate-y-0.5 hover:bg-highlight-5/40 group overflow-hidden rounded-3xl border border-border/50 bg-highlight-7/60 shadow-even hover:shadow-lg backdrop-blur"
         aria-busy={loadingStats}
       >
-        <article>
+        <Link
+          href={beachUrl}
+          aria-label={`Open ${b.name} overview`}
+          className="absolute inset-0 z-0 rounded-3xl focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-400"
+        />
+        <div className="relative z-10 pointer-events-none">
           <section className="rounded-2xl relative w-full p-3 aspect-auto bg-gradient-to-br from-blue-50 to-blue-100">
             <div className="rounded-2xl h-35 w-full">
               <Image
@@ -262,13 +245,8 @@ const BeachCard = React.memo(
               </span>
             </div>
             <Popover>
-              <PopoverTrigger
-                asChild
-                onClick={(e) => {
-                  e.stopPropagation();
-                }}
-              >
-                <span className="text-white absolute bottom-3 right-3 z-50 p-1.5 rounded-full bg-black/60 hover:bg-black/90">
+              <PopoverTrigger asChild>
+                <span className="pointer-events-auto text-white absolute bottom-3 right-3 z-50 p-1.5 rounded-full bg-black/60 hover:bg-black/90">
                   <Info className="w-4 h-4" />
                 </span>
               </PopoverTrigger>
@@ -329,7 +307,7 @@ const BeachCard = React.memo(
                 </div>
               </>
             )}
-            <div className="absolute right-2 top-2 z-10">
+            <div className="pointer-events-auto absolute right-2 top-2 z-10">
               <SaveButton
                 beachId={String(b.id)}
                 initialIsFav={isFav}
@@ -343,8 +321,8 @@ const BeachCard = React.memo(
               </div>
             )}
           </section>
-        </article>
-      </Link>
+        </div>
+      </article>
     );
 
     // return (
