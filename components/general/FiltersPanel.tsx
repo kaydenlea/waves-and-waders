@@ -33,7 +33,6 @@ type Props = {
   appliedFilters: Set<string>;
   onApply: (next: Set<string>) => void;
   onClose?: () => void;
-  scrollBehavior?: "auto" | "always";
   className?: string;
 };
 
@@ -126,7 +125,6 @@ export default function FiltersPanel({
   appliedFilters,
   onApply,
   onClose,
-  scrollBehavior = "auto",
   className,
 }: Props) {
   const [expandedSections, setExpandedSections] = useState<
@@ -211,12 +209,11 @@ export default function FiltersPanel({
 
       <div
         className={cn(
-          "flex-1 min-h-0 px-5 py-4 space-y-4"
-          // scrollBehavior === "always" ? "overflow-y-scroll" : "overflow-y-auto"
+          "flex-1 min-h-0 px-5 py-4 space-y-4 overflow-y-auto"
         )}
         style={{
           WebkitOverflowScrolling: "touch",
-          scrollbarGutter: "stable both-edges",
+          scrollbarGutter: "stable",
         }}
       >
         {FEATURE_SECTIONS.map((section) => {
@@ -263,9 +260,9 @@ export default function FiltersPanel({
               <div
                 id={`filters-cat-${catKey}`}
                 className={cn(
-                  "overflow-hidden transition-[max-height,opacity] duration-150 ease-in-out",
-                  isOpen ? "max-h-[700px] opacity-100" : "max-h-0 opacity-0"
+                  isOpen ? "block" : "hidden"
                 )}
+                aria-hidden={!isOpen}
               >
                 <div className="grid grid-cols-1 gap-1">
                   {section.features.map((feature) => (

@@ -4621,7 +4621,7 @@ const LeafletMap: React.FC<Props> = ({
         )}
         {mapLoadingOverlayActive && (
           <div
-            className="pointer-events-none absolute inset-0 z-[1100] bg-background/35 supports-[backdrop-filter]:bg-background/20 supports-[backdrop-filter]:backdrop-blur-xs"
+            className="pointer-events-none absolute inset-0 z-[900] bg-background/35 supports-[backdrop-filter]:bg-background/20 supports-[backdrop-filter]:backdrop-blur-xs"
             aria-hidden="true"
           >
             <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-background/15 to-background/40" />

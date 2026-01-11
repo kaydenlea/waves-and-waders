@@ -230,6 +230,7 @@ function DirectionsVisual() {
         alt="Beach preview with direction rings overlay"
         fill
         sizes="(max-width: 768px) calc(100vw - 2rem), 420px"
+        quality={95}
         className="object-cover"
       />
       <div
@@ -295,6 +296,7 @@ function TrustedSourcesVisual() {
               alt="NOAA"
               fill
               sizes="128px"
+              quality={100}
               className="object-contain"
               placeholder="blur"
             />

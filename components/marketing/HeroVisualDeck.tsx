@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Image from "next/image";
-import { AnimatePresence, motion } from "motion/react";
+import { motion } from "motion/react";
 import {
   ArrowDown,
   ArrowUp,
@@ -537,6 +537,7 @@ function BeachPreviewSlide({
               alt={`Map view of ${activeBeach.name}`}
               fill
               sizes="540px"
+              quality={95}
               className="object-cover"
               priority={false}
             />
@@ -659,7 +660,7 @@ function BeachPreviewSlide({
                 onClick={goPrevBeach}
                 className={cn(
                   "h-9 w-9 shrink-0 rounded-full border border-border/40 bg-background/75 text-foreground/80 shadow-sm backdrop-blur-md transition",
-                  "hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15",
+                  "hover:bg-highlight-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15",
                   "active:scale-95 motion-reduce:transition-none"
                 )}
               >
@@ -679,7 +680,7 @@ function BeachPreviewSlide({
                 onClick={goNextBeach}
                 className={cn(
                   "h-9 w-9 shrink-0 rounded-full border border-border/40 bg-background/75 text-foreground/80 shadow-sm backdrop-blur-md transition",
-                  "hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15",
+                  "hover:bg-highlight-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15",
                   "active:scale-95 motion-reduce:transition-none"
                 )}
               >
@@ -919,7 +920,6 @@ export default function HeroVisualDeck({
             appliedFilters={filtersPreview}
             onClose={() => {}}
             onApply={(next) => setFiltersPreview(new Set(next))}
-            scrollBehavior="always"
             className="h-full rounded-none border-none"
           />
         ),
@@ -1026,25 +1026,34 @@ export default function HeroVisualDeck({
           </div>
 
           <div className="relative flex-1 min-h-0 overflow-hidden rounded-[32px]">
-            <AnimatePresence mode="sync" initial={false}>
-              {activeSlide ? (
+            {slides.map((slide, idx) => {
+              const isActive = idx === active;
+              return (
                 <motion.div
-                  key={activeSlide.key}
+                  key={slide.key}
                   className="absolute inset-0"
-                  initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: prefersReducedMotion ? 0 : -6 }}
+                  initial={false}
+                  animate={{
+                    opacity: isActive ? 1 : 0,
+                    y: prefersReducedMotion ? 0 : isActive ? 0 : -6,
+                  }}
                   transition={{
                     duration: prefersReducedMotion ? 0 : 0.42,
                     ease: [0.16, 1, 0.3, 1],
                   }}
+                  style={{
+                    pointerEvents: isActive ? "auto" : "none",
+                    willChange: "transform, opacity",
+                  }}
+                  aria-hidden={!isActive}
+                  {...((!isActive ? ({ inert: true } as any) : {}) as any)}
                 >
                   <div className="h-full rounded-[32px] border border-border/35 bg-background shadow-even overflow-hidden">
-                    {activeSlide.render()}
+                    {slide.render()}
                   </div>
                 </motion.div>
-              ) : null}
-            </AnimatePresence>
+              );
+            })}
           </div>
         </motion.div>
       </div>

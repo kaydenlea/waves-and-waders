@@ -1,22 +1,18 @@
 "use client";
 
 import * as React from "react";
-import {
-  AnimatePresence,
-  motion,
-  useReducedMotion,
-} from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { cn } from "@/lib/utils";
 
 import {
-  FORECAST_PREVIEW_CARDS,
-  type ForecastPreviewImage,
+  PERSONALIZE_PREVIEW_CARDS,
+  type PreviewImage,
 } from "@/components/visuals/ForecastPreviewCards";
 import ForecastPreviewFrame from "@/components/visuals/ForecastPreviewFrame";
 
 type SlideImage = {
-  light: ForecastPreviewImage["light"];
-  dark: ForecastPreviewImage["dark"];
+  light: PreviewImage["light"];
+  dark: PreviewImage["dark"];
 };
 
 type Slide = {
@@ -26,7 +22,7 @@ type Slide = {
   image: SlideImage;
 };
 
-const SLIDES: Slide[] = FORECAST_PREVIEW_CARDS.map((card) => ({
+const SLIDES: Slide[] = PERSONALIZE_PREVIEW_CARDS.map((card) => ({
   key: card.key,
   title: card.title,
   helper: card.description,
@@ -38,6 +34,7 @@ export default function DashboardPersonalizationCarousel() {
   const rootRef = React.useRef<HTMLDivElement | null>(null);
 
   const [activeIndex, setActiveIndex] = React.useState(0);
+  const [direction, setDirection] = React.useState<1 | -1>(1);
   const active = SLIDES[activeIndex] ?? SLIDES[0]!;
 
   const [isHovered, setIsHovered] = React.useState(false);
@@ -77,7 +74,8 @@ export default function DashboardPersonalizationCarousel() {
   }, []);
 
   const goWithReset = React.useCallback(
-    (next: number) => {
+    (next: number, dir: 1 | -1) => {
+      setDirection(dir);
       go(next);
       setInteractingFor(1800);
     },
@@ -177,6 +175,7 @@ export default function DashboardPersonalizationCarousel() {
       if (pct >= 1) {
         elapsedRef.current = 0;
         lastFrameRef.current = ts;
+        setDirection(1);
         setActiveIndex((prev) => (prev + 1) % SLIDES.length);
       }
 
@@ -214,12 +213,12 @@ export default function DashboardPersonalizationCarousel() {
       onKeyDown={(event) => {
         if (event.key === "ArrowLeft") {
           event.preventDefault();
-          goWithReset(activeIndex - 1);
+          goWithReset(activeIndex - 1, -1);
           resetCycle();
         }
         if (event.key === "ArrowRight") {
           event.preventDefault();
-          goWithReset(activeIndex + 1);
+          goWithReset(activeIndex + 1, 1);
           resetCycle();
         }
       }}
@@ -240,8 +239,8 @@ export default function DashboardPersonalizationCarousel() {
         if (Math.abs(dx) < 40) return;
         if (Math.abs(dx) < Math.abs(dy) * 1.2) return;
         setInteractingFor(2200);
-        if (dx < 0) goWithReset(activeIndex + 1);
-        else goWithReset(activeIndex - 1);
+        if (dx < 0) goWithReset(activeIndex + 1, 1);
+        else goWithReset(activeIndex - 1, -1);
         resetCycle();
       }}
     >
@@ -249,14 +248,27 @@ export default function DashboardPersonalizationCarousel() {
         <motion.div
           key={active.key}
           className="absolute inset-0"
-          initial={reducedMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={reducedMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: -8 }}
+          custom={direction}
+          variants={{
+            enter: (dir: number) => ({
+              opacity: 0,
+              x: dir > 0 ? 24 : -24,
+            }),
+            center: { opacity: 1, x: 0 },
+            exit: (dir: number) => ({
+              opacity: 0,
+              x: dir > 0 ? -24 : 24,
+            }),
+          }}
+          initial={reducedMotion ? "center" : "enter"}
+          animate="center"
+          exit={reducedMotion ? "center" : "exit"}
           transition={
             reducedMotion
               ? { duration: 0 }
-              : { duration: 0.28, ease: [0.16, 1, 0.3, 1] }
+              : { duration: 0.32, ease: [0.16, 1, 0.3, 1] }
           }
+          style={{ willChange: reducedMotion ? "auto" : "transform" }}
         >
           <div
             className="h-full w-full"
@@ -275,11 +287,11 @@ export default function DashboardPersonalizationCarousel() {
               image={active.image}
               sizes="(max-width: 640px) 92vw, (max-width: 1280px) 60vw, 48vw"
               onPrev={() => {
-                goWithReset(activeIndex - 1);
+                goWithReset(activeIndex - 1, -1);
                 resetCycle();
               }}
               onNext={() => {
-                goWithReset(activeIndex + 1);
+                goWithReset(activeIndex + 1, 1);
                 resetCycle();
               }}
             />

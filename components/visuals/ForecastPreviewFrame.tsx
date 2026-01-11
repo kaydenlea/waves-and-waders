@@ -4,7 +4,7 @@ import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import type { ForecastPreviewImage } from "@/components/visuals/ForecastPreviewCards";
+import type { PreviewImage } from "@/components/visuals/ForecastPreviewCards";
 
 export default function ForecastPreviewFrame({
   title,
@@ -18,7 +18,7 @@ export default function ForecastPreviewFrame({
 }: {
   title: string;
   description: string;
-  image: ForecastPreviewImage;
+  image: PreviewImage;
   sizes: string;
   onPrev: () => void;
   onNext: () => void;
@@ -89,6 +89,7 @@ export default function ForecastPreviewFrame({
               alt=""
               fill
               sizes={sizes}
+              quality={100}
               className="object-cover object-top dark:hidden"
               placeholder="blur"
             />
@@ -97,6 +98,7 @@ export default function ForecastPreviewFrame({
               alt=""
               fill
               sizes={sizes}
+              quality={100}
               className="hidden object-cover object-top dark:block"
               placeholder="blur"
             />
