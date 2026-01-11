@@ -4567,6 +4567,7 @@ const LeafletMap: React.FC<Props> = ({
             borderRadius: embedded ? "0px" : isDesktop ? "18px" : "0px",
             boxShadow: embedded ? "none" : "0px 0px 5px rgba(0, 0, 0, 0.2)",
             background: "var(--highlight-5)",
+            overflow: "hidden",
           }}
         >
           Preparing map…

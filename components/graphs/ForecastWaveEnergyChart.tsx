@@ -53,7 +53,10 @@ import {
   useForecastChartsBusyState,
 } from "../context/ForecastChartsLoadingContext";
 import { useChartTheme } from "@/components/graphs/useChartTheme";
-import { buildYAxisTicks, limitYAxisTicks } from "@/components/graphs/yAxisTicks";
+import {
+  buildYAxisTicks,
+  limitYAxisTicks,
+} from "@/components/graphs/yAxisTicks";
 import type { ForecastData } from "@/lib/supabase";
 
 const EnergyTooltipIcon = () => <Atom className="h-3 w-3" />;
@@ -159,6 +162,35 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
   const [sunReady, setSunReady] = useState(false);
   const { rows: sharedRows } = useForecastData();
   const [energyData, setEnergyData] = useState<WavePoint[]>([]);
+  const energyActiveDot = useCallback(
+    (props: { cx?: number | string; cy?: number | string; index?: number }) => {
+      const cxNum = typeof props.cx === "number" ? props.cx : Number(props.cx);
+      const cyNum = typeof props.cy === "number" ? props.cy : Number(props.cy);
+      if (!Number.isFinite(cxNum) || !Number.isFinite(cyNum)) return <g />;
+      const idx = typeof props.index === "number" ? props.index : -1;
+      const curr = energyData[idx];
+      if (!curr) return <g />;
+      const prev = idx > 0 ? energyData[idx - 1] : undefined;
+      const next = idx >= 0 ? energyData[idx + 1] : undefined;
+      const inc = prev
+        ? curr.energy >= prev.energy
+        : next
+        ? next.energy >= curr.energy
+        : true;
+      const color = inc ? "var(--energy-fill-inc)" : "var(--energy-fill-dec)";
+      return (
+        <circle
+          cx={cxNum}
+          cy={cyNum}
+          r={4}
+          fill={color}
+          stroke={color}
+          strokeWidth={0}
+        />
+      );
+    },
+    [energyData]
+  );
   const [baseStartMs, setBaseStartMs] = useState<number | null>(null);
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
   const [nightAreas, setNightAreas] = useState<{ x1: number; x2?: number }[]>(
@@ -772,18 +804,18 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
   );
   const formatHourLabel = useCallback(
     (label: unknown, payload: TooltipPayload) => {
-    let hour = payload?.[0]?.payload?.hour;
-    if (typeof hour !== "number" && typeof label === "number") {
-      hour = label;
-    }
-    if (typeof hour !== "number") return "";
-    const wholeHour = Math.floor(hour);
-    const minutes = Math.round((hour - wholeHour) * 60);
-    const displayHour = wholeHour % 12 === 0 ? 12 : wholeHour % 12;
-    const ampm = wholeHour % 24 >= 12 ? "PM" : "AM";
-    return minutes > 0
-      ? `${displayHour}:${minutes.toString().padStart(2, "0")} ${ampm}`
-      : `${displayHour} ${ampm}`;
+      let hour = payload?.[0]?.payload?.hour;
+      if (typeof hour !== "number" && typeof label === "number") {
+        hour = label;
+      }
+      if (typeof hour !== "number") return "";
+      const wholeHour = Math.floor(hour);
+      const minutes = Math.round((hour - wholeHour) * 60);
+      const displayHour = wholeHour % 12 === 0 ? 12 : wholeHour % 12;
+      const ampm = wholeHour % 24 >= 12 ? "PM" : "AM";
+      return minutes > 0
+        ? `${displayHour}:${minutes.toString().padStart(2, "0")} ${ampm}`
+        : `${displayHour} ${ampm}`;
     },
     []
   );
@@ -1139,8 +1171,11 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
                             ? offset.width
                             : 0);
                         const height =
-                          typeof offset?.height === "number" ? offset.height : 0;
-                        const top = typeof offset?.top === "number" ? offset.top : 0;
+                          typeof offset?.height === "number"
+                            ? offset.height
+                            : 0;
+                        const top =
+                          typeof offset?.top === "number" ? offset.top : 0;
                         if (
                           !offset ||
                           !(fullWidth > 0) ||
@@ -1238,6 +1273,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
                       fill={`url(#${fillGradientId})`}
                       fillOpacity={1}
                       clipPath={`url(#${plotClipId})`}
+                      activeDot={energyActiveDot}
                       isAnimationActive={false}
                       animationDuration={0}
                       animationBegin={0}

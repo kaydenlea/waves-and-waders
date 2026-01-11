@@ -95,7 +95,10 @@ type YAxisTickProps = {
   fontSize?: number;
 };
 type TooltipPayload = Array<{ payload?: Row }>;
-type TooltipItem = { dataKey?: string | number; payload?: Record<string, unknown> };
+type TooltipItem = {
+  dataKey?: string | number;
+  payload?: Record<string, unknown>;
+};
 type TooltipValue = number | string | Array<number | string>;
 type ChartMouseEvent = { activeLabel?: number | string | null };
 type ClipProps = {
@@ -696,6 +699,23 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
               ]}
               ticks={swellTicks}
             />
+            {/* Hour indicator line */}
+            <ReferenceLine
+              x={selectedHour}
+              stroke="var(--foreground)"
+              // strokeWidth={2}
+              strokeDasharray="3 3"
+            />
+            {/* Hover indicator line - only show when hovering on any chart */}
+            {hoveredHour !== null && hoveredHour !== selectedHour && (
+              <ReferenceLine
+                x={hoveredHour}
+                stroke="var(--foreground)"
+                strokeWidth={1}
+                strokeOpacity={0.5}
+                strokeDasharray="5 5"
+              />
+            )}
             {/* <ChartLegend content={<ChartLegendContent />} /> */}
             <ChartTooltip
               content={
@@ -855,23 +875,6 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
                 );
               }}
             />
-            {/* Hour indicator line */}
-            <ReferenceLine
-              x={selectedHour}
-              stroke="var(--foreground)"
-              // strokeWidth={2}
-              strokeDasharray="3 3"
-            />
-            {/* Hover indicator line - only show when hovering on any chart */}
-            {hoveredHour !== null && hoveredHour !== selectedHour && (
-              <ReferenceLine
-                x={hoveredHour}
-                stroke="var(--foreground)"
-                strokeWidth={1}
-                strokeOpacity={0.5}
-                strokeDasharray="5 5"
-              />
-            )}
           </AreaChart>
         </ChartContainer>
       </div>

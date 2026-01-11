@@ -859,6 +859,7 @@ const TideChart: React.FC<TideChartProps> = ({
               stroke="var(--foreground)"
               // strokeWidth={2}
               strokeDasharray="3 3"
+              isFront={false}
             />
             {/* Hover indicator line - always rendered to avoid re-mount */}
             <ReferenceLine
@@ -1030,6 +1031,10 @@ const TideChart: React.FC<TideChartProps> = ({
                         textAnchor={textAnchor}
                         dominantBaseline="middle"
                         fontSize={10}
+                        style={{
+                          filter:
+                            "drop-shadow(0 0 2px var(--background))",
+                        }}
                       >
                         {formatTime(point.timestamp)}
                       </text>
@@ -1040,6 +1045,10 @@ const TideChart: React.FC<TideChartProps> = ({
                         textAnchor={textAnchor}
                         fontWeight="bold"
                         fontSize={12}
+                        style={{
+                          filter:
+                            "drop-shadow(0 0 2px var(--background))",
+                        }}
                       >
                         {`${point.isPeak} ft`}
                       </text>

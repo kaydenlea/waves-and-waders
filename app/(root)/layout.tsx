@@ -6,7 +6,6 @@ import { MapFilterProvider } from "@/components/context/MapFilterContext";
 import { MapViewportProvider } from "@/components/context/MapViewportContext";
 import { ViewportBeachesProvider } from "@/components/context/ViewportBeachesContext";
 import { PathProvider } from "@/components/context/PathContext";
-import { SearchProvider } from "@/components/context/SearchContext";
 import { BeachStatsCacheProvider } from "@/components/context/BeachStatsCacheContext";
 import { DashboardEditModeProvider } from "@/components/context/DashboardEditModeContext";
 import ViewportBeachesManager from "@/components/context/ViewportBeachesManager";
@@ -17,21 +16,19 @@ const Layout = ({ children }: { children: ReactNode }) => {
       <MapViewportProvider>
         <MapFilterProvider>
           <ViewportBeachesProvider>
-            <SearchProvider>
-              <BeachStatsCacheProvider>
-                <PathProvider>
-                  <DashboardEditModeProvider>
-                    <ViewportBeachesManager />
-                    <div className="min-h-screen bg-background overscroll-y-none">
-                      <div aria-hidden className="fixed inset-0 -z-50 bg-background" />
-                      <NavBar landingPage variant="marketing" />
-                      {children}
-                      <Footer className="rounded-t-xl" />
-                    </div>
-                  </DashboardEditModeProvider>
-                </PathProvider>
-              </BeachStatsCacheProvider>
-            </SearchProvider>
+            <BeachStatsCacheProvider>
+              <PathProvider>
+                <DashboardEditModeProvider>
+                  <ViewportBeachesManager />
+                  <div className="min-h-screen bg-background overscroll-y-none">
+                    <div aria-hidden className="fixed inset-0 -z-50 bg-background" />
+                    <NavBar landingPage variant="marketing" />
+                    {children}
+                    <Footer className="rounded-t-xl" />
+                  </div>
+                </DashboardEditModeProvider>
+              </PathProvider>
+            </BeachStatsCacheProvider>
           </ViewportBeachesProvider>
         </MapFilterProvider>
       </MapViewportProvider>

@@ -18,7 +18,7 @@ export function OverviewCard({
         "[--widget-header-surface:color-mix(in_oklch,var(--highlight-7)_55%,var(--background-2))]",
         "supports-[backdrop-filter]:bg-highlight-7/40 supports-[backdrop-filter]:backdrop-blur-md",
         "supports-[backdrop-filter]:[--widget-surface:color-mix(in_oklch,var(--highlight-7)_40%,transparent)]",
-        "supports-[backdrop-filter]:[--widget-header-surface:color-mix(in_oklch,var(--highlight-7)_45%,var(--background-2))]",
+        "supports-[backdrop-filter]:[--widget-header-surface:color-mix(in_oklch,var(--highlight-7)_40%,var(--background-2))]",
         "focus-within:ring-1 focus-within:ring-foreground/10",
         className
       )}

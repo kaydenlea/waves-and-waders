@@ -54,7 +54,10 @@ type YAxisTickProps = {
   fontSize?: number;
 };
 type TooltipPayload = Array<{ payload?: { hour?: number } }>;
-type TooltipItem = { dataKey?: string | number; payload?: Record<string, unknown> };
+type TooltipItem = {
+  dataKey?: string | number;
+  payload?: Record<string, unknown>;
+};
 type TooltipValue = number | string | Array<number | string>;
 type ChartMouseEvent = { activeLabel?: number | string | null };
 const WindTooltipIcon = () => <WindIcon className="h-3 w-3" />;
@@ -375,18 +378,21 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       chartTheme.shadingOpacity,
     ]
   );
-  const formatHourLabel = useCallback((label: unknown, payload: TooltipPayload) => {
-    let hour = payload?.[0]?.payload?.hour;
-    if (typeof hour !== "number" && typeof label === "number") {
-      hour = label;
-    }
-    if (typeof hour !== "number") return "";
-    const nearestSlot = Math.round(hour / DATA_STEP_HOURS) * DATA_STEP_HOURS;
-    const normalized = ((nearestSlot % 24) + 24) % 24;
-    const displayHour = normalized % 12 === 0 ? 12 : normalized % 12;
-    const ampm = normalized >= 12 ? "PM" : "AM";
-    return `${displayHour} ${ampm}`;
-  }, []);
+  const formatHourLabel = useCallback(
+    (label: unknown, payload: TooltipPayload) => {
+      let hour = payload?.[0]?.payload?.hour;
+      if (typeof hour !== "number" && typeof label === "number") {
+        hour = label;
+      }
+      if (typeof hour !== "number") return "";
+      const nearestSlot = Math.round(hour / DATA_STEP_HOURS) * DATA_STEP_HOURS;
+      const normalized = ((nearestSlot % 24) + 24) % 24;
+      const displayHour = normalized % 12 === 0 ? 12 : normalized % 12;
+      const ampm = normalized >= 12 ? "PM" : "AM";
+      return `${displayHour} ${ampm}`;
+    },
+    []
+  );
   const formatWindTooltipValue = useCallback(
     (value: TooltipValue, _name: string | number, item: TooltipItem) => {
       const direction = item?.payload?.direction;
@@ -644,6 +650,7 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
                 x={centeredSelectedHour}
                 stroke="var(--foreground)"
                 strokeDasharray="3 3"
+                isFront={false}
               />
             )}
             <Bar
@@ -691,6 +698,10 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
                             // fill="#8bd668ff"
                             // color="#8bd668ff"
                             className="fill-foreground/20 text-foreground/50"
+                            style={{
+                              filter:
+                                "drop-shadow(0 0 2px var(--background))",
+                            }}
                           />
                         </g>
                       </g>

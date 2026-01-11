@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   CartesianGrid,
   XAxis,
@@ -187,6 +187,36 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     }
     return mapped;
   }, [beachId, forecastRows, hours, windowStartMs, placeholderSeries]);
+
+  const energyActiveDot = useCallback(
+    (props: { cx?: number | string; cy?: number | string; index?: number }) => {
+      const cxNum = typeof props.cx === "number" ? props.cx : Number(props.cx);
+      const cyNum = typeof props.cy === "number" ? props.cy : Number(props.cy);
+      if (!Number.isFinite(cxNum) || !Number.isFinite(cyNum)) return <g />;
+      const idx = typeof props.index === "number" ? props.index : -1;
+      const curr = series[idx];
+      if (!curr) return <g />;
+      const prev = idx > 0 ? series[idx - 1] : undefined;
+      const next = idx >= 0 ? series[idx + 1] : undefined;
+      const inc = prev
+        ? curr.energy >= prev.energy
+        : next
+        ? next.energy >= curr.energy
+        : true;
+      const color = inc ? "var(--energy-fill-inc)" : "var(--energy-fill-dec)";
+      return (
+        <circle
+          cx={cxNum}
+          cy={cyNum}
+          r={4}
+          fill={color}
+          stroke={color}
+          strokeWidth={0}
+        />
+      );
+    },
+    [series]
+  );
 
   useEffect(() => {
     if (
@@ -502,7 +532,8 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
                 const clipWidth =
                   (typeof offset?.left === "number" ? offset.left : 0) +
                   (typeof offset?.width === "number" ? offset.width : 0);
-                const offsetHeight = typeof offset?.height === "number" ? offset.height : 0;
+                const offsetHeight =
+                  typeof offset?.height === "number" ? offset.height : 0;
                 if (
                   !offset ||
                   !(fullWidth > 0) ||
@@ -604,6 +635,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
               fill={`url(#${fillGradientId})`}
               fillOpacity={1}
               clipPath={`url(#${plotClipId})`}
+              activeDot={energyActiveDot}
               isAnimationActive={false}
               animationDuration={0}
               animationBegin={0}
