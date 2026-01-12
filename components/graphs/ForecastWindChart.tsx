@@ -34,7 +34,10 @@ import { useDateContext } from "@/components/context/DateContext";
 import { useForecastChartContext } from "@/components/context/ForecastChartContext";
 import HoverReferenceLine from "@/components/graphs/HoverReferenceLine";
 import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
-import { buildYAxisTicks, limitYAxisTicks } from "@/components/graphs/yAxisTicks";
+import {
+  buildYAxisTicks,
+  limitYAxisTicks,
+} from "@/components/graphs/yAxisTicks";
 import { useSunData } from "@/components/context/SunDataContext";
 import { buildSunSegmentsForRange } from "@/components/graphs/sunSegments";
 import { buildForecastShadingBackground } from "@/components/graphs/forecastShadingBackground";
@@ -74,7 +77,10 @@ type YAxisTickProps = {
 
 type TooltipPayload = Array<{ payload?: { hour?: number } }>;
 
-type TooltipItem = { dataKey?: string | number; payload?: Record<string, unknown> };
+type TooltipItem = {
+  dataKey?: string | number;
+  payload?: Record<string, unknown>;
+};
 
 type TooltipValue = number | string | Array<number | string>;
 
@@ -224,7 +230,13 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
   const windTicks = useMemo(
     () =>
       limitYAxisTicks(
-        buildYAxisTicks(windData.map((d) => d.wind), 0, 4, 0.2, 10),
+        buildYAxisTicks(
+          windData.map((d) => d.wind),
+          0,
+          4,
+          0.2,
+          10
+        ),
         4
       ),
     [windData]
@@ -799,16 +811,16 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
   }, [totalFetchedDays]);
   const formatHourLabel = useCallback(
     (label: unknown, payload: TooltipPayload) => {
-    let hour = payload?.[0]?.payload?.hour;
-    if (typeof hour !== "number" && typeof label === "number") {
-      hour = label;
-    }
-    if (typeof hour !== "number") return "";
-    const nearestSlot = Math.round(hour / DATA_STEP_HOURS) * DATA_STEP_HOURS;
-    const normalized = ((nearestSlot % 24) + 24) % 24;
-    const displayHour = normalized % 12 === 0 ? 12 : normalized % 12;
-    const ampm = normalized >= 12 ? "PM" : "AM";
-    return `${displayHour} ${ampm}`;
+      let hour = payload?.[0]?.payload?.hour;
+      if (typeof hour !== "number" && typeof label === "number") {
+        hour = label;
+      }
+      if (typeof hour !== "number") return "";
+      const nearestSlot = Math.round(hour / DATA_STEP_HOURS) * DATA_STEP_HOURS;
+      const normalized = ((nearestSlot % 24) + 24) % 24;
+      const displayHour = normalized % 12 === 0 ? 12 : normalized % 12;
+      const ampm = normalized >= 12 ? "PM" : "AM";
+      return `${displayHour} ${ampm}`;
     },
     []
   );
@@ -1313,9 +1325,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
                                     size={iconSize}
                                     x={-iconSize / 2}
                                     y={-iconSize / 2}
-                                    // fill="#8bd668ff"
-                                    // color="#8bd668ff"
-                                    className="fill-foreground/20 text-foreground/50"
+                                    className="fill-[#CECECE] dark:fill-[#606060] text-foreground/50"
                                   />
                                 </g>
                               </g>

@@ -695,13 +695,7 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
                             size={iconSize}
                             x={-iconSize / 2}
                             y={-iconSize / 2}
-                            // fill="#8bd668ff"
-                            // color="#8bd668ff"
-                            className="fill-foreground/20 text-foreground/50"
-                            style={{
-                              filter:
-                                "drop-shadow(0 0 2px var(--background))",
-                            }}
+                            className="fill-[#CECECE] dark:fill-[#606060] text-foreground/50"
                           />
                         </g>
                       </g>

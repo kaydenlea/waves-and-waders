@@ -49,7 +49,11 @@ import {
 } from "../context/ForecastChartsLoadingContext";
 import { ForecastChartSkeleton } from "./ForecastChartSkeleton";
 import { useChartTheme } from "@/components/graphs/useChartTheme";
-import { buildYAxisTicks, limitYAxisTicks } from "@/components/graphs/yAxisTicks";
+import {
+  buildLinearYAxisTicks,
+  buildYAxisTicks,
+  limitYAxisTicks,
+} from "@/components/graphs/yAxisTicks";
 import { getForecastDayHeaderLayout } from "./forecastDayHeaderLayout";
 import { buildForecastShadingBackground } from "@/components/graphs/forecastShadingBackground";
 
@@ -96,7 +100,6 @@ type TooltipPayload = Array<{ payload?: { hour?: number } }>;
 type ChartMouseEvent = { activeLabel?: number | string | null };
 
 type TideDotProps = { payload?: TidePoint; cx?: number; cy?: number };
-
 
 export default React.memo(function ForecastTideChart({
   beachId,
@@ -919,15 +922,17 @@ export default React.memo(function ForecastTideChart({
 
     const min = Math.min(...values);
     const max = Math.max(...values);
+    const span = Math.max(1e-6, max - min);
 
     // Add headroom/footroom so labels/icons never collide with the curve.
-    const paddedMin = Math.floor(min - 2);
-    const paddedMax = Math.ceil(max + 4);
+    const bottomPad = Math.max(1, span * 0.12);
+    const topPad = Math.max(4, span * 0.2);
+    const paddedMin = Math.floor(min - bottomPad);
+    const paddedMax = Math.ceil(max + topPad);
 
-    return limitYAxisTicks(
-      buildYAxisTicks([paddedMin, ...values, paddedMax], paddedMin, 4, 0),
-      4
-    );
+    const axisMin = Math.floor(paddedMin);
+    const axisMax = Math.ceil(paddedMax);
+    return buildLinearYAxisTicks(axisMin, axisMax, 4, true);
   }, [data]);
   const yAxisTick = useCallback(
     (props: YAxisTickProps) => {
@@ -964,18 +969,18 @@ export default React.memo(function ForecastTideChart({
   );
   const formatHourLabel = useCallback(
     (label: unknown, payload: TooltipPayload) => {
-    let hour = payload?.[0]?.payload?.hour;
-    if (typeof hour !== "number" && typeof label === "number") {
-      hour = label;
-    }
-    if (typeof hour !== "number") return "";
-    const wholeHour = Math.floor(hour);
-    const minutes = Math.round((hour - wholeHour) * 60);
-    const displayHour = wholeHour % 12 === 0 ? 12 : wholeHour % 12;
-    const ampm = wholeHour % 24 >= 12 ? "PM" : "AM";
-    return minutes > 0
-      ? `${displayHour}:${minutes.toString().padStart(2, "0")} ${ampm}`
-      : `${displayHour} ${ampm}`;
+      let hour = payload?.[0]?.payload?.hour;
+      if (typeof hour !== "number" && typeof label === "number") {
+        hour = label;
+      }
+      if (typeof hour !== "number") return "";
+      const wholeHour = Math.floor(hour);
+      const minutes = Math.round((hour - wholeHour) * 60);
+      const displayHour = wholeHour % 12 === 0 ? 12 : wholeHour % 12;
+      const ampm = wholeHour % 24 >= 12 ? "PM" : "AM";
+      return minutes > 0
+        ? `${displayHour}:${minutes.toString().padStart(2, "0")} ${ampm}`
+        : `${displayHour} ${ampm}`;
     },
     []
   );
@@ -1488,7 +1493,8 @@ export default React.memo(function ForecastTideChart({
                             const safeY =
                               typeof props.y === "number" ? props.y : 0;
                             if (
-                              props.value &&
+                              props.value !== undefined &&
+                              props.value !== null &&
                               typeof props.index === "number"
                             ) {
                               const h = data[props.index]?.hour ?? 0;
@@ -1541,8 +1547,15 @@ export default React.memo(function ForecastTideChart({
                                     y={safeY + yOffset}
                                     fill="var(--foreground)"
                                     textAnchor={textAnchor}
+                                    fontWeight={450}
                                     dominantBaseline="middle"
                                     fontSize={10}
+                                    style={{
+                                      paintOrder: "stroke",
+                                      stroke: "var(--background)",
+                                      strokeWidth: 1,
+                                      strokeLinejoin: "round",
+                                    }}
                                   >
                                     {lbl}
                                   </text>
@@ -1553,6 +1566,12 @@ export default React.memo(function ForecastTideChart({
                                     textAnchor={textAnchor}
                                     fontWeight="bold"
                                     fontSize={12}
+                                    style={{
+                                      paintOrder: "stroke",
+                                      stroke: "var(--background)",
+                                      strokeWidth: 1,
+                                      strokeLinejoin: "round",
+                                    }}
                                   >
                                     {`${tideValue} ft`}
                                   </text>

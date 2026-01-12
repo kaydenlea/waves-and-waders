@@ -41,6 +41,39 @@ export function buildYAxisTicks(
   return ticks;
 }
 
+// Build a fixed-count tick list by linearly interpolating between min/max.
+// Useful when you want exactly N ticks without "nice step" expansion.
+export function buildLinearYAxisTicks(
+  minValue: number,
+  maxValue: number,
+  targetCount = 4,
+  wholeNumbers = false
+): number[] {
+  const desiredCount = Math.max(2, Math.floor(targetCount));
+  if (!Number.isFinite(minValue) || !Number.isFinite(maxValue)) return [0, 1];
+
+  const safeMax =
+    maxValue > minValue ? maxValue : minValue + (desiredCount - 1);
+
+  if (wholeNumbers) {
+    const start = Math.floor(minValue);
+    const end = Math.ceil(safeMax);
+    const rawStep = (end - start) / Math.max(1, desiredCount - 1);
+    const step = Math.max(1, Math.ceil(rawStep));
+    return Array.from({ length: desiredCount }, (_, i) => start + i * step);
+  }
+
+  const step = (safeMax - minValue) / Math.max(1, desiredCount - 1);
+  const precision =
+    step >= 1 ? (Number.isInteger(step) ? 0 : 1) : step >= 0.1 ? 1 : 2;
+  const factor = Math.pow(10, precision);
+
+  return Array.from({ length: desiredCount }, (_, i) => {
+    const value = minValue + i * step;
+    return Math.round(value * factor) / factor;
+  });
+}
+
 // Enforce an upper bound on tick count while keeping the min/max ticks.
 // Used by forecast charts to keep the in-plot sticky axis compact.
 export function limitYAxisTicks(ticks: number[], maxTicks: number): number[] {

@@ -4,6 +4,7 @@ import { ScrollToTopOnRouteChange } from "@/lib/utils/scrollTop";
 import { getServerSupabase } from "@/lib/supabaseServer";
 import { SupabaseProvider } from "@/components/providers/SupabaseProvider";
 import { QueryProvider } from "@/components/providers/QueryProvider";
+import { ToastProvider } from "@/components/providers/ToastProvider";
 import { SearchProvider } from "@/components/context/SearchContext";
 import { poppins } from "@/lib/fonts";
 import { buildDefaultMetadata, getSiteUrl } from "@/lib/seo";
@@ -67,10 +68,12 @@ export default async function RootLayout({
               enableSystem
               disableTransitionOnChange
             >
-              <SearchProvider>
-                <ScrollToTopOnRouteChange />
-                {children}
-              </SearchProvider>
+              <ToastProvider>
+                <SearchProvider>
+                  <ScrollToTopOnRouteChange />
+                  {children}
+                </SearchProvider>
+              </ToastProvider>
             </ThemeProvider>
           </QueryProvider>
         </SupabaseProvider>

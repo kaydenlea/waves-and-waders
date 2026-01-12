@@ -29,7 +29,10 @@ import {
 } from "@/components/graphs/sunSegments";
 import { cn, getPacificMidnightUTC } from "@/lib/utils";
 import { useChartTheme } from "@/components/graphs/useChartTheme";
-import { buildYAxisTicks } from "@/components/graphs/yAxisTicks";
+import {
+  buildLinearYAxisTicks,
+  buildYAxisTicks,
+} from "@/components/graphs/yAxisTicks";
 import {
   applyForecastShadingOpacity,
   buildForecastPlotShadingBackgroundPercent,
@@ -612,12 +615,17 @@ const TideChart: React.FC<TideChartProps> = ({
 
     const min = Math.min(...values);
     const max = Math.max(...values);
+    const span = Math.max(1e-6, max - min);
 
     // Add headroom/footroom so labels/icons never collide with the curve.
-    const paddedMin = Math.floor(min - 2);
-    const paddedMax = Math.ceil(max + 4);
+    const bottomPad = Math.max(1, span * 0.12);
+    const topPad = Math.max(4, span * 0.2);
+    const paddedMin = Math.floor(min - bottomPad);
+    const paddedMax = Math.ceil(max + topPad);
 
-    return buildYAxisTicks([paddedMin, ...values, paddedMax], paddedMin, 4, 0);
+    const axisMin = Math.floor(paddedMin);
+    const axisMax = Math.ceil(paddedMax);
+    return buildLinearYAxisTicks(axisMin, axisMax, 4, true);
   }, [renderData]);
   const yAxisTick = React.useCallback(
     (props: YAxisTickProps) => {
@@ -1029,11 +1037,15 @@ const TideChart: React.FC<TideChartProps> = ({
                         y={timeY}
                         fill="var(--foreground)"
                         textAnchor={textAnchor}
+                        fontWeight={450}
                         dominantBaseline="middle"
                         fontSize={10}
                         style={{
-                          filter:
-                            "drop-shadow(0 0 2px var(--background))",
+                          paintOrder: "stroke",
+                          stroke: "var(--background)",
+                          strokeWidth: 1,
+                          strokeLinejoin: "round",
+                          filter: "drop-shadow(0 0 2px var(--background))",
                         }}
                       >
                         {formatTime(point.timestamp)}
@@ -1046,8 +1058,11 @@ const TideChart: React.FC<TideChartProps> = ({
                         fontWeight="bold"
                         fontSize={12}
                         style={{
-                          filter:
-                            "drop-shadow(0 0 2px var(--background))",
+                          paintOrder: "stroke",
+                          stroke: "var(--background)",
+                          strokeWidth: 1,
+                          strokeLinejoin: "round",
+                          filter: "drop-shadow(0 0 2px var(--background))",
                         }}
                       >
                         {`${point.isPeak} ft`}

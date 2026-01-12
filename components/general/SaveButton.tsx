@@ -9,6 +9,7 @@ import {
 import { Heart } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { useToast } from "@/components/providers/ToastProvider";
 
 type SaveButtonProps = {
   beachId: string;
@@ -32,6 +33,7 @@ const SaveButton = ({
   const { session } = useSessionContext();
   const supabase = useSupabaseClient();
   const router = useRouter();
+  const { toast } = useToast();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const overviewPage = pathname.endsWith("/overview");
@@ -93,9 +95,20 @@ const SaveButton = ({
         setLocalIsFav(nextIsFav);
       }
       onChange?.(nextIsFav);
+      toast(nextIsFav ? "Added to favorites" : "Removed from favorites", {
+        icon: (
+          <Heart
+            className={cn(
+              "h-4 w-4",
+              nextIsFav ? "fill-rose-500 text-rose-400" : "text-muted-foreground"
+            )}
+          />
+        ),
+      });
       router.refresh();
     } catch (error) {
       console.error("Failed to toggle favorite", error);
+      toast("Could not update favorite. Try again.", { variant: "error" });
     } finally {
       setLoading(false);
     }
@@ -110,10 +123,10 @@ const SaveButton = ({
     variant === "overlay"
       ? effectiveIsFav
         ? "fill-rose-500 text-rose-400"
-        : "text-white group-hover/button:fill-rose-500 group-hover/button:text-rose-400"
+        : "text-white"
       : effectiveIsFav
-      ? "fill-rose-500 text-rose-400 group-hover/button:fill-none group-hover/button:text-foreground"
-      : "text-foreground group-hover/button:fill-rose-500 group-hover/button:text-rose-400";
+      ? "fill-rose-500 text-rose-400"
+      : "text-foreground";
 
   return (
     <button
