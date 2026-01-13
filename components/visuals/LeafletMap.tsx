@@ -83,6 +83,12 @@ type MarkerOptionsWithMeta = L.MarkerOptions & {
 type MarkerDomGuardsState = {
   element: HTMLElement | null;
   preventDragStart: ((event: Event) => void) | null;
+  pointerDownCapture: ((event: PointerEvent) => void) | null;
+  mouseDownCapture: ((event: MouseEvent) => void) | null;
+  touchStartCapture: ((event: TouchEvent) => void) | null;
+  touchMoveCapture: ((event: TouchEvent) => void) | null;
+  touchEndCapture: ((event: TouchEvent) => void) | null;
+  touchCancelCapture: ((event: TouchEvent) => void) | null;
 };
 
 type MarkerWithMeta = L.Marker & {
@@ -750,6 +756,47 @@ const isTouchDevice = () =>
   typeof window !== "undefined" &&
   typeof window.matchMedia === "function" &&
   window.matchMedia("(pointer: coarse)").matches;
+
+const supportsTouchInput = () => {
+  if (typeof window === "undefined") return false;
+  if (typeof navigator !== "undefined" && navigator.maxTouchPoints > 0)
+    return true;
+  if ("ontouchstart" in window) return true;
+  if (typeof window.matchMedia === "function") {
+    try {
+      return window.matchMedia("(any-pointer: coarse)").matches;
+    } catch {
+      // ignore unsupported media queries
+    }
+  }
+  return false;
+};
+
+const isTouchInteraction = (event?: Event | null) => {
+  if (!event) return supportsTouchInput();
+  if (typeof PointerEvent !== "undefined" && event instanceof PointerEvent) {
+    return event.pointerType === "touch";
+  }
+  if (typeof TouchEvent !== "undefined" && event instanceof TouchEvent) {
+    return true;
+  }
+  const maybe = event as Event & {
+    sourceCapabilities?: { firesTouchEvents?: boolean };
+  };
+  if (maybe.sourceCapabilities?.firesTouchEvents === true) return true;
+  if (
+    typeof window !== "undefined" &&
+    supportsTouchInput() &&
+    typeof window.matchMedia === "function"
+  ) {
+    try {
+      if (!window.matchMedia("(hover: hover)").matches) return true;
+    } catch {
+      // ignore unsupported media queries
+    }
+  }
+  return false;
+};
 
 const buildPopupHtml = (
   beach: BeachPoint,
@@ -1683,7 +1730,7 @@ const LeafletMap: React.FC<Props> = ({
       window.cancelAnimationFrame(job.raf);
     }
     markerBuildJobRef.current = null;
-    setMarkersLoading(false);
+    React.startTransition(() => setMarkersLoading(false));
   }, [setMarkersLoading]);
   const [selectedBeachId, setSelectedBeachId] = React.useState<
     string | number | null
@@ -2055,6 +2102,7 @@ const LeafletMap: React.FC<Props> = ({
 
     const shouldDisableInteractions =
       mapLoadingOverlayActive && !isTouchDevice();
+    const touchInput = supportsTouchInput();
 
     const disableInteractions = () => {
       try {
@@ -2076,7 +2124,7 @@ const LeafletMap: React.FC<Props> = ({
         map.touchZoom.disable();
       } catch {}
       try {
-        map.tap?.disable();
+        (map as any).tap?.disable();
       } catch {}
     };
 
@@ -2088,7 +2136,11 @@ const LeafletMap: React.FC<Props> = ({
         map.scrollWheelZoom.enable();
       } catch {}
       try {
-        map.doubleClickZoom.enable();
+        if (touchInput) {
+          map.doubleClickZoom.disable();
+        } else {
+          map.doubleClickZoom.enable();
+        }
       } catch {}
       try {
         map.boxZoom.enable();
@@ -2100,7 +2152,11 @@ const LeafletMap: React.FC<Props> = ({
         map.touchZoom.enable();
       } catch {}
       try {
-        map.tap?.enable();
+        if (touchInput) {
+          (map as any).tap?.disable();
+        } else {
+          (map as any).tap?.enable();
+        }
       } catch {}
     };
 
@@ -2480,6 +2536,7 @@ const LeafletMap: React.FC<Props> = ({
     const map = mapRef.current;
     const container = containerRef.current;
     if (!map || !container) return;
+    const touchInput = supportsTouchInput();
 
     const setLocked = (locked: boolean) => {
       try {
@@ -2499,7 +2556,11 @@ const LeafletMap: React.FC<Props> = ({
       }
       map.dragging.enable();
       map.touchZoom.enable();
-      map.doubleClickZoom.enable();
+      if (touchInput) {
+        map.doubleClickZoom.disable();
+      } else {
+        map.doubleClickZoom.enable();
+      }
       map.boxZoom.enable();
       map.keyboard.enable();
     };
@@ -2769,6 +2830,12 @@ const LeafletMap: React.FC<Props> = ({
     const state: MarkerDomGuardsState = markerWithState._wwDomGuardsState ?? {
       element: null,
       preventDragStart: null,
+      pointerDownCapture: null,
+      mouseDownCapture: null,
+      touchStartCapture: null,
+      touchMoveCapture: null,
+      touchEndCapture: null,
+      touchCancelCapture: null,
     };
 
     const nextElement = marker.getElement?.() as HTMLElement | null;
@@ -2784,9 +2851,64 @@ const LeafletMap: React.FC<Props> = ({
         true
       );
     }
+    if (state.element && state.pointerDownCapture) {
+      state.element.removeEventListener(
+        "pointerdown",
+        state.pointerDownCapture,
+        true
+      );
+    }
+    if (state.element && state.mouseDownCapture) {
+      state.element.removeEventListener(
+        "mousedown",
+        state.mouseDownCapture,
+        true
+      );
+    }
+    if (state.element && state.touchStartCapture) {
+      state.element.removeEventListener(
+        "touchstart",
+        state.touchStartCapture,
+        true
+      );
+    }
+    if (state.element && state.touchMoveCapture) {
+      state.element.removeEventListener(
+        "touchmove",
+        state.touchMoveCapture,
+        true
+      );
+    }
+    if (state.element && state.touchEndCapture) {
+      state.element.removeEventListener(
+        "touchend",
+        state.touchEndCapture,
+        true
+      );
+    }
+    if (state.element && state.touchCancelCapture) {
+      state.element.removeEventListener(
+        "touchcancel",
+        state.touchCancelCapture,
+        true
+      );
+    }
+    state.touchStartCapture = null;
+    state.touchMoveCapture = null;
+    state.touchEndCapture = null;
+    state.touchCancelCapture = null;
+    state.pointerDownCapture = null;
+    state.mouseDownCapture = null;
 
     const preventDragStart = (event: Event) => {
       event.preventDefault();
+      event.stopPropagation();
+    };
+
+    const pointerDownCapture = (event: PointerEvent) => {
+      event.stopPropagation();
+    };
+    const mouseDownCapture = (event: MouseEvent) => {
       event.stopPropagation();
     };
 
@@ -2804,10 +2926,104 @@ const LeafletMap: React.FC<Props> = ({
     // Only guard against native element dragging; don't stop pointer/mouse/touch
     // propagation or Leaflet may not receive the events it needs to dispatch clicks.
     nextElement.addEventListener("dragstart", preventDragStart, true);
-    if (isTouchDevice()) {
-      L.DomEvent.disableClickPropagation(nextElement);
-      L.DomEvent.disableScrollPropagation(nextElement);
+
+    // Prevent map-dragging from starting on marker elements. Without this, some
+    // touch browsers can end up with a stale Leaflet drag origin after marker taps,
+    // causing the map to "snap" the marker to the user's next pan gesture.
+    nextElement.addEventListener("pointerdown", pointerDownCapture, {
+      passive: true,
+      capture: true,
+    });
+    nextElement.addEventListener("mousedown", mouseDownCapture, {
+      passive: true,
+      capture: true,
+    });
+    state.pointerDownCapture = pointerDownCapture;
+    state.mouseDownCapture = mouseDownCapture;
+
+    if (supportsTouchInput()) {
+      let touchStart: { x: number; y: number } | null = null;
+      let touchMoved = false;
+      const MOVE_THRESHOLD_SQ = 24 * 24;
+
+      const touchStartCapture = (event: TouchEvent) => {
+        event.stopPropagation();
+        if (event.touches.length !== 1) {
+          touchStart = null;
+          touchMoved = false;
+          return;
+        }
+        const t = event.touches[0];
+        touchStart = { x: t.clientX, y: t.clientY };
+        touchMoved = false;
+      };
+
+      const touchMoveCapture = (event: TouchEvent) => {
+        if (!touchStart) return;
+        if (event.touches.length !== 1) return;
+        const t = event.touches[0];
+        const dx = t.clientX - touchStart.x;
+        const dy = t.clientY - touchStart.y;
+        if (dx * dx + dy * dy > MOVE_THRESHOLD_SQ) {
+          touchMoved = true;
+        }
+      };
+
+      const touchCancelCapture = () => {
+        touchStart = null;
+        touchMoved = false;
+      };
+
+      const touchEndCapture = (event: TouchEvent) => {
+        if (!touchStart) return;
+        if (touchMoved) {
+          touchStart = null;
+          touchMoved = false;
+          return;
+        }
+        touchStart = null;
+        touchMoved = false;
+        if (event.cancelable) {
+          event.preventDefault();
+        }
+        const fireClick = () => {
+          (marker as unknown as L.Evented).fire("click", {
+            originalEvent: event,
+          });
+        };
+        if (typeof queueMicrotask === "function") {
+          queueMicrotask(fireClick);
+        } else {
+          window.setTimeout(fireClick, 0);
+        }
+      };
+
+      nextElement.addEventListener("touchstart", touchStartCapture, {
+        passive: true,
+        capture: true,
+      });
+      nextElement.addEventListener("touchmove", touchMoveCapture, {
+        passive: true,
+        capture: true,
+      });
+      nextElement.addEventListener("touchend", touchEndCapture, {
+        passive: false,
+        capture: true,
+      });
+      nextElement.addEventListener("touchcancel", touchCancelCapture, {
+        passive: true,
+        capture: true,
+      });
+
+      state.touchStartCapture = touchStartCapture;
+      state.touchMoveCapture = touchMoveCapture;
+      state.touchEndCapture = touchEndCapture;
+      state.touchCancelCapture = touchCancelCapture;
     }
+
+    // Avoid `L.DomEvent.disableClickPropagation` for marker icons:
+    // it sets `_leaflet_disable_click` and Leaflet stops dispatching click/tap events
+    // from those elements, breaking mobile marker popups.
 
     state.element = nextElement;
     state.preventDragStart = preventDragStart;
@@ -2998,26 +3214,49 @@ const LeafletMap: React.FC<Props> = ({
   );
 
   const ensureMarkerPopup = React.useCallback(
-    (entry: MarkerEntry) => {
-      const touch = isTouchDevice();
+    (entry: MarkerEntry, forceTouchPopup?: boolean) => {
+      const touch = forceTouchPopup ?? supportsTouchInput();
       const popupHtml = touch
         ? getTouchPopupContent(entry.beach)
         : getDesktopPopupContent(entry.beach);
       const popup = entry.marker.getPopup();
       if (popup) {
-        popup.setContent(popupHtml);
-        return;
+        const className = popup.options?.className ?? "";
+        const touchClassApplied = className.includes("ww-touch-popup");
+        const popupOptions = popup.options as unknown as {
+          autoPanOnFocus?: unknown;
+        };
+        const hasAutoPanOnFocus =
+          typeof popupOptions.autoPanOnFocus === "boolean";
+        const optionMismatch =
+          (popup.options?.autoPan ?? false) !== false ||
+          (popup.options?.keepInView ?? false) !== false ||
+          (touch && (popup.options?.closeOnClick ?? undefined) !== false) ||
+          (touch && hasAutoPanOnFocus && popupOptions.autoPanOnFocus !== false);
+
+        if ((touch && !touchClassApplied) || optionMismatch) {
+          entry.marker.unbindPopup();
+        } else if (!touch && touchClassApplied) {
+          entry.marker.unbindPopup();
+        } else {
+          popup.setContent(popupHtml);
+          return;
+        }
       }
       entry.marker.bindPopup(
         popupHtml,
         touch
-          ? {
+          ? ({
               closeButton: false,
-              autoPan: true,
-              keepInView: true,
+              // On touch devices, Leaflet's auto-pan/keep-in-view behavior is disruptive:
+              // it can jump the map and "snap back" while users try to pan away.
+              autoPan: false,
+              keepInView: false,
+              autoPanOnFocus: false,
+              closeOnClick: false,
               className: "ww-touch-popup",
               interactive: true,
-            }
+            } as unknown as L.PopupOptions)
           : { closeButton: false, autoPan: false }
       );
     },
@@ -3384,6 +3623,7 @@ const LeafletMap: React.FC<Props> = ({
     );
     const embeddedPreview = embedded && previewUi;
     const coarsePointer = isTouchDevice();
+    const touchInput = supportsTouchInput();
     const map = L.map(containerRef.current, {
       center: [clampedInitialLatitude, clampedInitialLongitude],
       zoom: initialView.zoom,
@@ -3393,6 +3633,13 @@ const LeafletMap: React.FC<Props> = ({
       preferCanvas: false,
       minZoom: 3,
       maxZoom: 18,
+      // On touch devices, Leaflet's double-tap-to-zoom can be mistakenly triggered when users
+      // intend to drag, which looks like a disruptive "snap/jump" (selected marker shifts to
+      // the finger). Disable it on touch; desktop still has double-click zoom.
+      doubleClickZoom: touchInput ? false : undefined,
+      // Leaflet's legacy tap polyfill can interfere with touch dragging and cause
+      // disruptive initial jumps on some mobile browsers; use native touch/pointer events.
+      ...(touchInput ? ({ tap: false } as any) : null),
       // IMPORTANT: `worldCopyJump` intentionally "jumps" back to the original world copy when crossing the antimeridian.
       // We want continuous, uninterrupted horizontal panning instead.
       worldCopyJump: false,
@@ -3468,45 +3715,53 @@ const LeafletMap: React.FC<Props> = ({
       }
     }
 
-    const handleTouchMove = (event: TouchEvent) => {
-      if (event.touches.length > 1) return;
-      event.preventDefault();
-    };
-
     let touchStartedOnMap = false;
+    let touchStartedOnInteractiveElement = false;
+    let touchStartedOnTouchPopupOpenLink = false;
+    let touchStartPoint: { x: number; y: number } | null = null;
     const touchOriginTarget = mapOuterContainer ?? mapContainer;
     const handleTouchStartCapture = (event: TouchEvent) => {
       if (event.touches.length === 0) return;
       touchStartedOnMap = true;
+      touchStartPoint = {
+        x: event.touches[0]?.clientX ?? 0,
+        y: event.touches[0]?.clientY ?? 0,
+      };
+      const target = event.target as HTMLElement | null;
+      touchStartedOnTouchPopupOpenLink = Boolean(
+        target?.closest?.('[data-ww-touch-open="true"]')
+      );
+      touchStartedOnInteractiveElement = Boolean(
+        target?.closest?.(".ww-leaflet-point-icon") ||
+          target?.closest?.(".ww-cluster-inner") ||
+          target?.closest?.(".leaflet-popup") ||
+          target?.closest?.(".leaflet-control")
+      );
     };
     const handleTouchEndOrCancelCapture = (event: TouchEvent) => {
       if (event.touches.length === 0) {
         touchStartedOnMap = false;
+        touchStartedOnInteractiveElement = false;
+        touchStartedOnTouchPopupOpenLink = false;
+        touchStartPoint = null;
       }
     };
     const handleDocumentTouchMoveCapture = (event: TouchEvent) => {
       if (!touchStartedOnMap) return;
       if (event.touches.length > 1) return;
       if (!event.cancelable) return;
+      if (touchStartedOnInteractiveElement && touchStartPoint) {
+        const touch = event.touches[0];
+        const dx = (touch?.clientX ?? 0) - touchStartPoint.x;
+        const dy = (touch?.clientY ?? 0) - touchStartPoint.y;
+        // Allow minor finger jitter on marker taps without canceling the click.
+        const thresholdSq = touchStartedOnTouchPopupOpenLink ? 256 : 16;
+        if (dx * dx + dy * dy < thresholdSq) return;
+      }
       event.preventDefault();
     };
 
-    const touchPointerIds = new Set<number>();
-    const handlePointerDown = (event: PointerEvent) => {
-      if (event.pointerType !== "touch") return;
-      touchPointerIds.add(event.pointerId);
-    };
-    const handlePointerUpOrCancel = (event: PointerEvent) => {
-      if (event.pointerType !== "touch") return;
-      touchPointerIds.delete(event.pointerId);
-    };
-    const handlePointerMove = (event: PointerEvent) => {
-      if (event.pointerType !== "touch") return;
-      if (touchPointerIds.size > 1) return;
-      event.preventDefault();
-    };
-
-    if (coarsePointer && !embeddedPreview) {
+    if (touchInput && !embeddedPreview) {
       touchOriginTarget.addEventListener(
         "touchstart",
         handleTouchStartCapture,
@@ -3537,42 +3792,6 @@ const LeafletMap: React.FC<Props> = ({
         passive: true,
         capture: true,
       });
-      mapContainer.addEventListener("touchmove", handleTouchMove, {
-        passive: false,
-        capture: true,
-      });
-      mapOuterContainer?.addEventListener("touchmove", handleTouchMove, {
-        passive: false,
-        capture: true,
-      });
-      mapContainer.addEventListener("pointerdown", handlePointerDown, true);
-      mapContainer.addEventListener("pointerup", handlePointerUpOrCancel, true);
-      mapContainer.addEventListener(
-        "pointercancel",
-        handlePointerUpOrCancel,
-        true
-      );
-      mapContainer.addEventListener("pointermove", handlePointerMove, true);
-      mapOuterContainer?.addEventListener(
-        "pointerdown",
-        handlePointerDown,
-        true
-      );
-      mapOuterContainer?.addEventListener(
-        "pointerup",
-        handlePointerUpOrCancel,
-        true
-      );
-      mapOuterContainer?.addEventListener(
-        "pointercancel",
-        handlePointerUpOrCancel,
-        true
-      );
-      mapOuterContainer?.addEventListener(
-        "pointermove",
-        handlePointerMove,
-        true
-      );
     }
     const useVectorBasemap = canUseWebGL();
     if (useVectorBasemap) {
@@ -3630,13 +3849,17 @@ const LeafletMap: React.FC<Props> = ({
         deferredMarkerRebuildTimeoutRef.current = null;
       }
       latestCancelMarkerBuild();
-      enableInteractionLock();
+      if (!touchInput) {
+        enableInteractionLock();
+      }
       pendingAutoCenterRef.current = null;
       pendingFocusRef.current = null;
       latestCancelCommitResume();
       latestCancelScheduledCameraUpdate();
-      latestSetAllowViewportCommit(false);
-      if (!isTouchDevice()) {
+      if (!touchInput) {
+        React.startTransition(() => latestSetAllowViewportCommit(false));
+      }
+      if (!touchInput) {
         latestClearHoverState();
       }
       cancelPrefetchVisibleMarkerStats();
@@ -3646,7 +3869,7 @@ const LeafletMap: React.FC<Props> = ({
     };
 
     const handleInteractionEnd = () => {
-      if (!isTouchDevice()) {
+      if (!touchInput) {
         latestClearHoverState();
       }
       disableInteractionLock();
@@ -3677,11 +3900,15 @@ const LeafletMap: React.FC<Props> = ({
         deferredMarkerRebuildTimeoutRef.current = null;
       }
       latestCancelMarkerBuild();
-      enableInteractionLock();
+      if (!touchInput) {
+        enableInteractionLock();
+      }
       latestCancelCommitResume();
       latestCancelScheduledCameraUpdate();
-      latestSetAllowViewportCommit(false);
-      if (!isTouchDevice()) {
+      if (!touchInput) {
+        React.startTransition(() => latestSetAllowViewportCommit(false));
+      }
+      if (!touchInput) {
         latestClearHoverState();
       }
       cancelPrefetchVisibleMarkerStats();
@@ -3693,7 +3920,7 @@ const LeafletMap: React.FC<Props> = ({
     map.on("resize", handleResizeEvent);
 
     return () => {
-      if (coarsePointer && !embeddedPreview) {
+      if (touchInput && !embeddedPreview) {
         touchOriginTarget.removeEventListener(
           "touchstart",
           handleTouchStartCapture,
@@ -3722,52 +3949,6 @@ const LeafletMap: React.FC<Props> = ({
         document.removeEventListener(
           "touchcancel",
           handleTouchEndOrCancelCapture,
-          true
-        );
-        mapContainer.removeEventListener("touchmove", handleTouchMove, true);
-        mapOuterContainer?.removeEventListener(
-          "touchmove",
-          handleTouchMove,
-          true
-        );
-        mapContainer.removeEventListener(
-          "pointerdown",
-          handlePointerDown,
-          true
-        );
-        mapContainer.removeEventListener(
-          "pointerup",
-          handlePointerUpOrCancel,
-          true
-        );
-        mapContainer.removeEventListener(
-          "pointercancel",
-          handlePointerUpOrCancel,
-          true
-        );
-        mapContainer.removeEventListener(
-          "pointermove",
-          handlePointerMove,
-          true
-        );
-        mapOuterContainer?.removeEventListener(
-          "pointerdown",
-          handlePointerDown,
-          true
-        );
-        mapOuterContainer?.removeEventListener(
-          "pointerup",
-          handlePointerUpOrCancel,
-          true
-        );
-        mapOuterContainer?.removeEventListener(
-          "pointercancel",
-          handlePointerUpOrCancel,
-          true
-        );
-        mapOuterContainer?.removeEventListener(
-          "pointermove",
-          handlePointerMove,
           true
         );
       }
@@ -4186,40 +4367,33 @@ const LeafletMap: React.FC<Props> = ({
               favorite,
             };
             registry[id] = entry;
-
-            const touchPopup = isTouchDevice();
-            marker.bindPopup(
-              () =>
-                touchPopup
-                  ? getTouchPopupContent(beach)
-                  : getDesktopPopupContent(beach),
-              touchPopup
-                ? {
-                    closeButton: false,
-                    autoPan: true,
-                    keepInView: true,
-                    className: "ww-touch-popup",
-                    interactive: true,
-                  }
-                : { closeButton: false, autoPan: false }
+            ensureMarkerPopup(
+              entry,
+              smallScreen === true || supportsTouchInput()
             );
 
             const handleClick = (e: L.LeafletMouseEvent) => {
               if (!interactionsReadyRef.current) return;
-              if (isTouchDevice()) {
-                const prefetch = ensureStatsForBeachId(beach.id);
-                ensureMarkerPopup(entry);
-                openMarkerPopup(marker);
+              const treatAsTouch =
+                smallScreen === true ||
+                (e.originalEvent ? isTouchInteraction(e.originalEvent) : false);
+              if (treatAsTouch) {
                 if (e.originalEvent) {
+                  e.originalEvent.preventDefault?.();
                   L.DomEvent.stopPropagation(e.originalEvent);
                 }
-                prefetch?.then?.(() => ensureMarkerPopup(entry));
+                clearHoverState();
+                const prefetch = ensureStatsForBeachId(beach.id);
+                ensureMarkerPopup(entry, true);
+                openMarkerPopup(marker);
+                setHoveredMarkerSource("marker", String(beach.id));
+                prefetch?.then?.(() => ensureMarkerPopup(entry, true));
                 return;
               }
               const normalizedId = String(beach.id);
               setSelectedBeachId(beach.id);
               pendingAutoCenterRef.current = normalizedId;
-              ensureMarkerPopup(entry);
+              ensureMarkerPopup(entry, false);
               openMarkerPopup(marker);
               const destination = `${generateBeachUrl(
                 beach.name,
@@ -4240,7 +4414,8 @@ const LeafletMap: React.FC<Props> = ({
                 router.push(destination);
               }
             };
-            const handleMouseOver = () => {
+            const handleMouseOver = (event?: { originalEvent?: Event }) => {
+              if (isTouchInteraction(event?.originalEvent)) return;
               setHoveredMarkerSource("marker", String(beach.id));
             };
             marker.on("click", handleClick);
@@ -4315,6 +4490,7 @@ const LeafletMap: React.FC<Props> = ({
       filteredBeaches,
       refreshMarkerIcon,
       router,
+      smallScreen,
       selectedBeachId,
       setMarkersLoading,
       setHoveredMarkerSource,
@@ -4432,6 +4608,7 @@ const LeafletMap: React.FC<Props> = ({
     if (!group || !mapReady) return;
     const handleClusterOver = (event: ClusterEvent) => {
       if (!interactionsReadyRef.current) return;
+      if (isTouchInteraction(event.originalEvent)) return;
       updateClusterHighlight(event.layer ?? null);
     };
     const handleClusterOut = () => {
@@ -4473,7 +4650,31 @@ const LeafletMap: React.FC<Props> = ({
             duration: 0.35,
           }
         );
-        setTimeout(() => target.fire("click"), 360);
+        const fireWhenVisible = (attempt: number) => {
+          const activeGroup =
+            clusterLayerRef.current as MarkerClusterGroupWithHelpers | null;
+          if (!activeGroup || !activeGroup._map) return;
+          const visible =
+            typeof activeGroup.getVisibleParent !== "function"
+              ? true
+              : (() => {
+                  try {
+                    return activeGroup.getVisibleParent(target) === target;
+                  } catch {
+                    return false;
+                  }
+                })();
+          if (!visible) {
+            if (attempt < 4) {
+              window.setTimeout(() => fireWhenVisible(attempt + 1), 120);
+            }
+            return;
+          }
+          (target as unknown as L.Evented).fire("click", {
+            originalEvent: event.originalEvent,
+          });
+        };
+        window.setTimeout(() => fireWhenVisible(0), 360);
         return;
       }
       const bounds = (() => {
@@ -4597,10 +4798,12 @@ const LeafletMap: React.FC<Props> = ({
       style={!embedded && smallScreen ? wrapperHeight ?? undefined : undefined}
     >
       <div
-        className="relative w-full h-full"
+        className={cn(
+          "relative w-full h-full",
+          !embedded && "@min-4xl:rounded-[18px]"
+        )}
         style={{
           ...(wrapperHeight ?? {}),
-          borderRadius: embedded ? "0px" : isDesktop ? "18px" : "0px",
           boxShadow: embedded ? "none" : "0px 0px 5px rgba(0, 0, 0, 0.2)",
           overflow: "hidden",
         }}
@@ -5074,7 +5277,8 @@ const LeafletMap: React.FC<Props> = ({
             z-index: 720 !important;
           }
           .leaflet-pane.leaflet-popup-pane {
-            z-index: 820 !important;
+            /* Keep popups above overlay UI (tabs/buttons/loading). */
+            z-index: 2500 !important;
           }
           .leaflet-popup {
             transform: translate3d(0, -14px, 0);
@@ -5092,19 +5296,20 @@ const LeafletMap: React.FC<Props> = ({
             pointer-events: none;
           }
           .leaflet-popup.ww-touch-popup {
-            pointer-events: auto;
+            pointer-events: none;
             font-family: var(--font-poppins), ui-sans-serif, system-ui,
               -apple-system, "Segoe UI", Roboto, Helvetica, Arial;
           }
           .leaflet-popup.ww-touch-popup .leaflet-popup-content-wrapper,
           .leaflet-popup.ww-touch-popup .leaflet-popup-tip {
-            pointer-events: auto;
+            pointer-events: none;
           }
           .leaflet-popup.ww-touch-popup .ww-touch-popup__actions {
             display: flex;
             margin-top: 8px;
           }
           .leaflet-popup.ww-touch-popup .ww-touch-popup__open {
+            pointer-events: auto;
             display: inline-flex;
             align-items: center;
             justify-content: center;

@@ -208,12 +208,10 @@ export default function FiltersPanel({
       </div>
 
       <div
-        className={cn(
-          "flex-1 min-h-0 pl-5 pr-2 py-4 space-y-4 overflow-y-auto"
-        )}
+        className={cn("flex-1 min-h-0 px-2 py-4 space-y-4 overflow-y-auto")}
         style={{
           WebkitOverflowScrolling: "touch",
-          scrollbarGutter: "stable",
+          scrollbarGutter: "stable both-edges",
         }}
       >
         {FEATURE_SECTIONS.map((section) => {

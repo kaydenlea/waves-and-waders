@@ -44,7 +44,7 @@ const MapLoadingShell: React.FC<Pick<Props, "variant" | "ui">> = ({
           boxShadow: embedded ? "none" : "0px 0px 5px rgba(0, 0, 0, 0.2)",
         }}
       >
-        Preparing map.
+        Preparing map…
       </div>
     </aside>
   );

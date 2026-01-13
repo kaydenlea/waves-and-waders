@@ -1201,7 +1201,18 @@ const Summary = ({
         return 2;
       }
     })();
-    const fullWidth = Math.max(0, container.clientWidth);
+    const fullWidth = (() => {
+      const rawWidth = container.clientWidth;
+      try {
+        const style = globalThis.getComputedStyle(container);
+        const paddingLeft = Number.parseFloat(style.paddingLeft) || 0;
+        const paddingRight = Number.parseFloat(style.paddingRight) || 0;
+        const contentWidth = rawWidth - paddingLeft - paddingRight;
+        return Math.max(0, Math.floor(contentWidth));
+      } catch {
+        return Math.max(0, Math.floor(rawWidth));
+      }
+    })();
 
     const fits = (visible: number, includeMore: boolean) => {
       const widths: number[] = tagWidths.slice(0, visible);
