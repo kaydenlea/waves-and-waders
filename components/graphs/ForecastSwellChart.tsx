@@ -37,10 +37,8 @@ import { cn, getPacificMidnightUTC } from "@/lib/utils";
 import { getForecastCached } from "@/lib/dataCache";
 import { useForecastData } from "@/components/context/ForecastDataContext";
 import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
-import {
-  useDateContext,
-  useHoveredHour,
-} from "@/components/context/DateContext";
+import HoverOverlayLine from "@/components/graphs/HoverOverlayLine";
+import { useDateContext } from "@/components/context/DateContext";
 import { useForecastChartContext } from "@/components/context/ForecastChartContext";
 import { useSunData } from "@/components/context/SunDataContext";
 import { buildSunSegmentsForRange } from "@/components/graphs/sunSegments";
@@ -115,6 +113,7 @@ const Y_AXIS_WIDTH = 30;
 const DAY_LABEL_INSET = 6;
 const Y_AXIS_OFFSET_VAR = "--forecast-y-axis-offset";
 const X_AXIS_SHADE_EXCLUDE_PX = 34;
+const DRAG_THRESHOLD_PX = 8;
 const Y_AXIS_TICK = {
   fill: "var(--foreground)",
   fontWeight: 500,
@@ -125,7 +124,6 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
   const { setPanFraction, subscribePan } = useForecastChartContext();
   const myId = React.useId();
   const { hour: selectedHour, setHoveredHour } = useDateContext();
-  const hoveredHour = useHoveredHour();
   const { getSunData } = useSunData();
   const chartTheme = useChartTheme();
   const [loading, setLoading] = useState(true);
@@ -163,9 +161,12 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
   const pointerStateRef = useRef<{
     dragging: boolean;
     startX: number;
+    startY: number;
     startTranslate: number;
   } | null>(null);
   const rafRef = useRef<number | null>(null);
+  const dragRafRef = useRef<number | null>(null);
+  const pendingTranslateRef = useRef<number | null>(null);
 
   // Derived dimensions - use normalized days length if available
   const totalFetchedDays = useMemo(() => {
@@ -306,30 +307,61 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
   );
 
   // Pointer handlers
-  const onPointerDown = (ev: React.PointerEvent) => {
+  const startDrag = (ev: React.PointerEvent) => {
     const node = ev.currentTarget as Element;
     node.setPointerCapture?.(ev.pointerId);
     if (rafRef.current) {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     }
-    pointerStateRef.current = {
-      dragging: true,
-      startX: ev.clientX,
-      startTranslate: currentTranslateRef.current,
-    };
-    setInnerTranslatePx(currentTranslateRef.current, false);
+    if (pointerStateRef.current) {
+      pointerStateRef.current.dragging = true;
+    }
     document.body.style.userSelect = "none";
     document.body.style.touchAction = "none";
   };
 
+  const onPointerDown = (ev: React.PointerEvent) => {
+    pointerStateRef.current = {
+      dragging: false,
+      startX: ev.clientX,
+      startY: ev.clientY,
+      startTranslate: currentTranslateRef.current,
+    };
+    setInnerTranslatePx(currentTranslateRef.current, false);
+    if (ev.pointerType === "mouse") {
+      startDrag(ev);
+    }
+  };
+
   const onPointerMove = (ev: React.PointerEvent) => {
     const ps = pointerStateRef.current;
-    if (!ps || !ps.dragging) return;
-    const delta = ev.clientX - ps.startX;
-    const next = clampTranslatePx(ps.startTranslate - delta);
-    setInnerTranslatePx(next, false);
-    setPanFraction(next / dayPx, myId, "drag");
+    if (!ps) return;
+    const deltaX = ev.clientX - ps.startX;
+    const deltaY = ev.clientY - ps.startY;
+    if (!ps.dragging) {
+      if (
+        Math.abs(deltaX) < DRAG_THRESHOLD_PX ||
+        Math.abs(deltaX) < Math.abs(deltaY)
+      ) {
+        return;
+      }
+      startDrag(ev);
+    }
+    if (!pointerStateRef.current?.dragging) return;
+    const next = clampTranslatePx(
+      pointerStateRef.current.startTranslate - deltaX
+    );
+    pendingTranslateRef.current = next;
+    if (!dragRafRef.current) {
+      dragRafRef.current = requestAnimationFrame(() => {
+        dragRafRef.current = null;
+        const pendingPx = pendingTranslateRef.current;
+        if (typeof pendingPx !== "number") return;
+        setInnerTranslatePx(pendingPx, false);
+        setPanFraction(pendingPx / dayPx, myId, "drag");
+      });
+    }
   };
 
   const onPointerUp = (ev: React.PointerEvent) => {
@@ -338,8 +370,17 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
     const ps = pointerStateRef.current;
     if (!ps) return;
     pointerStateRef.current = null;
+    if (!ps.dragging) return;
     document.body.style.userSelect = "";
     document.body.style.touchAction = "";
+    if (dragRafRef.current) {
+      cancelAnimationFrame(dragRafRef.current);
+      dragRafRef.current = null;
+    }
+    if (typeof pendingTranslateRef.current === "number") {
+      setInnerTranslatePx(pendingTranslateRef.current, false);
+      pendingTranslateRef.current = null;
+    }
 
     const finalPx = clampTranslatePx(currentTranslateRef.current);
     const fractionalDayOffset = finalPx / dayPx;
@@ -1229,6 +1270,17 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                 </ChartContainer>
               </div>
               <div style={{ position: "relative", zIndex: 1 }}>
+                <HoverOverlayLine
+                  domainMin={domainMin}
+                  domainMax={domainMax}
+                  plotLeftPx={dayLabelLeftOffset}
+                  plotWidthPx={dataAreaWidth}
+                  days={displayDays}
+                  selectedDate={selectedDate}
+                  selectedHour={
+                    dashboardBusy ? stableSelectedHour : selectedHour
+                  }
+                />
                 <ChartContainer
                   key={chartInnerWidth}
                   config={chartConfig}
@@ -1355,16 +1407,6 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                         return null;
                       }
                     })()}
-                    {/* Hover indicator line */}
-                    {hoveredHour !== null && (
-                      <ReferenceLine
-                        x={hoveredHour}
-                        stroke="var(--foreground)"
-                        strokeWidth={1}
-                        strokeOpacity={0.75}
-                        strokeDasharray="5 5"
-                      />
-                    )}
                     <YAxis
                       hide
                       width={0}

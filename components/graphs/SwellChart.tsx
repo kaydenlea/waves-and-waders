@@ -487,21 +487,37 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   ]);
 
   const lastHoveredRef = React.useRef<number | null>(null);
+  const hoverRafRef = React.useRef<number | null>(null);
+  const pendingHoverRef = React.useRef<number | null>(null);
 
   const handleMouseMove = (e: ChartMouseEvent) => {
     if (e && e.activeLabel !== undefined) {
       const hour = Number(e.activeLabel);
       if (!isNaN(hour)) {
-        // Only update if the hour changed (throttle updates)
-        if (lastHoveredRef.current !== hour) {
-          lastHoveredRef.current = hour;
-          setHoveredHour(hour);
+        if (lastHoveredRef.current === hour) return;
+        pendingHoverRef.current = hour;
+        if (!hoverRafRef.current) {
+          hoverRafRef.current = requestAnimationFrame(() => {
+            hoverRafRef.current = null;
+            const nextHour = pendingHoverRef.current;
+            pendingHoverRef.current = null;
+            if (typeof nextHour !== "number") return;
+            if (lastHoveredRef.current !== nextHour) {
+              lastHoveredRef.current = nextHour;
+              setHoveredHour(nextHour);
+            }
+          });
         }
       }
     }
   };
 
   const handleMouseLeave = () => {
+    if (hoverRafRef.current) {
+      cancelAnimationFrame(hoverRafRef.current);
+      hoverRafRef.current = null;
+    }
+    pendingHoverRef.current = null;
     lastHoveredRef.current = null;
     setHoveredHour(null);
   };

@@ -38,10 +38,7 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import { cn } from "@/lib/utils";
-import {
-  useDateContext,
-  useHoveredHour,
-} from "@/components/context/DateContext";
+import { useDateContext } from "@/components/context/DateContext";
 import { useForecastChartContext } from "@/components/context/ForecastChartContext";
 import { useSunData } from "@/components/context/SunDataContext";
 import {
@@ -57,6 +54,7 @@ import {
 } from "@/components/graphs/yAxisTicks";
 import { getForecastDayHeaderLayout } from "./forecastDayHeaderLayout";
 import { buildForecastShadingBackground } from "@/components/graphs/forecastShadingBackground";
+import HoverOverlayLine from "@/components/graphs/HoverOverlayLine";
 
 const TideTooltipIcon = () => <TideIcon className="h-3 w-3" />;
 const TIDE_LINE_COLOR = "#6e6e6eff";
@@ -72,6 +70,7 @@ const Y_AXIS_WIDTH = 30;
 const DAY_LABEL_INSET = 6;
 const Y_AXIS_OFFSET_VAR = "--forecast-y-axis-offset";
 const X_AXIS_SHADE_EXCLUDE_PX = 34;
+const DRAG_THRESHOLD_PX = 8;
 const Y_AXIS_TICK = {
   fill: "var(--foreground)",
   fontWeight: 500,
@@ -158,7 +157,6 @@ export default React.memo(function ForecastTideChart({
     hour: selectedHour,
     setHoveredHour,
   } = useDateContext();
-  const hoveredHour = useHoveredHour();
   const [loading, setLoading] = useState(true);
   const [stableSelectedHour, setStableSelectedHour] = useState<number | null>(
     null
@@ -324,10 +322,13 @@ export default React.memo(function ForecastTideChart({
   const pointerStateRef = useRef<{
     dragging: boolean;
     startX: number;
+    startY: number;
     startTranslate: number;
   } | null>(null);
   const rafRef = useRef<number | null>(null);
   const broadcastRafRef = useRef<number | null>(null);
+  const dragRafRef = useRef<number | null>(null);
+  const pendingTranslateRef = useRef<number | null>(null);
 
   // helpers: clamp translate (px)
   const clampTranslatePx = useCallback(
@@ -396,36 +397,68 @@ export default React.memo(function ForecastTideChart({
   );
 
   // pointer handlers (imperative)
-  const onPointerDown = (ev: React.PointerEvent) => {
+  const startDrag = (ev: React.PointerEvent) => {
     const node = ev.currentTarget as Element;
     node.setPointerCapture?.(ev.pointerId);
     if (rafRef.current) {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     }
-    pointerStateRef.current = {
-      dragging: true,
-      startX: ev.clientX,
-      startTranslate: currentTranslateRef.current,
-    };
-    // remove transition for immediate follow
-    setInnerTranslatePx(currentTranslateRef.current, false);
+    if (pointerStateRef.current) {
+      pointerStateRef.current.dragging = true;
+    }
     // prevent text selection
     document.body.style.userSelect = "none";
     document.body.style.touchAction = "none";
   };
 
+  const onPointerDown = (ev: React.PointerEvent) => {
+    pointerStateRef.current = {
+      dragging: false,
+      startX: ev.clientX,
+      startY: ev.clientY,
+      startTranslate: currentTranslateRef.current,
+    };
+    // remove transition for immediate follow
+    setInnerTranslatePx(currentTranslateRef.current, false);
+    if (ev.pointerType === "mouse") {
+      startDrag(ev);
+    }
+  };
+
   const onPointerMove = (ev: React.PointerEvent) => {
     const ps = pointerStateRef.current;
-    if (!ps || !ps.dragging) return;
-    const delta = ev.clientX - ps.startX;
-    const next = clampTranslatePx(ps.startTranslate - delta);
-    // update transform imperatively (no React state)
-    setInnerTranslatePx(next, false);
+    if (!ps) return;
+    const deltaX = ev.clientX - ps.startX;
+    const deltaY = ev.clientY - ps.startY;
+    if (!ps.dragging) {
+      if (
+        Math.abs(deltaX) < DRAG_THRESHOLD_PX ||
+        Math.abs(deltaX) < Math.abs(deltaY)
+      ) {
+        return;
+      }
+      startDrag(ev);
+    }
+    if (!pointerStateRef.current?.dragging) return;
+    const next = clampTranslatePx(
+      pointerStateRef.current.startTranslate - deltaX
+    );
+    pendingTranslateRef.current = next;
+    if (!dragRafRef.current) {
+      dragRafRef.current = requestAnimationFrame(() => {
+        dragRafRef.current = null;
+        const pendingPx = pendingTranslateRef.current;
+        if (typeof pendingPx !== "number") return;
+        setInnerTranslatePx(pendingPx, false);
+      });
+    }
     if (!broadcastRafRef.current) {
       broadcastRafRef.current = requestAnimationFrame(() => {
         broadcastRafRef.current = null;
-        setPanFraction(next / dayPx, myId, "drag");
+        const pendingPx = pendingTranslateRef.current;
+        if (typeof pendingPx !== "number") return;
+        setPanFraction(pendingPx / dayPx, myId, "drag");
       });
     }
   };
@@ -460,11 +493,20 @@ export default React.memo(function ForecastTideChart({
     const ps = pointerStateRef.current;
     if (!ps) return;
     pointerStateRef.current = null;
+    if (!ps.dragging) return;
     document.body.style.userSelect = "";
     document.body.style.touchAction = "";
     if (broadcastRafRef.current) {
       cancelAnimationFrame(broadcastRafRef.current);
       broadcastRafRef.current = null;
+    }
+    if (dragRafRef.current) {
+      cancelAnimationFrame(dragRafRef.current);
+      dragRafRef.current = null;
+    }
+    if (typeof pendingTranslateRef.current === "number") {
+      setInnerTranslatePx(pendingTranslateRef.current, false);
+      pendingTranslateRef.current = null;
     }
 
     // get the current pixel translation (where the user left it)
@@ -1013,7 +1055,7 @@ export default React.memo(function ForecastTideChart({
     []
   );
 
-  // Hover sync handlers - DateContext handles RAF batching
+  // Hover sync handlers
   const lastHoveredRef = React.useRef<number | null>(null);
 
   const handleMouseMove = React.useCallback(
@@ -1027,7 +1069,6 @@ export default React.memo(function ForecastTideChart({
           // Only broadcast to other charts when crossing 3-hour boundaries
           if (lastHoveredRef.current !== roundedHour) {
             lastHoveredRef.current = roundedHour;
-            // DateContext batches this with RAF - no need to batch here
             setHoveredHour(roundedHour);
           }
         }
@@ -1040,20 +1081,6 @@ export default React.memo(function ForecastTideChart({
     lastHoveredRef.current = null;
     setHoveredHour(null);
   }, [setHoveredHour]);
-
-  // Memoize hover line to prevent unnecessary re-renders
-  const hoverLine = React.useMemo(() => {
-    if (hoveredHour === null) return null;
-    return (
-      <ReferenceLine
-        x={hoveredHour}
-        stroke="var(--foreground)"
-        strokeWidth={1}
-        strokeOpacity={0.75}
-        strokeDasharray="5 5"
-      />
-    );
-  }, [hoveredHour]);
 
   // Render
   return (
@@ -1319,6 +1346,17 @@ export default React.memo(function ForecastTideChart({
                   </ChartContainer>
                 </div>
                 <div style={{ position: "relative", zIndex: 1 }}>
+                  <HoverOverlayLine
+                    domainMin={domainMin}
+                    domainMax={domainMax}
+                    plotLeftPx={dayLabelLeftOffset}
+                    plotWidthPx={dataAreaWidth}
+                    days={days}
+                    selectedDate={selectedDate}
+                    selectedHour={
+                      dashboardBusy ? stableSelectedHour : selectedHour
+                    }
+                  />
                   <ChartContainer
                     config={
                       {
@@ -1417,8 +1455,6 @@ export default React.memo(function ForecastTideChart({
                           return null;
                         }
                       })()}
-                      {/* Hover indicator line */}
-                      {hoverLine}
                       <ChartTooltip
                         content={
                           <ChartTooltipContent

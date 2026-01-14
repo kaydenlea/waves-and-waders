@@ -742,6 +742,8 @@ const TideChart: React.FC<TideChartProps> = ({
   }, [chartData]);
 
   const lastHoveredRef = React.useRef<number | null>(null);
+  const hoverRafRef = React.useRef<number | null>(null);
+  const pendingHoverRef = React.useRef<number | null>(null);
 
   const handleMouseMove = (e: ChartMouseEvent) => {
     if (e && e.activeLabel !== undefined) {
@@ -749,16 +751,30 @@ const TideChart: React.FC<TideChartProps> = ({
       if (!isNaN(hour)) {
         // Round to nearest 3-hour interval for syncing with other charts
         const rounded = Math.round(hour / 3) * 3;
-        // Only update if the hour changed (throttle updates)
-        if (lastHoveredRef.current !== rounded) {
-          lastHoveredRef.current = rounded;
-          setHoveredHour(rounded);
+        if (lastHoveredRef.current === rounded) return;
+        pendingHoverRef.current = rounded;
+        if (!hoverRafRef.current) {
+          hoverRafRef.current = requestAnimationFrame(() => {
+            hoverRafRef.current = null;
+            const nextHour = pendingHoverRef.current;
+            pendingHoverRef.current = null;
+            if (typeof nextHour !== "number") return;
+            if (lastHoveredRef.current !== nextHour) {
+              lastHoveredRef.current = nextHour;
+              setHoveredHour(nextHour);
+            }
+          });
         }
       }
     }
   };
 
   const handleMouseLeave = () => {
+    if (hoverRafRef.current) {
+      cancelAnimationFrame(hoverRafRef.current);
+      hoverRafRef.current = null;
+    }
+    pendingHoverRef.current = null;
     lastHoveredRef.current = null;
     setHoveredHour(null);
   };
