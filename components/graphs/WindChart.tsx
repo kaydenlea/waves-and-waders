@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -38,6 +38,7 @@ import { buildYAxisTicks } from "@/components/graphs/yAxisTicks";
 import { useForecastWindowData } from "@/lib/hooks/useForecastWindow";
 import { useChartTheme } from "@/components/graphs/useChartTheme";
 import { buildForecastShadingBackground } from "@/components/graphs/forecastShadingBackground";
+import { useOptionalOverviewChartLoading } from "@/components/context/OverviewChartsLoadingContext";
 import type { SharedSunSegments } from "./sharedSunSegments";
 
 type Props = {
@@ -136,6 +137,8 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   const { getSunData } = useSunData();
   const hoveredHour = useHoveredHour();
   const chartTheme = useChartTheme();
+  const { setReady: setOverviewReady } =
+    useOptionalOverviewChartLoading("overview-wind");
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2?: number }[]>([]);
   const [nightAreas, setNightAreas] = useState<{ x1: number; x2?: number }[]>(
     []
@@ -143,11 +146,22 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   const [containerWidth, setContainerWidth] = useState<number>(0);
   const containerRef = React.useRef<HTMLDivElement>(null);
 
-  const { rows: forecastRows, start: windowStart } = useForecastWindowData({
+  const {
+    rows: forecastRows,
+    start: windowStart,
+    loading: forecastLoading,
+  } = useForecastWindowData({
     beachId,
     hours,
     date,
   });
+
+  const overviewKey = `${beachId ?? ""}-${hours}-${
+    date instanceof Date ? date.getTime() : "no-date"
+  }`;
+  useLayoutEffect(() => {
+    setOverviewReady(false);
+  }, [overviewKey, setOverviewReady]);
   const windowStartMs = windowStart.getTime();
   const domainStart = 0;
   const domainEnd = hours;
@@ -229,6 +243,13 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
 
     return () => observer.disconnect();
   }, []);
+
+  const overviewReady = Boolean(
+    beachId && !forecastLoading && forecastRows.length > 0 && containerWidth > 0
+  );
+  useEffect(() => {
+    setOverviewReady(overviewReady);
+  }, [overviewReady, setOverviewReady]);
 
   useEffect(() => {
     if (

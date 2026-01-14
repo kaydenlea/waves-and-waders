@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState, useReducer } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useState, useReducer } from "react";
 import {
   Line,
   LineChart,
@@ -33,6 +33,7 @@ import {
   buildLinearYAxisTicks,
   buildYAxisTicks,
 } from "@/components/graphs/yAxisTicks";
+import { useOptionalOverviewChartLoading } from "@/components/context/OverviewChartsLoadingContext";
 import {
   applyForecastShadingOpacity,
   buildForecastPlotShadingBackgroundPercent,
@@ -178,6 +179,8 @@ const TideChart: React.FC<TideChartProps> = ({
   const { hour: selectedHour, setHoveredHour } = useDateContext();
   const hoveredHour = useHoveredHour();
   const chartTheme = useChartTheme();
+  const { setReady: setOverviewReady } =
+    useOptionalOverviewChartLoading("overview-tide");
 
   // Consolidated state with reducer for fewer re-renders
   const [state, dispatch] = useReducer(chartReducer, initialChartState);
@@ -201,6 +204,25 @@ const TideChart: React.FC<TideChartProps> = ({
   const tideSunStatus = tideContext?.sunStatus ?? tideWindow.sunStatus;
   const tideResolved = tideContext?.resolved ?? tideWindow.resolved;
   const tideLoading = tideContext?.loading ?? tideWindow.loading;
+
+  const overviewKey = `${preview ? "preview" : "live"}-${beachId ?? ""}-${hours}-${
+    date instanceof Date ? date.getTime() : "no-date"
+  }`;
+  useLayoutEffect(() => {
+    setOverviewReady(false);
+  }, [overviewKey, setOverviewReady]);
+
+  const overviewReady = Boolean(
+    !preview &&
+      beachId &&
+      !tideLoading &&
+      tideResolved &&
+      chartData.length > 1 &&
+      windowStart != null
+  );
+  useEffect(() => {
+    setOverviewReady(overviewReady);
+  }, [overviewReady, setOverviewReady]);
 
   // Keep native resolution (≈6 minute spacing) for accuracy; no downsampling.
   const renderData = useMemo(() => {

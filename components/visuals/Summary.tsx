@@ -17,6 +17,8 @@ import SurfStat from "../general/Stats/SurfStat";
 import {
   ArrowDown,
   ArrowUp,
+  ChevronLeft,
+  ChevronRight,
   Navigation2,
   Sunrise,
   Sunset,
@@ -88,7 +90,182 @@ type TidePeak = {
   level: number | null;
 };
 
+type FeatureTag = {
+  label: string;
+  icon: React.ReactNode;
+  color: string;
+  rank?: number;
+};
+
 const DEGREE = "\u00b0F";
+const TAGS_POPOVER_PAGE_SIZE = 10;
+
+const TagsOverflowPopover = ({
+  tags,
+  contentClassName,
+  wrapClassName,
+  tagClassName,
+}: {
+  tags: FeatureTag[];
+  contentClassName: string;
+  wrapClassName?: string;
+  tagClassName?: string;
+}) => {
+  const [open, setOpen] = useState(false);
+  const [page, setPage] = useState(0);
+
+  useEffect(() => {
+    if (open) setPage(0);
+  }, [open]);
+
+  const pageCount = Math.max(
+    1,
+    Math.ceil(tags.length / TAGS_POPOVER_PAGE_SIZE)
+  );
+  const safePage = Math.min(Math.max(0, page), Math.max(0, pageCount - 1));
+  const start = safePage * TAGS_POPOVER_PAGE_SIZE;
+  const pageTags = tags.slice(start, start + TAGS_POPOVER_PAGE_SIZE);
+  const canPrev = safePage > 0;
+  const canNext = safePage < pageCount - 1;
+
+  const dotItems = useMemo(() => {
+    type DotItem =
+      | { type: "page"; idx: number }
+      | { type: "ellipsis"; key: string };
+    const maxDots = 7;
+    if (pageCount <= maxDots) {
+      return Array.from({ length: pageCount }, (_, idx) => ({
+        type: "page" as const,
+        idx,
+      }));
+    }
+
+    const windowSize = 5;
+    const half = Math.floor(windowSize / 2);
+    let startIdx = Math.max(1, safePage - half);
+    let endIdx = Math.min(pageCount - 2, safePage + half);
+    const actualWindow = endIdx - startIdx + 1;
+    if (actualWindow < windowSize) {
+      const missing = windowSize - actualWindow;
+      if (startIdx === 1) {
+        endIdx = Math.min(pageCount - 2, endIdx + missing);
+      } else if (endIdx === pageCount - 2) {
+        startIdx = Math.max(1, startIdx - missing);
+      }
+    }
+
+    const items: DotItem[] = [{ type: "page", idx: 0 }];
+    if (startIdx > 1) items.push({ type: "ellipsis", key: "l" });
+    for (let i = startIdx; i <= endIdx; i++)
+      items.push({ type: "page", idx: i });
+    if (endIdx < pageCount - 2) items.push({ type: "ellipsis", key: "r" });
+    items.push({ type: "page", idx: pageCount - 1 });
+    return items;
+  }, [pageCount, safePage]);
+
+  const pagerButtonClassName = cn(
+    "h-7 w-7 rounded-full border border-border/35 bg-background/90 text-foreground shadow-sm backdrop-blur-sm",
+    "transition disabled:opacity-40 disabled:pointer-events-none",
+    "hover:bg-highlight-6/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15"
+  );
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger className="more-button shrink-0 px-2.5 py-1.5 rounded-full bg-foreground/5 hover:bg-foreground/8 border border-border/25 text-[13px] text-muted-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0">
+        +{tags.length}
+      </PopoverTrigger>
+      <PopoverContent className={contentClassName}>
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between border-b border-border/25 pb-2">
+            <div className="flex items-baseline gap-2">
+              <span className="text-sm font-semibold text-foreground">
+                Tags
+              </span>
+              <span className="text-xs font-medium text-muted-foreground tabular-nums">
+                {tags.length}
+              </span>
+            </div>
+
+            {pageCount > 1 ? (
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  aria-label="Previous tags page"
+                  disabled={!canPrev}
+                  onClick={() => setPage((p) => Math.max(0, p - 1))}
+                  className={pagerButtonClassName}
+                >
+                  <ChevronLeft className="h-4 w-4 mx-auto" aria-hidden="true" />
+                </button>
+                <div className="flex items-center justify-center gap-1">
+                  {dotItems.map((item, idx) =>
+                    item.type === "ellipsis" ? (
+                      <span
+                        key={`${item.key}-${idx}`}
+                        aria-hidden="true"
+                        className="px-1 text-xs text-muted-foreground/70"
+                      >
+                        …
+                      </span>
+                    ) : (
+                      <button
+                        key={item.idx}
+                        type="button"
+                        aria-label={`Tags page ${item.idx + 1}`}
+                        aria-current={
+                          item.idx === safePage ? "page" : undefined
+                        }
+                        onClick={() => setPage(item.idx)}
+                        className={cn(
+                          "h-3 w-3 rounded-full grid place-items-center",
+                          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15"
+                        )}
+                      >
+                        <span
+                          aria-hidden="true"
+                          className={cn(
+                            "h-2.5 w-2.5 rounded-full transition-colors",
+                            item.idx === safePage
+                              ? "bg-foreground/75"
+                              : "bg-foreground/20 hover:bg-foreground/30"
+                          )}
+                        />
+                      </button>
+                    )
+                  )}
+                </div>
+                <button
+                  type="button"
+                  aria-label="Next tags page"
+                  disabled={!canNext}
+                  onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+                  className={pagerButtonClassName}
+                >
+                  <ChevronRight
+                    className="h-4 w-4 mx-auto"
+                    aria-hidden="true"
+                  />
+                </button>
+              </div>
+            ) : null}
+          </div>
+
+          {wrapClassName ? (
+            <div className={wrapClassName}>
+              {pageTags.map((tag) => (
+                <Tag key={tag.label} className={tagClassName} data={tag} />
+              ))}
+            </div>
+          ) : (
+            pageTags.map((tag) => (
+              <Tag key={tag.label} className={tagClassName} data={tag} />
+            ))
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+};
 
 const toTitleCase = (value: string) =>
   value.length === 0 ? value : `${value[0].toUpperCase()}${value.slice(1)}`;
@@ -542,12 +719,6 @@ const Summary = ({
   };
 }) => {
   const isOverviewVariant = variant === "overview";
-  type FeatureTag = {
-    label: string;
-    icon: React.ReactNode;
-    color: string;
-    rank?: number;
-  };
   type CommittedSummary = {
     key: string;
     stats: SummaryStat[];
@@ -1610,7 +1781,7 @@ const Summary = ({
                 {Array.from({ length: 3 }).map((_, idx) => (
                   <li key={idx} className="flex items-center gap-2">
                     <span className="shrink-0 grid place-items-center size-6 rounded-full bg-foreground/5" />
-                    <span className="h-5 flex-1 rounded-md bg-foreground/8 animate-pulse motion-reduce:animate-none" />
+                    <span className="h-5 w-2/5 rounded-md bg-foreground/8 animate-pulse motion-reduce:animate-none" />
                   </li>
                 ))}
               </ul>
@@ -1956,7 +2127,8 @@ const Summary = ({
             usingPreview
               ? "col-span-6"
               : "col-span-6 @min-xl:col-span-4 @min-3xl:col-span-3 @min-6xl:col-span-2",
-            "p-4 flex flex-col min-h-35 overflow-hidden"
+            "p-4 flex flex-col overflow-hidden",
+            "min-h-35 @min-xl:min-h-40 @min-2xl:min-h-35 @min-5xl:min-h-40"
           )}
           aria-label="Temperature summary"
         >
@@ -2092,18 +2264,11 @@ const Summary = ({
                 : visibleItems.map((tag) => <Tag key={tag.label} data={tag} />)}
 
               {!showSkeletons && hiddenItems.length > 0 ? (
-                <Popover>
-                  <PopoverTrigger className="more-button shrink-0 px-2.5 py-1.5 rounded-full bg-foreground/5 hover:bg-foreground/8 border border-border/25 text-[13px] text-muted-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0">
-                    +{hiddenItems.length}
-                  </PopoverTrigger>
-                  <PopoverContent className="z-50 w-80 touch-pan-y">
-                    <div className="flex flex-wrap gap-2">
-                      {hiddenItems.map((tag) => (
-                        <Tag key={tag.label} data={tag} />
-                      ))}
-                    </div>
-                  </PopoverContent>
-                </Popover>
+                <TagsOverflowPopover
+                  tags={hiddenItems}
+                  contentClassName="z-50 w-80 touch-pan-y"
+                  wrapClassName="flex flex-wrap gap-2"
+                />
               ) : null}
             </div>
 
@@ -2398,16 +2563,11 @@ const Summary = ({
                     ))}
 
                     {hiddenItems.length > 0 ? (
-                      <Popover>
-                        <PopoverTrigger className="more-button shrink-0 px-2.5 py-1.5 rounded-full bg-foreground/5 hover:bg-foreground/8 border border-border/25 text-[13px] text-muted-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0">
-                          +{hiddenItems.length}
-                        </PopoverTrigger>
-                        <PopoverContent className="w-80 touch-pan-y">
-                          {hiddenItems.map((tag) => (
-                            <Tag className="m-1" key={tag.label} data={tag} />
-                          ))}
-                        </PopoverContent>
-                      </Popover>
+                      <TagsOverflowPopover
+                        tags={hiddenItems}
+                        contentClassName="w-80 touch-pan-y"
+                        tagClassName="m-1"
+                      />
                     ) : null}
                   </div>
 

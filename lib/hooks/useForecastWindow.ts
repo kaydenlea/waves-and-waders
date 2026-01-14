@@ -87,12 +87,9 @@ export function useForecastWindowData({
     targetEndMs,
   ]);
 
-  // Populate local cache when a shared slice is available.
-  useEffect(() => {
-    if (!canUseShared || !sharedRows) {
-      return;
-    }
-    const slice = sharedRows
+  const sharedSlice = useMemo(() => {
+    if (!canUseShared || !sharedRows) return null;
+    return sharedRows
       .filter((row) => {
         const ts = new Date(row.timestamp).getTime();
         return ts >= targetStartMs && ts <= targetEndMs;
@@ -101,7 +98,6 @@ export function useForecastWindowData({
         (a, b) =>
           new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
       );
-    setLocalRows(slice);
   }, [canUseShared, sharedRows, targetStartMs, targetEndMs]);
 
   // Fetch when shared data does not satisfy the requested window.
@@ -142,11 +138,14 @@ export function useForecastWindowData({
     };
   }, [beachId, canUseShared, targetStartMs, targetEndMs]);
 
-  const loading = canUseShared ? sharedLoading : localLoading;
+  const rows = canUseShared ? (sharedSlice ?? []) : localRows;
+  const loading = canUseShared
+    ? Boolean(sharedLoading || rows.length === 0)
+    : localLoading;
 
   return {
-    rows: localRows,
-    loading: Boolean(loading),
+    rows,
+    loading,
     start: targetStart,
     end: targetEnd,
     usingShared: canUseShared,

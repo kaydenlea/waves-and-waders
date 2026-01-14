@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   CartesianGrid,
   XAxis,
@@ -37,6 +37,7 @@ import { useForecastWindowData } from "@/lib/hooks/useForecastWindow";
 import type { SharedSunSegments } from "./sharedSunSegments";
 import { buildYAxisTicks } from "@/components/graphs/yAxisTicks";
 import { useChartTheme } from "@/components/graphs/useChartTheme";
+import { useOptionalOverviewChartLoading } from "@/components/context/OverviewChartsLoadingContext";
 import {
   applyForecastShadingOpacity,
   buildForecastPlotShadingBackgroundPercent,
@@ -161,6 +162,8 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   const { getSunData } = useSunData();
   const hoveredHour = useHoveredHour();
   const chartTheme = useChartTheme();
+  const { setReady: setOverviewReady } =
+    useOptionalOverviewChartLoading("overview-swell");
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
   const [nightAreas, setNightAreas] = useState<{ x1: number; x2?: number }[]>(
     []
@@ -260,12 +263,30 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     []
   );
 
-  const { rows: forecastRows, start: windowStart } = useForecastWindowData({
+  const {
+    rows: forecastRows,
+    start: windowStart,
+    loading: forecastLoading,
+  } = useForecastWindowData({
     beachId,
     hours,
     date,
   });
+
+  const overviewKey = `${beachId ?? ""}-${hours}-${
+    date instanceof Date ? date.getTime() : "no-date"
+  }`;
+  useLayoutEffect(() => {
+    setOverviewReady(false);
+  }, [overviewKey, setOverviewReady]);
   const windowStartMs = windowStart.getTime();
+
+  const overviewReady = Boolean(
+    beachId && !forecastLoading && forecastRows.length > 0
+  );
+  useEffect(() => {
+    setOverviewReady(overviewReady);
+  }, [overviewReady, setOverviewReady]);
 
   const placeholderData = useMemo(
     () =>

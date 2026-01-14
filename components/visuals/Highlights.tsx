@@ -1,7 +1,14 @@
 ﻿"use client";
 
-import React, { useEffect, useState, useMemo, useRef } from "react";
+import React, {
+  useEffect,
+  useLayoutEffect,
+  useState,
+  useMemo,
+  useRef,
+} from "react";
 import { cn, getPacificDayRange } from "@/lib/utils";
+import { useOptionalOverviewChartLoading } from "@/components/context/OverviewChartsLoadingContext";
 
 import {
   Sun,
@@ -2328,6 +2335,22 @@ const Highlights = ({
 
   const displayStats = statsState ?? statsRef.current;
   const isHydrated = Boolean(displayStats);
+
+  const { setReady: setOverviewReady } = useOptionalOverviewChartLoading(
+    "overview-highlights"
+  );
+  const overviewKey = `${
+    resolvedId ?? ""
+  }-${startWindow.getTime()}-${endWindow.getTime()}-${layout}-${startIdx}-${endIdx}-${
+    date instanceof Date ? date.getTime() : "no-date"
+  }`;
+  useLayoutEffect(() => {
+    setOverviewReady(false);
+  }, [overviewKey, setOverviewReady]);
+  useEffect(() => {
+    setOverviewReady(isHydrated);
+  }, [isHydrated, setOverviewReady]);
+
   const effectiveStats = displayStats ?? PLACEHOLDER_STATS;
   const sliceStart = Math.max(0, startIdx);
   const sliceEnd = Math.min(effectiveStats.length - 1, endIdx);
@@ -2350,10 +2373,16 @@ const Highlights = ({
 
   const canPrev = layout === "carousel" && safePage > 0;
   const canNext = layout === "carousel" && safePage < pageCount - 1;
+  const highlightCardHeight =
+    layout === "carousel"
+      ? "h-[112px]"
+      : isFull
+      ? "@min-6xl:min-h-[80.5px]"
+      : "min-h-[68.5px]";
 
   return (
     <div className={cn("w-full", layout === "grid" && "max-w-7xl mx-auto p-1")}>
-      <div className={cn("relative", layout === "carousel" && "px-9")}>
+      <div className={cn("relative", layout === "carousel" && "px-10")}>
         <ul
           className={cn(
             "grid gap-2",
@@ -2382,9 +2411,10 @@ const Highlights = ({
             if (!isHydrated) {
               content = (
                 <div
+                  aria-hidden="true"
                   className={cn(
-                    "w-full rounded-xl bg-highlight-6/70",
-                    isFull ? "h-[74px]" : "h-[70px]"
+                    "pointer-events-none rounded-xl bg-highlight-6/70",
+                    highlightCardHeight
                   )}
                 />
               );
@@ -2392,11 +2422,12 @@ const Highlights = ({
               content = (
                 <div
                   className={cn(
-                    "w-full rounded-xl bg-highlight-6/60",
-                    isFull ? "h-[74px]" : "h-[70px]"
+                    "w-full h-full rounded-xl border border-border/15 bg-highlight-6/50",
+                    "flex items-center justify-center text-xs font-medium text-muted-foreground"
                   )}
-                  aria-hidden="true"
-                />
+                >
+                  <span>More soon</span>
+                </div>
               );
             } else {
               switch (stat.label) {
@@ -2425,15 +2456,20 @@ const Highlights = ({
                           "@min-3xl:grid-cols-[10px_35px] @min-4xl:grid-cols-[10px_35px_20px] @min-6xl:grid-cols-[auto]",
                         layout === "carousel"
                           ? "grid-cols-[auto]"
-                          : "grid-cols-[auto] @min-sm:grid-cols-[5px_30px] @min-md:grid-cols-[10px_35px_20px] @min-3xl:grid-cols-[10px_30px] @min-4xl:grid-cols-[10px_35px_20px]"
+                          : "grid-cols-[auto] @min-sm:grid-cols-[10px_30px] @min-md:grid-cols-[10px_35px_20px] @min-3xl:grid-cols-[10px_30px] @min-4xl:grid-cols-[10px_35px_20px]"
                       )}
                     >
                       <svg
-                        width="12"
-                        height="12"
+                        width="14"
+                        height="14"
                         viewBox="0 0 12 12"
                         aria-hidden="true"
-                        className="shrink-0 text-foreground/60"
+                        className={cn(
+                          "shrink-0",
+                          primary
+                            ? "text-foreground/70 dark:text-foreground/80"
+                            : "text-muted-foreground/70 dark:text-muted-foreground/70"
+                        )}
                       >
                         <g transform={`rotate(${deg ?? 0} 6 6)`}>
                           <line
@@ -2442,14 +2478,15 @@ const Highlights = ({
                             x2="6"
                             y2="4"
                             stroke="currentColor"
-                            strokeWidth="1.7"
+                            strokeWidth="2.2"
                             strokeLinecap="round"
-                            opacity="0.9"
                           />
                           <path
                             d="M6 2 L9 5.5 L6 4.1 L3 5.5 Z"
                             fill="currentColor"
-                            opacity="0.9"
+                            stroke="currentColor"
+                            strokeWidth="0.6"
+                            strokeLinejoin="round"
                           />
                         </g>
                       </svg>
@@ -2980,14 +3017,15 @@ const Highlights = ({
             if (content) {
               return (
                 <li
-                  key={stat ? `${stat.label}-${idx}` : `placeholder-${safePage}-${idx}`}
+                  key={
+                    stat
+                      ? `${stat.label}-${idx}`
+                      : `placeholder-${safePage}-${idx}`
+                  }
                   className={cn(
-                    layout === "carousel"
-                      ? "min-h-[100px]"
-                      : "min-h-[74px] @min-3xl:min-h-[90px]",
+                    highlightCardHeight,
                     "relative highlight-card shadow-even p-2.5",
                     "transition-colors duration-200 motion-reduce:transition-none",
-                    "hover:bg-highlight-7/70 active:bg-highlight-7/80",
                     layout === "grid" &&
                       stat?.label === "swell" &&
                       "col-span-1 @min-xl:col-span-2 @min-3xl:col-span-1",
@@ -3001,7 +3039,12 @@ const Highlights = ({
                       "@min-xl:col-span-2",
                     !isHydrated && "animate-pulse motion-reduce:animate-none"
                   )}
-                  aria-hidden={!stat ? "true" : undefined}
+                  aria-hidden={!stat && !isHydrated ? "true" : undefined}
+                  aria-label={
+                    !stat && isHydrated
+                      ? "More highlights coming soon"
+                      : undefined
+                  }
                 >
                   <div className="flex-1 flex items-center justify-center gap-1 h-full">
                     {content}

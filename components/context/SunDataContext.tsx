@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, { createContext, useCallback, useContext, useMemo, useRef } from "react";
 import { fetchBeachByIdLoose, fetchBeachDetails } from "@/lib/supabase";
 import { getDailyConditionsCached } from "@/lib/dataCache";
 
@@ -30,9 +30,9 @@ export const useSunData = () => {
 };
 
 export const SunDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [cache, setCache] = useState<SunDataCache>({});
-  const [countyCache, setCountyCache] = useState<Map<string, string>>(new Map());
-  const [pendingRequests, setPendingRequests] = useState<Map<string, Promise<SunData | null>>>(new Map());
+  const cacheRef = useRef<SunDataCache>({});
+  const countyCacheRef = useRef<Map<string, string>>(new Map());
+  const pendingRequestsRef = useRef<Map<string, Promise<SunData | null>>>(new Map());
 
   const getCacheKey = (beachId: string, date: Date) => {
     const dateStr = date.toISOString().split("T")[0];
@@ -40,35 +40,35 @@ export const SunDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const getCounty = useCallback(async (beachId: string): Promise<string | null> => {
-    if (countyCache.has(beachId)) {
-      return countyCache.get(beachId) ?? null;
-    }
+    const cached = countyCacheRef.current.get(beachId);
+    if (cached !== undefined) return cached || null;
 
     try {
       const resolved = await fetchBeachByIdLoose(beachId);
       const id = resolved?.id ?? beachId;
       const beach = await fetchBeachDetails(String(id));
       const county = beach?.COUNTY ?? null;
-      
-      setCountyCache(prev => new Map(prev).set(beachId, county ?? ""));
+
+      countyCacheRef.current.set(beachId, county ?? "");
       return county;
     } catch (error) {
       console.error("Failed to fetch county for beach:", beachId, error);
       return null;
     }
-  }, [countyCache]);
+  }, []);
 
   const getSunData = useCallback(async (beachId: string, date: Date): Promise<SunData | null> => {
     const key = getCacheKey(beachId, date);
 
     // Return cached data if available
-    if (cache[key] !== undefined) {
-      return cache[key];
+    if (Object.prototype.hasOwnProperty.call(cacheRef.current, key)) {
+      return cacheRef.current[key] ?? null;
     }
 
     // Return pending request if it exists
-    if (pendingRequests.has(key)) {
-      return pendingRequests.get(key)!;
+    const pending = pendingRequestsRef.current.get(key);
+    if (pending) {
+      return pending;
     }
 
     // Create new request
@@ -86,25 +86,21 @@ export const SunDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
         };
 
         // Update cache
-        setCache(prev => ({ ...prev, [key]: sunData }));
+        cacheRef.current[key] = sunData;
         return sunData;
       } catch (error) {
         console.error("Failed to fetch sun data:", error);
-        setCache(prev => ({ ...prev, [key]: null }));
+        cacheRef.current[key] = null;
         return null;
       } finally {
         // Remove from pending requests
-        setPendingRequests(prev => {
-          const next = new Map(prev);
-          next.delete(key);
-          return next;
-        });
+        pendingRequestsRef.current.delete(key);
       }
     })();
 
-    setPendingRequests(prev => new Map(prev).set(key, request));
+    pendingRequestsRef.current.set(key, request);
     return request;
-  }, [cache, pendingRequests, getCounty]);
+  }, [getCounty]);
 
   const prefetchSunData = useCallback(async (beachId: string, dates: Date[]) => {
     // Batch fetch all dates at once
@@ -112,13 +108,18 @@ export const SunDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [getSunData]);
 
   const clearCache = useCallback(() => {
-    setCache({});
-    setCountyCache(new Map());
-    setPendingRequests(new Map());
+    cacheRef.current = {};
+    countyCacheRef.current = new Map();
+    pendingRequestsRef.current = new Map();
   }, []);
 
+  const value = useMemo(
+    () => ({ getSunData, prefetchSunData, clearCache }),
+    [getSunData, prefetchSunData, clearCache]
+  );
+
   return (
-    <SunDataContext.Provider value={{ getSunData, prefetchSunData, clearCache }}>
+    <SunDataContext.Provider value={value}>
       {children}
     </SunDataContext.Provider>
   );

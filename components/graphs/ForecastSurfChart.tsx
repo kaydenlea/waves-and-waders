@@ -1,7 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { useMemo, useState, useRef, useCallback, useEffect } from "react";
+import {
+  useMemo,
+  useState,
+  useRef,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+} from "react";
 import {
   Bar,
   BarChart,
@@ -865,10 +872,17 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
   // When the visible day range changes (user adjusts the forecast date range),
   // pessimistically mark this widget as not ready so the global forecast
   // overlay turns on before any of the day headers or hour highlights change.
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!days) return;
     setReady(false);
   }, [days, setReady]);
+
+  // Mark this widget as not ready whenever its sun/shading pipeline is not ready.
+  useEffect(() => {
+    if (!sunReady) {
+      setReady(false);
+    }
+  }, [sunReady, setReady]);
 
   // Mark this widget as not ready whenever its local loading flag is true.
   useEffect(() => {

@@ -7,26 +7,29 @@ type Ctx = {
   unregister: (id: string) => void;
   setExpectedCharts: (ids: readonly string[] | null) => void;
   loading: boolean;
-  busy: boolean;
 };
 
-const ForecastChartsLoadingContext = React.createContext<Ctx | null>(null);
+const OverviewChartsLoadingContext = React.createContext<Ctx | null>(null);
 
 let idCounter = 0;
 const makeId = (hint?: string) =>
   `${hint ?? "chart"}-${Date.now().toString(36)}-${idCounter++}`;
 
-export function ForecastChartsLoadingProvider({
+export function OverviewChartsLoadingProvider({
   children,
+  expectedCharts: expectedChartsProp,
 }: {
   children: React.ReactNode;
+  expectedCharts?: readonly string[] | null;
 }) {
   const [statusMap, setStatusMap] = React.useState<Map<string, boolean>>(
     () => new Map()
   );
-  const [expectedCharts, setExpectedCharts] = React.useState<
+  const [expectedChartsState, setExpectedChartsState] = React.useState<
     readonly string[] | null
-  >(null);
+  >(() => expectedChartsProp ?? null);
+  const expectedCharts =
+    expectedChartsProp !== undefined ? expectedChartsProp : expectedChartsState;
 
   const reportStatus = React.useCallback((id: string, ready: boolean) => {
     setStatusMap((prev) => {
@@ -47,7 +50,8 @@ export function ForecastChartsLoadingProvider({
 
   const setExpectedChartsSafe = React.useCallback(
     (ids: readonly string[] | null) => {
-      setExpectedCharts((prev) => {
+      if (expectedChartsProp !== undefined) return;
+      setExpectedChartsState((prev) => {
         if (ids === prev) return prev;
         if (ids == null || prev == null) return ids;
         if (ids.length !== prev.length) return ids;
@@ -57,7 +61,7 @@ export function ForecastChartsLoadingProvider({
         return prev;
       });
     },
-    []
+    [expectedChartsProp]
   );
 
   const rawLoading = React.useMemo(() => {
@@ -86,23 +90,22 @@ export function ForecastChartsLoadingProvider({
       unregister,
       setExpectedCharts: setExpectedChartsSafe,
       loading: rawLoading,
-      busy: rawLoading,
     }),
     [reportStatus, unregister, setExpectedChartsSafe, rawLoading]
   );
 
   return (
-    <ForecastChartsLoadingContext.Provider value={value}>
+    <OverviewChartsLoadingContext.Provider value={value}>
       {children}
-    </ForecastChartsLoadingContext.Provider>
+    </OverviewChartsLoadingContext.Provider>
   );
 }
 
-export function useForecastChartLoading(name?: string) {
-  const ctx = React.useContext(ForecastChartsLoadingContext);
+export function useOverviewChartLoading(name?: string) {
+  const ctx = React.useContext(OverviewChartsLoadingContext);
   if (!ctx) {
     throw new Error(
-      "useForecastChartLoading must be used within ForecastChartsLoadingProvider"
+      "useOverviewChartLoading must be used within OverviewChartsLoadingProvider"
     );
   }
   const idRef = React.useRef<string>(name ?? makeId());
@@ -124,10 +127,8 @@ export function useForecastChartLoading(name?: string) {
   return { setReady, loading: ctx.loading };
 }
 
-// Optional variant that no-ops outside a provider. Useful for components
-// that may be rendered both inside and outside forecast dashboards.
-export function useOptionalForecastChartLoading(name?: string) {
-  const ctx = React.useContext(ForecastChartsLoadingContext);
+export function useOptionalOverviewChartLoading(name?: string) {
+  const ctx = React.useContext(OverviewChartsLoadingContext);
   const idRef = React.useRef<string>(name ?? makeId());
   const reportStatus = ctx?.reportStatus;
   const unregister = ctx?.unregister;
@@ -151,46 +152,27 @@ export function useOptionalForecastChartLoading(name?: string) {
   return { setReady, loading: ctx?.loading ?? false };
 }
 
-export function useForecastChartsLoadingState() {
-  const ctx = React.useContext(ForecastChartsLoadingContext);
+export function useOverviewChartsLoadingState() {
+  const ctx = React.useContext(OverviewChartsLoadingContext);
   if (!ctx) {
     throw new Error(
-      "useForecastChartsLoadingState must be used within ForecastChartsLoadingProvider"
+      "useOverviewChartsLoadingState must be used within OverviewChartsLoadingProvider"
     );
   }
   return ctx.loading;
 }
 
-export function useForecastChartsLoadingControls() {
-  const ctx = React.useContext(ForecastChartsLoadingContext);
-  if (!ctx) {
-    throw new Error(
-      "useForecastChartsLoadingControls must be used within ForecastChartsLoadingProvider"
-    );
-  }
-  return { setExpectedCharts: ctx.setExpectedCharts };
-}
-
-export function useForecastChartsBusyState() {
-  const ctx = React.useContext(ForecastChartsLoadingContext);
-  if (!ctx) {
-    throw new Error(
-      "useForecastChartsBusyState must be used within ForecastChartsLoadingProvider"
-    );
-  }
-  return ctx.busy;
-}
-
-// Optional variant for read-only access to the global loading flag.
-// Returns `false` when used outside a provider, which is useful for
-// components that should only react to forecast dashboard loading when
-// they actually live inside a forecast layout.
-export function useOptionalForecastChartsLoadingState() {
-  const ctx = React.useContext(ForecastChartsLoadingContext);
+export function useOptionalOverviewChartsLoadingState() {
+  const ctx = React.useContext(OverviewChartsLoadingContext);
   return ctx?.loading ?? false;
 }
 
-export function useOptionalForecastChartsBusyState() {
-  const ctx = React.useContext(ForecastChartsLoadingContext);
-  return ctx?.busy ?? false;
+export function useOverviewChartsLoadingControls() {
+  const ctx = React.useContext(OverviewChartsLoadingContext);
+  if (!ctx) {
+    throw new Error(
+      "useOverviewChartsLoadingControls must be used within OverviewChartsLoadingProvider"
+    );
+  }
+  return { setExpectedCharts: ctx.setExpectedCharts };
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -32,6 +32,7 @@ import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
 import { buildYAxisTicks } from "@/components/graphs/yAxisTicks";
 import { useChartTheme } from "@/components/graphs/useChartTheme";
 import { buildForecastShadingBackground } from "@/components/graphs/forecastShadingBackground";
+import { useOptionalOverviewChartLoading } from "@/components/context/OverviewChartsLoadingContext";
 import type { SharedSunSegments } from "./sharedSunSegments";
 
 type Props = {
@@ -138,6 +139,8 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   const { getSunData } = useSunData();
   const hoveredHour = useHoveredHour();
   const chartTheme = useChartTheme();
+  const { setReady: setOverviewReady } =
+    useOptionalOverviewChartLoading("overview-surf");
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]); // sunrise-sunset (hours)
   const [nightAreas, setNightAreas] = useState<{ x1: number; x2?: number }[]>(
     []
@@ -145,11 +148,22 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   const [containerWidth, setContainerWidth] = useState<number>(0);
   const containerRef = React.useRef<HTMLDivElement>(null);
 
-  const { rows: forecastRows, start: windowStart } = useForecastWindowData({
+  const {
+    rows: forecastRows,
+    start: windowStart,
+    loading: forecastLoading,
+  } = useForecastWindowData({
     beachId,
     date,
     hours,
   });
+
+  const overviewKey = `${beachId ?? ""}-${hours}-${
+    date instanceof Date ? date.getTime() : "no-date"
+  }`;
+  useLayoutEffect(() => {
+    setOverviewReady(false);
+  }, [overviewKey, setOverviewReady]);
 
   const chartData = useMemo<Row[]>(() => {
     if (!beachId || !forecastRows.length) {
@@ -294,6 +308,13 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
 
     return () => observer.disconnect();
   }, []);
+
+  const overviewReady = Boolean(
+    beachId && !forecastLoading && forecastRows.length > 0 && containerWidth > 0
+  );
+  useEffect(() => {
+    setOverviewReady(overviewReady);
+  }, [overviewReady, setOverviewReady]);
 
   const windowStartMs = windowStart.getTime();
 
@@ -671,8 +692,8 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
                   const surfValue =
                     typeof props.value === "number" ? props.value : 0;
                   const barColor = getSurfColor(surfValue);
-                  const surfLabel =
-                    containerWidth > 400 ? label : Math.round(Number(label));
+                  // const surfLabel =
+                  //   containerWidth > 400 ? label : Math.round(Number(label));
 
                   if (label) {
                     return (
@@ -696,7 +717,7 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
                           fontWeight="600"
                           fontSize={fontSize}
                         >
-                          {label === "0.0" ? "0" : surfLabel}
+                          {label === "0.0" ? "0" : label}
                         </text>
                       </g>
                     );

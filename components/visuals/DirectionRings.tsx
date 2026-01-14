@@ -24,7 +24,7 @@ const polar = (cx: number, cy: number, r: number, bearingDeg: number) => {
     Math.round(n * Math.pow(10, decimals)) / Math.pow(10, decimals);
   return {
     x: roundTo(cx + r * Math.cos(a)),
-    y: roundTo(cy + r * Math.sin(a))
+    y: roundTo(cy + r * Math.sin(a)),
   };
 };
 
@@ -339,7 +339,7 @@ export const SwellRings: React.FC<{
           const end = normDeg(direction + spanDeg / 2);
           const lower = isLowerHalf(direction);
           // Text sits inside the stroke thickness (toward the center).
-          const textRadius = radius - arcStroke * (lower ? 0.1 : 0.01);
+          const textRadius = radius - arcStroke * (lower ? 0.05 : 0.01);
 
           // Text placement & readability:
           // - The label must stay on the same arc segment (never mirrored to the opposite side).
@@ -717,26 +717,26 @@ export const WindRing: React.FC<{
       <defs>
         {hasData &&
           (() => {
-          const textRadius = radius - arcStroke * (lower ? 0.1 : -0.1);
+            const textRadius = radius - arcStroke * (lower ? 0.05 : -0.05);
 
-          const textStart = lower ? end + 180 : start;
-          const textEnd = lower ? start + 180 : end;
-          const textSweep: 0 | 1 = lower ? 0 : 1;
+            const textStart = lower ? end + 180 : start;
+            const textEnd = lower ? start + 180 : end;
+            const textSweep: 0 | 1 = lower ? 0 : 1;
 
-          return (
-            <path
-              id={`ww-ring-${svgId}-wind-text`}
-              d={arcPath(
-                center,
-                center,
-                textRadius,
-                textStart,
-                textEnd,
-                textSweep
-              )}
-            />
-          );
-        })()}
+            return (
+              <path
+                id={`ww-ring-${svgId}-wind-text`}
+                d={arcPath(
+                  center,
+                  center,
+                  textRadius,
+                  textStart,
+                  textEnd,
+                  textSweep
+                )}
+              />
+            );
+          })()}
       </defs>
 
       {/* Compass ticks (wind ring only) */}

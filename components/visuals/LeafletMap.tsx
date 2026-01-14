@@ -372,6 +372,7 @@ const createClusterIcon = (cluster: L.MarkerCluster) => {
   } else if (count >= 50) {
     size = 46;
   }
+  const coreInset = Math.max(3, Math.round(size * 0.075));
 
   const markers: L.Marker[] =
     typeof cluster?.getAllChildMarkers === "function"
@@ -482,6 +483,7 @@ const createClusterIcon = (cluster: L.MarkerCluster) => {
         display:flex;
         align-items:center;
         justify-content:center;
+        --ww-cluster-inset:${coreInset}px;
         box-shadow:0 14px 30px rgba(15,23,42,0.18);
       "
     >
@@ -2906,9 +2908,11 @@ const LeafletMap: React.FC<Props> = ({
     };
 
     const pointerDownCapture = (event: PointerEvent) => {
+      if (event.pointerType !== "touch") return;
       event.stopPropagation();
     };
     const mouseDownCapture = (event: MouseEvent) => {
+      if (!isTouchDevice()) return;
       event.stopPropagation();
     };
 
@@ -5066,8 +5070,8 @@ const LeafletMap: React.FC<Props> = ({
             isolation: isolate;
           }
           .ww-cluster-core {
-            width: 85%;
-            height: 85%;
+            position: absolute;
+            inset: var(--ww-cluster-inset, 3px);
             border-radius: 999px;
             display: flex;
             flex-direction: column;

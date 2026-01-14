@@ -6,6 +6,7 @@ import React, {
   useRef,
   useCallback,
   useEffect,
+  useLayoutEffect,
 } from "react";
 
 import {
@@ -205,8 +206,27 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
   );
   const { setReady } = useForecastChartLoading("forecast-energy");
   const daysReady = Array.isArray(days) && days.length > 0;
+  const rangeSignature = useMemo(() => {
+    if (!beachId || !Array.isArray(days) || days.length === 0) return "";
+    return [
+      beachId,
+      ...days
+        .filter((d): d is Date => d instanceof Date && !Number.isNaN(d.getTime()))
+        .map((d) => d.getTime())
+        .sort((a, b) => a - b)
+        .map(String),
+    ].join(":");
+  }, [beachId, days]);
   const dashboardBusy = useForecastChartsBusyState();
   const wasBusyRef = useRef(dashboardBusy);
+
+  // When the visible day range changes (user adjusts the forecast date range),
+  // pessimistically mark this widget as not ready so the global forecast overlay
+  // turns on before any chart content updates are painted.
+  useLayoutEffect(() => {
+    if (!rangeSignature) return;
+    setReady(false);
+  }, [rangeSignature, setReady]);
 
   // Mark this widget as not ready until the day range exists (day headers depend on it).
   useEffect(() => {
@@ -214,6 +234,13 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
       setReady(false);
     }
   }, [daysReady, setReady]);
+
+  // Mark this widget as not ready whenever its sun/shading pipeline is not ready.
+  useEffect(() => {
+    if (!sunReady) {
+      setReady(false);
+    }
+  }, [sunReady, setReady]);
 
   // Mark this widget as not ready whenever its local loading flag is true.
   useEffect(() => {

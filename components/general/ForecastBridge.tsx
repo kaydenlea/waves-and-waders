@@ -299,9 +299,18 @@ const ForecastBridge: React.FC<Props> = ({
     [layoutRows, layoutMeta]
   );
 
+  const pendingLayoutApplyActive = Boolean(
+    pendingLayoutApply && pendingLayoutApply.type === "forecast" && !isEditing
+  );
+
   // Memoize individual widgets to prevent unnecessary re-renders
   const rawWidgetLoading =
-    chartsLoading || !layoutHydrated || forecastLoading || layoutOverlayActive;
+    chartsLoading ||
+    !layoutHydrated ||
+    !selected ||
+    forecastLoading ||
+    layoutOverlayActive ||
+    pendingLayoutApplyActive;
   const stableWidgetLoading = useStableOverlay(rawWidgetLoading, 220);
 
   useLayoutEffect(() => {

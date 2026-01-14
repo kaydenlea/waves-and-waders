@@ -20,15 +20,15 @@ export const ChartLoadingCover: React.FC<ChartLoadingCoverProps> = ({
     <div
       className={cn(
         // Backdrop blur can flicker during scroll on some browsers; only apply when supported.
-        "absolute inset-0 z-20 flex items-center justify-center rounded-2xl border border-border/60 bg-background/90",
-        "supports-[backdrop-filter]:bg-background/80 supports-[backdrop-filter]:backdrop-blur-sm",
+        "absolute inset-0 z-20 flex items-center justify-center rounded-2xl",
+        // "supports-[backdrop-filter]:bg-background/80 supports-[backdrop-filter]:backdrop-blur-sm",
         className
       )}
       aria-live="polite"
       aria-busy="true"
     >
       <div
-        className="absolute inset-0 rounded-2xl bg-gradient-to-b from-background/60 via-background/40 to-background/70 opacity-80 motion-safe:animate-pulse"
+        className="absolute inset-0 rounded-2xl bg-gradient-to-b from-highlight-5/50 via-highlight-5/30 to-highlight-5/60 opacity-80 motion-safe:animate-pulse"
         aria-hidden="true"
       />
       <div className="relative flex flex-col items-center gap-2 text-sm font-medium text-muted-foreground">

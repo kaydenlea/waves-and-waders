@@ -51,6 +51,7 @@ import {
   useOptionalForecastChartLoading,
   useOptionalForecastChartsBusyState,
 } from "../context/ForecastChartsLoadingContext";
+import { useOptionalOverviewChartLoading } from "../context/OverviewChartsLoadingContext";
 import { useMapUI } from "../context/MapFilterContext";
 
 type MetricGroup =
@@ -1101,6 +1102,8 @@ const StatTable = ({
     "bg-[var(--widget-header-surface,var(--widget-surface,var(--highlight-4)))]";
   const { rows: sharedRows } = useForecastData();
   const { setReady } = useOptionalForecastChartLoading("forecast-table");
+  const { setReady: setOverviewReady } =
+    useOptionalOverviewChartLoading("overview-table");
   const dashboardBusy = useOptionalForecastChartsBusyState();
   const [stableSelectedHour, setStableSelectedHour] = React.useState<
     number | null
@@ -1122,6 +1125,20 @@ const StatTable = ({
       setReady(true);
     }
   }, [forecastPage, loading, data.length, setReady]);
+
+  React.useEffect(() => {
+    if (forecastPage) return;
+    if (loading) {
+      setOverviewReady(false);
+    }
+  }, [forecastPage, loading, setOverviewReady]);
+
+  React.useEffect(() => {
+    if (forecastPage) return;
+    if (!loading && data.length > 0) {
+      setOverviewReady(true);
+    }
+  }, [forecastPage, loading, data.length, setOverviewReady]);
 
   React.useEffect(() => {
     if (!forecastPage) {

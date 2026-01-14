@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import {
   CartesianGrid,
   XAxis,
@@ -28,6 +28,7 @@ import { useForecastWindowData } from "@/lib/hooks/useForecastWindow";
 import { useChartTheme } from "@/components/graphs/useChartTheme";
 import type { SharedSunSegments } from "./sharedSunSegments";
 import { buildYAxisTicks } from "@/components/graphs/yAxisTicks";
+import { useOptionalOverviewChartLoading } from "@/components/context/OverviewChartsLoadingContext";
 import {
   applyForecastShadingOpacity,
   buildForecastPlotShadingBackgroundPercent,
@@ -126,6 +127,8 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   const { getSunData } = useSunData();
   const hoveredHour = useHoveredHour();
   const chartTheme = useChartTheme();
+  const { setReady: setOverviewReady } =
+    useOptionalOverviewChartLoading("overview-energy");
   const gradientIdRaw = React.useId();
   const fillGradientId = useMemo(
     () => `energySplitColor-${gradientIdRaw.replace(/:/g, "")}`,
@@ -139,12 +142,30 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   const [nightAreas, setNightAreas] = useState<{ x1: number; x2?: number }[]>(
     []
   );
-  const { rows: forecastRows, start: windowStart } = useForecastWindowData({
+  const {
+    rows: forecastRows,
+    start: windowStart,
+    loading: forecastLoading,
+  } = useForecastWindowData({
     beachId,
     date,
     hours,
   });
+
+  const overviewKey = `${beachId ?? ""}-${hours}-${
+    date instanceof Date ? date.getTime() : "no-date"
+  }`;
+  useLayoutEffect(() => {
+    setOverviewReady(false);
+  }, [overviewKey, setOverviewReady]);
   const windowStartMs = windowStart.getTime();
+
+  const overviewReady = Boolean(
+    beachId && !forecastLoading && forecastRows.length > 0
+  );
+  useEffect(() => {
+    setOverviewReady(overviewReady);
+  }, [overviewReady, setOverviewReady]);
 
   const placeholderSeries = useMemo(() => {
     const base = [

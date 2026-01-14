@@ -130,8 +130,9 @@ const VisualWrapper = ({
             />
             <div
               className={cn(
-                "transition-opacity duration-150",
-                loading && "opacity-0 pointer-events-none"
+                loading
+                  ? "opacity-0 pointer-events-none"
+                  : "opacity-100 transition-opacity duration-200 motion-reduce:transition-none"
               )}
             >
               {children}

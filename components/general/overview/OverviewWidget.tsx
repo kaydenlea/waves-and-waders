@@ -18,6 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 import { ChartLoadingCover } from "@/components/graphs/ChartLoadingCover";
 import { OverviewCard, OverviewCardHeader } from "./OverviewPrimitives";
+import { useOptionalOverviewChartsLoadingState } from "@/components/context/OverviewChartsLoadingContext";
 
 const iconMap: Record<string, React.ReactNode> = {
   map: <MapPin className="h-4 w-4" />,
@@ -54,6 +55,8 @@ export default function OverviewWidget({
   headerContent,
   loading,
 }: Props) {
+  const overviewChartsLoading = useOptionalOverviewChartsLoadingState();
+  const effectiveLoading = Boolean(loading || overviewChartsLoading);
   const lowerCaseLabel = label.toLowerCase();
 
   const icon = iconMap[lowerCaseLabel] ?? <CircleGauge className="h-4 w-4" />;
@@ -128,15 +131,32 @@ export default function OverviewWidget({
           title={label}
           icon={icon}
           right={
-            <div className="flex items-center gap-2">
-              {headerContent ??
-                (showInlineUnit ? (
-                  <UnitPill className={unitPrimaryClassName} />
-                ) : null)}
-              {headerContent == null && showInlineUnit && label !== "Daily" ? (
-                <UnitPill className="@min-xs:hidden" />
-              ) : null}
-            </div>
+            unit || headerContent ? (
+              <div className="relative">
+                <div className={cn(effectiveLoading && "opacity-0")}>
+                  <div className="flex items-center gap-2">
+                    {headerContent ??
+                      (showInlineUnit ? (
+                        <UnitPill className={unitPrimaryClassName} />
+                      ) : null)}
+                    {headerContent == null &&
+                    showInlineUnit &&
+                    label !== "Daily" ? (
+                      <UnitPill className="@min-xs:hidden" />
+                    ) : null}
+                  </div>
+                </div>
+                {effectiveLoading ? (
+                  <div
+                    aria-hidden="true"
+                    className={cn(
+                      "pointer-events-none absolute inset-0 rounded-xl bg-highlight-5/40",
+                      "animate-pulse motion-reduce:animate-none"
+                    )}
+                  />
+                ) : null}
+              </div>
+            ) : null
           }
         />
 
@@ -152,14 +172,15 @@ export default function OverviewWidget({
         >
           <div className="relative">
             <ChartLoadingCover
-              show={Boolean(loading)}
+              show={effectiveLoading}
               message={`Loading ${label.toLowerCase()} data`}
               className="rounded-[18px]"
             />
             <div
               className={cn(
-                "transition-opacity duration-200 motion-reduce:transition-none",
-                loading && "opacity-0 pointer-events-none"
+                effectiveLoading
+                  ? "opacity-0 pointer-events-none"
+                  : "opacity-100 transition-opacity duration-200 motion-reduce:transition-none"
               )}
             >
               {children}
