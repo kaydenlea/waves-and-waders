@@ -451,6 +451,8 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   );
 
   const lastHoveredRef = React.useRef<number | null>(null);
+  const hoverRafRef = React.useRef<number | null>(null);
+  const pendingHoverRef = React.useRef<number | null>(null);
 
   const handleMouseMove = (e: ChartMouseEvent) => {
     if (e && e.activeLabel !== undefined) {
@@ -459,15 +461,30 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         const normalized =
           Math.round(labelValue / DATA_STEP_HOURS) * DATA_STEP_HOURS;
         const clamped = Math.min(domainEnd, Math.max(domainStart, normalized));
-        if (lastHoveredRef.current !== clamped) {
-          lastHoveredRef.current = clamped;
-          setHoveredHour(clamped);
+        if (lastHoveredRef.current === clamped) return;
+        pendingHoverRef.current = clamped;
+        if (!hoverRafRef.current) {
+          hoverRafRef.current = requestAnimationFrame(() => {
+            hoverRafRef.current = null;
+            const nextHour = pendingHoverRef.current;
+            pendingHoverRef.current = null;
+            if (typeof nextHour !== "number") return;
+            if (lastHoveredRef.current !== nextHour) {
+              lastHoveredRef.current = nextHour;
+              setHoveredHour(nextHour);
+            }
+          });
         }
       }
     }
   };
 
   const handleMouseLeave = () => {
+    if (hoverRafRef.current) {
+      cancelAnimationFrame(hoverRafRef.current);
+      hoverRafRef.current = null;
+    }
+    pendingHoverRef.current = null;
     lastHoveredRef.current = null;
     setHoveredHour(null);
   };

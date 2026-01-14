@@ -34,9 +34,24 @@ const createNearestIncrementSyncMethod = (
   incrementHours: number,
   offsetHours = 0
 ) => {
-  return (tooltipTicks: TooltipTick[] = [], data?: SyncPayload): number => {
+  let cachedTicks: TooltipTick[] | null = null;
+  let cachedFirst: number | null = null;
+  let cachedLast: number | null = null;
+  let cachedLength = 0;
+
+  const sync = (tooltipTicks: TooltipTick[] = [], data?: SyncPayload): number => {
     if (!tooltipTicks.length) {
       return getFallbackIndex(tooltipTicks, data);
+    }
+
+    if (cachedTicks !== tooltipTicks) {
+      cachedTicks = tooltipTicks;
+      cachedLength = tooltipTicks.length;
+      cachedFirst = toNumber(tooltipTicks[0]?.value);
+      cachedLast =
+        cachedLength > 0
+          ? toNumber(tooltipTicks[cachedLength - 1]?.value)
+          : null;
     }
 
     const labelNumber = toNumber(data?.activeLabel);
@@ -47,6 +62,19 @@ const createNearestIncrementSyncMethod = (
     const quantized =
       Math.round((labelNumber - offsetHours) / incrementHours) *
       incrementHours;
+
+    if (
+      cachedLength > 0 &&
+      cachedFirst !== null &&
+      cachedLast !== null &&
+      Number.isFinite(cachedFirst) &&
+      Number.isFinite(cachedLast)
+    ) {
+      const rawIndex = Math.round((quantized - cachedFirst) / incrementHours);
+      const clamped = Math.max(0, Math.min(rawIndex, cachedLength - 1));
+      return clamped;
+    }
+
     let exactMatch = -1;
     let closestIndex = -1;
     let smallestDiff = Number.POSITIVE_INFINITY;
@@ -74,6 +102,8 @@ const createNearestIncrementSyncMethod = (
       ? closestIndex
       : getFallbackIndex(tooltipTicks, data);
   };
+
+  return sync;
 };
 
 export const syncToNearestThirdHour = createNearestIncrementSyncMethod(3);

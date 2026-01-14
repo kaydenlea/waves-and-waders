@@ -38,25 +38,11 @@ export function DateProvider({ children }: { children: React.ReactNode }) {
   // Use ref for hover to avoid context re-creation on every hover
   const hoveredHourRef = React.useRef<number | null>(null);
   const hoveredHourListeners = React.useRef<Set<() => void>>(new Set());
-  const rafRef = React.useRef<number | null>(null);
 
   const setHoveredHour = React.useCallback((hour: number | null) => {
     if (hoveredHourRef.current === hour) return; // Skip if unchanged
     hoveredHourRef.current = hour;
-
-    // Cancel any pending animation frame
-    if (rafRef.current !== null) {
-      cancelAnimationFrame(rafRef.current);
-    }
-
-    // Use requestAnimationFrame to batch updates and sync with browser paint
-    // This ensures all chart updates happen in a single frame
-    rafRef.current = requestAnimationFrame(() => {
-      rafRef.current = null;
-      // Notify all subscribed components - React 18 auto-batches these updates
-      // Making them render together in one paint cycle for smoother sync
-      hoveredHourListeners.current.forEach((listener) => listener());
-    });
+    hoveredHourListeners.current.forEach((listener) => listener());
   }, []);
 
   const subscribeToHover = React.useCallback((callback: () => void) => {
