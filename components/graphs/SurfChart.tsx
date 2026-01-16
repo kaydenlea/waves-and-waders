@@ -22,10 +22,7 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import { useForecastWindowData } from "@/lib/hooks/useForecastWindow";
-import {
-  useDateContext,
-  useHoveredHour,
-} from "@/components/context/DateContext";
+import { useDateContext } from "@/components/context/DateContext";
 import { useSunData } from "@/components/context/SunDataContext";
 import { buildSunSegments } from "@/components/graphs/sunSegments";
 import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
@@ -33,6 +30,7 @@ import { buildYAxisTicks } from "@/components/graphs/yAxisTicks";
 import { useChartTheme } from "@/components/graphs/useChartTheme";
 import { buildForecastShadingBackground } from "@/components/graphs/forecastShadingBackground";
 import { useOptionalOverviewChartLoading } from "@/components/context/OverviewChartsLoadingContext";
+import HoverOverlayLine from "@/components/graphs/HoverOverlayLine";
 import type { SharedSunSegments } from "./sharedSunSegments";
 
 type Props = {
@@ -137,7 +135,6 @@ export const SurfStatsHeader = ({
 const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   const { hour: selectedHour, setHoveredHour } = useDateContext();
   const { getSunData } = useSunData();
-  const hoveredHour = useHoveredHour();
   const chartTheme = useChartTheme();
   const { setReady: setOverviewReady } =
     useOptionalOverviewChartLoading("overview-surf");
@@ -469,9 +466,6 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   );
 
   const centeredSelectedHour = centerDomainHour(selectedHour);
-  const centeredHoveredHour =
-    hoveredHour !== null ? centerDomainHour(hoveredHour) : null;
-
   const lastHoveredRef = React.useRef<number | null>(null);
   const hoverRafRef = React.useRef<number | null>(null);
   const pendingHoverRef = React.useRef<number | null>(null);
@@ -542,6 +536,17 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           pointerEvents: "none",
         }}
       />
+      {plotWidthPx > 0 && (
+        <HoverOverlayLine
+          domainMin={domainMin}
+          domainMax={domainMax}
+          plotLeftPx={yAxisInsetPx}
+          plotWidthPx={plotWidthPx}
+          days={date ? [date] : null}
+          selectedDate={date ?? null}
+          selectedHour={selectedHour ?? null}
+        />
+      )}
       {/* Divider between the in-plot axis inset and the data plot. */}
       <div
         aria-hidden="true"

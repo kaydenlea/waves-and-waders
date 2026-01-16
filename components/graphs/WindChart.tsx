@@ -27,10 +27,7 @@ import {
 } from "@/components/ui/chart";
 import { getPacificHour } from "@/lib/utils";
 import { getWindDirection } from "@/lib/supabase";
-import {
-  useDateContext,
-  useHoveredHour,
-} from "@/components/context/DateContext";
+import { useDateContext } from "@/components/context/DateContext";
 import { useSunData } from "@/components/context/SunDataContext";
 import { buildSunSegments } from "@/components/graphs/sunSegments";
 import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
@@ -39,6 +36,7 @@ import { useForecastWindowData } from "@/lib/hooks/useForecastWindow";
 import { useChartTheme } from "@/components/graphs/useChartTheme";
 import { buildForecastShadingBackground } from "@/components/graphs/forecastShadingBackground";
 import { useOptionalOverviewChartLoading } from "@/components/context/OverviewChartsLoadingContext";
+import HoverOverlayLine from "@/components/graphs/HoverOverlayLine";
 import type { SharedSunSegments } from "./sharedSunSegments";
 
 type Props = {
@@ -135,7 +133,6 @@ export const WindStatsHeader = ({
 const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   const { hour: selectedHour, setHoveredHour } = useDateContext();
   const { getSunData } = useSunData();
-  const hoveredHour = useHoveredHour();
   const chartTheme = useChartTheme();
   const { setReady: setOverviewReady } =
     useOptionalOverviewChartLoading("overview-wind");
@@ -318,9 +315,6 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   );
 
   const centeredSelectedHour = centerDomainHour(selectedHour);
-  const centeredHoveredHour =
-    hoveredHour !== null ? centerDomainHour(hoveredHour) : null;
-
   const windTicks = useMemo(
     () =>
       buildYAxisTicks(
@@ -541,6 +535,17 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           pointerEvents: "none",
         }}
       />
+      {plotWidthPx > 0 && (
+        <HoverOverlayLine
+          domainMin={domainMin}
+          domainMax={domainMax}
+          plotLeftPx={yAxisInsetPx}
+          plotWidthPx={plotWidthPx}
+          days={date ? [date] : null}
+          selectedDate={date ?? null}
+          selectedHour={selectedHour ?? null}
+        />
+      )}
       {/* Divider between the in-plot axis inset and the data plot. */}
       <div
         aria-hidden="true"

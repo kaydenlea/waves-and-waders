@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useEffect, useLayoutEffect, useMemo, useState, useReducer } from "react";
+import React, {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+  useReducer,
+} from "react";
 import {
   Line,
   LineChart,
@@ -39,6 +45,7 @@ import {
   applyForecastShadingOpacity,
   buildForecastPlotShadingBackgroundPercent,
 } from "@/components/graphs/forecastShadingBackground";
+import HoverOverlayLine from "@/components/graphs/HoverOverlayLine";
 
 const HOURS_TO_MS = 60 * 60 * 1000;
 
@@ -181,11 +188,13 @@ const TideChart: React.FC<TideChartProps> = ({
   const tideCacheRef = React.useRef<
     Map<string, { chartData: TidePoint[]; windowStart: number | null }>
   >(new Map());
-  const { hour: selectedHour, setHoveredHour } = useDateContext();
   const hoveredHour = useHoveredHour();
+  const { hour: selectedHour, setHoveredHour } = useDateContext();
   const chartTheme = useChartTheme();
   const { setReady: setOverviewReady } =
     useOptionalOverviewChartLoading("overview-tide");
+  const [containerWidth, setContainerWidth] = useState<number>(0);
+  const containerRef = React.useRef<HTMLDivElement>(null);
 
   // Consolidated state with reducer for fewer re-renders
   const [state, dispatch] = useReducer(chartReducer, initialChartState);
@@ -210,9 +219,9 @@ const TideChart: React.FC<TideChartProps> = ({
   const tideResolved = tideContext?.resolved ?? tideWindow.resolved;
   const tideLoading = tideContext?.loading ?? tideWindow.loading;
 
-  const overviewKey = `${preview ? "preview" : "live"}-${beachId ?? ""}-${hours}-${
-    date instanceof Date ? date.getTime() : "no-date"
-  }`;
+  const overviewKey = `${preview ? "preview" : "live"}-${
+    beachId ?? ""
+  }-${hours}-${date instanceof Date ? date.getTime() : "no-date"}`;
   useLayoutEffect(() => {
     setOverviewReady(false);
   }, [overviewKey, setOverviewReady]);
@@ -228,6 +237,18 @@ const TideChart: React.FC<TideChartProps> = ({
   useEffect(() => {
     setOverviewReady(overviewReady);
   }, [overviewReady, setOverviewReady]);
+
+  useEffect(() => {
+    const node = containerRef.current;
+    if (!node) return;
+    const ro = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      const width = entry ? Math.floor(entry.contentRect.width) : 0;
+      setContainerWidth(width);
+    });
+    ro.observe(node);
+    return () => ro.disconnect();
+  }, []);
 
   // Keep native resolution (≈6 minute spacing) for accuracy; no downsampling.
   const renderData = useMemo(() => {
@@ -273,7 +294,11 @@ const TideChart: React.FC<TideChartProps> = ({
         if (!dx || !prevPoint) return { x: cxNum + dx, y: cyNum };
         const vx = cxNum - prevPoint.cx;
         const vy = cyNum - prevPoint.cy;
-        if (!Number.isFinite(vx) || !Number.isFinite(vy) || Math.abs(vx) < 1e-6) {
+        if (
+          !Number.isFinite(vx) ||
+          !Number.isFinite(vy) ||
+          Math.abs(vx) < 1e-6
+        ) {
           return { x: cxNum + dx, y: cyNum };
         }
         const t = Math.max(-1, Math.min(0, dx / vx));
@@ -733,6 +758,10 @@ const TideChart: React.FC<TideChartProps> = ({
   );
 
   const yAxisInsetPx = CHART_LEFT_MARGIN + Y_AXIS_WIDTH;
+  const plotWidthPx = useMemo(
+    () => Math.max(0, containerWidth - yAxisInsetPx - CHART_RIGHT_MARGIN),
+    [containerWidth, yAxisInsetPx]
+  );
   const plotShading = useMemo(
     () =>
       buildForecastPlotShadingBackgroundPercent({
@@ -830,6 +859,7 @@ const TideChart: React.FC<TideChartProps> = ({
 
   return (
     <div
+      ref={containerRef}
       className={cn(
         "relative aspect-auto w-full [&_.recharts-legend-wrapper]:hidden",
         preview
@@ -860,6 +890,18 @@ const TideChart: React.FC<TideChartProps> = ({
           pointerEvents: "none",
         }}
       />
+      {plotWidthPx > 0 && (
+        <HoverOverlayLine
+          domainMin={0}
+          domainMax={hours}
+          plotLeftPx={yAxisInsetPx}
+          plotWidthPx={plotWidthPx}
+          days={date ? [date] : null}
+          selectedDate={date ?? null}
+          selectedHour={selectedHour ?? null}
+          strokeOpacity={0.5}
+        />
+      )}
       {/* Divider between the in-plot axis inset and the data plot. */}
       <div
         aria-hidden="true"
