@@ -125,7 +125,7 @@ export default async function BeachesPage({
                 loggedIn={Boolean(user)}
               /> */}
               <header
-                id="content"
+                id="beaches-header"
                 className="ml-2 mb-2 @min-4xl/main:mb-4 scroll-mt-30"
               >
                 <h1 className="font-semibold text-xl @min-4xl/main:text-3xl tracking-tight -mb-1 @min-4xl/main:mb-0">

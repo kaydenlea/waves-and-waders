@@ -1,6 +1,5 @@
 import "./globals.css";
 import { ThemeProvider } from "@/components/ui/theme-provider";
-import ScrollPerformanceController from "@/components/general/ScrollPerformanceController";
 import { ScrollToTopOnRouteChange } from "@/lib/utils/scrollTop";
 import { getServerSupabase } from "@/lib/supabaseServer";
 import { SupabaseProvider } from "@/components/providers/SupabaseProvider";
@@ -72,7 +71,6 @@ export default async function RootLayout({
               <ToastProvider>
                 <SearchProvider>
                   <ScrollToTopOnRouteChange />
-                  <ScrollPerformanceController />
                   {children}
                 </SearchProvider>
               </ToastProvider>

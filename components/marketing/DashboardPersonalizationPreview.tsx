@@ -1,12 +1,20 @@
 "use client";
 
-import * as React from "react";
 import dynamic from "next/dynamic";
 
 import { cn } from "@/lib/utils";
 
+const loadDashboardPersonalizationCarousel = () =>
+  import("@/components/marketing/DashboardPersonalizationCarousel");
+
+// Start fetching the chunk as soon as this component's module is evaluated so the
+// section can reveal real content (no visible skeleton swap) even on fast scroll.
+if (typeof window !== "undefined") {
+  void loadDashboardPersonalizationCarousel();
+}
+
 const DashboardPersonalizationCarousel = dynamic(
-  () => import("@/components/marketing/DashboardPersonalizationCarousel"),
+  loadDashboardPersonalizationCarousel,
   { ssr: false, loading: () => <Skeleton /> }
 );
 
@@ -21,49 +29,18 @@ function Skeleton() {
 
 export default function DashboardPersonalizationPreview({
   className,
-  rootMargin = "800px 0px",
 }: {
   className?: string;
-  rootMargin?: string;
 }) {
-  const containerRef = React.useRef<HTMLDivElement | null>(null);
-  const [shouldLoad, setShouldLoad] = React.useState(false);
-
-  React.useEffect(() => {
-    if (shouldLoad) return;
-    if (typeof window === "undefined") return;
-    if (!("IntersectionObserver" in window)) {
-      setShouldLoad(true);
-      return;
-    }
-
-    const node = containerRef.current;
-    if (!node) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        if (!entry?.isIntersecting) return;
-        observer.disconnect();
-        setShouldLoad(true);
-      },
-      { root: null, rootMargin, threshold: 0 }
-    );
-
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [rootMargin, shouldLoad]);
-
   return (
     <div
-      ref={containerRef}
       className={cn(
         "relative isolate z-0 w-full min-w-0 max-w-full",
         "aspect-[16/10] min-h-[18rem] sm:min-h-[20rem]",
         className
       )}
     >
-      {shouldLoad ? <DashboardPersonalizationCarousel /> : <Skeleton />}
+      <DashboardPersonalizationCarousel />
     </div>
   );
 }

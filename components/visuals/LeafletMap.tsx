@@ -5308,11 +5308,14 @@ const LeafletMap: React.FC<Props> = ({
           .leaflet-popup.ww-touch-popup .leaflet-popup-tip {
             pointer-events: none;
           }
-          .leaflet-popup.ww-touch-popup .ww-touch-popup__actions {
+          .leaflet-popup.ww-touch-popup .ww-touch-popup__actions,
+          .leaflet-popup .ww-touch-popup__actions {
             display: flex;
             margin-top: 8px;
           }
-          .leaflet-popup.ww-touch-popup .ww-touch-popup__open {
+          .leaflet-popup.ww-touch-popup .ww-touch-popup__open,
+          .leaflet-popup .ww-touch-popup__open,
+          .leaflet-popup [data-ww-touch-open="true"] {
             pointer-events: auto;
             display: inline-flex;
             align-items: center;
@@ -5328,10 +5331,14 @@ const LeafletMap: React.FC<Props> = ({
             font-weight: 600;
             font-size: 0.85rem;
           }
-          .leaflet-popup.ww-touch-popup .ww-touch-popup__open:focus {
+          .leaflet-popup.ww-touch-popup .ww-touch-popup__open:focus,
+          .leaflet-popup .ww-touch-popup__open:focus,
+          .leaflet-popup [data-ww-touch-open="true"]:focus {
             outline: none;
           }
-          .leaflet-popup.ww-touch-popup .ww-touch-popup__open:focus-visible {
+          .leaflet-popup.ww-touch-popup .ww-touch-popup__open:focus-visible,
+          .leaflet-popup .ww-touch-popup__open:focus-visible,
+          .leaflet-popup [data-ww-touch-open="true"]:focus-visible {
             box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.35);
           }
           @media (prefers-reduced-motion: reduce) {

@@ -14,6 +14,7 @@ import Breadcrumbs from "@/components/general/Breadcrumbs";
 import { SunDataProvider } from "@/components/context/SunDataContext";
 import { useOptionalDashboardEditMode } from "@/components/context/DashboardEditModeContext";
 import { OverviewPageBusyProvider } from "@/components/context/OverviewPageBusyContext";
+import { OverviewChartsLoadingProvider } from "@/components/context/OverviewChartsLoadingContext";
 import DashboardEditorScreen from "@/components/general/DashboardEditorScreen";
 import type { BeachPoint } from "@/components/context/MapFilterContext";
 import type {
@@ -95,7 +96,7 @@ export default function OverviewPageClient({
 
       <div className={isEditing ? "hidden" : undefined} aria-hidden={isEditing}>
         <NavBar />
-        <OverviewPageBusyProvider initialBusy>
+        <OverviewPageBusyProvider>
           <main
             id="main-content"
             className="touch-pan-y bg-background-2 min-h-[calc(100vh-4rem)] @min-4xl:flex @min-4xl:flex-1 @min-4xl:mt-[5.5rem] @min-4xl:pb-4"
@@ -107,7 +108,7 @@ export default function OverviewPageClient({
             <PathStyleWrapper>
               <div className="@container pb-6 @min-4xl:pb-3 pt-2 @min-4xl:pt-8 px-1 @min-md:px-3">
                 <header
-                  id="content"
+                  id="overview-header"
                   className="relative w-full flex flex-col gap-5 px-2 pt-3 @min-md:pt-4 pb-0 scroll-mt-30"
                 >
                   <Breadcrumbs
@@ -134,16 +135,18 @@ export default function OverviewPageClient({
                 </header>
 
                 <SunDataProvider>
-                  <DateSummaryBridge
-                    beachId={beachId}
-                    beachParam={beachParam}
-                    isFavorite={isFavorite}
-                    loggedIn={loggedIn}
-                    initialOverviewMeta={initialOverviewMeta}
-                    initialOverviewRows={initialOverviewRows}
-                    initialForecastMeta={initialForecastMeta}
-                    initialForecastRows={initialForecastRows}
-                  />
+                  <OverviewChartsLoadingProvider>
+                    <DateSummaryBridge
+                      beachId={beachId}
+                      beachParam={beachParam}
+                      isFavorite={isFavorite}
+                      loggedIn={loggedIn}
+                      initialOverviewMeta={initialOverviewMeta}
+                      initialOverviewRows={initialOverviewRows}
+                      initialForecastMeta={initialForecastMeta}
+                      initialForecastRows={initialForecastRows}
+                    />
+                  </OverviewChartsLoadingProvider>
                 </SunDataProvider>
               </div>
             </PathStyleWrapper>

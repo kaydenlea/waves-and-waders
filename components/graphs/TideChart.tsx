@@ -7,6 +7,7 @@ import {
   XAxis,
   YAxis,
   ReferenceLine,
+  Customized,
   LabelList,
   LabelProps,
 } from "recharts";
@@ -48,6 +49,7 @@ const CHART_TOP_MARGIN = 10;
 const CHART_RIGHT_MARGIN = 0;
 const Y_AXIS_WIDTH = 30;
 const X_AXIS_SHADE_EXCLUDE_PX = 34;
+const HOVER_LINE_END_INSET_PX = 7.5;
 const Y_AXIS_TICK = {
   fill: "var(--foreground)",
   fontWeight: 500,
@@ -81,6 +83,9 @@ type YAxisTickProps = {
   fontSize?: number;
 };
 type ChartMouseEvent = { activeLabel?: number | string | null };
+type CustomizedOffsetProps = {
+  offset?: { left?: number; width?: number; top?: number; height?: number };
+};
 
 type TideChartProps = {
   preview?: boolean;
@@ -243,6 +248,50 @@ const TideChart: React.FC<TideChartProps> = ({
   const peakPoints = useMemo(
     () => renderData.filter((p) => p.isPeak != null),
     [renderData]
+  );
+
+  const lastTideSegmentRef = React.useRef<{
+    prev: { cx: number; cy: number } | null;
+    curr: { cx: number; cy: number } | null;
+  }>({ prev: null, curr: null });
+  useEffect(() => {
+    lastTideSegmentRef.current = { prev: null, curr: null };
+  }, [renderData]);
+
+  const tideActiveDot = React.useCallback(
+    (props: { cx?: number | string; cy?: number | string; index?: number }) => {
+      const cxNum = typeof props.cx === "number" ? props.cx : Number(props.cx);
+      const cyNum = typeof props.cy === "number" ? props.cy : Number(props.cy);
+      if (!Number.isFinite(cxNum) || !Number.isFinite(cyNum)) return <g />;
+      const idx = typeof props.index === "number" ? props.index : -1;
+      if (idx < 0) return <g />;
+
+      const isLastPoint = idx === renderData.length - 1;
+      const dx = isLastPoint ? -HOVER_LINE_END_INSET_PX : 0;
+      const prevPoint = lastTideSegmentRef.current.prev;
+      const projected = (() => {
+        if (!dx || !prevPoint) return { x: cxNum + dx, y: cyNum };
+        const vx = cxNum - prevPoint.cx;
+        const vy = cyNum - prevPoint.cy;
+        if (!Number.isFinite(vx) || !Number.isFinite(vy) || Math.abs(vx) < 1e-6) {
+          return { x: cxNum + dx, y: cyNum };
+        }
+        const t = Math.max(-1, Math.min(0, dx / vx));
+        return { x: cxNum + dx, y: cyNum + t * vy };
+      })();
+
+      return (
+        <circle
+          cx={projected.x}
+          cy={projected.y}
+          r={4}
+          fill={TIDE_LINE_COLOR}
+          stroke={TIDE_LINE_COLOR}
+          strokeWidth={0}
+        />
+      );
+    },
+    [renderData.length]
   );
 
   // Pre-compute which peaks should be placed below to avoid overlap
@@ -907,15 +956,44 @@ const TideChart: React.FC<TideChartProps> = ({
               strokeDasharray="3 3"
               isFront={false}
             />
-            {/* Hover indicator line - always rendered to avoid re-mount */}
-            <ReferenceLine
-              x={hoveredHour ?? 0}
-              stroke="var(--foreground)"
-              strokeWidth={1}
-              strokeOpacity={
-                hoveredHour !== null && hoveredHour !== selectedHour ? 0.5 : 0
-              }
-              strokeDasharray="5 5"
+            <Customized
+              component={(p: CustomizedOffsetProps) => {
+                const hoverX = hoveredHour;
+                if (hoverX === null || hoverX === selectedHour) return null;
+                const offset = p?.offset;
+                const left = typeof offset?.left === "number" ? offset.left : 0;
+                const width =
+                  typeof offset?.width === "number" ? offset.width : 0;
+                const top = typeof offset?.top === "number" ? offset.top : 0;
+                const height =
+                  typeof offset?.height === "number" ? offset.height : 0;
+                if (!(width > 0) || !(height > 0)) return null;
+
+                const domainSpan = hours;
+                if (!(domainSpan > 0)) return null;
+                const t = hoverX / domainSpan;
+                if (!Number.isFinite(t)) return null;
+
+                const clampedT = Math.max(0, Math.min(1, t));
+                const plotRight = left + width;
+                let x = left + width * clampedT;
+                if (HOVER_LINE_END_INSET_PX > 0 && x >= plotRight - 0.5) {
+                  x = Math.max(left, plotRight - HOVER_LINE_END_INSET_PX);
+                }
+
+                return (
+                  <line
+                    x1={x}
+                    x2={x}
+                    y1={top}
+                    y2={top + height}
+                    stroke="var(--foreground)"
+                    strokeWidth={1}
+                    strokeOpacity={0.5}
+                    strokeDasharray="5 5"
+                  />
+                );
+              }}
             />
             {/* <CartesianGrid
           strokeDasharray="3 3"
@@ -948,12 +1026,7 @@ const TideChart: React.FC<TideChartProps> = ({
             />
             <ChartTooltip
               content={<ChartTooltipContent />}
-              cursor={{
-                stroke: "var(--foreground)",
-                strokeWidth: 1,
-                strokeDasharray: "3 3",
-                strokeOpacity: 0.5,
-              }}
+              cursor={false}
               labelFormatter={(_, payload) => {
                 const entry = Array.isArray(payload)
                   ? (payload[0]?.payload as TidePoint | undefined)
@@ -971,8 +1044,26 @@ const TideChart: React.FC<TideChartProps> = ({
               isAnimationActive={false}
               animationDuration={0}
               animationBegin={0}
+              activeDot={tideActiveDot}
               dot={(props) => {
-                const { payload, cx, cy } = props;
+                const { payload, cx, cy, index } = props as {
+                  payload?: unknown;
+                  cx?: number | string;
+                  cy?: number | string;
+                  index?: number;
+                };
+                const idx = typeof index === "number" ? index : -1;
+                const cxNum = typeof cx === "number" ? cx : Number(cx);
+                const cyNum = typeof cy === "number" ? cy : Number(cy);
+                if (idx === renderData.length - 2) {
+                  if (Number.isFinite(cxNum) && Number.isFinite(cyNum)) {
+                    lastTideSegmentRef.current.prev = { cx: cxNum, cy: cyNum };
+                  }
+                } else if (idx === renderData.length - 1) {
+                  if (Number.isFinite(cxNum) && Number.isFinite(cyNum)) {
+                    lastTideSegmentRef.current.curr = { cx: cxNum, cy: cyNum };
+                  }
+                }
                 const point = payload as TidePoint;
                 // Optimized: use Map lookup instead of find
                 const sunMarkerType = sunMarkerMap.get(point.hour);

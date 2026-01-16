@@ -606,7 +606,7 @@ export default function NearbyBeaches() {
                 onClick={() => {
                   handlePrev();
                   document
-                    .getElementById("content")
+                    .querySelector("article#content")
                     ?.scrollIntoView({ behavior: "smooth" });
                 }}
               />
@@ -624,7 +624,7 @@ export default function NearbyBeaches() {
                       e.preventDefault();
                       setPage(p as number);
                       document
-                        .getElementById("content")
+                        .querySelector("article#content")
                         ?.scrollIntoView({ behavior: "smooth" });
                     }}
                   >
@@ -642,7 +642,7 @@ export default function NearbyBeaches() {
                 onClick={() => {
                   handleNext();
                   document
-                    .getElementById("content")
+                    .querySelector("article#content")
                     ?.scrollIntoView({ behavior: "smooth" });
                 }}
               />

@@ -64,6 +64,7 @@ const CHART_TOP_MARGIN = 10;
 const CHART_RIGHT_MARGIN = 10;
 const Y_AXIS_WIDTH = 30;
 const X_AXIS_SHADE_EXCLUDE_PX = 34;
+const HOVER_LINE_END_INSET_PX = 7.5;
 const Y_AXIS_TICK = {
   fill: "var(--foreground)",
   fontWeight: 500,
@@ -743,16 +744,45 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
               // strokeWidth={2}
               strokeDasharray="3 3"
             />
-            {/* Hover indicator line - only show when hovering on any chart */}
-            {hoveredHour !== null && hoveredHour !== selectedHour && (
-              <ReferenceLine
-                x={hoveredHour}
-                stroke="var(--foreground)"
-                strokeWidth={1}
-                strokeOpacity={0.5}
-                strokeDasharray="5 5"
-              />
-            )}
+            <Customized
+              component={(p: ClipProps) => {
+                const hoverX = hoveredHour;
+                if (hoverX === null || hoverX === selectedHour) return null;
+                const offset = p?.offset;
+                const left = typeof offset?.left === "number" ? offset.left : 0;
+                const width =
+                  typeof offset?.width === "number" ? offset.width : 0;
+                const top = typeof offset?.top === "number" ? offset.top : 0;
+                const height =
+                  typeof offset?.height === "number" ? offset.height : 0;
+                if (!(width > 0) || !(height > 0)) return null;
+
+                const domainSpan = hours;
+                if (!(domainSpan > 0)) return null;
+                const t = hoverX / domainSpan;
+                if (!Number.isFinite(t)) return null;
+
+                const clampedT = Math.max(0, Math.min(1, t));
+                const plotRight = left + width;
+                let x = left + width * clampedT;
+                if (HOVER_LINE_END_INSET_PX > 0 && x >= plotRight - 0.5) {
+                  x = Math.max(left, plotRight - HOVER_LINE_END_INSET_PX);
+                }
+
+                return (
+                  <line
+                    x1={x}
+                    x2={x}
+                    y1={top}
+                    y2={top + height}
+                    stroke="var(--foreground)"
+                    strokeWidth={1}
+                    strokeOpacity={0.5}
+                    strokeDasharray="5 5"
+                  />
+                );
+              }}
+            />
             {/* <ChartLegend content={<ChartLegendContent />} /> */}
             <ChartTooltip
               content={
@@ -761,12 +791,7 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
                   formatter={formatSwellTooltipValue}
                 />
               }
-              cursor={{
-                stroke: "var(--foreground)",
-                strokeWidth: 1,
-                strokeDasharray: "3 3",
-                strokeOpacity: 0.5,
-              }}
+              cursor={false}
               animationDuration={0}
               isAnimationActive={false}
             />

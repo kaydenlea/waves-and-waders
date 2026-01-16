@@ -39,7 +39,6 @@ import { getForecastCached } from "@/lib/dataCache";
 import { useForecastData } from "@/components/context/ForecastDataContext";
 import { useDateContext } from "@/components/context/DateContext";
 import { useForecastChartContext } from "@/components/context/ForecastChartContext";
-import HoverOverlayLine from "@/components/graphs/HoverOverlayLine";
 import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
 import {
   buildYAxisTicks,
@@ -1238,17 +1237,6 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
                 </ChartContainer>
               </div>
               <div style={{ position: "relative", zIndex: 1 }}>
-                <HoverOverlayLine
-                  domainMin={domainMin}
-                  domainMax={domainMax}
-                  plotLeftPx={dayLabelLeftOffset}
-                  plotWidthPx={dataAreaWidth}
-                  days={displayDays}
-                  selectedDate={selectedDate}
-                  selectedHour={
-                    dashboardBusy ? stableSelectedHour : selectedHour
-                  }
-                />
                 <ChartContainer
                   key={chartInnerWidth}
                   config={chartConfig}

@@ -1,15 +1,20 @@
 "use client";
 
-import * as React from "react";
 import dynamic from "next/dynamic";
 
-const AnimatedCardsSection = dynamic(
-  () => import("@/components/visuals/AnimatedCardsSection"),
-  {
-    ssr: false,
-    loading: () => <Skeleton />,
-  }
-);
+const loadAnimatedCardsSection = () =>
+  import("@/components/visuals/AnimatedCardsSection");
+
+// Start fetching the chunk as soon as this component's module is evaluated so the
+// section can reveal real content (no visible skeleton swap) even on fast scroll.
+if (typeof window !== "undefined") {
+  void loadAnimatedCardsSection();
+}
+
+const AnimatedCardsSection = dynamic(loadAnimatedCardsSection, {
+  ssr: false,
+  loading: () => <Skeleton />,
+});
 
 function Skeleton() {
   return (
@@ -24,41 +29,10 @@ function Skeleton() {
 }
 
 export function LazyLoadCardsSection({
-  rootMargin = "800px 0px",
-}: {
-  rootMargin?: string;
-}) {
-  const containerRef = React.useRef<HTMLDivElement | null>(null);
-  const [shouldLoad, setShouldLoad] = React.useState(false);
-
-  React.useEffect(() => {
-    if (shouldLoad) return;
-    if (typeof window === "undefined") return;
-    if (!("IntersectionObserver" in window)) {
-      setShouldLoad(true);
-      return;
-    }
-
-    const node = containerRef.current;
-    if (!node) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        if (!entry?.isIntersecting) return;
-        observer.disconnect();
-        setShouldLoad(true);
-      },
-      { root: null, rootMargin, threshold: 0 }
-    );
-
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [rootMargin, shouldLoad]);
-
+}: {}) {
   return (
-    <div ref={containerRef} className="w-full">
-      {shouldLoad ? <AnimatedCardsSection /> : <Skeleton />}
+    <div className="w-full">
+      <AnimatedCardsSection />
     </div>
   );
 }

@@ -114,6 +114,7 @@ const DAY_LABEL_INSET = 6;
 const Y_AXIS_OFFSET_VAR = "--forecast-y-axis-offset";
 const X_AXIS_SHADE_EXCLUDE_PX = 34;
 const DRAG_THRESHOLD_PX = 8;
+const HOVER_LINE_END_INSET_PX = 7.5;
 const Y_AXIS_TICK = {
   fill: "var(--foreground)",
   fontWeight: 500,
@@ -1275,6 +1276,8 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                   domainMax={domainMax}
                   plotLeftPx={dayLabelLeftOffset}
                   plotWidthPx={dataAreaWidth}
+                  bottomInsetPx={X_AXIS_SHADE_EXCLUDE_PX}
+                  endInsetPx={HOVER_LINE_END_INSET_PX}
                   days={displayDays}
                   selectedDate={selectedDate}
                   selectedHour={
@@ -1424,12 +1427,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                           formatter={formatSwellTooltipValue}
                         />
                       }
-                      cursor={{
-                        stroke: "var(--foreground)",
-                        strokeWidth: 1,
-                        strokeDasharray: "3 3",
-                        strokeOpacity: 0.75,
-                      }}
+                      cursor={false}
                       animationDuration={0}
                       isAnimationActive={false}
                     />

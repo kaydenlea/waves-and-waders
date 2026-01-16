@@ -41,7 +41,7 @@ import type { SharedSunSegments } from "@/components/graphs/sharedSunSegments";
 import { ForecastChartsLoadingProvider } from "../context/ForecastChartsLoadingContext";
 import { useStableOverlay } from "../hooks/useStableOverlay";
 import { useOptionalOverviewPageBusyControls } from "../context/OverviewPageBusyContext";
-import { OverviewChartsLoadingProvider } from "../context/OverviewChartsLoadingContext";
+import { useOptionalOverviewChartsLoadingState } from "../context/OverviewChartsLoadingContext";
 
 type Props = {
   beachId: string;
@@ -70,22 +70,24 @@ const HeaderVisual = ({
 }) => {
   return (
     <div className="flex items-center gap-2 rounded-xl border border-border/25 bg-highlight-7/70 px-3 py-2 text-xs uppercase tracking-wide leading-tight text-muted-foreground shadow-even supports-[backdrop-filter]:bg-highlight-7/40 supports-[backdrop-filter]:backdrop-blur-md">
-      <div className="flex items-center gap-0.5">
+      <div className="flex items-center gap-1.5">
         <span className="flex gap-0.5 items-center">
           <ArrowDown className="h-4 w-4 text-rose-500/80" />
           <span className="hidden @min-sm:block font-semibold">Lo</span>
         </span>
-        <span className="ml-1 text-foreground normal-case font-semibold">
-          {min ?? "--"} <span className="inline-block">{unit}</span>
+        <span className="text-foreground normal-case font-semibold tabular-nums whitespace-nowrap">
+          {min ?? "--"}
+          <span className="ml-0.5 inline-block">{unit}</span>
         </span>
       </div>
-      <div className="flex items-center gap-0.5">
+      <div className="flex items-center gap-1.5">
         <span className="flex gap-0.5 items-center">
           <ArrowUp className="h-4 w-4 text-emerald-500/80" />
           <span className="hidden @min-sm:block font-semibold">Hi</span>
         </span>
-        <span className="ml-1 text-foreground normal-case font-semibold">
-          {max ?? "--"} <span className="inline-block">{unit}</span>
+        <span className="text-foreground normal-case font-semibold tabular-nums whitespace-nowrap">
+          {max ?? "--"}
+          <span className="ml-0.5 inline-block">{unit}</span>
         </span>
       </div>
     </div>
@@ -204,7 +206,7 @@ const SwellStatsHeader = ({ stats }: { stats: RangeStats }) => {
   return <HeaderVisual unit="ft" min={stats.min} max={stats.max} />;
 };
 
-const DateSummaryBridge: React.FC<Props> = ({
+  const DateSummaryBridge: React.FC<Props> = ({
   beachId,
   beachParam,
   isFavorite = false,
@@ -214,7 +216,7 @@ const DateSummaryBridge: React.FC<Props> = ({
   initialForecastMeta = null,
   initialForecastRows = null,
 }) => {
-  const { id, selected, setSelected, hour, selectedDays } = useDateContext();
+  const { id, selected, hour, selectedDays } = useDateContext();
   id.current = beachId;
   const { selectedTab } = useClientPath();
   const isOverview = selectedTab === "overview";
@@ -227,7 +229,14 @@ const DateSummaryBridge: React.FC<Props> = ({
     cacheLayout,
   } = useDashboardEditMode();
   const [mounted, setMounted] = React.useState(false);
-  const [currentTime, setCurrentTime] = React.useState<string>("");
+  const formatNow = React.useCallback(() => {
+    return new Date().toLocaleTimeString(undefined, {
+      hour: "numeric",
+      minute: "2-digit",
+      timeZoneName: "short",
+    });
+  }, []);
+  const [currentTime, setCurrentTime] = React.useState<string>(() => formatNow());
   const {
     meta: layoutMeta,
     rows: layoutRows,
@@ -515,10 +524,17 @@ const DateSummaryBridge: React.FC<Props> = ({
     !beachId ||
     !selected ||
     forecastLoading ||
-    forecastRows.length === 0 ||
     tideWindow.loading ||
-    (tideWindow.rows?.length ?? 0) === 0 ||
+    !tideWindow.resolved ||
     sharedSunSegments.baseDate == null;
+  const overviewWidgetsLoading = useOptionalOverviewChartsLoadingState();
+  const hasVisibleOverviewWidgets = React.useMemo(
+    () =>
+      layoutRows.some((row) =>
+        row.items.some((id) => id !== "surfAndWind" && layoutMeta[id]?.visible !== false)
+      ),
+    [layoutMeta, layoutRows]
+  );
 
   const [tabOverlayActive, setTabOverlayActive] = React.useState(false);
   const [layoutOverlayActive, setLayoutOverlayActive] = React.useState(false);
@@ -571,6 +587,7 @@ const DateSummaryBridge: React.FC<Props> = ({
 
   const overlayVisible = useStableOverlay(
     overviewChartsLoading ||
+      (isOverview && hasVisibleOverviewWidgets && overviewWidgetsLoading) ||
       tabOverlayActive ||
       layoutOverlayActive ||
       pendingLayoutApplyActive,
@@ -719,29 +736,17 @@ const DateSummaryBridge: React.FC<Props> = ({
   // Set mounted and initialize time on client
   React.useEffect(() => {
     setMounted(true);
-    setCurrentTime(
-      new Date().toLocaleTimeString(undefined, {
-        hour: "numeric",
-        minute: "2-digit",
-        timeZoneName: "short",
-      })
-    );
+    setCurrentTime(formatNow());
   }, []);
 
   // Update current time every minute
   React.useEffect(() => {
     if (!mounted) return;
     const interval = setInterval(() => {
-      setCurrentTime(
-        new Date().toLocaleTimeString(undefined, {
-          hour: "numeric",
-          minute: "2-digit",
-          timeZoneName: "short",
-        })
-      );
+      setCurrentTime(formatNow());
     }, 60000);
     return () => clearInterval(interval);
-  }, [mounted]);
+  }, [mounted, formatNow]);
 
   // Format the data hour label and determine if showing current, past, or forecast data
   const { label, timeDisplay } = React.useMemo(() => {
@@ -792,19 +797,6 @@ const DateSummaryBridge: React.FC<Props> = ({
     };
   }, [currentTime, hour, selected]);
 
-  // Ensure a default selected date on mount (today) to keep map marker styling correct
-  React.useEffect(() => {
-    if (!selected) {
-      const now = new Date();
-      const dateOnly = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        now.getDate()
-      );
-      setSelected(dateOnly);
-    }
-  }, [selected, setSelected]);
-
   const visibleRows = React.useMemo(
     () =>
       layoutRows.filter((row) =>
@@ -812,29 +804,6 @@ const DateSummaryBridge: React.FC<Props> = ({
       ),
     [layoutRows, layoutMeta]
   );
-
-  const expectedOverviewChartIds = React.useMemo(() => {
-    const widgetToCharts: Partial<Record<WidgetId, readonly string[]>> = {
-      stats: ["overview-highlights"],
-      tide: ["overview-tide"],
-      wind: ["overview-wind"],
-      swell: ["overview-swell"],
-      surf: ["overview-surf"],
-      energy: ["overview-energy"],
-      table: ["overview-table"],
-    };
-
-    const ids = new Set<string>();
-    for (const row of visibleRows) {
-      for (const widgetId of row.items) {
-        if (layoutMeta[widgetId]?.visible === false) continue;
-        const charts = widgetToCharts[widgetId];
-        if (!charts) continue;
-        for (const chartId of charts) ids.add(chartId);
-      }
-    }
-    return Array.from(ids).sort();
-  }, [layoutMeta, visibleRows]);
 
   // TODO(overview-perf): Centralize widget loading/skeleton handling here so all cards
   // transition from placeholder to real charts/tables in sync using shared loading state.
@@ -1110,55 +1079,51 @@ const DateSummaryBridge: React.FC<Props> = ({
 
             {/* Overview content - hidden when forecast is active */}
             <div className={isOverview ? "" : "hidden"}>
-              <OverviewChartsLoadingProvider
-                expectedCharts={layoutHydrated ? expectedOverviewChartIds : null}
-              >
-                <div className="relative min-h-[640px]">
-                  {visibleRows.length === 0 ? (
-                    layoutHydrated ? (
-                      <p className="mx-2 mt-6 text-sm text-muted-foreground">
-                        All widgets are hidden. Use the edit screen to enable
-                        widgets.
-                      </p>
-                    ) : null
-                  ) : (
-                    visibleRows.map((row, index) => {
-                      const visibleItems = row.items.filter(
-                        (id) => layoutMeta[id]?.visible !== false
-                      );
-                      if (!visibleItems.length) return null;
-                      const spacing = index === 0 ? "mt-4" : "mt-5";
-                      const isFull = visibleItems.length === 1;
-                      if (isFull) {
-                        const content = renderWidget(visibleItems[0], isFull);
-                        if (!content) return null;
-                        return (
-                          <div key={row.id} className={`${spacing} w-full`}>
-                            {content}
-                          </div>
-                        );
-                      }
-
+              <div className="relative min-h-[640px]">
+                {visibleRows.length === 0 ? (
+                  layoutHydrated ? (
+                    <p className="mx-2 mt-6 text-sm text-muted-foreground">
+                      All widgets are hidden. Use the edit screen to enable
+                      widgets.
+                    </p>
+                  ) : null
+                ) : (
+                  visibleRows.map((row, index) => {
+                    const visibleItems = row.items.filter(
+                      (id) => layoutMeta[id]?.visible !== false
+                    );
+                    if (!visibleItems.length) return null;
+                    const spacing = index === 0 ? "mt-4" : "mt-5";
+                    const isFull = visibleItems.length === 1;
+                    if (isFull) {
+                      const content = renderWidget(visibleItems[0], isFull);
+                      if (!content) return null;
                       return (
-                        <div
-                          key={row.id}
-                          className={`${spacing} w-full flex flex-col @min-4xl:flex-row gap-4`}
-                        >
-                          {visibleItems.map((id) => {
-                            const content = renderWidget(id, isFull);
-                            if (!content) return null;
-                            return (
-                              <React.Fragment key={id}>
-                                {content}
-                              </React.Fragment>
-                            );
-                          })}
+                        <div key={`${row.id}:${index}`} className={`${spacing} w-full`}>
+                          {content}
                         </div>
                       );
-                    })
-                  )}
-                </div>
-              </OverviewChartsLoadingProvider>
+                    }
+
+                    return (
+                      <div
+                        key={`${row.id}:${index}`}
+                        className={`${spacing} w-full flex flex-col @min-4xl:flex-row gap-4`}
+                      >
+                        {visibleItems.map((id, itemIndex) => {
+                          const content = renderWidget(id, isFull);
+                          if (!content) return null;
+                          return (
+                            <React.Fragment key={`${row.id}:${id}:${itemIndex}`}>
+                              {content}
+                            </React.Fragment>
+                          );
+                        })}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
             </div>
 
             {/* Forecast content - hidden when overview is active */}

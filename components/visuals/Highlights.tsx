@@ -2407,18 +2407,18 @@ const Highlights = ({
               )
             : visibleStats
           ).map((stat, idx) => {
+            const fallbackStat =
+              !stat && !isHydrated
+                ? PLACEHOLDER_STATS[
+                    ((layout === "carousel" ? carouselStart : sliceStart) +
+                      idx) %
+                      PLACEHOLDER_STATS.length
+                  ]
+                : null;
+            const resolvedStat = stat ?? fallbackStat;
+
             let content;
-            if (!isHydrated) {
-              content = (
-                <div
-                  aria-hidden="true"
-                  className={cn(
-                    "pointer-events-none rounded-xl bg-highlight-6/70",
-                    highlightCardHeight
-                  )}
-                />
-              );
-            } else if (!stat) {
+            if (!resolvedStat) {
               content = (
                 <div
                   className={cn(
@@ -2430,6 +2430,7 @@ const Highlights = ({
                 </div>
               );
             } else {
+              const stat = resolvedStat;
               switch (stat.label) {
                 case "swell": {
                   if (!stat.primary || !stat.secondary) {
@@ -3018,8 +3019,8 @@ const Highlights = ({
               return (
                 <li
                   key={
-                    stat
-                      ? `${stat.label}-${idx}`
+                    resolvedStat
+                      ? `${resolvedStat.label}-${idx}`
                       : `placeholder-${safePage}-${idx}`
                   }
                   className={cn(
@@ -3027,26 +3028,31 @@ const Highlights = ({
                     "relative highlight-card shadow-even p-2.5",
                     "transition-colors duration-200 motion-reduce:transition-none",
                     layout === "grid" &&
-                      stat?.label === "swell" &&
+                      resolvedStat?.label === "swell" &&
                       "col-span-1 @min-xl:col-span-2 @min-3xl:col-span-1",
                     layout === "grid" &&
-                      stat?.label === "swell" &&
+                      resolvedStat?.label === "swell" &&
                       !isFull &&
                       "@min-4xl:col-span-2",
                     layout === "grid" &&
-                      stat?.label === "swell" &&
+                      resolvedStat?.label === "swell" &&
                       isFull &&
                       "@min-xl:col-span-2",
                     !isHydrated && "animate-pulse motion-reduce:animate-none"
                   )}
-                  aria-hidden={!stat && !isHydrated ? "true" : undefined}
+                  aria-hidden={!isHydrated ? "true" : undefined}
                   aria-label={
-                    !stat && isHydrated
+                    !resolvedStat && isHydrated
                       ? "More highlights coming soon"
                       : undefined
                   }
                 >
-                  <div className="flex-1 flex items-center justify-center gap-1 h-full">
+                  <div
+                    className={cn(
+                      "flex-1 flex items-center justify-center gap-1 h-full",
+                      !isHydrated && "opacity-0 pointer-events-none"
+                    )}
+                  >
                     {content}
                   </div>
                 </li>

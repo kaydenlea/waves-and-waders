@@ -39,7 +39,6 @@ import { getForecastCached } from "@/lib/dataCache";
 import { useForecastData } from "@/components/context/ForecastDataContext";
 import { useDateContext } from "@/components/context/DateContext";
 import { useForecastChartContext } from "@/components/context/ForecastChartContext";
-import HoverOverlayLine from "@/components/graphs/HoverOverlayLine";
 import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
 import { buildYAxisTicks, limitYAxisTicks } from "@/components/graphs/yAxisTicks";
 import { useSunData } from "@/components/context/SunDataContext";
@@ -1196,17 +1195,6 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                 </ChartContainer>
               </div>
               <div style={{ position: "relative", zIndex: 1 }}>
-                <HoverOverlayLine
-                  domainMin={domainMin}
-                  domainMax={domainMax}
-                  plotLeftPx={dayLabelLeftOffset}
-                  plotWidthPx={dataAreaWidth}
-                  days={normalizedDays ?? undefined}
-                  selectedDate={selectedDate}
-                  selectedHour={
-                    dashboardBusy ? stableSelectedHour : selectedHour
-                  }
-                />
                 <ChartContainer
                   key={chartInnerWidth}
                   config={chartConfig}

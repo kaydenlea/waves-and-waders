@@ -326,7 +326,7 @@ export default function BottomNav() {
                 }
               }}
               aria-label="Scroll to content"
-              className="flex items-center gap-1 px-4 py-3 rounded-full bg-background backdrop-blur border border-border shadow-lg text-sm font-medium text-foreground hover:bg-highlight-5 transition-colors"
+              className="flex items-center gap-1 px-4 py-3 rounded-full bg-background backdrop-blur border border-border shadow-lg text-sm font-medium text-foreground hover:bg-highlight-5 transition-colors touch-none select-none"
             >
               <span>
                 View{" "}
@@ -424,7 +424,7 @@ export default function BottomNav() {
       {/* Bottom Navigation */}
       <div
         className={cn(
-          "shadow-md @min-4xl:hidden safe-area-inset-bottom bg-highlight-4 backdrop-blur border-t border-border fixed bottom-0 left-0 right-0 z-30 transition-all duration-300",
+          "shadow-md @min-4xl:hidden safe-area-inset-bottom bg-highlight-4 backdrop-blur border-t border-border fixed bottom-0 left-0 right-0 z-30 transition-all duration-300 touch-none",
           showBottomUI ? "translate-y-0" : "translate-y-full"
         )}
       >

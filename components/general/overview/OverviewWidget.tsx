@@ -18,7 +18,6 @@ import {
 import { cn } from "@/lib/utils";
 import { ChartLoadingCover } from "@/components/graphs/ChartLoadingCover";
 import { OverviewCard, OverviewCardHeader } from "./OverviewPrimitives";
-import { useOptionalOverviewChartsLoadingState } from "@/components/context/OverviewChartsLoadingContext";
 
 const iconMap: Record<string, React.ReactNode> = {
   map: <MapPin className="h-4 w-4" />,
@@ -55,8 +54,7 @@ export default function OverviewWidget({
   headerContent,
   loading,
 }: Props) {
-  const overviewChartsLoading = useOptionalOverviewChartsLoadingState();
-  const effectiveLoading = Boolean(loading || overviewChartsLoading);
+  const effectiveLoading = Boolean(loading);
   const lowerCaseLabel = label.toLowerCase();
 
   const icon = iconMap[lowerCaseLabel] ?? <CircleGauge className="h-4 w-4" />;
@@ -74,7 +72,7 @@ export default function OverviewWidget({
         <span
           className={cn(
             "inline-flex items-center rounded-full border border-border/25 bg-foreground/5 px-2.5 py-1",
-            "text-xs font-medium text-muted-foreground whitespace-nowrap",
+            "text-xs font-medium text-muted-foreground whitespace-nowrap tabular-nums",
             className
           )}
         >

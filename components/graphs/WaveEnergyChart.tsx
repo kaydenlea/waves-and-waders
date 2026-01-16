@@ -80,6 +80,7 @@ const CHART_TOP_MARGIN = 10;
 const CHART_RIGHT_MARGIN = 10;
 const Y_AXIS_WIDTH = 30;
 const X_AXIS_SHADE_EXCLUDE_PX = 34;
+const HOVER_LINE_END_INSET_PX = 7.5;
 const Y_AXIS_TICK = {
   fill: "var(--foreground)",
   fontWeight: 500,
@@ -209,6 +210,33 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     return mapped;
   }, [beachId, forecastRows, hours, windowStartMs, placeholderSeries]);
 
+  const lastEnergySegmentRef = React.useRef<{
+    prev: { cx: number; cy: number } | null;
+    curr: { cx: number; cy: number } | null;
+  }>({ prev: null, curr: null });
+  React.useEffect(() => {
+    lastEnergySegmentRef.current = { prev: null, curr: null };
+  }, [series]);
+
+  const trackEnergyDot = useCallback(
+    (props: { cx?: number | string; cy?: number | string; index?: number }) => {
+      const idx = typeof props.index === "number" ? props.index : -1;
+      const key = `track-energy-${idx}`;
+      if (idx < 0) return <g key={key} />;
+      const cxNum = typeof props.cx === "number" ? props.cx : Number(props.cx);
+      const cyNum = typeof props.cy === "number" ? props.cy : Number(props.cy);
+      if (!Number.isFinite(cxNum) || !Number.isFinite(cyNum)) return <g key={key} />;
+      const last = series.length - 1;
+      if (idx === last - 1) {
+        lastEnergySegmentRef.current.prev = { cx: cxNum, cy: cyNum };
+      } else if (idx === last) {
+        lastEnergySegmentRef.current.curr = { cx: cxNum, cy: cyNum };
+      }
+      return <g key={key} />;
+    },
+    [series.length]
+  );
+
   const energyActiveDot = useCallback(
     (props: { cx?: number | string; cy?: number | string; index?: number }) => {
       const cxNum = typeof props.cx === "number" ? props.cx : Number(props.cx);
@@ -225,10 +253,23 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         ? next.energy >= curr.energy
         : true;
       const color = inc ? "var(--energy-fill-inc)" : "var(--energy-fill-dec)";
+      const isLastPoint = idx === series.length - 1;
+      const dx = isLastPoint ? -HOVER_LINE_END_INSET_PX : 0;
+      const prevPoint = lastEnergySegmentRef.current.prev;
+      const projected = (() => {
+        if (!dx || !prevPoint) return { x: cxNum + dx, y: cyNum };
+        const vx = cxNum - prevPoint.cx;
+        const vy = cyNum - prevPoint.cy;
+        if (!Number.isFinite(vx) || !Number.isFinite(vy) || Math.abs(vx) < 1e-6) {
+          return { x: cxNum + dx, y: cyNum };
+        }
+        const t = Math.max(-1, Math.min(0, dx / vx));
+        return { x: cxNum + dx, y: cyNum + t * vy };
+      })();
       return (
         <circle
-          cx={cxNum}
-          cy={cyNum}
+          cx={projected.x}
+          cy={projected.y}
           r={4}
           fill={color}
           stroke={color}
@@ -629,12 +670,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
             />
             <ChartTooltip
               content={<ChartTooltipContent />}
-              cursor={{
-                stroke: "var(--foreground)",
-                strokeWidth: 1,
-                strokeDasharray: "3 3",
-                strokeOpacity: 0.5,
-              }}
+              cursor={false}
               animationDuration={0}
               isAnimationActive={false}
             />
@@ -673,6 +709,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
               fillOpacity={1}
               clipPath={`url(#${plotClipId})`}
               activeDot={energyActiveDot}
+              dot={trackEnergyDot}
               isAnimationActive={false}
               animationDuration={0}
               animationBegin={0}
@@ -684,16 +721,45 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
               // strokeWidth={2}
               strokeDasharray="3 3"
             />
-            {/* Hover indicator line - only show when hovering on any chart */}
-            {hoveredHour !== null && hoveredHour !== selectedHour && (
-              <ReferenceLine
-                x={hoveredHour}
-                stroke="var(--foreground)"
-                strokeWidth={1}
-                strokeOpacity={0.5}
-                strokeDasharray="5 5"
-              />
-            )}
+            <Customized
+              component={(p: ClipProps) => {
+                const hoverX = hoveredHour;
+                if (hoverX === null || hoverX === selectedHour) return null;
+                const offset = p?.offset;
+                const left = typeof offset?.left === "number" ? offset.left : 0;
+                const width =
+                  typeof offset?.width === "number" ? offset.width : 0;
+                const top = typeof offset?.top === "number" ? offset.top : 0;
+                const height =
+                  typeof offset?.height === "number" ? offset.height : 0;
+                if (!(width > 0) || !(height > 0)) return null;
+
+                const domainSpan = hours;
+                if (!(domainSpan > 0)) return null;
+                const t = hoverX / domainSpan;
+                if (!Number.isFinite(t)) return null;
+
+                const clampedT = Math.max(0, Math.min(1, t));
+                const plotRight = left + width;
+                let x = left + width * clampedT;
+                if (HOVER_LINE_END_INSET_PX > 0 && x >= plotRight - 0.5) {
+                  x = Math.max(left, plotRight - HOVER_LINE_END_INSET_PX);
+                }
+
+                return (
+                  <line
+                    x1={x}
+                    x2={x}
+                    y1={top}
+                    y2={top + height}
+                    stroke="var(--foreground)"
+                    strokeWidth={1}
+                    strokeOpacity={0.5}
+                    strokeDasharray="5 5"
+                  />
+                );
+              }}
+            />
           </AreaChart>
         </ChartContainer>
       </div>

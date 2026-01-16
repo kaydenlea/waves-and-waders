@@ -48,9 +48,15 @@ export function useDashboardLayout({
   const layoutDefaults = React.useMemo(() => getDefaultLayout(type), [type]);
 
   const [state, setState] = React.useState<LayoutState>(() => {
-    const meta = initialMeta ? normalizeMeta(type, initialMeta) : layoutDefaults.meta;
-    const rows = initialRows ? normalizeRows(type, initialRows, meta) : layoutDefaults.rows;
-    const hydrated = Boolean(initialRows && initialRows.length);
+    const meta = initialMeta
+      ? normalizeMeta(type, initialMeta)
+      : layoutDefaults.meta;
+    const rows = initialRows
+      ? normalizeRows(type, initialRows, meta)
+      : layoutDefaults.rows;
+    // If the server already provided a layout, treat it as hydrated to avoid
+    // transient loading UI (overlays/flicker) while we reconcile persisted prefs.
+    const hydrated = initialMeta != null || initialRows != null;
     return { meta, rows, hydrated };
   });
 
@@ -183,9 +189,6 @@ export function useDashboardLayout({
       }
     };
 
-    if (!cancelled) {
-      setState((prev) => (prev.hydrated ? prev : { ...prev, hydrated: false }));
-    }
     void loadFromSupabase();
 
     return () => {

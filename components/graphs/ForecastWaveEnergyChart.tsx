@@ -102,6 +102,7 @@ const DAY_LABEL_INSET = 6;
 const Y_AXIS_OFFSET_VAR = "--forecast-y-axis-offset";
 const X_AXIS_SHADE_EXCLUDE_PX = 34;
 const DRAG_THRESHOLD_PX = 8;
+const HOVER_LINE_END_INSET_PX = 7.5;
 const Y_AXIS_TICK = {
   fill: "var(--foreground)",
   fontWeight: 500,
@@ -161,6 +162,32 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
   const [sunReady, setSunReady] = useState(false);
   const { rows: sharedRows } = useForecastData();
   const [energyData, setEnergyData] = useState<WavePoint[]>([]);
+  const lastEnergySegmentRef = useRef<{
+    prev: { cx: number; cy: number } | null;
+    curr: { cx: number; cy: number } | null;
+  }>({ prev: null, curr: null });
+  useEffect(() => {
+    lastEnergySegmentRef.current = { prev: null, curr: null };
+  }, [energyData]);
+
+  const trackEnergyDot = useCallback(
+    (props: { cx?: number | string; cy?: number | string; index?: number }) => {
+      const idx = typeof props.index === "number" ? props.index : -1;
+      const key = `track-energy-${idx}`;
+      if (idx < 0) return <g key={key} />;
+      const cxNum = typeof props.cx === "number" ? props.cx : Number(props.cx);
+      const cyNum = typeof props.cy === "number" ? props.cy : Number(props.cy);
+      if (!Number.isFinite(cxNum) || !Number.isFinite(cyNum)) return <g key={key} />;
+      const last = energyData.length - 1;
+      if (idx === last - 1) {
+        lastEnergySegmentRef.current.prev = { cx: cxNum, cy: cyNum };
+      } else if (idx === last) {
+        lastEnergySegmentRef.current.curr = { cx: cxNum, cy: cyNum };
+      }
+      return <g key={key} />;
+    },
+    [energyData.length]
+  );
   const energyActiveDot = useCallback(
     (props: { cx?: number | string; cy?: number | string; index?: number }) => {
       const cxNum = typeof props.cx === "number" ? props.cx : Number(props.cx);
@@ -177,10 +204,23 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
         ? next.energy >= curr.energy
         : true;
       const color = inc ? "var(--energy-fill-inc)" : "var(--energy-fill-dec)";
+      const isLastPoint = idx === energyData.length - 1;
+      const dx = isLastPoint ? -HOVER_LINE_END_INSET_PX : 0;
+      const prevPoint = lastEnergySegmentRef.current.prev;
+      const projected = (() => {
+        if (!dx || !prevPoint) return { x: cxNum + dx, y: cyNum };
+        const vx = cxNum - prevPoint.cx;
+        const vy = cyNum - prevPoint.cy;
+        if (!Number.isFinite(vx) || !Number.isFinite(vy) || Math.abs(vx) < 1e-6) {
+          return { x: cxNum + dx, y: cyNum };
+        }
+        const t = Math.max(-1, Math.min(0, dx / vx));
+        return { x: cxNum + dx, y: cyNum + t * vy };
+      })();
       return (
         <circle
-          cx={cxNum}
-          cy={cyNum}
+          cx={projected.x}
+          cy={projected.y}
           r={4}
           fill={color}
           stroke={color}
@@ -1213,6 +1253,8 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
                   domainMax={domainMax}
                   plotLeftPx={dayLabelLeftOffset}
                   plotWidthPx={dataAreaWidth}
+                  bottomInsetPx={X_AXIS_SHADE_EXCLUDE_PX}
+                  endInsetPx={HOVER_LINE_END_INSET_PX}
                   days={displayDays}
                   selectedDate={selectedDate}
                   selectedHour={
@@ -1353,6 +1395,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
                       fillOpacity={1}
                       clipPath={`url(#${plotClipId})`}
                       activeDot={energyActiveDot}
+                      dot={trackEnergyDot}
                       isAnimationActive={false}
                       animationDuration={0}
                       animationBegin={0}
@@ -1410,12 +1453,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
                       content={
                         <ChartTooltipContent labelFormatter={formatHourLabel} />
                       }
-                      cursor={{
-                        stroke: "var(--foreground)",
-                        strokeWidth: 1,
-                        strokeDasharray: "3 3",
-                        strokeOpacity: 0.75,
-                      }}
+                      cursor={false}
                       animationDuration={0}
                       isAnimationActive={false}
                     />

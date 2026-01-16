@@ -9,6 +9,8 @@ type HoverOverlayLineProps = {
   plotLeftPx: number;
   plotWidthPx: number;
   alignmentOffset?: number;
+  bottomInsetPx?: number;
+  endInsetPx?: number;
   days?: Date[] | null;
   selectedDate?: Date | null;
   selectedHour?: number | null;
@@ -51,6 +53,8 @@ const HoverOverlayLine: React.FC<HoverOverlayLineProps> = ({
   plotLeftPx,
   plotWidthPx,
   alignmentOffset = 0,
+  bottomInsetPx = 0,
+  endInsetPx = 0,
   days,
   selectedDate,
   selectedHour,
@@ -76,10 +80,15 @@ const HoverOverlayLine: React.FC<HoverOverlayLineProps> = ({
   const rawX = plotLeftPx + plotWidthPx * t;
   if (!Number.isFinite(rawX)) return null;
 
-  const clampedX = Math.max(
+  const plotRightPx = plotLeftPx + plotWidthPx;
+  let clampedX = Math.max(
     plotLeftPx,
-    Math.min(plotLeftPx + plotWidthPx, rawX)
+    Math.min(plotRightPx, rawX)
   );
+
+  if (endInsetPx > 0 && clampedX >= plotRightPx - 0.5) {
+    clampedX = Math.max(plotLeftPx, plotRightPx - endInsetPx);
+  }
 
   return (
     <div
@@ -87,7 +96,7 @@ const HoverOverlayLine: React.FC<HoverOverlayLineProps> = ({
       style={{
         position: "absolute",
         top: 0,
-        bottom: 0,
+        bottom: bottomInsetPx,
         left: clampedX,
         borderLeft: "1px dashed var(--foreground)",
         opacity: strokeOpacity,

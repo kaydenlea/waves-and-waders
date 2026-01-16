@@ -71,6 +71,7 @@ const DAY_LABEL_INSET = 6;
 const Y_AXIS_OFFSET_VAR = "--forecast-y-axis-offset";
 const X_AXIS_SHADE_EXCLUDE_PX = 34;
 const DRAG_THRESHOLD_PX = 8;
+const HOVER_LINE_END_INSET_PX = 7.5;
 const Y_AXIS_TICK = {
   fill: "var(--foreground)",
   fontWeight: 500,
@@ -99,7 +100,7 @@ type TooltipPayload = Array<{ payload?: { hour?: number } }>;
 
 type ChartMouseEvent = { activeLabel?: number | string | null };
 
-type TideDotProps = { payload?: TidePoint; cx?: number; cy?: number };
+type TideDotProps = { payload?: TidePoint; cx?: number; cy?: number; index?: number };
 
 export default React.memo(function ForecastTideChart({
   beachId,
@@ -187,6 +188,53 @@ export default React.memo(function ForecastTideChart({
     tideStats: [],
   });
   const { data, dayAreas, nightAreas, sunMarkers, tideStats } = chartState;
+  const lastTideSegmentRef = useRef<{
+    prev: { cx: number; cy: number } | null;
+    curr: { cx: number; cy: number } | null;
+  }>({ prev: null, curr: null });
+  useEffect(() => {
+    lastTideSegmentRef.current = { prev: null, curr: null };
+  }, [data]);
+
+  const tideActiveDot = useCallback(
+    (props: { cx?: number | string; cy?: number | string; index?: number }) => {
+      const cxNum = typeof props.cx === "number" ? props.cx : Number(props.cx);
+      const cyNum = typeof props.cy === "number" ? props.cy : Number(props.cy);
+      if (!Number.isFinite(cxNum) || !Number.isFinite(cyNum)) return <g />;
+      const idx = typeof props.index === "number" ? props.index : -1;
+      if (idx < 0) return <g />;
+
+      const isLastPoint = idx === data.length - 1;
+      const dx = isLastPoint ? -HOVER_LINE_END_INSET_PX : 0;
+      const prevPoint = lastTideSegmentRef.current.prev;
+      const projected = (() => {
+        if (!dx || !prevPoint) return { x: cxNum + dx, y: cyNum };
+        const vx = cxNum - prevPoint.cx;
+        const vy = cyNum - prevPoint.cy;
+        if (
+          !Number.isFinite(vx) ||
+          !Number.isFinite(vy) ||
+          Math.abs(vx) < 1e-6
+        ) {
+          return { x: cxNum + dx, y: cyNum };
+        }
+        const t = Math.max(-1, Math.min(0, dx / vx));
+        return { x: cxNum + dx, y: cyNum + t * vy };
+      })();
+
+      return (
+        <circle
+          cx={projected.x}
+          cy={projected.y}
+          r={4}
+          fill={TIDE_LINE_COLOR}
+          stroke={TIDE_LINE_COLOR}
+          strokeWidth={0}
+        />
+      );
+    },
+    [data.length]
+  );
   const shadingReady = dayAreas.length > 0 || nightAreas.length > 0;
   useEffect(() => {
     setLoading(data.length === 0);
@@ -1351,6 +1399,8 @@ export default React.memo(function ForecastTideChart({
                     domainMax={domainMax}
                     plotLeftPx={dayLabelLeftOffset}
                     plotWidthPx={dataAreaWidth}
+                    bottomInsetPx={X_AXIS_SHADE_EXCLUDE_PX}
+                    endInsetPx={HOVER_LINE_END_INSET_PX}
                     days={days}
                     selectedDate={selectedDate}
                     selectedHour={
@@ -1461,12 +1511,7 @@ export default React.memo(function ForecastTideChart({
                             labelFormatter={formatHourLabel}
                           />
                         }
-                        cursor={{
-                          stroke: "var(--foreground)",
-                          strokeWidth: 1,
-                          strokeDasharray: "3 3",
-                          strokeOpacity: 0.75,
-                        }}
+                        cursor={false}
                         animationDuration={0}
                         isAnimationActive={false}
                       />
@@ -1479,9 +1524,22 @@ export default React.memo(function ForecastTideChart({
                         isAnimationActive={false}
                         animationDuration={0}
                         animationBegin={0}
-                        dot={({ payload, cx, cy }: TideDotProps) => {
+                        activeDot={tideActiveDot}
+                        dot={({ payload, cx, cy, index }: TideDotProps) => {
                           if (!payload) {
                             return <g />;
+                          }
+                          const idx = typeof index === "number" ? index : -1;
+                          const cxNum = typeof cx === "number" ? cx : Number(cx);
+                          const cyNum = typeof cy === "number" ? cy : Number(cy);
+                          if (idx === data.length - 2) {
+                            if (Number.isFinite(cxNum) && Number.isFinite(cyNum)) {
+                              lastTideSegmentRef.current.prev = { cx: cxNum, cy: cyNum };
+                            }
+                          } else if (idx === data.length - 1) {
+                            if (Number.isFinite(cxNum) && Number.isFinite(cyNum)) {
+                              lastTideSegmentRef.current.curr = { cx: cxNum, cy: cyNum };
+                            }
                           }
                           const hour = payload.hour as number;
                           // Exact match for sun markers (no duplicates)

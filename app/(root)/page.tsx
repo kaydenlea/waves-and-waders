@@ -329,7 +329,11 @@ const Home = () => {
           data-inview="false"
           className="ww-section relative mx-auto w-full max-w-7xl px-4 sm:px-6 py-16 sm:py-20 overflow-hidden scroll-mt-28"
         >
-          <InViewOnce rootAttr="data-ww-section" />
+          <InViewOnce
+            rootAttr="data-ww-section"
+            rootMargin="0px 0px -15% 0px"
+            threshold={0}
+          />
           <div
             className="ww-reveal grid grid-cols-1 items-start justify-items-center gap-10 xl:grid-cols-12 xl:justify-items-stretch xl:gap-12"
             style={{ "--delay": "60ms" } as React.CSSProperties}

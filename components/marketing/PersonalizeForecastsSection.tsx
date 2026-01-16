@@ -22,7 +22,11 @@ export default function PersonalizeForecastsSection({
       data-ww-section
       data-inview="false"
     >
-      <InViewOnce rootAttr="data-ww-section" />
+      <InViewOnce
+        rootAttr="data-ww-section"
+        rootMargin="0px 0px -15% 0px"
+        threshold={0}
+      />
       <div className="grid grid-cols-1 items-start justify-items-center gap-10 xl:grid-cols-12 xl:justify-items-stretch xl:gap-12">
         <div className="w-full max-w-2xl xl:col-span-5 xl:max-w-none">
           <h2

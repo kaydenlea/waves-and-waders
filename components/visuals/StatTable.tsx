@@ -2049,7 +2049,7 @@ const StatTable = ({
     );
   };
 
-  const controlsReady = !loading && data.length > 0;
+  const controlsReady = data.length > 0;
   const showDateSegment = controlsReady && useSingleDayView;
   const showPager = controlsReady && columnPages.length > 1;
   const showDensityToggle =
@@ -2079,6 +2079,7 @@ const StatTable = ({
     <div
       className={cn(
         "pointer-events-auto inline-flex h-10 max-w-full items-center rounded-full",
+        loading && "pointer-events-none opacity-70",
         "bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/70",
         "border border-border/40 shadow-xs"
       )}
@@ -2697,88 +2698,46 @@ const StatTable = ({
             </tr>
           </thead>
           <tbody>
-            {loading && !visibleDays.length
-              ? (() => {
-                  const daysForSkeleton = useSingleDayView
-                    ? 1
-                    : Math.min(maxVisibleDays, Math.max(numDays, 1));
-                  const rowsForSkeleton = targetHours.length;
-                  return Array.from({ length: daysForSkeleton }).map(
-                    (_, dayIdx) => (
-                      <React.Fragment key={`skeleton-day-${dayIdx}`}>
-                        {showDayHeaderRow && (
-                          <tr>
-                            <td
-                              colSpan={visibleColumns.length + 1}
-                              className="p-0"
-                            >
-                              <div
-                                className={cn(
-                                  "mx-0 my-3 relative overflow-hidden rounded-2xl border border-border/60 bg-foreground/[0.06] px-4 py-3 shadow-[0_1px_0_rgba(0,0,0,0.04),0_12px_30px_rgba(0,0,0,0.06)] dark:bg-foreground/[0.09] dark:shadow-[0_1px_0_rgba(0,0,0,0.35),0_12px_30px_rgba(0,0,0,0.35)]",
-                                  dayIdx === 0 && variant === "half" && "mt-0"
-                                )}
-                              >
-                                <div className="absolute inset-0 bg-gradient-to-r from-foreground/[0.06] via-transparent to-foreground/[0.02] dark:from-foreground/[0.09] dark:to-foreground/[0.04]" />
-                                <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-foreground/20 to-transparent dark:via-foreground/25" />
-                                <div className="relative flex items-center gap-3">
-                                  <div className="h-8 w-8 shrink-0 rounded-full bg-foreground/10 animate-pulse motion-reduce:animate-none" />
-                                  <div className="min-w-0 flex-1">
-                                    <div className="h-3 w-44 max-w-full rounded bg-foreground/10 animate-pulse motion-reduce:animate-none" />
-                                    <div className="mt-2 h-[2px] w-20 rounded-full bg-foreground/10 animate-pulse motion-reduce:animate-none" />
-                                  </div>
-                                </div>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                        {Array.from({ length: rowsForSkeleton }).flatMap(
-                          (_, rowIdx) => {
-                            const row = (
-                              <tr
-                                key={`skeleton-row-${dayIdx}-${rowIdx}`}
-                                className="transition-colors"
-                              >
-                                <th
-                                  scope="row"
-                                  className="sticky left-0 z-10 p-0 align-middle bg-transparent border-r border-border/40 dark:border-border/50"
-                                >
-                                  <div className="h-14 w-12 rounded-xl border border-border/25 bg-foreground/[0.03] dark:bg-foreground/[0.05] animate-pulse motion-reduce:animate-none" />
-                                </th>
-                                {visibleColumns.map((col) => (
-                                  <td
-                                    key={`skeleton-${col.id}-${dayIdx}-${rowIdx}`}
-                                    className="p-0 align-middle"
-                                  >
-                                    <div className="h-14 w-full rounded-lg border border-border/25 bg-foreground/[0.03] dark:bg-foreground/[0.05] animate-pulse motion-reduce:animate-none" />
-                                  </td>
-                                ))}
-                              </tr>
-                            );
-
-                            const divider =
-                              rowIdx === rowsForSkeleton - 1 ? null : (
-                                <tr
-                                  key={`skeleton-row-${dayIdx}-${rowIdx}-divider`}
-                                  aria-hidden="true"
-                                  className="h-2"
-                                >
-                                  <td
-                                    colSpan={visibleColumns.length + 1}
-                                    className="p-0"
-                                  >
-                                    <div className="mx-2 h-px bg-foreground/10 dark:bg-foreground/15" />
-                                  </td>
-                                </tr>
-                              );
-
-                            return [row, divider].filter(Boolean);
-                          }
-                        )}
-                      </React.Fragment>
-                    )
-                  );
-                })()
-              : visibleDays.map((day, i) => {
+            {(
+              visibleDays.length
+                ? visibleDays
+                : loading
+                  ? (() => {
+                      const daysForPlaceholder = useSingleDayView
+                        ? 1
+                        : Math.min(maxVisibleDays, Math.max(numDays, 1));
+                      const anchor =
+                        (forecastPage && forecastSelectedDay?.dateMs
+                          ? new Date(forecastSelectedDay.dateMs)
+                          : requestedDate ??
+                            (selected instanceof Date ? selected : null)) ??
+                        new Date();
+                      const { start: anchorStart } = getPacificDayRange(anchor);
+                      return Array.from(
+                        { length: daysForPlaceholder },
+                        (_, idx) => {
+                          const d = new Date(
+                            anchorStart.getTime() + idx * DAY_MS
+                          );
+                          return {
+                            key: `loading-${idx}`,
+                            date: d.toLocaleDateString("en-US", {
+                              weekday: "long",
+                              month: "long",
+                              day: "numeric",
+                            }),
+                            dateMs: new Date(
+                              d.getFullYear(),
+                              d.getMonth(),
+                              d.getDate()
+                            ).getTime(),
+                            vals: [],
+                          } satisfies TableDay;
+                        }
+                      );
+                    })()
+                  : []
+            ).map((day, i) => {
                   const dayEntries = targetHours.map(
                     (hour) =>
                       day.vals.find((entry) => entry.index === hour) ??
