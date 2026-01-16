@@ -26,10 +26,7 @@ import {
   TrendingDown,
 } from "lucide-react";
 import { getWindDirection } from "@/lib/supabase";
-import {
-  useDateContext,
-  useHoveredHour,
-} from "@/components/context/DateContext";
+import { useDateContext } from "@/components/context/DateContext";
 import { useSunData } from "@/components/context/SunDataContext";
 import { buildSunSegments } from "@/components/graphs/sunSegments";
 import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
@@ -42,6 +39,7 @@ import {
   applyForecastShadingOpacity,
   buildForecastPlotShadingBackgroundPercent,
 } from "@/components/graphs/forecastShadingBackground";
+import HoverOverlayLine from "@/components/graphs/HoverOverlayLine";
 
 const chartConfig = {
   primary: {
@@ -160,7 +158,6 @@ export const SwellStatsHeader = ({
 const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   const { hour: selectedHour, setHoveredHour } = useDateContext();
   const { getSunData } = useSunData();
-  const hoveredHour = useHoveredHour();
   const chartTheme = useChartTheme();
   const { setReady: setOverviewReady } =
     useOptionalOverviewChartLoading("overview-swell");
@@ -168,6 +165,8 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   const [nightAreas, setNightAreas] = useState<{ x1: number; x2?: number }[]>(
     []
   );
+  const [containerWidth, setContainerWidth] = useState<number>(0);
+  const containerRef = useRef<HTMLDivElement>(null);
   const lastArrowPointRef = useRef<
     Record<
       "primary" | "secondary" | "tertiary",
@@ -287,6 +286,18 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   useEffect(() => {
     setOverviewReady(overviewReady);
   }, [overviewReady, setOverviewReady]);
+
+  useEffect(() => {
+    const node = containerRef.current;
+    if (!node) return;
+    const ro = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      const width = entry ? Math.floor(entry.contentRect.width) : 0;
+      setContainerWidth(width);
+    });
+    ro.observe(node);
+    return () => ro.disconnect();
+  }, []);
 
   const placeholderData = useMemo(
     () =>
@@ -439,6 +450,10 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   );
 
   const yAxisInsetPx = CHART_LEFT_MARGIN + Y_AXIS_WIDTH;
+  const plotWidthPx = useMemo(
+    () => Math.max(0, containerWidth - yAxisInsetPx - CHART_RIGHT_MARGIN),
+    [containerWidth, yAxisInsetPx]
+  );
   const plotClipIdRaw = React.useId();
   const plotClipId = useMemo(
     () => `overview-swell-plot-clip-${plotClipIdRaw.replace(/:/g, "")}`,
@@ -557,7 +572,10 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   );
 
   return (
-    <div className="relative aspect-auto h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px] w-full">
+    <div
+      ref={containerRef}
+      className="relative aspect-auto h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px] w-full"
+    >
       {/* Shade only the plot area (not the X-axis label band), matching prior ReferenceArea behavior. */}
       <div
         aria-hidden="true"
@@ -581,6 +599,18 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           pointerEvents: "none",
         }}
       />
+      {plotWidthPx > 0 && (
+        <HoverOverlayLine
+          domainMin={0}
+          domainMax={hours}
+          plotLeftPx={yAxisInsetPx}
+          plotWidthPx={plotWidthPx}
+          days={date ? [date] : null}
+          selectedDate={date ?? null}
+          selectedHour={selectedHour ?? null}
+          strokeOpacity={0.5}
+        />
+      )}
       {/* Divider between the in-plot axis inset and the data plot. */}
       <div
         aria-hidden="true"
@@ -743,16 +773,6 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
               // strokeWidth={2}
               strokeDasharray="3 3"
             />
-            {/* Hover indicator line - only show when hovering on any chart */}
-            {hoveredHour !== null && hoveredHour !== selectedHour && (
-              <ReferenceLine
-                x={hoveredHour}
-                stroke="var(--foreground)"
-                strokeWidth={1}
-                strokeOpacity={0.5}
-                strokeDasharray="5 5"
-              />
-            )}
             {/* <ChartLegend content={<ChartLegendContent />} /> */}
             <ChartTooltip
               content={

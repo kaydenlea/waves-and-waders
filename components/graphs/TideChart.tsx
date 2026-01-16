@@ -17,10 +17,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import {
-  useDateContext,
-  useHoveredHour,
-} from "@/components/context/DateContext";
+import { useDateContext } from "@/components/context/DateContext";
 import { useTideData } from "@/components/context/TideDataContext";
 import { useTideWindowData } from "@/lib/hooks/useTideWindow";
 import {
@@ -38,6 +35,7 @@ import {
   applyForecastShadingOpacity,
   buildForecastPlotShadingBackgroundPercent,
 } from "@/components/graphs/forecastShadingBackground";
+import HoverOverlayLine from "@/components/graphs/HoverOverlayLine";
 
 const HOURS_TO_MS = 60 * 60 * 1000;
 
@@ -177,10 +175,11 @@ const TideChart: React.FC<TideChartProps> = ({
     Map<string, { chartData: TidePoint[]; windowStart: number | null }>
   >(new Map());
   const { hour: selectedHour, setHoveredHour } = useDateContext();
-  const hoveredHour = useHoveredHour();
   const chartTheme = useChartTheme();
   const { setReady: setOverviewReady } =
     useOptionalOverviewChartLoading("overview-tide");
+  const [containerWidth, setContainerWidth] = useState<number>(0);
+  const containerRef = React.useRef<HTMLDivElement>(null);
 
   // Consolidated state with reducer for fewer re-renders
   const [state, dispatch] = useReducer(chartReducer, initialChartState);
@@ -223,6 +222,18 @@ const TideChart: React.FC<TideChartProps> = ({
   useEffect(() => {
     setOverviewReady(overviewReady);
   }, [overviewReady, setOverviewReady]);
+
+  useEffect(() => {
+    const node = containerRef.current;
+    if (!node) return;
+    const ro = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      const width = entry ? Math.floor(entry.contentRect.width) : 0;
+      setContainerWidth(width);
+    });
+    ro.observe(node);
+    return () => ro.disconnect();
+  }, []);
 
   // Keep native resolution (≈6 minute spacing) for accuracy; no downsampling.
   const renderData = useMemo(() => {
@@ -684,6 +695,10 @@ const TideChart: React.FC<TideChartProps> = ({
   );
 
   const yAxisInsetPx = CHART_LEFT_MARGIN + Y_AXIS_WIDTH;
+  const plotWidthPx = useMemo(
+    () => Math.max(0, containerWidth - yAxisInsetPx - CHART_RIGHT_MARGIN),
+    [containerWidth, yAxisInsetPx]
+  );
   const plotShading = useMemo(
     () =>
       buildForecastPlotShadingBackgroundPercent({
@@ -781,6 +796,7 @@ const TideChart: React.FC<TideChartProps> = ({
 
   return (
     <div
+      ref={containerRef}
       className={cn(
         "relative aspect-auto w-full [&_.recharts-legend-wrapper]:hidden",
         preview
@@ -811,6 +827,18 @@ const TideChart: React.FC<TideChartProps> = ({
           pointerEvents: "none",
         }}
       />
+      {plotWidthPx > 0 && (
+        <HoverOverlayLine
+          domainMin={0}
+          domainMax={hours}
+          plotLeftPx={yAxisInsetPx}
+          plotWidthPx={plotWidthPx}
+          days={date ? [date] : null}
+          selectedDate={date ?? null}
+          selectedHour={selectedHour ?? null}
+          strokeOpacity={0.5}
+        />
+      )}
       {/* Divider between the in-plot axis inset and the data plot. */}
       <div
         aria-hidden="true"
@@ -906,16 +934,6 @@ const TideChart: React.FC<TideChartProps> = ({
               // strokeWidth={2}
               strokeDasharray="3 3"
               isFront={false}
-            />
-            {/* Hover indicator line - always rendered to avoid re-mount */}
-            <ReferenceLine
-              x={hoveredHour ?? 0}
-              stroke="var(--foreground)"
-              strokeWidth={1}
-              strokeOpacity={
-                hoveredHour !== null && hoveredHour !== selectedHour ? 0.5 : 0
-              }
-              strokeDasharray="5 5"
             />
             {/* <CartesianGrid
           strokeDasharray="3 3"
