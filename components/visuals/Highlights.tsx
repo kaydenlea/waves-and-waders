@@ -720,11 +720,13 @@ const WeatherStat = ({
   label,
   weatherCode,
   isFull,
+  showMap,
 }: {
   temp: number;
   label: string;
   weatherCode?: number | null;
   isFull?: boolean;
+  showMap?: boolean;
 }) => {
   const getWeatherVisual = (code: number | null | undefined) => {
     if (code == null || code === 0) {
@@ -795,7 +797,7 @@ const WeatherStat = ({
       label={label}
       primary={
         <>
-          <span className="text-[1.15rem] @min-sm:text-[1.3rem] font-semibold tabular-nums tracking-tight">
+          <span className="text-[1.15rem] @min-sm:text-[1.2rem] @min-sm:mb-0.5 font-semibold tabular-nums tracking-tight">
             {temp}
           </span>
           <span className="text-[0.75rem] font-medium text-muted-foreground">
@@ -813,17 +815,25 @@ const WeatherStat = ({
           {visual.label}
         </span>
       }
-      visual={<VisualSlot>{visual.icon}</VisualSlot>}
+      visual={
+        <VisualSlot isFull={isFull} showMap={showMap}>
+          {visual.icon}
+        </VisualSlot>
+      }
     />
   );
 };
 
 const WaterStat = ({
   temp,
+  showMap,
+  isFull,
   min,
   max,
 }: {
   temp: number;
+  showMap?: boolean;
+  isFull?: boolean;
   min?: number;
   max?: number;
 }) => {
@@ -839,7 +849,7 @@ const WaterStat = ({
       label="water"
       primary={
         <>
-          <span className="text-[1.15rem] @min-sm:text-[1.3rem] font-semibold tabular-nums tracking-tight">
+          <span className="text-[1.15rem] @min-sm:text-[1.2rem] @min-sm:mb-0.5 font-semibold tabular-nums tracking-tight">
             {temp}
           </span>
           <span className="text-[0.75rem] font-medium text-muted-foreground">
@@ -853,7 +863,7 @@ const WaterStat = ({
         </span>
       }
       visual={
-        <VisualSlot>
+        <VisualSlot isFull={isFull} showMap={showMap}>
           <div className="relative h-8 w-2 rounded-full bg-gradient-to-t from-sky-500/70 via-emerald-400/55 to-amber-400/75">
             <div
               className="absolute left-1/2 h-2 w-2 -translate-x-1/2 rounded-full bg-background ring-1 ring-foreground/20 shadow-sm"
@@ -1135,7 +1145,7 @@ const MoonStat = ({
         </span>
       }
       visual={
-        <VisualSlot>
+        <VisualSlot isFull={isFull} showMap={showMap}>
           <div className="relative grid size-10 place-items-center">
             {(() => {
               const size = 40;
@@ -1243,10 +1253,10 @@ const WindStat = ({
         <>
           <span
             className={cn(
-              "text-[1.15rem] @min-sm:text-[1.3rem] font-semibold tabular-nums tracking-tight",
+              "text-[1.15rem] @min-sm:text-[1.2rem] @min-sm:mb-0.5 font-semibold tabular-nums tracking-tight",
               !isFull &&
                 showMap &&
-                "@min-4xl:text-[1.15rem] @min-6xl:text-[1.3rem]"
+                "@min-4xl:text-[1.15rem] @min-6xl:text-[1.2rem]"
             )}
           >
             {data.speed}
@@ -1269,7 +1279,11 @@ const WindStat = ({
         </span>
       }
       visual={
-        <VisualSlot className="text-foreground/65 dark:text-foreground/60">
+        <VisualSlot
+          showMap={showMap}
+          isFull={isFull}
+          className="text-foreground/65 dark:text-foreground/60"
+        >
           <div className="relative h-10 w-10">
             <div className="absolute left-1/2 -top-3 -translate-x-1/2 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground/80 whitespace-nowrap">
               {dirLabel}
@@ -1359,10 +1373,14 @@ const WindStat = ({
 const EnergyStat = ({
   data,
   label,
+  showMap,
+  isFull,
   maxScale,
 }: {
   data: { value: number; unit: string };
   label: string;
+  showMap?: boolean;
+  isFull?: boolean;
   maxScale?: number;
 }) => {
   // Use 100 kJ as default max (typical range: 0-100 kJ for normal conditions)
@@ -1379,7 +1397,7 @@ const EnergyStat = ({
       label={label}
       primary={
         <>
-          <span className="text-[1.15rem] @min-sm:text-[1.3rem] font-semibold tabular-nums tracking-tight">
+          <span className="text-[1.15rem] @min-sm:text-[1.2rem] @min-sm:mb-0.5 font-semibold tabular-nums tracking-tight">
             {data.value}
           </span>
           <span className="text-[0.75rem] font-medium text-muted-foreground">
@@ -1393,7 +1411,7 @@ const EnergyStat = ({
         </span>
       }
       visual={
-        <VisualSlot>
+        <VisualSlot isFull={isFull} showMap={showMap}>
           <div
             aria-hidden="true"
             className="flex items-center justify-center gap-0.5"
@@ -1492,11 +1510,11 @@ const PressureStat = ({
               showMap &&
                 !isFull &&
                 layout !== "carousel" &&
-                "@min-4xl:text-[1.15rem] @min-6xl:text-[1.3rem]",
+                "@min-4xl:text-[1.15rem] @min-6xl:text-[1.2rem]",
               isFull && layout !== "carousel" && "@min-6xl:text-[1.15rem]",
               layout === "carousel"
                 ? "text-[1.15rem]"
-                : "text-[1.15rem] @min-sm:text-[1.3rem]"
+                : "text-[1.15rem] @min-sm:text-[1.2rem] @min-sm:mb-0.5"
             )}
           >
             {formattedValue}
@@ -1559,7 +1577,11 @@ const PressureStat = ({
         </span>
       }
       visual={
-        <VisualSlot className="text-foreground/70 dark:text-foreground/65">
+        <VisualSlot
+          isFull={isFull}
+          showMap={showMap}
+          className="text-foreground/70 dark:text-foreground/65"
+        >
           <svg
             width="44"
             height="44"
@@ -1722,7 +1744,7 @@ const TideStat = ({
       label={label}
       primary={
         <>
-          <span className="text-[1.15rem] @min-sm:text-[1.3rem] font-semibold tabular-nums tracking-tight">
+          <span className="text-[1.15rem] @min-sm:text-[1.2rem] @min-sm:mb-0.5 font-semibold tabular-nums tracking-tight">
             {typeof data.value === "number" ? data.value : String(data.value)}
           </span>
           <span className="text-[0.75rem] font-medium text-muted-foreground">
@@ -1739,7 +1761,7 @@ const TideStat = ({
               isFull && layout !== "carousel" && "@min-6xl:hidden",
               !showMap &&
                 layout !== "carousel" &&
-                "@min-4xl:hidden @min-5xl:inline-block",
+                "@min-4xl:hidden @min-6xl:inline-block",
               !isFull &&
                 showMap &&
                 layout !== "carousel" &&
@@ -1751,7 +1773,7 @@ const TideStat = ({
         </span>
       }
       visual={
-        <VisualSlot>
+        <VisualSlot isFull={isFull} showMap={showMap}>
           <svg
             width="44"
             height="44"
@@ -1818,17 +1840,26 @@ const TideStat = ({
 
 function VisualSlot({
   children,
+  showMap,
+  isFull,
   className,
 }: {
   children: React.ReactNode;
+  showMap?: boolean;
+  isFull?: boolean;
   className?: string;
 }) {
   return (
     <div
       aria-hidden="true"
       className={cn(
-        "grid size-11 place-items-center rounded-xl bg-foreground/5 ring-1 ring-border/25",
+        "grid size-11 place-items-center rounded-xl bg-highlight-5/75 dark:bg-foreground/5 ring-1 ring-border/25",
         "shadow-[0_1px_0_rgba(0,0,0,0.04)] dark:shadow-[0_1px_0_rgba(0,0,0,0.35)]",
+        showMap
+          ? isFull
+            ? ""
+            : "scale-[1] @min-4xl:scale-[0.85] @min-5xl:scale-[1]"
+          : "scale-[1] @min-4xl:scale-[0.85] @min-5xl:scale-[1]",
         className
       )}
     >
@@ -1866,7 +1897,7 @@ function HighlightCard({
           label === "swell" && isFull && "@min-6xl:gap-0"
         )}
       >
-        <div className="min-w-0">
+        <div className={cn("min-w-0", label === "swell" && "scale-[0.95]")}>
           <div
             className={cn(
               "flex min-w-0 items-baseline gap-1 leading-none",
@@ -2377,8 +2408,8 @@ const Highlights = ({
     layout === "carousel"
       ? "h-[112px]"
       : isFull
-      ? "@min-6xl:min-h-[80.5px]"
-      : "min-h-[68.5px]";
+      ? "min-h-[100px]"
+      : "min-h-[100px] @min-4xl:min-h-[92px]";
 
   return (
     <div className={cn("w-full", layout === "grid" && "max-w-7xl mx-auto p-1")}>
@@ -2426,7 +2457,7 @@ const Highlights = ({
                     "flex items-center justify-center text-xs font-medium text-muted-foreground"
                   )}
                 >
-                  <span>More soon</span>
+                  <span>More soon!</span>
                 </div>
               );
             } else {
@@ -2927,6 +2958,7 @@ const Highlights = ({
                       label={stat.label}
                       weatherCode={stat.weather.code}
                       isFull={isFull}
+                      showMap={showMap}
                     />
                   );
                   break;
@@ -2936,6 +2968,8 @@ const Highlights = ({
                       temp={stat.temp}
                       min={displayScales?.waterMin}
                       max={displayScales?.waterMax}
+                      showMap={showMap}
+                      isFull={isFull}
                     />
                   );
                   break;
@@ -2960,7 +2994,7 @@ const Highlights = ({
                         </span>
                       }
                       visual={
-                        <VisualSlot>
+                        <VisualSlot isFull={isFull} showMap={showMap}>
                           <MoonStar className="h-5 w-5 text-violet-600/70 dark:text-violet-400/70" />
                         </VisualSlot>
                       }
@@ -2998,6 +3032,8 @@ const Highlights = ({
                       data={stat.energy}
                       label={stat.label}
                       maxScale={displayScales.energyMax}
+                      isFull={isFull}
+                      showMap={showMap}
                     />
                   );
                   break;
@@ -3025,7 +3061,7 @@ const Highlights = ({
                   }
                   className={cn(
                     highlightCardHeight,
-                    "relative highlight-card shadow-even p-2.5",
+                    "relative highlight-card shadow-even px-2.5 py-1.5",
                     "transition-colors duration-200 motion-reduce:transition-none",
                     layout === "grid" &&
                       resolvedStat?.label === "swell" &&

@@ -48,6 +48,7 @@ import {
   CalendarDays,
   Locate,
   ZoomOut,
+  Construction,
 } from "lucide-react";
 import PageTabs from "../general/PageTabs";
 import { SwellRings, WindRing } from "./DirectionRings";
@@ -1476,7 +1477,7 @@ const MapDateOverlay: React.FC<{
   const dateOptions = React.useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    return Array.from({ length: 7 }, (_, idx) => {
+    return Array.from({ length: 8 }, (_, idx) => {
       const date = new Date(today);
       date.setDate(today.getDate() + idx);
       return date;
@@ -1509,7 +1510,7 @@ const MapDateOverlay: React.FC<{
           </button>
         </div>
         <div className="grid grid-cols-2 @min-4xl:grid-cols-4 gap-1.5">
-          {dateOptions.map((date) => {
+          {dateOptions.map((date, i) => {
             const key = normalize(date);
             const isSelected = key === selectedKey;
             const isToday = date.toDateString() === new Date().toDateString();
@@ -1519,24 +1520,31 @@ const MapDateOverlay: React.FC<{
                 type="button"
                 className={cn(
                   "flex flex-col items-start gap-0.5 rounded-xl border border-border/60 bg-background/85 px-2.5 py-1.5 text-left transition-colors shadow-sm",
-                  "hover:bg-highlight-5/80 hover:border-border/80",
+                  "hover:bg-highlight-5/80 hover:border-border/80 disabled:opacity-40 disabled:pointer-events-none",
                   isSelected &&
                     "border-border bg-highlight-3 dark:bg-highlight-5 text-blue-900 dark:text-blue-100"
                 )}
                 onClick={() => onSelectDate(date)}
+                disabled={i === dateOptions.length - 1}
               >
-                <span className="text-[10px] font-semibold uppercase tracking-wide">
-                  {isToday
-                    ? "Today"
-                    : date.toLocaleDateString(undefined, {
-                        weekday: "short",
-                      })}
+                <span className="text-[10px] font-medium uppercase tracking-wide">
+                  {i === dateOptions.length - 1 ? (
+                    <Construction aria-hidden="true" className="h-4 w-4" />
+                  ) : isToday ? (
+                    "Today"
+                  ) : (
+                    date.toLocaleDateString(undefined, {
+                      weekday: "short",
+                    })
+                  )}
                 </span>
-                <span className="text-base font-semibold">
-                  {date.toLocaleDateString(undefined, {
-                    month: "short",
-                    day: "numeric",
-                  })}
+                <span className="text-[14px] font-semibold">
+                  {i === dateOptions.length - 1
+                    ? "Soon!"
+                    : date.toLocaleDateString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                      })}
                 </span>
               </button>
             );

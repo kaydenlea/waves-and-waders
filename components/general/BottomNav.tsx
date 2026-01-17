@@ -136,7 +136,13 @@ export default function BottomNav() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!mobile) return;
+    if (landingPage) return;
+    if (isEditing) return;
     if (!atTop) return;
+    if (openPanel === "filters") return;
+
+    const mapContainer = document.getElementById("map-container");
+    if (!mapContainer) return;
 
     if (window.scrollY !== 0) {
       try {
@@ -145,7 +151,7 @@ export default function BottomNav() {
         window.scrollTo(0, 0);
       }
     }
-  }, [atTop, mobile]);
+  }, [atTop, mobile, isEditing, landingPage, openPanel]);
 
   // hide main scrollbar when filters panel is open
   useEffect(() => {
