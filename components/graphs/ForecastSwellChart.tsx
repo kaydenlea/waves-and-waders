@@ -1068,6 +1068,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
+          className="chart-touch-no-select"
           style={{
             marginTop: 60,
             position: "absolute",

@@ -522,7 +522,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   return (
     <div
       ref={containerRef}
-      className="relative aspect-auto h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px] w-full [&_.recharts-legend-wrapper]:hidden"
+      className="chart-touch-no-select relative aspect-auto h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px] w-full [&_.recharts-legend-wrapper]:hidden"
     >
       {/* Shade only the plot area (not the X-axis label band), matching prior ReferenceArea behavior. */}
       <div

@@ -861,7 +861,7 @@ const TideChart: React.FC<TideChartProps> = ({
     <div
       ref={containerRef}
       className={cn(
-        "relative aspect-auto w-full [&_.recharts-legend-wrapper]:hidden",
+        "chart-touch-no-select relative aspect-auto w-full [&_.recharts-legend-wrapper]:hidden",
         preview
           ? "h-[300px]"
           : "h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px]"

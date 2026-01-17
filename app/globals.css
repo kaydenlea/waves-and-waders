@@ -438,3 +438,10 @@
 body[data-ww-interaction-lock="1"] [data-slot="chart"] {
   pointer-events: none;
 }
+/* Prevent long-press selection/callout on touch-driven chart scrubbing. */
+.chart-touch-no-select {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: pan-y;
+}
