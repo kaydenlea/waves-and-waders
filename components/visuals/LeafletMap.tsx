@@ -138,7 +138,7 @@ const MAP_VIEW_STORAGE_KEY = "ww:last-map-view";
 const LAST_SELECTION_KEY = "ww:last-selected-beach";
 const LAST_SELECTION_CENTER_KEY = "ww:last-selected-center";
 const CAMERA_MIN_INTERVAL = 120;
-const COMMIT_IDLE_DELAY = 180;
+const COMMIT_IDLE_DELAY = 100;
 const CAMERA_UPDATE_DEBOUNCE_MS = 220;
 const RESIZE_SETTLE_DELAY = 180;
 const BOUNDS_DELTA_THRESHOLD = 0.0005;
@@ -1695,6 +1695,10 @@ const LeafletMap: React.FC<Props> = ({
   const pendingAutoCenterRef = React.useRef<string | null>(null);
   const pendingFocusRef = React.useRef<MapFocusEventDetail | null>(null);
   const suppressUserMoveRef = React.useRef(false);
+  const lastTouchGestureRef = React.useRef<{ moved: boolean; ts: number }>({
+    moved: false,
+    ts: 0,
+  });
   const cameraThrottleRef = React.useRef<{
     bounds: VisibleMapBounds | null;
     ts: number;
@@ -2041,7 +2045,7 @@ const LeafletMap: React.FC<Props> = ({
       }
       pendingMarkerRebuildRef.current = false;
       performMarkerRebuild();
-    }, 160);
+    }, 80);
   }, [performMarkerRebuild]);
 
   const requestMarkerRebuild = React.useCallback(() => {
@@ -2358,6 +2362,10 @@ const LeafletMap: React.FC<Props> = ({
   const scheduleCommitResume = React.useCallback(() => {
     cancelCommitResume();
     resumeCommitTimeoutRef.current = window.setTimeout(() => {
+      if (isMapInteractingRef.current) {
+        resumeCommitTimeoutRef.current = null;
+        return;
+      }
       setAllowViewportCommit(true);
       resumeCommitTimeoutRef.current = null;
     }, COMMIT_IDLE_DELAY);
@@ -2927,6 +2935,7 @@ const LeafletMap: React.FC<Props> = ({
     nextElement.setAttribute("draggable", "false");
     nextElement.draggable = false;
     nextElement.style.userSelect = "none";
+    nextElement.style.touchAction = "none";
     const style = nextElement.style as CSSStyleDeclaration & {
       WebkitUserSelect?: string;
       WebkitUserDrag?: string;
@@ -3069,6 +3078,16 @@ const LeafletMap: React.FC<Props> = ({
   const disableInteractionLock = React.useCallback(() => {
     interactionLockReleaseRef.current?.();
     interactionLockReleaseRef.current = null;
+  }, []);
+
+  const shouldIgnoreTouchActivation = React.useCallback((event?: Event | null) => {
+    if (!event || !isTouchInteraction(event)) return false;
+    if (isMapInteractingRef.current) return true;
+    const last = lastTouchGestureRef.current;
+    const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+    // Suppress ghost clicks that are actually the tail end of a drag/pinch gesture.
+    // Leaflet tap/click tolerance can be large on coarse pointers.
+    return last.moved && now - last.ts < 250;
   }, []);
 
   React.useEffect(() => {
@@ -3327,6 +3346,7 @@ const LeafletMap: React.FC<Props> = ({
   );
 
   const prefetchVisibleMarkerStats = React.useCallback(() => {
+    if (isMapInteractingRef.current) return;
     const map = mapRef.current;
     const group =
       clusterLayerRef.current as MarkerClusterGroupWithHelpers | null;
@@ -3394,7 +3414,7 @@ const LeafletMap: React.FC<Props> = ({
     const globalWindow = window as IdleCallbackWindow;
     if (typeof globalWindow.requestIdleCallback === "function") {
       prefetchStatsTimeoutRef.current = globalWindow.requestIdleCallback(run, {
-        timeout: 800,
+        timeout: 350,
       });
     } else {
       prefetchStatsTimeoutRef.current = window.setTimeout(run, 120);
@@ -3731,10 +3751,12 @@ const LeafletMap: React.FC<Props> = ({
     let touchStartedOnInteractiveElement = false;
     let touchStartedOnTouchPopupOpenLink = false;
     let touchStartPoint: { x: number; y: number } | null = null;
+    let touchGestureMoved = false;
     const touchOriginTarget = mapOuterContainer ?? mapContainer;
     const handleTouchStartCapture = (event: TouchEvent) => {
       if (event.touches.length === 0) return;
       touchStartedOnMap = true;
+      touchGestureMoved = false;
       touchStartPoint = {
         x: event.touches[0]?.clientX ?? 0,
         y: event.touches[0]?.clientY ?? 0,
@@ -3752,16 +3774,34 @@ const LeafletMap: React.FC<Props> = ({
     };
     const handleTouchEndOrCancelCapture = (event: TouchEvent) => {
       if (event.touches.length === 0) {
+        const now =
+          typeof performance !== "undefined" ? performance.now() : Date.now();
+        lastTouchGestureRef.current = { moved: touchGestureMoved, ts: now };
         touchStartedOnMap = false;
         touchStartedOnInteractiveElement = false;
         touchStartedOnTouchPopupOpenLink = false;
         touchStartPoint = null;
+        touchGestureMoved = false;
       }
     };
     const handleDocumentTouchMoveCapture = (event: TouchEvent) => {
       if (!touchStartedOnMap) return;
-      if (event.touches.length > 1) return;
+      if (event.touches.length > 1) {
+        touchGestureMoved = true;
+        return;
+      }
       if (!event.cancelable) return;
+      if (touchStartPoint) {
+        const touch = event.touches[0];
+        const dx = (touch?.clientX ?? 0) - touchStartPoint.x;
+        const dy = (touch?.clientY ?? 0) - touchStartPoint.y;
+        const MOVE_THRESHOLD_SQ = touchStartedOnInteractiveElement
+          ? 24 * 24
+          : 18 * 18;
+        if (dx * dx + dy * dy > MOVE_THRESHOLD_SQ) {
+          touchGestureMoved = true;
+        }
+      }
       if (touchStartedOnInteractiveElement && touchStartPoint) {
         const touch = event.touches[0];
         const dx = (touch?.clientX ?? 0) - touchStartPoint.x;
@@ -3773,7 +3813,71 @@ const LeafletMap: React.FC<Props> = ({
       event.preventDefault();
     };
 
+    let activeTouchPointerId: number | null = null;
+    let pointerStartPoint: { x: number; y: number } | null = null;
+    let pointerStartedOnInteractiveElement = false;
+    let pointerMoved = false;
+    const POINTER_MOVE_THRESHOLD_MAP_SQ = 18 * 18;
+    const POINTER_MOVE_THRESHOLD_INTERACTIVE_SQ = 24 * 24;
+
+    const handlePointerDownCapture = (event: PointerEvent) => {
+      if (event.pointerType !== "touch") return;
+      activeTouchPointerId = event.pointerId;
+      pointerStartPoint = { x: event.clientX, y: event.clientY };
+      const target = event.target as HTMLElement | null;
+      pointerStartedOnInteractiveElement = Boolean(
+        target?.closest?.(".ww-leaflet-point-icon") ||
+          target?.closest?.(".ww-cluster-inner") ||
+          target?.closest?.(".leaflet-popup") ||
+          target?.closest?.(".leaflet-control")
+      );
+      pointerMoved = false;
+    };
+    const handlePointerMoveCapture = (event: PointerEvent) => {
+      if (activeTouchPointerId == null) return;
+      if (event.pointerId !== activeTouchPointerId) return;
+      if (!pointerStartPoint) return;
+      const dx = event.clientX - pointerStartPoint.x;
+      const dy = event.clientY - pointerStartPoint.y;
+      const thresholdSq = pointerStartedOnInteractiveElement
+        ? POINTER_MOVE_THRESHOLD_INTERACTIVE_SQ
+        : POINTER_MOVE_THRESHOLD_MAP_SQ;
+      if (dx * dx + dy * dy > thresholdSq) {
+        pointerMoved = true;
+      }
+    };
+    const finalizePointerGesture = (event: PointerEvent) => {
+      if (activeTouchPointerId == null) return;
+      if (event.pointerId !== activeTouchPointerId) return;
+      const now =
+        typeof performance !== "undefined" ? performance.now() : Date.now();
+      lastTouchGestureRef.current = {
+        moved: pointerMoved || touchGestureMoved,
+        ts: now,
+      };
+      activeTouchPointerId = null;
+      pointerStartPoint = null;
+      pointerStartedOnInteractiveElement = false;
+      pointerMoved = false;
+    };
+
     if (touchInput && !embeddedPreview) {
+      touchOriginTarget.addEventListener("pointerdown", handlePointerDownCapture, {
+        passive: true,
+        capture: true,
+      });
+      document.addEventListener("pointermove", handlePointerMoveCapture, {
+        passive: true,
+        capture: true,
+      });
+      document.addEventListener("pointerup", finalizePointerGesture, {
+        passive: true,
+        capture: true,
+      });
+      document.addEventListener("pointercancel", finalizePointerGesture, {
+        passive: true,
+        capture: true,
+      });
       touchOriginTarget.addEventListener(
         "touchstart",
         handleTouchStartCapture,
@@ -3868,9 +3972,7 @@ const LeafletMap: React.FC<Props> = ({
       pendingFocusRef.current = null;
       latestCancelCommitResume();
       latestCancelScheduledCameraUpdate();
-      if (!touchInput) {
-        React.startTransition(() => latestSetAllowViewportCommit(false));
-      }
+      React.startTransition(() => latestSetAllowViewportCommit(false));
       if (!touchInput) {
         latestClearHoverState();
       }
@@ -3897,7 +3999,7 @@ const LeafletMap: React.FC<Props> = ({
       } catch {
         // ignore persistence failures
       }
-      latestScheduleCameraUpdate();
+      latestScheduleCameraUpdate(0);
       latestScheduleCommitResume();
       latestPrimeVisibleMarkerStats();
       latestUpdateZoomButtons();
@@ -3917,9 +4019,7 @@ const LeafletMap: React.FC<Props> = ({
       }
       latestCancelCommitResume();
       latestCancelScheduledCameraUpdate();
-      if (!touchInput) {
-        React.startTransition(() => latestSetAllowViewportCommit(false));
-      }
+      React.startTransition(() => latestSetAllowViewportCommit(false));
       if (!touchInput) {
         latestClearHoverState();
       }
@@ -3933,6 +4033,22 @@ const LeafletMap: React.FC<Props> = ({
 
     return () => {
       if (touchInput && !embeddedPreview) {
+        touchOriginTarget.removeEventListener(
+          "pointerdown",
+          handlePointerDownCapture,
+          true
+        );
+        document.removeEventListener(
+          "pointermove",
+          handlePointerMoveCapture,
+          true
+        );
+        document.removeEventListener("pointerup", finalizePointerGesture, true);
+        document.removeEventListener(
+          "pointercancel",
+          finalizePointerGesture,
+          true
+        );
         touchOriginTarget.removeEventListener(
           "touchstart",
           handleTouchStartCapture,
@@ -4297,6 +4413,7 @@ const LeafletMap: React.FC<Props> = ({
         const supportsPerformance = typeof performance !== "undefined";
         const frameStart = supportsPerformance ? performance.now() : Date.now();
         const markersToAdd: L.Marker[] = [];
+        const frameStartIndex = active.index;
 
         while (active.index < filteredBeaches.length) {
           const beach = filteredBeaches[active.index];
@@ -4381,14 +4498,18 @@ const LeafletMap: React.FC<Props> = ({
             registry[id] = entry;
             ensureMarkerPopup(
               entry,
-              smallScreen === true || supportsTouchInput()
+              supportsTouchInput()
             );
 
             const handleClick = (e: L.LeafletMouseEvent) => {
               if (!interactionsReadyRef.current) return;
-              const treatAsTouch =
-                smallScreen === true ||
-                (e.originalEvent ? isTouchInteraction(e.originalEvent) : false);
+              const fromCluster = Boolean((e as any)?.wwFromCluster);
+              if (!fromCluster && shouldIgnoreTouchActivation(e.originalEvent ?? null)) {
+                return;
+              }
+              const treatAsTouch = e.originalEvent
+                ? isTouchInteraction(e.originalEvent)
+                : supportsTouchInput();
               if (treatAsTouch) {
                 if (e.originalEvent) {
                   e.originalEvent.preventDefault?.();
@@ -4400,6 +4521,13 @@ const LeafletMap: React.FC<Props> = ({
                 openMarkerPopup(marker);
                 setHoveredMarkerSource("marker", String(beach.id));
                 prefetch?.then?.(() => ensureMarkerPopup(entry, true));
+                const map = mapRef.current;
+                if (map?.dragging) {
+                  window.requestAnimationFrame(() => {
+                    map.dragging.disable();
+                    map.dragging.enable();
+                  });
+                }
                 return;
               }
               const normalizedId = String(beach.id);
@@ -4455,9 +4583,10 @@ const LeafletMap: React.FC<Props> = ({
 
           const elapsed =
             (supportsPerformance ? performance.now() : Date.now()) - frameStart;
+          const processed = active.index - frameStartIndex;
           if (
-            markersToAdd.length >= MARKER_BUILD_MIN_BATCH &&
-            elapsed >= MARKER_BUILD_FRAME_BUDGET_MS
+            (elapsed >= MARKER_BUILD_FRAME_BUDGET_MS && processed > 0) ||
+            markersToAdd.length >= MARKER_BUILD_MIN_BATCH
           ) {
             break;
           }
@@ -4630,6 +4759,7 @@ const LeafletMap: React.FC<Props> = ({
     const handleClusterClick = (event: ClusterEvent) => {
       event?.originalEvent?.preventDefault?.();
       event?.originalEvent?.stopPropagation?.();
+      if (shouldIgnoreTouchActivation(event.originalEvent ?? null)) return;
       const map = mapRef.current;
       if (!map) return;
       const layer = event.layer;
@@ -4684,6 +4814,7 @@ const LeafletMap: React.FC<Props> = ({
           }
           (target as unknown as L.Evented).fire("click", {
             originalEvent: event.originalEvent,
+            wwFromCluster: true,
           });
         };
         window.setTimeout(() => fireWhenVisible(0), 360);
@@ -5060,10 +5191,12 @@ const LeafletMap: React.FC<Props> = ({
         <style jsx global>{`
           .ww-leaflet-point-icon {
             cursor: pointer;
+            touch-action: none;
           }
           .ww-leaflet-cluster-icon {
             cursor: pointer;
             transition: transform 140ms ease, filter 140ms ease;
+            touch-action: none;
           }
           .ww-cluster-inner {
             position: relative;

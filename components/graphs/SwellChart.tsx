@@ -68,7 +68,8 @@ const chartConfig = {
 // Overview charts (single-day): keep the Y-axis inside the shaded plot container.
 const CHART_LEFT_MARGIN = 5;
 const CHART_TOP_MARGIN = 10;
-const CHART_RIGHT_MARGIN = 10;
+// Keep the plot shading aligned to the X scale (the area chart uses `margin.right: 0`).
+const CHART_RIGHT_MARGIN = 0;
 const Y_AXIS_WIDTH = 30;
 const X_AXIS_SHADE_EXCLUDE_PX = 34;
 const HOVER_LINE_END_INSET_PX = 7.5;
@@ -518,8 +519,10 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     if (e && e.activeLabel !== undefined) {
       const hour = Number(e.activeLabel);
       if (!isNaN(hour)) {
-        if (lastHoveredRef.current === hour) return;
-        pendingHoverRef.current = hour;
+        const rounded = Math.round(hour / 3) * 3;
+        const clamped = Math.max(0, Math.min(hours, rounded));
+        if (lastHoveredRef.current === clamped) return;
+        pendingHoverRef.current = clamped;
         if (!hoverRafRef.current) {
           hoverRafRef.current = requestAnimationFrame(() => {
             hoverRafRef.current = null;
@@ -609,16 +612,31 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         }}
       />
       {plotWidthPx > 0 && (
-        <HoverOverlayLine
-          domainMin={0}
-          domainMax={hours}
-          plotLeftPx={yAxisInsetPx}
-          plotWidthPx={plotWidthPx}
-          days={date ? [date] : null}
-          selectedDate={date ?? null}
-          selectedHour={selectedHour ?? null}
-          strokeOpacity={0.5}
-        />
+        <div
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            top: CHART_TOP_MARGIN,
+            bottom: X_AXIS_SHADE_EXCLUDE_PX,
+            left: 0,
+            right: 0,
+            overflow: "hidden",
+            pointerEvents: "none",
+            zIndex: 4,
+          }}
+        >
+          <HoverOverlayLine
+            domainMin={0}
+            domainMax={hours}
+            plotLeftPx={yAxisInsetPx}
+            plotWidthPx={plotWidthPx}
+            endInsetPx={HOVER_LINE_END_INSET_PX}
+            days={date ? [date] : null}
+            selectedDate={date ?? null}
+            selectedHour={selectedHour ?? null}
+            strokeOpacity={0.5}
+          />
+        </div>
       )}
       {/* Divider between the in-plot axis inset and the data plot. */}
       <div
@@ -781,45 +799,6 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
               stroke="var(--foreground)"
               // strokeWidth={2}
               strokeDasharray="3 3"
-            />
-            <Customized
-              component={(p: ClipProps) => {
-                const hoverX = hoveredHour;
-                if (hoverX === null || hoverX === selectedHour) return null;
-                const offset = p?.offset;
-                const left = typeof offset?.left === "number" ? offset.left : 0;
-                const width =
-                  typeof offset?.width === "number" ? offset.width : 0;
-                const top = typeof offset?.top === "number" ? offset.top : 0;
-                const height =
-                  typeof offset?.height === "number" ? offset.height : 0;
-                if (!(width > 0) || !(height > 0)) return null;
-
-                const domainSpan = hours;
-                if (!(domainSpan > 0)) return null;
-                const t = hoverX / domainSpan;
-                if (!Number.isFinite(t)) return null;
-
-                const clampedT = Math.max(0, Math.min(1, t));
-                const plotRight = left + width;
-                let x = left + width * clampedT;
-                if (HOVER_LINE_END_INSET_PX > 0 && x >= plotRight - 0.5) {
-                  x = Math.max(left, plotRight - HOVER_LINE_END_INSET_PX);
-                }
-
-                return (
-                  <line
-                    x1={x}
-                    x2={x}
-                    y1={top}
-                    y2={top + height}
-                    stroke="var(--foreground)"
-                    strokeWidth={1}
-                    strokeOpacity={0.5}
-                    strokeDasharray="5 5"
-                  />
-                );
-              }}
             />
             {/* <ChartLegend content={<ChartLegendContent />} /> */}
             <ChartTooltip

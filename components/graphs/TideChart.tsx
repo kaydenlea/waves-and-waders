@@ -886,16 +886,31 @@ const TideChart: React.FC<TideChartProps> = ({
         }}
       />
       {plotWidthPx > 0 && (
-        <HoverOverlayLine
-          domainMin={0}
-          domainMax={hours}
-          plotLeftPx={yAxisInsetPx}
-          plotWidthPx={plotWidthPx}
-          days={date ? [date] : null}
-          selectedDate={date ?? null}
-          selectedHour={selectedHour ?? null}
-          strokeOpacity={0.5}
-        />
+        <div
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            top: CHART_TOP_MARGIN,
+            bottom: X_AXIS_SHADE_EXCLUDE_PX,
+            left: 0,
+            right: 0,
+            overflow: "hidden",
+            pointerEvents: "none",
+            zIndex: 4,
+          }}
+        >
+          <HoverOverlayLine
+            domainMin={0}
+            domainMax={hours}
+            plotLeftPx={yAxisInsetPx}
+            plotWidthPx={plotWidthPx}
+            endInsetPx={HOVER_LINE_END_INSET_PX}
+            days={date ? [date] : null}
+            selectedDate={date ?? null}
+            selectedHour={selectedHour ?? null}
+            strokeOpacity={0.5}
+          />
+        </div>
       )}
       {/* Divider between the in-plot axis inset and the data plot. */}
       <div
@@ -977,7 +992,7 @@ const TideChart: React.FC<TideChartProps> = ({
             margin={{
               top: CHART_TOP_MARGIN,
               left: yAxisInsetPx,
-              right: 0,
+              right: CHART_RIGHT_MARGIN,
               bottom: 0,
             }}
             syncId="allCharts"
@@ -992,45 +1007,6 @@ const TideChart: React.FC<TideChartProps> = ({
               // strokeWidth={2}
               strokeDasharray="3 3"
               isFront={false}
-            />
-            <Customized
-              component={(p: CustomizedOffsetProps) => {
-                const hoverX = hoveredHour;
-                if (hoverX === null || hoverX === selectedHour) return null;
-                const offset = p?.offset;
-                const left = typeof offset?.left === "number" ? offset.left : 0;
-                const width =
-                  typeof offset?.width === "number" ? offset.width : 0;
-                const top = typeof offset?.top === "number" ? offset.top : 0;
-                const height =
-                  typeof offset?.height === "number" ? offset.height : 0;
-                if (!(width > 0) || !(height > 0)) return null;
-
-                const domainSpan = hours;
-                if (!(domainSpan > 0)) return null;
-                const t = hoverX / domainSpan;
-                if (!Number.isFinite(t)) return null;
-
-                const clampedT = Math.max(0, Math.min(1, t));
-                const plotRight = left + width;
-                let x = left + width * clampedT;
-                if (HOVER_LINE_END_INSET_PX > 0 && x >= plotRight - 0.5) {
-                  x = Math.max(left, plotRight - HOVER_LINE_END_INSET_PX);
-                }
-
-                return (
-                  <line
-                    x1={x}
-                    x2={x}
-                    y1={top}
-                    y2={top + height}
-                    stroke="var(--foreground)"
-                    strokeWidth={1}
-                    strokeOpacity={0.5}
-                    strokeDasharray="5 5"
-                  />
-                );
-              }}
             />
             {/* <CartesianGrid
           strokeDasharray="3 3"
@@ -1172,9 +1148,8 @@ const TideChart: React.FC<TideChartProps> = ({
                   const safeY = typeof props.y === "number" ? props.y : 0;
 
                   // Calculate boundaries - Y-axis width is approximately 40px from left margin
-                  const LEFT_BOUNDARY = 10; // Minimum x position (just past Y-axis)
+                  const LEFT_BOUNDARY = yAxisInsetPx + 6; // Just past the in-plot Y-axis wall
                   const LABEL_HALF_WIDTH = 35; // Approximate half-width of label text
-
                   // Determine text anchor and adjusted x position based on boundaries
                   let textAnchor: "start" | "middle" | "end" = "middle";
                   let adjustedX = safeX;
@@ -1184,9 +1159,13 @@ const TideChart: React.FC<TideChartProps> = ({
                     textAnchor = "start";
                     adjustedX = Math.max(safeX, LEFT_BOUNDARY);
                   }
-                  // Check if label would bleed off the right edge (no specific right boundary needed)
+                  // Check if label would bleed off the right edge
                   else if (point.hour >= hours - 0.5) {
                     textAnchor = "end";
+                    adjustedX = Math.max(
+                      safeX - 6,
+                      yAxisInsetPx + 6
+                    );
                   }
 
                   // Optimized: use pre-computed placement map

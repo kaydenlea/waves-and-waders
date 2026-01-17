@@ -17,6 +17,7 @@ export function ScrollToTopOnRouteChange() {
   useEffect(() => {
     const SCROLL_IDLE_MS = 160;
     let timeoutId: number | null = null;
+    let rafId: number | null = null;
     let active = false;
     let lastScrollAt = 0;
 
@@ -37,12 +38,17 @@ export function ScrollToTopOnRouteChange() {
 
     const onScroll = () => {
       lastScrollAt = window.performance.now();
-      if (!active) {
-        document.body.dataset.wwScrolling = "1";
-        active = true;
-      }
-      if (timeoutId == null) {
-        timeoutId = window.setTimeout(checkIdle, SCROLL_IDLE_MS);
+      if (rafId == null) {
+        rafId = window.requestAnimationFrame(() => {
+          rafId = null;
+          if (!active) {
+            document.body.dataset.wwScrolling = "1";
+            active = true;
+          }
+          if (timeoutId == null) {
+            timeoutId = window.setTimeout(checkIdle, SCROLL_IDLE_MS);
+          }
+        });
       }
     };
 
@@ -50,6 +56,7 @@ export function ScrollToTopOnRouteChange() {
     return () => {
       window.removeEventListener("scroll", onScroll);
       if (timeoutId != null) window.clearTimeout(timeoutId);
+      if (rafId != null) window.cancelAnimationFrame(rafId);
       delete document.body.dataset.wwScrolling;
     };
   }, []);

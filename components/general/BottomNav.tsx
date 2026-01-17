@@ -59,7 +59,7 @@ export default function BottomNav() {
   const fullMapPage = !pathname.endsWith("/beaches");
   const landingPage = pathname === "/";
   const { mode, setMode } = useDateContext();
-  const { setIsOverlay } = useSearchContext();
+  const { isOverlay, setIsOverlay } = useSearchContext();
   const [mobile, setIsMobile] = useState(false);
   const { openPanel, setOpenPanel } = useMapUI();
   const { filters, setFilters } = useMapData();
@@ -438,53 +438,102 @@ export default function BottomNav() {
           aria-label="bottom navigation"
           className="max-w-150 mx-auto flex justify-around items-center h-17"
         >
-          <button
-            type="button"
-            className="hover:bg-highlight-5 p-2 rounded-2xl flex flex-col items-center gap-1 @min-[350px]:min-w-15"
-            onClick={() => {
-              try {
-                if (typeof window !== "undefined") {
-                  window.localStorage.setItem("tab:/beaches", "nearby");
-                }
-              } catch {}
-              router.push("/beaches?tab=nearby");
-            }}
-          >
-            <MapPinned className="w-6 h-6 @min-[350px]:w-5 @min-[350px]:h-5 -mt-0.5" />
-            <span className="text-xs sr-only @min-[350px]:not-sr-only">
-              Browse
-            </span>
-          </button>
-          <button
-            type="button"
-            className="hover:bg-highlight-5 p-2 rounded-2xl flex flex-col items-center gap-1 @min-[350px]:min-w-15"
-            onClick={() => {
-              try {
-                if (!user) {
-                  router.push(
-                    `/login?next=${encodeURIComponent("/beaches?tab=saved")}`
-                  );
-                  return;
-                }
-                if (typeof window !== "undefined") {
-                  window.localStorage.setItem("tab:/beaches", "saved");
-                }
-                router.push("/beaches?tab=saved");
-              } catch {
-                router.push("/beaches?tab=saved");
-              }
-            }}
-          >
-            <Heart className="w-6 h-6 @min-[350px]:w-5 @min-[350px]:h-5 -mt-0.5" />
-            <span className="text-xs sr-only @min-[350px]:not-sr-only">
-              Saved
-            </span>
-          </button>
+          {(() => {
+            const isBeaches = pathname.endsWith("/beaches");
+            const isNearby = isBeaches && selectedTab === "nearby";
+            const isSaved = isBeaches && selectedTab === "saved";
+            const itemClass = (active: boolean) =>
+              cn(
+                "p-2 rounded-2xl flex flex-col items-center gap-1 @min-[350px]:min-w-15 transition-colors",
+                "hover:bg-highlight-5",
+                active ? "text-foreground" : "text-foreground/80"
+              );
+            return (
+              <>
+                <button
+                  type="button"
+                  aria-current={isNearby ? "page" : undefined}
+                  className={itemClass(isNearby)}
+                  onClick={() => {
+                    try {
+                      if (typeof window !== "undefined") {
+                        window.localStorage.setItem("tab:/beaches", "nearby");
+                      }
+                    } catch {}
+                    router.push("/beaches?tab=nearby");
+                  }}
+                >
+                  <MapPinned
+                    className={cn(
+                      "w-6 h-6 @min-[350px]:w-5 @min-[350px]:h-5 -mt-0.5",
+                      isNearby
+                        ? "fill-foreground text-background"
+                        : "text-foreground/80"
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      "text-xs sr-only @min-[350px]:not-sr-only",
+                      "font-semibold leading-none",
+                      isNearby ? "text-foreground" : "text-foreground/80"
+                    )}
+                  >
+                    Browse
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  aria-current={isSaved ? "page" : undefined}
+                  className={itemClass(isSaved)}
+                  onClick={() => {
+                    try {
+                      if (!user) {
+                        router.push(
+                          `/login?next=${encodeURIComponent(
+                            "/beaches?tab=saved"
+                          )}`
+                        );
+                        return;
+                      }
+                      if (typeof window !== "undefined") {
+                        window.localStorage.setItem("tab:/beaches", "saved");
+                      }
+                      router.push("/beaches?tab=saved");
+                    } catch {
+                      router.push("/beaches?tab=saved");
+                    }
+                  }}
+                >
+                  <Heart
+                    className={cn(
+                      "w-6 h-6 @min-[350px]:w-5 @min-[350px]:h-5 -mt-0.5",
+                      isSaved
+                        ? "fill-foreground text-background"
+                        : "text-foreground/80"
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      "text-xs sr-only @min-[350px]:not-sr-only",
+                      "font-semibold leading-none",
+                      isSaved ? "text-foreground" : "text-foreground/80"
+                    )}
+                  >
+                    Saved
+                  </span>
+                </button>
+              </>
+            );
+          })()}
           <button
             type="button"
             aria-label="search"
             onClick={() => setIsOverlay(true)}
-            className="group/button hover:scale-[1.05] inline-flex @min-4xl:hidden items-center gap-1 rounded-full bg-gradient-to-br from-cyan-300 to-blue-500 p-3 font-medium text-foreground shadow-lg shadow-cyan-500/30 transition active:scale-[0.98]"
+            aria-pressed={isOverlay}
+            className={cn(
+              "group/button inline-flex @min-4xl:hidden items-center gap-1 rounded-full bg-gradient-to-br from-cyan-300 to-blue-500 p-3 font-medium text-foreground shadow-lg shadow-cyan-500/30 transition active:scale-[0.98]",
+              isOverlay ? "ring-2 ring-foreground/20" : "hover:scale-[1.05]"
+            )}
           >
             <Search
               className="h-5 w-5 group-hover/button:scale-[1.05]"

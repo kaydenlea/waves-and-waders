@@ -36,7 +36,6 @@ import { useForecastWindowData } from "@/lib/hooks/useForecastWindow";
 import { useChartTheme } from "@/components/graphs/useChartTheme";
 import { buildForecastShadingBackground } from "@/components/graphs/forecastShadingBackground";
 import { useOptionalOverviewChartLoading } from "@/components/context/OverviewChartsLoadingContext";
-import HoverOverlayLine from "@/components/graphs/HoverOverlayLine";
 import type { SharedSunSegments } from "./sharedSunSegments";
 
 type Props = {
@@ -535,17 +534,6 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           pointerEvents: "none",
         }}
       />
-      {plotWidthPx > 0 && (
-        <HoverOverlayLine
-          domainMin={domainMin}
-          domainMax={domainMax}
-          plotLeftPx={yAxisInsetPx}
-          plotWidthPx={plotWidthPx}
-          days={date ? [date] : null}
-          selectedDate={date ?? null}
-          selectedHour={selectedHour ?? null}
-        />
-      )}
       {/* Divider between the in-plot axis inset and the data plot. */}
       <div
         aria-hidden="true"

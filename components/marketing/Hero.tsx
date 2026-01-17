@@ -141,7 +141,7 @@ export default function Hero() {
             </p>
 
             <div
-              className="mt-7 flex flex-wrap items-center justify-center gap-3 lg:justify-center ww-hero-reveal motion-reduce:animate-none"
+              className="mt-7 mx-4 flex flex-wrap items-center justify-center gap-3 lg:justify-center ww-hero-reveal motion-reduce:animate-none"
               style={{ animationDelay: "320ms" }}
             >
               <Link

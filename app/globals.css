@@ -157,7 +157,6 @@
 
   /* Perf: blend modes can be expensive while scrolling. */
   body[data-ww-scrolling="1"] .ww-hero-noise {
-    mix-blend-mode: normal !important;
     opacity: 0.03 !important;
   }
 

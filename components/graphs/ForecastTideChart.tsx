@@ -1660,6 +1660,10 @@ export default React.memo(function ForecastTideChart({
                                 const hourMod24 = h % 24;
                                 if (hourMod24 >= 23) {
                                   textAnchor = "end";
+                                  adjustedX = Math.max(
+                                    safeX - 6,
+                                    LEFT_BOUNDARY
+                                  );
                                 }
                               }
 

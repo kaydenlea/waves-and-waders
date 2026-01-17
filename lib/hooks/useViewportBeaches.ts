@@ -41,7 +41,7 @@ export function useViewportBeaches({
   filters,
   favoriteIds,
   selectedTab,
-  debounceMs = 200,
+  debounceMs = 80,
   requestId = 0,
   limit,
   enabled = true,
