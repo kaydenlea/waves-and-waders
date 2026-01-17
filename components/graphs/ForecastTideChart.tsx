@@ -35,7 +35,7 @@ import {
   ChartConfig,
   ChartContainer,
   ChartTooltip,
-  ChartTooltipContent,
+  ChartTooltipViewportContent,
 } from "@/components/ui/chart";
 import { cn } from "@/lib/utils";
 import { useDateContext } from "@/components/context/DateContext";
@@ -1102,6 +1102,15 @@ export default React.memo(function ForecastTideChart({
     },
     []
   );
+  const tooltipViewport = useMemo(
+    () => ({
+      x: clampTranslatePx(dayOffset * dayPx),
+      y: 0,
+      width: viewportWidth,
+      height: 250,
+    }),
+    [clampTranslatePx, dayOffset, dayPx, viewportWidth]
+  );
 
   // Hover sync handlers
   const lastHoveredRef = React.useRef<number | null>(null);
@@ -1508,11 +1517,13 @@ export default React.memo(function ForecastTideChart({
                       })()}
                       <ChartTooltip
                         content={
-                          <ChartTooltipContent
+                          <ChartTooltipViewportContent
+                            viewport={tooltipViewport}
                             labelFormatter={formatHourLabel}
                           />
                         }
                         cursor={false}
+                        wrapperStyle={{ transform: "translate(0px, 0px)" }}
                         animationDuration={0}
                         isAnimationActive={false}
                       />

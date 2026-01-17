@@ -23,7 +23,7 @@ import {
   ChartTooltip,
   ChartLegend,
   ChartLegendContent,
-  ChartTooltipContent,
+  ChartTooltipViewportContent,
 } from "@/components/ui/chart";
 import {
   MousePointer2 as ArrowIcon,
@@ -960,6 +960,15 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
     },
     []
   );
+  const tooltipViewport = useMemo(
+    () => ({
+      x: clampTranslatePx(dayOffset * dayPx),
+      y: 0,
+      width: viewportWidth,
+      height: 250,
+    }),
+    [clampTranslatePx, dayOffset, dayPx, viewportWidth]
+  );
 
   const [stableSelectedHour, setStableSelectedHour] = useState<number | null>(
     null
@@ -1423,12 +1432,14 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                     {/* <ChartLegend content={<ChartLegendContent />} /> */}
                     <ChartTooltip
                       content={
-                        <ChartTooltipContent
+                        <ChartTooltipViewportContent
+                          viewport={tooltipViewport}
                           labelFormatter={formatHourLabel}
                           formatter={formatSwellTooltipValue}
                         />
                       }
                       cursor={false}
+                      wrapperStyle={{ transform: "translate(0px, 0px)" }}
                       animationDuration={0}
                       isAnimationActive={false}
                     />

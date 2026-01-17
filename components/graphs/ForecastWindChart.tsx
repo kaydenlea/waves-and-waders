@@ -23,7 +23,7 @@ import {
   ChartConfig,
   ChartContainer,
   ChartTooltip,
-  ChartTooltipContent,
+  ChartTooltipViewportContent,
 } from "@/components/ui/chart";
 import {
   MousePointer2 as ArrowIcon,
@@ -992,6 +992,15 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
     }),
     [chartTheme.hoverOpacity]
   );
+  const tooltipViewport = useMemo(
+    () => ({
+      x: clampTranslatePx(dayOffset * dayPx),
+      y: 0,
+      width: viewportWidth,
+      height: 250,
+    }),
+    [clampTranslatePx, dayOffset, dayPx, viewportWidth]
+  );
 
   return (
     <div className="w-full">
@@ -1297,13 +1306,15 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
                     />
                     <ChartTooltip
                       content={
-                        <ChartTooltipContent
+                        <ChartTooltipViewportContent
+                          viewport={tooltipViewport}
                           className="min-w-[14rem]"
                           labelFormatter={formatHourLabel}
                           formatter={formatWindTooltipValue}
                         />
                       }
                       cursor={tooltipCursor}
+                      wrapperStyle={{ transform: "translate(0px, 0px)" }}
                       animationDuration={0}
                       isAnimationActive={false}
                     />

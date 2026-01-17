@@ -3925,7 +3925,16 @@ const LeafletMap: React.FC<Props> = ({
       basemapLayerRef.current = basemapLayer;
       map.attributionControl?.addAttribution(OPENFREEMAP_ATTRIBUTION_HTML);
     } else {
-      debugLog("[LeafletMap] WebGL unavailable; basemap disabled");
+      debugLog("[LeafletMap] WebGL unavailable; using raster OSM tiles");
+      const basemapLayer = L.tileLayer(
+        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        {
+          maxZoom: 19,
+          attribution: OSM_ATTRIBUTION_HTML,
+        }
+      );
+      basemapLayer.addTo(map);
+      basemapLayerRef.current = basemapLayer;
     }
     mapRef.current = map;
     if (!map.getPane(OVERLAY_PANE_ID)) {
@@ -4960,7 +4969,8 @@ const LeafletMap: React.FC<Props> = ({
           }
           style={{
             width: "100%",
-            height: "100%",
+            height: wrapperHeight?.height ?? "100%",
+            minHeight: wrapperHeight?.minHeight,
           }}
         />
         {!embedded && !showMap && fullMapPage && isDesktop && (
@@ -5532,6 +5542,11 @@ const LeafletMap: React.FC<Props> = ({
           .leaflet-control-zoom a:not(.is-disabled):hover {
             color: var(--muted-foreground);
             outline: none;
+          }
+          @media (hover: none) {
+            .leaflet-control-zoom a:not(.is-disabled):hover {
+              color: var(--foreground);
+            }
           }
           .leaflet-control-zoom a:not(.is-disabled):focus-visible {
             color: var(--foreground);

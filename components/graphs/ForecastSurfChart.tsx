@@ -25,7 +25,7 @@ import {
   ChartLegend,
   ChartLegendContent,
   ChartTooltip,
-  ChartTooltipContent,
+  ChartTooltipViewportContent,
 } from "@/components/ui/chart";
 import {
   ArrowDown,
@@ -896,6 +896,15 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
     }),
     [chartTheme.hoverOpacity]
   );
+  const tooltipViewport = useMemo(
+    () => ({
+      x: clampTranslatePx(dayOffset * dayPx),
+      y: 0,
+      width: viewportWidth,
+      height: 250,
+    }),
+    [clampTranslatePx, dayOffset, dayPx, viewportWidth]
+  );
 
   const [stableSelectedHour, setStableSelectedHour] = useState<number | null>(
     null
@@ -1254,9 +1263,13 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                     />
                     <ChartTooltip
                       content={
-                        <ChartTooltipContent labelFormatter={formatHourLabel} />
+                        <ChartTooltipViewportContent
+                          viewport={tooltipViewport}
+                          labelFormatter={formatHourLabel}
+                        />
                       }
                       cursor={tooltipCursor}
+                      wrapperStyle={{ transform: "translate(0px, 0px)" }}
                       animationDuration={0}
                       isAnimationActive={false}
                     />

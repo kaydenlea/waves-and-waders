@@ -26,7 +26,7 @@ import {
   ChartConfig,
   ChartContainer,
   ChartTooltip,
-  ChartTooltipContent,
+  ChartTooltipViewportContent,
 } from "@/components/ui/chart";
 import {
   ArrowDown,
@@ -927,6 +927,15 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
     },
     []
   );
+  const tooltipViewport = useMemo(
+    () => ({
+      x: clampTranslatePx(dayOffset * dayPx),
+      y: 0,
+      width: viewportWidth,
+      height: 250,
+    }),
+    [clampTranslatePx, dayOffset, dayPx, viewportWidth]
+  );
 
   const plotClipIdRaw = React.useId();
   const plotClipId = useMemo(
@@ -1452,9 +1461,13 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
                     />
                     <ChartTooltip
                       content={
-                        <ChartTooltipContent labelFormatter={formatHourLabel} />
+                        <ChartTooltipViewportContent
+                          viewport={tooltipViewport}
+                          labelFormatter={formatHourLabel}
+                        />
                       }
                       cursor={false}
+                      wrapperStyle={{ transform: "translate(0px, 0px)" }}
                       animationDuration={0}
                       isAnimationActive={false}
                     />
