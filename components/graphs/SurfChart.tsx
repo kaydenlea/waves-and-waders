@@ -307,7 +307,7 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   }, []);
 
   const overviewReady = Boolean(
-    beachId && !forecastLoading && forecastRows.length > 0 && containerWidth > 0
+    beachId && !forecastLoading && containerWidth > 0
   );
   useEffect(() => {
     setOverviewReady(overviewReady);

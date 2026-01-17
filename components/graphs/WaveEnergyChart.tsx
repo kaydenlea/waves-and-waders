@@ -170,9 +170,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   }, [overviewKey, setOverviewReady]);
   const windowStartMs = windowStart.getTime();
 
-  const overviewReady = Boolean(
-    beachId && !forecastLoading && forecastRows.length > 0
-  );
+  const overviewReady = Boolean(beachId && !forecastLoading);
   useEffect(() => {
     setOverviewReady(overviewReady);
   }, [overviewReady, setOverviewReady]);

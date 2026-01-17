@@ -67,9 +67,7 @@ export function OverviewChartsLoadingProvider({
   const rawLoading = React.useMemo(() => {
     // When the dashboard declares expected charts, consider missing registrations as "not ready".
     if (expectedCharts != null) {
-      for (const id of expectedCharts) {
-        if (statusMap.get(id) !== true) return true;
-      }
+      if (statusMap.size === 0) return true;
       for (const ready of statusMap.values()) {
         if (!ready) return true;
       }

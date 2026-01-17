@@ -520,13 +520,7 @@ const SwellStatsHeader = ({ stats }: { stats: RangeStats }) => {
     hours: 24,
   });
   const overviewChartsLoading =
-    !layoutHydrated ||
-    !beachId ||
-    !selected ||
-    forecastLoading ||
-    tideWindow.loading ||
-    !tideWindow.resolved ||
-    sharedSunSegments.baseDate == null;
+    !layoutHydrated || !beachId || !selected || forecastLoading;
   const overviewWidgetsLoading = useOptionalOverviewChartsLoadingState();
   const hasVisibleOverviewWidgets = React.useMemo(
     () =>

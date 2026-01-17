@@ -227,12 +227,7 @@ const TideChart: React.FC<TideChartProps> = ({
   }, [overviewKey, setOverviewReady]);
 
   const overviewReady = Boolean(
-    !preview &&
-      beachId &&
-      !tideLoading &&
-      tideResolved &&
-      chartData.length > 1 &&
-      windowStart != null
+    !preview && beachId && !tideLoading && tideResolved && windowStart != null
   );
   useEffect(() => {
     setOverviewReady(overviewReady);

@@ -1135,10 +1135,10 @@ const StatTable = ({
 
   React.useEffect(() => {
     if (forecastPage) return;
-    if (!loading && data.length > 0) {
+    if (!loading) {
       setOverviewReady(true);
     }
-  }, [forecastPage, loading, data.length, setOverviewReady]);
+  }, [forecastPage, loading, setOverviewReady]);
 
   React.useEffect(() => {
     if (!forecastPage) {
