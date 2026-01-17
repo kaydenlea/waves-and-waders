@@ -139,9 +139,7 @@ export function useForecastWindowData({
   }, [beachId, canUseShared, targetStartMs, targetEndMs]);
 
   const rows = canUseShared ? (sharedSlice ?? []) : localRows;
-  const loading = canUseShared
-    ? Boolean(sharedLoading || rows.length === 0)
-    : localLoading;
+  const loading = canUseShared ? Boolean(sharedLoading) : localLoading;
 
   return {
     rows,

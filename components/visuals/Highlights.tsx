@@ -2366,6 +2366,7 @@ const Highlights = ({
 
   const displayStats = statsState ?? statsRef.current;
   const isHydrated = Boolean(displayStats);
+  const overviewReady = usingPreview ? true : !tidesLoading && !dailyLoading;
 
   const { setReady: setOverviewReady } = useOptionalOverviewChartLoading(
     "overview-highlights"
@@ -2379,8 +2380,8 @@ const Highlights = ({
     setOverviewReady(false);
   }, [overviewKey, setOverviewReady]);
   useEffect(() => {
-    setOverviewReady(isHydrated);
-  }, [isHydrated, setOverviewReady]);
+    setOverviewReady(overviewReady);
+  }, [overviewReady, setOverviewReady]);
 
   const effectiveStats = displayStats ?? PLACEHOLDER_STATS;
   const sliceStart = Math.max(0, startIdx);

@@ -227,12 +227,7 @@ const TideChart: React.FC<TideChartProps> = ({
   }, [overviewKey, setOverviewReady]);
 
   const overviewReady = Boolean(
-    !preview &&
-      beachId &&
-      !tideLoading &&
-      tideResolved &&
-      chartData.length > 1 &&
-      windowStart != null
+    !preview && beachId && !tideLoading && tideResolved && windowStart != null
   );
   useEffect(() => {
     setOverviewReady(overviewReady);
@@ -861,7 +856,7 @@ const TideChart: React.FC<TideChartProps> = ({
     <div
       ref={containerRef}
       className={cn(
-        "relative aspect-auto w-full [&_.recharts-legend-wrapper]:hidden",
+        "chart-touch-no-select relative aspect-auto w-full [&_.recharts-legend-wrapper]:hidden",
         preview
           ? "h-[300px]"
           : "h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px]"

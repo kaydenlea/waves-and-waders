@@ -1182,6 +1182,7 @@ export default React.memo(function ForecastTideChart({
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
             onPointerCancel={onPointerUp}
+            className="chart-touch-no-select"
             style={{
               marginTop: 60,
               position: "absolute",
