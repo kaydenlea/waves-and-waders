@@ -369,9 +369,10 @@ export default React.memo(function ForecastTideChart({
     (chartX: number) => {
       if (!Number.isFinite(chartX) || !dataAreaWidth) return null;
       if (data.length === 0) return null;
+      const translatePx = dayOffset * dayPx;
       const plotX = Math.max(
         0,
-        Math.min(chartX - dayLabelLeftOffset, dataAreaWidth)
+        Math.min(chartX - dayLabelLeftOffset + translatePx, dataAreaWidth)
       );
       const t = dataAreaWidth > 0 ? plotX / dataAreaWidth : 0;
       const targetHour = domainMin + t * (domainMax - domainMin);
@@ -416,6 +417,8 @@ export default React.memo(function ForecastTideChart({
     },
     [
       dataAreaWidth,
+      dayOffset,
+      dayPx,
       dayLabelLeftOffset,
       domainMin,
       domainMax,
@@ -1253,7 +1256,7 @@ export default React.memo(function ForecastTideChart({
       x: clampTranslatePx(dayOffset * dayPx),
       y: 0,
       width: viewportWidth,
-      height: 250,
+      height: Math.max(0, 250 - X_AXIS_SHADE_EXCLUDE_PX),
     }),
     [clampTranslatePx, dayOffset, dayPx, viewportWidth]
   );
@@ -1672,11 +1675,13 @@ export default React.memo(function ForecastTideChart({
                                 : undefined
                             }
                             content={
-                              <ChartTooltipContent
+                              <ChartTooltipViewportContent
+                                viewport={tooltipViewport}
                                 labelFormatter={formatHourLabel}
                               />
                             }
                             cursor={false}
+                            wrapperStyle={{ transform: "translate(0px, 0px)" }}
                             animationDuration={0}
                             isAnimationActive={false}
                           />
@@ -1684,11 +1689,13 @@ export default React.memo(function ForecastTideChart({
                       ) : (
                         <ChartTooltip
                           content={
-                            <ChartTooltipContent
+                            <ChartTooltipViewportContent
+                              viewport={tooltipViewport}
                               labelFormatter={formatHourLabel}
                             />
                           }
                           cursor={false}
+                          wrapperStyle={{ transform: "translate(0px, 0px)" }}
                           animationDuration={0}
                           isAnimationActive={false}
                         />

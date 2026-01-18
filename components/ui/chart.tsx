@@ -232,7 +232,7 @@ function ChartTooltipContent({
   return (
     <div
       className={cn(
-        "relative grid min-w-[7rem] items-start gap-2 overflow-hidden rounded-2xl border border-border/60 bg-background/90 px-3 py-2.5 text-xs shadow-[0_18px_45px_rgba(0,0,0,0.25)] ring-1 ring-white/10 backdrop-blur-md transition-transform duration-150 ease-out motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-95 before:pointer-events-none before:absolute before:inset-0 before:opacity-90 [@media(hover:none)_and_(pointer:coarse)]:min-w-[7rem] [@media(hover:none)_and_(pointer:coarse)]:px-2 [@media(hover:none)_and_(pointer:coarse)]:py-2",
+        "relative grid min-w-[8.5rem] items-start gap-2 overflow-hidden rounded-2xl border border-border/60 bg-background/90 px-2 py-2 text-xs shadow-[0_18px_45px_rgba(0,0,0,0.25)] ring-1 ring-white/10 backdrop-blur-md transition-transform duration-150 ease-out motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-95 before:pointer-events-none before:absolute before:inset-0 before:opacity-90 [@media(hover:none)_and_(pointer:coarse)]:min-w-[8.5rem] [@media(hover:none)_and_(pointer:coarse)]:px-2 [@media(hover:none)_and_(pointer:coarse)]:py-2",
         className
       )}
     >
@@ -318,7 +318,7 @@ function ChartTooltipContent({
               {typeof swellBadgeNumber === "number" ? (
                 <div
                   className={cn(
-                    "text-white flex h-6 w-6 shrink-0 items-center justify-center rounded-full border shadow-sm ring-1 ring-background/70 text-[0.72rem] font-semibold tabular-nums leading-none self-start",
+                    "text-white flex h-5 w-5 shrink-0 items-center justify-center rounded-full border shadow-sm ring-1 ring-background/70 text-[0.68rem] font-semibold tabular-nums leading-none self-start",
                     isRichFormatted && "mt-0",
                     "[@media(hover:none)_and_(pointer:coarse)]:h-5 [@media(hover:none)_and_(pointer:coarse)]:w-5 [@media(hover:none)_and_(pointer:coarse)]:text-[0.68rem]"
                   )}
@@ -451,6 +451,9 @@ function ChartTooltipViewportContent({
   }) {
   const contentRef = React.useRef<HTMLDivElement | null>(null);
   const [size, setSize] = React.useState({ width: 0, height: 0 });
+  const lastCoordinateRef = React.useRef<{ x?: number; y?: number } | null>(
+    null
+  );
   const isActive = Boolean(props.active && props.payload?.length);
 
   React.useLayoutEffect(() => {
@@ -475,14 +478,45 @@ function ChartTooltipViewportContent({
     return () => ro.disconnect();
   }, [isActive, props.payload, props.label]);
 
+  React.useLayoutEffect(() => {
+    if (!isActive) {
+      lastCoordinateRef.current = null;
+      return;
+    }
+
+    const x =
+      typeof props.coordinate?.x === "number" ? props.coordinate.x : undefined;
+    const y =
+      typeof props.coordinate?.y === "number" ? props.coordinate.y : undefined;
+
+    if (x === undefined && y === undefined) return;
+
+    const prev = lastCoordinateRef.current ?? {};
+    const next = {
+      x: x ?? prev.x,
+      y: y ?? prev.y,
+    };
+
+    lastCoordinateRef.current = next;
+  }, [isActive, props.coordinate?.x, props.coordinate?.y]);
+
   if (!isActive) {
     return null;
   }
 
-  const coordX =
-    typeof props.coordinate?.x === "number" ? props.coordinate.x : viewport.x;
-  const coordY =
-    typeof props.coordinate?.y === "number" ? props.coordinate.y : viewport.y;
+  const coordX = (() => {
+    if (typeof props.coordinate?.x === "number") return props.coordinate.x;
+    const last = lastCoordinateRef.current;
+    if (last && typeof last.x === "number") return last.x;
+    return viewport.x;
+  })();
+
+  const coordY = (() => {
+    if (typeof props.coordinate?.y === "number") return props.coordinate.y;
+    const last = lastCoordinateRef.current;
+    if (last && typeof last.y === "number") return last.y;
+    return viewport.y;
+  })();
   const width = size.width || 0;
   const height = size.height || 0;
 

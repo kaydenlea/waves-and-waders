@@ -259,9 +259,10 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
   const getTouchActivationFromChartX = useCallback(
     (chartX: number) => {
       if (!Number.isFinite(chartX) || !dataAreaWidth) return null;
+      const translatePx = dayOffset * dayPx;
       const plotX = Math.max(
         0,
-        Math.min(chartX - dayLabelLeftOffset, dataAreaWidth)
+        Math.min(chartX - dayLabelLeftOffset + translatePx, dataAreaWidth)
       );
       const t = dataAreaWidth > 0 ? plotX / dataAreaWidth : 0;
       const hour = domainMin + t * (domainMax - domainMin);
@@ -281,6 +282,8 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
     },
     [
       dataAreaWidth,
+      dayOffset,
+      dayPx,
       dayLabelLeftOffset,
       domainMin,
       domainMax,
@@ -1096,7 +1099,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
       x: clampTranslatePx(dayOffset * dayPx),
       y: 0,
       width: viewportWidth,
-      height: 250,
+      height: Math.max(0, 250 - X_AXIS_SHADE_EXCLUDE_PX),
     }),
     [clampTranslatePx, dayOffset, dayPx, viewportWidth]
   );
@@ -1575,12 +1578,14 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                               : undefined
                           }
                           content={
-                            <ChartTooltipContent
+                            <ChartTooltipViewportContent
+                              viewport={tooltipViewport}
                               labelFormatter={formatHourLabel}
                               formatter={formatSwellTooltipValue}
                             />
                           }
                           cursor={false}
+                          wrapperStyle={{ transform: "translate(0px, 0px)" }}
                           animationDuration={0}
                           isAnimationActive={false}
                         />
@@ -1588,12 +1593,14 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                     ) : (
                       <ChartTooltip
                         content={
-                          <ChartTooltipContent
+                          <ChartTooltipViewportContent
+                            viewport={tooltipViewport}
                             labelFormatter={formatHourLabel}
                             formatter={formatSwellTooltipValue}
                           />
                         }
                         cursor={false}
+                        wrapperStyle={{ transform: "translate(0px, 0px)" }}
                         animationDuration={0}
                         isAnimationActive={false}
                       />
