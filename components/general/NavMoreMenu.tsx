@@ -61,7 +61,7 @@ export default function NavMoreMenu({
       <AppMenuTrigger
         className={
           bottomNavMode
-            ? "hover:bg-highlight-5 p-2 rounded-2xl flex flex-col items-center gap-1 @min-[350px]:min-w-15"
+            ? "text-foreground/80 font-medium hover:bg-highlight-5 p-2 rounded-2xl flex flex-col items-center gap-1 @min-[350px]:min-w-15"
             : "icon-button p-3 dark:bg-highlight-5 hover:bg-highlight-3 dark:hover:bg-highlight-3"
         }
         aria-label="more options"

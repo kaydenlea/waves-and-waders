@@ -474,8 +474,10 @@ export default function BottomNav() {
                   <span
                     className={cn(
                       "text-xs sr-only @min-[350px]:not-sr-only",
-                      "font-semibold leading-none",
-                      isNearby ? "text-foreground" : "text-foreground/80"
+                      "font-medium leading-none",
+                      isNearby
+                        ? "font-medium text-foreground"
+                        : "text-foreground/80"
                     )}
                   >
                     Browse
@@ -515,8 +517,10 @@ export default function BottomNav() {
                   <span
                     className={cn(
                       "text-xs sr-only @min-[350px]:not-sr-only",
-                      "font-semibold leading-none",
-                      isSaved ? "text-foreground" : "text-foreground/80"
+                      "font-medium leading-none",
+                      isSaved
+                        ? "font-medium text-foreground"
+                        : "text-foreground/80"
                     )}
                   >
                     Saved
@@ -545,9 +549,9 @@ export default function BottomNav() {
         </div> */}
           {user ? (
             <AppMenu open={profileOpen} onOpenChange={setProfileOpen}>
-              <AppMenuTrigger className="hover:bg-highlight-5 p-2 rounded-2xl flex flex-col items-center gap-1 @min-[350px]:min-w-15">
+              <AppMenuTrigger className="text-foreground/80 hover:bg-highlight-5 p-2 rounded-2xl flex flex-col items-center gap-1 @min-[350px]:min-w-15">
                 <User className="w-6 h-6 @min-[350px]:w-5 @min-[350px]:h-5 -mt-0.5" />
-                <span className="text-xs sr-only @min-[350px]:not-sr-only">
+                <span className="font-medium text-xs sr-only @min-[350px]:not-sr-only">
                   Profile
                 </span>
               </AppMenuTrigger>
@@ -570,7 +574,7 @@ export default function BottomNav() {
                   }}
                 >
                   <Link href="/beaches?tab=saved">
-                    <Heart className="w-5 h-5 -mt-0.5" /> Saved
+                    <Heart className="w-5 h-5 -mt-0.5" /> Saved spots
                   </Link>
                 </AppMenuItem>
                 <AppMenuSeparator />
@@ -589,11 +593,11 @@ export default function BottomNav() {
           ) : (
             <button
               type="button"
-              className="hover:bg-highlight-5 p-2 rounded-2xl flex flex-col items-center gap-1 @min-[350px]:min-w-15"
+              className="text-foreground/80 hover:bg-highlight-5 p-2 rounded-2xl flex flex-col items-center gap-1 @min-[350px]:min-w-15"
               onClick={() => router.push("/login")}
             >
               <User className="w-6 h-6 @min-[350px]:w-5 @min-[350px]:h-5 -mt-0.5" />
-              <span className="text-xs sr-only @min-[350px]:not-sr-only">
+              <span className="font-medium text-xs sr-only @min-[350px]:not-sr-only">
                 Profile
               </span>
             </button>

@@ -2080,7 +2080,7 @@ const StatTable = ({
       className={cn(
         "pointer-events-auto inline-flex h-10 max-w-full items-center rounded-full",
         loading && "pointer-events-none opacity-70",
-        "bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/70",
+        "bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/90",
         "border border-border/40 shadow-xs"
       )}
     >
@@ -2698,298 +2698,281 @@ const StatTable = ({
             </tr>
           </thead>
           <tbody>
-            {(
-              visibleDays.length
-                ? visibleDays
-                : loading
-                  ? (() => {
-                      const daysForPlaceholder = useSingleDayView
-                        ? 1
-                        : Math.min(maxVisibleDays, Math.max(numDays, 1));
-                      const anchor =
-                        (forecastPage && forecastSelectedDay?.dateMs
-                          ? new Date(forecastSelectedDay.dateMs)
-                          : requestedDate ??
-                            (selected instanceof Date ? selected : null)) ??
-                        new Date();
-                      const { start: anchorStart } = getPacificDayRange(anchor);
-                      return Array.from(
-                        { length: daysForPlaceholder },
-                        (_, idx) => {
-                          const d = new Date(
-                            anchorStart.getTime() + idx * DAY_MS
-                          );
-                          return {
-                            key: `loading-${idx}`,
-                            date: d.toLocaleDateString("en-US", {
-                              weekday: "long",
-                              month: "long",
-                              day: "numeric",
-                            }),
-                            dateMs: new Date(
-                              d.getFullYear(),
-                              d.getMonth(),
-                              d.getDate()
-                            ).getTime(),
-                            vals: [],
-                          } satisfies TableDay;
-                        }
-                      );
-                    })()
-                  : []
-            ).map((day, i) => {
-                  const dayEntries = targetHours.map(
-                    (hour) =>
-                      day.vals.find((entry) => entry.index === hour) ??
-                      buildMissingEntry(hour)
-                  );
-
-                  const content = dayEntries.flatMap((entry, rowIdx) => {
-                    let isSelectedHour = false;
-                    // Determine selection per page context
-                    if (forecastPage) {
-                      // Highlight only within the selected day and closest interval bucket
-                      const sel = selected instanceof Date ? selected : null;
-                      const sameDay = sel
-                        ? new Date(
-                            sel.getFullYear(),
-                            sel.getMonth(),
-                            sel.getDate()
-                          ).getTime() === day.dateMs
-                        : false;
-                      if (sameDay) {
-                        const hours = dayEntries
-                          .map((v) => v.index)
-                          .sort((a, b) => a - b);
-                        // pick the last hour <= selected hour, otherwise first
-                        const effectiveHour = dashboardBusy
-                          ? stableSelectedHour ?? selectedHour ?? null
-                          : selectedHour ?? null;
-                        if (effectiveHour != null) {
-                          const bucket = pickClosestBucket(
-                            hours,
-                            effectiveHour
-                          );
-                          isSelectedHour =
-                            bucket != null && entry.index === bucket;
-                        }
-                      }
-                    } else {
-                      const effectiveHour = selectedHour ?? null;
-                      if (effectiveHour != null) {
-                        const hours = dayEntries
-                          .map((v) => v.index)
-                          .sort((a, b) => a - b);
-                        const bucket = pickClosestBucket(hours, effectiveHour);
-                        isSelectedHour =
-                          bucket != null && entry.index === bucket;
-                      }
+            {(visibleDays.length
+              ? visibleDays
+              : loading
+              ? (() => {
+                  const daysForPlaceholder = useSingleDayView
+                    ? 1
+                    : Math.min(maxVisibleDays, Math.max(numDays, 1));
+                  const anchor =
+                    (forecastPage && forecastSelectedDay?.dateMs
+                      ? new Date(forecastSelectedDay.dateMs)
+                      : requestedDate ??
+                        (selected instanceof Date ? selected : null)) ??
+                    new Date();
+                  const { start: anchorStart } = getPacificDayRange(anchor);
+                  return Array.from(
+                    { length: daysForPlaceholder },
+                    (_, idx) => {
+                      const d = new Date(anchorStart.getTime() + idx * DAY_MS);
+                      return {
+                        key: `loading-${idx}`,
+                        date: d.toLocaleDateString("en-US", {
+                          weekday: "long",
+                          month: "long",
+                          day: "numeric",
+                        }),
+                        dateMs: new Date(
+                          d.getFullYear(),
+                          d.getMonth(),
+                          d.getDate()
+                        ).getTime(),
+                        vals: [],
+                      } satisfies TableDay;
                     }
-                    const row = (
-                      <tr
-                        key={`${i}-${entry.index}`}
-                        className="transition-colors duration-200 motion-reduce:duration-0"
-                      >
-                        <th
-                          scope="row"
-                          className="sticky left-0 z-10 p-0 align-middle bg-transparent"
-                        >
-                          <TimeCell
-                            time={entry.time}
-                            selected={isSelectedHour}
-                          />
-                        </th>
-                        {visibleColumns.map((col) => {
-                          let content: React.ReactNode = null;
-                          if (entry.missing && col.id !== "__spacer") {
+                  );
+                })()
+              : []
+            ).map((day, i) => {
+              const dayEntries = targetHours.map(
+                (hour) =>
+                  day.vals.find((entry) => entry.index === hour) ??
+                  buildMissingEntry(hour)
+              );
+
+              const content = dayEntries.flatMap((entry, rowIdx) => {
+                let isSelectedHour = false;
+                // Determine selection per page context
+                if (forecastPage) {
+                  // Highlight only within the selected day and closest interval bucket
+                  const sel = selected instanceof Date ? selected : null;
+                  const sameDay = sel
+                    ? new Date(
+                        sel.getFullYear(),
+                        sel.getMonth(),
+                        sel.getDate()
+                      ).getTime() === day.dateMs
+                    : false;
+                  if (sameDay) {
+                    const hours = dayEntries
+                      .map((v) => v.index)
+                      .sort((a, b) => a - b);
+                    // pick the last hour <= selected hour, otherwise first
+                    const effectiveHour = dashboardBusy
+                      ? stableSelectedHour ?? selectedHour ?? null
+                      : selectedHour ?? null;
+                    if (effectiveHour != null) {
+                      const bucket = pickClosestBucket(hours, effectiveHour);
+                      isSelectedHour = bucket != null && entry.index === bucket;
+                    }
+                  }
+                } else {
+                  const effectiveHour = selectedHour ?? null;
+                  if (effectiveHour != null) {
+                    const hours = dayEntries
+                      .map((v) => v.index)
+                      .sort((a, b) => a - b);
+                    const bucket = pickClosestBucket(hours, effectiveHour);
+                    isSelectedHour = bucket != null && entry.index === bucket;
+                  }
+                }
+                const row = (
+                  <tr
+                    key={`${i}-${entry.index}`}
+                    className="transition-colors duration-200 motion-reduce:duration-0"
+                  >
+                    <th
+                      scope="row"
+                      className="sticky left-0 z-10 p-0 align-middle bg-transparent"
+                    >
+                      <TimeCell time={entry.time} selected={isSelectedHour} />
+                    </th>
+                    {visibleColumns.map((col) => {
+                      let content: React.ReactNode = null;
+                      if (entry.missing && col.id !== "__spacer") {
+                        content = (
+                          <CellSurface>
+                            <span className="text-sm font-semibold text-muted-foreground">
+                              —
+                            </span>
+                          </CellSurface>
+                        );
+                      } else {
+                        switch (col.id) {
+                          case "__spacer":
                             content = (
-                              <CellSurface>
-                                <span className="text-sm font-semibold text-muted-foreground">
-                                  —
-                                </span>
+                              <CellSurface className="bg-transparent dark:bg-transparent border-border/20">
+                                <span
+                                  aria-hidden="true"
+                                  className="h-2 w-10 rounded-full bg-foreground/10"
+                                />
                               </CellSurface>
                             );
-                          } else {
-                            switch (col.id) {
-                              case "__spacer":
-                                content = (
-                                  <CellSurface className="bg-transparent dark:bg-transparent border-border/20">
-                                    <span
-                                      aria-hidden="true"
-                                      className="h-2 w-10 rounded-full bg-foreground/10"
-                                    />
-                                  </CellSurface>
-                                );
-                                break;
-                              case "wind":
-                                content = (
-                                  <WindStat
-                                    data={entry.wind}
-                                    scaleMax={WIND_SCALE_MAX_MPH}
-                                    showSecondarySwells={showSecondarySwells}
-                                    variant={variant}
-                                    showMap={showMap}
-                                  />
-                                );
-                                break;
-                              case "weather":
-                                content = <WeatherStat data={entry.weather} />;
-                                break;
-                              case "surf":
-                                content = (
-                                  <SurfStat
-                                    range={entry.surf.height}
-                                    maxFt={parseSurfMaxFt(entry.surf.height)}
-                                    scaleMax={SURF_SCALE_MAX_FT}
-                                  />
-                                );
-                                break;
-                              case "swellPrimary":
-                                content = (
-                                  <SwellStat
-                                    primary
-                                    data={entry.swell.primary}
-                                    showMap={showMap}
-                                    showSecondarySwells={showSecondarySwells}
-                                    variant={variant}
-                                  />
-                                );
-                                break;
-                              case "swellSecondary": {
-                                const s0 = entry.swell.secondary[0];
-                                content = (
-                                  <SwellStat
-                                    data={s0}
-                                    showMap={showMap}
-                                    showSecondarySwells={showSecondarySwells}
-                                    variant={variant}
-                                  />
-                                );
-                                break;
-                              }
-                              case "swellTertiary": {
-                                const s1 = entry.swell.secondary[1];
-                                content = (
-                                  <SwellStat
-                                    data={s1}
-                                    showMap={showMap}
-                                    showSecondarySwells={showSecondarySwells}
-                                    variant={variant}
-                                  />
-                                );
-                                break;
-                              }
-                              case "pressure":
-                                content = (
-                                  <PressureStat
-                                    showMap={showMap}
-                                    value={entry.pressure.value}
-                                    min={barScales.pressureMin}
-                                    max={barScales.pressureMax}
-                                    prev={
-                                      rowIdx > 0
-                                        ? day.vals[rowIdx - 1]?.pressure
-                                            .value ?? null
-                                        : null
-                                    }
-                                  />
-                                );
-                                break;
-                              case "water":
-                                content = (
-                                  <WeatherStat
-                                    water={entry.water.temp}
-                                    waterMin={barScales.waterMin}
-                                    waterMax={barScales.waterMax}
-                                  />
-                                );
-                                break;
-                              case "energy":
-                                content = (
-                                  <EnergyStat
-                                    value={entry.energy.value}
-                                    scaleMax={barScales.energyMax}
-                                  />
-                                );
-                                break;
-                            }
+                            break;
+                          case "wind":
+                            content = (
+                              <WindStat
+                                data={entry.wind}
+                                scaleMax={WIND_SCALE_MAX_MPH}
+                                showSecondarySwells={showSecondarySwells}
+                                variant={variant}
+                                showMap={showMap}
+                              />
+                            );
+                            break;
+                          case "weather":
+                            content = <WeatherStat data={entry.weather} />;
+                            break;
+                          case "surf":
+                            content = (
+                              <SurfStat
+                                range={entry.surf.height}
+                                maxFt={parseSurfMaxFt(entry.surf.height)}
+                                scaleMax={SURF_SCALE_MAX_FT}
+                              />
+                            );
+                            break;
+                          case "swellPrimary":
+                            content = (
+                              <SwellStat
+                                primary
+                                data={entry.swell.primary}
+                                showMap={showMap}
+                                showSecondarySwells={showSecondarySwells}
+                                variant={variant}
+                              />
+                            );
+                            break;
+                          case "swellSecondary": {
+                            const s0 = entry.swell.secondary[0];
+                            content = (
+                              <SwellStat
+                                data={s0}
+                                showMap={showMap}
+                                showSecondarySwells={showSecondarySwells}
+                                variant={variant}
+                              />
+                            );
+                            break;
                           }
-                          return (
-                            <td
-                              key={`${col.id}-${entry.index}`}
-                              className="p-0 align-middle"
-                            >
-                              <div
-                                className={cn(
-                                  "rounded-lg",
-                                  isSelectedHour &&
-                                    "ring-2 ring-sky-500/30 shadow-sm dark:ring-sky-400/25 dark:shadow-[0_8px_16px_rgba(0,0,0,0.35)]"
-                                )}
-                              >
-                                {content}
-                              </div>
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    );
-
-                    const divider =
-                      rowIdx === dayEntries.length - 1 ? null : (
-                        <tr
-                          key={`${i}-${entry.index}-divider`}
-                          aria-hidden="true"
-                          className="h-2"
+                          case "swellTertiary": {
+                            const s1 = entry.swell.secondary[1];
+                            content = (
+                              <SwellStat
+                                data={s1}
+                                showMap={showMap}
+                                showSecondarySwells={showSecondarySwells}
+                                variant={variant}
+                              />
+                            );
+                            break;
+                          }
+                          case "pressure":
+                            content = (
+                              <PressureStat
+                                showMap={showMap}
+                                value={entry.pressure.value}
+                                min={barScales.pressureMin}
+                                max={barScales.pressureMax}
+                                prev={
+                                  rowIdx > 0
+                                    ? day.vals[rowIdx - 1]?.pressure.value ??
+                                      null
+                                    : null
+                                }
+                              />
+                            );
+                            break;
+                          case "water":
+                            content = (
+                              <WeatherStat
+                                water={entry.water.temp}
+                                waterMin={barScales.waterMin}
+                                waterMax={barScales.waterMax}
+                              />
+                            );
+                            break;
+                          case "energy":
+                            content = (
+                              <EnergyStat
+                                value={entry.energy.value}
+                                scaleMax={barScales.energyMax}
+                              />
+                            );
+                            break;
+                        }
+                      }
+                      return (
+                        <td
+                          key={`${col.id}-${entry.index}`}
+                          className="p-0 align-middle"
                         >
-                          <td
-                            colSpan={visibleColumns.length + 1}
-                            className="p-0"
+                          <div
+                            className={cn(
+                              "rounded-lg",
+                              isSelectedHour &&
+                                "ring-2 ring-sky-500/30 shadow-sm dark:ring-sky-400/25 dark:shadow-[0_8px_16px_rgba(0,0,0,0.35)]"
+                            )}
                           >
-                            <div className="mx-2 h-px bg-foreground/10 dark:bg-foreground/15" />
-                          </td>
-                        </tr>
+                            {content}
+                          </div>
+                        </td>
                       );
+                    })}
+                  </tr>
+                );
 
-                    return [row, divider].filter(Boolean);
-                  });
-                  return (
-                    <React.Fragment key={i}>
-                      {showDayHeaderRow && (
-                        <tr key={`${i}-date`}>
-                          <td
-                            colSpan={visibleColumns.length + 1}
-                            className="p-0"
-                          >
-                            <div
-                              className={cn(
-                                "mx-0 my-3 relative overflow-hidden rounded-2xl border border-border/60 bg-foreground/[0.06] px-4 py-3 shadow-[0_1px_0_rgba(0,0,0,0.04),0_12px_30px_rgba(0,0,0,0.06)] dark:bg-foreground/[0.09] dark:shadow-[0_1px_0_rgba(0,0,0,0.35),0_12px_30px_rgba(0,0,0,0.35)]",
-                                i === 0 && variant === "half" && "mt-0"
-                              )}
-                            >
-                              <div className="absolute inset-0 bg-gradient-to-r from-foreground/[0.06] via-transparent to-foreground/[0.02] dark:from-foreground/[0.09] dark:to-foreground/[0.04]" />
-                              <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-foreground/20 to-transparent dark:via-foreground/25" />
-                              <div className="relative flex items-center gap-3">
-                                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border/60 bg-background/70 shadow-sm dark:bg-background/30">
-                                  <CalendarDays
-                                    aria-hidden="true"
-                                    className="h-4 w-4 text-muted-foreground"
-                                  />
-                                </span>
-                                <div className="min-w-0">
-                                  <div className="truncate text-sm font-semibold tracking-tight">
-                                    {day.date}
-                                  </div>
-                                  <div className="mt-1 h-[2px] w-16 rounded-full bg-foreground/15" />
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                      {content}
-                    </React.Fragment>
+                const divider =
+                  rowIdx === dayEntries.length - 1 ? null : (
+                    <tr
+                      key={`${i}-${entry.index}-divider`}
+                      aria-hidden="true"
+                      className="h-2"
+                    >
+                      <td colSpan={visibleColumns.length + 1} className="p-0">
+                        <div className="mx-2 h-px bg-foreground/10 dark:bg-foreground/15" />
+                      </td>
+                    </tr>
                   );
-                })}
+
+                return [row, divider].filter(Boolean);
+              });
+              return (
+                <React.Fragment key={i}>
+                  {showDayHeaderRow && (
+                    <tr key={`${i}-date`}>
+                      <td colSpan={visibleColumns.length + 1} className="p-0">
+                        <div
+                          className={cn(
+                            "mx-0 my-3 relative overflow-hidden rounded-2xl border border-border/60 bg-foreground/[0.06] px-4 py-3 shadow-[0_1px_0_rgba(0,0,0,0.04),0_12px_30px_rgba(0,0,0,0.06)] dark:bg-foreground/[0.09] dark:shadow-[0_1px_0_rgba(0,0,0,0.35),0_12px_30px_rgba(0,0,0,0.35)]",
+                            i === 0 && variant === "half" && "mt-0"
+                          )}
+                        >
+                          <div className="absolute inset-0 bg-gradient-to-r from-foreground/[0.06] via-transparent to-foreground/[0.02] dark:from-foreground/[0.09] dark:to-foreground/[0.04]" />
+                          <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-foreground/20 to-transparent dark:via-foreground/25" />
+                          <div className="relative flex items-center gap-3">
+                            <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border/60 bg-background/70 shadow-sm dark:bg-background/30">
+                              <CalendarDays
+                                aria-hidden="true"
+                                className="h-4 w-4 text-muted-foreground"
+                              />
+                            </span>
+                            <div className="min-w-0">
+                              <div className="truncate text-sm font-semibold tracking-tight">
+                                {day.date}
+                              </div>
+                              <div className="mt-1 h-[2px] w-16 rounded-full bg-foreground/15" />
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  {content}
+                </React.Fragment>
+              );
+            })}
           </tbody>
         </table>
 

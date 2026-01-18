@@ -44,6 +44,7 @@ import type { SharedSunSegments } from "./sharedSunSegments";
 import { buildYAxisTicks } from "@/components/graphs/yAxisTicks";
 import { useChartTheme } from "@/components/graphs/useChartTheme";
 import { useOptionalOverviewChartLoading } from "@/components/context/OverviewChartsLoadingContext";
+import { useIsTouchOnlyDevice } from "./useIsTouchOnlyDevice";
 import {
   applyForecastShadingOpacity,
   buildForecastPlotShadingBackgroundPercent,
@@ -73,6 +74,8 @@ const CHART_RIGHT_MARGIN = 0;
 const Y_AXIS_WIDTH = 30;
 const X_AXIS_SHADE_EXCLUDE_PX = 34;
 const HOVER_LINE_END_INSET_PX = 7.5;
+const TOUCH_INSPECT_LONG_PRESS_MS = 320;
+const TOUCH_INSPECT_MOVE_TOLERANCE_PX = 10;
 const Y_AXIS_TICK = {
   fill: "var(--foreground)",
   fontWeight: 500,
@@ -171,6 +174,7 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   const { getSunData } = useSunData();
   const chartTheme = useChartTheme();
   const hoveredHour = useHoveredHour();
+  const isTouchOnlyDevice = useIsTouchOnlyDevice();
   const { setReady: setOverviewReady } =
     useOptionalOverviewChartLoading("overview-swell");
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
@@ -179,6 +183,19 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   );
   const [containerWidth, setContainerWidth] = useState<number>(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [isTouchInspecting, setIsTouchInspecting] = useState(false);
+  const [touchDefaultIndex, setTouchDefaultIndex] = useState<number | null>(
+    null
+  );
+  const touchInspectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
+  const touchInspectStartRef = useRef<{
+    clientX: number;
+    clientY: number;
+    chartX: number;
+  } | null>(null);
+  const lastTouchHoveredHourRef = useRef<number | null>(null);
   const lastArrowPointRef = useRef<
     Record<
       "primary" | "secondary" | "tertiary",
@@ -308,6 +325,15 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     ro.observe(node);
     return () => ro.disconnect();
   }, []);
+
+  const clearTouchInspectTimer = React.useCallback(() => {
+    if (touchInspectTimerRef.current) {
+      clearTimeout(touchInspectTimerRef.current);
+      touchInspectTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => () => clearTouchInspectTimer(), [clearTouchInspectTimer]);
 
   const placeholderData = useMemo(
     () =>
@@ -464,6 +490,46 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     () => Math.max(0, containerWidth - yAxisInsetPx - CHART_RIGHT_MARGIN),
     [containerWidth, yAxisInsetPx]
   );
+
+  const getTouchActivationFromChartX = React.useCallback(
+    (chartX: number) => {
+      if (!(plotWidthPx > 0) || data.length === 0) return null;
+      if (!Number.isFinite(chartX)) return null;
+
+      const plotX = chartX - yAxisInsetPx;
+      const clampedPlotX = Math.max(0, Math.min(plotX, plotWidthPx));
+      const timeAtX = (clampedPlotX / plotWidthPx) * hours;
+      const clampedTimeAtX = Math.max(0, Math.min(hours, timeAtX));
+
+      let bestIndex = -1;
+      let bestDiff = Infinity;
+      for (let i = 0; i < data.length; i++) {
+        const pointTime = data[i]?.time;
+        if (typeof pointTime !== "number" || !Number.isFinite(pointTime)) {
+          continue;
+        }
+        const diff = Math.abs(pointTime - clampedTimeAtX);
+        if (diff < bestDiff) {
+          bestDiff = diff;
+          bestIndex = i;
+        }
+      }
+      if (bestIndex < 0) return null;
+
+      const nearestTime = data[bestIndex]?.time;
+      if (typeof nearestTime !== "number" || !Number.isFinite(nearestTime)) {
+        return null;
+      }
+      const hoveredHour = Math.max(
+        0,
+        Math.min(hours, Math.round(nearestTime / 3) * 3)
+      );
+
+      return { defaultIndex: bestIndex, hoveredHour };
+    },
+    [data, hours, plotWidthPx, yAxisInsetPx]
+  );
+
   const plotClipIdRaw = React.useId();
   const plotClipId = useMemo(
     () => `overview-swell-plot-clip-${plotClipIdRaw.replace(/:/g, "")}`,
@@ -516,6 +582,7 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   const pendingHoverRef = React.useRef<number | null>(null);
 
   const handleMouseMove = (e: ChartMouseEvent) => {
+    if (isTouchOnlyDevice && !isTouchInspecting) return;
     if (e && e.activeLabel !== undefined) {
       const hour = Number(e.activeLabel);
       if (!isNaN(hour)) {
@@ -540,12 +607,75 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   };
 
   const handleMouseLeave = () => {
+    if (isTouchOnlyDevice && !isTouchInspecting) return;
     if (hoverRafRef.current) {
       cancelAnimationFrame(hoverRafRef.current);
       hoverRafRef.current = null;
     }
     pendingHoverRef.current = null;
     lastHoveredRef.current = null;
+    setHoveredHour(null);
+  };
+
+  const onPointerDown = (ev: React.PointerEvent) => {
+    if (!isTouchOnlyDevice || ev.pointerType === "mouse") return;
+
+    clearTouchInspectTimer();
+    setIsTouchInspecting(false);
+    setTouchDefaultIndex(null);
+    setHoveredHour(null);
+    lastTouchHoveredHourRef.current = null;
+
+    const node = containerRef.current;
+    if (!node) return;
+    const bounds = node.getBoundingClientRect();
+    touchInspectStartRef.current = {
+      clientX: ev.clientX,
+      clientY: ev.clientY,
+      chartX: ev.clientX - bounds.left,
+    };
+
+    touchInspectTimerRef.current = setTimeout(() => {
+      const start = touchInspectStartRef.current;
+      if (!start) return;
+      const activation = getTouchActivationFromChartX(start.chartX);
+      if (!activation) return;
+
+      setTouchDefaultIndex(activation.defaultIndex);
+      if (lastTouchHoveredHourRef.current !== activation.hoveredHour) {
+        lastTouchHoveredHourRef.current = activation.hoveredHour;
+        setHoveredHour(activation.hoveredHour);
+      }
+      setIsTouchInspecting(true);
+    }, TOUCH_INSPECT_LONG_PRESS_MS);
+  };
+
+  const onPointerMove = (ev: React.PointerEvent) => {
+    if (!isTouchOnlyDevice || ev.pointerType === "mouse") return;
+
+    const start = touchInspectStartRef.current;
+    if (!start) return;
+    const deltaX = ev.clientX - start.clientX;
+    const deltaY = ev.clientY - start.clientY;
+
+    if (isTouchInspecting) {
+      if (ev.cancelable) ev.preventDefault();
+      return;
+    }
+
+    if (Math.hypot(deltaX, deltaY) > TOUCH_INSPECT_MOVE_TOLERANCE_PX) {
+      clearTouchInspectTimer();
+    }
+  };
+
+  const onPointerUp = (ev: React.PointerEvent) => {
+    if (!isTouchOnlyDevice || ev.pointerType === "mouse") return;
+
+    clearTouchInspectTimer();
+    setIsTouchInspecting(false);
+    setTouchDefaultIndex(null);
+    touchInspectStartRef.current = null;
+    lastTouchHoveredHourRef.current = null;
     setHoveredHour(null);
   };
 
@@ -586,7 +716,12 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   return (
     <div
       ref={containerRef}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
       className="chart-touch-no-select relative aspect-auto h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px] w-full"
+      style={isTouchInspecting ? { touchAction: "none" } : undefined}
     >
       {/* Shade only the plot area (not the X-axis label band), matching prior ReferenceArea behavior. */}
       <div
@@ -801,17 +936,34 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
               strokeDasharray="3 3"
             />
             {/* <ChartLegend content={<ChartLegendContent />} /> */}
-            <ChartTooltip
-              content={
-                <ChartTooltipContent
-                  labelFormatter={formatHourLabel}
-                  formatter={formatSwellTooltipValue}
+            {isTouchOnlyDevice ? (
+              isTouchInspecting ? (
+                <ChartTooltip
+                  defaultIndex={touchDefaultIndex ?? undefined}
+                  content={
+                    <ChartTooltipContent
+                      labelFormatter={formatHourLabel}
+                      formatter={formatSwellTooltipValue}
+                    />
+                  }
+                  cursor={false}
+                  animationDuration={0}
+                  isAnimationActive={false}
                 />
-              }
-              cursor={false}
-              animationDuration={0}
-              isAnimationActive={false}
-            />
+              ) : null
+            ) : (
+              <ChartTooltip
+                content={
+                  <ChartTooltipContent
+                    labelFormatter={formatHourLabel}
+                    formatter={formatSwellTooltipValue}
+                  />
+                }
+                cursor={false}
+                animationDuration={0}
+                isAnimationActive={false}
+              />
+            )}
 
             <Area
               type="monotone"

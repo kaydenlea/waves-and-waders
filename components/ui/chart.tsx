@@ -177,7 +177,8 @@ function ChartTooltipContent({
     if (
       item.name === "tide" ||
       item.name === "surf" ||
-      item.name === "energy"
+      item.name === "energy" ||
+      item.name === "wind"
     ) {
       const payload = (item as { payload?: Record<string, unknown> }).payload;
       const x: unknown = payload?.x;
@@ -231,7 +232,7 @@ function ChartTooltipContent({
   return (
     <div
       className={cn(
-        "relative grid min-w-[12rem] items-start gap-2 overflow-hidden rounded-2xl border border-border/60 bg-background/90 px-3 py-2.5 text-xs shadow-[0_18px_45px_rgba(0,0,0,0.25)] ring-1 ring-white/10 backdrop-blur-md transition-transform duration-150 ease-out motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-95 before:pointer-events-none before:absolute before:inset-0 before:opacity-90",
+        "relative grid min-w-[7rem] items-start gap-2 overflow-hidden rounded-2xl border border-border/60 bg-background/90 px-3 py-2.5 text-xs shadow-[0_18px_45px_rgba(0,0,0,0.25)] ring-1 ring-white/10 backdrop-blur-md transition-transform duration-150 ease-out motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-95 before:pointer-events-none before:absolute before:inset-0 before:opacity-90 [@media(hover:none)_and_(pointer:coarse)]:min-w-[7rem] [@media(hover:none)_and_(pointer:coarse)]:px-2 [@media(hover:none)_and_(pointer:coarse)]:py-2",
         className
       )}
     >
@@ -243,8 +244,7 @@ function ChartTooltipContent({
           const key = `${nameKey || item.name || item.dataKey || "value"}`;
           const itemConfig = getPayloadConfigFromPayload(config, item, key);
           const configColor = resolveConfigColor(itemConfig);
-          const payloadEntry = (item?.payload ??
-            {}) as Record<string, unknown>;
+          const payloadEntry = (item?.payload ?? {}) as Record<string, unknown>;
           const rawIndicatorColor =
             color ||
             (payloadEntry.fill as string | undefined) ||
@@ -256,6 +256,14 @@ function ChartTooltipContent({
               ? configColor
               : rawIndicatorColor || configColor;
           const iconColor = configColor || indicatorColor;
+          const swellBadgeNumber =
+            key === "primary"
+              ? 1
+              : key === "secondary"
+              ? 2
+              : key === "tertiary"
+              ? 3
+              : null;
           const formattedValue =
             formatter && item?.value !== undefined && item.name
               ? formatter(item.value, item.name, item, index, item.payload)
@@ -291,20 +299,46 @@ function ChartTooltipContent({
               ? String(rawValue)
               : "--";
 
+          const rowAlign =
+            !isRichFormatted && indicator === "dot"
+              ? typeof swellBadgeNumber === "number"
+                ? "items-start"
+                : "items-center"
+              : undefined;
+
           return (
             <div
               key={`${key}-${index}`}
               className={cn(
-                "[&>svg]:text-muted-foreground flex w-full flex-wrap items-stretch gap-2 [&>svg]:h-3.5 [&>svg]:w-3.5",
+                "[&>svg]:text-muted-foreground flex w-full flex-wrap items-stretch gap-2 [&>svg]:h-3.5 [&>svg]:w-3.5 [@media(hover:none)_and_(pointer:coarse)]:gap-1.5",
                 isRichFormatted && "items-start",
-                !isRichFormatted && indicator === "dot" && "items-center"
+                rowAlign
               )}
             >
-              {itemConfig?.icon ? (
+              {typeof swellBadgeNumber === "number" ? (
+                <div
+                  className={cn(
+                    "text-white flex h-6 w-6 shrink-0 items-center justify-center rounded-full border shadow-sm ring-1 ring-background/70 text-[0.72rem] font-semibold tabular-nums leading-none self-start",
+                    isRichFormatted && "mt-0",
+                    "[@media(hover:none)_and_(pointer:coarse)]:h-5 [@media(hover:none)_and_(pointer:coarse)]:w-5 [@media(hover:none)_and_(pointer:coarse)]:text-[0.68rem]"
+                  )}
+                  style={
+                    indicatorColor
+                      ? ({
+                          backgroundColor: indicatorColor,
+                          borderColor: `color-mix(in srgb, ${indicatorColor} 60%, transparent)`,
+                        } as React.CSSProperties)
+                      : undefined
+                  }
+                >
+                  <span className="mt-0.5">{swellBadgeNumber}</span>
+                </div>
+              ) : itemConfig?.icon ? (
                 <div
                   className={cn(
                     "flex h-6 w-6 shrink-0 items-center justify-center rounded-md border shadow-sm ring-1 ring-background/70 [&>svg]:h-3.5 [&>svg]:w-3.5 [&>svg]:text-current",
-                    isRichFormatted && "items-start pt-1"
+                    isRichFormatted && "items-start pt-1",
+                    "[@media(hover:none)_and_(pointer:coarse)]:h-6 [@media(hover:none)_and_(pointer:coarse)]:w-6"
                   )}
                   // style={
                   //   iconColor
@@ -355,7 +389,7 @@ function ChartTooltipContent({
                   className={cn("grid gap-1.5", isRichFormatted && "pt-1.5")}
                 >
                   {nestLabel ? tooltipLabel : null}
-                  <span className="text-muted-foreground">
+                  <span className="text-muted-foreground hidden">
                     {itemConfig?.label || item.name}
                   </span>
                 </div>

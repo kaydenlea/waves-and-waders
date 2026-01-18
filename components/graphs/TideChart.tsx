@@ -36,6 +36,7 @@ import {
 } from "@/components/graphs/sunSegments";
 import { cn, getPacificMidnightUTC } from "@/lib/utils";
 import { useChartTheme } from "@/components/graphs/useChartTheme";
+import { useIsTouchOnlyDevice } from "./useIsTouchOnlyDevice";
 import {
   buildLinearYAxisTicks,
   buildYAxisTicks,
@@ -57,6 +58,8 @@ const CHART_RIGHT_MARGIN = 0;
 const Y_AXIS_WIDTH = 30;
 const X_AXIS_SHADE_EXCLUDE_PX = 34;
 const HOVER_LINE_END_INSET_PX = 7.5;
+const TOUCH_INSPECT_LONG_PRESS_MS = 320;
+const TOUCH_INSPECT_MOVE_TOLERANCE_PX = 10;
 const Y_AXIS_TICK = {
   fill: "var(--foreground)",
   fontWeight: 500,
@@ -191,10 +194,24 @@ const TideChart: React.FC<TideChartProps> = ({
   const hoveredHour = useHoveredHour();
   const { hour: selectedHour, setHoveredHour } = useDateContext();
   const chartTheme = useChartTheme();
+  const isTouchOnlyDevice = useIsTouchOnlyDevice();
   const { setReady: setOverviewReady } =
     useOptionalOverviewChartLoading("overview-tide");
   const [containerWidth, setContainerWidth] = useState<number>(0);
   const containerRef = React.useRef<HTMLDivElement>(null);
+  const [isTouchInspecting, setIsTouchInspecting] = useState(false);
+  const [touchDefaultIndex, setTouchDefaultIndex] = useState<number | null>(
+    null
+  );
+  const touchInspectTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
+  const touchInspectStartRef = React.useRef<{
+    clientX: number;
+    clientY: number;
+    chartX: number;
+  } | null>(null);
+  const lastTouchHoveredHourRef = React.useRef<number | null>(null);
 
   // Consolidated state with reducer for fewer re-renders
   const [state, dispatch] = useReducer(chartReducer, initialChartState);
@@ -246,6 +263,15 @@ const TideChart: React.FC<TideChartProps> = ({
   }, []);
 
   // Keep native resolution (≈6 minute spacing) for accuracy; no downsampling.
+  const clearTouchInspectTimer = React.useCallback(() => {
+    if (touchInspectTimerRef.current) {
+      clearTimeout(touchInspectTimerRef.current);
+      touchInspectTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => () => clearTouchInspectTimer(), [clearTouchInspectTimer]);
+
   const renderData = useMemo(() => {
     if (chartData.length < 2) return chartData;
     const last = chartData[chartData.length - 1];
@@ -757,6 +783,60 @@ const TideChart: React.FC<TideChartProps> = ({
     () => Math.max(0, containerWidth - yAxisInsetPx - CHART_RIGHT_MARGIN),
     [containerWidth, yAxisInsetPx]
   );
+
+  const getTouchActivationFromChartX = React.useCallback(
+    (chartX: number) => {
+      if (!(plotWidthPx > 0) || renderData.length === 0) return null;
+      if (!Number.isFinite(chartX)) return null;
+
+      const plotX = chartX - yAxisInsetPx;
+      const clampedPlotX = Math.max(0, Math.min(plotX, plotWidthPx));
+      const hourAtX = (clampedPlotX / plotWidthPx) * hours;
+      const clampedHourAtX = Math.max(0, Math.min(hours, hourAtX));
+      const targetHour = Math.max(
+        0,
+        Math.min(hours, Math.round(clampedHourAtX / 3) * 3)
+      );
+
+      // `renderData` is monotonic by hour; use binary search for nearest point.
+      let lo = 0;
+      let hi = renderData.length - 1;
+      while (lo <= hi) {
+        const mid = (lo + hi) >> 1;
+        const midHour = renderData[mid]?.hour;
+        if (typeof midHour !== "number" || !Number.isFinite(midHour)) break;
+        if (midHour < targetHour) {
+          lo = mid + 1;
+        } else if (midHour > targetHour) {
+          hi = mid - 1;
+        } else {
+          lo = mid;
+          hi = mid - 1;
+          break;
+        }
+      }
+
+      const idx1 = Math.max(0, Math.min(lo, renderData.length - 1));
+      const idx0 = Math.max(0, idx1 - 1);
+      const h0 = renderData[idx0]?.hour;
+      const h1 = renderData[idx1]?.hour;
+      if (
+        typeof h0 !== "number" ||
+        typeof h1 !== "number" ||
+        !Number.isFinite(h0) ||
+        !Number.isFinite(h1)
+      ) {
+        return null;
+      }
+
+      const defaultIndex =
+        Math.abs(h0 - targetHour) <= Math.abs(h1 - targetHour) ? idx0 : idx1;
+
+      return { defaultIndex, hoveredHour: targetHour };
+    },
+    [hours, plotWidthPx, renderData, yAxisInsetPx]
+  );
+
   const plotShading = useMemo(
     () =>
       buildForecastPlotShadingBackgroundPercent({
@@ -819,6 +899,7 @@ const TideChart: React.FC<TideChartProps> = ({
   const pendingHoverRef = React.useRef<number | null>(null);
 
   const handleMouseMove = (e: ChartMouseEvent) => {
+    if (isTouchOnlyDevice && !isTouchInspecting) return;
     if (e && e.activeLabel !== undefined) {
       const hour = Number(e.activeLabel);
       if (!isNaN(hour)) {
@@ -843,6 +924,7 @@ const TideChart: React.FC<TideChartProps> = ({
   };
 
   const handleMouseLeave = () => {
+    if (isTouchOnlyDevice && !isTouchInspecting) return;
     if (hoverRafRef.current) {
       cancelAnimationFrame(hoverRafRef.current);
       hoverRafRef.current = null;
@@ -852,15 +934,82 @@ const TideChart: React.FC<TideChartProps> = ({
     setHoveredHour(null);
   };
 
+  const onPointerDown = (ev: React.PointerEvent) => {
+    if (!isTouchOnlyDevice || ev.pointerType === "mouse") return;
+
+    clearTouchInspectTimer();
+    setIsTouchInspecting(false);
+    setTouchDefaultIndex(null);
+    setHoveredHour(null);
+    lastTouchHoveredHourRef.current = null;
+
+    const node = containerRef.current;
+    if (!node) return;
+    const bounds = node.getBoundingClientRect();
+    touchInspectStartRef.current = {
+      clientX: ev.clientX,
+      clientY: ev.clientY,
+      chartX: ev.clientX - bounds.left,
+    };
+
+    touchInspectTimerRef.current = setTimeout(() => {
+      const start = touchInspectStartRef.current;
+      if (!start) return;
+      const activation = getTouchActivationFromChartX(start.chartX);
+      if (!activation) return;
+
+      setTouchDefaultIndex(activation.defaultIndex);
+      if (lastTouchHoveredHourRef.current !== activation.hoveredHour) {
+        lastTouchHoveredHourRef.current = activation.hoveredHour;
+        setHoveredHour(activation.hoveredHour);
+      }
+      setIsTouchInspecting(true);
+    }, TOUCH_INSPECT_LONG_PRESS_MS);
+  };
+
+  const onPointerMove = (ev: React.PointerEvent) => {
+    if (!isTouchOnlyDevice || ev.pointerType === "mouse") return;
+
+    const start = touchInspectStartRef.current;
+    if (!start) return;
+    const deltaX = ev.clientX - start.clientX;
+    const deltaY = ev.clientY - start.clientY;
+
+    if (isTouchInspecting) {
+      if (ev.cancelable) ev.preventDefault();
+      return;
+    }
+
+    if (Math.hypot(deltaX, deltaY) > TOUCH_INSPECT_MOVE_TOLERANCE_PX) {
+      clearTouchInspectTimer();
+    }
+  };
+
+  const onPointerUp = (ev: React.PointerEvent) => {
+    if (!isTouchOnlyDevice || ev.pointerType === "mouse") return;
+
+    clearTouchInspectTimer();
+    setIsTouchInspecting(false);
+    setTouchDefaultIndex(null);
+    touchInspectStartRef.current = null;
+    lastTouchHoveredHourRef.current = null;
+    setHoveredHour(null);
+  };
+
   return (
     <div
       ref={containerRef}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
       className={cn(
         "chart-touch-no-select relative aspect-auto w-full [&_.recharts-legend-wrapper]:hidden",
         preview
           ? "h-[300px]"
           : "h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px]"
       )}
+      style={isTouchInspecting ? { touchAction: "none" } : undefined}
     >
       {/* Shade only the plot area (not the X-axis label band), matching prior ReferenceArea behavior. */}
       <div
@@ -1037,18 +1186,36 @@ const TideChart: React.FC<TideChartProps> = ({
               ]}
               ticks={tideTicks}
             />
-            <ChartTooltip
-              content={<ChartTooltipContent />}
-              cursor={false}
-              labelFormatter={(_, payload) => {
-                const entry = Array.isArray(payload)
-                  ? (payload[0]?.payload as TidePoint | undefined)
-                  : undefined;
-                return entry ? formatTime(entry.timestamp) : "";
-              }}
-              animationDuration={0}
-              isAnimationActive={false}
-            />
+            {isTouchOnlyDevice ? (
+              isTouchInspecting ? (
+                <ChartTooltip
+                  defaultIndex={touchDefaultIndex ?? undefined}
+                  content={<ChartTooltipContent />}
+                  cursor={false}
+                  labelFormatter={(_, payload) => {
+                    const entry = Array.isArray(payload)
+                      ? (payload[0]?.payload as TidePoint | undefined)
+                      : undefined;
+                    return entry ? formatTime(entry.timestamp) : "";
+                  }}
+                  animationDuration={0}
+                  isAnimationActive={false}
+                />
+              ) : null
+            ) : (
+              <ChartTooltip
+                content={<ChartTooltipContent />}
+                cursor={false}
+                labelFormatter={(_, payload) => {
+                  const entry = Array.isArray(payload)
+                    ? (payload[0]?.payload as TidePoint | undefined)
+                    : undefined;
+                  return entry ? formatTime(entry.timestamp) : "";
+                }}
+                animationDuration={0}
+                isAnimationActive={false}
+              />
+            )}
             <Line
               dataKey="tide"
               type="natural"

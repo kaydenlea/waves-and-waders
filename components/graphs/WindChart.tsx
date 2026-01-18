@@ -1,6 +1,12 @@
 ﻿"use client";
 
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+} from "react";
 import {
   Bar,
   BarChart,
@@ -665,6 +671,12 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
               ticks={windTicks}
             />
             <ChartTooltip
+              content={<ChartTooltipContent />}
+              cursor={tooltipCursor}
+              animationDuration={0}
+              isAnimationActive={false}
+            />
+            {/* <ChartTooltip
               content={
                 <ChartTooltipContent
                   className="min-w-[14rem]"
@@ -674,7 +686,7 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
               }
               cursor={tooltipCursor}
               animationDuration={0}
-            />
+            /> */}
             {/* Hour indicator line */}
             {centeredSelectedHour !== null && (
               <ReferenceLine

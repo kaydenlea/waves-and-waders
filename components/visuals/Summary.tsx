@@ -171,7 +171,7 @@ const TagsOverflowPopover = ({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger className="more-button shrink-0 px-2.5 py-1.5 rounded-full bg-foreground/5 hover:bg-foreground/8 border border-border/25 text-[13px] text-muted-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0">
+      <PopoverTrigger className="more-button shrink-0 px-2.5 py-2 rounded-full bg-foreground/5 hover:bg-foreground/8 border border-border/25 text-[13px] text-muted-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0">
         +{tags.length}
       </PopoverTrigger>
       <PopoverContent className={contentClassName}>

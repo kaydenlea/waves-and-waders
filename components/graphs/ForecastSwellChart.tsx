@@ -25,6 +25,7 @@ import {
   ChartLegendContent,
   ChartTooltipContent,
 } from "@/components/ui/chart";
+import { useIsTouchOnlyDevice } from "./useIsTouchOnlyDevice";
 import {
   MousePointer2 as ArrowIcon,
   ArrowDown,
@@ -109,11 +110,14 @@ const VISIBLE_DAYS = 4;
 const MIN_DAY_PX = 275; // minimum pixels per day to keep UI usable
 const CHART_LEFT_MARGIN = 5;
 const CHART_RIGHT_MARGIN = 0;
+const DATA_STEP_HOURS = 3;
 const Y_AXIS_WIDTH = 30;
 const DAY_LABEL_INSET = 6;
 const Y_AXIS_OFFSET_VAR = "--forecast-y-axis-offset";
 const X_AXIS_SHADE_EXCLUDE_PX = 34;
 const DRAG_THRESHOLD_PX = 8;
+const TOUCH_INSPECT_LONG_PRESS_MS = 320;
+const TOUCH_INSPECT_MOVE_TOLERANCE_PX = 10;
 const HOVER_LINE_END_INSET_PX = 7.5;
 const Y_AXIS_TICK = {
   fill: "var(--foreground)",
@@ -124,7 +128,8 @@ const Y_AXIS_TICK = {
 const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
   const { setPanFraction, subscribePan } = useForecastChartContext();
   const myId = React.useId();
-  const { hour: selectedHour, setHoveredHour } = useDateContext();
+  const { hour: selectedHour, setHoveredHour, hoveredHourRef, subscribeToHover } =
+    useDateContext();
   const { getSunData } = useSunData();
   const chartTheme = useChartTheme();
   const [loading, setLoading] = useState(true);
@@ -147,6 +152,39 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
   const [containerWidth, setContainerWidth] = useState(0);
   const [isAtRightEdge, setIsAtRightEdge] = useState(false);
   const { selected: selectedDate } = useDateContext();
+  const isTouchOnlyDevice = useIsTouchOnlyDevice();
+  const [isTouchTooltipSyncActive, setIsTouchTooltipSyncActive] =
+    useState(false);
+  const [isTouchInspecting, setIsTouchInspecting] = useState(false);
+  const [touchDefaultIndex, setTouchDefaultIndex] = useState<number | null>(
+    null
+  );
+  const touchInspectStartRef = useRef<{ chartX: number } | null>(null);
+
+  const touchInspectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
+  const clearTouchInspectTimer = useCallback(() => {
+    if (!touchInspectTimerRef.current) return;
+    clearTimeout(touchInspectTimerRef.current);
+    touchInspectTimerRef.current = null;
+  }, []);
+  useEffect(() => () => clearTouchInspectTimer(), [clearTouchInspectTimer]);
+
+  useEffect(() => {
+    if (!isTouchOnlyDevice) {
+      setIsTouchTooltipSyncActive(false);
+      return;
+    }
+
+    const update = () => {
+      const next = hoveredHourRef.current != null;
+      setIsTouchTooltipSyncActive((prev) => (prev === next ? prev : next));
+    };
+
+    update();
+    return subscribeToHover(update);
+  }, [hoveredHourRef, isTouchOnlyDevice, subscribeToHover]);
 
   // Normalize and sort incoming days so fetch windows stay aligned
   const normalizedDays = useMemo(() => {
@@ -199,9 +237,38 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
   // in-plot inset so series never render beneath the sticky Y-axis labels.
   const dataAreaWidth =
     chartInnerWidth - CHART_LEFT_MARGIN - CHART_RIGHT_MARGIN - Y_AXIS_WIDTH;
+
   const dayLabelLeftOffset = CHART_LEFT_MARGIN + Y_AXIS_WIDTH;
   const domainMin = 0;
   const domainMax = totalFetchedDays * HOURS_PER_DAY;
+
+
+  const getTouchActivationFromChartX = useCallback(
+    (chartX: number) => {
+      if (!Number.isFinite(chartX) || !dataAreaWidth) return null;
+      const plotX = Math.max(
+        0,
+        Math.min(chartX - dayLabelLeftOffset, dataAreaWidth)
+      );
+      const t = dataAreaWidth > 0 ? plotX / dataAreaWidth : 0;
+      const hour = domainMin + t * (domainMax - domainMin);
+      const roundedHour =
+        Math.round(hour / DATA_STEP_HOURS) * DATA_STEP_HOURS;
+      const clampedHour = Math.max(
+        0,
+        Math.min(roundedHour, totalFetchedDays * HOURS_PER_DAY)
+      );
+      const defaultIndex = Math.round(clampedHour / DATA_STEP_HOURS);
+      const maxIndex = swellData.length - 1;
+      if (!Number.isFinite(defaultIndex) || maxIndex < 0) return null;
+      const clampedIndex = Math.max(0, Math.min(defaultIndex, maxIndex));
+      return {
+        defaultIndex: clampedIndex,
+        hour: clampedIndex * DATA_STEP_HOURS,
+      };
+    },
+    [dataAreaWidth, dayLabelLeftOffset, domainMin, domainMax, totalFetchedDays, swellData.length]
+  );
   const dayHeaderLayout = useMemo(
     () =>
       getForecastDayHeaderLayout({
@@ -311,6 +378,8 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
   const startDrag = (ev: React.PointerEvent) => {
     const node = ev.currentTarget as Element;
     node.setPointerCapture?.(ev.pointerId);
+    clearTouchInspectTimer();
+    setIsTouchInspecting(false);
     if (rafRef.current) {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
@@ -330,6 +399,26 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
       startTranslate: currentTranslateRef.current,
     };
     setInnerTranslatePx(currentTranslateRef.current, false);
+    if (isTouchOnlyDevice && ev.pointerType !== "mouse") {
+      clearTouchInspectTimer();
+      setIsTouchInspecting(false);
+      setTouchDefaultIndex(null);
+      setHoveredHour(null);
+      const bounds = (ev.currentTarget as Element).getBoundingClientRect();
+      touchInspectStartRef.current = { chartX: ev.clientX - bounds.left };
+      touchInspectTimerRef.current = setTimeout(() => {
+        if (pointerStateRef.current?.dragging) return;
+        const start = touchInspectStartRef.current;
+        if (start) {
+          const activation = getTouchActivationFromChartX(start.chartX);
+          if (activation) {
+            setTouchDefaultIndex(activation.defaultIndex);
+            setHoveredHour(activation.hour);
+          }
+        }
+        setIsTouchInspecting(true);
+      }, TOUCH_INSPECT_LONG_PRESS_MS);
+    }
     if (ev.pointerType === "mouse") {
       startDrag(ev);
     }
@@ -340,6 +429,15 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
     if (!ps) return;
     const deltaX = ev.clientX - ps.startX;
     const deltaY = ev.clientY - ps.startY;
+    if (isTouchOnlyDevice && ev.pointerType !== "mouse") {
+      if (isTouchInspecting) return;
+      if (
+        Math.hypot(deltaX, deltaY) >
+        Math.max(DRAG_THRESHOLD_PX, TOUCH_INSPECT_MOVE_TOLERANCE_PX)
+      ) {
+        clearTouchInspectTimer();
+      }
+    }
     if (!ps.dragging) {
       if (
         Math.abs(deltaX) < DRAG_THRESHOLD_PX ||
@@ -347,6 +445,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
       ) {
         return;
       }
+      clearTouchInspectTimer();
       startDrag(ev);
     }
     if (!pointerStateRef.current?.dragging) return;
@@ -368,6 +467,13 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
   const onPointerUp = (ev: React.PointerEvent) => {
     const node = ev.currentTarget as Element;
     node.releasePointerCapture?.(ev.pointerId);
+    clearTouchInspectTimer();
+    setIsTouchInspecting(false);
+    if (isTouchOnlyDevice && ev.pointerType !== "mouse") {
+      setTouchDefaultIndex(null);
+      touchInspectStartRef.current = null;
+      setHoveredHour(null);
+    }
     const ps = pointerStateRef.current;
     if (!ps) return;
     pointerStateRef.current = null;
@@ -910,6 +1016,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
 
   const handleMouseMove = React.useCallback(
     (e: ChartMouseEvent) => {
+      if (isTouchOnlyDevice && !isTouchInspecting) return;
       if (e && e.activeLabel !== undefined) {
         const hour = Number(e.activeLabel);
         if (!isNaN(hour)) {
@@ -923,13 +1030,14 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
         }
       }
     },
-    [setHoveredHour]
+    [isTouchInspecting, isTouchOnlyDevice, setHoveredHour]
   );
 
   const handleMouseLeave = React.useCallback(() => {
+    if (isTouchOnlyDevice) return;
     lastHoveredRef.current = null;
     setHoveredHour(null);
-  }, [setHoveredHour]);
+  }, [isTouchOnlyDevice, setHoveredHour]);
 
   // Arrow dots are shifted left at the very last x-value to avoid right-edge clipping.
   // When shifted, project them along the final curve segment so they still sit on the line.
@@ -1078,7 +1186,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
             display: "block",
             willChange: "transform",
             cursor: "grab",
-            touchAction: "pan-y",
+            touchAction: isTouchInspecting ? "none" : "pan-y",
           }}
         >
           {/* Day label bar */}
@@ -1421,17 +1529,38 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                       ticks={swellTicks}
                     />
                     {/* <ChartLegend content={<ChartLegendContent />} /> */}
-                    <ChartTooltip
-                      content={
-                        <ChartTooltipContent
-                          labelFormatter={formatHourLabel}
-                          formatter={formatSwellTooltipValue}
+                    {isTouchOnlyDevice ? (
+                      isTouchInspecting || isTouchTooltipSyncActive ? (
+                        <ChartTooltip
+                          defaultIndex={
+                            isTouchInspecting
+                              ? touchDefaultIndex ?? undefined
+                              : undefined
+                          }
+                          content={
+                            <ChartTooltipContent
+                              labelFormatter={formatHourLabel}
+                              formatter={formatSwellTooltipValue}
+                            />
+                          }
+                          cursor={false}
+                          animationDuration={0}
+                          isAnimationActive={false}
                         />
-                      }
-                      cursor={false}
-                      animationDuration={0}
-                      isAnimationActive={false}
-                    />
+                      ) : null
+                    ) : (
+                      <ChartTooltip
+                        content={
+                          <ChartTooltipContent
+                            labelFormatter={formatHourLabel}
+                            formatter={formatSwellTooltipValue}
+                          />
+                        }
+                        cursor={false}
+                        animationDuration={0}
+                        isAnimationActive={false}
+                      />
+                    )}
 
                     <Area
                       type="monotone"

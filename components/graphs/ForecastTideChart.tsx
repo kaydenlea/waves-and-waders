@@ -37,6 +37,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
+import { useIsTouchOnlyDevice } from "./useIsTouchOnlyDevice";
 import { cn } from "@/lib/utils";
 import { useDateContext } from "@/components/context/DateContext";
 import { useForecastChartContext } from "@/components/context/ForecastChartContext";
@@ -66,11 +67,14 @@ const FETCH_DAYS = VISIBLE_DAYS; // fetch one extra day to allow forward pan
 const MIN_DAY_PX = 275; // minimum pixels per day to keep UI usable on tiny screens
 const CHART_LEFT_MARGIN = 5;
 const CHART_RIGHT_MARGIN = 0;
+const DATA_STEP_HOURS = 3;
 const Y_AXIS_WIDTH = 30;
 const DAY_LABEL_INSET = 6;
 const Y_AXIS_OFFSET_VAR = "--forecast-y-axis-offset";
 const X_AXIS_SHADE_EXCLUDE_PX = 34;
 const DRAG_THRESHOLD_PX = 8;
+const TOUCH_INSPECT_LONG_PRESS_MS = 320;
+const TOUCH_INSPECT_MOVE_TOLERANCE_PX = 10;
 const HOVER_LINE_END_INSET_PX = 7.5;
 const Y_AXIS_TICK = {
   fill: "var(--foreground)",
@@ -157,7 +161,42 @@ export default React.memo(function ForecastTideChart({
     selected: selectedDate,
     hour: selectedHour,
     setHoveredHour,
+    hoveredHourRef,
+    subscribeToHover,
   } = useDateContext();
+  const isTouchOnlyDevice = useIsTouchOnlyDevice();
+  const [isTouchTooltipSyncActive, setIsTouchTooltipSyncActive] =
+    useState(false);
+  const [isTouchInspecting, setIsTouchInspecting] = useState(false);
+  const [touchDefaultIndex, setTouchDefaultIndex] = useState<number | null>(
+    null
+  );
+  const touchInspectStartRef = useRef<{ chartX: number } | null>(null);
+
+  const touchInspectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
+  const clearTouchInspectTimer = useCallback(() => {
+    if (!touchInspectTimerRef.current) return;
+    clearTimeout(touchInspectTimerRef.current);
+    touchInspectTimerRef.current = null;
+  }, []);
+  useEffect(() => () => clearTouchInspectTimer(), [clearTouchInspectTimer]);
+
+  useEffect(() => {
+    if (!isTouchOnlyDevice) {
+      setIsTouchTooltipSyncActive(false);
+      return;
+    }
+
+    const update = () => {
+      const next = hoveredHourRef.current != null;
+      setIsTouchTooltipSyncActive((prev) => (prev === next ? prev : next));
+    };
+
+    update();
+    return subscribeToHover(update);
+  }, [hoveredHourRef, isTouchOnlyDevice, subscribeToHover]);
   const [loading, setLoading] = useState(true);
   const [stableSelectedHour, setStableSelectedHour] = useState<number | null>(
     null
@@ -313,9 +352,61 @@ export default React.memo(function ForecastTideChart({
   // in-plot inset so series never render beneath the sticky Y-axis labels.
   const dataAreaWidth =
     chartInnerWidth - CHART_LEFT_MARGIN - CHART_RIGHT_MARGIN - Y_AXIS_WIDTH;
+
   const dayLabelLeftOffset = CHART_LEFT_MARGIN + Y_AXIS_WIDTH;
   const domainMin = 0;
   const domainMax = totalFetchedDays * HOURS_PER_DAY;
+
+
+  const getTouchActivationFromChartX = useCallback(
+    (chartX: number) => {
+      if (!Number.isFinite(chartX) || !dataAreaWidth) return null;
+      if (data.length === 0) return null;
+      const plotX = Math.max(
+        0,
+        Math.min(chartX - dayLabelLeftOffset, dataAreaWidth)
+      );
+      const t = dataAreaWidth > 0 ? plotX / dataAreaWidth : 0;
+      const targetHour = domainMin + t * (domainMax - domainMin);
+
+      // Tide data can be higher resolution than 3h (often 6 min), so compute the nearest
+      // data index by hour instead of assuming a fixed step size.
+      let lo = 0;
+      let hi = data.length - 1;
+      while (lo < hi) {
+        const mid = Math.floor((lo + hi) / 2);
+        const midHour = data[mid]?.hour;
+        if (typeof midHour !== "number") break;
+        if (midHour < targetHour) lo = mid + 1;
+        else hi = mid;
+      }
+
+      let closestIndex = lo;
+      if (closestIndex > 0) {
+        const currHour = data[closestIndex]?.hour;
+        const prevHour = data[closestIndex - 1]?.hour;
+        if (typeof currHour === "number" && typeof prevHour === "number") {
+          if (Math.abs(prevHour - targetHour) <= Math.abs(currHour - targetHour)) {
+            closestIndex = closestIndex - 1;
+          }
+        }
+      }
+
+      const pointHour = data[closestIndex]?.hour;
+      if (typeof pointHour !== "number") return null;
+      const hoverHourRounded3h =
+        Math.round(pointHour / DATA_STEP_HOURS) * DATA_STEP_HOURS;
+      const hoverHourClamped = Math.max(
+        0,
+        Math.min(hoverHourRounded3h, totalFetchedDays * HOURS_PER_DAY)
+      );
+      return {
+        defaultIndex: closestIndex,
+        hour: hoverHourClamped,
+      };
+    },
+    [dataAreaWidth, dayLabelLeftOffset, domainMin, domainMax, totalFetchedDays, data]
+  );
   const dayHeaderLayout = useMemo(
     () =>
       getForecastDayHeaderLayout({
@@ -448,6 +539,8 @@ export default React.memo(function ForecastTideChart({
   const startDrag = (ev: React.PointerEvent) => {
     const node = ev.currentTarget as Element;
     node.setPointerCapture?.(ev.pointerId);
+    clearTouchInspectTimer();
+    setIsTouchInspecting(false);
     if (rafRef.current) {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
@@ -469,6 +562,26 @@ export default React.memo(function ForecastTideChart({
     };
     // remove transition for immediate follow
     setInnerTranslatePx(currentTranslateRef.current, false);
+    if (isTouchOnlyDevice && ev.pointerType !== "mouse") {
+      clearTouchInspectTimer();
+      setIsTouchInspecting(false);
+      setTouchDefaultIndex(null);
+      setHoveredHour(null);
+      const bounds = (ev.currentTarget as Element).getBoundingClientRect();
+      touchInspectStartRef.current = { chartX: ev.clientX - bounds.left };
+      touchInspectTimerRef.current = setTimeout(() => {
+        if (pointerStateRef.current?.dragging) return;
+        const start = touchInspectStartRef.current;
+        if (start) {
+          const activation = getTouchActivationFromChartX(start.chartX);
+          if (activation) {
+            setTouchDefaultIndex(activation.defaultIndex);
+            setHoveredHour(activation.hour);
+          }
+        }
+        setIsTouchInspecting(true);
+      }, TOUCH_INSPECT_LONG_PRESS_MS);
+    }
     if (ev.pointerType === "mouse") {
       startDrag(ev);
     }
@@ -479,6 +592,15 @@ export default React.memo(function ForecastTideChart({
     if (!ps) return;
     const deltaX = ev.clientX - ps.startX;
     const deltaY = ev.clientY - ps.startY;
+    if (isTouchOnlyDevice && ev.pointerType !== "mouse") {
+      if (isTouchInspecting) return;
+      if (
+        Math.hypot(deltaX, deltaY) >
+        Math.max(DRAG_THRESHOLD_PX, TOUCH_INSPECT_MOVE_TOLERANCE_PX)
+      ) {
+        clearTouchInspectTimer();
+      }
+    }
     if (!ps.dragging) {
       if (
         Math.abs(deltaX) < DRAG_THRESHOLD_PX ||
@@ -486,6 +608,7 @@ export default React.memo(function ForecastTideChart({
       ) {
         return;
       }
+      clearTouchInspectTimer();
       startDrag(ev);
     }
     if (!pointerStateRef.current?.dragging) return;
@@ -538,6 +661,13 @@ export default React.memo(function ForecastTideChart({
   const onPointerUp = (ev: React.PointerEvent) => {
     const node = ev.currentTarget as Element;
     node.releasePointerCapture?.(ev.pointerId);
+    clearTouchInspectTimer();
+    setIsTouchInspecting(false);
+    if (isTouchOnlyDevice && ev.pointerType !== "mouse") {
+      setTouchDefaultIndex(null);
+      touchInspectStartRef.current = null;
+      setHoveredHour(null);
+    }
     const ps = pointerStateRef.current;
     if (!ps) return;
     pointerStateRef.current = null;
@@ -1108,6 +1238,7 @@ export default React.memo(function ForecastTideChart({
 
   const handleMouseMove = React.useCallback(
     (e: ChartMouseEvent) => {
+      if (isTouchOnlyDevice && !isTouchInspecting) return;
       if (e && e.activeLabel !== undefined) {
         const hour = Number(e.activeLabel);
         if (!isNaN(hour)) {
@@ -1122,13 +1253,14 @@ export default React.memo(function ForecastTideChart({
         }
       }
     },
-    [setHoveredHour]
+    [isTouchInspecting, isTouchOnlyDevice, setHoveredHour]
   );
 
   const handleMouseLeave = React.useCallback(() => {
+    if (isTouchOnlyDevice) return;
     lastHoveredRef.current = null;
     setHoveredHour(null);
-  }, [setHoveredHour]);
+  }, [isTouchOnlyDevice, setHoveredHour]);
 
   // Render
   return (
@@ -1193,7 +1325,7 @@ export default React.memo(function ForecastTideChart({
               display: "block",
               willChange: "transform",
               cursor: "grab",
-              touchAction: "pan-y",
+              touchAction: isTouchInspecting ? "none" : "pan-y",
             }}
           >
             {/* Day label bar (4 filled boxes) - fixed in viewport and aligned to visible days */}
@@ -1506,16 +1638,36 @@ export default React.memo(function ForecastTideChart({
                           return null;
                         }
                       })()}
-                      <ChartTooltip
-                        content={
-                          <ChartTooltipContent
-                            labelFormatter={formatHourLabel}
+                      {isTouchOnlyDevice ? (
+                        isTouchInspecting || isTouchTooltipSyncActive ? (
+                          <ChartTooltip
+                            defaultIndex={
+                              isTouchInspecting
+                                ? touchDefaultIndex ?? undefined
+                                : undefined
+                            }
+                            content={
+                              <ChartTooltipContent
+                                labelFormatter={formatHourLabel}
+                              />
+                            }
+                            cursor={false}
+                            animationDuration={0}
+                            isAnimationActive={false}
                           />
-                        }
-                        cursor={false}
-                        animationDuration={0}
-                        isAnimationActive={false}
-                      />
+                        ) : null
+                      ) : (
+                        <ChartTooltip
+                          content={
+                            <ChartTooltipContent
+                              labelFormatter={formatHourLabel}
+                            />
+                          }
+                          cursor={false}
+                          animationDuration={0}
+                          isAnimationActive={false}
+                        />
+                      )}
 
                       <Line
                         dataKey="tide"
