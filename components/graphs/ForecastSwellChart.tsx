@@ -23,6 +23,7 @@ import {
   ChartTooltip,
   ChartLegend,
   ChartLegendContent,
+  ChartTooltipViewportContent,
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import { useIsTouchOnlyDevice } from "./useIsTouchOnlyDevice";
@@ -51,7 +52,10 @@ import {
 } from "../context/ForecastChartsLoadingContext";
 import { useChartTheme } from "@/components/graphs/useChartTheme";
 import type { ForecastData } from "@/lib/supabase";
-import { buildYAxisTicks, limitYAxisTicks } from "@/components/graphs/yAxisTicks";
+import {
+  buildYAxisTicks,
+  limitYAxisTicks,
+} from "@/components/graphs/yAxisTicks";
 
 const chartConfig = {
   primary: {
@@ -94,7 +98,10 @@ type YAxisTickProps = {
 
 type TooltipPayload = Array<{ payload?: { hour?: number } }>;
 
-type TooltipItem = { dataKey?: string | number; payload?: Record<string, unknown> };
+type TooltipItem = {
+  dataKey?: string | number;
+  payload?: Record<string, unknown>;
+};
 
 type TooltipValue = number | string | Array<number | string>;
 
@@ -128,8 +135,12 @@ const Y_AXIS_TICK = {
 const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
   const { setPanFraction, subscribePan } = useForecastChartContext();
   const myId = React.useId();
-  const { hour: selectedHour, setHoveredHour, hoveredHourRef, subscribeToHover } =
-    useDateContext();
+  const {
+    hour: selectedHour,
+    setHoveredHour,
+    hoveredHourRef,
+    subscribeToHover,
+  } = useDateContext();
   const { getSunData } = useSunData();
   const chartTheme = useChartTheme();
   const [loading, setLoading] = useState(true);
@@ -142,7 +153,10 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
     []
   );
   const lastArrowPointRef = useRef<
-    Record<"primary" | "secondary" | "tertiary", { cx: number; cy: number } | null>
+    Record<
+      "primary" | "secondary" | "tertiary",
+      { cx: number; cy: number } | null
+    >
   >({ primary: null, secondary: null, tertiary: null });
 
   // Scrollable state
@@ -242,7 +256,6 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
   const domainMin = 0;
   const domainMax = totalFetchedDays * HOURS_PER_DAY;
 
-
   const getTouchActivationFromChartX = useCallback(
     (chartX: number) => {
       if (!Number.isFinite(chartX) || !dataAreaWidth) return null;
@@ -252,8 +265,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
       );
       const t = dataAreaWidth > 0 ? plotX / dataAreaWidth : 0;
       const hour = domainMin + t * (domainMax - domainMin);
-      const roundedHour =
-        Math.round(hour / DATA_STEP_HOURS) * DATA_STEP_HOURS;
+      const roundedHour = Math.round(hour / DATA_STEP_HOURS) * DATA_STEP_HOURS;
       const clampedHour = Math.max(
         0,
         Math.min(roundedHour, totalFetchedDays * HOURS_PER_DAY)
@@ -267,7 +279,14 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
         hour: clampedIndex * DATA_STEP_HOURS,
       };
     },
-    [dataAreaWidth, dayLabelLeftOffset, domainMin, domainMax, totalFetchedDays, swellData.length]
+    [
+      dataAreaWidth,
+      dayLabelLeftOffset,
+      domainMin,
+      domainMax,
+      totalFetchedDays,
+      swellData.length,
+    ]
   );
   const dayHeaderLayout = useMemo(
     () =>
@@ -919,18 +938,18 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
   );
   const formatHourLabel = useCallback(
     (label: unknown, payload: TooltipPayload) => {
-    let hour = payload?.[0]?.payload?.hour;
-    if (typeof hour !== "number" && typeof label === "number") {
-      hour = label;
-    }
-    if (typeof hour !== "number") return "";
-    const wholeHour = Math.floor(hour);
-    const minutes = Math.round((hour - wholeHour) * 60);
-    const displayHour = wholeHour % 12 === 0 ? 12 : wholeHour % 12;
-    const ampm = wholeHour % 24 >= 12 ? "PM" : "AM";
-    return minutes > 0
-      ? `${displayHour}:${minutes.toString().padStart(2, "0")} ${ampm}`
-      : `${displayHour} ${ampm}`;
+      let hour = payload?.[0]?.payload?.hour;
+      if (typeof hour !== "number" && typeof label === "number") {
+        hour = label;
+      }
+      if (typeof hour !== "number") return "";
+      const wholeHour = Math.floor(hour);
+      const minutes = Math.round((hour - wholeHour) * 60);
+      const displayHour = wholeHour % 12 === 0 ? 12 : wholeHour % 12;
+      const ampm = wholeHour % 24 >= 12 ? "PM" : "AM";
+      return minutes > 0
+        ? `${displayHour}:${minutes.toString().padStart(2, "0")} ${ampm}`
+        : `${displayHour} ${ampm}`;
     },
     []
   );
@@ -1042,7 +1061,11 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
   // Arrow dots are shifted left at the very last x-value to avoid right-edge clipping.
   // When shifted, project them along the final curve segment so they still sit on the line.
   useEffect(() => {
-    lastArrowPointRef.current = { primary: null, secondary: null, tertiary: null };
+    lastArrowPointRef.current = {
+      primary: null,
+      secondary: null,
+      tertiary: null,
+    };
   }, [swellData, totalFetchedDays]);
 
   const projectArrowAlongLastSegment = useCallback(
@@ -1068,6 +1091,15 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
     },
     []
   );
+  const tooltipViewport = useMemo(
+    () => ({
+      x: clampTranslatePx(dayOffset * dayPx),
+      y: 0,
+      width: viewportWidth,
+      height: 250,
+    }),
+    [clampTranslatePx, dayOffset, dayPx, viewportWidth]
+  );
 
   const [stableSelectedHour, setStableSelectedHour] = useState<number | null>(
     null
@@ -1079,7 +1111,9 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
     return [
       beachId,
       ...days
-        .filter((d): d is Date => d instanceof Date && !Number.isNaN(d.getTime()))
+        .filter(
+          (d): d is Date => d instanceof Date && !Number.isNaN(d.getTime())
+        )
         .map((d) => d.getTime())
         .sort((a, b) => a - b)
         .map(String),
@@ -1425,8 +1459,11 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                             ? offset.width
                             : 0);
                         const height =
-                          typeof offset?.height === "number" ? offset.height : 0;
-                        const top = typeof offset?.top === "number" ? offset.top : 0;
+                          typeof offset?.height === "number"
+                            ? offset.height
+                            : 0;
+                        const top =
+                          typeof offset?.top === "number" ? offset.top : 0;
                         if (
                           !offset ||
                           !(fullWidth > 0) ||

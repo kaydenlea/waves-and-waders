@@ -429,6 +429,91 @@ function ChartTooltipContent({
   );
 }
 
+type TooltipViewport = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+function ChartTooltipViewportContent({
+  viewport,
+  offset = 10,
+  ...props
+}: React.ComponentProps<typeof RechartsPrimitive.Tooltip> &
+  React.ComponentProps<"div"> & {
+    viewport: TooltipViewport;
+    hideLabel?: boolean;
+    hideIndicator?: boolean;
+    indicator?: "line" | "dot" | "dashed";
+    nameKey?: string;
+    labelKey?: string;
+  }) {
+  const contentRef = React.useRef<HTMLDivElement | null>(null);
+  const [size, setSize] = React.useState({ width: 0, height: 0 });
+  const isActive = Boolean(props.active && props.payload?.length);
+
+  React.useLayoutEffect(() => {
+    if (!isActive) return;
+    const node = contentRef.current;
+    if (!node) return;
+
+    const update = () => {
+      const rect = node.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      setSize((prev) =>
+        prev.width !== rect.width || prev.height !== rect.height
+          ? { width: rect.width, height: rect.height }
+          : prev
+      );
+    };
+
+    update();
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => update());
+    ro.observe(node);
+    return () => ro.disconnect();
+  }, [isActive, props.payload, props.label]);
+
+  if (!isActive) {
+    return null;
+  }
+
+  const coordX =
+    typeof props.coordinate?.x === "number" ? props.coordinate.x : viewport.x;
+  const coordY =
+    typeof props.coordinate?.y === "number" ? props.coordinate.y : viewport.y;
+  const width = size.width || 0;
+  const height = size.height || 0;
+
+  let x = coordX + offset;
+  if (x + width > viewport.x + viewport.width) {
+    x = coordX - offset - width;
+  }
+  x = Math.max(viewport.x, Math.min(x, viewport.x + viewport.width - width));
+
+  let y = coordY - offset - height;
+  if (y < viewport.y) {
+    y = coordY + offset;
+  }
+  y = Math.max(viewport.y, Math.min(y, viewport.y + viewport.height - height));
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        left: 0,
+        top: 0,
+        transform: `translate(${x}px, ${y}px)`,
+      }}
+    >
+      <div ref={contentRef}>
+        <ChartTooltipContent {...props} />
+      </div>
+    </div>
+  );
+}
+
 const ChartLegend = RechartsPrimitive.Legend;
 
 function ChartLegendContent({
@@ -561,6 +646,7 @@ export {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
+  ChartTooltipViewportContent,
   ChartLegend,
   ChartLegendContent,
   ChartStyle,

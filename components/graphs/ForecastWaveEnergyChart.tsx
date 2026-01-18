@@ -27,6 +27,7 @@ import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
+  ChartTooltipViewportContent,
 } from "@/components/ui/chart";
 import { useIsTouchOnlyDevice } from "./useIsTouchOnlyDevice";
 import {
@@ -159,8 +160,12 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
     () => `energySplitColorStroke-${myId.replace(/:/g, "")}`,
     [myId]
   );
-  const { hour: selectedHour, setHoveredHour, hoveredHourRef, subscribeToHover } =
-    useDateContext();
+  const {
+    hour: selectedHour,
+    setHoveredHour,
+    hoveredHourRef,
+    subscribeToHover,
+  } = useDateContext();
   const { getSunData } = useSunData();
   const chartTheme = useChartTheme();
   const [loading, setLoading] = useState(true);
@@ -182,7 +187,8 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
       if (idx < 0) return <g key={key} />;
       const cxNum = typeof props.cx === "number" ? props.cx : Number(props.cx);
       const cyNum = typeof props.cy === "number" ? props.cy : Number(props.cy);
-      if (!Number.isFinite(cxNum) || !Number.isFinite(cyNum)) return <g key={key} />;
+      if (!Number.isFinite(cxNum) || !Number.isFinite(cyNum))
+        return <g key={key} />;
       const last = energyData.length - 1;
       if (idx === last - 1) {
         lastEnergySegmentRef.current.prev = { cx: cxNum, cy: cyNum };
@@ -216,7 +222,11 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
         if (!dx || !prevPoint) return { x: cxNum + dx, y: cyNum };
         const vx = cxNum - prevPoint.cx;
         const vy = cyNum - prevPoint.cy;
-        if (!Number.isFinite(vx) || !Number.isFinite(vy) || Math.abs(vx) < 1e-6) {
+        if (
+          !Number.isFinite(vx) ||
+          !Number.isFinite(vy) ||
+          Math.abs(vx) < 1e-6
+        ) {
           return { x: cxNum + dx, y: cyNum };
         }
         const t = Math.max(-1, Math.min(0, dx / vx));
@@ -254,7 +264,9 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
     return [
       beachId,
       ...days
-        .filter((d): d is Date => d instanceof Date && !Number.isNaN(d.getTime()))
+        .filter(
+          (d): d is Date => d instanceof Date && !Number.isNaN(d.getTime())
+        )
         .map((d) => d.getTime())
         .sort((a, b) => a - b)
         .map(String),
@@ -406,7 +418,6 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
   const domainMin = 0;
   const domainMax = totalFetchedDays * HOURS_PER_DAY;
 
-
   const getTouchActivationFromChartX = useCallback(
     (chartX: number) => {
       if (!Number.isFinite(chartX) || !dataAreaWidth) return null;
@@ -416,8 +427,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
       );
       const t = dataAreaWidth > 0 ? plotX / dataAreaWidth : 0;
       const hour = domainMin + t * (domainMax - domainMin);
-      const roundedHour =
-        Math.round(hour / DATA_STEP_HOURS) * DATA_STEP_HOURS;
+      const roundedHour = Math.round(hour / DATA_STEP_HOURS) * DATA_STEP_HOURS;
       const clampedHour = Math.max(
         0,
         Math.min(roundedHour, totalFetchedDays * HOURS_PER_DAY)
@@ -431,7 +441,14 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
         hour: clampedIndex * DATA_STEP_HOURS,
       };
     },
-    [dataAreaWidth, dayLabelLeftOffset, domainMin, domainMax, totalFetchedDays, energyData.length]
+    [
+      dataAreaWidth,
+      dayLabelLeftOffset,
+      domainMin,
+      domainMax,
+      totalFetchedDays,
+      energyData.length,
+    ]
   );
   const dayHeaderLayout = useMemo(
     () =>
@@ -1033,6 +1050,15 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
     },
     []
   );
+  const tooltipViewport = useMemo(
+    () => ({
+      x: clampTranslatePx(dayOffset * dayPx),
+      y: 0,
+      width: viewportWidth,
+      height: 250,
+    }),
+    [clampTranslatePx, dayOffset, dayPx, viewportWidth]
+  );
 
   const plotClipIdRaw = React.useId();
   const plotClipId = useMemo(
@@ -1579,7 +1605,9 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
                     ) : (
                       <ChartTooltip
                         content={
-                          <ChartTooltipContent labelFormatter={formatHourLabel} />
+                          <ChartTooltipContent
+                            labelFormatter={formatHourLabel}
+                          />
                         }
                         cursor={false}
                         animationDuration={0}

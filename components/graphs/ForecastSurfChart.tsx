@@ -26,6 +26,7 @@ import {
   ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
+  ChartTooltipViewportContent,
 } from "@/components/ui/chart";
 import { useIsTouchOnlyDevice } from "./useIsTouchOnlyDevice";
 import {
@@ -41,7 +42,10 @@ import { useForecastData } from "@/components/context/ForecastDataContext";
 import { useDateContext } from "@/components/context/DateContext";
 import { useForecastChartContext } from "@/components/context/ForecastChartContext";
 import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
-import { buildYAxisTicks, limitYAxisTicks } from "@/components/graphs/yAxisTicks";
+import {
+  buildYAxisTicks,
+  limitYAxisTicks,
+} from "@/components/graphs/yAxisTicks";
 import { useSunData } from "@/components/context/SunDataContext";
 import { buildSunSegmentsForRange } from "@/components/graphs/sunSegments";
 import { buildForecastShadingBackground } from "@/components/graphs/forecastShadingBackground";
@@ -107,8 +111,12 @@ const Y_AXIS_TICK = {
 const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
   const { setPanFraction, subscribePan } = useForecastChartContext();
   const myId = React.useId();
-  const { hour: selectedHour, setHoveredHour, hoveredHourRef, subscribeToHover } =
-    useDateContext();
+  const {
+    hour: selectedHour,
+    setHoveredHour,
+    hoveredHourRef,
+    subscribeToHover,
+  } = useDateContext();
   const { getSunData } = useSunData();
   const chartTheme = useChartTheme();
   const [loading, setLoading] = useState(true);
@@ -214,7 +222,13 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
   const surfTicks = useMemo(
     () =>
       limitYAxisTicks(
-        buildYAxisTicks(surfData.map((d) => d.surf), 0, 4, 0.2, 5),
+        buildYAxisTicks(
+          surfData.map((d) => d.surf),
+          0,
+          4,
+          0.2,
+          5
+        ),
         4
       ),
     [surfData]
@@ -287,8 +301,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
       );
       const t = dataAreaWidth > 0 ? plotX / dataAreaWidth : 0;
       const hour = domainMin + t * (domainMax - domainMin);
-      const roundedHour =
-        Math.round(hour / DATA_STEP_HOURS) * DATA_STEP_HOURS;
+      const roundedHour = Math.round(hour / DATA_STEP_HOURS) * DATA_STEP_HOURS;
       const clampedHour = Math.max(
         0,
         Math.min(roundedHour, totalFetchedDays * HOURS_PER_DAY)
@@ -302,7 +315,14 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
         hour: clampedIndex * DATA_STEP_HOURS,
       };
     },
-    [dataAreaWidth, dayLabelLeftOffset, domainMin, domainMax, totalFetchedDays, surfData.length]
+    [
+      dataAreaWidth,
+      dayLabelLeftOffset,
+      domainMin,
+      domainMax,
+      totalFetchedDays,
+      surfData.length,
+    ]
   );
 
   const dayHeaderLayout = useMemo(
@@ -1002,6 +1022,15 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
     }),
     [chartTheme.hoverOpacity]
   );
+  const tooltipViewport = useMemo(
+    () => ({
+      x: clampTranslatePx(dayOffset * dayPx),
+      y: 0,
+      width: viewportWidth,
+      height: 250,
+    }),
+    [clampTranslatePx, dayOffset, dayPx, viewportWidth]
+  );
 
   const [stableSelectedHour, setStableSelectedHour] = useState<number | null>(
     null
@@ -1379,7 +1408,9 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                     ) : (
                       <ChartTooltip
                         content={
-                          <ChartTooltipContent labelFormatter={formatHourLabel} />
+                          <ChartTooltipContent
+                            labelFormatter={formatHourLabel}
+                          />
                         }
                         cursor={tooltipCursor}
                         animationDuration={0}

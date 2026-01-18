@@ -24,6 +24,7 @@ import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
+  ChartTooltipViewportContent,
 } from "@/components/ui/chart";
 import { useIsTouchOnlyDevice } from "./useIsTouchOnlyDevice";
 import {
@@ -1109,6 +1110,15 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
       strokeWidth: 1,
     }),
     [chartTheme.hoverOpacity]
+  );
+  const tooltipViewport = useMemo(
+    () => ({
+      x: clampTranslatePx(dayOffset * dayPx),
+      y: 0,
+      width: viewportWidth,
+      height: 250,
+    }),
+    [clampTranslatePx, dayOffset, dayPx, viewportWidth]
   );
 
   return (

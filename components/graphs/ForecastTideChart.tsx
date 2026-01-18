@@ -36,6 +36,7 @@ import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
+  ChartTooltipViewportContent,
 } from "@/components/ui/chart";
 import { useIsTouchOnlyDevice } from "./useIsTouchOnlyDevice";
 import { cn } from "@/lib/utils";
@@ -104,7 +105,12 @@ type TooltipPayload = Array<{ payload?: { hour?: number } }>;
 
 type ChartMouseEvent = { activeLabel?: number | string | null };
 
-type TideDotProps = { payload?: TidePoint; cx?: number; cy?: number; index?: number };
+type TideDotProps = {
+  payload?: TidePoint;
+  cx?: number;
+  cy?: number;
+  index?: number;
+};
 
 export default React.memo(function ForecastTideChart({
   beachId,
@@ -207,7 +213,9 @@ export default React.memo(function ForecastTideChart({
     if (!beachId) return "";
     const daySig = Array.isArray(days)
       ? days
-          .filter((d): d is Date => d instanceof Date && !Number.isNaN(d.getTime()))
+          .filter(
+            (d): d is Date => d instanceof Date && !Number.isNaN(d.getTime())
+          )
           .map((d) => d.getTime())
           .sort((a, b) => a - b)
           .map(String)
@@ -357,7 +365,6 @@ export default React.memo(function ForecastTideChart({
   const domainMin = 0;
   const domainMax = totalFetchedDays * HOURS_PER_DAY;
 
-
   const getTouchActivationFromChartX = useCallback(
     (chartX: number) => {
       if (!Number.isFinite(chartX) || !dataAreaWidth) return null;
@@ -386,7 +393,9 @@ export default React.memo(function ForecastTideChart({
         const currHour = data[closestIndex]?.hour;
         const prevHour = data[closestIndex - 1]?.hour;
         if (typeof currHour === "number" && typeof prevHour === "number") {
-          if (Math.abs(prevHour - targetHour) <= Math.abs(currHour - targetHour)) {
+          if (
+            Math.abs(prevHour - targetHour) <= Math.abs(currHour - targetHour)
+          ) {
             closestIndex = closestIndex - 1;
           }
         }
@@ -405,7 +414,14 @@ export default React.memo(function ForecastTideChart({
         hour: hoverHourClamped,
       };
     },
-    [dataAreaWidth, dayLabelLeftOffset, domainMin, domainMax, totalFetchedDays, data]
+    [
+      dataAreaWidth,
+      dayLabelLeftOffset,
+      domainMin,
+      domainMax,
+      totalFetchedDays,
+      data,
+    ]
   );
   const dayHeaderLayout = useMemo(
     () =>
@@ -1232,6 +1248,15 @@ export default React.memo(function ForecastTideChart({
     },
     []
   );
+  const tooltipViewport = useMemo(
+    () => ({
+      x: clampTranslatePx(dayOffset * dayPx),
+      y: 0,
+      width: viewportWidth,
+      height: 250,
+    }),
+    [clampTranslatePx, dayOffset, dayPx, viewportWidth]
+  );
 
   // Hover sync handlers
   const lastHoveredRef = React.useRef<number | null>(null);
@@ -1683,15 +1708,29 @@ export default React.memo(function ForecastTideChart({
                             return <g />;
                           }
                           const idx = typeof index === "number" ? index : -1;
-                          const cxNum = typeof cx === "number" ? cx : Number(cx);
-                          const cyNum = typeof cy === "number" ? cy : Number(cy);
+                          const cxNum =
+                            typeof cx === "number" ? cx : Number(cx);
+                          const cyNum =
+                            typeof cy === "number" ? cy : Number(cy);
                           if (idx === data.length - 2) {
-                            if (Number.isFinite(cxNum) && Number.isFinite(cyNum)) {
-                              lastTideSegmentRef.current.prev = { cx: cxNum, cy: cyNum };
+                            if (
+                              Number.isFinite(cxNum) &&
+                              Number.isFinite(cyNum)
+                            ) {
+                              lastTideSegmentRef.current.prev = {
+                                cx: cxNum,
+                                cy: cyNum,
+                              };
                             }
                           } else if (idx === data.length - 1) {
-                            if (Number.isFinite(cxNum) && Number.isFinite(cyNum)) {
-                              lastTideSegmentRef.current.curr = { cx: cxNum, cy: cyNum };
+                            if (
+                              Number.isFinite(cxNum) &&
+                              Number.isFinite(cyNum)
+                            ) {
+                              lastTideSegmentRef.current.curr = {
+                                cx: cxNum,
+                                cy: cyNum,
+                              };
                             }
                           }
                           const hour = payload.hour as number;
