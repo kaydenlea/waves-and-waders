@@ -232,7 +232,7 @@ function ChartTooltipContent({
   return (
     <div
       className={cn(
-        "relative grid min-w-[8.5rem] items-start gap-2 overflow-hidden rounded-2xl border border-border/60 bg-background/90 px-2 py-2 text-xs shadow-[0_18px_45px_rgba(0,0,0,0.25)] ring-1 ring-white/10 backdrop-blur-md transition-transform duration-150 ease-out motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-95 before:pointer-events-none before:absolute before:inset-0 before:opacity-90 [@media(hover:none)_and_(pointer:coarse)]:min-w-[8.5rem] [@media(hover:none)_and_(pointer:coarse)]:px-2 [@media(hover:none)_and_(pointer:coarse)]:py-2",
+        "relative grid min-w-[9.5rem] items-start gap-2 overflow-hidden rounded-2xl border border-border/60 bg-background/90 px-2 py-2 text-xs shadow-[0_18px_45px_rgba(0,0,0,0.25)] ring-1 ring-white/10 backdrop-blur-md transition-transform duration-150 ease-out motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-95 before:pointer-events-none before:absolute before:inset-0 before:opacity-90 [@media(hover:none)_and_(pointer:coarse)]:min-w-[9.5rem] [@media(hover:none)_and_(pointer:coarse)]:px-2 [@media(hover:none)_and_(pointer:coarse)]:py-2",
         className
       )}
     >
