@@ -173,7 +173,13 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
   const [touchDefaultIndex, setTouchDefaultIndex] = useState<number | null>(
     null
   );
-  const touchInspectStartRef = useRef<{ chartX: number } | null>(null);
+  const touchInspectStartRef = useRef<{
+    startChartX: number;
+    chartX: number;
+    clientX: number;
+    clientY: number;
+  } | null>(null);
+  const rechartsMoveTargetRef = useRef<HTMLElement | null>(null);
 
   const touchInspectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
@@ -259,10 +265,9 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
   const getTouchActivationFromChartX = useCallback(
     (chartX: number) => {
       if (!Number.isFinite(chartX) || !dataAreaWidth) return null;
-      const translatePx = dayOffset * dayPx;
       const plotX = Math.max(
         0,
-        Math.min(chartX - dayLabelLeftOffset + translatePx, dataAreaWidth)
+        Math.min(chartX - dayLabelLeftOffset, dataAreaWidth)
       );
       const t = dataAreaWidth > 0 ? plotX / dataAreaWidth : 0;
       const hour = domainMin + t * (domainMax - domainMin);
@@ -427,18 +432,44 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
       setTouchDefaultIndex(null);
       setHoveredHour(null);
       const bounds = (ev.currentTarget as Element).getBoundingClientRect();
-      touchInspectStartRef.current = { chartX: ev.clientX - bounds.left };
+      const startChartX = ev.clientX - bounds.left;
+      touchInspectStartRef.current = {
+        startChartX,
+        chartX: startChartX,
+        clientX: ev.clientX,
+        clientY: ev.clientY,
+      };
+      rechartsMoveTargetRef.current =
+        innerRef.current?.querySelector(".recharts-wrapper") ?? null;
       touchInspectTimerRef.current = setTimeout(() => {
+        touchInspectTimerRef.current = null;
         if (pointerStateRef.current?.dragging) return;
         const start = touchInspectStartRef.current;
-        if (start) {
-          const activation = getTouchActivationFromChartX(start.chartX);
-          if (activation) {
-            setTouchDefaultIndex(activation.defaultIndex);
-            setHoveredHour(activation.hour);
-          }
+        if (!start) return;
+        const activation = getTouchActivationFromChartX(start.chartX);
+        if (!activation) return;
+        setTouchDefaultIndex((prev) =>
+          prev === activation.defaultIndex ? prev : activation.defaultIndex
+        );
+        if (hoveredHourRef.current !== activation.hour) {
+          setHoveredHour(activation.hour);
         }
         setIsTouchInspecting(true);
+        requestAnimationFrame(() => {
+          const target =
+            rechartsMoveTargetRef.current ??
+            innerRef.current?.querySelector(".recharts-wrapper");
+          if (!(target instanceof HTMLElement)) return;
+          rechartsMoveTargetRef.current = target;
+          target.dispatchEvent(
+            new MouseEvent("mousemove", {
+              bubbles: true,
+              cancelable: true,
+              clientX: start.clientX,
+              clientY: start.clientY,
+            })
+          );
+        });
       }, TOUCH_INSPECT_LONG_PRESS_MS);
     }
     if (ev.pointerType === "mouse") {
@@ -452,7 +483,29 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
     const deltaX = ev.clientX - ps.startX;
     const deltaY = ev.clientY - ps.startY;
     if (isTouchOnlyDevice && ev.pointerType !== "mouse") {
-      if (isTouchInspecting) return;
+      if (isTouchInspecting) {
+        const target =
+          rechartsMoveTargetRef.current ??
+          innerRef.current?.querySelector(".recharts-wrapper");
+        if (target instanceof HTMLElement) {
+          rechartsMoveTargetRef.current = target;
+          target.dispatchEvent(
+            new MouseEvent("mousemove", {
+              bubbles: true,
+              cancelable: true,
+              clientX: ev.clientX,
+              clientY: ev.clientY,
+            })
+          );
+        }
+        return;
+      }
+      const start = touchInspectStartRef.current;
+      if (touchInspectTimerRef.current && start) {
+        start.chartX = start.startChartX + deltaX;
+        start.clientX = ev.clientX;
+        start.clientY = ev.clientY;
+      }
       if (
         Math.hypot(deltaX, deltaY) >
         Math.max(DRAG_THRESHOLD_PX, TOUCH_INSPECT_MOVE_TOLERANCE_PX)
@@ -1575,6 +1628,17 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                           defaultIndex={
                             isTouchInspecting
                               ? touchDefaultIndex ?? undefined
+                              : hoveredHourRef.current != null &&
+                                swellData.length > 0
+                              ? Math.min(
+                                  swellData.length - 1,
+                                  Math.max(
+                                    0,
+                                    Math.round(
+                                      hoveredHourRef.current / DATA_STEP_HOURS
+                                    )
+                                  )
+                                )
                               : undefined
                           }
                           content={

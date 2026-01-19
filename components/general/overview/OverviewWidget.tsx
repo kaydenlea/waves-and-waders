@@ -160,10 +160,10 @@ export default function OverviewWidget({
 
         <div
           className={cn(
-            "px-4 touch-pan-y relative",
+            "px-2.5 @min-md:px-4 touch-pan-y relative",
             label !== "Daily"
               ? extraPadding
-                ? "px-5 pb-[24px]"
+                ? "px-2.5 @min-md:px-5 pb-[24px]"
                 : "pb-[22px]"
               : "pb-[18px]"
           )}

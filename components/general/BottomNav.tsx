@@ -473,7 +473,7 @@ export default function BottomNav() {
                   />
                   <span
                     className={cn(
-                      "text-xs sr-only @min-[350px]:not-sr-only",
+                      "text-[0.6rem] @min-md:text-xs",
                       "font-medium leading-none",
                       isNearby
                         ? "font-medium text-foreground"
@@ -516,7 +516,7 @@ export default function BottomNav() {
                   />
                   <span
                     className={cn(
-                      "text-xs sr-only @min-[350px]:not-sr-only",
+                      "text-[0.6rem] @min-md:text-xs",
                       "font-medium leading-none",
                       isSaved
                         ? "font-medium text-foreground"
@@ -554,7 +554,7 @@ export default function BottomNav() {
                 className="text-foreground/80 hover:bg-highlight-5 p-2 rounded-2xl flex flex-col items-center gap-1 @min-[350px]:min-w-15"
               >
                 <User className="w-6 h-6 @min-[350px]:w-5 @min-[350px]:h-5 -mt-0.5" />
-                <span className="font-medium text-xs sr-only @min-[350px]:not-sr-only">
+                <span className="font-medium text-[0.6rem] @min-md:text-xs">
                   Profile
                 </span>
               </AppMenuTrigger>
@@ -600,7 +600,7 @@ export default function BottomNav() {
               onClick={() => router.push("/login")}
             >
               <User className="w-6 h-6 @min-[350px]:w-5 @min-[350px]:h-5 -mt-0.5" />
-              <span className="font-medium text-xs sr-only @min-[350px]:not-sr-only">
+              <span className="font-medium text-[0.6rem] @min-md:text-xs">
                 Profile
               </span>
             </button>

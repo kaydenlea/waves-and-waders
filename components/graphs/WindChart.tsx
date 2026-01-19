@@ -671,7 +671,12 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
               ticks={windTicks}
             />
             <ChartTooltip
-              content={<ChartTooltipContent />}
+              content={
+                <ChartTooltipContent
+                  labelFormatter={formatHourLabel}
+                  formatter={formatWindTooltipValue}
+                />
+              }
               cursor={tooltipCursor}
               animationDuration={0}
               isAnimationActive={false}

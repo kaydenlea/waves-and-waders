@@ -75,7 +75,7 @@ export default function NavMoreMenu({
           }
         />
         {bottomNavMode ? (
-          <span className="text-xs sr-only @min-[350px]:not-sr-only">More</span>
+          <span className="text-[0.6rem] @min-md:text-xs">More</span>
         ) : null}
       </AppMenuTrigger>
       <AppMenuContent
