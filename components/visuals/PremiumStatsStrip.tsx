@@ -179,7 +179,7 @@ export default function PremiumStatsStrip({
           return (
             <div
               key={stat.id}
-              className="flex flex-col justify-between p-5 sm:p-5"
+              className="flex flex-col justify-between p-4 sm:p-4"
             >
               <dt className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-foreground/70">
                 <Icon className="h-4 w-4 text-sky-600/70" aria-hidden />

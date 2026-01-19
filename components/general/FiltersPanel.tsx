@@ -208,7 +208,7 @@ export default function FiltersPanel({
       </div>
 
       <div
-        className={cn("flex-1 min-h-0 px-2 py-4 space-y-4 overflow-y-auto")}
+        className={cn("flex-1 min-h-0 px-4 py-4 space-y-4 overflow-y-auto")}
         style={{
           WebkitOverflowScrolling: "touch",
           scrollbarGutter: "stable both-edges",

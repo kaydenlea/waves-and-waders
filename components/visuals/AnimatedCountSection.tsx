@@ -64,16 +64,16 @@ const AnimatedCountSection = async () => {
       id="features"
       data-ww-section
       data-inview="false"
-      className="ww-section mx-auto max-w-5xl xl:max-w-7xl px-4 sm:px-6 py-16 sm:py-20 scroll-mt-28"
+      className="ww-section mx-auto max-w-3xl md:max-w-5xl xl:max-w-6xl px-4 sm:px-6 py-16 sm:py-20 scroll-mt-28"
     >
       <InViewOnce rootAttr="data-ww-section" />
       <SectionHeader
         // icon={Zap}
         title="Explore Beaches"
-        subtitle="Explore beaches on an interactive map. Scan surf spots, open details, and jump to the full Beaches experience."
+        subtitle="Explore beaches on an interactive map. Scan surf spots, open details, and jump to the full beaches experience."
       />
       <div
-        className="ww-reveal w-full grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,18rem)] lg:gap-8 lg:items-stretch min-w-0"
+        className="ww-reveal w-full grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,15rem)] lg:gap-8 lg:items-stretch min-w-0"
         style={{ "--delay": "60ms" } as CSSProperties}
       >
         <BeachesMapPreview className="w-full min-w-0" />

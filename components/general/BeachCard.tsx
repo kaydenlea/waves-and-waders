@@ -29,6 +29,7 @@ export type Beach = {
   image: string;
   coords: [number, number];
   features: { label: string; icon: ReactNode; color: string }[];
+  preview?: boolean;
 };
 
 type BeachCardProps = {
@@ -39,6 +40,7 @@ type BeachCardProps = {
   setHoverCardId?: (id: string | null) => void;
   loadingStats?: boolean;
   priorityImage?: boolean;
+  preview?: boolean;
 };
 
 const IMAGE_PLACEHOLDER =
@@ -53,6 +55,7 @@ const BeachCard = React.memo(
     setHoverCardId = () => {},
     loadingStats = false,
     priorityImage = false,
+    preview,
   }: BeachCardProps) => {
     const tagsRowRef = React.useRef<HTMLDivElement | null>(null);
     const hoveringRef = React.useRef(false);
@@ -245,7 +248,10 @@ const BeachCard = React.memo(
               </span>
             </div>
             <Popover>
-              <PopoverTrigger asChild>
+              <PopoverTrigger
+                asChild
+                className={cn(preview && "pointer-events-none")}
+              >
                 <span className="pointer-events-auto text-white absolute bottom-3 right-3 z-50 p-1.5 rounded-full bg-black/60 hover:bg-black/90">
                   <Info className="w-4 h-4" />
                 </span>
@@ -307,7 +313,12 @@ const BeachCard = React.memo(
                 </div>
               </>
             )}
-            <div className="pointer-events-auto absolute right-2 top-2 z-10">
+            <div
+              className={cn(
+                "pointer-events-auto absolute right-2 top-2 z-10",
+                preview && "pointer-events-none"
+              )}
+            >
               <SaveButton
                 beachId={String(b.id)}
                 initialIsFav={isFav}
@@ -573,6 +584,7 @@ const BeachCardWithContext = ({
   useMiles,
   isFav,
   loadingStats,
+  preview,
 }: Omit<BeachCardProps, "map" | "setHoverCardId">) => {
   const { map, setHoverCardId } = useMapData();
   return (
@@ -583,6 +595,7 @@ const BeachCardWithContext = ({
       map={map}
       setHoverCardId={setHoverCardId}
       loadingStats={loadingStats}
+      preview={preview}
     />
   );
 };

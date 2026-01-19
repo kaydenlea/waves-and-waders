@@ -50,7 +50,7 @@ const FaqSection = () => {
       aria-labelledby="faq-title"
       data-ww-section
       data-inview="false"
-      className="ww-section mx-auto max-w-4xl xl:max-w-5xl px-4 sm:px-6 py-16 sm:py-20 scroll-mt-28"
+      className="ww-section mx-auto max-w-4xl 2xl:max-w-5xl px-4 sm:px-6 py-16 sm:py-20 scroll-mt-28"
     >
       <InViewOnce rootAttr="data-ww-section" />
       <script

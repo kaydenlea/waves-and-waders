@@ -529,8 +529,8 @@ function BeachPreviewSlide({
 
   return (
     <div className="h-full flex flex-col">
-      <div className="flex-1 min-h-0 flex flex-col gap-3 p-4">
-        <div className="w-full flex-1 min-h-0">
+      <div className="flex-1 min-h-0 flex flex-col gap-3 p-0">
+        <div className="w-full flex-1 min-h-0 p-4 pb-2">
           <div className="relative h-full overflow-hidden rounded-3xl border border-border/35 bg-gradient-to-br from-sky-100 to-blue-200 dark:from-slate-900 dark:to-slate-950">
             <Image
               src={`/beach_pictures/${activeBeach.id}.png`}
@@ -651,8 +651,8 @@ function BeachPreviewSlide({
           </div>
         </div>
 
-        <div className="w-full max-w-[480px] mx-auto shrink-0">
-          <div className="rounded-3xl border border-border/35 bg-highlight-7/60 p-2 border border-border/40">
+        <div className="w-full mx-auto shrink-0">
+          <div className="rounded-b-xl rounded-t-md border border-border/35 bg-highlight-5/50 p-4 border border-border/40">
             <div className="flex items-center justify-center gap-2">
               <button
                 type="button"
@@ -671,6 +671,7 @@ function BeachPreviewSlide({
                 <BeachCard
                   b={{ ...activeBeach, current: forecast }}
                   isFav={false}
+                  preview
                 />
               </div>
 
@@ -909,26 +910,26 @@ export default function HeroVisualDeck({
           />
         ),
       },
-      {
-        key: "filters",
-        label: "Filters",
-        eyebrow: "Beaches",
-        icon: Filter,
-        render: () => (
-          <FiltersPanel
-            open
-            appliedFilters={filtersPreview}
-            onClose={() => {}}
-            onApply={(next) => setFiltersPreview(new Set(next))}
-            className="h-full rounded-none border-none"
-          />
-        ),
-      },
+      // {
+      //   key: "filters",
+      //   label: "Filters",
+      //   eyebrow: "Beaches",
+      //   icon: Filter,
+      //   render: () => (
+      //     <FiltersPanel
+      //       open
+      //       appliedFilters={filtersPreview}
+      //       onClose={() => {}}
+      //       onApply={(next) => setFiltersPreview(new Set(next))}
+      //       className="h-full rounded-none border-none"
+      //     />
+      //   ),
+      // },
     ],
     [
       basisDate,
       basisHour,
-      filtersPreview,
+      // filtersPreview,
       forecastRows,
       previewBeach,
       previewBeachDetails,

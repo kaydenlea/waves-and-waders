@@ -10,7 +10,7 @@ export default function DonateSection({ className }: { className?: string }) {
       data-ww-section
       data-inview="false"
       className={cn(
-        "ww-section mx-auto w-full max-w-4xl xl:max-w-7xl px-4 sm:px-6 py-16 sm:py-20",
+        "ww-section mx-auto w-full max-w-4xl 2xl:max-w-6xl px-4 sm:px-6 py-16 sm:py-20",
         className
       )}
     >

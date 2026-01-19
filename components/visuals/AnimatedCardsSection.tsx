@@ -7,19 +7,19 @@ export const Description = ({ className }: { className?: string }) => {
   return (
     <div
       className={cn(
-        "p-2 space-y-0 flex-1 flex flex-col items-center xl:items-end",
+        "p-2 space-y-0 flex-1 flex flex-col items-center 2xl:items-end",
         className
       )}
     >
-      <h2 className="text-balance text-center xl:text-right text-4xl font-semibold tracking-tight text-foreground xl:text-5xl">
+      <h2 className="text-balance text-center 2xl:text-right text-4xl font-semibold tracking-tight text-foreground xl:text-5xl">
         Forecasts made simple.
       </h2>
-      <p className="mt-3 xl:mt-4 max-w-prose text-pretty text-center xl:text-right text-sm text-muted-foreground xl:text-base mx-auto xl:mx-0">
+      <p className="mt-3 2xl:mt-4 max-w-prose text-pretty text-center 2xl:text-right text-sm text-muted-foreground xl:text-base mx-auto 2xl:mx-0">
         Find nearby and saved beaches fast, then scan conditions at a glance
-        with time + direction cues built into the overview.
+        with time and direction cues built into the overview.
       </p>
 
-      <div className="mt-6 flex flex-wrap items-center justify-center xl:justify-start gap-3">
+      <div className="mt-6 flex flex-wrap items-center justify-center 2xl:justify-start gap-3">
         <Link
           href="/beaches?tab=saved"
           className={cn(

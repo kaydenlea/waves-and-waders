@@ -335,13 +335,13 @@ const Home = () => {
             threshold={0}
           />
           <div
-            className="ww-reveal grid grid-cols-1 items-start justify-items-center gap-10 xl:grid-cols-12 xl:justify-items-stretch xl:gap-12"
+            className="ww-reveal grid grid-cols-1 items-start justify-items-center gap-10 2xl:grid-cols-12 2xl:justify-items-stretch 2xl:gap-12"
             style={{ "--delay": "60ms" } as React.CSSProperties}
           >
-            <div className="w-full max-w-xl xl:col-span-5 xl:max-w-none order-1 xl:order-2">
+            <div className="w-full max-w-xl 2xl:col-span-5 2xl:max-w-none order-1 2xl:order-2">
               <Description />
             </div>
-            <div className="w-full max-w-[46rem] xl:col-span-7 xl:max-w-none order-2 xl:order-1 min-w-0">
+            <div className="w-full max-w-[40rem] 2xl:col-span-7 2xl:max-w-none order-2 2xl:order-1 min-w-0">
               <LazyLoadCardsSection />
             </div>
           </div>

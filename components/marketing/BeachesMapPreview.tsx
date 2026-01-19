@@ -103,7 +103,7 @@ export default function BeachesMapPreview({
               className={cn(
                 "pointer-events-auto inline-flex items-center justify-center rounded-full border border-border/60",
                 "bg-background/90 px-4 py-2 text-sm font-semibold text-foreground shadow-sm",
-                "transition-colors motion-reduce:transition-none hover:bg-background",
+                "transition-colors motion-reduce:transition-none hover:bg-highlight-5",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
               )}
             >
@@ -135,7 +135,10 @@ export default function BeachesMapPreview({
             <div className="absolute inset-0 bg-background/30 backdrop-blur-sm" />
             <div className="relative mx-4 max-w-[34rem] rounded-2xl border border-border/60 bg-background/85 px-4 py-3 text-center text-xs font-medium text-foreground/85 shadow-sm backdrop-blur">
               <span className="font-semibold">Ctrl</span> + scroll to zoom.
-              <span className="hidden sm:inline"> Pinch to zoom on trackpad.</span>
+              <span className="hidden sm:inline">
+                {" "}
+                Pinch to zoom on trackpad.
+              </span>
             </div>
           </div>
         )}

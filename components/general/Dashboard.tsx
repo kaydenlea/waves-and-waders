@@ -522,7 +522,9 @@ export default function Dashboard({
   /* ---------------------------------- Render --------------------------------- */
   const activeSpan = activeWidget ? meta[activeWidget]?.span : undefined;
   const activeIsConvertibleFull =
-    !!activeWidget && activeSpan === "full" && !meta[activeWidget]?.immutableFull;
+    !!activeWidget &&
+    activeSpan === "full" &&
+    !meta[activeWidget]?.immutableFull;
 
   const isDraggingHalf =
     !!activeWidget && (activeSpan === "half" || activeIsConvertibleFull);
@@ -602,7 +604,7 @@ export default function Dashboard({
         onDragOver={onDragOver}
         onDragEnd={onDragEnd}
         collisionDetection={closestCenter}
-        autoScroll={false}
+        autoScroll
       >
         {/* Render rows and gaps. Nothing reflows during drag; only indicators update */}
         <div className="space-y-2">

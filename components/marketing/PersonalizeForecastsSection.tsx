@@ -27,21 +27,22 @@ export default function PersonalizeForecastsSection({
         rootMargin="0px 0px -15% 0px"
         threshold={0}
       />
-      <div className="grid grid-cols-1 items-start justify-items-center gap-10 xl:grid-cols-12 xl:justify-items-stretch xl:gap-12">
-        <div className="w-full max-w-2xl xl:col-span-5 xl:max-w-none">
+      <div className="grid grid-cols-1 items-start justify-items-center gap-10 2xl:grid-cols-12 2xl:justify-items-stretch 2xl:gap-12">
+        <div className="w-full max-w-2xl 2xl:col-span-5 2xl:max-w-none">
           <h2
             id="personalize-forecasts-heading"
-            className="text-balance text-center xl:text-left text-4xl font-semibold tracking-tight text-foreground xl:text-5xl"
+            className="text-balance text-center 2xl:text-left text-4xl font-semibold tracking-tight text-foreground xl:text-5xl"
           >
             Personalize your forecasts.
           </h2>
-          <p className="mt-3 xl:mt-4 max-w-prose text-pretty text-center xl:text-left text-sm text-muted-foreground xl:text-base mx-auto xl:mx-0">
-            Use Edit dashboard to drag and drop widgets, and toggle what you
-            want to see. Keep separate layouts for Overview and Forecast.
+          <p className="mt-3 2xl:mt-4 max-w-prose text-pretty text-center 2xl:text-left text-sm text-muted-foreground xl:text-base mx-auto 2xl:mx-0">
+            Use the edit dashboard to drag and drop widgets, and toggle what you
+            want to see. Keep separate layouts for your surf overview and
+            forecast.
           </p>
 
           <div
-            className="ww-reveal mt-6 flex flex-wrap items-center justify-center xl:justify-start gap-3"
+            className="ww-reveal mt-6 flex flex-wrap items-center justify-center 2xl:justify-start gap-3"
             style={{ "--delay": "80ms" } as CSSProperties}
           >
             <Link
@@ -83,13 +84,13 @@ export default function PersonalizeForecastsSection({
 
         <div
           id="personalize-demo"
-          className="w-full max-w-[46rem] xl:col-span-7 xl:max-w-none"
+          className="w-full max-w-[40rem] 2xl:col-span-7 2xl:max-w-none 2xl:ml-auto"
         >
           <div
             className="ww-reveal"
             style={{ "--delay": "120ms" } as CSSProperties}
           >
-            <DashboardPersonalizationPreview className="mx-auto w-full max-w-[46rem] xl:max-w-none" />
+            <DashboardPersonalizationPreview className="mx-auto w-full max-w-[46rem] 2xl:max-w-none" />
           </div>
         </div>
       </div>

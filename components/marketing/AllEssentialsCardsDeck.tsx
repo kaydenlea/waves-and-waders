@@ -64,7 +64,7 @@ function CardHeader({
             {title}
           </h3>
         </div>
-        <p className="ml-1 mt-2 line-clamp-2 text-sm text-foreground/70 dark:text-foreground/80">
+        <p className="ml-1 mt-2 line-clamp-2 text-xs text-foreground/70 dark:text-foreground/80">
           {description}
         </p>
       </div>
@@ -134,19 +134,19 @@ function WindowPickerVisual() {
     <div className="relative aspect-[4/3] w-full">
       <div className="absolute inset-0 bg-gradient-to-b from-highlight-5/30 via-transparent to-transparent" />
 
-      <div className="relative flex h-full w-full flex-col gap-4 @min-[385px]:gap-8 px-2 py-4">
+      <div className="relative flex h-full w-full flex-col gap-3 @min-[385px]:gap-7 px-2 py-4 pt-3">
         <div className="flex items-center justify-between gap-3">
-          <div className="inline-flex items-center gap-2 rounded-full border border-border/50 bg-background/70 px-2.5 py-1.5 text-xs font-semibold text-foreground shadow-sm">
+          <div className="inline-flex items-center gap-1 rounded-full border border-border/50 bg-background/70 px-2.5 py-1.5 text-xs font-semibold text-foreground shadow-sm">
             <TimerReset className="h-4 w-4" aria-hidden="true" />
             <span className="tabular-nums">3 PM</span>
           </div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-border/50 bg-background/70 px-2.5 py-1.5 text-xs font-semibold text-foreground shadow-sm">
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-border/50 bg-background/70 px-2.5 py-1.5 text-xs font-semibold text-foreground shadow-sm">
             <Calendar className="h-4 w-4" aria-hidden="true" />
-            <span className="tabular-nums">Tue 1/6</span>
+            <span className="tabular-nums">1/6</span>
           </div>
         </div>
 
-        <div className="-mt-2 @min-[350px]:mt-0 w-full">
+        <div className="@min-[350px]:mt-0 w-full">
           <LazyLoadDatePicker
             beachId={PREVIEW_BEACH_ID}
             maxDays={3}
@@ -171,12 +171,12 @@ function WindowPickerVisual() {
 }
 
 function DirectionsVisual() {
-  const [ringScale, setRingScale] = React.useState(0.74);
+  const [ringScale, setRingScale] = React.useState(0.5);
 
   React.useEffect(() => {
     const compute = () => {
       const w = window.innerWidth;
-      const next = w < 390 ? 0.66 : w < 520 ? 0.74 : 0.8;
+      const next = w < 390 ? 0.6 : w < 520 ? 0.7 : 0.7;
       setRingScale((prev) => (prev === next ? prev : next));
     };
     compute();
@@ -290,7 +290,7 @@ function TrustedSourcesVisual() {
 
       <div className="relative flex h-full w-full flex-col items-center justify-center gap-3 px-6">
         <div className="grid place-items-center overflow-hidden rounded-full bg-white shadow-sm ring-1 ring-black/10">
-          <div className="relative size-24 p-3 sm:size-28 sm:p-3.5">
+          <div className="relative size-24 p-3 sm:size-24 sm:p-3.5">
             <Image
               src={noaaLogo}
               alt="NOAA"
@@ -483,7 +483,7 @@ export default function AllEssentialsCardsDeck() {
               className="relative mx-auto w-full"
               style={
                 {
-                  ["--ww-card-w" as any]: "min(420px, calc(100vw - 2rem))",
+                  ["--ww-card-w" as any]: "min(375px, calc(100vw - 2rem))",
                   ["--ww-gap" as any]: "24px",
                 } as React.CSSProperties
               }

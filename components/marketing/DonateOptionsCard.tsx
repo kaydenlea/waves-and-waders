@@ -24,7 +24,7 @@ export default function DonateOptionsCard({
   return (
     <div
       className={cn(
-        "ww-reveal rounded-3xl max-w-lg mx-auto border border-border/50 bg-background/60 p-5 shadow-lg shadow-black/10 ring-1 ring-black/5",
+        "ww-reveal rounded-3xl max-w-lg mx-auto border border-border/50 bg-background/75 dark:bg-highlight-7/50 p-5 shadow-lg shadow-black/10 ring-1 ring-black/5",
         "transition-[transform,box-shadow] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none",
         className
       )}
