@@ -2945,7 +2945,7 @@ const StatTable = ({
                       <td colSpan={visibleColumns.length + 1} className="p-0">
                         <div
                           className={cn(
-                            "mx-0 my-3 relative overflow-hidden rounded-2xl border border-border/60 bg-foreground/[0.06] px-4 py-3 shadow-[0_1px_0_rgba(0,0,0,0.04),0_12px_30px_rgba(0,0,0,0.06)] dark:bg-foreground/[0.09] dark:shadow-[0_1px_0_rgba(0,0,0,0.35),0_12px_30px_rgba(0,0,0,0.35)]",
+                            "mx-0 mb-3 mt-5 relative overflow-hidden rounded-2xl border border-border/60 bg-foreground/[0.06] px-4 py-3 shadow-[0_1px_0_rgba(0,0,0,0.04),0_12px_30px_rgba(0,0,0,0.06)] dark:bg-foreground/[0.09] dark:shadow-[0_1px_0_rgba(0,0,0,0.35),0_12px_30px_rgba(0,0,0,0.35)]",
                             i === 0 && variant === "half" && "mt-0"
                           )}
                         >
