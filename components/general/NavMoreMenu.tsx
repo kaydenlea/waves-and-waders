@@ -59,6 +59,7 @@ export default function NavMoreMenu({
   return (
     <AppMenu open={open} onOpenChange={setOpen}>
       <AppMenuTrigger
+        id={bottomNavMode ? "nav-more-trigger-bottom" : "nav-more-trigger-top"}
         className={
           bottomNavMode
             ? "text-foreground/80 font-medium hover:bg-highlight-5 p-2 rounded-2xl flex flex-col items-center gap-1 @min-[350px]:min-w-15"

@@ -549,7 +549,10 @@ export default function BottomNav() {
         </div> */}
           {user ? (
             <AppMenu open={profileOpen} onOpenChange={setProfileOpen}>
-              <AppMenuTrigger className="text-foreground/80 hover:bg-highlight-5 p-2 rounded-2xl flex flex-col items-center gap-1 @min-[350px]:min-w-15">
+              <AppMenuTrigger
+                id="bottom-nav-profile-trigger"
+                className="text-foreground/80 hover:bg-highlight-5 p-2 rounded-2xl flex flex-col items-center gap-1 @min-[350px]:min-w-15"
+              >
                 <User className="w-6 h-6 @min-[350px]:w-5 @min-[350px]:h-5 -mt-0.5" />
                 <span className="font-medium text-xs sr-only @min-[350px]:not-sr-only">
                   Profile

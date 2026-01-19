@@ -310,7 +310,7 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   );
   useEffect(() => {
     setOverviewReady(overviewReady);
-  }, [overviewReady, setOverviewReady]);
+  }, [overviewKey, overviewReady, setOverviewReady]);
 
   const windowStartMs = windowStart.getTime();
 

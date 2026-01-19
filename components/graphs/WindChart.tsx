@@ -251,7 +251,7 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   );
   useEffect(() => {
     setOverviewReady(overviewReady);
-  }, [overviewReady, setOverviewReady]);
+  }, [overviewKey, overviewReady, setOverviewReady]);
 
   useEffect(() => {
     if (

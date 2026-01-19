@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { getPacificMidnightUTC } from "@/lib/utils";
 
 type Ctx = {
   id: React.RefObject<string>;
@@ -114,8 +115,7 @@ export function DateProvider({ children }: { children: React.ReactNode }) {
   // After mount, ensure selected date defaults to today if not set
   React.useEffect(() => {
     if (!selected) {
-      const now = new Date();
-      setSelected(new Date(now.getFullYear(), now.getMonth(), now.getDate()));
+      setSelected(getPacificMidnightUTC());
     }
   }, []);
   return <DateContext.Provider value={value}>{children}</DateContext.Provider>;

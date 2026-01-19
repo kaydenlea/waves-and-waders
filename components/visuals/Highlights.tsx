@@ -45,6 +45,11 @@ const cubicBezier = (
   );
 };
 
+const roundCoord = (value: number, precision = 6) => {
+  const factor = 10 ** precision;
+  return Math.round(value * factor) / factor;
+};
+
 type SegmentedGaugeProps = {
   valuePct: number; // 0..100
   segments?: number;
@@ -161,17 +166,17 @@ function PressureGaugeClassic({
   const a = toRad(angle);
   const cosA = Math.cos(a);
   const sinA = Math.sin(a);
-  const tipX = center + r * cosA;
-  const tipY = center + r * sinA;
-  const innerX = center + (r - 10) * cosA;
-  const innerY = center + (r - 10) * sinA;
+  const tipX = roundCoord(center + r * cosA);
+  const tipY = roundCoord(center + r * sinA);
+  const innerX = roundCoord(center + (r - 10) * cosA);
+  const innerY = roundCoord(center + (r - 10) * sinA);
   const px = -sinA;
   const py = cosA;
   const halfW = 6;
-  const baseLeftX = innerX - px * halfW;
-  const baseLeftY = innerY - py * halfW;
-  const baseRightX = innerX + px * halfW;
-  const baseRightY = innerY + py * halfW;
+  const baseLeftX = roundCoord(innerX - px * halfW);
+  const baseLeftY = roundCoord(innerY - py * halfW);
+  const baseRightX = roundCoord(innerX + px * halfW);
+  const baseRightY = roundCoord(innerY + py * halfW);
   const hue = Math.max(0, Math.min(140, 140 - Math.round((pct / 100) * 140)));
   const intensityColor = `hsl(${hue} 80% 45%)`;
 
@@ -233,10 +238,10 @@ function PressureGaugeClassic({
         const outer = r + 1;
         const major = i % 2 === 0;
         const inner = r - (major ? 7 : 4);
-        const x1 = center + outer * Math.cos(rad);
-        const y1 = center + outer * Math.sin(rad);
-        const x2 = center + inner * Math.cos(rad);
-        const y2 = center + inner * Math.sin(rad);
+        const x1 = roundCoord(center + outer * Math.cos(rad));
+        const y1 = roundCoord(center + outer * Math.sin(rad));
+        const x2 = roundCoord(center + inner * Math.cos(rad));
+        const y2 = roundCoord(center + inner * Math.sin(rad));
         return (
           <line
             key={i}
@@ -342,10 +347,10 @@ function PressureDonut({
   const arcPath = (sa: number, ea: number) => {
     const a0 = toRad(sa);
     const a1 = toRad(ea);
-    const x0 = center + r * Math.cos(a0);
-    const y0 = center + r * Math.sin(a0);
-    const x1 = center + r * Math.cos(a1);
-    const y1 = center + r * Math.sin(a1);
+    const x0 = roundCoord(center + r * Math.cos(a0));
+    const y0 = roundCoord(center + r * Math.sin(a0));
+    const x1 = roundCoord(center + r * Math.cos(a1));
+    const y1 = roundCoord(center + r * Math.sin(a1));
     const laf = ea - sa > 180 ? 1 : 0;
     return `M ${x0} ${y0} A ${r} ${r} 0 ${laf} 1 ${x1} ${y1}`;
   };
@@ -371,10 +376,10 @@ function PressureDonut({
     const outer = r;
     const major = i % 2 === 0;
     const inner = r - (major ? 7 : 4);
-    const x1 = center + outer * Math.cos(rad);
-    const y1 = center + outer * Math.sin(rad);
-    const x2 = center + inner * Math.cos(rad);
-    const y2 = center + inner * Math.sin(rad);
+    const x1 = roundCoord(center + outer * Math.cos(rad));
+    const y1 = roundCoord(center + outer * Math.sin(rad));
+    const x2 = roundCoord(center + inner * Math.cos(rad));
+    const y2 = roundCoord(center + inner * Math.sin(rad));
     ticks.push(
       <line
         key={i}
@@ -391,8 +396,8 @@ function PressureDonut({
   }
 
   // Tip dot
-  const ax = center + r * Math.cos(toRad(angle));
-  const ay = center + r * Math.sin(toRad(angle));
+  const ax = roundCoord(center + r * Math.cos(toRad(angle)));
+  const ay = roundCoord(center + r * Math.sin(toRad(angle)));
 
   // Low/High label positions (kept inside viewBox)
   const labelRadius = r - thickness * 0.5 - 6;
@@ -426,10 +431,10 @@ function PressureDonut({
       {(() => {
         const ri = r - thickness; // extend inside the ring
         const ro = r + thickness * 0.6; // extend slightly outside
-        const xr1 = center + ri * Math.cos(toRad(angle));
-        const yr1 = center + ri * Math.sin(toRad(angle));
-        const xr2 = center + ro * Math.cos(toRad(angle));
-        const yr2 = center + ro * Math.sin(toRad(angle));
+        const xr1 = roundCoord(center + ri * Math.cos(toRad(angle)));
+        const yr1 = roundCoord(center + ri * Math.sin(toRad(angle)));
+        const xr2 = roundCoord(center + ro * Math.cos(toRad(angle)));
+        const yr2 = roundCoord(center + ro * Math.sin(toRad(angle)));
         return (
           <line
             x1={xr1}
@@ -521,8 +526,8 @@ function PressureDialApple({
   const toRad = (deg: number) => (deg * Math.PI) / 180;
   const angle = (pct / 100) * spanDeg + startDeg;
   const a = toRad(angle);
-  const tipX = center + r * Math.cos(a);
-  const tipY = center + r * Math.sin(a);
+  const tipX = roundCoord(center + r * Math.cos(a));
+  const tipY = roundCoord(center + r * Math.sin(a));
 
   return (
     <svg
@@ -582,10 +587,10 @@ function PressureDialApple({
         const outer = r + 1;
         const major = i % 2 === 0;
         const inner = r - (major ? 7 : 4);
-        const x1 = center + outer * Math.cos(rad);
-        const y1 = center + outer * Math.sin(rad);
-        const x2 = center + inner * Math.cos(rad);
-        const y2 = center + inner * Math.sin(rad);
+        const x1 = roundCoord(center + outer * Math.cos(rad));
+        const y1 = roundCoord(center + outer * Math.sin(rad));
+        const x2 = roundCoord(center + inner * Math.cos(rad));
+        const y2 = roundCoord(center + inner * Math.sin(rad));
         return (
           <line
             key={i}
@@ -618,10 +623,14 @@ function PressureDialApple({
       </text>
       {(() => {
         const lblOffset = r + 10;
-        const lx = center + lblOffset * Math.cos(toRad(startDeg));
-        const ly = center + lblOffset * Math.sin(toRad(startDeg));
-        const hx = center + lblOffset * Math.cos(toRad(startDeg + spanDeg));
-        const hy = center + lblOffset * Math.sin(toRad(startDeg + spanDeg));
+        const lx = roundCoord(center + lblOffset * Math.cos(toRad(startDeg)));
+        const ly = roundCoord(center + lblOffset * Math.sin(toRad(startDeg)));
+        const hx = roundCoord(
+          center + lblOffset * Math.cos(toRad(startDeg + spanDeg))
+        );
+        const hy = roundCoord(
+          center + lblOffset * Math.sin(toRad(startDeg + spanDeg))
+        );
         return (
           <g>
             <text
@@ -2381,7 +2390,7 @@ const Highlights = ({
   }, [overviewKey, setOverviewReady]);
   useEffect(() => {
     setOverviewReady(overviewReady);
-  }, [overviewReady, setOverviewReady]);
+  }, [overviewKey, overviewReady, setOverviewReady]);
 
   const effectiveStats = displayStats ?? PLACEHOLDER_STATS;
   const sliceStart = Math.max(0, startIdx);

@@ -223,6 +223,7 @@ const TimeRail: React.FC<Props> = ({
         <Collapsible.Content
           forceMount
           data-time-rail-panel
+          id={`time-rail-panel-${beachId}`}
           className={cn(
             "@container absolute left-0 right-0 top-full z-[60] mt-[0.03rem] rounded-b-[1.75rem] shadow-even bg-background/80 dark:bg-highlight-5/80 @min-4xl:dark:bg-highlight-5/90 @min-4xl:bg-background/80 backdrop-blur px-1 py-0.5 overflow-hidden transition-all duration-200",
             "data-[state=closed]:max-h-0 data-[state=open]:max-h-[520px] data-[state=closed]:pointer-events-none data-[state=closed]:opacity-0 data-[state=open]:opacity-100"

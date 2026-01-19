@@ -318,10 +318,10 @@ const SwellStatsHeader = ({ stats }: { stats: RangeStats }) => {
     } catch {}
   }, [dailyTableDensity]);
 
-  const defaultSelectedMs = React.useMemo(() => {
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  }, []);
+  const defaultSelectedMs = React.useMemo(
+    () => getPacificMidnightUTC().getTime(),
+    []
+  );
   const selectedDateMs =
     selected instanceof Date && Number.isFinite(selected.getTime())
       ? selected.getTime()

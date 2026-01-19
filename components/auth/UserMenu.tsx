@@ -74,7 +74,10 @@ export const UserMenu = ({
   const UserMenuPopover = () => {
     return (
       <AppMenu open={open} onOpenChange={setOpen}>
-        <AppMenuTrigger className="icon-button p-2.5 dark:bg-highlight-5 hover:bg-highlight-3 dark:hover:bg-highlight-3 rounded-full">
+        <AppMenuTrigger
+          id="user-menu-trigger"
+          className="icon-button p-2.5 dark:bg-highlight-5 hover:bg-highlight-3 dark:hover:bg-highlight-3 rounded-full"
+        >
           <UserCircle2 className="h-6 w-6" />
         </AppMenuTrigger>
         <AppMenuContent align="end" className="w-72">

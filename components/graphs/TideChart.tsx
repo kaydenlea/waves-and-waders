@@ -248,7 +248,7 @@ const TideChart: React.FC<TideChartProps> = ({
   );
   useEffect(() => {
     setOverviewReady(overviewReady);
-  }, [overviewReady, setOverviewReady]);
+  }, [overviewKey, overviewReady, setOverviewReady]);
 
   useEffect(() => {
     const node = containerRef.current;
