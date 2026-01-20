@@ -19,17 +19,31 @@ const beachesDescription =
 export async function generateMetadata({
   searchParams,
 }: {
-  searchParams?: Promise<{ tab?: string }>;
+  searchParams?: Promise<{
+    tab?: string | string[];
+    page?: string | string[];
+    search?: string | string[];
+  }>;
 }): Promise<Metadata> {
   const resolvedSearchParams = await searchParams;
-  const hasNonDefaultTab = Boolean(resolvedSearchParams?.tab);
+  const tabValue = resolvedSearchParams?.tab;
+  const pageValue = resolvedSearchParams?.page;
+  const searchValue = resolvedSearchParams?.search;
+  const tab = (Array.isArray(tabValue) ? tabValue[0] : tabValue) ?? null;
+  const page = (Array.isArray(pageValue) ? pageValue[0] : pageValue) ?? null;
+  const search =
+    (Array.isArray(searchValue) ? searchValue[0] : searchValue) ?? null;
+  const isDefaultTab = tab === null || tab === "" || tab === "nearby";
+  const isDefaultPage = page === null || page === "" || page === "1";
+  const isIndexable = isDefaultTab && isDefaultPage && !search;
+  const robots = isIndexable ? undefined : { index: false, follow: true };
 
   return {
     ...buildPageMetadata({
       title: beachesTitle,
       description: beachesDescription,
       canonicalPath: "/beaches",
-      robots: hasNonDefaultTab ? { index: false, follow: true } : undefined,
+      ...(robots ? { robots } : {}),
     }),
     keywords: [
       "California beaches",
@@ -50,7 +64,7 @@ export const revalidate = 300; // Revalidate every 5 minutes
 export default async function BeachesPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ tab?: string }>;
+  searchParams?: Promise<{ tab?: string | string[]; page?: string | string[] }>;
 }) {
   const supabase = await getServerSupabase();
   const { data: userData, error: userError } = await supabase.auth.getUser();
@@ -60,7 +74,8 @@ export default async function BeachesPage({
 
   const user = userData.user ?? null;
   const resolvedSearchParams = await searchParams;
-  const tab = resolvedSearchParams?.tab;
+  const tabValue = resolvedSearchParams?.tab;
+  const tab = (Array.isArray(tabValue) ? tabValue[0] : tabValue) ?? undefined;
 
   if (!user && tab === "saved") {
     const next = "/beaches?tab=saved";

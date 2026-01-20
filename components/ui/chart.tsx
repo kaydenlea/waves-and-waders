@@ -47,7 +47,10 @@ function ChartContainer({
   >["children"];
 }) {
   const uniqueId = React.useId();
-  const chartId = `chart-${id || uniqueId.replace(/:/g, "")}`;
+  const chartSeed = String(id ?? uniqueId);
+  const chartId = `chart-${chartSeed
+    .replace(/[^a-z0-9_-]/gi, "")
+    .toLowerCase()}`;
 
   return (
     <ChartContext.Provider value={{ config }}>
@@ -70,35 +73,37 @@ function ChartContainer({
 }
 
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
-  const colorConfig = Object.entries(config).filter(
-    ([, config]) => config.theme || config.color
-  );
+  const colorConfig = Object.entries(config)
+    .filter(([, config]) => config.theme || config.color)
+    .sort(([a], [b]) => a.localeCompare(b));
 
   if (!colorConfig.length) {
     return null;
   }
 
-  return (
-    <style
-      dangerouslySetInnerHTML={{
-        __html: Object.entries(THEMES)
-          .map(
-            ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
-${colorConfig
-  .map(([key, itemConfig]) => {
-    const color =
-      itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
-      itemConfig.color;
-    return color ? `  --color-${key}: ${color};` : null;
-  })
-  .join("\n")}
+  const cssText = (["light", "dark"] as const)
+    .map((theme) => {
+      const prefix = THEMES[theme];
+      const vars = colorConfig
+        .map(([key, itemConfig]) => {
+          const color =
+            itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
+            itemConfig.color;
+          return color ? `  --color-${key}: ${color};` : null;
+        })
+        .filter(Boolean)
+        .join("\n");
+
+      return `
+${prefix} [data-chart="${id}"] {
+${vars}
 }
-`
-          )
-          .join("\n"),
-      }}
-    />
+`;
+    })
+    .join("\n");
+
+  return (
+    <style>{cssText}</style>
   );
 };
 

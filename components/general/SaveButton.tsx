@@ -100,14 +100,18 @@ const SaveButton = ({
           <Heart
             className={cn(
               "h-4 w-4",
-              nextIsFav ? "fill-rose-500 text-rose-400" : "text-muted-foreground"
+              nextIsFav
+                ? "fill-rose-500 text-rose-400"
+                : "text-muted-foreground"
             )}
           />
         ),
       });
       router.refresh();
     } catch (error) {
-      console.error("Failed to toggle favorite", error);
+      if (process.env.NODE_ENV !== "production") {
+        console.error("Failed to toggle favorite", error);
+      }
       toast("Could not update favorite. Try again.", { variant: "error" });
     } finally {
       setLoading(false);
@@ -132,6 +136,7 @@ const SaveButton = ({
     <button
       type="button"
       aria-label={effectiveIsFav ? "Remove from favorites" : "Add to favorites"}
+      title={effectiveIsFav ? "Remove from favorites" : "Add to favorites"}
       className={cn(
         baseClass,
         className,

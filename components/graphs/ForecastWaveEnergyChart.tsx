@@ -1001,7 +1001,9 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
           setEnergyData(series);
         }
       } catch (e) {
-        console.error("Failed to load wave energy data", e);
+        if (process.env.NODE_ENV !== "production") {
+          console.error("Failed to load wave energy data", e);
+        }
         if (!cancelled) {
           setEnergyData([]);
           setBaseStartMs(null);

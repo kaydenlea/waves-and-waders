@@ -23,6 +23,7 @@ import {
 import BeachCard from "@/components/general/BeachCard";
 import type { Beach as UIBeach } from "@/components/general/BeachCard";
 import { cn } from "@/lib/utils";
+import { usePathname, useSearchParams } from "next/navigation";
 import { FEATURE_COLUMNS, getFeatureDisplayName } from "@/lib/supabase";
 import { ChevronDown, ChevronUp, SearchX } from "lucide-react";
 import {
@@ -96,6 +97,8 @@ const decorateBeachWithStats = (
 };
 
 export default function NearbyBeaches() {
+  const pathname = usePathname() ?? "/beaches";
+  const searchParams = useSearchParams();
   const {
     filters,
     beaches: sharedBeaches,
@@ -229,9 +232,17 @@ export default function NearbyBeaches() {
     };
   }, [baseUiBeaches, startSortingTransition]);
 
-  const [page, setPage] = useState(1);
+  const initialPage = useMemo(() => {
+    const raw = searchParams?.get("page");
+    if (!raw) return 1;
+    const parsed = Number.parseInt(raw, 10);
+    return Number.isFinite(parsed) && parsed >= 1 ? parsed : 1;
+  }, [searchParams]);
+
+  const [page, setPage] = useState(initialPage);
   const [perPage, setPerPage] = useState(20);
   const { selectedTab } = useClientPath();
+  const prevSelectedTabRef = useRef(selectedTab);
 
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -257,9 +268,35 @@ export default function NearbyBeaches() {
 
   const visibleList = useDeferredValue(tabFilteredList);
 
+  const buildPageHref = useCallback(
+    (nextPage: number) => {
+      const params = new URLSearchParams(searchParams?.toString());
+      if (nextPage <= 1) {
+        params.delete("page");
+      } else {
+        params.set("page", String(nextPage));
+      }
+      const qs = params.toString();
+      return qs ? `${pathname}?${qs}#content` : `${pathname}#content`;
+    },
+    [pathname, searchParams]
+  );
+
+  const updateUrlForPage = useCallback(
+    (nextPage: number) => {
+      if (typeof window === "undefined") return;
+      const href = buildPageHref(nextPage);
+      window.history.replaceState(null, "", href);
+    },
+    [buildPageHref]
+  );
+
   useEffect(() => {
+    if (prevSelectedTabRef.current === selectedTab) return;
+    prevSelectedTabRef.current = selectedTab;
     setPage(1);
-  }, [selectedTab]);
+    updateUrlForPage(1);
+  }, [selectedTab, updateUrlForPage]);
 
   const totalPages = Math.max(
     1,
@@ -277,8 +314,11 @@ export default function NearbyBeaches() {
     const start = (page - 1) * perPage;
     return visibleList.slice(start, start + perPage);
   }, [visibleList, page, perPage]);
-  const { getSnapshot, prefetchSnapshots, version: statsVersion } =
-    useBeachStatsCache();
+  const {
+    getSnapshot,
+    prefetchSnapshots,
+    version: statsVersion,
+  } = useBeachStatsCache();
   const decoratedCacheRef = useRef<
     Record<
       string,
@@ -310,7 +350,9 @@ export default function NearbyBeaches() {
       date: effectiveDate instanceof Date ? effectiveDate : undefined,
       hour: effectiveHour ?? undefined,
     }).catch((error) => {
-      console.error("Failed to prefetch card stats", error);
+      if (process.env.NODE_ENV !== "production") {
+        console.error("Failed to prefetch card stats", error);
+      }
     });
   }, [
     currentItems,
@@ -361,7 +403,7 @@ export default function NearbyBeaches() {
       process.env.NODE_ENV !== "production"
     ) {
       const duration = performance.now() - startTs;
-      // eslint-disable-next-line no-console
+
       console.log(
         `[BeachesPerf] decorate-cards page=${page} count=${
           next.length
@@ -371,9 +413,6 @@ export default function NearbyBeaches() {
 
     return next;
   }, [currentItems, snapshotMap]);
-
-  const handlePrev = () => setPage((p) => Math.max(1, p - 1));
-  const handleNext = () => setPage((p) => Math.min(totalPages, p + 1));
 
   // Build pagination range with ellipses
   const getPageNumbers = () => {
@@ -427,6 +466,7 @@ export default function NearbyBeaches() {
             type="button"
             aria-haspopup="menu"
             aria-expanded={open}
+            aria-controls="perpage-menu"
             onClick={toggle}
             disabled={disabled}
             className={cn(
@@ -450,7 +490,9 @@ export default function NearbyBeaches() {
             {open && !disabled && (
               <motion.ul
                 key="perpage-menu"
+                id="perpage-menu"
                 role="menu"
+                aria-label="Items per page"
                 initial={{ opacity: 0, y: -4 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -4 }}
@@ -463,9 +505,11 @@ export default function NearbyBeaches() {
                 {[10, 20, 50].map((num) => {
                   const active = num === perPage;
                   return (
-                    <li key={num} role="menuitem">
+                    <li key={num} role="none">
                       <button
                         type="button"
+                        role="menuitemradio"
+                        aria-checked={active}
                         onClick={() => {
                           handleSelect(num);
                           close();
@@ -600,11 +644,18 @@ export default function NearbyBeaches() {
           <PaginationContent>
             <PaginationItem>
               <PaginationPrevious
+                href={buildPageHref(Math.max(1, page - 1))}
+                aria-disabled={page === 1}
+                tabIndex={page === 1 ? -1 : 0}
                 className={cn(
                   page === 1 && "pointer-events-none text-muted-foreground"
                 )}
-                onClick={() => {
-                  handlePrev();
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (page === 1) return;
+                  const nextPage = Math.max(1, page - 1);
+                  setPage(nextPage);
+                  updateUrlForPage(nextPage);
                   document
                     .querySelector("article#content")
                     ?.scrollIntoView({ behavior: "smooth" });
@@ -620,9 +671,12 @@ export default function NearbyBeaches() {
                 <PaginationItem key={p}>
                   <PaginationLink
                     isActive={p === page}
+                    href={buildPageHref(p as number)}
                     onClick={(e) => {
                       e.preventDefault();
-                      setPage(p as number);
+                      const nextPage = p as number;
+                      setPage(nextPage);
+                      updateUrlForPage(nextPage);
                       document
                         .querySelector("article#content")
                         ?.scrollIntoView({ behavior: "smooth" });
@@ -635,12 +689,19 @@ export default function NearbyBeaches() {
             )}
             <PaginationItem>
               <PaginationNext
+                href={buildPageHref(Math.min(totalPages, page + 1))}
+                aria-disabled={page === totalPages}
+                tabIndex={page === totalPages ? -1 : 0}
                 className={cn(
                   page === totalPages &&
                     "pointer-events-none text-muted-foreground"
                 )}
-                onClick={() => {
-                  handleNext();
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (page === totalPages) return;
+                  const nextPage = Math.min(totalPages, page + 1);
+                  setPage(nextPage);
+                  updateUrlForPage(nextPage);
                   document
                     .querySelector("article#content")
                     ?.scrollIntoView({ behavior: "smooth" });

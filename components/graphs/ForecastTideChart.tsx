@@ -972,7 +972,9 @@ export default React.memo(function ForecastTideChart({
           });
         }
       } catch (e) {
-        console.error("ForecastTideChart load error:", e);
+        if (process.env.NODE_ENV !== "production") {
+          console.error("ForecastTideChart load error:", e);
+        }
       }
     })();
 
@@ -1119,7 +1121,9 @@ export default React.memo(function ForecastTideChart({
           });
         }
       } catch (e) {
-        console.error("ForecastTideChart sun load error:", e);
+        if (process.env.NODE_ENV !== "production") {
+          console.error("ForecastTideChart sun load error:", e);
+        }
         if (!cancelled) {
           setChartState((prev) => {
             const cleared = {

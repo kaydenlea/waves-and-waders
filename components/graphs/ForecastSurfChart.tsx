@@ -956,7 +956,9 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
           setLoading(series.length === 0);
         }
       } catch (e) {
-        console.error("Failed to load surf data", e);
+        if (process.env.NODE_ENV !== "production") {
+          console.error("Failed to load surf data", e);
+        }
         if (!cancelled) {
           setSurfData([]);
           setBaseStartMs(null);

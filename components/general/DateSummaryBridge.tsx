@@ -152,7 +152,9 @@ const TideStatsHeader = ({
           }
         }
       } catch (e) {
-        console.error("Failed to load tide stats", e);
+        if (process.env.NODE_ENV !== "production") {
+          console.error("Failed to load tide stats", e);
+        }
       }
     };
 
@@ -206,7 +208,7 @@ const SwellStatsHeader = ({ stats }: { stats: RangeStats }) => {
   return <HeaderVisual unit="ft" min={stats.min} max={stats.max} />;
 };
 
-  const DateSummaryBridge: React.FC<Props> = ({
+const DateSummaryBridge: React.FC<Props> = ({
   beachId,
   beachParam,
   isFavorite = false,
@@ -236,7 +238,9 @@ const SwellStatsHeader = ({ stats }: { stats: RangeStats }) => {
       timeZoneName: "short",
     });
   }, []);
-  const [currentTime, setCurrentTime] = React.useState<string>(() => formatNow());
+  const [currentTime, setCurrentTime] = React.useState<string>(() =>
+    formatNow()
+  );
   const {
     meta: layoutMeta,
     rows: layoutRows,
@@ -525,7 +529,9 @@ const SwellStatsHeader = ({ stats }: { stats: RangeStats }) => {
   const hasVisibleOverviewWidgets = React.useMemo(
     () =>
       layoutRows.some((row) =>
-        row.items.some((id) => id !== "surfAndWind" && layoutMeta[id]?.visible !== false)
+        row.items.some(
+          (id) => id !== "surfAndWind" && layoutMeta[id]?.visible !== false
+        )
       ),
     [layoutMeta, layoutRows]
   );
@@ -613,12 +619,7 @@ const SwellStatsHeader = ({ stats }: { stats: RangeStats }) => {
 
     prevForecastTabRef.current = selectedTab;
     prevForecastBusyRef.current = forecastBridgeBusy;
-  }, [
-    forecastBridgeBusy,
-    forecastTabOverlayActive,
-    isOverview,
-    selectedTab,
-  ]);
+  }, [forecastBridgeBusy, forecastTabOverlayActive, isOverview, selectedTab]);
 
   React.useEffect(() => {
     if (isOverview) return;
@@ -829,10 +830,7 @@ const SwellStatsHeader = ({ stats }: { stats: RangeStats }) => {
               unit="ft"
               loading={overlayVisible}
               headerContent={
-                <TideStatsHeader
-                  beachId={beachId}
-                  date={selectedDateForData}
-                />
+                <TideStatsHeader beachId={beachId} date={selectedDateForData} />
               }
             >
               <LazyLoadTide
@@ -1093,7 +1091,10 @@ const SwellStatsHeader = ({ stats }: { stats: RangeStats }) => {
                       const content = renderWidget(visibleItems[0], isFull);
                       if (!content) return null;
                       return (
-                        <div key={`${row.id}:${index}`} className={`${spacing} w-full`}>
+                        <div
+                          key={`${row.id}:${index}`}
+                          className={`${spacing} w-full`}
+                        >
                           {content}
                         </div>
                       );
@@ -1108,7 +1109,9 @@ const SwellStatsHeader = ({ stats }: { stats: RangeStats }) => {
                           const content = renderWidget(id, isFull);
                           if (!content) return null;
                           return (
-                            <React.Fragment key={`${row.id}:${id}:${itemIndex}`}>
+                            <React.Fragment
+                              key={`${row.id}:${id}:${itemIndex}`}
+                            >
                               {content}
                             </React.Fragment>
                           );
@@ -1134,16 +1137,16 @@ const SwellStatsHeader = ({ stats }: { stats: RangeStats }) => {
                           loading: forecastTabLoading,
                         }}
                       >
-                    <ForecastBridge
-                      beachId={beachId}
-                      hideHeader
-                      onWindowStringChange={setForecastWindow}
-                      onBusyChange={setForecastBridgeBusy}
-                      initialMeta={initialForecastMeta ?? undefined}
-                      initialRows={initialForecastRows ?? undefined}
-                      cardVariant="forecast"
-                      tableDensity={dailyTableDensity}
-                      onTableDensityChange={(next) =>
+                        <ForecastBridge
+                          beachId={beachId}
+                          hideHeader
+                          onWindowStringChange={setForecastWindow}
+                          onBusyChange={setForecastBridgeBusy}
+                          initialMeta={initialForecastMeta ?? undefined}
+                          initialRows={initialForecastRows ?? undefined}
+                          cardVariant="forecast"
+                          tableDensity={dailyTableDensity}
+                          onTableDensityChange={(next) =>
                             setDailyTableDensity(next)
                           }
                         />

@@ -210,9 +210,9 @@ const BeachCard = React.memo(
             <header className="flex gap-1 truncate absolute top-0.5 left-1 w-[73%] bg-slate-900/0 p-2 text-black backdrop-blur-none transition rounded-4xl">
               <div className={cn("min-w-1.5 rounded-full", color)} />
               <div className="min-w-0">
-                <h3 className="truncate text-md font-semibold leading-tight -mb-0.5">
+                <h2 className="truncate text-md font-semibold leading-tight -mb-0.5">
                   {b.name}
-                </h3>
+                </h2>
                 <p className="truncate text-[0.7rem]">{b.region}</p>
               </div>
             </header>
@@ -252,9 +252,13 @@ const BeachCard = React.memo(
                 asChild
                 className={cn(preview && "pointer-events-none")}
               >
-                <span className="pointer-events-auto text-white absolute bottom-3 right-3 z-50 p-1.5 rounded-full bg-black/60 hover:bg-black/90">
-                  <Info className="w-4 h-4" />
-                </span>
+                <button
+                  type="button"
+                  aria-label={`More details about ${b.name}`}
+                  className="pointer-events-auto text-white absolute bottom-3 right-3 z-50 p-1.5 rounded-full bg-black/60 hover:bg-black/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                >
+                  <Info className="w-4 h-4" aria-hidden="true" />
+                </button>
               </PopoverTrigger>
               <PopoverContent
                 side="bottom"

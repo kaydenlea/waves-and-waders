@@ -991,7 +991,9 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
           setWindData(series);
         }
       } catch (e) {
-        console.error("Failed to load wind data", e);
+        if (process.env.NODE_ENV !== "production") {
+          console.error("Failed to load wind data", e);
+        }
         if (!cancelled) {
           setWindData([]);
           setBaseStartMs(null);

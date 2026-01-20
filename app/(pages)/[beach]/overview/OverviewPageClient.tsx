@@ -191,7 +191,7 @@ export default function OverviewPageClient({
                   {seoSummary ? (
                     <section
                       aria-label="Surf forecast summary"
-                      className="sr-only rounded-2xl border border-border/40 bg-background/40 p-3 text-sm text-muted-foreground shadow-xs"
+                      className="sr-only rounded-2xl border border-border/40 bg-background/40 p-3 text-sm text-muted-foreground shadow-xs supports-[backdrop-filter]:bg-background/30 supports-[backdrop-filter]:backdrop-blur"
                     >
                       <p className="text-foreground/80">
                         {seoSummary.county ? (
@@ -211,45 +211,37 @@ export default function OverviewPageClient({
                         ) : null}
                       </p>
 
-                      <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2">
-                        <div className="flex items-baseline justify-between gap-2">
-                          <dt className="text-xs font-semibold text-foreground/70">
-                            Surf
-                          </dt>
-                          <dd className="text-foreground">
-                            {seoSummary.surfHeight ?? "—"}
-                          </dd>
-                        </div>
-                        <div className="flex items-baseline justify-between gap-2">
-                          <dt className="text-xs font-semibold text-foreground/70">
-                            Wind
-                          </dt>
-                          <dd className="text-foreground">
-                            {seoSummary.windSpeed != null
-                              ? `${seoSummary.windSpeed} mph${
-                                  windDirLabel ? ` ${windDirLabel}` : ""
-                                }`
-                              : "—"}
-                          </dd>
-                        </div>
-                        <div className="flex items-baseline justify-between gap-2">
-                          <dt className="text-xs font-semibold text-foreground/70">
-                            Water
-                          </dt>
-                          <dd className="text-foreground">
-                            {seoSummary.waterTemp != null
-                              ? `${seoSummary.waterTemp}°F`
-                              : "—"}
-                          </dd>
-                        </div>
-                        <div className="flex items-baseline justify-between gap-2">
-                          <dt className="text-xs font-semibold text-foreground/70">
-                            Updated
-                          </dt>
-                          <dd className="text-foreground">
-                            {updatedAtLabel ?? "—"}
-                          </dd>
-                        </div>
+                      <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 sm:grid-cols-[auto_1fr_auto_1fr]">
+                        <dt className="text-xs font-semibold text-foreground/70">
+                          Surf
+                        </dt>
+                        <dd className="text-right text-foreground">
+                          {seoSummary.surfHeight ?? "—"}
+                        </dd>
+                        <dt className="text-xs font-semibold text-foreground/70">
+                          Wind
+                        </dt>
+                        <dd className="text-right text-foreground">
+                          {seoSummary.windSpeed != null
+                            ? `${seoSummary.windSpeed} mph${
+                                windDirLabel ? ` ${windDirLabel}` : ""
+                              }`
+                            : "—"}
+                        </dd>
+                        <dt className="text-xs font-semibold text-foreground/70">
+                          Water
+                        </dt>
+                        <dd className="text-right text-foreground">
+                          {seoSummary.waterTemp != null
+                            ? `${seoSummary.waterTemp}°F`
+                            : "—"}
+                        </dd>
+                        <dt className="text-xs font-semibold text-foreground/70">
+                          Updated
+                        </dt>
+                        <dd className="text-right text-foreground">
+                          {updatedAtLabel ?? "—"}
+                        </dd>
                       </dl>
                     </section>
                   ) : null}

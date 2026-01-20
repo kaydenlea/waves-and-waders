@@ -161,9 +161,9 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   const [touchDefaultIndex, setTouchDefaultIndex] = useState<number | null>(
     null
   );
-  const touchInspectTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(
-    null
-  );
+  const touchInspectTimerRef = React.useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
   const touchInspectStartRef = React.useRef<{
     clientX: number;
     clientY: number;
@@ -364,7 +364,9 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           setNightAreas(segments.nightAreas);
         }
       } catch (e) {
-        console.error("Failed to load wave energy", e);
+        if (process.env.NODE_ENV !== "production") {
+          console.error("Failed to load wave energy", e);
+        }
         if (!cancelled) {
           setDayAreas([]);
           setNightAreas([{ x1: 0, x2: hours }]);

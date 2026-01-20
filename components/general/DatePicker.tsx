@@ -320,7 +320,9 @@ DatePickerProps) => {
           return { ...parsed, data: reviveSummaries(parsed.data) };
         }
       } catch (err) {
-        console.warn("Failed to read cached forecast", err);
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("Failed to read cached forecast", err);
+        }
       }
       return null;
     };
@@ -511,7 +513,9 @@ DatePickerProps) => {
                 JSON.stringify({ data: limitedGroups, keys: limitedKeys })
               );
             } catch (err) {
-              console.warn("Failed to cache forecast", err);
+              if (process.env.NODE_ENV !== "production") {
+                console.warn("Failed to cache forecast", err);
+              }
             }
           }
 
@@ -526,7 +530,9 @@ DatePickerProps) => {
           }
         }
       } catch (e) {
-        console.error("Failed to load daily summaries", e);
+        if (process.env.NODE_ENV !== "production") {
+          console.error("Failed to load daily summaries", e);
+        }
         if (active) {
           setSummaries({});
           setOrderedKeys([]);
@@ -603,10 +609,12 @@ DatePickerProps) => {
               updates[dateKey] = value;
             }
           } catch (error) {
-            console.warn(
-              `Failed to fetch surf intensity for ${dateKey}`,
-              error
-            );
+            if (process.env.NODE_ENV !== "production") {
+              console.warn(
+                `Failed to fetch surf intensity for ${dateKey}`,
+                error
+              );
+            }
           }
         })
       );
@@ -739,142 +747,144 @@ DatePickerProps) => {
           <CarouselContent className="mx-0">
             {(maxDays ? orderedKeys.slice(0, maxDays) : orderedKeys).map(
               (key, index) => {
-              // restrict days for forecast (4 day ranges)
-              // const disabledDay = forecast && index > orderedKeys.length - 4;
-              const summary = summaries[key];
-              const day = summary?.date ?? dayjs(key);
-              const controlledSelected = value
-                ? day.isSame(dayjs(value), "day")
-                : undefined;
-              const isSelected =
-                controlledSelected ??
-                (selectedDate ? selectedDate.isSame(day, "day") : index === 0);
-              const isRangeStart = forecast && index === rangeStartIdx;
-              const isRangeEnd = forecast && index === rangeEndIdx;
-              const isInRange =
-                forecast && rangeStartIdx <= index && index <= rangeEndIdx;
-              // Get surf intensity from API data instead of forecast calculation
-              const surfIntensity = surfIntensityByDate[key] ?? null;
+                // restrict days for forecast (4 day ranges)
+                // const disabledDay = forecast && index > orderedKeys.length - 4;
+                const summary = summaries[key];
+                const day = summary?.date ?? dayjs(key);
+                const controlledSelected = value
+                  ? day.isSame(dayjs(value), "day")
+                  : undefined;
+                const isSelected =
+                  controlledSelected ??
+                  (selectedDate
+                    ? selectedDate.isSame(day, "day")
+                    : index === 0);
+                const isRangeStart = forecast && index === rangeStartIdx;
+                const isRangeEnd = forecast && index === rangeEndIdx;
+                const isInRange =
+                  forecast && rangeStartIdx <= index && index <= rangeEndIdx;
+                // Get surf intensity from API data instead of forecast calculation
+                const surfIntensity = surfIntensityByDate[key] ?? null;
 
-              // Still use summary for display range and weather
-              const max = summary?.max ?? null;
-              const minWithFallback =
-                summary?.min ?? (max != null && max <= 1 ? 0 : null);
-              const hasRange = minWithFallback != null && max != null;
-              const code = summary?.code ?? null;
-              const weather = getWeatherIcon(code);
-              const weatherSmall = getWeatherIcon(code, 16);
+                // Still use summary for display range and weather
+                const max = summary?.max ?? null;
+                const minWithFallback =
+                  summary?.min ?? (max != null && max <= 1 ? 0 : null);
+                const hasRange = minWithFallback != null && max != null;
+                const code = summary?.code ?? null;
+                const weather = getWeatherIcon(code);
+                const weatherSmall = getWeatherIcon(code, 16);
 
-              // Use the shared surf intensity palette (matches HourSlider gradient vars).
-              const intensityColor = getSurfIntensityColorCss(
-                getSurfIntensityBand(surfIntensity)
-              );
-              const rangeClasses = forecast
-                ? isInRange
+                // Use the shared surf intensity palette (matches HourSlider gradient vars).
+                const intensityColor = getSurfIntensityColorCss(
+                  getSurfIntensityBand(surfIntensity)
+                );
+                const rangeClasses = forecast
+                  ? isInRange
+                    ? cn(
+                        "mx-0 bg-highlight-3/50 dark:bg-highlight-5/20",
+                        "border-y border-border/30 dark:border-border/50",
+                        "shadow-[0_1px_4px_rgba(0,0,0,0.10)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.20)]",
+                        !isRangeStart && "border-l-0",
+                        !isRangeEnd && "border-r-0",
+                        isRangeStart && isRangeEnd && "rounded-xl mx-1",
+                        isRangeStart && !isRangeEnd && "rounded-l-xl ml-1",
+                        isRangeEnd && !isRangeStart && "rounded-r-xl mr-1"
+                      )
+                    : cn(
+                        "rounded-xl bg-background/70 dark:bg-highlight-4/60",
+                        "border-1 border-border/15",
+                        "shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
+                      )
+                  : "bg-background dark:bg-highlight-4 rounded-xl";
+                const buttonRounding = forecast ? "rounded-none" : "rounded-md";
+                const selectedClasses = forecast
                   ? cn(
-                      "mx-0 bg-highlight-3/50 dark:bg-highlight-5/20",
-                      "border-y border-border/30 dark:border-border/50",
-                      "shadow-[0_1px_4px_rgba(0,0,0,0.10)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.20)]",
-                      !isRangeStart && "border-l-0",
-                      !isRangeEnd && "border-r-0",
-                      isRangeStart && isRangeEnd && "rounded-xl mx-1",
-                      isRangeStart && !isRangeEnd && "rounded-l-xl ml-1",
-                      isRangeEnd && !isRangeStart && "rounded-r-xl mr-1"
+                      "bg-highlight-6 dark:bg-highlight-5/40 hover:bg-highlight-6/95 dark:hover:bg-highlight-5/90",
+                      "ring-inset ring-1 ring-foreground/20 dark:ring-foreground/25",
+                      "shadow-[0_4px_14px_rgba(0,0,0,0.16)]",
+                      "after:absolute after:inset-x-9 after:bottom-1 after:h-px after:rounded-full after:bg-foreground/25 dark:after:bg-foreground/35 after:content-['']"
                     )
                   : cn(
-                      "rounded-xl bg-background/70 dark:bg-highlight-4/60",
-                      "border-1 border-border/15",
-                      "shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
-                    )
-                : "bg-background dark:bg-highlight-4 rounded-xl";
-              const buttonRounding = forecast ? "rounded-none" : "rounded-md";
-              const selectedClasses = forecast
-                ? cn(
-                    "bg-highlight-6 dark:bg-highlight-5/40 hover:bg-highlight-6/95 dark:hover:bg-highlight-5/90",
-                    "ring-inset ring-1 ring-foreground/20 dark:ring-foreground/25",
-                    "shadow-[0_4px_14px_rgba(0,0,0,0.16)]",
-                    "after:absolute after:inset-x-9 after:bottom-1 after:h-px after:rounded-full after:bg-foreground/25 dark:after:bg-foreground/35 after:content-['']"
-                  )
-                : cn(
-                    "bg-highlight-6 dark:bg-highlight-5/85 hover:bg-highlight-6/95 dark:hover:bg-highlight-5/90",
-                    "ring-inset ring-2 ring-foreground/20 dark:ring-foreground/25",
-                    "shadow-[0_4px_14px_rgba(0,0,0,0.16)]",
-                    "after:absolute after:inset-x-9 after:bottom-1 after:h-px after:rounded-full after:bg-foreground/25 dark:after:bg-foreground/35 after:content-['']"
-                  );
-              return (
-                <CarouselItem
-                  key={index}
-                  className={cn(
-                    itemsPerView === 3
-                      ? "basis-1/3 flex justify-center"
-                      : "basis-1/2 @min-[350px]:basis-1/3 @min-md:basis-1/4 @min-xl:basis-1/5 @min-2xl:basis-1/6 @min-3xl:basis-1/7 flex justify-center"
-                  )}
-                >
-                  <button
-                    onClick={() => {
-                      setSelectedDate(day);
-                      onSelect?.(day.toDate());
-                    }}
+                      "bg-highlight-6 dark:bg-highlight-5/85 hover:bg-highlight-6/95 dark:hover:bg-highlight-5/90",
+                      "ring-inset ring-2 ring-foreground/20 dark:ring-foreground/25",
+                      "shadow-[0_4px_14px_rgba(0,0,0,0.16)]",
+                      "after:absolute after:inset-x-9 after:bottom-1 after:h-px after:rounded-full after:bg-foreground/25 dark:after:bg-foreground/35 after:content-['']"
+                    );
+                return (
+                  <CarouselItem
+                    key={index}
                     className={cn(
-                      "relative mx-1 my-0.5 flex flex-col items-center w-full py-1.5 text-center text-sm font-medium transition-colors dark:hover:bg-highlight-5/60 hover:bg-highlight-5/60 shadow-even border-1 border-border/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/25 dark:focus-visible:ring-foreground/30 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-                      buttonRounding,
-                      rangeClasses,
-                      isSelected && selectedClasses
+                      itemsPerView === 3
+                        ? "basis-1/3 flex justify-center"
+                        : "basis-1/2 @min-[350px]:basis-1/3 @min-md:basis-1/4 @min-xl:basis-1/5 @min-2xl:basis-1/6 @min-3xl:basis-1/7 flex justify-center"
                     )}
                   >
-                    <span className="font-semibold text-[0.7rem] @min-sm:text-[0.7rem] whitespace-nowrap">
-                      {day.startOf("day").isSame(dayjs().startOf("day")) ? (
-                        "Today"
-                      ) : (
-                        <>
-                          <span className="hidden @min-sm:inline">{`${day.format(
-                            "ddd"
-                          )}, `}</span>
-                          <span>{`${day.format("M/D")}`}</span>
-                        </>
-                      )}
-                    </span>
-                    <span
+                    <button
+                      onClick={() => {
+                        setSelectedDate(day);
+                        onSelect?.(day.toDate());
+                      }}
                       className={cn(
-                        "inline-block w-12 @min-sm:w-16 h-1 rounded-full"
+                        "relative mx-1 my-0.5 flex flex-col items-center w-full py-1.5 text-center text-sm font-medium transition-colors dark:hover:bg-highlight-5/60 hover:bg-highlight-5/60 shadow-even border-1 border-border/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/25 dark:focus-visible:ring-foreground/30 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                        buttonRounding,
+                        rangeClasses,
+                        isSelected && selectedClasses
                       )}
-                      style={{ backgroundColor: intensityColor }}
-                    />
-                    <div className="mt-1.5 mb-0.5">{weather}</div>
-                    {/* <div className="mt-2 mb-1 hidden @min-sm:block @min-lg:hidden">
+                    >
+                      <span className="font-semibold text-[0.7rem] @min-sm:text-[0.7rem] whitespace-nowrap">
+                        {day.startOf("day").isSame(dayjs().startOf("day")) ? (
+                          "Today"
+                        ) : (
+                          <>
+                            <span className="hidden @min-sm:inline">{`${day.format(
+                              "ddd"
+                            )}, `}</span>
+                            <span>{`${day.format("M/D")}`}</span>
+                          </>
+                        )}
+                      </span>
+                      <span
+                        className={cn(
+                          "inline-block w-12 @min-sm:w-16 h-1 rounded-full"
+                        )}
+                        style={{ backgroundColor: intensityColor }}
+                      />
+                      <div className="mt-1.5 mb-0.5">{weather}</div>
+                      {/* <div className="mt-2 mb-1 hidden @min-sm:block @min-lg:hidden">
                       {weatherSmall}
                     </div> */}
-                    <span className="text-sm @min-lg:text-sm font-semibold">
-                      {hasRange ? (
-                        <>
-                          {(() => {
-                            let minRounded = Math.round(minWithFallback!);
-                            let maxRounded = Math.round(max!);
-                            // Ensure min <= max
-                            if (minRounded > maxRounded) {
-                              [minRounded, maxRounded] = [
-                                maxRounded,
-                                minRounded,
-                              ];
-                            }
-                            // If they're equal, subtract 1 from min
-                            if (minRounded === maxRounded) {
-                              minRounded = Math.max(0, maxRounded - 1);
-                            }
-                            return `${minRounded}-${maxRounded}`;
-                          })()}
-                          <span className="text-xs font-normal">ft</span>
-                        </>
-                      ) : (
-                        <>
-                          --
-                          <span className="text-xs font-normal">ft</span>
-                        </>
-                      )}
-                    </span>
-                  </button>
-                </CarouselItem>
-              );
+                      <span className="text-sm @min-lg:text-sm font-semibold">
+                        {hasRange ? (
+                          <>
+                            {(() => {
+                              let minRounded = Math.round(minWithFallback!);
+                              let maxRounded = Math.round(max!);
+                              // Ensure min <= max
+                              if (minRounded > maxRounded) {
+                                [minRounded, maxRounded] = [
+                                  maxRounded,
+                                  minRounded,
+                                ];
+                              }
+                              // If they're equal, subtract 1 from min
+                              if (minRounded === maxRounded) {
+                                minRounded = Math.max(0, maxRounded - 1);
+                              }
+                              return `${minRounded}-${maxRounded}`;
+                            })()}
+                            <span className="text-xs font-normal">ft</span>
+                          </>
+                        ) : (
+                          <>
+                            --
+                            <span className="text-xs font-normal">ft</span>
+                          </>
+                        )}
+                      </span>
+                    </button>
+                  </CarouselItem>
+                );
               }
             )}
           </CarouselContent>

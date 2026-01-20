@@ -40,22 +40,26 @@ const SearchResultItem = memo(function SearchResultItem({
   }, [hit, onSelect]);
 
   return (
-    <li
-      className={cn(
-        "p-3.5 cursor-pointer rounded-lg",
-        isActive ? "bg-highlight-3" : "hover:bg-highlight-3"
-      )}
-      onMouseDown={(e) => {
-        e.preventDefault();
-        handleSelect();
-      }}
-    >
-      <div className="flex flex-col @min-4xl:flex-row items-start @min-4xl:items-center justify-between">
-        <span className="font-medium text-sm">{hit.name}</span>
-        {hit.county && (
-          <span className="text-xs text-muted-foreground">{hit.county}</span>
+    <li className="rounded-lg">
+      <button
+        type="button"
+        className={cn(
+          "w-full p-3.5 text-left rounded-lg",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+          isActive ? "bg-highlight-3" : "hover:bg-highlight-3"
         )}
-      </div>
+        onMouseDown={(e) => {
+          e.preventDefault();
+          handleSelect();
+        }}
+      >
+        <div className="flex flex-col @min-4xl:flex-row items-start @min-4xl:items-center justify-between gap-1">
+          <span className="font-medium text-sm">{hit.name}</span>
+          {hit.county ? (
+            <span className="text-xs text-muted-foreground">{hit.county}</span>
+          ) : null}
+        </div>
+      </button>
     </li>
   );
 });
@@ -342,8 +346,12 @@ const SearchBar = ({
                   strokeWidth={3}
                   className="w-5 h-5 text-muted-foreground"
                 />
+                <label htmlFor="overlay-query" className="sr-only">
+                  Search beaches
+                </label>
                 <input
                   autoFocus
+                  id="overlay-query"
                   name="overlay-query"
                   type="text"
                   value={query}

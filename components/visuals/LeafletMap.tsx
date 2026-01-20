@@ -5022,6 +5022,7 @@ const LeafletMap: React.FC<Props> = ({
               <button
                 type="button"
                 aria-label="Refocus map on selected beach"
+                title="Refocus map on selected beach"
                 disabled={!selectedBeachId || refocusDisabled}
                 className={cn(
                   overlayButtonBase,
@@ -5049,6 +5050,7 @@ const LeafletMap: React.FC<Props> = ({
             <button
               type="button"
               aria-label="toggle filters"
+              title="Toggle filters"
               onClick={() => togglePanel("filters")}
               className={cn(
                 overlayButtonBase,
@@ -5068,6 +5070,7 @@ const LeafletMap: React.FC<Props> = ({
               <button
                 type="button"
                 aria-label="toggle legend"
+                title="Toggle legend"
                 onClick={() => togglePanel("legend")}
                 className={cn(
                   overlayButtonBase,
@@ -5082,6 +5085,7 @@ const LeafletMap: React.FC<Props> = ({
               <button
                 type="button"
                 aria-label="open map"
+                title="Open map"
                 className={cn(overlayButtonBase, "text-sm font-medium")}
                 onClick={() => {
                   if (openPanel) setOpenPanel(null);
@@ -5097,6 +5101,7 @@ const LeafletMap: React.FC<Props> = ({
           <button
             type="button"
             aria-label="select date"
+            title="Select date"
             onClick={() => togglePanel("date")}
             className={cn(
               "z-[1000] absolute left-3 top-17 @min-4xl:top-auto @min-4xl:bottom-25",
@@ -5112,6 +5117,7 @@ const LeafletMap: React.FC<Props> = ({
           <button
             type="button"
             aria-label="Zoom to California view"
+            title="Zoom to California view"
             onClick={handleZoomToCaliforniaView}
             className={cn(
               "z-[1000] absolute left-3 top-[7.8rem] @min-4xl:top-auto @min-4xl:bottom-[13.75rem]",
@@ -5126,6 +5132,7 @@ const LeafletMap: React.FC<Props> = ({
           <button
             type="button"
             aria-label="Zoom to nearby beaches"
+            title="Zoom to nearby beaches"
             onClick={handleZoomToNearby}
             disabled={!userLocation}
             className={cn(
@@ -5142,6 +5149,7 @@ const LeafletMap: React.FC<Props> = ({
           <button
             type="button"
             aria-label={`${showMap ? "Minimize" : "Maximize"} map`}
+            title={`${showMap ? "Minimize" : "Maximize"} map`}
             className={cn(
               "z-[1000] absolute left-3 bottom-3",
               overlayButtonBase,

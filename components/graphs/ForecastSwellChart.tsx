@@ -874,7 +874,9 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
           setLoading(series.length === 0);
         }
       } catch (e) {
-        console.error("Failed to load swell data", e);
+        if (process.env.NODE_ENV !== "production") {
+          console.error("Failed to load swell data", e);
+        }
         if (!cancelled) {
           setSwellData([]);
           setBaseStartMs(null);

@@ -159,6 +159,8 @@ const TimeRail: React.FC<Props> = ({
             <button
               type="button"
               onClick={onNow}
+              aria-label="Jump to current hour"
+              title="Jump to current hour"
               className="inline-flex items-center gap-1 rounded-full bg-highlight-3/75 dark:bg-highlight-2 dark:hover:bg-highlight-5 hover:bg-highlight-5 hover:shadow-sm justify-center py-2 w-16 @min-md:w-20 text-xs font-semibold"
             >
               <TimerReset className="w-3.5 h-3.5 @min-md:w-4 @min-md:h-4 -mt-[2px]" />
@@ -198,6 +200,8 @@ const TimeRail: React.FC<Props> = ({
               type="button"
               onClick={() => setOpen((v) => !v)}
               aria-expanded={open}
+              aria-label="Choose date"
+              title="Choose date"
               className="inline-flex items-center gap-1 rounded-full bg-highlight-3/75 dark:bg-highlight-2 dark:hover:bg-highlight-5 hover:bg-highlight-5 hover:shadow-sm px-2.5 @min-lg:px-3 py-2 @min-lg:py-2 text-xs font-semibold transition-colors"
             >
               <Calendar className="w-3.5 h-3.5 @min-md:w-4 @min-md:h-4" />

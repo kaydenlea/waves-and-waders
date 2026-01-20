@@ -940,8 +940,10 @@ const WaveSimulation: React.FC<Props> = ({
         `initialized N=${N} dx=${dx.toFixed(2)}m dt≈${dtEstimate.toFixed(4)}s`
       );
     } catch (err) {
-      console.error("initSim error", err);
-      setStatus("initialization error — check console");
+      if (process.env.NODE_ENV !== "production") {
+        console.error("initSim error", err);
+      }
+      setStatus("initialization error");
     }
   }
 

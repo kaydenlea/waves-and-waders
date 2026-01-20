@@ -397,8 +397,8 @@ function MiniMarkerTrack({
   const t = clamp01((value - min) / (max - min));
   const markerW = "0.375rem"; // w-1.5
   return (
-    <div className="mt-0.5" role="meter" aria-label={label}>
-      <div className="relative h-[4px] w-full overflow-visible">
+    <div className="mt-0.5">
+      <div className="relative h-[4px] w-full overflow-visible" aria-hidden="true">
         <div className="relative h-[4px] w-full overflow-hidden rounded-full bg-foreground/10">
           <div className={cn("absolute inset-0", statusGradientTrackClass)} />
         </div>
@@ -447,8 +447,8 @@ function SegmentedFillMeter({
     "shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.10)]";
 
   return (
-    <div className="mt-0.5" aria-hidden="true">
-      <div className="flex items-center gap-1" role="meter" aria-label={label}>
+    <div className="mt-0.5">
+      <div className="flex items-center gap-1" aria-hidden="true">
         {Array.from({ length: segments }).map((_, idx) => {
           const segFill = clamp01(scaled - idx);
           return (
@@ -1662,9 +1662,9 @@ const Summary = ({
             <div className="min-w-0">
               <p className={kickerClass}>Summary</p>
               {!showSkeletons && outlookHeadline ? (
-                <h3 className="mt-0.5 text-xl @min-md:text-2xl font-semibold tracking-tight">
+                <h2 className="mt-0.5 text-xl @min-md:text-2xl font-semibold tracking-tight">
                   {outlookHeadline}
-                </h3>
+                </h2>
               ) : (
                 <div className="mt-1.5 max-w-[20rem]" aria-hidden="true">
                   <div className="h-6 w-3/5 rounded-md bg-foreground/12 animate-pulse motion-reduce:animate-none" />

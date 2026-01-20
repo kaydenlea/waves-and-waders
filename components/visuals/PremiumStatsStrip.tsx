@@ -173,30 +173,30 @@ export default function PremiumStatsStrip({
         className
       )}
     >
-      <dl className="grid h-full grid-cols-2 divide-x divide-y divide-border/40 overflow-hidden sm:grid-cols-2 lg:grid-cols-1 lg:grid-rows-4 lg:divide-x-0">
+      <ul className="grid h-full grid-cols-2 divide-x divide-y divide-border/40 overflow-hidden sm:grid-cols-2 lg:grid-cols-1 lg:grid-rows-4 lg:divide-x-0">
         {stats.map((stat) => {
           const Icon = ICONS[stat.id];
           return (
-            <div
+            <li
               key={stat.id}
               className="flex flex-col justify-between p-4 sm:p-4"
             >
-              <dt className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-foreground/70">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-foreground/70">
                 <Icon className="h-4 w-4 text-sky-600/70" aria-hidden />
                 <span>{stat.label}</span>
-              </dt>
+              </div>
               {stat.helper ? (
                 <p className="mt-1 text-xs text-muted-foreground">
                   {stat.helper}
                 </p>
               ) : null}
-              <dd className="mt-4 text-3xl font-semibold leading-none tracking-tight text-foreground sm:text-3xl">
+              <div className="mt-4 text-3xl font-semibold leading-none tracking-tight text-foreground sm:text-3xl">
                 <AnimatedOverlayNumber value={stat.value} play={inView} />
-              </dd>
-            </div>
+              </div>
+            </li>
           );
         })}
-      </dl>
+      </ul>
     </div>
   );
 }

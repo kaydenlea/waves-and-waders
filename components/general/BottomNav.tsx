@@ -442,6 +442,10 @@ export default function BottomNav() {
             const isBeaches = pathname.endsWith("/beaches");
             const isNearby = isBeaches && selectedTab === "nearby";
             const isSaved = isBeaches && selectedTab === "saved";
+            const browseHref = "/beaches?tab=nearby";
+            const savedHref = user
+              ? "/beaches?tab=saved"
+              : `/login?next=${encodeURIComponent("/beaches?tab=saved")}`;
             const itemClass = (active: boolean) =>
               cn(
                 "p-2 rounded-2xl flex flex-col items-center gap-1 @min-[350px]:min-w-15 transition-colors",
@@ -450,8 +454,8 @@ export default function BottomNav() {
               );
             return (
               <>
-                <button
-                  type="button"
+                <Link
+                  href={browseHref}
                   aria-current={isNearby ? "page" : undefined}
                   className={itemClass(isNearby)}
                   onClick={() => {
@@ -460,7 +464,6 @@ export default function BottomNav() {
                         window.localStorage.setItem("tab:/beaches", "nearby");
                       }
                     } catch {}
-                    router.push("/beaches?tab=nearby");
                   }}
                 >
                   <MapPinned
@@ -482,28 +485,18 @@ export default function BottomNav() {
                   >
                     Browse
                   </span>
-                </button>
-                <button
-                  type="button"
+                </Link>
+                <Link
+                  href={savedHref}
                   aria-current={isSaved ? "page" : undefined}
                   className={itemClass(isSaved)}
                   onClick={() => {
+                    if (!user) return;
                     try {
-                      if (!user) {
-                        router.push(
-                          `/login?next=${encodeURIComponent(
-                            "/beaches?tab=saved"
-                          )}`
-                        );
-                        return;
-                      }
                       if (typeof window !== "undefined") {
                         window.localStorage.setItem("tab:/beaches", "saved");
                       }
-                      router.push("/beaches?tab=saved");
-                    } catch {
-                      router.push("/beaches?tab=saved");
-                    }
+                    } catch {}
                   }}
                 >
                   <Heart
@@ -525,7 +518,7 @@ export default function BottomNav() {
                   >
                     Saved
                   </span>
-                </button>
+                </Link>
               </>
             );
           })()}

@@ -53,44 +53,50 @@ export default function DonateOptionsCard({
         <div className="text-xs font-semibold tracking-wide text-foreground/65 dark:text-foreground/75">
           Suggested
         </div>
-        <div className="mt-2 flex flex-wrap gap-2" role="list">
+        <ul
+          className="mt-2 flex flex-wrap gap-2"
+          aria-label="Suggested donation amounts"
+        >
           {AMOUNTS.map((value) => {
             const selected = amount === value;
             return (
-              <button
-                key={value}
-                type="button"
-                onClick={() => setAmount(value)}
-                className={cn(
-                  "rounded-full border px-3 py-1.5 text-sm font-semibold shadow-sm",
-                  "transition-colors duration-200 motion-reduce:transition-none",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
-                  selected
-                    ? "border-border/70 bg-foreground text-background"
-                    : "border-border/50 bg-background/50 text-foreground/80 hover:bg-background/70"
-                )}
-                aria-pressed={selected}
-              >
-                ${value}
-              </button>
+              <li key={value}>
+                <button
+                  type="button"
+                  onClick={() => setAmount(value)}
+                  className={cn(
+                    "rounded-full border px-3 py-1.5 text-sm font-semibold shadow-sm",
+                    "transition-colors duration-200 motion-reduce:transition-none",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+                    selected
+                      ? "border-border/70 bg-foreground text-background"
+                      : "border-border/50 bg-background/50 text-foreground/80 hover:bg-background/70"
+                  )}
+                  aria-pressed={selected}
+                >
+                  ${value}
+                </button>
+              </li>
             );
           })}
-          <button
-            type="button"
-            onClick={() => setAmount("custom")}
-            className={cn(
-              "rounded-full border px-3 py-1.5 text-sm font-semibold shadow-sm",
-              "transition-colors duration-200 motion-reduce:transition-none",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
-              amount === "custom"
-                ? "border-border/70 bg-foreground text-background"
-                : "border-border/50 bg-background/50 text-foreground/70 hover:bg-background/70"
-            )}
-            aria-pressed={amount === "custom"}
-          >
-            Custom
-          </button>
-        </div>
+          <li>
+            <button
+              type="button"
+              onClick={() => setAmount("custom")}
+              className={cn(
+                "rounded-full border px-3 py-1.5 text-sm font-semibold shadow-sm",
+                "transition-colors duration-200 motion-reduce:transition-none",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+                amount === "custom"
+                  ? "border-border/70 bg-foreground text-background"
+                  : "border-border/50 bg-background/50 text-foreground/70 hover:bg-background/70"
+              )}
+              aria-pressed={amount === "custom"}
+            >
+              Custom
+            </button>
+          </li>
+        </ul>
       </div>
 
       <div className="mt-8 flex flex-col gap-3 sm:flex-row max-w-md mx-auto">

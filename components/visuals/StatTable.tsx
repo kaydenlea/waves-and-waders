@@ -1502,7 +1502,9 @@ const StatTable = ({
         }
       } catch (e) {
         if (!cancelled) {
-          console.error("Failed to load StatTable data", e);
+          if (process.env.NODE_ENV !== "production") {
+            console.error("Failed to load StatTable data", e);
+          }
           setLoading(false);
         }
       }

@@ -140,7 +140,9 @@ export function useDashboardLayout({
 
         safeApply(nextMeta, nextRows);
       } catch (error) {
-        console.warn("Failed loading dashboard layout from storage", error);
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("Failed loading dashboard layout from storage", error);
+        }
         safeApply(defaults.meta, defaults.rows);
       }
     };
@@ -163,7 +165,12 @@ export function useDashboardLayout({
           .maybeSingle();
 
         if (error) {
-          console.warn("Failed loading dashboard layout from Supabase", error);
+          if (process.env.NODE_ENV !== "production") {
+            console.warn(
+              "Failed loading dashboard layout from Supabase",
+              error
+            );
+          }
           loadFromLocalStorage();
           return;
         }
@@ -184,7 +191,9 @@ export function useDashboardLayout({
         );
         safeApply(nextMeta, nextRows);
       } catch (error) {
-        console.warn("Unexpected error loading layout", error);
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("Unexpected error loading layout", error);
+        }
         loadFromLocalStorage();
       }
     };
@@ -204,7 +213,9 @@ export function useDashboardLayout({
       window.localStorage.setItem(storageMetaKey, JSON.stringify(state.meta));
       window.localStorage.setItem(storageRowsKey, JSON.stringify(state.rows));
     } catch (error) {
-      console.warn("Failed to persist dashboard layout", error);
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("Failed to persist dashboard layout", error);
+      }
     }
   }, [
     persist,
@@ -237,12 +248,22 @@ export function useDashboardLayout({
         .upsert(payload, { onConflict: "user_id" });
 
       if (error) {
-        console.warn("Failed saving dashboard layout", error);
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("Failed saving dashboard layout", error);
+        }
       }
     };
 
     void persistLayout();
-  }, [persist, state.hydrated, session, supabase, state.meta, state.rows, type]);
+  }, [
+    persist,
+    state.hydrated,
+    session,
+    supabase,
+    state.meta,
+    state.rows,
+    type,
+  ]);
 
   const reset = React.useCallback(() => {
     const defaults = getDefaultLayout(type);

@@ -26,7 +26,7 @@ async function getRequestOrigin() {
 
 export default async function TwitterImage() {
   const origin = await getRequestOrigin();
-  const logoUrl = new URL("/icon-512.png", origin).toString();
+  const logoUrl = new URL("/logo.png", origin).toString();
 
   return new ImageResponse(
     (

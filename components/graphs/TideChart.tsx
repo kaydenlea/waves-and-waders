@@ -203,9 +203,9 @@ const TideChart: React.FC<TideChartProps> = ({
   const [touchDefaultIndex, setTouchDefaultIndex] = useState<number | null>(
     null
   );
-  const touchInspectTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(
-    null
-  );
+  const touchInspectTimerRef = React.useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
   const touchInspectStartRef = React.useRef<{
     clientX: number;
     clientY: number;
@@ -555,7 +555,9 @@ const TideChart: React.FC<TideChartProps> = ({
         });
       }
     } catch (error) {
-      console.error("Failed to load tide data", error);
+      if (process.env.NODE_ENV !== "production") {
+        console.error("Failed to load tide data", error);
+      }
       dispatch({ type: "SET_TIDE_DATA", chartData: [], windowStart: null });
     }
   }, [
@@ -1329,10 +1331,7 @@ const TideChart: React.FC<TideChartProps> = ({
                   // Check if label would bleed off the right edge
                   else if (point.hour >= hours - 0.5) {
                     textAnchor = "end";
-                    adjustedX = Math.max(
-                      safeX - 6,
-                      yAxisInsetPx + 6
-                    );
+                    adjustedX = Math.max(safeX - 6, yAxisInsetPx + 6);
                   }
 
                   // Optimized: use pre-computed placement map

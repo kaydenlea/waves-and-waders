@@ -244,7 +244,7 @@ const Footer = ({ className }: { className?: string }) => {
               className="underline underline-offset-4 hover:text-foreground"
               href="/privacy"
             >
-              Learn more
+              Privacy policy
             </Link>
             .
           </p>

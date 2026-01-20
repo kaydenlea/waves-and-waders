@@ -200,7 +200,7 @@ const logPerf = (label: string, startTs: number | null) => {
     return;
   }
   const duration = performance.now() - startTs;
-  // eslint-disable-next-line no-console
+
   console.log(`[MapPerf] ${label}: ${duration.toFixed(1)}ms`);
 };
 
@@ -264,13 +264,8 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
   const [storedSelectionId, setStoredSelectionId] = React.useState<
     string | null
   >(null);
-  const {
-    openPanel,
-    setOpenPanel,
-    togglePanel,
-    showMap,
-    setShowMap,
-  } = useMapUI();
+  const { openPanel, setOpenPanel, togglePanel, showMap, setShowMap } =
+    useMapUI();
   const {
     popupData,
     setPopupData,
@@ -381,16 +376,16 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
   );
   const hideDetailLayers = React.useCallback(
     (mapInstance: MapInstance | null | undefined) => {
-    if (!mapInstance || typeof mapInstance.setLayoutProperty !== "function") {
-      return;
-    }
-    detailLayerStoreRef.current.forEach((_, layerId) => {
-      try {
-        mapInstance.setLayoutProperty(layerId, "visibility", "none");
-      } catch {}
-    });
-  },
-  []
+      if (!mapInstance || typeof mapInstance.setLayoutProperty !== "function") {
+        return;
+      }
+      detailLayerStoreRef.current.forEach((_, layerId) => {
+        try {
+          mapInstance.setLayoutProperty(layerId, "visibility", "none");
+        } catch {}
+      });
+    },
+    []
   );
   // Removed static offset; compute exact center using symmetric pixel bounds
 
@@ -833,9 +828,8 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
             let best: MapGeoJSONFeature | null = null;
             let bestDist = Number.POSITIVE_INFINITY;
             for (const c of clusters) {
-              const coords = (
-                c.geometry as { coordinates?: Position }
-              )?.coordinates;
+              const coords = (c.geometry as { coordinates?: Position })
+                ?.coordinates;
               if (!coords || coords.length < 2) continue;
               const p = mapInstance.project([coords[0], coords[1]]);
               const dx = p.x - px.x;
@@ -883,6 +877,7 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
     }
 
     let cancelled = false;
+    const isDev = process.env.NODE_ENV !== "production";
 
     // Helper to fetch and cache surf intensity for a specific date
     const fetchSurfIntensityForDate = async (
@@ -892,16 +887,22 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
 
       // Check cache first
       if (surfIntensityCacheRef.current[dateStr]) {
-        console.log(`Using cached surf intensity for ${dateStr}`);
+        if (isDev) {
+          console.log(`Using cached surf intensity for ${dateStr}`);
+        }
         return surfIntensityCacheRef.current[dateStr];
       }
 
       try {
-        console.log(`Fetching surf intensity for date: ${dateStr}`);
+        if (isDev) {
+          console.log(`Fetching surf intensity for date: ${dateStr}`);
+        }
         const res = await fetch(`/api/surf-intensity?date=${dateStr}`);
 
         if (!res.ok) {
-          console.error("Failed to fetch surf intensity:", res.status);
+          if (isDev) {
+            console.warn("Failed to fetch surf intensity:", res.status);
+          }
           return {};
         }
 
@@ -910,17 +911,21 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
         if (json?.success && json.data) {
           // Cache the result
           surfIntensityCacheRef.current[dateStr] = json.data;
-          console.log(
-            `G£à Loaded and cached surf intensity for ${dateStr} (${
-              Object.keys(json.data).length
-            } beaches)`
-          );
+          if (isDev) {
+            console.log(
+              `Loaded and cached surf intensity for ${dateStr} (${
+                Object.keys(json.data).length
+              } beaches)`
+            );
+          }
           return json.data;
         }
 
         return {};
       } catch (e) {
-        console.error(`Failed to load surf intensity for ${dateStr}`, e);
+        if (isDev) {
+          console.warn(`Failed to load surf intensity for ${dateStr}`, e);
+        }
         return {};
       }
     };
@@ -933,7 +938,7 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
         setSurfIntensity(currentData);
       }
 
-      // Preload adjacent dates in the background (-¦3 days)
+      // Preload adjacent dates in the background (-3..+3 days)
       const preloadDates: Date[] = [];
       for (let i = -3; i <= 3; i++) {
         if (i === 0) continue; // Skip current date (already loaded)
@@ -945,13 +950,17 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
       // Preload in background without blocking
       Promise.all(preloadDates.map((date) => fetchSurfIntensityForDate(date)))
         .then(() => {
-          if (!cancelled) {
+          if (!cancelled && isDev) {
             console.log(
-              ` Preloaded surf intensity for ${preloadDates.length} adjacent dates`
+              `Preloaded surf intensity for ${preloadDates.length} adjacent dates`
             );
           }
         })
-        .catch((err) => console.warn("Preload error:", err));
+        .catch((err) => {
+          if (!isDev) return;
+
+          console.warn("Preload error:", err);
+        });
     };
 
     loadSurfIntensity();
@@ -1050,7 +1059,9 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
 
     // Check if user has manually interacted with the map
     const hasStoredView = window.localStorage.getItem("ww:last-map-view");
-    const hasStoredCenter = window.localStorage.getItem("ww:last-selected-center");
+    const hasStoredCenter = window.localStorage.getItem(
+      "ww:last-selected-center"
+    );
 
     // If user has manually positioned the map, respect that
     if (hasStoredView || hasStoredCenter) {
@@ -1064,7 +1075,9 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
         const userLon = position.coords.longitude;
 
         // Check if location has changed significantly from last time
-        const lastLocation = window.localStorage.getItem("ww:last-user-location");
+        const lastLocation = window.localStorage.getItem(
+          "ww:last-user-location"
+        );
         let shouldUpdate = true;
 
         if (lastLocation) {
@@ -1220,18 +1233,18 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
     Object.keys(registry).forEach((key) => delete registry[key]);
     const features: BeachGeoJsonCollection["features"] = filteredBeaches.map(
       (b, idx) => {
-      const intensity = surfIntensity[b.id] || 0;
-      registry[b.id] = {
-        id: idx,
-        longitude: b.longitude,
-        latitude: b.latitude,
-        properties: {
-          id: b.id,
-          name: b.name,
-          county: b.county,
-          surfIntensity: intensity,
-        },
-      };
+        const intensity = surfIntensity[b.id] || 0;
+        registry[b.id] = {
+          id: idx,
+          longitude: b.longitude,
+          latitude: b.latitude,
+          properties: {
+            id: b.id,
+            name: b.name,
+            county: b.county,
+            surfIntensity: intensity,
+          },
+        };
         return {
           type: "Feature",
           id: idx,
@@ -1268,12 +1281,14 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
       // Extract beach ID from the first URL segment (which could be "beach-name--id" or just "id")
       if (parts.length > 0) {
         const extracted = extractBeachId(parts[0]);
-        console.log(
-          "InteractiveMap: Extracted beach ID from URL:",
-          parts[0],
-          "->",
-          extracted
-        );
+        if (process.env.NODE_ENV !== "production") {
+          console.log(
+            "InteractiveMap: Extracted beach ID from URL:",
+            parts[0],
+            "->",
+            extracted
+          );
+        }
         return extracted;
       }
       return null;
@@ -1461,7 +1476,13 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
         MAP_FOCUS_EVENT,
         handleRefocus as EventListener
       );
-  }, [findBeachMatch, fullMapPage, setShowMap, easeToWhenReady, getMapInstance]);
+  }, [
+    findBeachMatch,
+    fullMapPage,
+    setShowMap,
+    easeToWhenReady,
+    getMapInstance,
+  ]);
 
   // if (editPage || (forecastPage && !smallScreen)) {
   //   return <></>;
@@ -1858,49 +1879,53 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
             }
           });
 
-          map.on("mousemove", "unclustered-point", (event: MapLayerMouseEvent) => {
-            const feature = event.features?.[0];
-            if (!feature) return;
-            const fid = feature.properties?.id;
-            if (lastHoverFeatureIdRef.current === fid) return;
-            lastHoverFeatureIdRef.current = fid;
-            if (hoverRafRef.current != null) {
-              cancelAnimationFrame(hoverRafRef.current);
-            }
-            hoverRafRef.current = requestAnimationFrame(() => {
-              const beach = mapToId[fid];
-              if (!beach) return;
-              if (!map.getSource("beaches")) return;
-              try {
-                const prevInternal = mapLastHoverInternalIdRef.current;
-                if (prevInternal != null && prevInternal !== beach.id) {
-                  map.setFeatureState(
-                    { source: "beaches", id: prevInternal },
-                    { hover: false }
-                  );
-                }
-              } catch {}
-              map.setFeatureState(
-                { source: "beaches", id: beach.id },
-                { hover: true }
-              );
-              mapLastHoverInternalIdRef.current = beach.id;
-              setPopupInfo({
-                id: beach.id,
-                longitude: beach.longitude,
-                latitude: beach.latitude,
-                properties: beach.properties,
+          map.on(
+            "mousemove",
+            "unclustered-point",
+            (event: MapLayerMouseEvent) => {
+              const feature = event.features?.[0];
+              if (!feature) return;
+              const fid = feature.properties?.id;
+              if (lastHoverFeatureIdRef.current === fid) return;
+              lastHoverFeatureIdRef.current = fid;
+              if (hoverRafRef.current != null) {
+                cancelAnimationFrame(hoverRafRef.current);
+              }
+              hoverRafRef.current = requestAnimationFrame(() => {
+                const beach = mapToId[fid];
+                if (!beach) return;
+                if (!map.getSource("beaches")) return;
+                try {
+                  const prevInternal = mapLastHoverInternalIdRef.current;
+                  if (prevInternal != null && prevInternal !== beach.id) {
+                    map.setFeatureState(
+                      { source: "beaches", id: prevInternal },
+                      { hover: false }
+                    );
+                  }
+                } catch {}
+                map.setFeatureState(
+                  { source: "beaches", id: beach.id },
+                  { hover: true }
+                );
+                mapLastHoverInternalIdRef.current = beach.id;
+                setPopupInfo({
+                  id: beach.id,
+                  longitude: beach.longitude,
+                  latitude: beach.latitude,
+                  properties: beach.properties,
+                });
+                popupId.current = String(fid);
+                popupRef.current = {
+                  id: beach.id,
+                  longitude: beach.longitude,
+                  latitude: beach.latitude,
+                  properties: beach.properties,
+                };
+                hoverRafRef.current = null;
               });
-              popupId.current = String(fid);
-              popupRef.current = {
-                id: beach.id,
-                longitude: beach.longitude,
-                latitude: beach.latitude,
-                properties: beach.properties,
-              };
-              hoverRafRef.current = null;
-            });
-          });
+            }
+          );
           // Provide clear hover indication for clusters to communicate interactivity
           const setHoverClusterFromEvent = (ev: MapLayerMouseEvent) => {
             const f = ev?.features?.[0];
@@ -2407,6 +2432,7 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
               <button
                 type="button"
                 aria-label="Refocus map on beach"
+                title="Refocus map on beach"
                 onClick={() => {
                   const mapInstance = getMapInstance();
                   if (fullMapPage) {
@@ -2440,6 +2466,7 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
             <button
               type="button"
               aria-label="toggle filters"
+              title="Toggle filters"
               onClick={() => {
                 togglePanel("filters");
                 setShowFilters(true);
@@ -2461,6 +2488,7 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
               <button
                 type="button"
                 aria-label="toggle legend"
+                title="Toggle legend"
                 onClick={() => togglePanel("legend")}
                 className={cn(
                   "bg-highlight-7/80 backdrop-blur hover:bg-blue-200 dark:hover:bg-blue-400 rounded-full border border-border shadow-lg p-3 text-sm font-medium flex items-center gap-2 active:scale-95 transition",
@@ -2475,6 +2503,7 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
               <button
                 type="button"
                 aria-label="open map"
+                title="Open map"
                 className="bg-highlight-7/80 backdrop-blur icon-button p-3 hover:bg-blue-200 dark:hover:bg-blue-400"
                 onClick={() => {
                   setIsOverlay(false);
@@ -2489,6 +2518,7 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
         {fullMapPage && !smallScreen && (
           <button
             aria-label={`${showMap ? "Minimize" : "Maximize"} map`}
+            title={`${showMap ? "Minimize" : "Maximize"} map`}
             className={cn(
               "z-80 bg-highlight-7/80 backdrop-blur rounded-full p-3 shadow-lg border border-border hover:bg-blue-200 dark:hover:bg-blue-400 absolute left-3 bottom-3"
               // showMap ? "top-4" : "top-[50%] transform -translate-y-1/2"

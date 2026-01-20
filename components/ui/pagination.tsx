@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 
 function Pagination({ className, ...props }: React.ComponentProps<"nav">) {
   return (
@@ -39,8 +39,8 @@ function PaginationItem({ ...props }: React.ComponentProps<"li">) {
 
 type PaginationLinkProps = {
   isActive?: boolean;
-} & Pick<React.ComponentProps<typeof Button>, "size" | "disabled"> &
-  React.ComponentProps<"a">;
+  size?: "default" | "sm" | "lg" | "icon";
+} & React.ComponentProps<"a">;
 
 function PaginationLink({
   className,
@@ -68,16 +68,18 @@ function PaginationLink({
 
 function PaginationPrevious({
   className,
+  size = "default",
   ...props
 }: React.ComponentProps<typeof PaginationLink>) {
   return (
     <PaginationLink
       aria-label="Go to previous page"
-      size="default"
+      title="Previous page"
+      size={size}
       className={cn("gap-1 px-2.5 sm:pl-2.5", className)}
       {...props}
     >
-      <ChevronLeftIcon />
+      <ChevronLeftIcon aria-hidden="true" />
       <span className="hidden @min-md:block">Previous</span>
     </PaginationLink>
   );
@@ -85,17 +87,19 @@ function PaginationPrevious({
 
 function PaginationNext({
   className,
+  size = "default",
   ...props
 }: React.ComponentProps<typeof PaginationLink>) {
   return (
     <PaginationLink
       aria-label="Go to next page"
-      size="default"
+      title="Next page"
+      size={size}
       className={cn("gap-1 px-2.5 sm:pr-2.5", className)}
       {...props}
     >
       <span className="hidden @min-md:block">Next</span>
-      <ChevronRightIcon />
+      <ChevronRightIcon aria-hidden="true" />
     </PaginationLink>
   );
 }
