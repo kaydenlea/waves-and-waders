@@ -20,6 +20,20 @@ export async function GET(request: NextRequest) {
     const start = startDate ? new Date(startDate) : undefined
     const end = endDate ? new Date(endDate) : undefined
 
+    if (startDate && start && Number.isNaN(start.getTime())) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid startDate' },
+        { status: 400 }
+      )
+    }
+
+    if (endDate && end && Number.isNaN(end.getTime())) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid endDate' },
+        { status: 400 }
+      )
+    }
+
     const data = await fetchBeachForecast(beachId, start, end)
 
     const response = NextResponse.json({

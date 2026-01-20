@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase-admin";
 import { Resend } from "resend";
+import { getSupabaseAdminOptional } from "@/lib/supabase-admin";
+import { serverEnv } from "@/lib/env/server";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 const CONTACT_EMAIL = "waveandwaders@gmail.com";
 
 // Simple in-memory rate limiting (resets on server restart)
@@ -27,10 +27,37 @@ function checkRateLimit(identifier: string): boolean {
   return true;
 }
 
+const escapeHtml = (value: string) =>
+  value.replace(/[&<>"']/g, (ch) => {
+    switch (ch) {
+      case "&":
+        return "&amp;";
+      case "<":
+        return "&lt;";
+      case ">":
+        return "&gt;";
+      case '"':
+        return "&quot;";
+      case "'":
+        return "&#39;";
+      default:
+        return ch;
+    }
+  });
+
 export async function POST(request: NextRequest) {
   try {
+    const contentLength = request.headers.get("content-length");
+    if (contentLength && Number.parseInt(contentLength, 10) > 10_000) {
+      return NextResponse.json({ error: "Payload too large" }, { status: 413 });
+    }
+
     // Rate limiting by IP
-    const ip = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown";
+    const forwardedFor = request.headers.get("x-forwarded-for");
+    const ip =
+      (forwardedFor ? forwardedFor.split(",")[0]?.trim() : null) ||
+      request.headers.get("x-real-ip") ||
+      "unknown";
     if (!checkRateLimit(ip)) {
       return NextResponse.json(
         { error: "Too many submissions. Please try again later." },
@@ -39,7 +66,10 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, email, subject, message } = body;
+    const name = typeof body?.name === "string" ? body.name : "";
+    const email = typeof body?.email === "string" ? body.email : "";
+    const subject = typeof body?.subject === "string" ? body.subject : "";
+    const message = typeof body?.message === "string" ? body.message : "";
 
     // Validate required fields
     if (!name || !email || !subject || !message) {
@@ -90,45 +120,57 @@ export async function POST(request: NextRequest) {
     }
 
     // Send email via Resend
+    const resendApiKey = serverEnv.RESEND_API_KEY;
     try {
-      await resend.emails.send({
-        from: "Waves and Waders Contact Form <onboarding@resend.dev>",
-        to: CONTACT_EMAIL,
-        replyTo: email.trim(),
-        subject: `Contact Form: ${subject.trim()}`,
-        html: `
-          <h2>New Contact Form Submission</h2>
-          <p><strong>From:</strong> ${name.trim()}</p>
-          <p><strong>Email:</strong> ${email.trim()}</p>
-          <p><strong>Subject:</strong> ${subject.trim()}</p>
-          <p><strong>Message:</strong></p>
-          <p>${message.trim().replace(/\n/g, '<br>')}</p>
-          <hr>
-          <p style="color: #666; font-size: 12px;">Submitted at: ${new Date().toLocaleString()}</p>
-        `,
-      });
+      if (resendApiKey) {
+        const resend = new Resend(resendApiKey);
+        await resend.emails.send({
+          from: "Waves and Waders Contact Form <onboarding@resend.dev>",
+          to: CONTACT_EMAIL,
+          replyTo: email.trim(),
+          subject: `Contact Form: ${subject.trim()}`,
+          html: `
+            <h2>New Contact Form Submission</h2>
+            <p><strong>From:</strong> ${escapeHtml(name.trim())}</p>
+            <p><strong>Email:</strong> ${escapeHtml(email.trim())}</p>
+            <p><strong>Subject:</strong> ${escapeHtml(subject.trim())}</p>
+            <p><strong>Message:</strong></p>
+            <p>${escapeHtml(message.trim()).replace(/\n/g, "<br>")}</p>
+            <hr>
+            <p style="color: #666; font-size: 12px;">Submitted at: ${new Date().toLocaleString()}</p>
+          `,
+        });
+      }
     } catch (emailError) {
       console.error("Email sending error:", emailError);
       // Continue even if email fails - we'll store in DB as backup
     }
 
     // Also store in Supabase as backup
-    const { data, error } = await supabaseAdmin
-      .from("contact_submissions")
-      .insert([
-        {
-          name: name.trim(),
-          email: email.trim().toLowerCase(),
-          subject: subject.trim(),
-          message: message.trim(),
-          created_at: new Date().toISOString(),
-        },
-      ])
-      .select();
-
-    if (error) {
-      console.error("Supabase error:", error);
-      // Don't fail if DB insert fails, email was already sent
+    let data: unknown = null;
+    const supabaseAdmin = getSupabaseAdminOptional();
+    if (supabaseAdmin) {
+      const result = await supabaseAdmin
+        .from("contact_submissions")
+        .insert([
+          {
+            name: name.trim(),
+            email: email.trim().toLowerCase(),
+            subject: subject.trim(),
+            message: message.trim(),
+            created_at: new Date().toISOString(),
+          },
+        ])
+        .select();
+      data = result.data;
+      if (result.error) {
+        console.error("Supabase error:", result.error);
+      }
+    } else if (!resendApiKey) {
+      return NextResponse.json(
+        { error: "Contact form is not configured. Please try again later." },
+        { status: 503 }
+      );
     }
 
     return NextResponse.json(

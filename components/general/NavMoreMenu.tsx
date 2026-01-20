@@ -114,16 +114,6 @@ export default function NavMoreMenu({
         <AppMenuItem
           asChild
           onSelect={() => {
-            setOpen(false);
-          }}
-        >
-          <Link href="/beaches/all">
-            <List className="w-5 h-5 -mt-0.5" /> All spots
-          </Link>
-        </AppMenuItem>
-        <AppMenuItem
-          asChild
-          onSelect={() => {
             try {
               if (user && typeof window !== "undefined") {
                 window.localStorage.setItem("tab:/beaches", "saved");
@@ -134,6 +124,16 @@ export default function NavMoreMenu({
         >
           <Link href={savedSpotsHref}>
             <Heart className="w-5 h-5 -mt-0.5" /> Saved spots
+          </Link>
+        </AppMenuItem>
+        <AppMenuItem
+          asChild
+          onSelect={() => {
+            setOpen(false);
+          }}
+        >
+          <Link href="/beaches/all">
+            <List className="w-5 h-5 -mt-0.5" /> All spots
           </Link>
         </AppMenuItem>
         <AppMenuSeparator className="@min-5xl:hidden" />

@@ -13,7 +13,6 @@ export async function GET(_request: NextRequest) {
 
     // Return from cache if available and fresh
     if (countiesCache && (now - countiesCacheTime) < COUNTIES_CACHE_TTL) {
-      console.log('Using cached counties list');
       const response = NextResponse.json({
         success: true,
         data: countiesCache
@@ -25,7 +24,6 @@ export async function GET(_request: NextRequest) {
       return response;
     }
 
-    console.log('Refreshing counties list from database');
     const { data, error } = await supabase
       .from('beaches')
       .select('COUNTY')

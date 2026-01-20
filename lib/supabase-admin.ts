@@ -1,30 +1,32 @@
-// Server-side admin client that bypasses RLS
-import { createClient } from "@supabase/supabase-js";
+import "server-only";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey =
-  process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  process.env.SUPABASE_ANON_KEY ||
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+import { publicEnv } from "@/lib/env/public";
+import { getSupabaseServiceRoleKey, requireSupabaseServiceRoleKey, serverEnv } from "@/lib/env/server";
 
-if (!supabaseUrl) {
-  throw new Error("Missing SUPABASE_URL");
-}
+// Server-side admin client that bypasses RLS - use only in API routes.
+let cachedAdminClient: SupabaseClient<any> | null = null;
 
-if (!supabaseServiceKey) {
-  console.warn(
-    "WARNING: No Supabase key found. Set SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY."
-  );
-}
+export const getSupabaseAdminOptional = () => {
+  if (cachedAdminClient) return cachedAdminClient;
 
-// Admin client bypasses RLS - use only in API routes
-export const supabaseAdmin = createClient(
-  supabaseUrl,
-  supabaseServiceKey!,
-  {
+  const supabaseUrl = serverEnv.SUPABASE_URL ?? publicEnv.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceKey = getSupabaseServiceRoleKey();
+  if (!supabaseServiceKey) return null;
+
+  const client = createClient<any>(supabaseUrl, supabaseServiceKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
     },
-  }
-);
+  });
+
+  cachedAdminClient = client;
+
+  return client;
+};
+
+export const getSupabaseAdmin = () => getSupabaseAdminOptional() ?? (() => {
+  requireSupabaseServiceRoleKey();
+  throw new Error("Unreachable");
+})();

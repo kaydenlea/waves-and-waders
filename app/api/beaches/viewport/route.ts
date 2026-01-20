@@ -255,7 +255,8 @@ export async function GET(request: NextRequest) {
     return response;
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    const status = message.startsWith("Missing") ? 400 : 500;
+    const status =
+      message.startsWith("Missing") || message.startsWith("Invalid") ? 400 : 500;
     return NextResponse.json(
       {
         success: false,

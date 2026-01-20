@@ -17,6 +17,8 @@ type BeachRow = {
 
 export async function GET(request: NextRequest) {
   try {
+    const includeDetails = process.env.NODE_ENV !== "production";
+
     // Build select with common columns + feature flags
     const baseCols = 'id, Name, COUNTY, LATITUDE, LONGITUDE, grid_id'
 
@@ -48,7 +50,11 @@ export async function GET(request: NextRequest) {
       if (error) {
         console.error('Supabase error:', error)
         return NextResponse.json(
-          { success: false, error: 'Failed to fetch beaches', details: error.message },
+          {
+            success: false,
+            error: 'Failed to fetch beaches',
+            ...(includeDetails ? { details: error.message } : {}),
+          },
           { status: 500 }
         )
       }
@@ -114,14 +120,13 @@ export async function GET(request: NextRequest) {
     return response
   } catch (error: unknown) {
     console.error('Error fetching beaches:', error)
-    if (error instanceof Error) {
-      console.error('Error details:', error.message, error.stack)
-    }
     return NextResponse.json(
       {
         success: false,
         error: 'Internal server error',
-        details: error instanceof Error ? error.message : String(error)
+        ...(process.env.NODE_ENV !== "production"
+          ? { details: error instanceof Error ? error.message : String(error) }
+          : {}),
       },
       { status: 500 }
     )

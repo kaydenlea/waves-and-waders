@@ -384,6 +384,14 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       const yNum = typeof y === "number" ? y : Number(y);
       if (!Number.isFinite(xNum) || !Number.isFinite(yNum)) return <text />;
 
+      const resolvedTextAnchor: "start" | "middle" | "end" | "inherit" =
+        textAnchor === "start" ||
+        textAnchor === "middle" ||
+        textAnchor === "end" ||
+        textAnchor === "inherit"
+          ? textAnchor
+          : "end";
+
       const value = payload?.value;
       const minTick = surfTicks[0] ?? 0;
       const maxTick = surfTicks[surfTicks.length - 1] ?? minTick;
@@ -399,7 +407,7 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           y={yNum}
           // Nudge the bottom tick up so it stays visually contained within the shaded plot area.
           dy={isMinTick ? -15 : isMaxTick ? 15 : 0}
-          textAnchor={textAnchor ?? "end"}
+          textAnchor={resolvedTextAnchor}
           dominantBaseline="central"
           fontSize={typeof fontSize === "number" ? fontSize : 11}
           {...Y_AXIS_TICK}

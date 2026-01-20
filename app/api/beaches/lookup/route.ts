@@ -6,6 +6,7 @@ export const dynamic = 'force-dynamic'
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const search = (searchParams.get('search') ?? '').trim()
+  const includeDetails = process.env.NODE_ENV !== "production";
 
   if (!search) {
     return NextResponse.json(
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest) {
         {
           success: false,
           error: 'Failed to fetch beach',
-          details: fallback.error.message
+          ...(includeDetails ? { details: fallback.error.message } : {}),
         },
         { status: 500 }
       )

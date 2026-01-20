@@ -6,7 +6,10 @@ import { supabase, formatTimestamp } from '@/lib/supabase'
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const limit = parseInt(searchParams.get('limit') || '10')
+    const limitParam = Number.parseInt(searchParams.get('limit') || '10', 10)
+    const limit = Number.isFinite(limitParam)
+      ? Math.min(Math.max(limitParam, 1), 50)
+      : 10
     const now = new Date().toISOString()
 
     const { data: gridRows, error } = await supabase

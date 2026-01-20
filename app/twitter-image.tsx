@@ -60,8 +60,10 @@ export default async function TwitterImage() {
               border: "1px solid rgba(255,255,255,0.14)",
             }}
           >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={logoUrl}
+              alt=""
               width={56}
               height={56}
               style={{ borderRadius: 18 }}

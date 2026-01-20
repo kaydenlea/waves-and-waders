@@ -1065,6 +1065,14 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
       const yNum = typeof y === "number" ? y : Number(y);
       if (!Number.isFinite(xNum) || !Number.isFinite(yNum)) return <text />;
 
+      const resolvedTextAnchor: "start" | "middle" | "end" | "inherit" =
+        textAnchor === "start" ||
+        textAnchor === "middle" ||
+        textAnchor === "end" ||
+        textAnchor === "inherit"
+          ? textAnchor
+          : "end";
+
       const value = payload?.value;
       const minTick = energyTicks[0] ?? 0;
       const maxTick = energyTicks[energyTicks.length - 1] ?? minTick;
@@ -1080,7 +1088,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
           y={yNum}
           // Nudge the bottom tick up so it stays visually contained within the shaded plot area.
           dy={isMinTick ? -8 : isMaxTick ? 8 : 0}
-          textAnchor={textAnchor ?? "end"}
+          textAnchor={resolvedTextAnchor}
           dominantBaseline="central"
           fontSize={typeof fontSize === "number" ? fontSize : 11}
           {...Y_AXIS_TICK}

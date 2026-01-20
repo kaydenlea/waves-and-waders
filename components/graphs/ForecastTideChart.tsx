@@ -1265,6 +1265,14 @@ export default React.memo(function ForecastTideChart({
       const yNum = typeof y === "number" ? y : Number(y);
       if (!Number.isFinite(xNum) || !Number.isFinite(yNum)) return <text />;
 
+      const resolvedTextAnchor: "start" | "middle" | "end" | "inherit" =
+        textAnchor === "start" ||
+        textAnchor === "middle" ||
+        textAnchor === "end" ||
+        textAnchor === "inherit"
+          ? textAnchor
+          : "end";
+
       const value = payload?.value;
       const minTick = tideTicks[0] ?? -2;
       const maxTick = tideTicks[tideTicks.length - 1] ?? minTick;
@@ -1280,7 +1288,7 @@ export default React.memo(function ForecastTideChart({
           y={yNum}
           // Nudge the bottom tick up so it stays visually contained within the shaded plot area.
           dy={isMinTick ? -8 : isMaxTick ? 8 : 0}
-          textAnchor={textAnchor ?? "end"}
+          textAnchor={resolvedTextAnchor}
           dominantBaseline="central"
           fontSize={typeof fontSize === "number" ? fontSize : 11}
           {...Y_AXIS_TICK}

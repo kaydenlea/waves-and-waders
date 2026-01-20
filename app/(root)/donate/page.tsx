@@ -63,14 +63,14 @@ export default async function DonatePage({
           voluntary and not a purchase.
         </p>
         <p className="mt-3 text-sm text-muted-foreground">
-          Donations support the development and maintenance of Waves & Waders. Donations
-          are not tax-deductible.
+          Donations support the development and maintenance of Waves &amp; Waders.
+          Donations are not tax-deductible.
         </p>
         <p className="mt-3 text-sm text-muted-foreground">
           If you&apos;re able, recurring monthly support is especially appreciated.
-          This kind of site has ongoing costs (hosting, data, and maintenance), and
-          monthly donations help keep forecasts accessible to as many people as
-          possible while the product keeps improving.
+          This kind of site has ongoing costs (hosting, data, and maintenance),
+          and monthly donations help keep forecasts accessible to as many people
+          as possible while the product keeps improving.
         </p>
         <div className="mt-5">
           <div className="text-xs font-semibold tracking-wide text-foreground/70">
@@ -130,11 +130,17 @@ export default async function DonatePage({
           We don&apos;t store payment card details. Stripe processes payments.
         </p>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3 text-xs text-muted-foreground">
-          <Link className="underline underline-offset-4 hover:text-foreground" href="/privacy">
+          <Link
+            className="underline underline-offset-4 hover:text-foreground"
+            href="/privacy"
+          >
             Privacy
           </Link>
           <span aria-hidden="true">·</span>
-          <Link className="underline underline-offset-4 hover:text-foreground" href="/terms">
+          <Link
+            className="underline underline-offset-4 hover:text-foreground"
+            href="/terms"
+          >
             Terms
           </Link>
         </div>

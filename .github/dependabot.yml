@@ -1,0 +1,72 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+    groups:
+      framework:
+        update-types:
+          - "minor"
+          - "patch"
+        patterns:
+          - "next"
+          - "eslint-config-next"
+          - "react"
+          - "react-dom"
+      supabase:
+        update-types:
+          - "minor"
+          - "patch"
+        patterns:
+          - "@supabase/*"
+          - "@supabase/auth-helpers-*"
+      tooling:
+        update-types:
+          - "minor"
+          - "patch"
+        patterns:
+          - "eslint"
+          - "@eslint/*"
+          - "@types/*"
+          - "typescript"
+          - "dotenv"
+          - "puppeteer"
+          - "tailwindcss"
+          - "@tailwindcss/*"
+      dependencies:
+        update-types:
+          - "minor"
+          - "patch"
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "next"
+          - "eslint-config-next"
+          - "react"
+          - "react-dom"
+          - "@supabase/*"
+          - "@supabase/auth-helpers-*"
+          - "eslint"
+          - "@eslint/*"
+          - "@types/*"
+          - "typescript"
+          - "dotenv"
+          - "puppeteer"
+          - "tailwindcss"
+          - "@tailwindcss/*"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+    groups:
+      github-actions:
+        patterns:
+          - "*"

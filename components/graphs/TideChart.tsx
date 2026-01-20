@@ -753,6 +753,14 @@ const TideChart: React.FC<TideChartProps> = ({
       const yNum = typeof y === "number" ? y : Number(y);
       if (!Number.isFinite(xNum) || !Number.isFinite(yNum)) return <text />;
 
+      const resolvedTextAnchor: "start" | "middle" | "end" | "inherit" =
+        textAnchor === "start" ||
+        textAnchor === "middle" ||
+        textAnchor === "end" ||
+        textAnchor === "inherit"
+          ? textAnchor
+          : "end";
+
       const value = payload?.value;
       const minTick = tideTicks[0] ?? -2;
       const maxTick = tideTicks[tideTicks.length - 1] ?? minTick;
@@ -768,7 +776,7 @@ const TideChart: React.FC<TideChartProps> = ({
           y={yNum}
           // Nudge the bottom tick up so it stays visually contained within the shaded plot area.
           dy={isMinTick ? -15 : isMaxTick ? 15 : 0}
-          textAnchor={textAnchor ?? "end"}
+          textAnchor={resolvedTextAnchor}
           dominantBaseline="central"
           fontSize={typeof fontSize === "number" ? fontSize : 11}
           {...Y_AXIS_TICK}

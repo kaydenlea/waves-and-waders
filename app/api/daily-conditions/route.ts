@@ -17,6 +17,12 @@ export async function GET(request: NextRequest) {
     }
 
     const dateObj = date ? new Date(date) : undefined
+    if (date && dateObj && Number.isNaN(dateObj.getTime())) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid date' },
+        { status: 400 }
+      )
+    }
 
     const data = await fetchDailyConditions(county, dateObj)
 

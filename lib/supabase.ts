@@ -1,6 +1,7 @@
 // lib/supabase.ts
 import { createClient } from "@supabase/supabase-js";
 import { getPacificMidnightUTC } from "./utils";
+import { publicEnv } from "./env/public";
 
 // Utility function to generate URL-friendly slug from beach name
 export function generateBeachSlug(beachName: string): string {
@@ -35,14 +36,8 @@ export function extractBeachId(param: string): string {
   return param;
 }
 
-const supabaseUrl =
-  process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL!;
-const supabaseKey =
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY!;
-
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error("Missing Supabase environment variables");
-}
+const supabaseUrl = publicEnv.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = publicEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
 

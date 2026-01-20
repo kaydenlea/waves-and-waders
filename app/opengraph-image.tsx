@@ -66,8 +66,10 @@ export default async function OpenGraphImage() {
                 border: "1px solid rgba(255,255,255,0.14)",
               }}
             >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={logoUrl}
+                alt=""
                 width={48}
                 height={48}
                 style={{ borderRadius: 14 }}
