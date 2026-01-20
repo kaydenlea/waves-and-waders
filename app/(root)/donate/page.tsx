@@ -2,16 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import StaticPageShell from "@/components/general/StaticPageShell";
-import { toAbsoluteUrl } from "@/lib/seo";
+import { buildPageMetadata } from "@/lib/seo";
 import { ArrowUpRight, HeartHandshake, MessageSquareHeart } from "lucide-react";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: "Donate",
   description: "Support Waves and Waders via Stripe.",
-  alternates: {
-    canonical: toAbsoluteUrl("/donate"),
-  },
-};
+  canonicalPath: "/donate",
+});
 
 const AMOUNTS = [1, 3, 5] as const;
 type Amount = (typeof AMOUNTS)[number];
@@ -41,12 +39,13 @@ const getStripeDonateUrl = (
   return { url: base, isAmountSpecific: false };
 };
 
-export default function DonatePage({
+export default async function DonatePage({
   searchParams,
 }: {
-  searchParams?: Record<string, string | string[] | undefined>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const selectedAmount = parseAmount(searchParams?.amount);
+  const resolvedSearchParams = await searchParams;
+  const selectedAmount = parseAmount(resolvedSearchParams?.amount);
   const stripeDonate = getStripeDonateUrl(selectedAmount);
   const stripeUrl = stripeDonate.url;
 

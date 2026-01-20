@@ -41,10 +41,56 @@ export const toAbsoluteUrl = (path: string): string => {
   return new URL(path, getSiteUrl()).toString();
 };
 
+export const buildPageMetadata = (input: {
+  title: string;
+  description: string;
+  canonicalPath: string;
+  openGraphImage?: string;
+  twitterImage?: string;
+  robots?:
+    | {
+        index?: boolean;
+        follow?: boolean;
+      }
+    | undefined;
+}): Metadata => {
+  const canonical = input.canonicalPath;
+  const ogImage = input.openGraphImage ?? "/opengraph-image";
+  const twitterImage = input.twitterImage ?? "/twitter-image";
+
+  return {
+    title: input.title,
+    description: input.description,
+    alternates: { canonical },
+    openGraph: {
+      title: input.title,
+      description: input.description,
+      url: canonical,
+      images: [
+        {
+          url: ogImage,
+          width: 1200,
+          height: 630,
+          alt: `${input.title} | Waves and Waders`,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: input.title,
+      description: input.description,
+      images: [twitterImage],
+    },
+    robots: input.robots,
+  };
+};
+
 export const buildDefaultMetadata = (): Metadata => {
   const title = "Waves and Waders";
   const description = "Get real-time surf forecasts, wave heights, swell direction, and tide charts for your favorite beaches. Plan your surf sessions with accurate NOAA data and interactive maps.";
   const base = new URL(getSiteUrl());
+  const ogImage = "/opengraph-image";
+  const twitterImage = "/twitter-image";
 
   return {
     metadataBase: base,
@@ -72,30 +118,29 @@ export const buildDefaultMetadata = (): Metadata => {
       url: base,
       images: [
         {
-          url: toAbsoluteUrl("/logo.png"),
-          width: 512,
-          height: 512,
-          alt: "Waves and Waders logo",
+          url: ogImage,
+          width: 1200,
+          height: 630,
+          alt: "Waves and Waders surf forecasts",
         },
       ],
     },
     twitter: {
-      card: "summary",
+      card: "summary_large_image",
       title,
       description,
-      images: [toAbsoluteUrl("/logo.png")],
+      images: [twitterImage],
     },
     icons: {
       icon: [
-        { url: "/logo.png", type: "image/png" },
+        { url: "/icon.png", type: "image/png", sizes: "32x32" },
+        { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
+        { url: "/icon-512.png", type: "image/png", sizes: "512x512" },
       ],
       apple: [
-        { url: "/logo.png", type: "image/png" },
+        { url: "/apple-icon.png", type: "image/png", sizes: "180x180" },
       ],
-      shortcut: ["/logo.png"],
-    },
-    alternates: {
-      canonical: base.toString(),
+      shortcut: ["/icon.png"],
     },
   };
 };

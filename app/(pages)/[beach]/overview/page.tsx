@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+import { permanentRedirect, redirect } from "next/navigation";
 import type { Metadata } from "next";
 import {
   FEATURE_COLUMNS,
@@ -10,6 +10,9 @@ import {
 } from "@/lib/supabase";
 import { getServerSupabase } from "@/lib/supabaseServer";
 import OverviewPageClient from "./OverviewPageClient";
+import BreadcrumbsJsonLd from "@/components/general/BreadcrumbsJsonLd";
+import { computeBeachStatsSnapshot } from "@/lib/beachStats";
+import { extractDailySurfWindStats } from "@/lib/beachStatsShared";
 import {
   getDefaultLayout,
   normalizeMeta,
@@ -77,7 +80,7 @@ export async function generateMetadata({
   ];
 
   // Add feature-specific keywords for better discoverability
-  const featureKeywords = features.flatMap(feature => [
+  const featureKeywords = features.flatMap((feature) => [
     `${resolved.COUNTY} beaches with ${feature.toLowerCase()}`,
     `${resolved.Name} ${feature.toLowerCase()}`,
   ]);
@@ -91,12 +94,14 @@ export async function generateMetadata({
     "surf report",
     ...features.slice(0, 5),
     ...featureKeywords.slice(0, 10), // Limit feature keywords
-  ];
+  ].filter(Boolean);
+
+  const uniqueKeywords = Array.from(new Set(keywords)).slice(0, 28);
 
   return {
     title,
     description,
-    keywords,
+    keywords: uniqueKeywords,
     alternates: {
       canonical: canonicalPath,
     },
@@ -141,6 +146,15 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
 
   const beachId = resolved.id.toString();
   const beachName = resolved.Name;
+  const canonicalParam = generateBeachUrl(resolved.Name, resolved.id).replace(
+    /^\//,
+    ""
+  );
+
+  if (beach !== canonicalParam) {
+    permanentRedirect(`/${canonicalParam}/overview`);
+  }
+
   const beachDetails = await fetchBeachDetails(beachId);
   const featureLabels = buildFeatureList(
     beachDetails as Record<string, unknown> | null
@@ -257,10 +271,44 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
 
   const canonicalPath = `${generateBeachUrl(beachName, beachId)}/overview`;
   const baseUrl = getSiteUrl();
+  const statsSnapshot = await computeBeachStatsSnapshot(beachId).catch(
+    () => null
+  );
+  const dailySurfWind = extractDailySurfWindStats(statsSnapshot);
+  const seoUpdatedAtIso = statsSnapshot?.current?.timestamp ?? null;
+  const waterTemp = (() => {
+    const tempStat = statsSnapshot?.summary.find(
+      (stat) => stat.type === "temperature"
+    );
+    return tempStat?.type === "temperature" &&
+      typeof tempStat.waterTemp === "number"
+      ? Math.round(tempStat.waterTemp)
+      : null;
+  })();
+
+  const seoSummary = {
+    updatedAt: seoUpdatedAtIso,
+    surfHeight: dailySurfWind.surfHeight,
+    windSpeed:
+      typeof dailySurfWind.windSpeed === "number"
+        ? Math.round(dailySurfWind.windSpeed)
+        : null,
+    windDirection:
+      typeof dailySurfWind.windDirection === "number"
+        ? Math.round(dailySurfWind.windDirection)
+        : null,
+    waterTemp,
+    county: resolved.COUNTY ?? null,
+    features: featureLabels,
+  };
+
   const structuredData = {
     "@context": "https://schema.org",
-    "@type": "Place",
+    "@type": ["Place", "Beach"],
     name: beachName,
+    description: `Surf forecast and conditions for ${beachName}${
+      resolved.COUNTY ? ` in ${resolved.COUNTY}` : ""
+    }.`,
     url: `${baseUrl}${canonicalPath}`,
     geo:
       initialBeach && Number.isFinite(initialBeach.latitude)
@@ -278,29 +326,30 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
         }
       : undefined,
     image: toAbsoluteUrl(`/beach_pictures/${beachId}.png`),
-    amenityFeature: featureLabels.map((label) => ({
-      "@type": "LocationFeatureSpecification",
-      name: label,
-      value: true,
-    })),
-    aggregateRating: {
-      "@type": "AggregateRating",
-      ratingValue: "4.5",
-      bestRating: "5",
-      worstRating: "1",
-      ratingCount: "1",
-    },
+    amenityFeature: featureLabels.length
+      ? featureLabels.map((label) => ({
+          "@type": "LocationFeatureSpecification",
+          name: label,
+          value: true,
+        }))
+      : undefined,
   };
 
   return (
     <>
+      <BreadcrumbsJsonLd
+        items={[
+          { label: "Beaches", href: "/beaches" },
+          { label: beachName, href: `/${canonicalParam}/overview` },
+        ]}
+      />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
       />
       <OverviewPageClient
         beachId={beachId}
-        beachParam={beach}
+        beachParam={canonicalParam}
         beachName={beachName}
         loggedIn={Boolean(user)}
         isFavorite={isFav}
@@ -309,6 +358,7 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
         initialOverviewRows={initialOverviewRows}
         initialForecastMeta={initialForecastMeta}
         initialForecastRows={initialForecastRows}
+        seoSummary={seoSummary}
       />
     </>
   );

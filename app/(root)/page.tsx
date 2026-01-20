@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { getSiteUrl, toAbsoluteUrl } from "@/lib/seo";
+import { getSiteUrl } from "@/lib/seo";
 import Hero from "@/components/marketing/Hero";
 
 import { Sparkles, Pencil } from "lucide-react";
@@ -50,19 +50,19 @@ export const metadata: Metadata = {
     url: "/",
     images: [
       {
-        url: toAbsoluteUrl("/logo.png"),
-        width: 512,
-        height: 512,
-        alt: "Waves and Waders logo",
+        url: "/opengraph-image",
+        width: 1200,
+        height: 630,
+        alt: "Waves and Waders surf forecasts",
       },
     ],
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "Surf forecasts, maps, and beach features",
     description:
       "Live surf conditions, beach maps, and feature-rich spot guides for coastal breaks.",
-    images: [toAbsoluteUrl("/logo.png")],
+    images: ["/twitter-image"],
   },
   alternates: {
     canonical: "/",

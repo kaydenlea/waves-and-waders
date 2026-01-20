@@ -63,9 +63,15 @@ const SearchResultItem = memo(function SearchResultItem({
 const SearchBar = ({
   className,
   beachesPage = false,
+  showMapButton = true,
+  subtitle,
+  desktopClassName,
 }: {
   className?: string;
   beachesPage?: boolean;
+  showMapButton?: boolean;
+  subtitle?: string;
+  desktopClassName?: string;
 }) => {
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -261,7 +267,7 @@ const SearchBar = ({
         )}
       >
         {/* Search button (mobile) */}
-        {!beachesPage && (
+        {!beachesPage && !desktopClassName && (
           <button
             type="button"
             aria-label="search"
@@ -284,7 +290,8 @@ const SearchBar = ({
             "hover:bg-highlight-3 dark:hover:bg-highlight-3 duration-200 transition transition-all transform hover:translate-y-[1px] pl-1.5 py-2 items-center rounded-full h-full shadow-lg ring ring-border/70 gap-2 dark:bg-highlight-5 w-full",
             beachesPage
               ? "flex @min-xl:max-w-75 @min-3xl:max-w-100 @min-5xl:max-w-md"
-              : "hidden @min-4xl:flex max-w-50 @min-xl:max-w-75 @min-5xl:max-w-md"
+              : desktopClassName ??
+                  "hidden @min-4xl:flex max-w-50 @min-xl:max-w-75 @min-5xl:max-w-md"
           )}
         >
           <div className="hidden @min-sm:block bg-gradient-to-br from-cyan-300 to-blue-400 p-2 text-white rounded-full flex-shrink-0 p-1">
@@ -298,7 +305,7 @@ const SearchBar = ({
               Search <span className="hidden @min-md:inline">for</span> beaches
             </span>
             <span className="text-muted-foreground text-xs">
-              Nearby &middot; Saved &middot; Filters
+              {subtitle ?? "Nearby \u00b7 Saved \u00b7 Filters"}
             </span>
           </span>
         </button>
@@ -306,7 +313,7 @@ const SearchBar = ({
         {beachesPage && <ToggleFilters />}
 
         {/* Map button */}
-        {!beachesPage && (
+        {!beachesPage && showMapButton && (
           <button
             type="button"
             aria-label="open map"

@@ -28,18 +28,32 @@ export default async function RootLayout({
   const initialSession = session;
   const baseUrl = getSiteUrl();
 
-  const organizationSchema = {
+  const structuredData = {
     "@context": "https://schema.org",
-    "@type": "Organization",
-    name: "Waves and Waders",
-    url: baseUrl,
-    logo: `${baseUrl}/logo.png`,
-    description: "Live surf conditions, beach maps, and feature-rich spot guides for coastal breaks.",
-    sameAs: [
-      // Add your social media profiles here when available
-      // "https://twitter.com/wavesandwaders",
-      // "https://facebook.com/wavesandwaders",
-      // "https://instagram.com/wavesandwaders"
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": `${baseUrl}/#organization`,
+        name: "Waves and Waders",
+        url: baseUrl,
+        logo: `${baseUrl}/icon-512.png`,
+        description:
+          "Live surf conditions, beach maps, and feature-rich spot guides for coastal breaks.",
+        sameAs: [
+          // Add your social media profiles here when available
+          // "https://twitter.com/wavesandwaders",
+          // "https://facebook.com/wavesandwaders",
+          // "https://instagram.com/wavesandwaders"
+        ],
+      },
+      {
+        "@type": "WebSite",
+        "@id": `${baseUrl}/#website`,
+        url: baseUrl,
+        name: "Waves and Waders",
+        inLanguage: "en-US",
+        publisher: { "@id": `${baseUrl}/#organization` },
+      },
     ],
   };
 
@@ -53,7 +67,7 @@ export default async function RootLayout({
         <link rel="manifest" href="/manifest.json" />
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
         />
       </head>
       <body

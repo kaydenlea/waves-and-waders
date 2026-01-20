@@ -12,18 +12,16 @@ import {
 } from "lucide-react";
 
 import StaticPageShell from "@/components/general/StaticPageShell";
-import { toAbsoluteUrl } from "@/lib/seo";
+import { buildPageMetadata } from "@/lib/seo";
 
 const LAST_UPDATED = "2026-01-05";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: "Terms of Service",
   description:
     "Terms for using Waves and Waders, including accounts and acceptable use.",
-  alternates: {
-    canonical: toAbsoluteUrl("/terms"),
-  },
-};
+  canonicalPath: "/terms",
+});
 
 function SectionTitle({
   id,

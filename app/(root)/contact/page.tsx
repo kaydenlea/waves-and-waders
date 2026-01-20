@@ -3,15 +3,13 @@ import Link from "next/link";
 import { ArrowUpRight, HandHeart, HelpCircle, Mail } from "lucide-react";
 import StaticPageShell from "@/components/general/StaticPageShell";
 import ContactForm from "@/components/general/ContactForm";
-import { toAbsoluteUrl } from "@/lib/seo";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: "Contact",
   description: "Get in touch with Waves and Waders.",
-  alternates: {
-    canonical: toAbsoluteUrl("/contact"),
-  },
-};
+  canonicalPath: "/contact",
+});
 
 export default function ContactPage() {
   return (

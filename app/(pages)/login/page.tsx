@@ -5,16 +5,15 @@ import Link from "next/link";
 
 import { getServerSupabase } from "@/lib/supabaseServer";
 import { AuthForm } from "@/components/auth/AuthForm";
+import { buildPageMetadata } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: "Sign in",
   description: "Sign in to manage saved beaches and forecasts.",
-  robots: {
-    index: false,
-    follow: false,
-  },
-};
+  canonicalPath: "/login",
+  robots: { index: false, follow: false },
+});
 
 const noiseSvg = encodeURIComponent(`
   <svg xmlns="http://www.w3.org/2000/svg" width="160" height="160">

@@ -29,11 +29,63 @@ type Props = {
   beachName: string;
   loggedIn: boolean;
   isFavorite: boolean;
+  seoSummary?: {
+    updatedAt: string | null;
+    surfHeight: string | null;
+    windSpeed: number | null;
+    windDirection: number | null;
+    waterTemp: number | null;
+    county: string | null;
+    features: string[];
+  };
   initialBeach?: BeachPoint | null;
   initialOverviewMeta: Partial<Record<WidgetId, WidgetMeta>>;
   initialOverviewRows: Row[];
   initialForecastMeta: Partial<Record<WidgetId, WidgetMeta>>;
   initialForecastRows: Row[];
+};
+
+const getWindDirectionLabel = (degrees: number | null) => {
+  if (degrees == null || !Number.isFinite(degrees)) return null;
+  const directions = [
+    "N",
+    "NNE",
+    "NE",
+    "ENE",
+    "E",
+    "ESE",
+    "SE",
+    "SSE",
+    "S",
+    "SSW",
+    "SW",
+    "WSW",
+    "W",
+    "WNW",
+    "NW",
+    "NNW",
+  ];
+  const index = Math.round(degrees / 22.5) % 16;
+  return directions[index] ?? null;
+};
+
+const formatPacificDateTime = (iso: string | null) => {
+  if (!iso) return null;
+  const dt = new Date(iso);
+  if (Number.isNaN(dt.getTime())) return null;
+  try {
+    return new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/Los_Angeles",
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+      hour: "numeric",
+      minute: "2-digit",
+      timeZoneName: "short",
+    }).format(dt);
+  } catch {
+    return dt.toISOString();
+  }
 };
 
 export default function OverviewPageClient({
@@ -42,6 +94,7 @@ export default function OverviewPageClient({
   beachName,
   loggedIn,
   isFavorite,
+  seoSummary,
   initialBeach,
   initialOverviewMeta,
   initialOverviewRows,
@@ -58,7 +111,8 @@ export default function OverviewPageClient({
   const dashboardType = dashboardEdit?.dashboardType ?? null;
   const pendingScrollToId = dashboardEdit?.pendingScrollToId ?? null;
   const clearPendingScrollTo = dashboardEdit?.clearPendingScrollTo ?? noop;
-  const getCachedLayout = dashboardEdit?.getCachedLayout ?? getCachedLayoutFallback;
+  const getCachedLayout =
+    dashboardEdit?.getCachedLayout ?? getCachedLayoutFallback;
 
   React.useLayoutEffect(() => {
     if (isEditing || !pendingScrollToId) return;
@@ -82,6 +136,10 @@ export default function OverviewPageClient({
   const editorInitialRows =
     cachedLayout?.rows ??
     (editType === "forecast" ? initialForecastRows : initialOverviewRows);
+
+  const updatedAtLabel = formatPacificDateTime(seoSummary?.updatedAt ?? null);
+  const windDirLabel = getWindDirectionLabel(seoSummary?.windDirection ?? null);
+  const visibleFeatures = (seoSummary?.features ?? []).slice(0, 6);
 
   return (
     <>
@@ -116,7 +174,7 @@ export default function OverviewPageClient({
                       { label: "Beaches", href: "/beaches" },
                       {
                         label: beachName,
-                        href: `/beach/${beachParam}/overview`,
+                        href: `/${beachParam}/overview`,
                       },
                     ]}
                   />
@@ -126,12 +184,75 @@ export default function OverviewPageClient({
                     </h1>
                     <div className="ml-auto flex items-center gap-2 shrink-0">
                       <BackButton loggedIn={loggedIn} />
-                      <SaveButton
-                        beachId={beachId}
-                        initialIsFav={isFavorite}
-                      />
+                      <SaveButton beachId={beachId} initialIsFav={isFavorite} />
                     </div>
                   </div>
+
+                  {seoSummary ? (
+                    <section
+                      aria-label="Surf forecast summary"
+                      className="sr-only rounded-2xl border border-border/40 bg-background/40 p-3 text-sm text-muted-foreground shadow-xs"
+                    >
+                      <p className="text-foreground/80">
+                        {seoSummary.county ? (
+                          <>
+                            <span className="font-semibold text-foreground">
+                              {seoSummary.county}
+                            </span>{" "}
+                            surf forecast summary
+                          </>
+                        ) : (
+                          <span className="font-semibold text-foreground">
+                            Surf forecast summary
+                          </span>
+                        )}
+                        {visibleFeatures.length ? (
+                          <> • Features: {visibleFeatures.join(", ")}</>
+                        ) : null}
+                      </p>
+
+                      <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2">
+                        <div className="flex items-baseline justify-between gap-2">
+                          <dt className="text-xs font-semibold text-foreground/70">
+                            Surf
+                          </dt>
+                          <dd className="text-foreground">
+                            {seoSummary.surfHeight ?? "—"}
+                          </dd>
+                        </div>
+                        <div className="flex items-baseline justify-between gap-2">
+                          <dt className="text-xs font-semibold text-foreground/70">
+                            Wind
+                          </dt>
+                          <dd className="text-foreground">
+                            {seoSummary.windSpeed != null
+                              ? `${seoSummary.windSpeed} mph${
+                                  windDirLabel ? ` ${windDirLabel}` : ""
+                                }`
+                              : "—"}
+                          </dd>
+                        </div>
+                        <div className="flex items-baseline justify-between gap-2">
+                          <dt className="text-xs font-semibold text-foreground/70">
+                            Water
+                          </dt>
+                          <dd className="text-foreground">
+                            {seoSummary.waterTemp != null
+                              ? `${seoSummary.waterTemp}°F`
+                              : "—"}
+                          </dd>
+                        </div>
+                        <div className="flex items-baseline justify-between gap-2">
+                          <dt className="text-xs font-semibold text-foreground/70">
+                            Updated
+                          </dt>
+                          <dd className="text-foreground">
+                            {updatedAtLabel ?? "—"}
+                          </dd>
+                        </div>
+                      </dl>
+                    </section>
+                  ) : null}
                 </header>
 
                 <SunDataProvider>

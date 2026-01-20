@@ -7,6 +7,7 @@ import {
   HandHeart,
   Heart,
   Home,
+  List,
   LogIn,
   Mail,
   MapPinned,
@@ -108,6 +109,16 @@ export default function NavMoreMenu({
         >
           <Link href="/beaches?tab=nearby">
             <MapPinned className="w-5 h-5 -mt-0.5" /> Browse spots
+          </Link>
+        </AppMenuItem>
+        <AppMenuItem
+          asChild
+          onSelect={() => {
+            setOpen(false);
+          }}
+        >
+          <Link href="/beaches/all">
+            <List className="w-5 h-5 -mt-0.5" /> All spots
           </Link>
         </AppMenuItem>
         <AppMenuItem

@@ -4,7 +4,7 @@ import crypto from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase, FEATURE_COLUMNS } from '@/lib/supabase'
 
-export const revalidate = 21600;
+export const dynamic = "force-dynamic";
 
 type BeachRow = {
   id: string | number;

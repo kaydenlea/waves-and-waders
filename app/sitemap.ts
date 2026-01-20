@@ -1,6 +1,13 @@
 import type { MetadataRoute } from "next";
 import { fetchAllBeaches, generateBeachUrl } from "@/lib/supabase";
 import { getSiteUrl } from "@/lib/seo";
+import { unstable_cache } from "next/cache";
+
+const fetchAllBeachesCached = unstable_cache(
+  () => fetchAllBeaches(),
+  ["sitemap:all-beaches"],
+  { revalidate: 21600 }
+);
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = getSiteUrl();
@@ -15,6 +22,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       url: `${base}/beaches`,
       changeFrequency: "daily",
       priority: 0.9,
+    },
+    {
+      url: `${base}/beaches/all`,
+      changeFrequency: "weekly",
+      priority: 0.6,
     },
     {
       url: `${base}/privacy`,
@@ -38,7 +50,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   ];
 
-  const beaches = await fetchAllBeaches();
+  const beaches = await fetchAllBeachesCached();
   const beachRoutes = beaches.map((beach) => ({
     url: `${base}${generateBeachUrl(beach.Name, beach.id)}/overview`,
     changeFrequency: "daily" as const,

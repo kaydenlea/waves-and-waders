@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import NearbyBeaches from "@/components/beaches/NearbyBeaches";
 import { getServerSupabase } from "@/lib/supabaseServer";
 import BottomNav from "@/components/general/BottomNav";
@@ -8,63 +9,48 @@ import { LazyLoadMap } from "@/components/general/LazyLoad/LazyLoadMap";
 import PathStyleWrapper from "@/components/general/PathStyleWrapper";
 import Footer from "@/components/general/Footer";
 import FavoriteIdsHydrator from "@/components/general/FavoriteIdsHydrator";
-import { toAbsoluteUrl, getSiteUrl } from "@/lib/seo";
+import { buildPageMetadata, getSiteUrl } from "@/lib/seo";
+import { List } from "lucide-react";
 
-export const metadata: Metadata = {
-  title: "Find surf spots and beaches near you",
-  description:
-    "Search California beaches by location and amenities. Find surf spots with bathrooms, parking, showers, lifeguards, and more. Filter by county and features.",
-  keywords: [
-    "California beaches",
-    "surf spots California",
-    "beaches near me",
-    "beach finder",
-    "surf map",
-    "nearby beaches",
-    "beaches with bathrooms",
-    "beaches with parking",
-    "beaches with showers",
-    "Orange County beaches",
-    "San Diego beaches",
-    "Los Angeles beaches",
-    "beach amenities",
-    "surf breaks California",
-    "coastal spots",
-    "beach search",
-    "beaches by county",
-  ],
-  openGraph: {
-    title: "Find surf spots and beaches near you",
-    description:
-      "Search California beaches by location and amenities. Find surf spots with bathrooms, parking, showers, lifeguards, and more.",
-    url: "/beaches",
-    images: [
-      {
-        url: toAbsoluteUrl("/logo.png"),
-        width: 512,
-        height: 512,
-        alt: "Waves and Waders logo",
-      },
+const beachesTitle = "Find surf spots and beaches near you";
+const beachesDescription =
+  "Search California beaches by location and amenities. Find surf spots with bathrooms, parking, showers, lifeguards, and more.";
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams?: Promise<{ tab?: string }>;
+}): Promise<Metadata> {
+  const resolvedSearchParams = await searchParams;
+  const hasNonDefaultTab = Boolean(resolvedSearchParams?.tab);
+
+  return {
+    ...buildPageMetadata({
+      title: beachesTitle,
+      description: beachesDescription,
+      canonicalPath: "/beaches",
+      robots: hasNonDefaultTab ? { index: false, follow: true } : undefined,
+    }),
+    keywords: [
+      "California beaches",
+      "surf spots California",
+      "beaches near me",
+      "beach finder",
+      "surf map",
+      "beach amenities",
+      "Orange County beaches",
+      "San Diego beaches",
+      "Los Angeles beaches",
     ],
-  },
-  twitter: {
-    card: "summary",
-    title: "Find surf spots and beaches near you",
-    description:
-      "Search California beaches by location and amenities. Find surf spots with bathrooms, parking, showers, lifeguards, and more.",
-    images: [toAbsoluteUrl("/logo.png")],
-  },
-  alternates: {
-    canonical: "/beaches",
-  },
-};
+  };
+}
 
 export const revalidate = 300; // Revalidate every 5 minutes
 
 export default async function BeachesPage({
   searchParams,
 }: {
-  searchParams?: { tab?: string } | Promise<{ tab?: string }>;
+  searchParams?: Promise<{ tab?: string }>;
 }) {
   const supabase = await getServerSupabase();
   const { data: userData, error: userError } = await supabase.auth.getUser();
@@ -134,29 +120,55 @@ export default async function BeachesPage({
                 <span className="text-xs @min-4xl/main:text-sm text-muted-foreground">
                   Explore nearby beaches on the map
                 </span>
+                <div className="mt-2">
+                  <Link
+                    href="/beaches/all"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-foreground/75 underline underline-offset-4 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 rounded-sm"
+                  >
+                    <List className="h-4 w-4" aria-hidden="true" />
+                    All spots directory
+                  </Link>
+                </div>
               </header>
             </div>
             <NearbyBeaches />
 
-            {/* SEO content for feature-specific searches */}
-            <section className="sr-only" aria-hidden="true">
-              <h2>Find California Beaches by Features and Location</h2>
-              <p>
-                Search beaches in Orange County, San Diego, Los Angeles, and
-                other California counties. Filter by amenities including
-                bathrooms, restrooms, parking, showers, lifeguards, picnic
-                areas, camping, and more. Get real-time surf forecasts, wave
-                heights, swell direction, wind conditions, and tide charts for
-                every beach.
-              </p>
-              <ul>
-                <li>Orange County beaches with bathrooms and parking</li>
-                <li>San Diego surf spots with lifeguards</li>
-                <li>Los Angeles beaches with showers</li>
-                <li>Beaches near me with amenities</li>
-                <li>California coastal access points</li>
-                <li>Family-friendly beaches with facilities</li>
-              </ul>
+            <section className="mt-10 px-2">
+              <details className="rounded-2xl border border-border/40 bg-background/40 p-4 text-sm text-muted-foreground shadow-xs">
+                <summary className="cursor-pointer font-semibold text-foreground/85">
+                  About beach search and filters
+                </summary>
+                <div className="mt-3 space-y-3 leading-relaxed">
+                  <p>
+                    Browse beaches across California and filter by amenities
+                    like bathrooms, parking, showers, lifeguards, and more. Each
+                    spot includes surf forecast charts, tides, and a quick
+                    summary to help you plan.
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Tip: Use the map to explore nearby spots, then open a beach
+                    page for a full surf forecast.
+                  </p>
+                </div>
+              </details>
+            </section>
+
+            <section className="mt-4 px-2">
+              <details className="rounded-2xl border border-border/40 bg-background/40 p-4 text-sm text-muted-foreground shadow-xs">
+                <summary className="cursor-pointer font-semibold text-foreground/85">
+                  Prefer a simple directory?
+                </summary>
+                <p className="mt-3 leading-relaxed">
+                  Use the map for nearby discovery, or browse a full list on{" "}
+                  <a
+                    className="underline underline-offset-4 hover:text-foreground"
+                    href="/beaches/all"
+                  >
+                    All surf spots
+                  </a>
+                  .
+                </p>
+              </details>
             </section>
           </div>
         </PathStyleWrapper>

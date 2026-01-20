@@ -11,18 +11,16 @@ import {
 } from "lucide-react";
 
 import StaticPageShell from "@/components/general/StaticPageShell";
-import { toAbsoluteUrl } from "@/lib/seo";
+import { buildPageMetadata } from "@/lib/seo";
 
 const LAST_UPDATED = "2026-01-05";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: "Privacy Policy",
   description:
     "How Waves and Waders collects and uses information, including accounts, favorites, and donations.",
-  alternates: {
-    canonical: toAbsoluteUrl("/privacy"),
-  },
-};
+  canonicalPath: "/privacy",
+});
 
 function SectionTitle({
   id,
