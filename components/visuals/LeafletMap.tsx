@@ -142,10 +142,11 @@ const COMMIT_IDLE_DELAY = 100;
 const CAMERA_UPDATE_DEBOUNCE_MS = 220;
 const RESIZE_SETTLE_DELAY = 180;
 const BOUNDS_DELTA_THRESHOLD = 0.0005;
-const MARKER_BUILD_FRAME_BUDGET_MS = 10;
+// Keep per-frame work small so map drag stays responsive on low-end devices.
+const MARKER_BUILD_FRAME_BUDGET_MS = 6;
 const MARKER_BUILD_MIN_BATCH = 60;
 const MIN_OVERLAY_ZOOM = 15;
-const AUTO_FOCUS_ZOOM = 16;
+const AUTO_FOCUS_ZOOM = 17;
 const OVERLAY_PANE_ID = "ww-overlay-pane";
 // Web Mercator (EPSG:3857) valid latitude range.
 // Using solid Leaflet bounds prevents users from panning into areas where tiles don't exist (grey/empty).
@@ -3159,6 +3160,23 @@ const LeafletMap: React.FC<Props> = ({
       if (!interactionsReadyRef.current) return;
       const target = event.target as HTMLElement | null;
       if (!target) return;
+      // If the user is about to drag the map, stop any in-flight background work immediately.
+      // Leaflet's `movestart` fires after the pointerdown threshold, which is too late to
+      // prevent an initial hitch when marker rebuilds/stats prefetch are running.
+      if (containerRef.current && containerRef.current.contains(target)) {
+        cancelMarkerBuild();
+        if (prefetchStatsTimeoutRef.current != null) {
+          const globalWindow = window as IdleCallbackWindow;
+          if (typeof globalWindow.cancelIdleCallback === "function") {
+            globalWindow.cancelIdleCallback(prefetchStatsTimeoutRef.current);
+          } else {
+            window.clearTimeout(prefetchStatsTimeoutRef.current);
+          }
+          prefetchStatsTimeoutRef.current = null;
+        }
+        cancelCommitResume();
+        cancelScheduledCameraUpdate();
+      }
       if (
         target.closest(".ww-leaflet-point-icon") ||
         target.closest(".ww-cluster-inner") ||
@@ -3178,7 +3196,13 @@ const LeafletMap: React.FC<Props> = ({
     return () => {
       document.removeEventListener("pointerdown", handlePointerDown, true);
     };
-  }, [mapReady, clearHoverState]);
+  }, [
+    mapReady,
+    clearHoverState,
+    cancelMarkerBuild,
+    cancelCommitResume,
+    cancelScheduledCameraUpdate,
+  ]);
 
   React.useEffect(() => {
     if (!navigationPending) return;
@@ -3369,21 +3393,24 @@ const LeafletMap: React.FC<Props> = ({
     if (!bounds) return;
     const ctx = statsContextRef.current;
     const pending: Array<string | number> = [];
-    Object.values(markerRegistryRef.current).forEach((entry) => {
-      if (!entry?.marker) return;
+    // Keep background stats prefetch bounded to avoid overloading the API on large viewports.
+    const MAX_PREFETCH = 200;
+    for (const entry of Object.values(markerRegistryRef.current)) {
+      if (pending.length >= MAX_PREFETCH) break;
+      if (!entry?.marker) continue;
       const latLng = entry.marker.getLatLng?.();
       if (!latLng || !bounds.contains(latLng)) {
-        return;
+        continue;
       }
       const parent =
         typeof group.getVisibleParent === "function"
           ? group.getVisibleParent(entry.marker)
           : null;
       if (parent && parent !== entry.marker) {
-        return;
+        continue;
       }
       const beachId = entry.beach?.id;
-      if (beachId == null) return;
+      if (beachId == null) continue;
       const snapshot = ctx.getStatsSnapshot(
         String(beachId),
         ctx.statsDateKey,
@@ -3392,7 +3419,7 @@ const LeafletMap: React.FC<Props> = ({
       if (snapshot === undefined) {
         pending.push(beachId);
       }
-    });
+    }
     if (!pending.length) return;
     ctx
       .prefetchSnapshots(pending, {
@@ -3998,9 +4025,9 @@ const LeafletMap: React.FC<Props> = ({
       latestCancelCommitResume();
       latestCancelScheduledCameraUpdate();
       React.startTransition(() => latestSetAllowViewportCommit(false));
-      if (!touchInput) {
-        latestClearHoverState();
-      }
+      // Clear hover/popup state when the user starts panning/zooming, including on touch,
+      // so a marker can't look "grabbed" after the gesture ends.
+      latestClearHoverState();
       cancelPrefetchVisibleMarkerStats();
     };
     const handleResizeEvent = () => {
@@ -4008,9 +4035,7 @@ const LeafletMap: React.FC<Props> = ({
     };
 
     const handleInteractionEnd = () => {
-      if (!touchInput) {
-        latestClearHoverState();
-      }
+      latestClearHoverState();
       disableInteractionLock();
       isMapInteractingRef.current = false;
       try {
@@ -4045,9 +4070,7 @@ const LeafletMap: React.FC<Props> = ({
       latestCancelCommitResume();
       latestCancelScheduledCameraUpdate();
       React.startTransition(() => latestSetAllowViewportCommit(false));
-      if (!touchInput) {
-        latestClearHoverState();
-      }
+      latestClearHoverState();
       cancelPrefetchVisibleMarkerStats();
     };
 

@@ -485,13 +485,17 @@ export async function getBeachStatsCached(
   targetHour?: number | null
 ): Promise<BeachStatsSnapshot | null> {
   const key = getCacheKey(beachId, targetDate, targetHour);
-  if (!statsCache.has(key)) {
-    statsCache.set(
-      key,
-      computeBeachStatsSnapshot(beachId, targetDate, targetHour)
-    );
-  }
-  return statsCache.get(key)!;
+  const cached = statsCache.get(key);
+  if (cached) return cached;
+  const promise = computeBeachStatsSnapshot(beachId, targetDate, targetHour).catch(
+    () => {
+      // Avoid poisoning the cache with a permanently rejected promise; allow retries.
+      statsCache.delete(key);
+      return null;
+    }
+  );
+  statsCache.set(key, promise);
+  return promise;
 }
 
 export async function getBeachStatsBatch(
@@ -499,14 +503,26 @@ export async function getBeachStatsBatch(
   options?: { targetDate?: Date; targetHour?: number | null }
 ): Promise<Record<string, BeachStatsSnapshot | null>> {
   const unique = Array.from(new Set(beachIds.map((id) => String(id))));
-  const results = await Promise.all(
-    unique.map((id) =>
-      getBeachStatsCached(id, options?.targetDate, options?.targetHour)
-    )
-  );
   const map: Record<string, BeachStatsSnapshot | null> = {};
-  unique.forEach((id, index) => {
-    map[id] = results[index] ?? null;
-  });
+  // Limit concurrency to avoid overwhelming downstream fetches (Supabase/external APIs).
+  const concurrency = Math.min(6, unique.length || 1);
+  let cursor = 0;
+  await Promise.all(
+    Array.from({ length: concurrency }, async () => {
+      while (true) {
+        const index = cursor;
+        cursor += 1;
+        if (index >= unique.length) return;
+        const id = unique[index];
+        try {
+          map[id] =
+            (await getBeachStatsCached(id, options?.targetDate, options?.targetHour)) ??
+            null;
+        } catch {
+          map[id] = null;
+        }
+      }
+    })
+  );
   return map;
 }

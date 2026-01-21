@@ -132,10 +132,11 @@ export const ViewportBeachesProvider = ({
   );
 
   const commitPending = React.useCallback(() => {
+    clearIdleTimer();
     setCommittedBounds((prev) => searchBounds ?? pendingBounds ?? prev);
     setSearchBounds(null);
     setReadyToSearch(false);
-  }, [pendingBounds, searchBounds]);
+  }, [clearIdleTimer, pendingBounds, searchBounds]);
 
   React.useEffect(() => {
     return () => {

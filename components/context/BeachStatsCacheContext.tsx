@@ -63,7 +63,7 @@ const makeCacheKey = (
   hourKey: string | number
 ) => `${beachId}:${dateKey}:${hourKey}`;
 const PREFETCH_BATCH_SIZE = 100;
-const PREFETCH_CONCURRENCY = 4;
+const PREFETCH_CONCURRENCY = 2;
 const makeInflightKey = (
   beachId: string | number,
   dateKey: string,

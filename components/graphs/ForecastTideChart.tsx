@@ -1249,8 +1249,8 @@ export default React.memo(function ForecastTideChart({
     const span = Math.max(1e-6, max - min);
 
     // Add headroom/footroom so labels/icons never collide with the curve.
-    const bottomPad = Math.max(1, span * 0.12);
-    const topPad = Math.max(4, span * 0.2);
+    const bottomPad = Math.max(2, span * 0.12);
+    const topPad = Math.max(3, span * 0.2);
     const paddedMin = Math.floor(min - bottomPad);
     const paddedMax = Math.ceil(max + topPad);
 

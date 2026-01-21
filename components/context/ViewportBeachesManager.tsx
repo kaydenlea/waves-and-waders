@@ -22,8 +22,6 @@ const ViewportBeachesManager = () => {
     pendingBounds,
     committedBounds,
     searchBounds,
-    camera,
-    onCameraChange,
     setStatus: setViewportContextStatus,
     setBeaches: setViewportContextBeaches,
     commitPending,
@@ -39,16 +37,10 @@ const ViewportBeachesManager = () => {
     requestId: viewportRequestId,
     limit: MAX_VIEWPORT_BEACHES,
     enabled: allowViewportCommit,
+    // Bounds updates are already debounced/throttled at the map level.
+    // Avoid stacking additional client delays before the viewport request starts.
+    debounceMs: 0,
   });
-
-  React.useEffect(() => {
-    if (!visibleBounds) return;
-    onCameraChange({
-      bounds: visibleBounds,
-      zoom: camera.zoom,
-      center: camera.center,
-    });
-  }, [visibleBounds, onCameraChange, camera.center, camera.zoom]);
 
   React.useEffect(() => {
     const shouldMaskSuccess =
@@ -65,6 +57,7 @@ const ViewportBeachesManager = () => {
   ]);
 
   const pendingBeachesRef = React.useRef<typeof beaches | null>(null);
+  const pendingRequestIdRef = React.useRef<number | null>(null);
 
   React.useEffect(() => {
     if (status !== "success") {
@@ -77,8 +70,10 @@ const ViewportBeachesManager = () => {
         commitPending();
       });
       pendingBeachesRef.current = null;
+      pendingRequestIdRef.current = null;
     } else {
       pendingBeachesRef.current = beaches;
+      pendingRequestIdRef.current = viewportRequestId;
     }
   }, [
     allowViewportCommit,
@@ -87,9 +82,18 @@ const ViewportBeachesManager = () => {
     setBeaches,
     setViewportContextBeaches,
     commitPending,
+    viewportRequestId,
   ]);
   React.useEffect(() => {
-    if (allowViewportCommit && pendingBeachesRef.current) {
+    if (
+      !allowViewportCommit ||
+      status !== "success" ||
+      !pendingBeachesRef.current ||
+      pendingRequestIdRef.current !== viewportRequestId
+    ) {
+      return;
+    }
+    {
       const next = pendingBeachesRef.current;
       React.startTransition(() => {
         setViewportContextBeaches(next);
@@ -97,12 +101,15 @@ const ViewportBeachesManager = () => {
         commitPending();
       });
       pendingBeachesRef.current = null;
+      pendingRequestIdRef.current = null;
     }
   }, [
     allowViewportCommit,
+    status,
     setBeaches,
     setViewportContextBeaches,
     commitPending,
+    viewportRequestId,
   ]);
 
   return null;

@@ -320,6 +320,7 @@ export const AuthForm = ({
                   autoComplete="new-password"
                   value={newPassword}
                   onChange={(event) => setNewPassword(event.target.value)}
+                  placeholder="Enter a new password"
                   className="h-11 w-full rounded-xl border border-border bg-background/75 px-3 pl-10 text-sm outline-none ring-offset-background transition focus:border-foreground/30 focus:ring-2 focus:ring-ring/40 dark:bg-background/35"
                   minLength={6}
                 />
@@ -340,6 +341,7 @@ export const AuthForm = ({
                   autoComplete="new-password"
                   value={confirmPassword}
                   onChange={(event) => setConfirmPassword(event.target.value)}
+                  placeholder="Re-enter your new password"
                   className="h-11 w-full rounded-xl border border-border bg-background/75 px-3 pl-10 text-sm outline-none ring-offset-background transition focus:border-foreground/30 focus:ring-2 focus:ring-ring/40 dark:bg-background/35"
                   minLength={6}
                 />
@@ -361,8 +363,12 @@ export const AuthForm = ({
                   required
                   type="email"
                   autoComplete="email"
+                  inputMode="email"
+                  autoCapitalize="none"
+                  spellCheck={false}
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
+                  placeholder="you@example.com"
                   className="h-11 w-full rounded-xl border border-border bg-background/75 px-3 pl-10 text-sm outline-none ring-offset-background transition focus:border-foreground/30 focus:ring-2 focus:ring-ring/40 dark:bg-background/35"
                 />
               </div>
@@ -403,6 +409,7 @@ export const AuthForm = ({
                     }
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
+                    placeholder="••••••••"
                     className="h-11 w-full rounded-xl border border-border bg-background/75 px-3 pl-10 text-sm outline-none ring-offset-background transition focus:border-foreground/30 focus:ring-2 focus:ring-ring/40 dark:bg-background/35"
                   />
                 </div>
