@@ -182,6 +182,7 @@ const BeachCard = React.memo(
         <Link
           href={beachUrl}
           aria-label={`Open ${b.name} overview`}
+          title={`Open ${b.name} overview`}
           className="absolute inset-0 z-0 rounded-3xl focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-400"
         />
         <div className="relative z-10 pointer-events-none">
@@ -254,7 +255,8 @@ const BeachCard = React.memo(
               >
                 <button
                   type="button"
-                  aria-label={`More details about ${b.name}`}
+                  title="Toggle direction rings legend"
+                  aria-label={`Toggle direction rings legend for ${b.name}`}
                   className="pointer-events-auto text-white absolute bottom-3 right-3 z-50 p-1.5 rounded-full bg-black/60 hover:bg-black/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
                 >
                   <Info className="w-4 h-4" aria-hidden="true" />

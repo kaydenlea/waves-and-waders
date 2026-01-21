@@ -55,7 +55,8 @@ export default function BackButton({
   return (
     <button
       type="button"
-      aria-label="Go back"
+      aria-label="Back to beaches"
+      title="Back to beaches"
       onClick={handleClick}
       className={cn(
         "group/button self-center flex items-center gap-1 rounded-full",

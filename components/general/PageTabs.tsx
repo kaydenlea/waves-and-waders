@@ -213,6 +213,7 @@ const PageTabs = ({
                       href={`/login?next=${encodeURIComponent(nextTarget)}`}
                       className={className}
                       aria-label={`Edit ${editType} dashboard`}
+                      title={`Edit ${editType} dashboard`}
                     >
                       <Pencil className="stroke-[2.5px] w-4.5 h-4.5 @min-2xl:mb-0.5" />
                       <span className="font-medium hidden @min-2xl:inline-block text-[15px]">
@@ -226,6 +227,7 @@ const PageTabs = ({
                   <button
                     type="button"
                     className={className}
+                    title={`Edit ${editType} dashboard`}
                     aria-label={`Edit ${editType} dashboard`}
                     onClick={() => {
                       enterEdit(editType);
@@ -339,7 +341,8 @@ const PageTabs = ({
                 }
               }}
               type="button"
-              aria-label={`${selectedTab} tab`}
+              aria-label={`${tab} tab`}
+              title={`Open ${tab} tab`}
               key={tab}
               className={cn(
                 "relative z-10 flex-1 rounded-full px-4 py-1 text-center capitalize transition-colors duration-300",

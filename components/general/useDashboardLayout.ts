@@ -46,6 +46,10 @@ export function useDashboardLayout({
   persistAnonymous = false,
 }: Options) {
   const layoutDefaults = React.useMemo(() => getDefaultLayout(type), [type]);
+  const hasInitialLayout = initialMeta != null || initialRows != null;
+
+  const supabase = useSupabaseClient();
+  const { session, isLoading: sessionLoading } = useSessionContext();
 
   const [state, setState] = React.useState<LayoutState>(() => {
     const meta = initialMeta
@@ -54,9 +58,10 @@ export function useDashboardLayout({
     const rows = initialRows
       ? normalizeRows(type, initialRows, meta)
       : layoutDefaults.rows;
-    // If the server already provided a layout, treat it as hydrated to avoid
-    // transient loading UI (overlays/flicker) while we reconcile persisted prefs.
-    const hydrated = initialMeta != null || initialRows != null;
+    // Always start not hydrated and flip to true after the first reconciliation pass
+    // (Supabase/localStorage/no-op). This prevents the overview/map loading overlay
+    // from hiding and then re-appearing due to an initial layout swap on hard refresh.
+    const hydrated = false;
     return { meta, rows, hydrated };
   });
 
@@ -68,9 +73,6 @@ export function useDashboardLayout({
     () => getDashboardStorageKey(type, "rows"),
     [type]
   );
-
-  const supabase = useSupabaseClient();
-  const { session } = useSessionContext();
 
   const setMeta = React.useCallback(
     (
@@ -112,6 +114,12 @@ export function useDashboardLayout({
   React.useEffect(() => {
     let cancelled = false;
     const defaults = getDefaultLayout(type);
+    const initialMetaNormalized = initialMeta
+      ? normalizeMeta(type, initialMeta)
+      : defaults.meta;
+    const initialRowsNormalized = initialRows
+      ? normalizeRows(type, initialRows, initialMetaNormalized)
+      : defaults.rows;
 
     const safeApply = (
       nextMeta: Partial<Record<WidgetId, WidgetMeta>>,
@@ -121,7 +129,12 @@ export function useDashboardLayout({
       applyLayout(nextMeta, nextRows, true);
     };
 
-    const loadFromLocalStorage = () => {
+    const markHydrated = () => {
+      if (cancelled) return;
+      setState((prev) => (prev.hydrated ? prev : { ...prev, hydrated: true }));
+    };
+
+    const loadFromLocalStorage = (options?: { onlyIfPresent?: boolean }) => {
       if (typeof window === "undefined") {
         safeApply(defaults.meta, defaults.rows);
         return;
@@ -129,13 +142,31 @@ export function useDashboardLayout({
 
       try {
         const savedMetaRaw = window.localStorage.getItem(storageMetaKey);
+        const savedRowsRaw = window.localStorage.getItem(storageRowsKey);
+
+        if (!savedMetaRaw && !savedRowsRaw) {
+          if (options?.onlyIfPresent) {
+            // Keep the server-provided layout and simply mark reconciliation complete.
+            markHydrated();
+            return;
+          }
+          if (hasInitialLayout) {
+            safeApply(initialMetaNormalized, initialRowsNormalized);
+            return;
+          }
+          safeApply(defaults.meta, defaults.rows);
+          return;
+        }
+
         const nextMeta = savedMetaRaw
           ? normalizeMeta(type, JSON.parse(savedMetaRaw))
+          : hasInitialLayout
+          ? initialMetaNormalized
           : defaults.meta;
-
-        const savedRowsRaw = window.localStorage.getItem(storageRowsKey);
         const nextRows = savedRowsRaw
           ? normalizeRows(type, JSON.parse(savedRowsRaw), nextMeta)
+          : hasInitialLayout
+          ? initialRowsNormalized
           : defaults.rows;
 
         safeApply(nextMeta, nextRows);
@@ -143,13 +174,29 @@ export function useDashboardLayout({
         if (process.env.NODE_ENV !== "production") {
           console.warn("Failed loading dashboard layout from storage", error);
         }
+        if (options?.onlyIfPresent) {
+          markHydrated();
+          return;
+        }
+        if (hasInitialLayout) {
+          safeApply(initialMetaNormalized, initialRowsNormalized);
+          return;
+        }
         safeApply(defaults.meta, defaults.rows);
       }
     };
 
     const loadFromSupabase = async () => {
+      // If the server already rendered an initial layout, don't immediately "override" it
+      // with localStorage while Supabase is still determining the session. That transient
+      // swap can cause the Overview loading overlay to hide and re-appear on first load.
+      if (hasInitialLayout && sessionLoading) {
+        return;
+      }
       if (!session) {
-        loadFromLocalStorage();
+        // When the server already rendered a layout, avoid applying a defaults/localStorage
+        // fallback that can later be replaced and cause a second loading cycle.
+        loadFromLocalStorage({ onlyIfPresent: hasInitialLayout });
         return;
       }
       try {
@@ -171,11 +218,15 @@ export function useDashboardLayout({
               error
             );
           }
-          loadFromLocalStorage();
+          loadFromLocalStorage({ onlyIfPresent: hasInitialLayout });
           return;
         }
 
         if (!data) {
+          if (hasInitialLayout) {
+            safeApply(initialMetaNormalized, initialRowsNormalized);
+            return;
+          }
           safeApply(defaults.meta, defaults.rows);
           return;
         }
@@ -194,7 +245,7 @@ export function useDashboardLayout({
         if (process.env.NODE_ENV !== "production") {
           console.warn("Unexpected error loading layout", error);
         }
-        loadFromLocalStorage();
+        loadFromLocalStorage({ onlyIfPresent: hasInitialLayout });
       }
     };
 
@@ -203,7 +254,16 @@ export function useDashboardLayout({
     return () => {
       cancelled = true;
     };
-  }, [applyLayout, storageMetaKey, storageRowsKey, supabase, session, type]);
+  }, [
+    applyLayout,
+    storageMetaKey,
+    storageRowsKey,
+    supabase,
+    session,
+    sessionLoading,
+    type,
+    hasInitialLayout,
+  ]);
 
   React.useEffect(() => {
     if (!persist) return;

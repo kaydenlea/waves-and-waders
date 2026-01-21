@@ -148,30 +148,38 @@ export const getDefaultOrder = (type: DashboardType) =>
 
 export const buildInitialRows = (
   meta: Partial<Record<WidgetId, WidgetMeta>>,
-  order: WidgetId[]
+  order: WidgetId[],
+  type: DashboardType
 ): Row[] => {
   const rows: Row[] = [];
   const halfBuffer: WidgetId[] = [];
+
+  const nextAutoId = (items: WidgetId[]) =>
+    `auto:${type}:${rows.length}:${items.join("-")}`;
+
   for (const id of order) {
     const m = meta[id];
     if (!m || m.visible === false) continue;
     if (m.span === "full") {
-      rows.push({ id: rid(), items: [m.id] });
+      rows.push({ id: nextAutoId([m.id]), items: [m.id] });
     } else {
       halfBuffer.push(m.id);
       if (halfBuffer.length === 2) {
-        rows.push({ id: rid(), items: [halfBuffer[0], halfBuffer[1]] });
+        const items: WidgetId[] = [halfBuffer[0], halfBuffer[1]];
+        rows.push({ id: nextAutoId(items), items });
         halfBuffer.length = 0;
       }
     }
   }
-  if (halfBuffer.length) rows.push({ id: rid(), items: [halfBuffer[0]] });
+  if (halfBuffer.length) {
+    rows.push({ id: nextAutoId([halfBuffer[0]]), items: [halfBuffer[0]] });
+  }
   return rows;
 };
 
 export const getDefaultLayout = (type: DashboardType) => {
   const meta = getDefaultMeta(type);
-  const rows = buildInitialRows(meta, getDefaultOrder(type));
+  const rows = buildInitialRows(meta, getDefaultOrder(type), type);
   return { meta, rows };
 };
 
@@ -209,7 +217,7 @@ export const normalizeRows = (
   raw: unknown,
   meta: Partial<Record<WidgetId, WidgetMeta>>
 ): Row[] => {
-  const fallback = buildInitialRows(meta, getDefaultOrder(type));
+  const fallback = buildInitialRows(meta, getDefaultOrder(type), type);
   if (!Array.isArray(raw)) return fallback;
 
   const seen = new Set<WidgetId>();
@@ -220,14 +228,24 @@ export const normalizeRows = (
     rows.push({ id: id ?? rid(), items });
   };
 
-  for (const entry of raw) {
+  for (let entryIndex = 0; entryIndex < raw.length; entryIndex++) {
+    const entry = raw[entryIndex];
     if (!entry || typeof entry !== "object") continue;
 
-    const rawItems = Array.isArray((entry as Row).items)
-      ? (entry as Row).items
+    const rawItems: unknown[] = Array.isArray((entry as any).items)
+      ? (entry as any).items
       : [];
-    const baseId =
-      typeof (entry as Row).id === "string" ? (entry as Row).id : rid();
+    const baseId = (() => {
+      if (typeof (entry as Row).id === "string") return (entry as Row).id;
+      const itemSig = rawItems
+        .filter((id): id is string => typeof id === "string")
+        .join("-");
+      // Deterministic ID when persisted rows omit an id (prevents remount/flicker on reload).
+      return `norm:${type}:${entryIndex}:${itemSig}`;
+    })();
+    let derivedRowIndex = 0;
+    const nextDerivedId = () =>
+      derivedRowIndex++ === 0 ? baseId : `${baseId}:${derivedRowIndex - 1}`;
 
     const filtered: WidgetId[] = [];
     for (const rawId of rawItems) {
@@ -242,12 +260,12 @@ export const normalizeRows = (
     const full = filtered.filter((id) => meta[id]?.span === "full");
     const halves = filtered.filter((id) => meta[id]?.span !== "full");
 
-    full.forEach((id, idx) => pushRow([id], idx === 0 ? baseId : undefined));
+    full.forEach((id) => pushRow([id], nextDerivedId()));
 
     if (halves.length) {
       for (let i = 0; i < halves.length; i += 2) {
         const slice = halves.slice(i, i + 2);
-        pushRow(slice, full.length === 0 && i === 0 ? baseId : undefined);
+        pushRow(slice, nextDerivedId());
       }
     }
   }
@@ -255,7 +273,7 @@ export const normalizeRows = (
   const order = getDefaultOrder(type);
   const missing = order.filter((id) => !seen.has(id));
   if (missing.length) {
-    const supplemental = buildInitialRows(meta, missing);
+    const supplemental = buildInitialRows(meta, missing, type);
     supplemental.forEach((row) => {
       rows.push(row);
       row.items.forEach((id) => seen.add(id));

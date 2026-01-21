@@ -171,7 +171,10 @@ const TagsOverflowPopover = ({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger className="more-button shrink-0 px-2.5 py-2 rounded-full bg-foreground/5 hover:bg-foreground/8 border border-border/25 text-[13px] text-muted-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0">
+      <PopoverTrigger
+        title="More features"
+        className="more-button shrink-0 px-2.5 py-2 rounded-full bg-foreground/5 hover:bg-foreground/8 border border-border/25 text-[13px] text-muted-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0"
+      >
         +{tags.length}
       </PopoverTrigger>
       <PopoverContent className={contentClassName}>
@@ -398,7 +401,10 @@ function MiniMarkerTrack({
   const markerW = "0.375rem"; // w-1.5
   return (
     <div className="mt-0.5">
-      <div className="relative h-[4px] w-full overflow-visible" aria-hidden="true">
+      <div
+        className="relative h-[4px] w-full overflow-visible"
+        aria-hidden="true"
+      >
         <div className="relative h-[4px] w-full overflow-hidden rounded-full bg-foreground/10">
           <div className={cn("absolute inset-0", statusGradientTrackClass)} />
         </div>

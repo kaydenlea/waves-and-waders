@@ -67,11 +67,11 @@ export function OverviewChartsLoadingProvider({
   const rawLoading = React.useMemo(() => {
     // When the dashboard declares expected charts, consider missing registrations as "not ready".
     if (expectedCharts != null) {
-      if (statusMap.size === 0) return true;
-      for (const ready of statusMap.values()) {
-        if (!ready) return true;
+      if (expectedCharts.length === 0) return false;
+      for (const id of expectedCharts) {
+        if (!statusMap.get(id)) return true; // missing or explicitly not-ready
       }
-      return false;
+      return false; // all expected charts are registered + ready
     }
 
     // Fallback behavior when no expected charts have been declared yet.
@@ -173,4 +173,9 @@ export function useOverviewChartsLoadingControls() {
     );
   }
   return { setExpectedCharts: ctx.setExpectedCharts };
+}
+
+export function useOptionalOverviewChartsLoadingControls() {
+  const ctx = React.useContext(OverviewChartsLoadingContext);
+  return ctx ? { setExpectedCharts: ctx.setExpectedCharts } : null;
 }

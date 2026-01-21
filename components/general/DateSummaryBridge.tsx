@@ -41,7 +41,10 @@ import type { SharedSunSegments } from "@/components/graphs/sharedSunSegments";
 import { ForecastChartsLoadingProvider } from "../context/ForecastChartsLoadingContext";
 import { useStableOverlay } from "../hooks/useStableOverlay";
 import { useOptionalOverviewPageBusyControls } from "../context/OverviewPageBusyContext";
-import { useOptionalOverviewChartsLoadingState } from "../context/OverviewChartsLoadingContext";
+import {
+  useOptionalOverviewChartsLoadingControls,
+  useOptionalOverviewChartsLoadingState,
+} from "../context/OverviewChartsLoadingContext";
 
 type Props = {
   beachId: string;
@@ -393,6 +396,35 @@ const DateSummaryBridge: React.FC<Props> = ({
       enabled: Boolean(beachId && isForecastTab),
     });
 
+  const overviewChartsControls = useOptionalOverviewChartsLoadingControls();
+  const expectedOverviewChartIds = React.useMemo(() => {
+    const ids = new Set<string>();
+    const widgetToCharts: Partial<Record<WidgetId, readonly string[]>> = {
+      stats: ["overview-highlights"],
+      tide: ["overview-tide"],
+      surf: ["overview-surf"],
+      swell: ["overview-swell"],
+      energy: ["overview-energy"],
+      wind: ["overview-wind"],
+      table: ["overview-table"],
+    };
+
+    for (const row of layoutRows) {
+      for (const widgetId of row.items) {
+        if (layoutMeta[widgetId]?.visible === false) continue;
+        const charts = widgetToCharts[widgetId];
+        if (!charts) continue;
+        for (const chartId of charts) ids.add(chartId);
+      }
+    }
+
+    return Array.from(ids).sort();
+  }, [layoutMeta, layoutRows]);
+
+  React.useLayoutEffect(() => {
+    overviewChartsControls?.setExpectedCharts(expectedOverviewChartIds);
+  }, [expectedOverviewChartIds, overviewChartsControls]);
+
   const [sharedSunSegments, setSharedSunSegments] =
     React.useState<SharedSunSegments>({
       dayAreas: [],
@@ -585,12 +617,37 @@ const DateSummaryBridge: React.FC<Props> = ({
       !isEditing
   );
 
-  const overlayVisible = useStableOverlay(
+  const overviewLoadKey = `${String(beachId)}:${selectedDateMs}`;
+  const overviewInitialBusyCompletedRef = React.useRef<{
+    key: string | null;
+    completed: boolean;
+  }>({ key: null, completed: false });
+
+  if (overviewInitialBusyCompletedRef.current.key !== overviewLoadKey) {
+    overviewInitialBusyCompletedRef.current.key = overviewLoadKey;
+    overviewInitialBusyCompletedRef.current.completed = false;
+  }
+
+  const overviewInitialBusyRaw =
     overviewChartsLoading ||
-      (isOverview && hasVisibleOverviewWidgets && overviewWidgetsLoading) ||
-      tabOverlayActive ||
-      layoutOverlayActive ||
-      pendingLayoutApplyActive,
+    (isOverview && hasVisibleOverviewWidgets && overviewWidgetsLoading) ||
+    tabOverlayActive;
+
+  React.useEffect(() => {
+    if (!isOverview) return;
+    if (overviewInitialBusyCompletedRef.current.completed) return;
+    if (!overviewInitialBusyRaw) {
+      overviewInitialBusyCompletedRef.current.completed = true;
+    }
+  }, [isOverview, overviewInitialBusyRaw]);
+
+  const overviewInitialBusy =
+    isOverview && overviewInitialBusyCompletedRef.current.completed
+      ? false
+      : overviewInitialBusyRaw;
+
+  const overlayVisible = useStableOverlay(
+    overviewInitialBusy || layoutOverlayActive || pendingLayoutApplyActive,
     250
   );
 
@@ -1024,6 +1081,9 @@ const DateSummaryBridge: React.FC<Props> = ({
                       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0"
                     )}
                     aria-label={`Edit ${
+                      selectedTab === "forecast" ? "forecast" : "overview"
+                    } dashboard`}
+                    title={`Edit ${
                       selectedTab === "forecast" ? "forecast" : "overview"
                     } dashboard`}
                   >

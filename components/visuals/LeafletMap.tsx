@@ -1356,8 +1356,10 @@ const FilterPanel: React.FC<{
             Filters {filterCount ? `(${filterCount})` : ""}
           </span>
           <button
+            type="button"
             className="text-xs font-semibold text-muted-foreground hover:text-foreground"
             onClick={onClose}
+            title="Close filters"
           >
             Close
           </button>
@@ -1403,19 +1405,23 @@ const FilterPanel: React.FC<{
         <div className="flex justify-between px-3 py-2 border-t border-border/70">
           {filterCount > 0 && (
             <button
+              type="button"
               className="text-[11px] font-semibold px-2 py-1 rounded-xl border bg-highlight-3 dark:bg-background border border-border/90 hover:bg-highlight-5 dark:hover:bg-highlight-2"
               onClick={() => {
                 React.startTransition(() => {
                   setFilters(new Set());
                 });
               }}
+              title="Clear all selected filters"
             >
               Clear
             </button>
           )}
           <button
+            type="button"
             className="ml-auto text-[11px] font-semibold px-2 py-1 rounded-xl border border-border/90 bg-background dark:bg-highlight-5 text-foreground hover:bg-highlight-3 dark:hover:bg-highlight-2"
             onClick={onClose}
+            title="Apply filters and close"
           >
             Done
           </button>
@@ -1503,8 +1509,10 @@ const MapDateOverlay: React.FC<{
             Pick map date
           </span>
           <button
+            type="button"
             className="text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
             onClick={onClose}
+            title="Close date picker"
           >
             Close
           </button>
@@ -3080,15 +3088,19 @@ const LeafletMap: React.FC<Props> = ({
     interactionLockReleaseRef.current = null;
   }, []);
 
-  const shouldIgnoreTouchActivation = React.useCallback((event?: Event | null) => {
-    if (!event || !isTouchInteraction(event)) return false;
-    if (isMapInteractingRef.current) return true;
-    const last = lastTouchGestureRef.current;
-    const now = typeof performance !== "undefined" ? performance.now() : Date.now();
-    // Suppress ghost clicks that are actually the tail end of a drag/pinch gesture.
-    // Leaflet tap/click tolerance can be large on coarse pointers.
-    return last.moved && now - last.ts < 250;
-  }, []);
+  const shouldIgnoreTouchActivation = React.useCallback(
+    (event?: Event | null) => {
+      if (!event || !isTouchInteraction(event)) return false;
+      if (isMapInteractingRef.current) return true;
+      const last = lastTouchGestureRef.current;
+      const now =
+        typeof performance !== "undefined" ? performance.now() : Date.now();
+      // Suppress ghost clicks that are actually the tail end of a drag/pinch gesture.
+      // Leaflet tap/click tolerance can be large on coarse pointers.
+      return last.moved && now - last.ts < 250;
+    },
+    []
+  );
 
   React.useEffect(() => {
     return () => {
@@ -3862,10 +3874,14 @@ const LeafletMap: React.FC<Props> = ({
     };
 
     if (touchInput && !embeddedPreview) {
-      touchOriginTarget.addEventListener("pointerdown", handlePointerDownCapture, {
-        passive: true,
-        capture: true,
-      });
+      touchOriginTarget.addEventListener(
+        "pointerdown",
+        handlePointerDownCapture,
+        {
+          passive: true,
+          capture: true,
+        }
+      );
       document.addEventListener("pointermove", handlePointerMoveCapture, {
         passive: true,
         capture: true,
@@ -4505,15 +4521,15 @@ const LeafletMap: React.FC<Props> = ({
               favorite,
             };
             registry[id] = entry;
-            ensureMarkerPopup(
-              entry,
-              supportsTouchInput()
-            );
+            ensureMarkerPopup(entry, supportsTouchInput());
 
             const handleClick = (e: L.LeafletMouseEvent) => {
               if (!interactionsReadyRef.current) return;
               const fromCluster = Boolean((e as any)?.wwFromCluster);
-              if (!fromCluster && shouldIgnoreTouchActivation(e.originalEvent ?? null)) {
+              if (
+                !fromCluster &&
+                shouldIgnoreTouchActivation(e.originalEvent ?? null)
+              ) {
                 return;
               }
               const treatAsTouch = e.originalEvent
@@ -5028,7 +5044,7 @@ const LeafletMap: React.FC<Props> = ({
                   overlayButtonBase,
                   "text-sm font-medium",
                   (!selectedBeachId || refocusDisabled) &&
-                    "opacity-50 pointer-events-none"
+                    "opacity-50 cursor-not-allowed"
                 )}
                 onClick={() => {
                   if (!selectedBeachId) return;
