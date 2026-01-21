@@ -27,6 +27,7 @@ import {
   ChartTooltipViewportContent,
 } from "@/components/ui/chart";
 import { useIsTouchOnlyDevice } from "./useIsTouchOnlyDevice";
+import ForecastTooltipHandle from "./ForecastTooltipHandle";
 import {
   MousePointer2 as ArrowIcon,
   ArrowDown,
@@ -108,6 +109,8 @@ const X_AXIS_SHADE_EXCLUDE_PX = 34;
 const DRAG_THRESHOLD_PX = 8;
 const TOUCH_INSPECT_LONG_PRESS_MS = 320;
 const TOUCH_INSPECT_MOVE_TOLERANCE_PX = 10;
+const TOUCH_HANDLE_MAX_WIDTH = 640;
+const TOUCH_HANDLE_RADIUS_PX = 18;
 const Y_AXIS_TICK = {
   fill: "var(--foreground)",
   fontWeight: 500,
@@ -159,6 +162,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
   const [touchDefaultIndex, setTouchDefaultIndex] = useState<number | null>(
     null
   );
+  const [touchHandleHour, setTouchHandleHour] = useState<number | null>(null);
   const touchInspectStartRef = useRef<{
     startChartX: number;
     chartX: number;
@@ -191,6 +195,27 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
     update();
     return subscribeToHover(update);
   }, [hoveredHourRef, isTouchOnlyDevice, subscribeToHover]);
+
+  const isTouchHandleMode =
+    isTouchOnlyDevice &&
+    containerWidth > 0 &&
+    containerWidth <= TOUCH_HANDLE_MAX_WIDTH;
+
+  useEffect(() => {
+    if (!isTouchHandleMode) {
+      setTouchHandleHour(null);
+      return;
+    }
+
+    const update = () => {
+      const next = hoveredHourRef.current;
+      if (next == null) return;
+      setTouchHandleHour((prev) => (prev === next ? prev : next));
+    };
+
+    update();
+    return subscribeToHover(update);
+  }, [hoveredHourRef, isTouchHandleMode, subscribeToHover]);
   const domainMin = -HALF_STEP_HOURS;
 
   useEffect(() => {
@@ -553,7 +578,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
       startTranslate: currentTranslateRef.current,
     };
     setInnerTranslatePx(currentTranslateRef.current, false);
-    if (isTouchOnlyDevice && ev.pointerType !== "mouse") {
+    if (!isTouchHandleMode && isTouchOnlyDevice && ev.pointerType !== "mouse") {
       clearTouchInspectTimer();
       setIsTouchInspecting(false);
       setTouchDefaultIndex(null);
@@ -609,23 +634,41 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
     if (!ps) return;
     const deltaX = ev.clientX - ps.startX;
     const deltaY = ev.clientY - ps.startY;
-    if (isTouchOnlyDevice && ev.pointerType !== "mouse") {
+    if (!isTouchHandleMode && isTouchOnlyDevice && ev.pointerType !== "mouse") {
       if (isTouchInspecting) {
-        const target =
-          rechartsMoveTargetRef.current ??
-          innerRef.current?.querySelector(".recharts-wrapper");
-        if (target instanceof HTMLElement) {
-          rechartsMoveTargetRef.current = target;
-          target.dispatchEvent(
-            new MouseEvent("mousemove", {
-              bubbles: true,
-              cancelable: true,
-              clientX: ev.clientX,
-              clientY: ev.clientY,
-            })
-          );
+        const shouldDrag =
+          Math.hypot(deltaX, deltaY) > DRAG_THRESHOLD_PX &&
+          Math.abs(deltaX) >= Math.abs(deltaY);
+        if (shouldDrag) {
+          setIsTouchInspecting(false);
+          setTouchDefaultIndex(null);
+          setHoveredHour(null);
+          touchInspectStartRef.current = null;
+          if (pointerStateRef.current) {
+            pointerStateRef.current.startX = ev.clientX;
+            pointerStateRef.current.startY = ev.clientY;
+            pointerStateRef.current.startTranslate =
+              currentTranslateRef.current;
+          }
+          startDrag(ev);
+          return;
+        } else {
+          const target =
+            rechartsMoveTargetRef.current ??
+            innerRef.current?.querySelector(".recharts-wrapper");
+          if (target instanceof HTMLElement) {
+            rechartsMoveTargetRef.current = target;
+            target.dispatchEvent(
+              new MouseEvent("mousemove", {
+                bubbles: true,
+                cancelable: true,
+                clientX: ev.clientX,
+                clientY: ev.clientY,
+              })
+            );
+          }
+          return;
         }
-        return;
       }
       const start = touchInspectStartRef.current;
       if (touchInspectTimerRef.current && start) {
@@ -671,7 +714,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
     node.releasePointerCapture?.(ev.pointerId);
     clearTouchInspectTimer();
     setIsTouchInspecting(false);
-    if (isTouchOnlyDevice && ev.pointerType !== "mouse") {
+    if (!isTouchHandleMode && isTouchOnlyDevice && ev.pointerType !== "mouse") {
       setTouchDefaultIndex(null);
       touchInspectStartRef.current = null;
       setHoveredHour(null);
@@ -1187,14 +1230,79 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
     [clampTranslatePx, dayOffset, dayPx, viewportWidth]
   );
 
+  const handleScrub = useCallback(
+    (clientX: number, clientY: number) => {
+      const host = containerRef.current;
+      if (!host) return;
+      const bounds = host.getBoundingClientRect();
+      const translatePx = clampTranslatePx(dayOffset * dayPx);
+      const chartX = clientX - bounds.left + translatePx;
+      const activation = getTouchActivationFromChartX(chartX);
+      if (!activation) return;
+      setTouchHandleHour(activation.hour);
+      setHoveredHour(activation.hour);
+      const target =
+        rechartsMoveTargetRef.current ??
+        innerRef.current?.querySelector(".recharts-wrapper");
+      if (target instanceof HTMLElement) {
+        rechartsMoveTargetRef.current = target;
+        target.dispatchEvent(
+          new MouseEvent("mousemove", {
+            bubbles: true,
+            cancelable: true,
+            clientX,
+            clientY,
+          })
+        );
+      }
+    },
+    [
+      clampTranslatePx,
+      dayOffset,
+      dayPx,
+      getTouchActivationFromChartX,
+      setHoveredHour,
+    ]
+  );
+
+  const handleLeftPx = useMemo(() => {
+    if (!isTouchHandleMode || !viewportWidth || !dataAreaWidth) return null;
+    const fallbackHour = windData[0]?.hour ?? null;
+    const rawHour = touchHandleHour ?? selectedHour ?? fallbackHour;
+    if (rawHour == null || !Number.isFinite(rawHour)) return null;
+    const t = (rawHour - domainMin) / (domainMax - domainMin);
+    const plotX = dayLabelLeftOffset + t * dataAreaWidth;
+    const translatePx = clampTranslatePx(dayOffset * dayPx);
+    const viewportX = plotX - translatePx;
+    const clamped = Math.max(
+      TOUCH_HANDLE_RADIUS_PX,
+      Math.min(viewportWidth - TOUCH_HANDLE_RADIUS_PX, viewportX)
+    );
+    return Number.isFinite(clamped) ? clamped : null;
+  }, [
+    clampTranslatePx,
+    dataAreaWidth,
+    dayLabelLeftOffset,
+    dayOffset,
+    dayPx,
+    domainMax,
+    domainMin,
+    isTouchHandleMode,
+    selectedHour,
+    touchHandleHour,
+    viewportWidth,
+    windData,
+  ]);
+
   return (
     <div className="w-full">
       <div
         ref={containerRef}
         className="relative w-full"
         style={{
-          height: 300,
-          overflow: "hidden",
+          height: isTouchHandleMode ? 325 : 300,
+          overflow: isTouchHandleMode ? "visible" : "hidden",
+          paddingBottom: isTouchHandleMode ? 28 : 0,
           background: "transparent",
           contain: "layout style paint",
           willChange: "transform",
@@ -1719,6 +1827,15 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
             pointerEvents: "none",
           }}
         />
+        {isTouchHandleMode && (
+          <ForecastTooltipHandle
+            enabled={isTouchHandleMode}
+            leftPx={handleLeftPx}
+            onScrub={handleScrub}
+            onScrubEnd={() => setHoveredHour(null)}
+            stopPropagation
+          />
+        )}
       </div>
     </div>
   );

@@ -47,6 +47,7 @@ import {
   buildForecastPlotShadingBackgroundPercent,
 } from "@/components/graphs/forecastShadingBackground";
 import HoverOverlayLine from "@/components/graphs/HoverOverlayLine";
+import ForecastTooltipHandle from "./ForecastTooltipHandle";
 
 const HOURS_TO_MS = 60 * 60 * 1000;
 
@@ -60,6 +61,9 @@ const X_AXIS_SHADE_EXCLUDE_PX = 34;
 const HOVER_LINE_END_INSET_PX = 7.5;
 const TOUCH_INSPECT_LONG_PRESS_MS = 320;
 const TOUCH_INSPECT_MOVE_TOLERANCE_PX = 10;
+const TOUCH_HANDLE_MAX_WIDTH = 640;
+const TOUCH_HANDLE_RADIUS_PX = 18;
+const TOUCH_HANDLE_GUTTER_PX = 26;
 const Y_AXIS_TICK = {
   fill: "var(--foreground)",
   fontWeight: 500,
@@ -199,19 +203,37 @@ const TideChart: React.FC<TideChartProps> = ({
     useOptionalOverviewChartLoading("overview-tide");
   const [containerWidth, setContainerWidth] = useState<number>(0);
   const containerRef = React.useRef<HTMLDivElement>(null);
+  const rechartsMoveTargetRef = React.useRef<HTMLElement | null>(null);
   const [isTouchInspecting, setIsTouchInspecting] = useState(false);
   const [touchDefaultIndex, setTouchDefaultIndex] = useState<number | null>(
     null
   );
-  const touchInspectTimerRef = React.useRef<ReturnType<
-    typeof setTimeout
-  > | null>(null);
+  const [touchHandleHour, setTouchHandleHour] = useState<number | null>(null);
+  const touchInspectTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
   const touchInspectStartRef = React.useRef<{
     clientX: number;
     clientY: number;
     chartX: number;
   } | null>(null);
   const lastTouchHoveredHourRef = React.useRef<number | null>(null);
+
+  const isTouchHandleMode =
+    isTouchOnlyDevice &&
+    containerWidth > 0 &&
+    containerWidth <= TOUCH_HANDLE_MAX_WIDTH;
+  const handleGutterPx = isTouchHandleMode ? TOUCH_HANDLE_GUTTER_PX : 0;
+  const xAxisBottomInsetPx = X_AXIS_SHADE_EXCLUDE_PX + handleGutterPx;
+
+  useEffect(() => {
+    if (!isTouchHandleMode) {
+      setTouchHandleHour(null);
+      return;
+    }
+    if (hoveredHour == null) return;
+    setTouchHandleHour((prev) => (prev === hoveredHour ? prev : hoveredHour));
+  }, [hoveredHour, isTouchHandleMode]);
 
   // Consolidated state with reducer for fewer re-renders
   const [state, dispatch] = useReducer(chartReducer, initialChartState);
@@ -803,10 +825,7 @@ const TideChart: React.FC<TideChartProps> = ({
       const clampedPlotX = Math.max(0, Math.min(plotX, plotWidthPx));
       const hourAtX = (clampedPlotX / plotWidthPx) * hours;
       const clampedHourAtX = Math.max(0, Math.min(hours, hourAtX));
-      const targetHour = Math.max(
-        0,
-        Math.min(hours, Math.round(clampedHourAtX / 3) * 3)
-      );
+      const targetHour = Math.max(0, Math.min(hours, clampedHourAtX));
 
       // `renderData` is monotonic by hour; use binary search for nearest point.
       let lo = 0;
@@ -842,7 +861,11 @@ const TideChart: React.FC<TideChartProps> = ({
       const defaultIndex =
         Math.abs(h0 - targetHour) <= Math.abs(h1 - targetHour) ? idx0 : idx1;
 
-      return { defaultIndex, hoveredHour: targetHour };
+      const syncHour = Math.max(
+        0,
+        Math.min(hours, Math.round(targetHour / 3) * 3)
+      );
+      return { defaultIndex, hoveredHour: targetHour, syncHour };
     },
     [hours, plotWidthPx, renderData, yAxisInsetPx]
   );
@@ -944,8 +967,94 @@ const TideChart: React.FC<TideChartProps> = ({
     setHoveredHour(null);
   };
 
+  const handleScrub = React.useCallback(
+    (clientX: number, clientY: number) => {
+      const host = containerRef.current;
+      if (!host) return;
+      const bounds = host.getBoundingClientRect();
+      const chartX = clientX - bounds.left;
+      const activation = getTouchActivationFromChartX(chartX);
+      if (!activation) return;
+      setTouchDefaultIndex(activation.defaultIndex);
+      setTouchHandleHour(activation.hoveredHour);
+      setHoveredHour(activation.syncHour);
+      const target =
+        rechartsMoveTargetRef.current ??
+        containerRef.current?.querySelector(".recharts-wrapper");
+      if (target instanceof HTMLElement) {
+        rechartsMoveTargetRef.current = target;
+        target.dispatchEvent(
+          new MouseEvent("mousemove", {
+            bubbles: true,
+            cancelable: true,
+            clientX,
+            clientY,
+          })
+        );
+      }
+    },
+    [getTouchActivationFromChartX, setHoveredHour]
+  );
+
+  const handleLeftPx = useMemo(() => {
+    if (!isTouchHandleMode || !containerWidth || !plotWidthPx) return null;
+    const fallbackHour = chartData[0]?.hour ?? null;
+    const rawHour =
+      touchHandleHour ?? hoveredHour ?? selectedHour ?? fallbackHour;
+    if (rawHour == null || !Number.isFinite(rawHour)) return null;
+    const t = rawHour / hours;
+    const plotX = yAxisInsetPx + t * plotWidthPx;
+    const clamped = Math.max(
+      TOUCH_HANDLE_RADIUS_PX,
+      Math.min(containerWidth - TOUCH_HANDLE_RADIUS_PX, plotX)
+    );
+    return Number.isFinite(clamped) ? clamped : null;
+  }, [
+    chartData,
+    containerWidth,
+    hours,
+    hoveredHour,
+    isTouchHandleMode,
+    plotWidthPx,
+    selectedHour,
+    yAxisInsetPx,
+  ]);
+  const touchDefaultIndexFromHover = useMemo(() => {
+    if (hoveredHour == null || renderData.length === 0) return undefined;
+    const clamped = Math.max(0, Math.min(hours, hoveredHour));
+    let bestIdx = 0;
+    let bestDiff = Infinity;
+    for (let i = 0; i < renderData.length; i++) {
+      const pointHour = renderData[i]?.hour;
+      if (typeof pointHour !== "number") continue;
+      const diff = Math.abs(pointHour - clamped);
+      if (diff < bestDiff) {
+        bestDiff = diff;
+        bestIdx = i;
+      }
+    }
+    return bestIdx;
+  }, [hoveredHour, hours, renderData]);
+  const touchDefaultIndexFromHandle = useMemo(() => {
+    if (touchHandleHour == null || renderData.length === 0) return undefined;
+    const clamped = Math.max(0, Math.min(hours, touchHandleHour));
+    let bestIdx = 0;
+    let bestDiff = Infinity;
+    for (let i = 0; i < renderData.length; i++) {
+      const pointHour = renderData[i]?.hour;
+      if (typeof pointHour !== "number") continue;
+      const diff = Math.abs(pointHour - clamped);
+      if (diff < bestDiff) {
+        bestDiff = diff;
+        bestIdx = i;
+      }
+    }
+    return bestIdx;
+  }, [hours, renderData, touchHandleHour]);
+
   const onPointerDown = (ev: React.PointerEvent) => {
     if (!isTouchOnlyDevice || ev.pointerType === "mouse") return;
+    if (isTouchHandleMode) return;
 
     clearTouchInspectTimer();
     setIsTouchInspecting(false);
@@ -971,7 +1080,7 @@ const TideChart: React.FC<TideChartProps> = ({
       setTouchDefaultIndex(activation.defaultIndex);
       if (lastTouchHoveredHourRef.current !== activation.hoveredHour) {
         lastTouchHoveredHourRef.current = activation.hoveredHour;
-        setHoveredHour(activation.hoveredHour);
+        setHoveredHour(activation.syncHour);
       }
       setIsTouchInspecting(true);
     }, TOUCH_INSPECT_LONG_PRESS_MS);
@@ -979,6 +1088,7 @@ const TideChart: React.FC<TideChartProps> = ({
 
   const onPointerMove = (ev: React.PointerEvent) => {
     if (!isTouchOnlyDevice || ev.pointerType === "mouse") return;
+    if (isTouchHandleMode) return;
 
     const start = touchInspectStartRef.current;
     if (!start) return;
@@ -997,6 +1107,7 @@ const TideChart: React.FC<TideChartProps> = ({
 
   const onPointerUp = (ev: React.PointerEvent) => {
     if (!isTouchOnlyDevice || ev.pointerType === "mouse") return;
+    if (isTouchHandleMode) return;
 
     clearTouchInspectTimer();
     setIsTouchInspecting(false);
@@ -1019,7 +1130,27 @@ const TideChart: React.FC<TideChartProps> = ({
           ? "h-[300px]"
           : "h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px]"
       )}
-      style={isTouchInspecting ? { touchAction: "none" } : undefined}
+      style={
+        isTouchInspecting
+          ? {
+              touchAction: "none",
+              overflowX: "hidden",
+              overflowY: "hidden",
+              height: isTouchHandleMode
+                ? (preview ? 410 : 360) + TOUCH_HANDLE_GUTTER_PX
+                : undefined,
+              overscrollBehavior: "contain",
+            }
+          : {
+              touchAction: "pan-y",
+              overflowX: "hidden",
+              overflowY: "hidden",
+              height: isTouchHandleMode
+                ? (preview ? 410 : 360) + TOUCH_HANDLE_GUTTER_PX
+                : undefined,
+              overscrollBehavior: "contain",
+            }
+      }
     >
       {/* Shade only the plot area (not the X-axis label band), matching prior ReferenceArea behavior. */}
       <div
@@ -1029,7 +1160,7 @@ const TideChart: React.FC<TideChartProps> = ({
           left: 0,
           top: CHART_TOP_MARGIN,
           right: 0,
-          bottom: X_AXIS_SHADE_EXCLUDE_PX,
+          bottom: xAxisBottomInsetPx,
           backgroundImage: [
             `linear-gradient(to right, ${edgeFill.left}, ${edgeFill.left})`,
             plotShading,
@@ -1050,7 +1181,7 @@ const TideChart: React.FC<TideChartProps> = ({
           style={{
             position: "absolute",
             top: CHART_TOP_MARGIN,
-            bottom: X_AXIS_SHADE_EXCLUDE_PX,
+            bottom: xAxisBottomInsetPx,
             left: 0,
             right: 0,
             overflow: "hidden",
@@ -1077,7 +1208,7 @@ const TideChart: React.FC<TideChartProps> = ({
         style={{
           position: "absolute",
           top: CHART_TOP_MARGIN,
-          bottom: X_AXIS_SHADE_EXCLUDE_PX,
+          bottom: xAxisBottomInsetPx,
           left: yAxisInsetPx,
           width: 1,
           backgroundColor: "var(--border)",
@@ -1110,7 +1241,7 @@ const TideChart: React.FC<TideChartProps> = ({
               left: CHART_LEFT_MARGIN,
               right: 0,
               top: CHART_TOP_MARGIN,
-              bottom: 0,
+              bottom: handleGutterPx,
             }}
           >
             <XAxis
@@ -1140,7 +1271,14 @@ const TideChart: React.FC<TideChartProps> = ({
         </ChartContainer>
       </div>
 
-      <div style={{ position: "relative", zIndex: 1, height: "100%" }}>
+      <div
+        style={{
+          position: "relative",
+          zIndex: 1,
+          height: "100%",
+          pointerEvents: isTouchHandleMode ? "none" : "auto",
+        }}
+      >
         <ChartContainer
           config={chartConfig}
           className="aspect-auto h-full w-full"
@@ -1152,7 +1290,7 @@ const TideChart: React.FC<TideChartProps> = ({
               top: CHART_TOP_MARGIN,
               left: yAxisInsetPx,
               right: CHART_RIGHT_MARGIN,
-              bottom: 0,
+              bottom: handleGutterPx,
             }}
             syncId="allCharts"
             syncMethod="value"
@@ -1197,9 +1335,15 @@ const TideChart: React.FC<TideChartProps> = ({
               ticks={tideTicks}
             />
             {isTouchOnlyDevice ? (
-              isTouchInspecting ? (
+              hoveredHour != null ? (
                 <ChartTooltip
-                  defaultIndex={touchDefaultIndex ?? undefined}
+                  defaultIndex={
+                    isTouchInspecting
+                      ? touchDefaultIndex ?? undefined
+                      : touchHandleHour != null
+                      ? touchDefaultIndexFromHandle
+                      : touchDefaultIndexFromHover
+                  }
                   content={<ChartTooltipContent />}
                   cursor={false}
                   labelFormatter={(_, payload) => {
@@ -1326,6 +1470,7 @@ const TideChart: React.FC<TideChartProps> = ({
 
                   // Calculate boundaries - Y-axis width is approximately 40px from left margin
                   const LEFT_BOUNDARY = yAxisInsetPx + 6; // Just past the in-plot Y-axis wall
+                  const RIGHT_BOUNDARY = yAxisInsetPx + plotWidthPx - 6; // Inside plot right edge
                   const LABEL_HALF_WIDTH = 35; // Approximate half-width of label text
                   // Determine text anchor and adjusted x position based on boundaries
                   let textAnchor: "start" | "middle" | "end" = "middle";
@@ -1337,9 +1482,9 @@ const TideChart: React.FC<TideChartProps> = ({
                     adjustedX = Math.max(safeX, LEFT_BOUNDARY);
                   }
                   // Check if label would bleed off the right edge
-                  else if (point.hour >= hours - 0.5) {
+                  else if (safeX + LABEL_HALF_WIDTH > RIGHT_BOUNDARY) {
                     textAnchor = "end";
-                    adjustedX = Math.max(safeX - 6, yAxisInsetPx + 6);
+                    adjustedX = Math.min(safeX, RIGHT_BOUNDARY);
                   }
 
                   // Optimized: use pre-computed placement map
@@ -1394,6 +1539,20 @@ const TideChart: React.FC<TideChartProps> = ({
           </LineChart>
         </ChartContainer>
       </div>
+      {isTouchHandleMode && (
+        <ForecastTooltipHandle
+          enabled={isTouchHandleMode}
+          leftPx={handleLeftPx}
+          onScrub={handleScrub}
+          onScrubEnd={() => setHoveredHour(null)}
+          position="inside"
+          className="translate-y-4"
+          showTrack={false}
+          triangleBasePx={14}
+          triangleHeightPx={12}
+          stopPropagation
+        />
+      )}
     </div>
   );
 };
