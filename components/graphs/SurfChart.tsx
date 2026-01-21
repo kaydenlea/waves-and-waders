@@ -22,7 +22,7 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import { useForecastWindowData } from "@/lib/hooks/useForecastWindow";
-import { useDateContext } from "@/components/context/DateContext";
+import { useDateContext, useHoveredHour } from "@/components/context/DateContext";
 import { useSunData } from "@/components/context/SunDataContext";
 import { buildSunSegments } from "@/components/graphs/sunSegments";
 import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
@@ -31,6 +31,8 @@ import { useChartTheme } from "@/components/graphs/useChartTheme";
 import { buildForecastShadingBackground } from "@/components/graphs/forecastShadingBackground";
 import { useOptionalOverviewChartLoading } from "@/components/context/OverviewChartsLoadingContext";
 import type { SharedSunSegments } from "./sharedSunSegments";
+import { useIsTouchOnlyDevice } from "./useIsTouchOnlyDevice";
+import ForecastTooltipHandle from "./ForecastTooltipHandle";
 
 type Props = {
   beachId?: string;
@@ -68,6 +70,9 @@ const chartConfig = {
 
 const DATA_STEP_HOURS = 3;
 const HALF_STEP_HOURS = DATA_STEP_HOURS / 2;
+const TOUCH_HANDLE_MAX_WIDTH = 640;
+const TOUCH_HANDLE_RADIUS_PX = 18;
+const TOUCH_HANDLE_GUTTER_PX = 26;
 
 // Overview charts (single-day): keep the Y-axis inside the shaded plot container.
 const CHART_LEFT_MARGIN = 5;
@@ -132,7 +137,14 @@ export const SurfStatsHeader = ({
 };
 
 const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
-  const { hour: selectedHour, setHoveredHour } = useDateContext();
+  const {
+    hour: selectedHour,
+    setHoveredHour,
+    hoveredHourRef,
+    subscribeToHover,
+  } = useDateContext();
+  const hoveredHour = useHoveredHour();
+  const isTouchOnlyDevice = useIsTouchOnlyDevice();
   const { getSunData } = useSunData();
   const chartTheme = useChartTheme();
   const { setReady: setOverviewReady } =
@@ -143,6 +155,8 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   );
   const [containerWidth, setContainerWidth] = useState<number>(0);
   const containerRef = React.useRef<HTMLDivElement>(null);
+  const rechartsMoveTargetRef = React.useRef<HTMLElement | null>(null);
+  const [touchHandleHour, setTouchHandleHour] = useState<number | null>(null);
 
   const {
     rows: forecastRows,
@@ -424,6 +438,28 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     () => Math.max(0, containerWidth - yAxisInsetPx - CHART_RIGHT_MARGIN),
     [containerWidth, yAxisInsetPx]
   );
+  const isTouchHandleMode =
+    isTouchOnlyDevice &&
+    containerWidth > 0 &&
+    containerWidth <= TOUCH_HANDLE_MAX_WIDTH;
+  const handleGutterPx = isTouchHandleMode ? TOUCH_HANDLE_GUTTER_PX : 0;
+  const xAxisBottomInsetPx = X_AXIS_SHADE_EXCLUDE_PX + handleGutterPx;
+
+  useEffect(() => {
+    if (!isTouchHandleMode) {
+      setTouchHandleHour(null);
+      return;
+    }
+
+    const update = () => {
+      const next = hoveredHourRef.current;
+      if (next == null) return;
+      setTouchHandleHour((prev) => (prev === next ? prev : next));
+    };
+
+    update();
+    return subscribeToHover(update);
+  }, [hoveredHourRef, isTouchHandleMode, subscribeToHover]);
   const shadingBackground = useMemo(
     () =>
       buildForecastShadingBackground({
@@ -522,11 +558,103 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     }),
     [chartTheme.hoverOpacity]
   );
+  const touchDefaultIndexFromHover = useMemo(() => {
+    if (hoveredHour == null || chartData.length === 0) return undefined;
+    const quantized =
+      Math.round(hoveredHour / DATA_STEP_HOURS) * DATA_STEP_HOURS;
+    const clamped = Math.min(domainMax, Math.max(domainMin, quantized));
+    let bestIdx = 0;
+    let bestDiff = Infinity;
+    for (let i = 0; i < chartData.length; i++) {
+      const pointHour = chartData[i]?.hour;
+      if (typeof pointHour !== "number") continue;
+      const diff = Math.abs(pointHour - clamped);
+      if (diff < bestDiff) {
+        bestDiff = diff;
+        bestIdx = i;
+      }
+    }
+    return bestIdx;
+  }, [chartData, domainMax, domainMin, hoveredHour]);
+
+  const handleScrub = useCallback(
+    (clientX: number, clientY: number) => {
+      const host = containerRef.current;
+      if (!host) return;
+      const bounds = host.getBoundingClientRect();
+      const chartX = clientX - bounds.left;
+      if (!plotWidthPx) return;
+      const plotX = Math.max(
+        0,
+        Math.min(chartX - yAxisInsetPx, plotWidthPx)
+      );
+      const t = plotWidthPx > 0 ? plotX / plotWidthPx : 0;
+      const hour = domainMin + t * (domainMax - domainMin);
+      const quantized = Math.round(hour / DATA_STEP_HOURS) * DATA_STEP_HOURS;
+      const clamped = Math.min(domainEnd, Math.max(domainStart, quantized));
+      setTouchHandleHour(clamped);
+      setHoveredHour(clamped);
+      const target =
+        rechartsMoveTargetRef.current ??
+        containerRef.current?.querySelector(".recharts-wrapper");
+      if (target instanceof HTMLElement) {
+        rechartsMoveTargetRef.current = target;
+        target.dispatchEvent(
+          new MouseEvent("mousemove", {
+            bubbles: true,
+            cancelable: true,
+            clientX,
+            clientY,
+          })
+        );
+      }
+    },
+    [
+      domainEnd,
+      domainMax,
+      domainMin,
+      domainStart,
+      plotWidthPx,
+      setHoveredHour,
+      yAxisInsetPx,
+    ]
+  );
+
+  const handleLeftPx = useMemo(() => {
+    if (!isTouchHandleMode || !containerWidth || !plotWidthPx) return null;
+    const fallbackHour = chartData[0]?.hour ?? null;
+    const rawHour = touchHandleHour ?? selectedHour ?? fallbackHour;
+    if (rawHour == null || !Number.isFinite(rawHour)) return null;
+    const t = (rawHour - domainMin) / (domainMax - domainMin);
+    const plotX = yAxisInsetPx + t * plotWidthPx;
+    const clamped = Math.max(
+      TOUCH_HANDLE_RADIUS_PX,
+      Math.min(containerWidth - TOUCH_HANDLE_RADIUS_PX, plotX)
+    );
+    return Number.isFinite(clamped) ? clamped : null;
+  }, [
+    chartData,
+    containerWidth,
+    domainMax,
+    domainMin,
+    isTouchHandleMode,
+    plotWidthPx,
+    selectedHour,
+    touchHandleHour,
+    yAxisInsetPx,
+  ]);
 
   return (
     <div
       ref={containerRef}
       className="chart-touch-no-select relative aspect-auto h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px] w-full !justify-start"
+      style={{
+        overflowX: "hidden",
+        overflowY: "hidden",
+        height: isTouchHandleMode ? 360 + TOUCH_HANDLE_GUTTER_PX : undefined,
+        touchAction: "pan-y",
+        overscrollBehavior: "contain",
+      }}
     >
       {/* Shade only the plot area (not the X-axis label band), matching prior ReferenceArea behavior. */}
       <div
@@ -536,7 +664,7 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           left: 0,
           top: CHART_TOP_MARGIN,
           right: 0,
-          bottom: X_AXIS_SHADE_EXCLUDE_PX,
+          bottom: xAxisBottomInsetPx,
           backgroundImage: shadingBackground,
           backgroundRepeat: "no-repeat",
           borderRadius: 8,
@@ -549,7 +677,7 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         style={{
           position: "absolute",
           top: CHART_TOP_MARGIN,
-          bottom: X_AXIS_SHADE_EXCLUDE_PX,
+          bottom: xAxisBottomInsetPx,
           left: yAxisInsetPx,
           width: 1,
           backgroundColor: "var(--border)",
@@ -575,16 +703,16 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           config={chartConfig}
           className="aspect-auto h-full w-full !justify-start"
         >
-          <BarChart
-            accessibilityLayer={false}
-            data={[{ x: 0 }]}
-            margin={{
-              left: CHART_LEFT_MARGIN,
-              right: 0,
-              top: CHART_TOP_MARGIN,
-              bottom: 0,
-            }}
-          >
+            <BarChart
+              accessibilityLayer={false}
+              data={[{ x: 0 }]}
+              margin={{
+                left: CHART_LEFT_MARGIN,
+                right: 0,
+                top: CHART_TOP_MARGIN,
+                bottom: handleGutterPx,
+              }}
+            >
             <XAxis
               dataKey="x"
               type="number"
@@ -609,18 +737,25 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         </ChartContainer>
       </div>
 
-      <div style={{ position: "relative", zIndex: 1, height: "100%" }}>
+      <div
+        style={{
+          position: "relative",
+          zIndex: 1,
+          height: "100%",
+          pointerEvents: isTouchHandleMode ? "none" : "auto",
+        }}
+      >
         <ChartContainer
           config={chartConfig}
           className="aspect-auto h-full w-full !justify-start"
         >
-          <BarChart
-            margin={{
-              top: CHART_TOP_MARGIN,
-              right: CHART_RIGHT_MARGIN,
-              left: yAxisInsetPx,
-              bottom: 0,
-            }}
+            <BarChart
+              margin={{
+                top: CHART_TOP_MARGIN,
+                right: CHART_RIGHT_MARGIN,
+                left: yAxisInsetPx,
+                bottom: handleGutterPx,
+              }}
             accessibilityLayer
             data={chartData}
             barCategoryGap="15%"
@@ -666,11 +801,22 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
               domain={[surfTicks[0] ?? 0, surfTicks[surfTicks.length - 1] ?? 6]}
               ticks={surfTicks}
             />
-            <ChartTooltip
-              content={<ChartTooltipContent />}
-              cursor={tooltipCursor}
-              animationDuration={0}
-            />
+            {isTouchOnlyDevice ? (
+              hoveredHour != null ? (
+                <ChartTooltip
+                  defaultIndex={touchDefaultIndexFromHover}
+                  content={<ChartTooltipContent />}
+                  cursor={tooltipCursor}
+                  animationDuration={0}
+                />
+              ) : null
+            ) : (
+              <ChartTooltip
+                content={<ChartTooltipContent />}
+                cursor={tooltipCursor}
+                animationDuration={0}
+              />
+            )}
             {/* Hour indicator line */}
             {centeredSelectedHour !== null && (
               <ReferenceLine
@@ -748,6 +894,20 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           </BarChart>
         </ChartContainer>
       </div>
+      {isTouchHandleMode && (
+        <ForecastTooltipHandle
+          enabled={isTouchHandleMode}
+          leftPx={handleLeftPx}
+          onScrub={handleScrub}
+          onScrubEnd={() => setHoveredHour(null)}
+          position="inside"
+          className="translate-y-4"
+          showTrack={false}
+          triangleBasePx={14}
+          triangleHeightPx={12}
+          stopPropagation
+        />
+      )}
     </div>
   );
 };

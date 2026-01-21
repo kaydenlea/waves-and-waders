@@ -41,6 +41,7 @@ import {
   buildForecastPlotShadingBackgroundPercent,
 } from "@/components/graphs/forecastShadingBackground";
 import HoverOverlayLine from "@/components/graphs/HoverOverlayLine";
+import ForecastTooltipHandle from "./ForecastTooltipHandle";
 
 const EnergyTooltipIcon = () => <Atom className="h-3 w-3" />;
 
@@ -92,6 +93,9 @@ const X_AXIS_SHADE_EXCLUDE_PX = 34;
 const HOVER_LINE_END_INSET_PX = 7.5;
 const TOUCH_INSPECT_LONG_PRESS_MS = 320;
 const TOUCH_INSPECT_MOVE_TOLERANCE_PX = 10;
+const TOUCH_HANDLE_MAX_WIDTH = 640;
+const TOUCH_HANDLE_RADIUS_PX = 18;
+const TOUCH_HANDLE_GUTTER_PX = 26;
 const Y_AXIS_TICK = {
   fill: "var(--foreground)",
   fontWeight: 500,
@@ -157,19 +161,37 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   );
   const [containerWidth, setContainerWidth] = useState<number>(0);
   const containerRef = React.useRef<HTMLDivElement>(null);
+  const rechartsMoveTargetRef = React.useRef<HTMLElement | null>(null);
   const [isTouchInspecting, setIsTouchInspecting] = useState(false);
   const [touchDefaultIndex, setTouchDefaultIndex] = useState<number | null>(
     null
   );
-  const touchInspectTimerRef = React.useRef<ReturnType<
-    typeof setTimeout
-  > | null>(null);
+  const [touchHandleHour, setTouchHandleHour] = useState<number | null>(null);
+  const touchInspectTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
   const touchInspectStartRef = React.useRef<{
     clientX: number;
     clientY: number;
     chartX: number;
   } | null>(null);
   const lastTouchHoveredHourRef = React.useRef<number | null>(null);
+
+  const isTouchHandleMode =
+    isTouchOnlyDevice &&
+    containerWidth > 0 &&
+    containerWidth <= TOUCH_HANDLE_MAX_WIDTH;
+  const handleGutterPx = isTouchHandleMode ? TOUCH_HANDLE_GUTTER_PX : 0;
+  const xAxisBottomInsetPx = X_AXIS_SHADE_EXCLUDE_PX + handleGutterPx;
+
+  useEffect(() => {
+    if (!isTouchHandleMode) {
+      setTouchHandleHour(null);
+      return;
+    }
+    if (hoveredHour == null) return;
+    setTouchHandleHour((prev) => (prev === hoveredHour ? prev : hoveredHour));
+  }, [hoveredHour, isTouchHandleMode]);
   const {
     rows: forecastRows,
     start: windowStart,
@@ -599,8 +621,78 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     setHoveredHour(null);
   };
 
+  const handleScrub = useCallback(
+    (clientX: number, clientY: number) => {
+      const host = containerRef.current;
+      if (!host) return;
+      const bounds = host.getBoundingClientRect();
+      const chartX = clientX - bounds.left;
+      const activation = getTouchActivationFromChartX(chartX);
+      if (!activation) return;
+      setTouchDefaultIndex(activation.defaultIndex);
+      setTouchHandleHour(activation.hoveredHour);
+      setHoveredHour(activation.hoveredHour);
+      const target =
+        rechartsMoveTargetRef.current ??
+        containerRef.current?.querySelector(".recharts-wrapper");
+      if (target instanceof HTMLElement) {
+        rechartsMoveTargetRef.current = target;
+        target.dispatchEvent(
+          new MouseEvent("mousemove", {
+            bubbles: true,
+            cancelable: true,
+            clientX,
+            clientY,
+          })
+        );
+      }
+    },
+    [getTouchActivationFromChartX, setHoveredHour]
+  );
+
+  const handleLeftPx = useMemo(() => {
+    if (!isTouchHandleMode || !containerWidth || !plotWidthPx) return null;
+    const fallbackHour = series[0]?.hour ?? null;
+    const rawHour =
+      touchHandleHour ?? hoveredHour ?? selectedHour ?? fallbackHour;
+    if (rawHour == null || !Number.isFinite(rawHour)) return null;
+    const t = rawHour / hours;
+    const plotX = yAxisInsetPx + t * plotWidthPx;
+    const clamped = Math.max(
+      TOUCH_HANDLE_RADIUS_PX,
+      Math.min(containerWidth - TOUCH_HANDLE_RADIUS_PX, plotX)
+    );
+    return Number.isFinite(clamped) ? clamped : null;
+  }, [
+    containerWidth,
+    hoveredHour,
+    hours,
+    isTouchHandleMode,
+    plotWidthPx,
+    selectedHour,
+    series,
+    yAxisInsetPx,
+  ]);
+  const touchDefaultIndexFromHover = useMemo(() => {
+    if (hoveredHour == null || series.length === 0) return undefined;
+    const clamped = Math.max(0, Math.min(hours, hoveredHour));
+    let bestIdx = 0;
+    let bestDiff = Infinity;
+    for (let i = 0; i < series.length; i++) {
+      const pointHour = series[i]?.hour;
+      if (typeof pointHour !== "number") continue;
+      const diff = Math.abs(pointHour - clamped);
+      if (diff < bestDiff) {
+        bestDiff = diff;
+        bestIdx = i;
+      }
+    }
+    return bestIdx;
+  }, [hoveredHour, hours, series]);
+
   const onPointerDown = (ev: React.PointerEvent) => {
     if (!isTouchOnlyDevice || ev.pointerType === "mouse") return;
+    if (isTouchHandleMode) return;
 
     clearTouchInspectTimer();
     setIsTouchInspecting(false);
@@ -634,6 +726,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
 
   const onPointerMove = (ev: React.PointerEvent) => {
     if (!isTouchOnlyDevice || ev.pointerType === "mouse") return;
+    if (isTouchHandleMode) return;
 
     const start = touchInspectStartRef.current;
     if (!start) return;
@@ -652,6 +745,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
 
   const onPointerUp = (ev: React.PointerEvent) => {
     if (!isTouchOnlyDevice || ev.pointerType === "mouse") return;
+    if (isTouchHandleMode) return;
 
     clearTouchInspectTimer();
     setIsTouchInspecting(false);
@@ -669,7 +763,23 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
       className="chart-touch-no-select relative aspect-auto h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px] w-full [&_.recharts-legend-wrapper]:hidden"
-      style={isTouchInspecting ? { touchAction: "none" } : undefined}
+      style={
+        isTouchInspecting
+          ? {
+              touchAction: "none",
+              overflowX: "hidden",
+              overflowY: "hidden",
+              height: isTouchHandleMode ? 360 + TOUCH_HANDLE_GUTTER_PX : undefined,
+              overscrollBehavior: "contain",
+            }
+          : {
+              touchAction: "pan-y",
+              overflowX: "hidden",
+              overflowY: "hidden",
+              height: isTouchHandleMode ? 360 + TOUCH_HANDLE_GUTTER_PX : undefined,
+              overscrollBehavior: "contain",
+            }
+      }
     >
       {/* Shade only the plot area (not the X-axis label band), matching prior ReferenceArea behavior. */}
       <div
@@ -679,7 +789,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           left: 0,
           top: CHART_TOP_MARGIN,
           right: 0,
-          bottom: X_AXIS_SHADE_EXCLUDE_PX,
+          bottom: xAxisBottomInsetPx,
           backgroundImage: [
             `linear-gradient(to right, ${edgeFill.left}, ${edgeFill.left})`,
             plotShading,
@@ -700,7 +810,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           style={{
             position: "absolute",
             top: CHART_TOP_MARGIN,
-            bottom: X_AXIS_SHADE_EXCLUDE_PX,
+            bottom: xAxisBottomInsetPx,
             left: 0,
             right: 0,
             overflow: "hidden",
@@ -727,7 +837,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         style={{
           position: "absolute",
           top: CHART_TOP_MARGIN,
-          bottom: X_AXIS_SHADE_EXCLUDE_PX,
+          bottom: xAxisBottomInsetPx,
           left: yAxisInsetPx,
           width: 1,
           backgroundColor: "var(--border)",
@@ -760,7 +870,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
               left: CHART_LEFT_MARGIN,
               right: 0,
               top: CHART_TOP_MARGIN,
-              bottom: 0,
+              bottom: handleGutterPx,
             }}
           >
             <XAxis
@@ -790,7 +900,14 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         </ChartContainer>
       </div>
 
-      <div style={{ position: "relative", zIndex: 1, height: "100%" }}>
+      <div
+        style={{
+          position: "relative",
+          zIndex: 1,
+          height: "100%",
+          pointerEvents: isTouchHandleMode ? "none" : "auto",
+        }}
+      >
         <ChartContainer
           config={chartConfig}
           className="aspect-auto h-full w-full"
@@ -802,7 +919,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
               top: CHART_TOP_MARGIN,
               right: 0,
               left: yAxisInsetPx,
-              bottom: 0,
+              bottom: handleGutterPx,
             }}
             syncId="allCharts"
             syncMethod={syncToNearestThirdHour}
@@ -876,9 +993,13 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
               ticks={energyTicks}
             />
             {isTouchOnlyDevice ? (
-              isTouchInspecting ? (
+              hoveredHour != null ? (
                 <ChartTooltip
-                  defaultIndex={touchDefaultIndex ?? undefined}
+                  defaultIndex={
+                    isTouchInspecting
+                      ? touchDefaultIndex ?? undefined
+                      : touchDefaultIndexFromHover
+                  }
                   content={<ChartTooltipContent />}
                   cursor={false}
                   animationDuration={0}
@@ -943,6 +1064,20 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           </AreaChart>
         </ChartContainer>
       </div>
+      {isTouchHandleMode && (
+        <ForecastTooltipHandle
+          enabled={isTouchHandleMode}
+          leftPx={handleLeftPx}
+          onScrub={handleScrub}
+          onScrubEnd={() => setHoveredHour(null)}
+          position="inside"
+          className="translate-y-4"
+          showTrack={false}
+          triangleBasePx={14}
+          triangleHeightPx={12}
+          stopPropagation
+        />
+      )}
     </div>
   );
 };
