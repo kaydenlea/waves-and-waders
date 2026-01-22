@@ -1131,6 +1131,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
     }),
     [chartTheme.hoverOpacity]
   );
+  const hasTooltipData = surfData.length > 0;
   const tooltipViewport = useMemo(
     () => ({
       x: clampTranslatePx(dayOffset * dayPx),
@@ -1562,7 +1563,8 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                       }}
                     />
                     {isTouchOnlyDevice ? (
-                      isTouchInspecting || isTouchTooltipSyncActive ? (
+                      (isTouchInspecting || isTouchTooltipSyncActive) &&
+                      hasTooltipData ? (
                         <ChartTooltip
                           defaultIndex={
                             isTouchInspecting
@@ -1592,7 +1594,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                           isAnimationActive={false}
                         />
                       ) : null
-                    ) : (
+                    ) : hasTooltipData ? (
                       <ChartTooltip
                         content={
                           <ChartTooltipViewportContent
@@ -1605,7 +1607,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                         animationDuration={0}
                         isAnimationActive={false}
                       />
-                    )}
+                    ) : null}
                     {/* Selected hour marker */}
                     {(() => {
                       try {

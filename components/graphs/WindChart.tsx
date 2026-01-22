@@ -637,6 +637,7 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     }),
     [chartTheme.hoverOpacity]
   );
+  const hasTooltipData = chartData.length > 0 && containerWidth > 0;
 
   return (
     <div
@@ -803,7 +804,7 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
               ticks={windTicks}
             />
             {isTouchOnlyDevice ? (
-              hoveredHour != null ? (
+              hoveredHour != null && hasTooltipData ? (
                 <ChartTooltip
                   defaultIndex={touchDefaultIndexFromHover}
                   content={
@@ -817,7 +818,7 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
                   isAnimationActive={false}
                 />
               ) : null
-            ) : (
+            ) : hasTooltipData ? (
               <ChartTooltip
                 content={
                   <ChartTooltipContent
@@ -829,7 +830,7 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
                 animationDuration={0}
                 isAnimationActive={false}
               />
-            )}
+            ) : null}
             {/* <ChartTooltip
               content={
                 <ChartTooltipContent

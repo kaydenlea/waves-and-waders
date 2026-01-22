@@ -1372,6 +1372,7 @@ export default React.memo(function ForecastTideChart({
     }),
     [clampTranslatePx, dayOffset, dayPx, viewportWidth]
   );
+  const hasTooltipData = data.length > 0;
 
   const handleScrub = useCallback(
     (clientX: number, clientY: number) => {
@@ -1844,9 +1845,10 @@ export default React.memo(function ForecastTideChart({
                           return null;
                         }
                       })()}
-                      {isTouchOnlyDevice ? (
-                        isTouchInspecting || isTouchTooltipSyncActive ? (
-                          <ChartTooltip
+                    {isTouchOnlyDevice ? (
+                      (isTouchInspecting || isTouchTooltipSyncActive) &&
+                      hasTooltipData ? (
+                        <ChartTooltip
                             defaultIndex={
                               isTouchInspecting
                                 ? touchDefaultIndex ?? undefined
@@ -1891,9 +1893,9 @@ export default React.memo(function ForecastTideChart({
                             animationDuration={0}
                             isAnimationActive={false}
                           />
-                        ) : null
-                      ) : (
-                        <ChartTooltip
+                      ) : null
+                    ) : hasTooltipData ? (
+                      <ChartTooltip
                           content={
                             <ChartTooltipViewportContent
                               viewport={tooltipViewport}
@@ -1904,8 +1906,8 @@ export default React.memo(function ForecastTideChart({
                           wrapperStyle={{ transform: "translate(0px, 0px)" }}
                           animationDuration={0}
                           isAnimationActive={false}
-                        />
-                      )}
+                      />
+                    ) : null}
 
                       <Line
                         dataKey="tide"

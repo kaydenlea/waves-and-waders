@@ -1168,6 +1168,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
     }),
     [clampTranslatePx, dayOffset, dayPx, viewportWidth]
   );
+  const hasTooltipData = energyData.length > 0;
 
   const handleScrub = useCallback(
     (clientX: number, clientY: number) => {
@@ -1759,7 +1760,8 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
                       ticks={energyTicks}
                     />
                     {isTouchOnlyDevice ? (
-                      isTouchInspecting || isTouchTooltipSyncActive ? (
+                      (isTouchInspecting || isTouchTooltipSyncActive) &&
+                      hasTooltipData ? (
                         <ChartTooltip
                           defaultIndex={
                             isTouchInspecting
@@ -1789,7 +1791,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
                           isAnimationActive={false}
                         />
                       ) : null
-                    ) : (
+                    ) : hasTooltipData ? (
                       <ChartTooltip
                         content={
                           <ChartTooltipViewportContent
@@ -1802,7 +1804,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
                         animationDuration={0}
                         isAnimationActive={false}
                       />
-                    )}
+                    ) : null}
                   </AreaChart>
                 </ChartContainer>
               </div>

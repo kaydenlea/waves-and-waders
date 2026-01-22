@@ -1209,6 +1209,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
     }),
     [clampTranslatePx, dayOffset, dayPx, viewportWidth]
   );
+  const hasTooltipData = swellData.length > 0;
 
   const handleScrub = useCallback(
     (clientX: number, clientY: number) => {
@@ -1741,7 +1742,8 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                     />
                     {/* <ChartLegend content={<ChartLegendContent />} /> */}
                     {isTouchOnlyDevice ? (
-                      isTouchInspecting || isTouchTooltipSyncActive ? (
+                      (isTouchInspecting || isTouchTooltipSyncActive) &&
+                      hasTooltipData ? (
                         <ChartTooltip
                           defaultIndex={
                             isTouchInspecting
@@ -1772,7 +1774,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                           isAnimationActive={false}
                         />
                       ) : null
-                    ) : (
+                    ) : hasTooltipData ? (
                       <ChartTooltip
                         content={
                           <ChartTooltipViewportContent
@@ -1786,7 +1788,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                         animationDuration={0}
                         isAnimationActive={false}
                       />
-                    )}
+                    ) : null}
 
                     <Area
                       type="monotone"

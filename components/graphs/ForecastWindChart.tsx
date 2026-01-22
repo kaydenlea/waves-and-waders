@@ -1229,6 +1229,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
     }),
     [clampTranslatePx, dayOffset, dayPx, viewportWidth]
   );
+  const hasTooltipData = windData.length > 0;
 
   const handleScrub = useCallback(
     (clientX: number, clientY: number) => {
@@ -1598,7 +1599,8 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
                       }}
                     />
                     {isTouchOnlyDevice ? (
-                      isTouchInspecting || isTouchTooltipSyncActive ? (
+                      (isTouchInspecting || isTouchTooltipSyncActive) &&
+                      hasTooltipData ? (
                         <ChartTooltip
                           defaultIndex={
                             isTouchInspecting
@@ -1629,7 +1631,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
                           isAnimationActive={false}
                         />
                       ) : null
-                    ) : (
+                    ) : hasTooltipData ? (
                       <ChartTooltip
                         content={
                           <ChartTooltipViewportContent
@@ -1643,19 +1645,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
                         animationDuration={0}
                         isAnimationActive={false}
                       />
-                      // <ChartTooltip
-                      //   content={
-                      //     <ChartTooltipContent
-                      //       className="min-w-[14rem]"
-                      //       labelFormatter={formatHourLabel}
-                      //       formatter={formatWindTooltipValue}
-                      //     />
-                      //   }
-                      //   cursor={tooltipCursor}
-                      //   animationDuration={0}
-                      //   isAnimationActive={false}
-                      // />
-                    )}
+                    ) : null}
                     {/* Selected hour marker */}
                     {(() => {
                       try {
@@ -1827,7 +1817,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
             pointerEvents: "none",
           }}
         />
-        {isTouchHandleMode && (
+        {isTouchHandleMode ? (
           <ForecastTooltipHandle
             enabled={isTouchHandleMode}
             leftPx={handleLeftPx}
@@ -1835,7 +1825,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
             onScrubEnd={() => setHoveredHour(null)}
             stopPropagation
           />
-        )}
+        ) : null}
       </div>
     </div>
   );

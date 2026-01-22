@@ -606,6 +606,7 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     chartTheme.nightShading,
     chartTheme.shadingOpacity,
   ]);
+  const hasTooltipData = data.length > 0 && containerWidth > 0;
 
   const lastHoveredRef = React.useRef<number | null>(null);
   const hoverRafRef = React.useRef<number | null>(null);
@@ -1062,7 +1063,7 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
             />
             {/* <ChartLegend content={<ChartLegendContent />} /> */}
             {isTouchOnlyDevice ? (
-              hoveredHour != null ? (
+              hoveredHour != null && hasTooltipData ? (
                 <ChartTooltip
                   defaultIndex={
                     isTouchInspecting
@@ -1080,7 +1081,7 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
                   isAnimationActive={false}
                 />
               ) : null
-            ) : (
+            ) : hasTooltipData ? (
               <ChartTooltip
                 content={
                   <ChartTooltipContent
@@ -1092,7 +1093,7 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
                 animationDuration={0}
                 isAnimationActive={false}
               />
-            )}
+            ) : null}
 
             <Area
               type="monotone"

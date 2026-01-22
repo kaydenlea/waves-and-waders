@@ -558,6 +558,7 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     }),
     [chartTheme.hoverOpacity]
   );
+  const hasTooltipData = chartData.length > 0 && containerWidth > 0;
   const touchDefaultIndexFromHover = useMemo(() => {
     if (hoveredHour == null || chartData.length === 0) return undefined;
     const quantized =
@@ -802,7 +803,7 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
               ticks={surfTicks}
             />
             {isTouchOnlyDevice ? (
-              hoveredHour != null ? (
+              hoveredHour != null && hasTooltipData ? (
                 <ChartTooltip
                   defaultIndex={touchDefaultIndexFromHover}
                   content={<ChartTooltipContent />}
@@ -810,13 +811,13 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
                   animationDuration={0}
                 />
               ) : null
-            ) : (
+            ) : hasTooltipData ? (
               <ChartTooltip
                 content={<ChartTooltipContent />}
                 cursor={tooltipCursor}
                 animationDuration={0}
               />
-            )}
+            ) : null}
             {/* Hour indicator line */}
             {centeredSelectedHour !== null && (
               <ReferenceLine

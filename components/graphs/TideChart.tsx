@@ -911,6 +911,7 @@ const TideChart: React.FC<TideChartProps> = ({
     chartTheme.nightShading,
     chartTheme.shadingOpacity,
   ]);
+  const hasTooltipData = renderData.length > 0 && containerWidth > 0;
 
   // Calculate high and low tide values from peaks
   const { highTide, lowTide } = useMemo(() => {
@@ -1335,7 +1336,7 @@ const TideChart: React.FC<TideChartProps> = ({
               ticks={tideTicks}
             />
             {isTouchOnlyDevice ? (
-              hoveredHour != null ? (
+              hoveredHour != null && hasTooltipData ? (
                 <ChartTooltip
                   defaultIndex={
                     isTouchInspecting
@@ -1356,7 +1357,7 @@ const TideChart: React.FC<TideChartProps> = ({
                   isAnimationActive={false}
                 />
               ) : null
-            ) : (
+            ) : hasTooltipData ? (
               <ChartTooltip
                 content={<ChartTooltipContent />}
                 cursor={false}
@@ -1369,7 +1370,7 @@ const TideChart: React.FC<TideChartProps> = ({
                 animationDuration={0}
                 isAnimationActive={false}
               />
-            )}
+            ) : null}
             <Line
               dataKey="tide"
               type="natural"

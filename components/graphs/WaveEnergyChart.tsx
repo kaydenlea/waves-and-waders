@@ -560,6 +560,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     chartTheme.nightShading,
     chartTheme.shadingOpacity,
   ]);
+  const hasTooltipData = series.length > 0 && containerWidth > 0;
 
   const fillStops = useMemo(
     () =>
@@ -993,7 +994,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
               ticks={energyTicks}
             />
             {isTouchOnlyDevice ? (
-              hoveredHour != null ? (
+              hoveredHour != null && hasTooltipData ? (
                 <ChartTooltip
                   defaultIndex={
                     isTouchInspecting
@@ -1006,14 +1007,14 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
                   isAnimationActive={false}
                 />
               ) : null
-            ) : (
+            ) : hasTooltipData ? (
               <ChartTooltip
                 content={<ChartTooltipContent />}
                 cursor={false}
                 animationDuration={0}
                 isAnimationActive={false}
               />
-            )}
+            ) : null}
             <defs>
               <linearGradient id={fillGradientId} x1="0" y1="0" x2="1" y2="0">
                 {/* <stop offset={off} stopColor="green" stopOpacity={1} />
