@@ -38,6 +38,11 @@ import { cn, getPacificMidnightUTC } from "@/lib/utils";
 import { useChartTheme } from "@/components/graphs/useChartTheme";
 import { useIsTouchOnlyDevice } from "./useIsTouchOnlyDevice";
 import {
+  useMobileChartTouch,
+  MobileChartTooltip,
+  type MobileTooltipDataPoint,
+} from "./MobileChartTooltip";
+import {
   buildLinearYAxisTicks,
   buildYAxisTicks,
 } from "@/components/graphs/yAxisTicks";
@@ -199,6 +204,7 @@ const TideChart: React.FC<TideChartProps> = ({
     useOptionalOverviewChartLoading("overview-tide");
   const [containerWidth, setContainerWidth] = useState<number>(0);
   const containerRef = React.useRef<HTMLDivElement>(null);
+  const mobileChartId = "overview-tide";
   const [isTouchInspecting, setIsTouchInspecting] = useState(false);
   const [touchDefaultIndex, setTouchDefaultIndex] = useState<number | null>(
     null
@@ -1006,20 +1012,151 @@ const TideChart: React.FC<TideChartProps> = ({
     setHoveredHour(null);
   };
 
+  // Mobile touch tooltip callbacks
+  const getIndexFromChartX = React.useCallback(
+    (chartX: number): number => {
+      if (!plotWidthPx || renderData.length === 0) return 0;
+      const plotX = Math.max(0, Math.min(chartX - yAxisInsetPx, plotWidthPx));
+      const t = plotWidthPx > 0 ? plotX / plotWidthPx : 0;
+      const targetHour = t * hours;
+
+      // Binary search for closest point
+      let lo = 0;
+      let hi = renderData.length - 1;
+      while (lo < hi) {
+        const mid = Math.floor((lo + hi) / 2);
+        const midHour = renderData[mid]?.hour;
+        if (typeof midHour !== "number") break;
+        if (midHour < targetHour) lo = mid + 1;
+        else hi = mid;
+      }
+      
+      // Check if previous point is actually closer
+      let closestIndex = lo;
+      if (closestIndex > 0) {
+        const currHour = renderData[closestIndex]?.hour;
+        const prevHour = renderData[closestIndex - 1]?.hour;
+        if (typeof currHour === "number" && typeof prevHour === "number") {
+          if (Math.abs(prevHour - targetHour) <= Math.abs(currHour - targetHour)) {
+            closestIndex = closestIndex - 1;
+          }
+        }
+      }
+      return Math.max(0, Math.min(closestIndex, renderData.length - 1));
+    },
+    [plotWidthPx, yAxisInsetPx, hours, renderData]
+  );
+
+  // Return actual hour from data index (syncing to 3-hour is handled by MobileChartTooltip)
+  const getHourFromIndex = React.useCallback(
+    (index: number): number => {
+      if (index < 0 || index >= renderData.length) return 0;
+      return renderData[index]?.hour ?? 0;
+    },
+    [renderData]
+  );
+
+  const getMobileTooltipDataPoint = React.useCallback(
+    (index: number): MobileTooltipDataPoint | null => {
+      if (index < 0 || index >= renderData.length) return null;
+      const point = renderData[index];
+      const hour = point.hour;
+      const normalized = ((hour % 24) + 24) % 24;
+      const wholeHour = Math.floor(normalized);
+      const minutes = Math.round((normalized - wholeHour) * 60);
+      const displayHour = wholeHour % 12 === 0 ? 12 : wholeHour % 12;
+      const ampm = wholeHour >= 12 ? "PM" : "AM";
+      const label = minutes > 0
+        ? `${displayHour}:${minutes.toString().padStart(2, "0")} ${ampm}`
+        : `${displayHour} ${ampm}`;
+
+      return {
+        hour: point.hour,
+        label,
+        value: Number(point.tide.toFixed(1)),
+        unit: "ft",
+      };
+    },
+    [renderData]
+  );
+
+  const getDataPointForHour = React.useCallback(
+    (hour: number): MobileTooltipDataPoint | null => {
+      // Find closest point to the given hour
+      let bestIndex = 0;
+      let bestDiff = Math.abs(renderData[0]?.hour - hour);
+      for (let i = 1; i < renderData.length; i++) {
+        const diff = Math.abs(renderData[i].hour - hour);
+        if (diff < bestDiff) {
+          bestDiff = diff;
+          bestIndex = i;
+        }
+      }
+      if (bestIndex < 0 || bestIndex >= renderData.length) return null;
+      const point = renderData[bestIndex];
+      const normalized = ((point.hour % 24) + 24) % 24;
+      const wholeHour = Math.floor(normalized);
+      const minutes = Math.round((normalized - wholeHour) * 60);
+      const displayHour = wholeHour % 12 === 0 ? 12 : wholeHour % 12;
+      const ampm = wholeHour >= 12 ? "PM" : "AM";
+      const label = minutes > 0
+        ? `${displayHour}:${minutes.toString().padStart(2, "0")} ${ampm}`
+        : `${displayHour} ${ampm}`;
+
+      return {
+        hour: point.hour,
+        label,
+        value: Number(point.tide.toFixed(1)),
+        unit: "ft",
+      };
+    },
+    [renderData]
+  );
+
+  const getXPositionForHour = React.useCallback(
+    (hour: number): number | null => {
+      if (!plotWidthPx || plotWidthPx <= 0) return null;
+      if (hours <= 0) return null;
+      const t = hour / hours;
+      if (t < 0 || t > 1) return null;
+      return yAxisInsetPx + t * plotWidthPx;
+    },
+    [plotWidthPx, yAxisInsetPx, hours]
+  );
+
+  const handleMobileInspect = React.useCallback(
+    (_index: number, hour: number) => {
+      setHoveredHour(hour);
+    },
+    [setHoveredHour]
+  );
+
+  const handleMobileInspectEnd = React.useCallback(() => {
+    setHoveredHour(null);
+  }, [setHoveredHour]);
+
+  const { handlers: mobileHandlers, styles: mobileStyles } = useMobileChartTouch({
+    chartId: mobileChartId,
+    containerRef,
+    dataLength: renderData.length,
+    getIndexFromX: getIndexFromChartX,
+    getHourFromIndex,
+    onInspect: handleMobileInspect,
+    onInspectEnd: handleMobileInspectEnd,
+    enabled: isTouchOnlyDevice,
+  });
+
   return (
     <div
       ref={containerRef}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}
+      {...mobileHandlers}
       className={cn(
         "chart-touch-no-select relative aspect-auto w-full [&_.recharts-legend-wrapper]:hidden",
         preview
           ? "h-[300px]"
           : "h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px]"
       )}
-      style={isTouchInspecting ? { touchAction: "none" } : undefined}
+      style={mobileStyles}
     >
       {/* Shade only the plot area (not the X-axis label band), matching prior ReferenceArea behavior. */}
       <div
@@ -1394,6 +1531,15 @@ const TideChart: React.FC<TideChartProps> = ({
           </LineChart>
         </ChartContainer>
       </div>
+      {isTouchOnlyDevice && (
+        <MobileChartTooltip
+          chartId={mobileChartId}
+          getDataPoint={getMobileTooltipDataPoint}
+          getDataPointForHour={getDataPointForHour}
+          anchorRef={containerRef}
+          getXPositionForHour={getXPositionForHour}
+        />
+      )}
     </div>
   );
 };

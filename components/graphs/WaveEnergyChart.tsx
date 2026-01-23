@@ -37,6 +37,11 @@ import { buildYAxisTicks } from "@/components/graphs/yAxisTicks";
 import { useOptionalOverviewChartLoading } from "@/components/context/OverviewChartsLoadingContext";
 import { useIsTouchOnlyDevice } from "./useIsTouchOnlyDevice";
 import {
+  useMobileChartTouch,
+  MobileChartTooltip,
+  type MobileTooltipDataPoint,
+} from "./MobileChartTooltip";
+import {
   applyForecastShadingOpacity,
   buildForecastPlotShadingBackgroundPercent,
 } from "@/components/graphs/forecastShadingBackground";
@@ -157,6 +162,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   );
   const [containerWidth, setContainerWidth] = useState<number>(0);
   const containerRef = React.useRef<HTMLDivElement>(null);
+  const mobileChartId = "overview-energy";
   const [isTouchInspecting, setIsTouchInspecting] = useState(false);
   const [touchDefaultIndex, setTouchDefaultIndex] = useState<number | null>(
     null
@@ -661,15 +667,96 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     setHoveredHour(null);
   };
 
+  // Mobile touch tooltip callbacks
+  const getIndexFromChartX = React.useCallback(
+    (chartX: number): number => {
+      if (!plotWidthPx) return 0;
+      const plotX = Math.max(0, Math.min(chartX - yAxisInsetPx, plotWidthPx));
+      const t = plotWidthPx > 0 ? plotX / plotWidthPx : 0;
+      const hour = t * hours;
+      const roundedHour = Math.round(hour / 3) * 3;
+      const clampedHour = Math.max(0, Math.min(roundedHour, hours));
+      return Math.round(clampedHour / 3);
+    },
+    [plotWidthPx, yAxisInsetPx, hours]
+  );
+
+  const getMobileTooltipDataPoint = React.useCallback(
+    (index: number): MobileTooltipDataPoint | null => {
+      if (index < 0 || index >= series.length) return null;
+      const point = series[index];
+      const hour = point.hour;
+      const normalized = ((Math.floor(hour) % 24) + 24) % 24;
+      const displayHour = normalized % 12 === 0 ? 12 : normalized % 12;
+      const ampm = normalized >= 12 ? "PM" : "AM";
+
+      return {
+        hour: point.hour,
+        label: `${displayHour} ${ampm}`,
+        value: Number(point.energy.toFixed(1)),
+        unit: "kJ/m²",
+      };
+    },
+    [series]
+  );
+
+  const getDataPointForHour = React.useCallback(
+    (hour: number): MobileTooltipDataPoint | null => {
+      const index = Math.round(hour / 3);
+      if (index < 0 || index >= series.length) return null;
+      const point = series[index];
+      const normalized = ((Math.floor(point.hour) % 24) + 24) % 24;
+      const displayHour = normalized % 12 === 0 ? 12 : normalized % 12;
+      const ampm = normalized >= 12 ? "PM" : "AM";
+
+      return {
+        hour: point.hour,
+        label: `${displayHour} ${ampm}`,
+        value: Number(point.energy.toFixed(1)),
+        unit: "kJ/m²",
+      };
+    },
+    [series]
+  );
+
+  const getXPositionForHour = React.useCallback(
+    (hour: number): number | null => {
+      if (!plotWidthPx || plotWidthPx <= 0) return null;
+      if (hours <= 0) return null;
+      const t = hour / hours;
+      if (t < 0 || t > 1) return null;
+      return yAxisInsetPx + t * plotWidthPx;
+    },
+    [plotWidthPx, yAxisInsetPx, hours]
+  );
+
+  const handleMobileInspect = React.useCallback(
+    (_index: number, hour: number) => {
+      setHoveredHour(hour);
+    },
+    [setHoveredHour]
+  );
+
+  const handleMobileInspectEnd = React.useCallback(() => {
+    setHoveredHour(null);
+  }, [setHoveredHour]);
+
+  const { handlers: mobileHandlers, styles: mobileStyles } = useMobileChartTouch({
+    chartId: mobileChartId,
+    containerRef,
+    dataLength: series.length,
+    getIndexFromX: getIndexFromChartX,
+    onInspect: handleMobileInspect,
+    onInspectEnd: handleMobileInspectEnd,
+    enabled: isTouchOnlyDevice,
+  });
+
   return (
     <div
       ref={containerRef}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}
+      {...mobileHandlers}
       className="chart-touch-no-select relative aspect-auto h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px] w-full [&_.recharts-legend-wrapper]:hidden"
-      style={isTouchInspecting ? { touchAction: "none" } : undefined}
+      style={mobileStyles}
     >
       {/* Shade only the plot area (not the X-axis label band), matching prior ReferenceArea behavior. */}
       <div
@@ -943,6 +1030,15 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           </AreaChart>
         </ChartContainer>
       </div>
+      {isTouchOnlyDevice && (
+        <MobileChartTooltip
+          chartId={mobileChartId}
+          getDataPoint={getMobileTooltipDataPoint}
+          getDataPointForHour={getDataPointForHour}
+          anchorRef={containerRef}
+          getXPositionForHour={getXPositionForHour}
+        />
+      )}
     </div>
   );
 };

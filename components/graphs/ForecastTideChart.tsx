@@ -39,6 +39,11 @@ import {
   ChartTooltipViewportContent,
 } from "@/components/ui/chart";
 import { useIsTouchOnlyDevice } from "./useIsTouchOnlyDevice";
+import {
+  useMobileChartTouch,
+  MobileChartTooltip,
+  type MobileTooltipDataPoint,
+} from "./MobileChartTooltip";
 import { cn } from "@/lib/utils";
 import { useDateContext } from "@/components/context/DateContext";
 import { useForecastChartContext } from "@/components/context/ForecastChartContext";
@@ -171,44 +176,7 @@ export default React.memo(function ForecastTideChart({
     subscribeToHover,
   } = useDateContext();
   const isTouchOnlyDevice = useIsTouchOnlyDevice();
-  const [isTouchTooltipSyncActive, setIsTouchTooltipSyncActive] =
-    useState(false);
-  const [isTouchInspecting, setIsTouchInspecting] = useState(false);
-  const [touchDefaultIndex, setTouchDefaultIndex] = useState<number | null>(
-    null
-  );
-  const touchInspectStartRef = useRef<{
-    startChartX: number;
-    chartX: number;
-    clientX: number;
-    clientY: number;
-  } | null>(null);
-  const rechartsMoveTargetRef = useRef<HTMLElement | null>(null);
-
-  const touchInspectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null
-  );
-  const clearTouchInspectTimer = useCallback(() => {
-    if (!touchInspectTimerRef.current) return;
-    clearTimeout(touchInspectTimerRef.current);
-    touchInspectTimerRef.current = null;
-  }, []);
-  useEffect(() => () => clearTouchInspectTimer(), [clearTouchInspectTimer]);
-
-  useEffect(() => {
-    if (!isTouchOnlyDevice) {
-      setIsTouchTooltipSyncActive(false);
-      return;
-    }
-
-    const update = () => {
-      const next = hoveredHourRef.current != null;
-      setIsTouchTooltipSyncActive((prev) => (prev === next ? prev : next));
-    };
-
-    update();
-    return subscribeToHover(update);
-  }, [hoveredHourRef, isTouchOnlyDevice, subscribeToHover]);
+  const mobileChartId = React.useId();
   const [loading, setLoading] = useState(true);
   const [stableSelectedHour, setStableSelectedHour] = useState<number | null>(
     null
@@ -345,6 +313,26 @@ export default React.memo(function ForecastTideChart({
   const innerRef = useRef<HTMLDivElement | null>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [isAtRightEdge, setIsAtRightEdge] = useState(false);
+  
+  // Touch inspect timer for long-press detection (legacy - keeping for compatibility)
+  const touchInspectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearTouchInspectTimer = useCallback(() => {
+    if (touchInspectTimerRef.current) {
+      clearTimeout(touchInspectTimerRef.current);
+      touchInspectTimerRef.current = null;
+    }
+  }, []);
+  
+  // Legacy touch inspection state (used by the old pointer handlers)
+  const [isTouchInspecting, setIsTouchInspecting] = useState(false);
+  const [touchDefaultIndex, setTouchDefaultIndex] = useState<number | null>(null);
+  const touchInspectStartRef = useRef<{
+    startChartX: number;
+    chartX: number;
+    clientX: number;
+    clientY: number;
+  } | null>(null);
+  const rechartsMoveTargetRef = useRef<Element | null>(null);
 
   // Derived
   const totalFetchedDays = useMemo(() => FETCH_DAYS, []); // fixed for predictability
@@ -777,6 +765,170 @@ export default React.memo(function ForecastTideChart({
     const maxTranslate = Math.max(0, chartInnerWidth - viewportWidth);
     setIsAtRightEdge(finalPx >= maxTranslate - 1);
   };
+
+  // Mobile touch system callbacks
+  const onPan = useCallback(
+    (deltaPx: number) => {
+      const next = clampTranslatePx(currentTranslateRef.current - deltaPx);
+      setInnerTranslatePx(next, false);
+      setPanFraction(next / dayPx, myId, "drag");
+    },
+    [clampTranslatePx, setInnerTranslatePx, setPanFraction, dayPx, myId]
+  );
+
+  const onPanEnd = useCallback(() => {
+    const finalPx = clampTranslatePx(currentTranslateRef.current);
+    const fractionalDayOffset = finalPx / dayPx;
+    setDayOffset(fractionalDayOffset);
+    setInnerTranslatePx(finalPx, false);
+    setPanFraction(fractionalDayOffset, myId, "animate");
+    const maxTranslate = Math.max(0, chartInnerWidth - viewportWidth);
+    setIsAtRightEdge(finalPx >= maxTranslate - 1);
+  }, [clampTranslatePx, dayPx, myId, setInnerTranslatePx, setPanFraction, chartInnerWidth, viewportWidth]);
+
+  const getIndexFromChartX = useCallback(
+    (chartX: number): number => {
+      if (!Number.isFinite(chartX) || !dataAreaWidth) return 0;
+      if (data.length === 0) return 0;
+      const plotX = Math.max(0, Math.min(chartX - dayLabelLeftOffset, dataAreaWidth));
+      const t = dataAreaWidth > 0 ? plotX / dataAreaWidth : 0;
+      const targetHour = domainMin + t * (domainMax - domainMin);
+      
+      let lo = 0;
+      let hi = data.length - 1;
+      while (lo < hi) {
+        const mid = Math.floor((lo + hi) / 2);
+        const midHour = data[mid]?.hour;
+        if (typeof midHour !== "number") break;
+        if (midHour < targetHour) lo = mid + 1;
+        else hi = mid;
+      }
+      
+      let closestIndex = lo;
+      if (closestIndex > 0) {
+        const currHour = data[closestIndex]?.hour;
+        const prevHour = data[closestIndex - 1]?.hour;
+        if (typeof currHour === "number" && typeof prevHour === "number") {
+          if (Math.abs(prevHour - targetHour) <= Math.abs(currHour - targetHour)) {
+            closestIndex = closestIndex - 1;
+          }
+        }
+      }
+      return closestIndex;
+    },
+    [dataAreaWidth, dayLabelLeftOffset, domainMin, domainMax, data]
+  );
+
+  const getMobileTooltipDataPoint = useCallback(
+    (index: number): MobileTooltipDataPoint | null => {
+      if (index < 0 || index >= data.length) return null;
+      const point = data[index];
+      const hour = point.hour;
+      const normalized = ((hour % 24) + 24) % 24;
+      const wholeHour = Math.floor(normalized);
+      const minutes = Math.round((normalized - wholeHour) * 60);
+      const displayHour = wholeHour % 12 === 0 ? 12 : wholeHour % 12;
+      const ampm = wholeHour >= 12 ? "PM" : "AM";
+      const label = minutes > 0
+        ? `${displayHour}:${minutes.toString().padStart(2, "0")} ${ampm}`
+        : `${displayHour} ${ampm}`;
+      
+      return {
+        hour: point.hour,
+        label,
+        value: point.tide,
+        unit: "ft",
+        icon: <TideIcon className="h-3.5 w-3.5" />,
+      };
+    },
+    [data]
+  );
+
+  // Get hour from data index (for synced tooltip system)
+  const getHourFromIndex = useCallback(
+    (index: number): number => {
+      if (index < 0 || index >= data.length) return 0;
+      return data[index]?.hour ?? 0;
+    },
+    [data]
+  );
+
+  // Get data point for a given hour (for synced tooltip display on this chart)
+  const getDataPointForHour = useCallback(
+    (hour: number): MobileTooltipDataPoint | null => {
+      // Find the data point closest to this hour using binary search
+      if (data.length === 0) return null;
+      
+      let lo = 0;
+      let hi = data.length;
+      while (lo < hi) {
+        const mid = Math.floor((lo + hi) / 2);
+        const midHour = data[mid]?.hour;
+        if (typeof midHour !== "number") break;
+        if (midHour < hour) lo = mid + 1;
+        else hi = mid;
+      }
+      
+      let closestIndex = lo;
+      if (closestIndex > 0 && closestIndex < data.length) {
+        const currHour = data[closestIndex]?.hour;
+        const prevHour = data[closestIndex - 1]?.hour;
+        if (typeof currHour === "number" && typeof prevHour === "number") {
+          if (Math.abs(prevHour - hour) <= Math.abs(currHour - hour)) {
+            closestIndex = closestIndex - 1;
+          }
+        }
+      }
+      closestIndex = Math.max(0, Math.min(data.length - 1, closestIndex));
+      
+      const point = data[closestIndex];
+      if (!point) return null;
+      
+      const normalized = ((point.hour % 24) + 24) % 24;
+      const wholeHour = Math.floor(normalized);
+      const minutes = Math.round((normalized - wholeHour) * 60);
+      const displayHour = wholeHour % 12 === 0 ? 12 : wholeHour % 12;
+      const ampm = wholeHour >= 12 ? "PM" : "AM";
+      const label = minutes > 0
+        ? `${displayHour}:${minutes.toString().padStart(2, "0")} ${ampm}`
+        : `${displayHour} ${ampm}`;
+      
+      return {
+        hour: point.hour,
+        label,
+        value: point.tide,
+        unit: "ft",
+        icon: <TideIcon className="h-3.5 w-3.5" />,
+      };
+    },
+    [data]
+  );
+
+  // Get X position for a given hour (for synced tooltip positioning)
+  const getXPositionForHour = useCallback(
+    (hour: number): number | null => {
+      if (!dataAreaWidth || dataAreaWidth <= 0) return null;
+      const totalHours = domainMax - domainMin;
+      if (totalHours <= 0) return null;
+      const t = (hour - domainMin) / totalHours;
+      if (t < 0 || t > 1) return null;
+      return dayLabelLeftOffset + t * dataAreaWidth;
+    },
+    [dataAreaWidth, dayLabelLeftOffset, domainMin, domainMax]
+  );
+
+  const handleMobileInspect = useCallback(
+    (_index: number, hour: number) => {
+      // Round to nearest 3-hour for cross-chart sync
+      const roundedHour = Math.round(hour / DATA_STEP_HOURS) * DATA_STEP_HOURS;
+      setHoveredHour(roundedHour);
+    },
+    [setHoveredHour]
+  );
+
+  const handleMobileInspectEnd = useCallback(() => {
+    setHoveredHour(null);
+  }, [setHoveredHour]);
 
   // Button controls: animate to next/prev by one day
   const handleNext = useCallback(() => {
@@ -1258,6 +1410,82 @@ export default React.memo(function ForecastTideChart({
     const axisMax = Math.ceil(paddedMax);
     return buildLinearYAxisTicks(axisMin, axisMax, 4, true);
   }, [data]);
+
+  // Y-axis domain for line proximity detection
+  const yMin = tideTicks[0] ?? -2;
+  const yMax = tideTicks[tideTicks.length - 1] ?? 8;
+
+  // Check if touch coordinates are near the tide line
+  const isOnLine = useCallback(
+    (chartX: number, chartY: number): boolean => {
+      if (!dataAreaWidth || dataAreaWidth <= 0) return false;
+      
+      const plotX = chartX - dayLabelLeftOffset;
+      if (plotX < 0 || plotX > dataAreaWidth) return false;
+      
+      // Chart dimensions
+      const chartHeight = 250;
+      const bottomAxisHeight = 25;
+      const lineAreaHeight = chartHeight - bottomAxisHeight;
+      const lineAreaBottom = chartHeight - bottomAxisHeight;
+      
+      if (chartY > lineAreaBottom || chartY < 0) return false;
+      
+      // Find the nearest data point to this X
+      const t = plotX / dataAreaWidth;
+      const targetHour = domainMin + t * (domainMax - domainMin);
+      
+      // Binary search for closest point (tide data is high resolution)
+      let lo = 0;
+      let hi = data.length - 1;
+      while (lo < hi) {
+        const mid = Math.floor((lo + hi) / 2);
+        const midHour = data[mid]?.hour;
+        if (typeof midHour !== "number") break;
+        if (midHour < targetHour) lo = mid + 1;
+        else hi = mid;
+      }
+      
+      let closestIndex = lo;
+      if (closestIndex > 0) {
+        const currHour = data[closestIndex]?.hour;
+        const prevHour = data[closestIndex - 1]?.hour;
+        if (typeof currHour === "number" && typeof prevHour === "number") {
+          if (Math.abs(prevHour - targetHour) <= Math.abs(currHour - targetHour)) {
+            closestIndex = closestIndex - 1;
+          }
+        }
+      }
+      
+      const point = data[closestIndex];
+      if (!point || typeof point.tide !== "number") return false;
+      
+      // Convert touch Y to data value
+      const touchValueRatio = 1 - (chartY / lineAreaHeight);
+      const touchValue = yMin + touchValueRatio * (yMax - yMin);
+      
+      // Check if touch is within tolerance of the line value
+      const toleranceInDataUnits = (yMax - yMin) * 0.15; // 15% of Y range
+      
+      return Math.abs(touchValue - point.tide) <= toleranceInDataUnits;
+    },
+    [dataAreaWidth, dayLabelLeftOffset, domainMin, domainMax, data, yMin, yMax]
+  );
+
+  const { handlers: mobileHandlers, styles: mobileStyles } = useMobileChartTouch({
+    chartId: mobileChartId,
+    containerRef: innerRef,
+    dataLength: data.length,
+    getIndexFromX: getIndexFromChartX,
+    getHourFromIndex,
+    isOnBar: isOnLine,
+    onPan,
+    onPanEnd,
+    onInspect: handleMobileInspect,
+    onInspectEnd: handleMobileInspectEnd,
+    enabled: isTouchOnlyDevice,
+  });
+
   const yAxisTick = useCallback(
     (props: YAxisTickProps) => {
       const { x, y, payload, textAnchor, fontSize } = props ?? {};
@@ -1331,7 +1559,8 @@ export default React.memo(function ForecastTideChart({
 
   const handleMouseMove = React.useCallback(
     (e: ChartMouseEvent) => {
-      if (isTouchOnlyDevice && !isTouchInspecting) return;
+      // On touch devices, we use MobileChartTooltip instead
+      if (isTouchOnlyDevice) return;
       if (e && e.activeLabel !== undefined) {
         const hour = Number(e.activeLabel);
         if (!isNaN(hour)) {
@@ -1346,7 +1575,7 @@ export default React.memo(function ForecastTideChart({
         }
       }
     },
-    [isTouchInspecting, isTouchOnlyDevice, setHoveredHour]
+    [isTouchOnlyDevice, setHoveredHour]
   );
 
   const handleMouseLeave = React.useCallback(() => {
@@ -1403,10 +1632,14 @@ export default React.memo(function ForecastTideChart({
           {/* moving inner (chart + day separators) */}
           <div
             ref={innerRef}
-            onPointerDown={onPointerDown}
-            onPointerMove={onPointerMove}
-            onPointerUp={onPointerUp}
-            onPointerCancel={onPointerUp}
+            {...(isTouchOnlyDevice
+              ? mobileHandlers
+              : {
+                  onPointerDown,
+                  onPointerMove,
+                  onPointerUp,
+                  onPointerCancel: onPointerUp,
+                })}
             className="chart-touch-no-select"
             style={{
               marginTop: 60,
@@ -1418,7 +1651,7 @@ export default React.memo(function ForecastTideChart({
               display: "block",
               willChange: "transform",
               cursor: "grab",
-              touchAction: isTouchInspecting ? "none" : "pan-y",
+              ...(isTouchOnlyDevice ? mobileStyles : {}),
             }}
           >
             {/* Day label bar (4 filled boxes) - fixed in viewport and aligned to visible days */}
@@ -1656,7 +1889,7 @@ export default React.memo(function ForecastTideChart({
                         bottom: 5,
                         top: 0,
                       }}
-                      syncId="allCharts"
+                      syncId={isTouchOnlyDevice ? undefined : "allCharts"}
                       syncMethod="value"
                       onMouseMove={handleMouseMove}
                       onMouseLeave={handleMouseLeave}
@@ -1731,42 +1964,8 @@ export default React.memo(function ForecastTideChart({
                           return null;
                         }
                       })()}
-                      {isTouchOnlyDevice ? (
-                        isTouchInspecting || isTouchTooltipSyncActive ? (
-                          <ChartTooltip
-                            defaultIndex={
-                              isTouchInspecting
-                                ? touchDefaultIndex ?? undefined
-                                : hoveredHourRef.current != null &&
-                                  data.length > 0
-                                ? (() => {
-                                    const span = domainMax - domainMin;
-                                    if (!Number.isFinite(span) || span <= 0)
-                                      return undefined;
-                                    const t =
-                                      (hoveredHourRef.current - domainMin) /
-                                      span;
-                                    const chartX =
-                                      dayLabelLeftOffset + dataAreaWidth * t;
-                                    const activation =
-                                      getTouchActivationFromChartX(chartX);
-                                    return activation?.defaultIndex;
-                                  })()
-                                : undefined
-                            }
-                            content={
-                              <ChartTooltipViewportContent
-                                viewport={tooltipViewport}
-                                labelFormatter={formatHourLabel}
-                              />
-                            }
-                            cursor={false}
-                            wrapperStyle={{ transform: "translate(0px, 0px)" }}
-                            animationDuration={0}
-                            isAnimationActive={false}
-                          />
-                        ) : null
-                      ) : (
+                      {/* Mobile: Use custom MobileChartTooltip rendered via portal */}
+                      {isTouchOnlyDevice ? null : (
                         <ChartTooltip
                           content={
                             <ChartTooltipViewportContent
@@ -2016,6 +2215,17 @@ export default React.memo(function ForecastTideChart({
             }}
           />
         </div>
+
+        {/* Mobile touch tooltip - rendered via portal */}
+        {isTouchOnlyDevice && (
+          <MobileChartTooltip
+            chartId={mobileChartId}
+            getDataPoint={getMobileTooltipDataPoint}
+            getDataPointForHour={getDataPointForHour}
+            anchorRef={containerRef}
+            getXPositionForHour={getXPositionForHour}
+          />
+        )}
       </div>
     </div>
   );

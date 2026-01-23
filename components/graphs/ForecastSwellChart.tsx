@@ -28,6 +28,11 @@ import {
 } from "@/components/ui/chart";
 import { useIsTouchOnlyDevice } from "./useIsTouchOnlyDevice";
 import {
+  useMobileChartTouch,
+  MobileChartTooltip,
+  type MobileTooltipDataPoint,
+} from "./MobileChartTooltip";
+import {
   MousePointer2 as ArrowIcon,
   ArrowDown,
   ArrowUp,
@@ -167,44 +172,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
   const [isAtRightEdge, setIsAtRightEdge] = useState(false);
   const { selected: selectedDate } = useDateContext();
   const isTouchOnlyDevice = useIsTouchOnlyDevice();
-  const [isTouchTooltipSyncActive, setIsTouchTooltipSyncActive] =
-    useState(false);
-  const [isTouchInspecting, setIsTouchInspecting] = useState(false);
-  const [touchDefaultIndex, setTouchDefaultIndex] = useState<number | null>(
-    null
-  );
-  const touchInspectStartRef = useRef<{
-    startChartX: number;
-    chartX: number;
-    clientX: number;
-    clientY: number;
-  } | null>(null);
-  const rechartsMoveTargetRef = useRef<HTMLElement | null>(null);
-
-  const touchInspectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null
-  );
-  const clearTouchInspectTimer = useCallback(() => {
-    if (!touchInspectTimerRef.current) return;
-    clearTimeout(touchInspectTimerRef.current);
-    touchInspectTimerRef.current = null;
-  }, []);
-  useEffect(() => () => clearTouchInspectTimer(), [clearTouchInspectTimer]);
-
-  useEffect(() => {
-    if (!isTouchOnlyDevice) {
-      setIsTouchTooltipSyncActive(false);
-      return;
-    }
-
-    const update = () => {
-      const next = hoveredHourRef.current != null;
-      setIsTouchTooltipSyncActive((prev) => (prev === next ? prev : next));
-    };
-
-    update();
-    return subscribeToHover(update);
-  }, [hoveredHourRef, isTouchOnlyDevice, subscribeToHover]);
+  const mobileChartId = React.useId();
 
   // Normalize and sort incoming days so fetch windows stay aligned
   const normalizedDays = useMemo(() => {
@@ -262,40 +230,6 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
   const domainMin = 0;
   const domainMax = totalFetchedDays * HOURS_PER_DAY;
 
-  const getTouchActivationFromChartX = useCallback(
-    (chartX: number) => {
-      if (!Number.isFinite(chartX) || !dataAreaWidth) return null;
-      const plotX = Math.max(
-        0,
-        Math.min(chartX - dayLabelLeftOffset, dataAreaWidth)
-      );
-      const t = dataAreaWidth > 0 ? plotX / dataAreaWidth : 0;
-      const hour = domainMin + t * (domainMax - domainMin);
-      const roundedHour = Math.round(hour / DATA_STEP_HOURS) * DATA_STEP_HOURS;
-      const clampedHour = Math.max(
-        0,
-        Math.min(roundedHour, totalFetchedDays * HOURS_PER_DAY)
-      );
-      const defaultIndex = Math.round(clampedHour / DATA_STEP_HOURS);
-      const maxIndex = swellData.length - 1;
-      if (!Number.isFinite(defaultIndex) || maxIndex < 0) return null;
-      const clampedIndex = Math.max(0, Math.min(defaultIndex, maxIndex));
-      return {
-        defaultIndex: clampedIndex,
-        hour: clampedIndex * DATA_STEP_HOURS,
-      };
-    },
-    [
-      dataAreaWidth,
-      dayOffset,
-      dayPx,
-      dayLabelLeftOffset,
-      domainMin,
-      domainMax,
-      totalFetchedDays,
-      swellData.length,
-    ]
-  );
   const dayHeaderLayout = useMemo(
     () =>
       getForecastDayHeaderLayout({
@@ -402,132 +336,12 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
   );
 
   // Pointer handlers
-  const startDrag = (ev: React.PointerEvent) => {
-    const node = ev.currentTarget as Element;
-    node.setPointerCapture?.(ev.pointerId);
-    clearTouchInspectTimer();
-    setIsTouchInspecting(false);
-    if (rafRef.current) {
-      cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
-    }
-    if (pointerStateRef.current) {
-      pointerStateRef.current.dragging = true;
-    }
-    document.body.style.userSelect = "none";
-    document.body.style.touchAction = "none";
-  };
-
-  const onPointerDown = (ev: React.PointerEvent) => {
-    pointerStateRef.current = {
-      dragging: false,
-      startX: ev.clientX,
-      startY: ev.clientY,
-      startTranslate: currentTranslateRef.current,
-    };
-    setInnerTranslatePx(currentTranslateRef.current, false);
-    if (isTouchOnlyDevice && ev.pointerType !== "mouse") {
-      clearTouchInspectTimer();
-      setIsTouchInspecting(false);
-      setTouchDefaultIndex(null);
-      setHoveredHour(null);
-      const bounds = (ev.currentTarget as Element).getBoundingClientRect();
-      const startChartX = ev.clientX - bounds.left;
-      touchInspectStartRef.current = {
-        startChartX,
-        chartX: startChartX,
-        clientX: ev.clientX,
-        clientY: ev.clientY,
-      };
-      rechartsMoveTargetRef.current =
-        innerRef.current?.querySelector(".recharts-wrapper") ?? null;
-      touchInspectTimerRef.current = setTimeout(() => {
-        touchInspectTimerRef.current = null;
-        if (pointerStateRef.current?.dragging) return;
-        const start = touchInspectStartRef.current;
-        if (!start) return;
-        const activation = getTouchActivationFromChartX(start.chartX);
-        if (!activation) return;
-        setTouchDefaultIndex((prev) =>
-          prev === activation.defaultIndex ? prev : activation.defaultIndex
-        );
-        if (hoveredHourRef.current !== activation.hour) {
-          setHoveredHour(activation.hour);
-        }
-        setIsTouchInspecting(true);
-        requestAnimationFrame(() => {
-          const target =
-            rechartsMoveTargetRef.current ??
-            innerRef.current?.querySelector(".recharts-wrapper");
-          if (!(target instanceof HTMLElement)) return;
-          rechartsMoveTargetRef.current = target;
-          target.dispatchEvent(
-            new MouseEvent("mousemove", {
-              bubbles: true,
-              cancelable: true,
-              clientX: start.clientX,
-              clientY: start.clientY,
-            })
-          );
-        });
-      }, TOUCH_INSPECT_LONG_PRESS_MS);
-    }
-    if (ev.pointerType === "mouse") {
-      startDrag(ev);
-    }
-  };
-
-  const onPointerMove = (ev: React.PointerEvent) => {
-    const ps = pointerStateRef.current;
-    if (!ps) return;
-    const deltaX = ev.clientX - ps.startX;
-    const deltaY = ev.clientY - ps.startY;
-    if (isTouchOnlyDevice && ev.pointerType !== "mouse") {
-      if (isTouchInspecting) {
-        const target =
-          rechartsMoveTargetRef.current ??
-          innerRef.current?.querySelector(".recharts-wrapper");
-        if (target instanceof HTMLElement) {
-          rechartsMoveTargetRef.current = target;
-          target.dispatchEvent(
-            new MouseEvent("mousemove", {
-              bubbles: true,
-              cancelable: true,
-              clientX: ev.clientX,
-              clientY: ev.clientY,
-            })
-          );
-        }
-        return;
-      }
-      const start = touchInspectStartRef.current;
-      if (touchInspectTimerRef.current && start) {
-        start.chartX = start.startChartX + deltaX;
-        start.clientX = ev.clientX;
-        start.clientY = ev.clientY;
-      }
-      if (
-        Math.hypot(deltaX, deltaY) >
-        Math.max(DRAG_THRESHOLD_PX, TOUCH_INSPECT_MOVE_TOLERANCE_PX)
-      ) {
-        clearTouchInspectTimer();
-      }
-    }
-    if (!ps.dragging) {
-      if (
-        Math.abs(deltaX) < DRAG_THRESHOLD_PX ||
-        Math.abs(deltaX) < Math.abs(deltaY)
-      ) {
-        return;
-      }
-      clearTouchInspectTimer();
-      startDrag(ev);
-    }
-    if (!pointerStateRef.current?.dragging) return;
-    const next = clampTranslatePx(
-      pointerStateRef.current.startTranslate - deltaX
-    );
+  const onPan = useCallback((dx: number) => {
+    // Logic for chart panning
+    if (typeof currentTranslateRef.current !== "number") return;
+    const next = clampTranslatePx(currentTranslateRef.current - dx);
     pendingTranslateRef.current = next;
+
     if (!dragRafRef.current) {
       dragRafRef.current = requestAnimationFrame(() => {
         dragRafRef.current = null;
@@ -537,24 +351,9 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
         setPanFraction(pendingPx / dayPx, myId, "drag");
       });
     }
-  };
+  }, [clampTranslatePx, dayPx, myId, setInnerTranslatePx, setPanFraction]);
 
-  const onPointerUp = (ev: React.PointerEvent) => {
-    const node = ev.currentTarget as Element;
-    node.releasePointerCapture?.(ev.pointerId);
-    clearTouchInspectTimer();
-    setIsTouchInspecting(false);
-    if (isTouchOnlyDevice && ev.pointerType !== "mouse") {
-      setTouchDefaultIndex(null);
-      touchInspectStartRef.current = null;
-      setHoveredHour(null);
-    }
-    const ps = pointerStateRef.current;
-    if (!ps) return;
-    pointerStateRef.current = null;
-    if (!ps.dragging) return;
-    document.body.style.userSelect = "";
-    document.body.style.touchAction = "";
+  const onPanEnd = useCallback(() => {
     if (dragRafRef.current) {
       cancelAnimationFrame(dragRafRef.current);
       dragRafRef.current = null;
@@ -572,7 +371,129 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
 
     const maxTranslate = Math.max(0, chartInnerWidth - viewportWidth);
     setIsAtRightEdge(finalPx >= maxTranslate - 1);
-  };
+  }, [clampTranslatePx, dayPx, myId, setInnerTranslatePx, setPanFraction, chartInnerWidth, viewportWidth]);
+
+  // Rename for consistency with new mobile touch system
+  const getIndexFromChartX = useCallback(
+    (chartX: number): number => {
+      if (!Number.isFinite(chartX) || !dataAreaWidth) return 0;
+      const plotX = Math.max(
+        0,
+        Math.min(chartX - dayLabelLeftOffset, dataAreaWidth)
+      );
+      const t = dataAreaWidth > 0 ? plotX / dataAreaWidth : 0;
+      const hour = domainMin + t * (domainMax - domainMin);
+      const roundedHour = Math.round(hour / DATA_STEP_HOURS) * DATA_STEP_HOURS;
+      const clampedHour = Math.max(0, Math.min(roundedHour, totalFetchedDays * HOURS_PER_DAY));
+      return Math.round(clampedHour / DATA_STEP_HOURS);
+    },
+    [dataAreaWidth, dayLabelLeftOffset, domainMin, domainMax, totalFetchedDays]
+  );
+
+  const getMobileTooltipDataPoint = useCallback(
+    (index: number): MobileTooltipDataPoint | null => {
+      if (index < 0 || index >= swellData.length) return null;
+      const point = swellData[index];
+      const hour = point.hour;
+      const normalized = ((hour % 24) + 24) % 24;
+      const displayHour = normalized % 12 === 0 ? 12 : normalized % 12;
+      const ampm = normalized >= 12 ? "PM" : "AM";
+      
+      // Show all 3 swell values with colored 1/2/3 labels matching line colors
+      const formattedValue = (
+        <span className="inline-flex items-center gap-1.5">
+          <span className="inline-flex items-center gap-0.5">
+            <span className="text-[0.65rem] font-bold" style={{ color: chartConfig.primary.color }}>1</span>
+            <span className="text-xs font-semibold tabular-nums">{point.primary.toFixed(1)}</span>
+          </span>
+          <span className="inline-flex items-center gap-0.5">
+            <span className="text-[0.65rem] font-bold" style={{ color: chartConfig.secondary.color }}>2</span>
+            <span className="text-xs font-semibold tabular-nums">{point.secondary.toFixed(1)}</span>
+          </span>
+          <span className="inline-flex items-center gap-0.5">
+            <span className="text-[0.65rem] font-bold" style={{ color: chartConfig.tertiary.color }}>3</span>
+            <span className="text-xs font-semibold tabular-nums">{point.tertiary.toFixed(1)}</span>
+          </span>
+          <span className="text-[0.6rem] text-muted-foreground">ft</span>
+        </span>
+      );
+      
+      return {
+        hour: point.hour,
+        label: `${displayHour} ${ampm}`,
+        value: point.primary, // Still need a numeric value for interface
+        unit: "ft",
+        formattedValue,
+      };
+    },
+    [swellData]
+  );
+
+  // Get data point for a given hour (for synced tooltip display on this chart)
+  const getDataPointForHour = useCallback(
+    (hour: number): MobileTooltipDataPoint | null => {
+      // Hour is already rounded to 3-hour intervals
+      const index = Math.round(hour / DATA_STEP_HOURS);
+      if (index < 0 || index >= swellData.length) return null;
+      const point = swellData[index];
+      const normalized = ((point.hour % 24) + 24) % 24;
+      const displayHour = normalized % 12 === 0 ? 12 : normalized % 12;
+      const ampm = normalized >= 12 ? "PM" : "AM";
+      
+      // Show all 3 swell values with colored 1/2/3 labels matching line colors
+      const formattedValue = (
+        <span className="inline-flex items-center gap-1.5">
+          <span className="inline-flex items-center gap-0.5">
+            <span className="text-[0.65rem] font-bold" style={{ color: chartConfig.primary.color }}>1</span>
+            <span className="text-xs font-semibold tabular-nums">{point.primary.toFixed(1)}</span>
+          </span>
+          <span className="inline-flex items-center gap-0.5">
+            <span className="text-[0.65rem] font-bold" style={{ color: chartConfig.secondary.color }}>2</span>
+            <span className="text-xs font-semibold tabular-nums">{point.secondary.toFixed(1)}</span>
+          </span>
+          <span className="inline-flex items-center gap-0.5">
+            <span className="text-[0.65rem] font-bold" style={{ color: chartConfig.tertiary.color }}>3</span>
+            <span className="text-xs font-semibold tabular-nums">{point.tertiary.toFixed(1)}</span>
+          </span>
+          <span className="text-[0.6rem] text-muted-foreground">ft</span>
+        </span>
+      );
+      
+      return {
+        hour: point.hour,
+        label: `${displayHour} ${ampm}`,
+        value: point.primary,
+        unit: "ft",
+        formattedValue,
+      };
+    },
+    [swellData]
+  );
+
+  // Get X position for a given hour (for synced tooltip positioning)
+  const getXPositionForHour = useCallback(
+    (hour: number): number | null => {
+      if (!dataAreaWidth || dataAreaWidth <= 0) return null;
+      const totalHours = domainMax - domainMin;
+      if (totalHours <= 0) return null;
+      const t = (hour - domainMin) / totalHours;
+      if (t < 0 || t > 1) return null;
+      return dayLabelLeftOffset + t * dataAreaWidth;
+    },
+    [dataAreaWidth, dayLabelLeftOffset, domainMin, domainMax]
+  );
+
+  const handleMobileInspect = useCallback(
+    (_index: number, hour: number) => {
+      setHoveredHour(hour);
+    },
+    [setHoveredHour]
+  );
+
+  const handleMobileInspectEnd = useCallback(() => {
+    setHoveredHour(null);
+  }, [setHoveredHour]);
+
 
   // Button controls
   const handleNext = useCallback(() => {
@@ -961,6 +882,74 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
       ),
     [swellData]
   );
+
+  // Y-axis domain for line proximity detection
+  const yMin = swellTicks[0] ?? 0;
+  const yMax = swellTicks[swellTicks.length - 1] ?? 6;
+
+  // Check if touch coordinates are near any of the swell lines
+  const isOnLine = useCallback(
+    (chartX: number, chartY: number): boolean => {
+      if (!dataAreaWidth || dataAreaWidth <= 0) return false;
+      
+      const plotX = chartX - dayLabelLeftOffset;
+      if (plotX < 0 || plotX > dataAreaWidth) return false;
+      
+      // Chart dimensions
+      const chartHeight = 250;
+      const bottomAxisHeight = 25;
+      const lineAreaHeight = chartHeight - bottomAxisHeight;
+      const lineAreaBottom = chartHeight - bottomAxisHeight;
+      
+      if (chartY > lineAreaBottom || chartY < 0) return false;
+      
+      // Find which data point this X corresponds to
+      const t = plotX / dataAreaWidth;
+      const hour = domainMin + t * (domainMax - domainMin);
+      const nearestIndex = Math.round(hour / DATA_STEP_HOURS);
+      const clampedIndex = Math.max(0, Math.min(nearestIndex, swellData.length - 1));
+      const point = swellData[clampedIndex];
+      if (!point) return false;
+      
+      // Get the Y values for all three swell lines at this point
+      const lineValues = [point.primary, point.secondary, point.tertiary].filter(
+        (v): v is number => typeof v === "number" && Number.isFinite(v) && v > 0
+      );
+      
+      if (lineValues.length === 0) return false;
+      
+      // Convert touch Y to data value
+      // Y=0 is top (yMax), Y=lineAreaHeight is bottom (yMin)
+      const touchValueRatio = 1 - (chartY / lineAreaHeight);
+      const touchValue = yMin + touchValueRatio * (yMax - yMin);
+      
+      // Check if touch is within tolerance of any line value
+      const toleranceInDataUnits = (yMax - yMin) * 0.15; // 15% of Y range
+      
+      for (const lineValue of lineValues) {
+        if (Math.abs(touchValue - lineValue) <= toleranceInDataUnits) {
+          return true;
+        }
+      }
+      
+      return false;
+    },
+    [dataAreaWidth, dayLabelLeftOffset, domainMin, domainMax, swellData, yMin, yMax]
+  );
+
+  const { handlers: mobileHandlers, styles: mobileStyles } = useMobileChartTouch({
+    chartId: mobileChartId,
+    containerRef: innerRef,
+    dataLength: swellData.length,
+    getIndexFromX: getIndexFromChartX,
+    isOnBar: isOnLine,
+    onPan,
+    onPanEnd,
+    onInspect: handleMobileInspect,
+    onInspectEnd: handleMobileInspectEnd,
+    enabled: isTouchOnlyDevice,
+  });
+
   const yAxisTick = useCallback(
     (props: YAxisTickProps) => {
       const { x, y, payload, textAnchor, fontSize } = props ?? {};
@@ -1101,7 +1090,8 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
 
   const handleMouseMove = React.useCallback(
     (e: ChartMouseEvent) => {
-      if (isTouchOnlyDevice && !isTouchInspecting) return;
+      // On touch devices, we use MobileChartTooltip instead
+      if (isTouchOnlyDevice) return;
       if (e && e.activeLabel !== undefined) {
         const hour = Number(e.activeLabel);
         if (!isNaN(hour)) {
@@ -1115,7 +1105,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
         }
       }
     },
-    [isTouchInspecting, isTouchOnlyDevice, setHoveredHour]
+    [isTouchOnlyDevice, setHoveredHour]
   );
 
   const handleMouseLeave = React.useCallback(() => {
@@ -1272,10 +1262,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
         {/* moving inner (chart + day labels) */}
         <div
           ref={innerRef}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={onPointerUp}
+          {...mobileHandlers}
           className="chart-touch-no-select"
           style={{
             marginTop: 60,
@@ -1286,7 +1273,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
             display: "block",
             willChange: "transform",
             cursor: "grab",
-            touchAction: isTouchInspecting ? "none" : "pan-y",
+            ...mobileStyles,
           }}
         >
           {/* Day label bar */}
@@ -1508,7 +1495,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                       bottom: 5,
                       top: 0,
                     }}
-                    syncId="allCharts"
+                    syncId={isTouchOnlyDevice ? undefined : "allCharts"}
                     syncMethod={syncToNearestThirdHour}
                     onMouseMove={handleMouseMove}
                     onMouseLeave={handleMouseLeave}
@@ -1632,39 +1619,8 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                       ticks={swellTicks}
                     />
                     {/* <ChartLegend content={<ChartLegendContent />} /> */}
-                    {isTouchOnlyDevice ? (
-                      isTouchInspecting || isTouchTooltipSyncActive ? (
-                        <ChartTooltip
-                          defaultIndex={
-                            isTouchInspecting
-                              ? touchDefaultIndex ?? undefined
-                              : hoveredHourRef.current != null &&
-                                swellData.length > 0
-                              ? Math.min(
-                                  swellData.length - 1,
-                                  Math.max(
-                                    0,
-                                    Math.round(
-                                      hoveredHourRef.current / DATA_STEP_HOURS
-                                    )
-                                  )
-                                )
-                              : undefined
-                          }
-                          content={
-                            <ChartTooltipViewportContent
-                              viewport={tooltipViewport}
-                              labelFormatter={formatHourLabel}
-                              formatter={formatSwellTooltipValue}
-                            />
-                          }
-                          cursor={false}
-                          wrapperStyle={{ transform: "translate(0px, 0px)" }}
-                          animationDuration={0}
-                          isAnimationActive={false}
-                        />
-                      ) : null
-                    ) : (
+                    {/* Mobile: Use custom MobileChartTooltip rendered via portal */}
+                    {isTouchOnlyDevice ? null : (
                       <ChartTooltip
                         content={
                           <ChartTooltipViewportContent
@@ -1900,6 +1856,17 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
           }}
         />
       </div>
+
+      {/* Mobile touch tooltip - rendered via portal */}
+      {isTouchOnlyDevice && (
+        <MobileChartTooltip
+          chartId={mobileChartId}
+          getDataPoint={getMobileTooltipDataPoint}
+          getDataPointForHour={getDataPointForHour}
+          anchorRef={containerRef}
+          getXPositionForHour={getXPositionForHour}
+        />
+      )}
     </div>
   );
 };

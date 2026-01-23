@@ -43,6 +43,12 @@ import { useChartTheme } from "@/components/graphs/useChartTheme";
 import { buildForecastShadingBackground } from "@/components/graphs/forecastShadingBackground";
 import { useOptionalOverviewChartLoading } from "@/components/context/OverviewChartsLoadingContext";
 import type { SharedSunSegments } from "./sharedSunSegments";
+import { useIsTouchOnlyDevice } from "./useIsTouchOnlyDevice";
+import {
+  useMobileChartTouch,
+  MobileChartTooltip,
+  type MobileTooltipDataPoint,
+} from "./MobileChartTooltip";
 
 type Props = {
   beachId?: string;
@@ -147,6 +153,8 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   );
   const [containerWidth, setContainerWidth] = useState<number>(0);
   const containerRef = React.useRef<HTMLDivElement>(null);
+  const isTouchOnlyDevice = useIsTouchOnlyDevice();
+  const mobileChartId = "overview-wind";
 
   const {
     rows: forecastRows,
@@ -528,9 +536,115 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     [chartTheme.hoverOpacity]
   );
 
+  // Mobile touch tooltip system
+  const getIndexFromChartX = useCallback(
+    (chartX: number): number => {
+      if (!plotWidthPx) return 0;
+      const plotX = Math.max(0, Math.min(chartX - yAxisInsetPx, plotWidthPx));
+      const t = plotWidthPx > 0 ? plotX / plotWidthPx : 0;
+      const hour = domainMin + t * (domainMax - domainMin);
+      const roundedHour = Math.round(hour / DATA_STEP_HOURS) * DATA_STEP_HOURS;
+      const clampedHour = Math.max(0, Math.min(roundedHour, hours));
+      return Math.round(clampedHour / DATA_STEP_HOURS);
+    },
+    [plotWidthPx, yAxisInsetPx, domainMin, domainMax, hours]
+  );
+
+  const getMobileTooltipDataPoint = useCallback(
+    (index: number): MobileTooltipDataPoint | null => {
+      if (index < 0 || index >= chartData.length) return null;
+      const point = chartData[index];
+      const hour = point.hour;
+      const normalized = ((hour % 24) + 24) % 24;
+      const displayHour = normalized % 12 === 0 ? 12 : normalized % 12;
+      const ampm = normalized >= 12 ? "PM" : "AM";
+
+      return {
+        hour: point.hour,
+        label: `${displayHour} ${ampm}`,
+        value: point.wind,
+        unit: "mph",
+      };
+    },
+    [chartData]
+  );
+
+  const getDataPointForHour = useCallback(
+    (hour: number): MobileTooltipDataPoint | null => {
+      const index = Math.round(hour / DATA_STEP_HOURS);
+      if (index < 0 || index >= chartData.length) return null;
+      const point = chartData[index];
+      const normalized = ((point.hour % 24) + 24) % 24;
+      const displayHour = normalized % 12 === 0 ? 12 : normalized % 12;
+      const ampm = normalized >= 12 ? "PM" : "AM";
+
+      return {
+        hour: point.hour,
+        label: `${displayHour} ${ampm}`,
+        value: point.wind,
+        unit: "mph",
+      };
+    },
+    [chartData]
+  );
+
+  const getXPositionForHour = useCallback(
+    (hour: number): number | null => {
+      if (!plotWidthPx || plotWidthPx <= 0) return null;
+      const totalHours = domainMax - domainMin;
+      if (totalHours <= 0) return null;
+      const t = (hour - domainMin) / totalHours;
+      if (t < 0 || t > 1) return null;
+      return yAxisInsetPx + t * plotWidthPx;
+    },
+    [plotWidthPx, yAxisInsetPx, domainMin, domainMax]
+  );
+
+  const handleMobileInspect = useCallback(
+    (_index: number, hour: number) => {
+      setHoveredHour(hour);
+    },
+    [setHoveredHour]
+  );
+
+  const handleMobileInspectEnd = useCallback(() => {
+    setHoveredHour(null);
+  }, [setHoveredHour]);
+
+  // Check if touch coordinates are on a bar
+  const isOnBar = useCallback(
+    (chartX: number, chartY: number): boolean => {
+      if (!plotWidthPx || plotWidthPx <= 0) return false;
+      const plotX = chartX - yAxisInsetPx;
+      if (plotX < 0 || plotX > plotWidthPx) return false;
+
+      const t = plotX / plotWidthPx;
+      const hour = domainMin + t * (domainMax - domainMin);
+      const barIndex = Math.round(hour / DATA_STEP_HOURS);
+      if (barIndex < 0 || barIndex >= chartData.length) return false;
+
+      // Just check if we're within the general bar region (simplified for overview)
+      return true;
+    },
+    [plotWidthPx, yAxisInsetPx, domainMin, domainMax, chartData.length]
+  );
+
+  const { handlers: mobileHandlers, styles: mobileStyles } = useMobileChartTouch({
+    chartId: mobileChartId,
+    containerRef,
+    dataLength: chartData.length,
+    getIndexFromX: getIndexFromChartX,
+    isOnBar,
+    onInspect: handleMobileInspect,
+    onInspectEnd: handleMobileInspectEnd,
+    enabled: isTouchOnlyDevice,
+  });
+
   return (
     <div
       ref={containerRef}
+      {...mobileHandlers}
+      style={mobileStyles}
       className="chart-touch-no-select relative aspect-auto h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px] w-full"
     >
       {/* Shade only the plot area (not the X-axis label band), matching prior ReferenceArea behavior. */}
@@ -678,17 +792,19 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
               ]}
               ticks={windTicks}
             />
-            <ChartTooltip
-              content={
-                <ChartTooltipContent
-                  labelFormatter={formatHourLabel}
-                  formatter={formatWindTooltipValue}
-                />
-              }
-              cursor={tooltipCursor}
-              animationDuration={0}
-              isAnimationActive={false}
-            />
+            {!isTouchOnlyDevice && (
+              <ChartTooltip
+                content={
+                  <ChartTooltipContent
+                    labelFormatter={formatHourLabel}
+                    formatter={formatWindTooltipValue}
+                  />
+                }
+                cursor={tooltipCursor}
+                animationDuration={0}
+                isAnimationActive={false}
+              />
+            )}
             {/* <ChartTooltip
               content={
                 <ChartTooltipContent
@@ -810,6 +926,15 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           </BarChart>
         </ChartContainer>
       </div>
+      {isTouchOnlyDevice && (
+        <MobileChartTooltip
+          chartId={mobileChartId}
+          getDataPoint={getMobileTooltipDataPoint}
+          getDataPointForHour={getDataPointForHour}
+          anchorRef={containerRef}
+          getXPositionForHour={getXPositionForHour}
+        />
+      )}
     </div>
   );
 };

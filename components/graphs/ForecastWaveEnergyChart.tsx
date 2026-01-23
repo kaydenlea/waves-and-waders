@@ -31,6 +31,11 @@ import {
 } from "@/components/ui/chart";
 import { useIsTouchOnlyDevice } from "./useIsTouchOnlyDevice";
 import {
+  useMobileChartTouch,
+  MobileChartTooltip,
+  type MobileTooltipDataPoint,
+} from "./MobileChartTooltip";
+import {
   ArrowDown,
   ArrowUp,
   Atom,
@@ -328,44 +333,27 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
   const [isAtRightEdge, setIsAtRightEdge] = useState(false);
   const { selected: selectedDate } = useDateContext();
   const isTouchOnlyDevice = useIsTouchOnlyDevice();
-  const [isTouchTooltipSyncActive, setIsTouchTooltipSyncActive] =
-    useState(false);
+  const mobileChartId = React.useId();
+  
+  // Touch inspect timer for long-press detection (legacy - keeping for compatibility)
+  const touchInspectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearTouchInspectTimer = useCallback(() => {
+    if (touchInspectTimerRef.current) {
+      clearTimeout(touchInspectTimerRef.current);
+      touchInspectTimerRef.current = null;
+    }
+  }, []);
+  
+  // Legacy touch inspection state (used by the old pointer handlers)
   const [isTouchInspecting, setIsTouchInspecting] = useState(false);
-  const [touchDefaultIndex, setTouchDefaultIndex] = useState<number | null>(
-    null
-  );
+  const [touchDefaultIndex, setTouchDefaultIndex] = useState<number | null>(null);
   const touchInspectStartRef = useRef<{
     startChartX: number;
     chartX: number;
     clientX: number;
     clientY: number;
   } | null>(null);
-  const rechartsMoveTargetRef = useRef<HTMLElement | null>(null);
-
-  const touchInspectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null
-  );
-  const clearTouchInspectTimer = useCallback(() => {
-    if (!touchInspectTimerRef.current) return;
-    clearTimeout(touchInspectTimerRef.current);
-    touchInspectTimerRef.current = null;
-  }, []);
-  useEffect(() => () => clearTouchInspectTimer(), [clearTouchInspectTimer]);
-
-  useEffect(() => {
-    if (!isTouchOnlyDevice) {
-      setIsTouchTooltipSyncActive(false);
-      return;
-    }
-
-    const update = () => {
-      const next = hoveredHourRef.current != null;
-      setIsTouchTooltipSyncActive((prev) => (prev === next ? prev : next));
-    };
-
-    update();
-    return subscribeToHover(update);
-  }, [hoveredHourRef, isTouchOnlyDevice, subscribeToHover]);
+  const rechartsMoveTargetRef = useRef<Element | null>(null);
 
   // Normalize and sort incoming days so fetch ranges stay aligned
   const normalizedDays = useMemo(() => {
@@ -736,6 +724,105 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
     setIsAtRightEdge(finalPx >= maxTranslate - 1);
   };
 
+  // Mobile touch system callbacks
+  const onPan = useCallback(
+    (deltaPx: number) => {
+      const next = clampTranslatePx(currentTranslateRef.current - deltaPx);
+      setInnerTranslatePx(next, false);
+      setPanFraction(next / dayPx, myId, "drag");
+    },
+    [clampTranslatePx, setInnerTranslatePx, setPanFraction, dayPx, myId]
+  );
+
+  const onPanEnd = useCallback(() => {
+    const finalPx = clampTranslatePx(currentTranslateRef.current);
+    const fractionalDayOffset = finalPx / dayPx;
+    setDayOffset(fractionalDayOffset);
+    setInnerTranslatePx(finalPx, false);
+    setPanFraction(fractionalDayOffset, myId, "animate");
+    const maxTranslate = Math.max(0, chartInnerWidth - viewportWidth);
+    setIsAtRightEdge(finalPx >= maxTranslate - 1);
+  }, [clampTranslatePx, dayPx, myId, setInnerTranslatePx, setPanFraction, chartInnerWidth, viewportWidth]);
+
+  const getIndexFromChartX = useCallback(
+    (chartX: number): number => {
+      if (!Number.isFinite(chartX) || !dataAreaWidth) return 0;
+      const plotX = Math.max(0, Math.min(chartX - dayLabelLeftOffset, dataAreaWidth));
+      const t = dataAreaWidth > 0 ? plotX / dataAreaWidth : 0;
+      const hour = domainMin + t * (domainMax - domainMin);
+      const roundedHour = Math.round(hour / DATA_STEP_HOURS) * DATA_STEP_HOURS;
+      const clampedHour = Math.max(0, Math.min(roundedHour, totalFetchedDays * HOURS_PER_DAY));
+      return Math.round(clampedHour / DATA_STEP_HOURS);
+    },
+    [dataAreaWidth, dayLabelLeftOffset, domainMin, domainMax, totalFetchedDays]
+  );
+
+  const getMobileTooltipDataPoint = useCallback(
+    (index: number): MobileTooltipDataPoint | null => {
+      if (index < 0 || index >= energyData.length) return null;
+      const point = energyData[index];
+      const hour = point.hour;
+      const normalized = ((hour % 24) + 24) % 24;
+      const displayHour = normalized % 12 === 0 ? 12 : normalized % 12;
+      const ampm = normalized >= 12 ? "PM" : "AM";
+      
+      return {
+        hour: point.hour,
+        label: `${displayHour} ${ampm}`,
+        value: point.energy,
+        unit: "kJ/m²",
+        icon: <Atom className="h-3.5 w-3.5" />,
+      };
+    },
+    [energyData]
+  );
+
+  // Get data point for a given hour (for synced tooltip display on this chart)
+  const getDataPointForHour = useCallback(
+    (hour: number): MobileTooltipDataPoint | null => {
+      // Hour is already rounded to 3-hour intervals
+      const index = Math.round(hour / DATA_STEP_HOURS);
+      if (index < 0 || index >= energyData.length) return null;
+      const point = energyData[index];
+      const normalized = ((point.hour % 24) + 24) % 24;
+      const displayHour = normalized % 12 === 0 ? 12 : normalized % 12;
+      const ampm = normalized >= 12 ? "PM" : "AM";
+      
+      return {
+        hour: point.hour,
+        label: `${displayHour} ${ampm}`,
+        value: point.energy,
+        unit: "kJ/m²",
+        icon: <Atom className="h-3.5 w-3.5" />,
+      };
+    },
+    [energyData]
+  );
+
+  // Get X position for a given hour (for synced tooltip positioning)
+  const getXPositionForHour = useCallback(
+    (hour: number): number | null => {
+      if (!dataAreaWidth || dataAreaWidth <= 0) return null;
+      const totalHours = domainMax - domainMin;
+      if (totalHours <= 0) return null;
+      const t = (hour - domainMin) / totalHours;
+      if (t < 0 || t > 1) return null;
+      return dayLabelLeftOffset + t * dataAreaWidth;
+    },
+    [dataAreaWidth, dayLabelLeftOffset, domainMin, domainMax]
+  );
+
+  const handleMobileInspect = useCallback(
+    (_index: number, hour: number) => {
+      setHoveredHour(hour);
+    },
+    [setHoveredHour]
+  );
+
+  const handleMobileInspectEnd = useCallback(() => {
+    setHoveredHour(null);
+  }, [setHoveredHour]);
+
   // Button controls
   const handleNext = useCallback(() => {
     const maxOffset = Math.max(0, totalFetchedDays - 1);
@@ -1058,6 +1145,60 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
       ),
     [energyData]
   );
+
+  // Y-axis domain for line proximity detection
+  const yMin = energyTicks[0] ?? 0;
+  const yMax = energyTicks[energyTicks.length - 1] ?? 8;
+
+  // Check if touch coordinates are near the energy line
+  const isOnLine = useCallback(
+    (chartX: number, chartY: number): boolean => {
+      if (!dataAreaWidth || dataAreaWidth <= 0) return false;
+      
+      const plotX = chartX - dayLabelLeftOffset;
+      if (plotX < 0 || plotX > dataAreaWidth) return false;
+      
+      // Chart dimensions
+      const chartHeight = 250;
+      const bottomAxisHeight = 25;
+      const lineAreaHeight = chartHeight - bottomAxisHeight;
+      const lineAreaBottom = chartHeight - bottomAxisHeight;
+      
+      if (chartY > lineAreaBottom || chartY < 0) return false;
+      
+      // Find which data point this X corresponds to
+      const t = plotX / dataAreaWidth;
+      const hour = domainMin + t * (domainMax - domainMin);
+      const nearestIndex = Math.round(hour / DATA_STEP_HOURS);
+      const clampedIndex = Math.max(0, Math.min(nearestIndex, energyData.length - 1));
+      const point = energyData[clampedIndex];
+      if (!point || typeof point.energy !== "number") return false;
+      
+      // Convert touch Y to data value
+      const touchValueRatio = 1 - (chartY / lineAreaHeight);
+      const touchValue = yMin + touchValueRatio * (yMax - yMin);
+      
+      // Check if touch is within tolerance of the line value
+      const toleranceInDataUnits = (yMax - yMin) * 0.15; // 15% of Y range
+      
+      return Math.abs(touchValue - point.energy) <= toleranceInDataUnits;
+    },
+    [dataAreaWidth, dayLabelLeftOffset, domainMin, domainMax, energyData, yMin, yMax]
+  );
+
+  const { handlers: mobileHandlers, styles: mobileStyles } = useMobileChartTouch({
+    chartId: mobileChartId,
+    containerRef: innerRef,
+    dataLength: energyData.length,
+    getIndexFromX: getIndexFromChartX,
+    isOnBar: isOnLine,
+    onPan,
+    onPanEnd,
+    onInspect: handleMobileInspect,
+    onInspectEnd: handleMobileInspectEnd,
+    enabled: isTouchOnlyDevice,
+  });
+
   const yAxisTick = useCallback(
     (props: YAxisTickProps) => {
       const { x, y, payload, textAnchor, fontSize } = props ?? {};
@@ -1184,7 +1325,8 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
 
   const handleMouseMove = React.useCallback(
     (e: ChartMouseEvent) => {
-      if (isTouchOnlyDevice && !isTouchInspecting) return;
+      // On touch devices, we use MobileChartTooltip instead
+      if (isTouchOnlyDevice) return;
       if (e && e.activeLabel !== undefined) {
         const hour = Number(e.activeLabel);
         if (!isNaN(hour)) {
@@ -1198,7 +1340,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
         }
       }
     },
-    [isTouchInspecting, isTouchOnlyDevice, setHoveredHour]
+    [isTouchOnlyDevice, setHoveredHour]
   );
 
   const handleMouseLeave = React.useCallback(() => {
@@ -1245,10 +1387,14 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
         {/* moving inner (chart + day labels) */}
         <div
           ref={innerRef}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={onPointerUp}
+          {...(isTouchOnlyDevice
+            ? mobileHandlers
+            : {
+                onPointerDown,
+                onPointerMove,
+                onPointerUp,
+                onPointerCancel: onPointerUp,
+              })}
           className="chart-touch-no-select"
           style={{
             marginTop: 60,
@@ -1259,7 +1405,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
             display: "block",
             willChange: "transform",
             cursor: "grab",
-            touchAction: isTouchInspecting ? "none" : "pan-y",
+            ...(isTouchOnlyDevice ? mobileStyles : {}),
           }}
         >
           {/* Day label bar */}
@@ -1476,7 +1622,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
                       right: CHART_RIGHT_MARGIN,
                       bottom: 5,
                     }}
-                    syncId="allCharts"
+                    syncId={isTouchOnlyDevice ? undefined : "allCharts"}
                     syncMethod={syncToNearestThirdHour}
                     onMouseMove={handleMouseMove}
                     onMouseLeave={handleMouseLeave}
@@ -1650,38 +1796,8 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
                       ]}
                       ticks={energyTicks}
                     />
-                    {isTouchOnlyDevice ? (
-                      isTouchInspecting || isTouchTooltipSyncActive ? (
-                        <ChartTooltip
-                          defaultIndex={
-                            isTouchInspecting
-                              ? touchDefaultIndex ?? undefined
-                              : hoveredHourRef.current != null &&
-                                energyData.length > 0
-                              ? Math.min(
-                                  energyData.length - 1,
-                                  Math.max(
-                                    0,
-                                    Math.round(
-                                      hoveredHourRef.current / DATA_STEP_HOURS
-                                    )
-                                  )
-                                )
-                              : undefined
-                          }
-                          content={
-                            <ChartTooltipViewportContent
-                              viewport={tooltipViewport}
-                              labelFormatter={formatHourLabel}
-                            />
-                          }
-                          cursor={false}
-                          wrapperStyle={{ transform: "translate(0px, 0px)" }}
-                          animationDuration={0}
-                          isAnimationActive={false}
-                        />
-                      ) : null
-                    ) : (
+                    {/* Mobile: Use custom MobileChartTooltip rendered via portal */}
+                    {isTouchOnlyDevice ? null : (
                       <ChartTooltip
                         content={
                           <ChartTooltipViewportContent
@@ -1714,6 +1830,17 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
           }}
         />
       </div>
+
+      {/* Mobile touch tooltip - rendered via portal */}
+      {isTouchOnlyDevice && (
+        <MobileChartTooltip
+          chartId={mobileChartId}
+          getDataPoint={getMobileTooltipDataPoint}
+          getDataPointForHour={getDataPointForHour}
+          anchorRef={containerRef}
+          getXPositionForHour={getXPositionForHour}
+        />
+      )}
     </div>
   );
 };

@@ -46,6 +46,11 @@ import { useChartTheme } from "@/components/graphs/useChartTheme";
 import { useOptionalOverviewChartLoading } from "@/components/context/OverviewChartsLoadingContext";
 import { useIsTouchOnlyDevice } from "./useIsTouchOnlyDevice";
 import {
+  useMobileChartTouch,
+  MobileChartTooltip,
+  type MobileTooltipDataPoint,
+} from "./MobileChartTooltip";
+import {
   applyForecastShadingOpacity,
   buildForecastPlotShadingBackgroundPercent,
 } from "@/components/graphs/forecastShadingBackground";
@@ -183,6 +188,7 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   );
   const [containerWidth, setContainerWidth] = useState<number>(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const mobileChartId = "overview-swell";
   const [isTouchInspecting, setIsTouchInspecting] = useState(false);
   const [touchDefaultIndex, setTouchDefaultIndex] = useState<number | null>(
     null
@@ -721,15 +727,135 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     []
   );
 
+  // Mobile touch tooltip callbacks
+  const getIndexFromChartX = React.useCallback(
+    (chartX: number): number => {
+      if (!plotWidthPx) return 0;
+      const plotX = Math.max(0, Math.min(chartX - yAxisInsetPx, plotWidthPx));
+      const t = plotWidthPx > 0 ? plotX / plotWidthPx : 0;
+      const hour = t * hours;
+      const roundedHour = Math.round(hour / 3) * 3;
+      const clampedHour = Math.max(0, Math.min(roundedHour, hours));
+      return Math.round(clampedHour / 3);
+    },
+    [plotWidthPx, yAxisInsetPx, hours]
+  );
+
+  const getMobileTooltipDataPoint = React.useCallback(
+    (index: number): MobileTooltipDataPoint | null => {
+      if (index < 0 || index >= data.length) return null;
+      const point = data[index];
+      const hour = point.time;
+      const normalized = ((hour % 24) + 24) % 24;
+      const displayHour = normalized % 12 === 0 ? 12 : normalized % 12;
+      const ampm = normalized >= 12 ? "PM" : "AM";
+
+      // Show all 3 swell values with colored 1/2/3 labels
+      const formattedValue = (
+        <span className="inline-flex items-center gap-1.5">
+          <span className="inline-flex items-center gap-0.5">
+            <span className="text-[0.65rem] font-bold" style={{ color: chartConfig.primary.color }}>1</span>
+            <span className="text-xs font-semibold tabular-nums">{point.primary.toFixed(1)}</span>
+          </span>
+          <span className="inline-flex items-center gap-0.5">
+            <span className="text-[0.65rem] font-bold" style={{ color: chartConfig.secondary.color }}>2</span>
+            <span className="text-xs font-semibold tabular-nums">{point.secondary.toFixed(1)}</span>
+          </span>
+          <span className="inline-flex items-center gap-0.5">
+            <span className="text-[0.65rem] font-bold" style={{ color: chartConfig.tertiary.color }}>3</span>
+            <span className="text-xs font-semibold tabular-nums">{point.tertiary.toFixed(1)}</span>
+          </span>
+          <span className="text-[0.6rem] text-muted-foreground">ft</span>
+        </span>
+      );
+
+      return {
+        hour: point.time,
+        label: `${displayHour} ${ampm}`,
+        value: point.primary,
+        unit: "ft",
+        formattedValue,
+      };
+    },
+    [data]
+  );
+
+  const getDataPointForHour = React.useCallback(
+    (hour: number): MobileTooltipDataPoint | null => {
+      const index = Math.round(hour / 3);
+      if (index < 0 || index >= data.length) return null;
+      const point = data[index];
+      const normalized = ((point.time % 24) + 24) % 24;
+      const displayHour = normalized % 12 === 0 ? 12 : normalized % 12;
+      const ampm = normalized >= 12 ? "PM" : "AM";
+
+      const formattedValue = (
+        <span className="inline-flex items-center gap-1.5">
+          <span className="inline-flex items-center gap-0.5">
+            <span className="text-[0.65rem] font-bold" style={{ color: chartConfig.primary.color }}>1</span>
+            <span className="text-xs font-semibold tabular-nums">{point.primary.toFixed(1)}</span>
+          </span>
+          <span className="inline-flex items-center gap-0.5">
+            <span className="text-[0.65rem] font-bold" style={{ color: chartConfig.secondary.color }}>2</span>
+            <span className="text-xs font-semibold tabular-nums">{point.secondary.toFixed(1)}</span>
+          </span>
+          <span className="inline-flex items-center gap-0.5">
+            <span className="text-[0.65rem] font-bold" style={{ color: chartConfig.tertiary.color }}>3</span>
+            <span className="text-xs font-semibold tabular-nums">{point.tertiary.toFixed(1)}</span>
+          </span>
+          <span className="text-[0.6rem] text-muted-foreground">ft</span>
+        </span>
+      );
+
+      return {
+        hour: point.time,
+        label: `${displayHour} ${ampm}`,
+        value: point.primary,
+        unit: "ft",
+        formattedValue,
+      };
+    },
+    [data]
+  );
+
+  const getXPositionForHour = React.useCallback(
+    (hour: number): number | null => {
+      if (!plotWidthPx || plotWidthPx <= 0) return null;
+      if (hours <= 0) return null;
+      const t = hour / hours;
+      if (t < 0 || t > 1) return null;
+      return yAxisInsetPx + t * plotWidthPx;
+    },
+    [plotWidthPx, yAxisInsetPx, hours]
+  );
+
+  const handleMobileInspect = React.useCallback(
+    (_index: number, hour: number) => {
+      setHoveredHour(hour);
+    },
+    [setHoveredHour]
+  );
+
+  const handleMobileInspectEnd = React.useCallback(() => {
+    setHoveredHour(null);
+  }, [setHoveredHour]);
+
+  const { handlers: mobileHandlers, styles: mobileStyles } = useMobileChartTouch({
+    chartId: mobileChartId,
+    containerRef,
+    dataLength: data.length,
+    getIndexFromX: getIndexFromChartX,
+    onInspect: handleMobileInspect,
+    onInspectEnd: handleMobileInspectEnd,
+    enabled: isTouchOnlyDevice,
+  });
+
   return (
     <div
       ref={containerRef}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}
+      {...mobileHandlers}
       className="chart-touch-no-select relative aspect-auto h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px] w-full"
-      style={isTouchInspecting ? { touchAction: "none" } : undefined}
+      style={mobileStyles}
     >
       {/* Shade only the plot area (not the X-axis label band), matching prior ReferenceArea behavior. */}
       <div
@@ -1117,6 +1243,15 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           </AreaChart>
         </ChartContainer>
       </div>
+      {isTouchOnlyDevice && (
+        <MobileChartTooltip
+          chartId={mobileChartId}
+          getDataPoint={getMobileTooltipDataPoint}
+          getDataPointForHour={getDataPointForHour}
+          anchorRef={containerRef}
+          getXPositionForHour={getXPositionForHour}
+        />
+      )}
     </div>
   );
 };
