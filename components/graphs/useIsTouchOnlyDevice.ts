@@ -16,7 +16,16 @@ export function useIsTouchOnlyDevice() {
       return;
     }
 
-    const update = () => setIsTouchOnlyDevice(media.matches);
+    const update = () => {
+      const isTouch = media.matches;
+      setIsTouchOnlyDevice(isTouch);
+      // Add/remove body class for CSS-based tooltip hiding
+      if (isTouch) {
+        document.body.classList.add("ww-touch-device");
+      } else {
+        document.body.classList.remove("ww-touch-device");
+      }
+    };
     update();
 
     if (typeof media.addEventListener === "function") {

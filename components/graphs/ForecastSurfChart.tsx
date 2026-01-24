@@ -1574,6 +1574,8 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
           getDataPointForHour={getDataPointForHour}
           anchorRef={containerRef}
           getXPositionForHour={getXPositionForHour}
+          positionInside
+          topOffset={55}
         />
       )}
     </div>

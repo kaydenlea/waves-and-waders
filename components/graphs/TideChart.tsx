@@ -1333,23 +1333,8 @@ const TideChart: React.FC<TideChartProps> = ({
               ]}
               ticks={tideTicks}
             />
-            {isTouchOnlyDevice ? (
-              isTouchInspecting ? (
-                <ChartTooltip
-                  defaultIndex={touchDefaultIndex ?? undefined}
-                  content={<ChartTooltipContent />}
-                  cursor={false}
-                  labelFormatter={(_, payload) => {
-                    const entry = Array.isArray(payload)
-                      ? (payload[0]?.payload as TidePoint | undefined)
-                      : undefined;
-                    return entry ? formatTime(entry.timestamp) : "";
-                  }}
-                  animationDuration={0}
-                  isAnimationActive={false}
-                />
-              ) : null
-            ) : (
+            {/* Mobile: Use MobileChartTooltip via portal instead */}
+            {!isTouchOnlyDevice && (
               <ChartTooltip
                 content={<ChartTooltipContent />}
                 cursor={false}
@@ -1538,6 +1523,7 @@ const TideChart: React.FC<TideChartProps> = ({
           getDataPointForHour={getDataPointForHour}
           anchorRef={containerRef}
           getXPositionForHour={getXPositionForHour}
+          positionInside
         />
       )}
     </div>

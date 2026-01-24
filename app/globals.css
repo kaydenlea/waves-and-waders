@@ -166,6 +166,24 @@
     pointer-events: none !important;
   }
 
+  /* Hide recharts tooltip wrapper on touch devices - we use MobileChartTooltip instead */
+  @media (hover: none) and (pointer: coarse) {
+    .recharts-tooltip-wrapper {
+      display: none !important;
+      visibility: hidden !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+    }
+  }
+
+  /* Also hide via JS-detected touch class (handles hydration timing) */
+  body.ww-touch-device .recharts-tooltip-wrapper {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+
   /* Perf: disable continuous hero effects on low-end devices (helps reduce scroll stutter). */
   @media (update: slow) {
     .ww-hero-blob-1,

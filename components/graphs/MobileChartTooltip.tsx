@@ -193,6 +193,10 @@ interface MobileChartTooltipProps {
   anchorRef?: React.RefObject<HTMLElement | null>;
   /** X position getter for synced charts to position tooltip horizontally */
   getXPositionForHour?: (hour: number) => number | null;
+  /** Position tooltip inside the chart (at top) instead of above it */
+  positionInside?: boolean;
+  /** Top offset in pixels when positionInside is true (default: 12) */
+  topOffset?: number;
 }
 
 /**
@@ -207,6 +211,8 @@ export function MobileChartTooltip({
   getDataPointForHour,
   anchorRef,
   getXPositionForHour,
+  positionInside = false,
+  topOffset = 12,
 }: MobileChartTooltipProps) {
   const state = useMobileTooltipState();
   const [mounted, setMounted] = React.useState(false);
@@ -244,19 +250,36 @@ export function MobileChartTooltip({
     return null;
   }
   
-  // Position tooltip at top-center of chart container (in header area)
+  // Position tooltip relative to chart container
   const rect = anchorRef.current.getBoundingClientRect();
+  const rectValid =
+    Number.isFinite(rect.left) &&
+    Number.isFinite(rect.top) &&
+    rect.width > 4 &&
+    rect.height > 4;
+  if (!rectValid) {
+    return null;
+  }
   const tooltipX = rect.left + rect.width / 2;
-  // Position just above the chart container, in the header row
-  const tooltipY = rect.top - 4;
+  // Clamp to chart bounds to avoid drifting to the viewport edge.
+  const clampPadding = Math.min(16, rect.width / 2);
+  const clampedX = Math.min(
+    rect.right - clampPadding,
+    Math.max(rect.left + clampPadding, tooltipX)
+  );
+  // Position inside chart (at top with padding) or above it (in header row)
+  const tooltipY = positionInside ? rect.top + topOffset : rect.top - 4;
+  const transform = positionInside
+    ? "translate(-50%, 0)" // Center horizontally, position from top
+    : "translate(-50%, -100%)"; // Center horizontally, position above
   
   return createPortal(
     <div
       className="pointer-events-none fixed z-20"
       style={{
-        left: tooltipX,
+        left: clampedX,
         top: tooltipY,
-        transform: "translate(-50%, -100%)", // Center horizontally, position above
+        transform,
       }}
     >
       {/* Compact horizontal tooltip - fits in header area */}

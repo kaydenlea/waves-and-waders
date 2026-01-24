@@ -962,17 +962,8 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
               ]}
               ticks={energyTicks}
             />
-            {isTouchOnlyDevice ? (
-              isTouchInspecting ? (
-                <ChartTooltip
-                  defaultIndex={touchDefaultIndex ?? undefined}
-                  content={<ChartTooltipContent />}
-                  cursor={false}
-                  animationDuration={0}
-                  isAnimationActive={false}
-                />
-              ) : null
-            ) : (
+            {/* Mobile: Use MobileChartTooltip via portal instead */}
+            {!isTouchOnlyDevice && (
               <ChartTooltip
                 content={<ChartTooltipContent />}
                 cursor={false}
@@ -1037,6 +1028,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           getDataPointForHour={getDataPointForHour}
           anchorRef={containerRef}
           getXPositionForHour={getXPositionForHour}
+          positionInside
         />
       )}
     </div>

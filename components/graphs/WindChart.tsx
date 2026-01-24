@@ -559,14 +559,54 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       const displayHour = normalized % 12 === 0 ? 12 : normalized % 12;
       const ampm = normalized >= 12 ? "PM" : "AM";
 
+      const direction = point.direction;
+      const directionLabel = getWindDirection(
+        typeof direction === "number" ? direction : 0
+      );
+      const dirText =
+        typeof direction === "number"
+          ? `${directionLabel} (${Math.round(direction)}°)`
+          : directionLabel;
+      const dirTextDisplay = dirText
+        .replaceAll("\u00C2\u00B0", "\u00B0")
+        .replaceAll("A\u0173", "\u00B0")
+        .replaceAll("AÅ³", "\u00B0")
+        .replaceAll("\u0173", "\u00B0");
+      const formattedValue = (
+        <span className="inline-flex flex-col items-start gap-0.5">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="text-sm font-semibold tabular-nums">
+              {Math.round(point.wind)}
+            </span>
+            <span className="text-[0.65rem] font-medium text-muted-foreground">
+              mph
+            </span>
+            {typeof direction === "number" ? (
+              <ArrowIcon
+                size={12}
+                className="fill-foreground/15 text-foreground/60"
+                style={{
+                  transform: `rotate(${direction - 315}deg)`,
+                  transformOrigin: "50% 50%",
+                }}
+              />
+            ) : null}
+          </span>
+          <span className="text-[0.65rem] text-muted-foreground">
+            {dirTextDisplay}
+          </span>
+        </span>
+      );
+
       return {
         hour: point.hour,
         label: `${displayHour} ${ampm}`,
         value: point.wind,
         unit: "mph",
+        formattedValue,
       };
     },
-    [chartData]
+    [chartData, getWindDirection]
   );
 
   const getDataPointForHour = useCallback(
@@ -578,14 +618,54 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       const displayHour = normalized % 12 === 0 ? 12 : normalized % 12;
       const ampm = normalized >= 12 ? "PM" : "AM";
 
+      const direction = point.direction;
+      const directionLabel = getWindDirection(
+        typeof direction === "number" ? direction : 0
+      );
+      const dirText =
+        typeof direction === "number"
+          ? `${directionLabel} (${Math.round(direction)}°)`
+          : directionLabel;
+      const dirTextDisplay = dirText
+        .replaceAll("\u00C2\u00B0", "\u00B0")
+        .replaceAll("A\u0173", "\u00B0")
+        .replaceAll("AÅ³", "\u00B0")
+        .replaceAll("\u0173", "\u00B0");
+      const formattedValue = (
+        <span className="inline-flex flex-col items-start gap-0.5">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="text-sm font-semibold tabular-nums">
+              {Math.round(point.wind)}
+            </span>
+            <span className="text-[0.65rem] font-medium text-muted-foreground">
+              mph
+            </span>
+            {typeof direction === "number" ? (
+              <ArrowIcon
+                size={12}
+                className="fill-foreground/15 text-foreground/60"
+                style={{
+                  transform: `rotate(${direction - 315}deg)`,
+                  transformOrigin: "50% 50%",
+                }}
+              />
+            ) : null}
+          </span>
+          <span className="text-[0.65rem] text-muted-foreground">
+            {dirTextDisplay}
+          </span>
+        </span>
+      );
+
       return {
         hour: point.hour,
         label: `${displayHour} ${ampm}`,
         value: point.wind,
         unit: "mph",
+        formattedValue,
       };
     },
-    [chartData]
+    [chartData, getWindDirection]
   );
 
   const getXPositionForHour = useCallback(
@@ -933,6 +1013,7 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           getDataPointForHour={getDataPointForHour}
           anchorRef={containerRef}
           getXPositionForHour={getXPositionForHour}
+          positionInside
         />
       )}
     </div>

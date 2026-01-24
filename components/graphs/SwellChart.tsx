@@ -750,22 +750,106 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       const displayHour = normalized % 12 === 0 ? 12 : normalized % 12;
       const ampm = normalized >= 12 ? "PM" : "AM";
 
+      const dirLabel = (direction?: number) =>
+        typeof direction === "number" ? getWindDirection(direction) : "--";
       // Show all 3 swell values with colored 1/2/3 labels
       const formattedValue = (
-        <span className="inline-flex items-center gap-1.5">
-          <span className="inline-flex items-center gap-0.5">
-            <span className="text-[0.65rem] font-bold" style={{ color: chartConfig.primary.color }}>1</span>
-            <span className="text-xs font-semibold tabular-nums">{point.primary.toFixed(1)}</span>
+        <span className="inline-flex flex-col items-start gap-0.5">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="inline-flex items-center gap-0.5">
+              <span
+                className="text-[0.65rem] font-bold"
+                style={{ color: chartConfig.primary.color }}
+              >
+                1
+              </span>
+              <span className="text-xs font-semibold tabular-nums">
+                {point.primary.toFixed(1)}
+              </span>
+            </span>
+            <span className="inline-flex items-center gap-0.5">
+              <span
+                className="text-[0.65rem] font-bold"
+                style={{ color: chartConfig.secondary.color }}
+              >
+                2
+              </span>
+              <span className="text-xs font-semibold tabular-nums">
+                {point.secondary.toFixed(1)}
+              </span>
+            </span>
+            <span className="inline-flex items-center gap-0.5">
+              <span
+                className="text-[0.65rem] font-bold"
+                style={{ color: chartConfig.tertiary.color }}
+              >
+                3
+              </span>
+              <span className="text-xs font-semibold tabular-nums">
+                {point.tertiary.toFixed(1)}
+              </span>
+            </span>
+            <span className="text-[0.6rem] text-muted-foreground">ft</span>
           </span>
-          <span className="inline-flex items-center gap-0.5">
-            <span className="text-[0.65rem] font-bold" style={{ color: chartConfig.secondary.color }}>2</span>
-            <span className="text-xs font-semibold tabular-nums">{point.secondary.toFixed(1)}</span>
+          <span className="inline-flex items-center gap-2 text-[0.6rem] text-muted-foreground">
+            <span className="inline-flex items-center gap-0.5">
+              <span
+                className="text-[0.6rem] font-bold"
+                style={{ color: chartConfig.primary.color }}
+              >
+                1
+              </span>
+              {typeof point.primaryDir === "number" ? (
+                <ArrowIcon
+                  size={10}
+                  className="fill-foreground/15 text-foreground/60"
+                  style={{
+                    transform: `rotate(${point.primaryDir - 315}deg)`,
+                    transformOrigin: "50% 50%",
+                  }}
+                />
+              ) : null}
+              <span>{dirLabel(point.primaryDir)}</span>
+            </span>
+            <span className="inline-flex items-center gap-0.5">
+              <span
+                className="text-[0.6rem] font-bold"
+                style={{ color: chartConfig.secondary.color }}
+              >
+                2
+              </span>
+              {typeof point.secondaryDir === "number" ? (
+                <ArrowIcon
+                  size={10}
+                  className="fill-foreground/15 text-foreground/60"
+                  style={{
+                    transform: `rotate(${point.secondaryDir - 315}deg)`,
+                    transformOrigin: "50% 50%",
+                  }}
+                />
+              ) : null}
+              <span>{dirLabel(point.secondaryDir)}</span>
+            </span>
+            <span className="inline-flex items-center gap-0.5">
+              <span
+                className="text-[0.6rem] font-bold"
+                style={{ color: chartConfig.tertiary.color }}
+              >
+                3
+              </span>
+              {typeof point.tertiaryDir === "number" ? (
+                <ArrowIcon
+                  size={10}
+                  className="fill-foreground/15 text-foreground/60"
+                  style={{
+                    transform: `rotate(${point.tertiaryDir - 315}deg)`,
+                    transformOrigin: "50% 50%",
+                  }}
+                />
+              ) : null}
+              <span>{dirLabel(point.tertiaryDir)}</span>
+            </span>
           </span>
-          <span className="inline-flex items-center gap-0.5">
-            <span className="text-[0.65rem] font-bold" style={{ color: chartConfig.tertiary.color }}>3</span>
-            <span className="text-xs font-semibold tabular-nums">{point.tertiary.toFixed(1)}</span>
-          </span>
-          <span className="text-[0.6rem] text-muted-foreground">ft</span>
         </span>
       );
 
@@ -789,21 +873,105 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       const displayHour = normalized % 12 === 0 ? 12 : normalized % 12;
       const ampm = normalized >= 12 ? "PM" : "AM";
 
+      const dirLabel = (direction?: number) =>
+        typeof direction === "number" ? getWindDirection(direction) : "--";
       const formattedValue = (
-        <span className="inline-flex items-center gap-1.5">
-          <span className="inline-flex items-center gap-0.5">
-            <span className="text-[0.65rem] font-bold" style={{ color: chartConfig.primary.color }}>1</span>
-            <span className="text-xs font-semibold tabular-nums">{point.primary.toFixed(1)}</span>
+        <span className="inline-flex flex-col items-start gap-0.5">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="inline-flex items-center gap-0.5">
+              <span
+                className="text-[0.65rem] font-bold"
+                style={{ color: chartConfig.primary.color }}
+              >
+                1
+              </span>
+              <span className="text-xs font-semibold tabular-nums">
+                {point.primary.toFixed(1)}
+              </span>
+            </span>
+            <span className="inline-flex items-center gap-0.5">
+              <span
+                className="text-[0.65rem] font-bold"
+                style={{ color: chartConfig.secondary.color }}
+              >
+                2
+              </span>
+              <span className="text-xs font-semibold tabular-nums">
+                {point.secondary.toFixed(1)}
+              </span>
+            </span>
+            <span className="inline-flex items-center gap-0.5">
+              <span
+                className="text-[0.65rem] font-bold"
+                style={{ color: chartConfig.tertiary.color }}
+              >
+                3
+              </span>
+              <span className="text-xs font-semibold tabular-nums">
+                {point.tertiary.toFixed(1)}
+              </span>
+            </span>
+            <span className="text-[0.6rem] text-muted-foreground">ft</span>
           </span>
-          <span className="inline-flex items-center gap-0.5">
-            <span className="text-[0.65rem] font-bold" style={{ color: chartConfig.secondary.color }}>2</span>
-            <span className="text-xs font-semibold tabular-nums">{point.secondary.toFixed(1)}</span>
+          <span className="inline-flex items-center gap-2 text-[0.6rem] text-muted-foreground">
+            <span className="inline-flex items-center gap-0.5">
+              <span
+                className="text-[0.6rem] font-bold"
+                style={{ color: chartConfig.primary.color }}
+              >
+                1
+              </span>
+              {typeof point.primaryDir === "number" ? (
+                <ArrowIcon
+                  size={10}
+                  className="fill-foreground/15 text-foreground/60"
+                  style={{
+                    transform: `rotate(${point.primaryDir - 315}deg)`,
+                    transformOrigin: "50% 50%",
+                  }}
+                />
+              ) : null}
+              <span>{dirLabel(point.primaryDir)}</span>
+            </span>
+            <span className="inline-flex items-center gap-0.5">
+              <span
+                className="text-[0.6rem] font-bold"
+                style={{ color: chartConfig.secondary.color }}
+              >
+                2
+              </span>
+              {typeof point.secondaryDir === "number" ? (
+                <ArrowIcon
+                  size={10}
+                  className="fill-foreground/15 text-foreground/60"
+                  style={{
+                    transform: `rotate(${point.secondaryDir - 315}deg)`,
+                    transformOrigin: "50% 50%",
+                  }}
+                />
+              ) : null}
+              <span>{dirLabel(point.secondaryDir)}</span>
+            </span>
+            <span className="inline-flex items-center gap-0.5">
+              <span
+                className="text-[0.6rem] font-bold"
+                style={{ color: chartConfig.tertiary.color }}
+              >
+                3
+              </span>
+              {typeof point.tertiaryDir === "number" ? (
+                <ArrowIcon
+                  size={10}
+                  className="fill-foreground/15 text-foreground/60"
+                  style={{
+                    transform: `rotate(${point.tertiaryDir - 315}deg)`,
+                    transformOrigin: "50% 50%",
+                  }}
+                />
+              ) : null}
+              <span>{dirLabel(point.tertiaryDir)}</span>
+            </span>
           </span>
-          <span className="inline-flex items-center gap-0.5">
-            <span className="text-[0.65rem] font-bold" style={{ color: chartConfig.tertiary.color }}>3</span>
-            <span className="text-xs font-semibold tabular-nums">{point.tertiary.toFixed(1)}</span>
-          </span>
-          <span className="text-[0.6rem] text-muted-foreground">ft</span>
         </span>
       );
 
@@ -815,7 +983,7 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         formattedValue,
       };
     },
-    [data]
+    [data, getWindDirection]
   );
 
   const getXPositionForHour = React.useCallback(
@@ -1070,22 +1238,8 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
               strokeDasharray="3 3"
             />
             {/* <ChartLegend content={<ChartLegendContent />} /> */}
-            {isTouchOnlyDevice ? (
-              isTouchInspecting ? (
-                <ChartTooltip
-                  defaultIndex={touchDefaultIndex ?? undefined}
-                  content={
-                    <ChartTooltipContent
-                      labelFormatter={formatHourLabel}
-                      formatter={formatSwellTooltipValue}
-                    />
-                  }
-                  cursor={false}
-                  animationDuration={0}
-                  isAnimationActive={false}
-                />
-              ) : null
-            ) : (
+            {/* Mobile: Use MobileChartTooltip via portal instead */}
+            {!isTouchOnlyDevice && (
               <ChartTooltip
                 content={
                   <ChartTooltipContent
@@ -1250,6 +1404,7 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           getDataPointForHour={getDataPointForHour}
           anchorRef={containerRef}
           getXPositionForHour={getXPositionForHour}
+          positionInside
         />
       )}
     </div>

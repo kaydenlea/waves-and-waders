@@ -2224,6 +2224,8 @@ export default React.memo(function ForecastTideChart({
             getDataPointForHour={getDataPointForHour}
             anchorRef={containerRef}
             getXPositionForHour={getXPositionForHour}
+            positionInside
+            topOffset={55}
           />
         )}
       </div>

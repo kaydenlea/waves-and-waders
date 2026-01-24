@@ -871,6 +871,7 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           getDataPointForHour={getDataPointForHour}
           anchorRef={containerRef}
           getXPositionForHour={getXPositionForHour}
+          positionInside
         />
       )}
     </div>
