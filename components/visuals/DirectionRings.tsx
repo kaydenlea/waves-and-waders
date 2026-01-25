@@ -39,7 +39,7 @@ const arcPath = (
   r: number,
   startDeg: number,
   endDeg: number,
-  sweep: 0 | 1
+  sweep: 0 | 1,
 ) => {
   const s = polar(cx, cy, r, startDeg);
   const e = polar(cx, cy, r, endDeg);
@@ -47,7 +47,7 @@ const arcPath = (
     sweep === 1 ? normDeg(endDeg - startDeg) : normDeg(startDeg - endDeg);
   const laf = span > 180 ? 1 : 0;
   return `M ${s.x.toFixed(2)} ${s.y.toFixed(2)} A ${r.toFixed(2)} ${r.toFixed(
-    2
+    2,
   )} 0 ${laf} ${sweep} ${e.x.toFixed(2)} ${e.y.toFixed(2)}`;
 };
 
@@ -85,7 +85,7 @@ const parseSwellLabelParts = (label: string | null | undefined) => {
 const getArrowMetrics = (
   arcStroke: number,
   scale: number,
-  isPreview: boolean
+  isPreview: boolean,
 ) => {
   // Arc-cap pointer geometry:
   // - Base width ~ arc stroke (so it visually continues the band).
@@ -213,7 +213,7 @@ export const SwellRings: React.FC<{
     color: string,
     badgeText?: string,
     badgeBearing?: number,
-    badgeRadius?: number
+    badgeRadius?: number,
   ): React.ReactNode => {
     const normalized = normDeg(direction);
 
@@ -222,7 +222,7 @@ export const SwellRings: React.FC<{
     const { width, length, tipY, baseY, neckY } = getArrowMetrics(
       arcStroke,
       scale,
-      isPreview
+      isPreview,
     );
     // Place pointer just outside the arc stroke, inside the inter-ring gap.
     const anchorRadius = arcOuterRadius + arrowGapPx;
@@ -360,7 +360,7 @@ export const SwellRings: React.FC<{
                 textRadius,
                 textStart,
                 textEnd,
-                textSweep
+                textSweep,
               )}
             />
           );
@@ -417,7 +417,7 @@ export const SwellRings: React.FC<{
             : 0;
         const iconBearing = normDeg(
           centerBearing +
-            sweepSign * ((iconCenterShiftPx / radius) * (180 / Math.PI))
+            sweepSign * ((iconCenterShiftPx / radius) * (180 / Math.PI)),
         );
 
         return (
@@ -497,7 +497,7 @@ export const SwellRings: React.FC<{
                 color,
                 badgeText,
                 badgeBearing,
-                badgeRadius
+                badgeRadius,
               )}
 
             {/* Icon stays visible even when legend is closed; it follows the same path direction as the value text. */}
@@ -542,8 +542,8 @@ export const SwellRings: React.FC<{
               >
                 <text
                   fontSize={labelFont}
-                  fontWeight={700}
-                  letterSpacing="0.02em"
+                  fontWeight={650}
+                  letterSpacing="0.06em"
                   textAnchor="middle"
                   dominantBaseline="central"
                   fill="rgba(255,255,255,0.96)"
@@ -554,7 +554,7 @@ export const SwellRings: React.FC<{
                     startOffset={`${clamp(
                       50 + ((iconSize + iconGapPx) / 2 / arcLen) * 100,
                       5,
-                      95
+                      95,
                     )}%`}
                     dy={0}
                   >
@@ -651,7 +651,8 @@ export const WindRing: React.FC<{
       ? -(estimateTextWidthPx(label, labelFont) / 2 + iconGapPx / 2)
       : 0;
   const iconBearing = normDeg(
-    centerBearing + sweepSign * ((iconCenterShiftPx / radius) * (180 / Math.PI))
+    centerBearing +
+      sweepSign * ((iconCenterShiftPx / radius) * (180 / Math.PI)),
   );
 
   const arcD = arcPath(center, center, radius, start, end, 1);
@@ -663,7 +664,7 @@ export const WindRing: React.FC<{
     const { width, length, tipY, baseY, neckY } = getArrowMetrics(
       arcStroke,
       scale,
-      isPreview
+      isPreview,
     );
     const anchorRadius = arcOuterRadius + arrowGapPx;
     const halfW = width / 2;
@@ -732,7 +733,7 @@ export const WindRing: React.FC<{
                   textRadius,
                   textStart,
                   textEnd,
-                  textSweep
+                  textSweep,
                 )}
               />
             );
@@ -882,8 +883,8 @@ export const WindRing: React.FC<{
           <g transform={lower ? `rotate(180 ${center} ${center})` : undefined}>
             <text
               fontSize={labelFont}
-              fontWeight={700}
-              letterSpacing="0.02em"
+              fontWeight={650}
+              letterSpacing="0.06em"
               textAnchor="middle"
               dominantBaseline="central"
               fill="rgba(255,255,255,0.96)"
@@ -894,7 +895,7 @@ export const WindRing: React.FC<{
                 startOffset={`${clamp(
                   50 + ((iconSize + iconGapPx) / 2 / arcLen) * 100,
                   5,
-                  95
+                  95,
                 )}%`}
                 dy={0}
               >

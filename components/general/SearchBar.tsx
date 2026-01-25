@@ -14,7 +14,7 @@ import React, {
 import { useRouter } from "next/navigation";
 import { Map, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useSearchContext } from "../context/SearchContext";
+import { useOptionalSearchContext } from "../context/SearchContext";
 import ToggleFilters from "./ToggleFilters";
 
 type BeachHit = {
@@ -86,7 +86,13 @@ const SearchBar = ({
   const abortRef = useRef<AbortController | null>(null);
   const boxRef = useRef<HTMLFormElement | null>(null);
 
-  const { isOverlay, setIsOverlay } = useSearchContext();
+  const searchCtx = useOptionalSearchContext();
+  const isOverlay = searchCtx?.isOverlay ?? false;
+  const setIsOverlay = useMemo<React.Dispatch<React.SetStateAction<boolean>>>(
+    () =>
+      searchCtx?.setIsOverlay ?? ((next) => void next),
+    [searchCtx?.setIsOverlay]
+  );
 
   // Deferred query for smoother typing - input stays responsive
   const deferredQuery = useDeferredValue(query);

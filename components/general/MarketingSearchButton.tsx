@@ -1,7 +1,7 @@
 "use client";
 
 import { Search } from "lucide-react";
-import { useSearchContext } from "@/components/context/SearchContext";
+import { useOptionalSearchContext } from "@/components/context/SearchContext";
 import { cn } from "@/lib/utils";
 
 export default function MarketingSearchButton({
@@ -9,13 +9,13 @@ export default function MarketingSearchButton({
 }: {
   className?: string;
 }) {
-  const { setIsOverlay } = useSearchContext();
+  const setIsOverlay = useOptionalSearchContext()?.setIsOverlay;
 
   return (
     <button
       type="button"
       aria-label="Search beaches"
-      onClick={() => setIsOverlay(true)}
+      onClick={() => setIsOverlay?.(true)}
       className={cn(
         "icon-button bg-gradient-to-br from-cyan-300 to-blue-500 p-3 text-foreground shadow-lg shadow-cyan-500/30",
         "transition active:scale-[0.98] hover:scale-[1.03] motion-reduce:transition-none",

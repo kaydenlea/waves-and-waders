@@ -20,7 +20,7 @@ import BackToMapButton from "./BackToMapButton";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useUser, useSupabaseClient } from "@supabase/auth-helpers-react";
-import { useSearchContext } from "../context/SearchContext";
+import { useOptionalSearchContext } from "../context/SearchContext";
 import { usePathname } from "next/navigation";
 import { useDateContext } from "../context/DateContext";
 import { useMapData, useMapUI } from "../context/MapFilterContext";
@@ -45,7 +45,7 @@ const BOTTOM_NAV_MORE_LINKS = [
   // { href: "/terms", label: "Terms", iconKey: "terms" as const },
 ];
 
-export default function BottomNav() {
+export default function BottomNav({ beachName }: { beachName?: string }) {
   const router = useRouter();
   const user = useUser();
   const displayEmail = user?.email ?? "Account";
@@ -59,7 +59,12 @@ export default function BottomNav() {
   const fullMapPage = !pathname.endsWith("/beaches");
   const landingPage = pathname === "/";
   const { mode, setMode } = useDateContext();
-  const { isOverlay, setIsOverlay } = useSearchContext();
+  const searchCtx = useOptionalSearchContext();
+  const isOverlay = searchCtx?.isOverlay ?? false;
+  const setIsOverlay = useMemo<React.Dispatch<React.SetStateAction<boolean>>>(
+    () => searchCtx?.setIsOverlay ?? ((next) => void next),
+    [searchCtx?.setIsOverlay],
+  );
   const [mobile, setIsMobile] = useState(false);
   const { openPanel, setOpenPanel } = useMapUI();
   const { filters, setFilters } = useMapData();
@@ -164,8 +169,7 @@ export default function BottomNav() {
         html.style.overscrollBehaviorY = "contain";
         body.style.overscrollBehaviorY = "contain";
       }
-    }
-    else {
+    } else {
       // Restore defaults
       html.style.overflow = "";
       body.style.overflow = "";
@@ -268,7 +272,7 @@ export default function BottomNav() {
         label: cat.label || key,
         features: Array.from(cat.features),
       })),
-    []
+    [],
   );
 
   const sectionSelections = useMemo(() => {
@@ -276,7 +280,7 @@ export default function BottomNav() {
     featureSections.forEach((section) => {
       result[section.key] = section.features.reduce(
         (count, key) => count + (tempFilters.has(key) ? 1 : 0),
-        0
+        0,
       );
     });
     return result;
@@ -319,7 +323,7 @@ export default function BottomNav() {
           "fixed bottom-34 left-1/2 transform -translate-x-1/2 z-40 transition-all duration-300 @min-4xl:hidden flex items-center justify-center h-0",
           showBottomUI
             ? "opacity-100 translate-y-0"
-            : "opacity-0 translate-y-5 pointer-events-none"
+            : "opacity-0 translate-y-5 pointer-events-none",
         )}
       >
         {atTop && !landingPage ? (
@@ -347,12 +351,13 @@ export default function BottomNav() {
               aria-label="Scroll to content"
               className="flex items-center gap-1 px-4 py-3 rounded-full bg-background backdrop-blur border border-border shadow-lg text-sm font-medium text-foreground hover:bg-highlight-5 transition-colors touch-none select-none"
             >
-              <span>
-                View{" "}
+              <span className="min-w-0 max-w-[min(72vw,18rem)] truncate text-center">
                 {fullMapPage
-                  ? forecastPage
-                    ? "Forecast"
-                    : "Overview"
+                  ? beachName?.trim()
+                    ? beachName.trim()
+                    : forecastPage
+                      ? "Forecast"
+                      : "Overview"
                   : "Beaches"}
               </span>
               <ChevronDown className="w-5 h-5" />
@@ -387,7 +392,7 @@ export default function BottomNav() {
             "fixed inset-0 z-50 bg-black/30 transition-opacity duration-100",
             openPanel === "filters"
               ? "opacity-100 pointer-events-auto"
-              : "opacity-0 pointer-events-none"
+              : "opacity-0 pointer-events-none",
           )}
           onClick={() => setOpenPanel(null)}
         />
@@ -399,7 +404,7 @@ export default function BottomNav() {
             "fixed bottom-0 left-0 right-0 z-50 flex flex-col max-h-[85vh] transition-[transform,opacity] duration-150 will-change-transform translate-y-4 opacity-0 pointer-events-none",
             openPanel === "filters" &&
               "translate-y-0 opacity-100 pointer-events-auto",
-            "@min-4xl:bottom-auto @min-4xl:left-1/2 @min-4xl:top-1/2 @min-4xl:right-auto @min-4xl:-translate-x-1/2 @min-4xl:-translate-y-1/2 @min-4xl:max-h-[80vh] @min-4xl:w-[800px]"
+            "@min-4xl:bottom-auto @min-4xl:left-1/2 @min-4xl:top-1/2 @min-4xl:right-auto @min-4xl:-translate-x-1/2 @min-4xl:-translate-y-1/2 @min-4xl:max-h-[80vh] @min-4xl:w-[800px]",
           )}
         >
           <FiltersPanel
@@ -412,7 +417,7 @@ export default function BottomNav() {
             }}
             className={cn(
               "rounded-t-3xl rounded-b-none border-t border-border/30 shadow-[0_-12px_40px_rgba(2,6,23,0.08)]",
-              "@min-4xl:rounded-3xl @min-4xl:border @min-4xl:shadow-2xl"
+              "@min-4xl:rounded-3xl @min-4xl:border @min-4xl:shadow-2xl",
             )}
           />
         </div>
@@ -444,7 +449,7 @@ export default function BottomNav() {
       <div
         className={cn(
           "shadow-md @min-4xl:hidden safe-area-inset-bottom bg-highlight-4 backdrop-blur border-t border-border fixed bottom-0 left-0 right-0 z-60 transition-all duration-300 touch-none",
-          showBottomUI ? "translate-y-0" : "translate-y-full"
+          showBottomUI ? "translate-y-0" : "translate-y-full",
         )}
       >
         <nav
@@ -463,7 +468,7 @@ export default function BottomNav() {
               cn(
                 "p-2 rounded-2xl flex flex-col items-center gap-1 @min-[350px]:min-w-15 transition-colors",
                 "hover:bg-highlight-5",
-                active ? "text-foreground" : "text-foreground/80"
+                active ? "text-foreground" : "text-foreground/80",
               );
             return (
               <>
@@ -484,7 +489,7 @@ export default function BottomNav() {
                       "w-6 h-6 @min-[350px]:w-5 @min-[350px]:h-5 -mt-0.5",
                       isNearby
                         ? "fill-foreground text-background"
-                        : "text-foreground/80"
+                        : "text-foreground/80",
                     )}
                   />
                   <span
@@ -493,7 +498,7 @@ export default function BottomNav() {
                       "font-medium leading-none",
                       isNearby
                         ? "font-medium text-foreground"
-                        : "text-foreground/80"
+                        : "text-foreground/80",
                     )}
                   >
                     Browse
@@ -517,7 +522,7 @@ export default function BottomNav() {
                       "w-6 h-6 @min-[350px]:w-5 @min-[350px]:h-5 -mt-0.5",
                       isSaved
                         ? "fill-foreground text-background"
-                        : "text-foreground/80"
+                        : "text-foreground/80",
                     )}
                   />
                   <span
@@ -526,7 +531,7 @@ export default function BottomNav() {
                       "font-medium leading-none",
                       isSaved
                         ? "font-medium text-foreground"
-                        : "text-foreground/80"
+                        : "text-foreground/80",
                     )}
                   >
                     Saved
@@ -542,7 +547,7 @@ export default function BottomNav() {
             aria-pressed={isOverlay}
             className={cn(
               "group/button inline-flex @min-4xl:hidden items-center gap-1 rounded-full bg-gradient-to-br from-cyan-300 to-blue-500 p-3 font-medium text-foreground shadow-lg shadow-cyan-500/30 transition active:scale-[0.98]",
-              isOverlay ? "ring-2 ring-foreground/20" : "hover:scale-[1.05]"
+              isOverlay ? "ring-2 ring-foreground/20" : "hover:scale-[1.05]",
             )}
           >
             <Search

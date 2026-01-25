@@ -91,7 +91,7 @@ import {
   type MapFocusEventDetail,
 } from "../general/mapEvents";
 import { motion, AnimatePresence } from "framer-motion";
-import { useSearchContext } from "../context/SearchContext";
+import { useOptionalSearchContext } from "../context/SearchContext";
 import { useClientPath } from "../context/PathContext";
 import PageTabs from "../general/PageTabs";
 
@@ -553,7 +553,9 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
     latitude: number;
     properties: PopupProperties;
   } | null>(null);
-  const { isOverlay, setIsOverlay } = useSearchContext();
+  const searchCtx = useOptionalSearchContext();
+  const isOverlay = searchCtx?.isOverlay ?? false;
+  const setIsOverlay = searchCtx?.setIsOverlay;
   // Ensure we bind cluster layer click handlers once style/layers are ready
   const clusterHandlersBoundRef = React.useRef(false);
   // const [openPanel, setOpenPanel] = React.useState<"filters" | "legend" | null>(
@@ -2506,7 +2508,7 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
                 title="Open map"
                 className="bg-highlight-7/80 backdrop-blur icon-button p-3 hover:bg-blue-200 dark:hover:bg-blue-400"
                 onClick={() => {
-                  setIsOverlay(false);
+                  setIsOverlay?.(false);
                   router.push("/beaches");
                 }}
               >

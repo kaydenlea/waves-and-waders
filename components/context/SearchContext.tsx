@@ -23,9 +23,14 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+export function useOptionalSearchContext(): Ctx | null {
+  return React.useContext(SearchContext);
+}
+
 export function useSearchContext(): Ctx {
-  const ctx = React.useContext(SearchContext);
-  if (!ctx)
+  const ctx = useOptionalSearchContext();
+  if (!ctx) {
     throw new Error("useSearchContext must be used within SearchProvider");
+  }
   return ctx;
 }

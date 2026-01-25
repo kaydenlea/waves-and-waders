@@ -263,11 +263,11 @@ export default function OverviewPageClient({
                 </SunDataProvider>
               </div>
             </PathStyleWrapper>
-          </main>
-        </OverviewPageBusyProvider>
-        <BottomNav />
-        <Footer />
-      </div>
-    </>
-  );
+        </main>
+      </OverviewPageBusyProvider>
+      <BottomNav beachName={beachName} />
+      <Footer />
+    </div>
+  </>
+);
 }

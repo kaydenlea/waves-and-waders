@@ -8,7 +8,7 @@ import { useOptionalDateContext } from "../context/DateContext";
 import { LazyLoadHourSlider } from "./LazyLoad/LazyLoadHourSlider";
 import { Calendar, Clock, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useSearchContext } from "../context/SearchContext";
+import { useOptionalSearchContext } from "../context/SearchContext";
 import { useClientPath } from "../context/PathContext";
 import TimeRail from "./TimeRail";
 
@@ -17,7 +17,7 @@ const NavBarActions = () => {
   const homePage = pathname === "/";
   const beachesPage = pathname.endsWith("/beaches");
   const dateCtx = useOptionalDateContext();
-  const { setIsOverlay } = useSearchContext();
+  const setIsOverlay = useOptionalSearchContext()?.setIsOverlay;
   const { selectedTab } = useClientPath();
 
   const beachIdFromPath = (() => {
@@ -92,7 +92,7 @@ const NavBarActions = () => {
               <button
                 type="button"
                 aria-label="search"
-                onClick={() => setIsOverlay(true)}
+                onClick={() => setIsOverlay?.(true)}
                 className="group/button hover:scale-[1.03] inline-flex items-center justify-center rounded-full bg-gradient-to-br from-cyan-300 to-blue-500 px-3 py-2 font-medium text-foreground shadow-md shadow-cyan-500/20 transition active:scale-[0.98]"
               >
                 <Search className="h-5 w-5" strokeWidth={3} />
@@ -112,7 +112,7 @@ const NavBarActions = () => {
       <button
         type="button"
         aria-label="search"
-        onClick={() => setIsOverlay(true)}
+        onClick={() => setIsOverlay?.(true)}
         className="group/button hover:scale-[1.05] hidden @min-4xl:inline-flex items-center gap-1 rounded-3xl bg-gradient-to-br from-cyan-300 to-blue-500 p-3 font-medium text-foreground shadow-lg shadow-cyan-500/30 transition active:scale-[0.98]"
       >
         <Search

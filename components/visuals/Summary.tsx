@@ -22,6 +22,7 @@ import {
   Navigation2,
   Sunrise,
   Sunset,
+  Timer,
   Thermometer,
   Waves,
   Wind,
@@ -120,7 +121,7 @@ const TagsOverflowPopover = ({
 
   const pageCount = Math.max(
     1,
-    Math.ceil(tags.length / TAGS_POPOVER_PAGE_SIZE)
+    Math.ceil(tags.length / TAGS_POPOVER_PAGE_SIZE),
   );
   const safePage = Math.min(Math.max(0, page), Math.max(0, pageCount - 1));
   const start = safePage * TAGS_POPOVER_PAGE_SIZE;
@@ -166,7 +167,7 @@ const TagsOverflowPopover = ({
   const pagerButtonClassName = cn(
     "h-7 w-7 rounded-full border border-border/35 bg-background/90 text-foreground shadow-sm backdrop-blur-sm",
     "transition disabled:opacity-40 disabled:pointer-events-none",
-    "hover:bg-highlight-6/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15"
+    "hover:bg-highlight-6/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15",
   );
 
   return (
@@ -221,7 +222,7 @@ const TagsOverflowPopover = ({
                         onClick={() => setPage(item.idx)}
                         className={cn(
                           "h-3 w-3 rounded-full grid place-items-center",
-                          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15"
+                          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15",
                         )}
                       >
                         <span
@@ -230,11 +231,11 @@ const TagsOverflowPopover = ({
                             "h-2.5 w-2.5 rounded-full transition-colors",
                             item.idx === safePage
                               ? "bg-foreground/75"
-                              : "bg-foreground/20 hover:bg-foreground/30"
+                              : "bg-foreground/20 hover:bg-foreground/30",
                           )}
                         />
                       </button>
-                    )
+                    ),
                   )}
                 </div>
                 <button
@@ -359,7 +360,7 @@ const emphasizeText = (text: string, tokens: HighlightToken[]) => {
         className={nextToken.className}
       >
         {nextToken.text}
-      </span>
+      </span>,
     );
 
     cursor = nextIndex + nextToken.text.length;
@@ -412,7 +413,7 @@ function MiniMarkerTrack({
           className={cn(
             "absolute top-1/2 h-[10px] w-1.5 -translate-y-1/2 rounded-full",
             "bg-background dark:bg-foreground shadow-md ring-1 ring-foreground/40 dark:ring-background/55",
-            "outline outline-2 outline-foreground/15 dark:outline-background/80"
+            "outline outline-2 outline-foreground/15 dark:outline-background/80",
           )}
           style={{
             left: `clamp(0px, calc(${
@@ -447,8 +448,8 @@ function SegmentedFillMeter({
     t <= 0.33
       ? "bg-gradient-to-r from-emerald-500/85 to-emerald-400/65 dark:from-emerald-400/75 dark:to-emerald-300/55"
       : t <= 0.66
-      ? "bg-gradient-to-r from-amber-500/85 to-orange-400/65 dark:from-amber-400/75 dark:to-orange-300/55"
-      : "bg-gradient-to-r from-rose-500/85 to-rose-400/65 dark:from-rose-400/75 dark:to-rose-300/55";
+        ? "bg-gradient-to-r from-amber-500/85 to-orange-400/65 dark:from-amber-400/75 dark:to-orange-300/55"
+        : "bg-gradient-to-r from-rose-500/85 to-rose-400/65 dark:from-rose-400/75 dark:to-rose-300/55";
   const segmentBaseClass =
     "shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.10)]";
 
@@ -463,7 +464,7 @@ function SegmentedFillMeter({
               className={cn(
                 "relative h-2 flex-1 overflow-hidden rounded-[3px]",
                 segmentBaseClass,
-                "bg-foreground/10 dark:bg-foreground/14"
+                "bg-foreground/10 dark:bg-foreground/14",
               )}
             >
               {segFill > 0 ? (
@@ -495,7 +496,7 @@ function DirectionWidget({
       className={cn(
         "shrink-0 grid place-items-center size-10 @min-md:size-12 rounded-xl @min-md:rounded-2xl",
         "border border-border/25 bg-foreground/[0.03] shadow-sm",
-        "dark:bg-foreground/[0.07] dark:shadow-[0_12px_30px_rgba(0,0,0,0.25)]"
+        "dark:bg-foreground/[0.07] dark:shadow-[0_12px_30px_rgba(0,0,0,0.25)]",
       )}
       aria-label={ariaLabel}
     >
@@ -518,7 +519,7 @@ function DirectionWidget({
 const computeTidePeaks = (
   points: TidePointValue[],
   isToday: boolean = false,
-  windowStartMs?: number
+  windowStartMs?: number,
 ): TidePeak[] => {
   if (!points || points.length < 2) return [];
   const sorted = [...points].sort((a, b) => a.x - b.x);
@@ -646,7 +647,7 @@ function SummaryLoadingOverlay({ show }: { show: boolean }) {
       className={cn(
         "pointer-events-none absolute inset-0 z-20 rounded-[22px]",
         "bg-background/20 dark:bg-background/10",
-        "supports-[backdrop-filter]:bg-background/10 supports-[backdrop-filter]:backdrop-blur-[1px]"
+        "supports-[backdrop-filter]:bg-background/10 supports-[backdrop-filter]:backdrop-blur-[1px]",
       )}
       aria-hidden="true"
     >
@@ -654,7 +655,7 @@ function SummaryLoadingOverlay({ show }: { show: boolean }) {
         className={cn(
           "absolute inset-0 rounded-[22px]",
           "bg-gradient-to-b from-transparent via-background/20 to-background/25",
-          "opacity-70 motion-safe:animate-pulse motion-reduce:opacity-60"
+          "opacity-70 motion-safe:animate-pulse motion-reduce:opacity-60",
         )}
       />
     </div>
@@ -750,7 +751,7 @@ const Summary = ({
   const pendingKey = useMemo(() => {
     if (!beachId) return null;
     return `${String(
-      beachId
+      beachId,
     )}:${timeWindow.dayStart.getTime()}:${timeWindow.dayEnd.getTime()}`;
   }, [beachId, timeWindow.dayStart, timeWindow.dayEnd]);
 
@@ -767,11 +768,11 @@ const Summary = ({
     beachId ?? null,
     timeWindow.dayStart,
     timeWindow.dayEnd,
-    Boolean(beachId) && !hasExternalForecast
+    Boolean(beachId) && !hasExternalForecast,
   );
 
   const forecast: ForecastData[] = hasExternalForecast
-    ? forecastRows ?? []
+    ? (forecastRows ?? [])
     : (forecastFromQuery as ForecastData[]);
 
   const forecastSuccess =
@@ -784,10 +785,10 @@ const Summary = ({
 
   const { data: currentFromQuery } = useCurrentConditions(
     beachId ?? null,
-    shouldFetch
+    shouldFetch,
   );
   const current = usingPreview
-    ? previewData?.current ?? null
+    ? (previewData?.current ?? null)
     : currentFromQuery;
   const {
     data: tidesFromQuery = [],
@@ -797,7 +798,7 @@ const Summary = ({
     beachId ?? null,
     timeWindow.tideStart,
     timeWindow.tideEnd,
-    shouldFetch
+    shouldFetch,
   );
   const {
     data: beachDetailsFromQuery,
@@ -805,9 +806,9 @@ const Summary = ({
     isError: beachDetailsError,
   } = useBeachDetails(beachId ?? null, shouldFetch);
 
-  const tides = usingPreview ? previewData?.tides ?? [] : tidesFromQuery;
+  const tides = usingPreview ? (previewData?.tides ?? []) : tidesFromQuery;
   const beachDetails = usingPreview
-    ? previewData?.beachDetails ?? null
+    ? (previewData?.beachDetails ?? null)
     : (beachDetailsFromQuery as unknown as Record<string, unknown> | null);
   const county =
     (beachDetails as { COUNTY?: string | null } | null)?.COUNTY ?? null;
@@ -818,10 +819,10 @@ const Summary = ({
   } = useDailyConditions(
     county,
     targetDateValue ?? timeWindow.dayStart,
-    Boolean(county) && !usingPreview
+    Boolean(county) && !usingPreview,
   );
   const dailyConditions = usingPreview
-    ? previewData?.dailyConditions ?? null
+    ? (previewData?.dailyConditions ?? null)
     : (dailyConditionsFromQuery as DailyConditions | null);
   const forecastReady = usingPreview
     ? forecast.length > 0
@@ -833,10 +834,10 @@ const Summary = ({
   const dailyReady = usingPreview
     ? true
     : beachDetailsReady
-    ? county
-      ? dailySuccess || dailyError
-      : true
-    : false;
+      ? county
+        ? dailySuccess || dailyError
+        : true
+      : false;
 
   useEffect(() => {
     if (!beachId) {
@@ -856,7 +857,7 @@ const Summary = ({
       return;
     }
 
-    const base = targetDateValue ? forecast[0] : current ?? forecast[0];
+    const base = targetDateValue ? forecast[0] : (current ?? forecast[0]);
     if (!base) {
       return;
     }
@@ -867,19 +868,19 @@ const Summary = ({
       .map((row) => row?.surf?.heightMin)
       .filter(
         (value): value is number =>
-          typeof value === "number" && !Number.isNaN(value)
+          typeof value === "number" && !Number.isNaN(value),
       );
     const heightMaxes = forecast
       .map((row) => row?.surf?.heightMax)
       .filter(
         (value): value is number =>
-          typeof value === "number" && !Number.isNaN(value)
+          typeof value === "number" && !Number.isNaN(value),
       );
     const periods = forecast
       .map((row) => row?.swell?.primary?.period)
       .filter(
         (value): value is number =>
-          typeof value === "number" && !Number.isNaN(value)
+          typeof value === "number" && !Number.isNaN(value),
       );
 
     const avgHeightMin = average(heightMins);
@@ -908,7 +909,7 @@ const Summary = ({
     if ((surfHeightLabel || hasRange) && surfPeriod != null) {
       const surfIntensity = clampIntensity(
         max ?? minWithFallback ?? 0,
-        SURF_HEIGHT_CAP
+        SURF_HEIGHT_CAP,
       );
       nextStats.push({
         type: "surf",
@@ -924,19 +925,19 @@ const Summary = ({
       .map((row) => row?.conditions?.windSpeed)
       .filter(
         (value): value is number =>
-          typeof value === "number" && !Number.isNaN(value)
+          typeof value === "number" && !Number.isNaN(value),
       );
     const windGusts = forecast
       .map((row) => row?.conditions?.windGust)
       .filter(
         (value): value is number =>
-          typeof value === "number" && !Number.isNaN(value)
+          typeof value === "number" && !Number.isNaN(value),
       );
     const windDirections = forecast
       .map((row) => row?.conditions?.windDirection)
       .filter(
         (value): value is number =>
-          typeof value === "number" && !Number.isNaN(value)
+          typeof value === "number" && !Number.isNaN(value),
       );
 
     const avgWindSpeed = average(windSpeeds);
@@ -971,8 +972,8 @@ const Summary = ({
           typeof row?.tideLevelFt === "number"
             ? row.tideLevelFt
             : typeof row?.tideLevelM === "number"
-            ? row.tideLevelM * 3.28084
-            : null;
+              ? row.tideLevelM * 3.28084
+              : null;
         if (tideFt == null || Number.isNaN(tideFt)) return null;
         return {
           x: new Date(row.timestamp).getTime(),
@@ -1040,8 +1041,8 @@ const Summary = ({
           typeof row?.tideLevelFt === "number"
             ? row.tideLevelFt
             : typeof row?.tideLevelM === "number"
-            ? row.tideLevelM * 3.28084
-            : null;
+              ? row.tideLevelM * 3.28084
+              : null;
         if (tideFt == null) {
           return;
         }
@@ -1069,7 +1070,7 @@ const Summary = ({
       const formatClock = (raw: string | null | undefined) => {
         if (!raw) return undefined;
         const match = /^([0-9]{1,2}):([0-9]{2})(?::([0-9]{2}))?/.exec(
-          raw.trim()
+          raw.trim(),
         );
         if (!match) return undefined;
         const h = Number(match[1]);
@@ -1109,13 +1110,13 @@ const Summary = ({
       .map((row) => row?.conditions?.waterTemp)
       .filter(
         (value): value is number =>
-          typeof value === "number" && !Number.isNaN(value)
+          typeof value === "number" && !Number.isNaN(value),
       );
     const airTemps = forecast
       .map((row) => row?.conditions?.airTemp)
       .filter(
         (value): value is number =>
-          typeof value === "number" && !Number.isNaN(value)
+          typeof value === "number" && !Number.isNaN(value),
       );
 
     const waterTempHigh =
@@ -1131,7 +1132,7 @@ const Summary = ({
       .map((row) => row?.conditions?.weather)
       .filter(
         (value): value is number =>
-          typeof value === "number" && !Number.isNaN(value)
+          typeof value === "number" && !Number.isNaN(value),
       );
 
     let dominantWeatherCode: number | null = null;
@@ -1244,19 +1245,19 @@ const Summary = ({
 
   const surfStat = statsForRender.find(
     (stat): stat is Extract<SummaryStat, { type: "surf" }> =>
-      stat.type === "surf"
+      stat.type === "surf",
   );
   const windStat = statsForRender.find(
     (stat): stat is Extract<SummaryStat, { type: "wind" }> =>
-      stat.type === "wind"
+      stat.type === "wind",
   );
   const tideStat = statsForRender.find(
     (stat): stat is Extract<SummaryStat, { type: "tide" }> =>
-      stat.type === "tide"
+      stat.type === "tide",
   );
   const tempStat = statsForRender.find(
     (stat): stat is Extract<SummaryStat, { type: "temperature" }> =>
-      stat.type === "temperature"
+      stat.type === "temperature",
   );
 
   const computedOverviewText = useMemo(() => {
@@ -1274,8 +1275,8 @@ const Summary = ({
       windSpeed != null && windSpeed >= 25
         ? "whipping"
         : windSpeed != null && windSpeed >= 8
-        ? "coming in"
-        : "blowing";
+          ? "coming in"
+          : "blowing";
 
     // Build sentence based on conditions
     let sentence = `The waves are ${surfHeight} ft and ${surfCondition}.`;
@@ -1315,7 +1316,7 @@ const Summary = ({
 
   // widths for each tag (stable numbers used for layout decisions)
   const [tagWidths, setTagWidths] = useState<number[]>(() =>
-    Array(tags.length).fill(0)
+    Array(tags.length).fill(0),
   );
 
   const [visibleCount, setVisibleCount] = useState(() => tags.length);
@@ -1332,7 +1333,7 @@ const Summary = ({
           <Tag data={t} />
         </div>
       )),
-    [tags]
+    [tags],
   );
 
   // Synchronously measure tag widths in the off-screen measurement container
@@ -1423,7 +1424,7 @@ const Summary = ({
     // If everything fits without "+n", show everything.
     if (fits(tagWidths.length, false)) {
       setVisibleCount((prev) =>
-        prev !== tagWidths.length ? tagWidths.length : prev
+        prev !== tagWidths.length ? tagWidths.length : prev,
       );
       return;
     }
@@ -1509,7 +1510,7 @@ const Summary = ({
     },
     [
       /* tags */
-    ]
+    ],
   );
 
   // Build visible/hidden slices
@@ -1521,7 +1522,7 @@ const Summary = ({
       .map((row) => row?.swell?.primary?.direction)
       .filter(
         (value): value is number =>
-          typeof value === "number" && !Number.isNaN(value)
+          typeof value === "number" && !Number.isNaN(value),
       );
     return averageDirectionDeg(directions);
   }, [renderForecast]);
@@ -1556,7 +1557,7 @@ const Summary = ({
   const nextPeaks = (() => {
     if (!tidePeaksWithTime.length) return [];
     const upcoming = tidePeaksWithTime.filter(
-      (p) => p.time.getTime() >= tideReferenceMs
+      (p) => p.time.getTime() >= tideReferenceMs,
     );
     const source = upcoming.length ? upcoming : tidePeaksWithTime;
     return source.slice(0, 2);
@@ -1566,8 +1567,8 @@ const Summary = ({
     nextPeak?.kind === "high"
       ? "rising"
       : nextPeak?.kind === "low"
-      ? "falling"
-      : null;
+        ? "falling"
+        : null;
   const tideLevels = [
     ...(tideStat?.peaks ?? [])
       .map((p) => p.level)
@@ -1601,13 +1602,13 @@ const Summary = ({
       .map((row) => row?.surf?.heightMin)
       .filter(
         (value): value is number =>
-          typeof value === "number" && !Number.isNaN(value)
+          typeof value === "number" && !Number.isNaN(value),
       );
     const maxes = renderForecast
       .map((row) => row?.surf?.heightMax)
       .filter(
         (value): value is number =>
-          typeof value === "number" && !Number.isNaN(value)
+          typeof value === "number" && !Number.isNaN(value),
       );
     if (!mins.length && !maxes.length) return null;
     const minVal = mins.length ? Math.min(...mins) : Math.min(...maxes);
@@ -1625,7 +1626,7 @@ const Summary = ({
       .map((row) => row?.conditions?.windSpeed)
       .filter(
         (value): value is number =>
-          typeof value === "number" && !Number.isNaN(value)
+          typeof value === "number" && !Number.isNaN(value),
       );
     if (!speeds.length) return null;
     const minVal = Math.round(Math.min(...speeds));
@@ -1659,7 +1660,7 @@ const Summary = ({
             usingPreview
               ? "col-span-12"
               : "col-span-12 @min-xl:col-span-8 @min-2xl:col-span-7 @min-3xl:col-span-9 @min-4xl:col-span-6",
-            "p-4 flex flex-col gap-3 min-h-35 overflow-hidden"
+            "p-4 flex flex-col gap-3 min-h-35 overflow-hidden",
           )}
           aria-label="Forecast outlook"
         >
@@ -1692,7 +1693,7 @@ const Summary = ({
                   {showSkeletons ? (
                     <span className="-mb-0.5 inline-block h-3 w-12 rounded bg-foreground/10 animate-pulse motion-reduce:animate-none" />
                   ) : (
-                    tideStat?.sunrise ?? "--"
+                    (tideStat?.sunrise ?? "--")
                   )}
                 </dd>
                 <dt className="flex items-center gap-1.5 uppercase tracking-[0.06em]">
@@ -1707,7 +1708,7 @@ const Summary = ({
                   {showSkeletons ? (
                     <span className="-mb-0.5 inline-block h-3 w-12 rounded bg-foreground/10 animate-pulse motion-reduce:animate-none" />
                   ) : (
-                    tideStat?.sunset ?? "--"
+                    (tideStat?.sunset ?? "--")
                   )}
                 </dd>
               </dl>
@@ -1802,7 +1803,7 @@ const Summary = ({
             usingPreview
               ? "col-span-6"
               : "col-span-6 @min-xl:col-span-4 @min-2xl:col-span-5 @min-3xl:col-span-3",
-            "p-4 flex flex-col min-h-35 overflow-hidden"
+            "p-4 flex flex-col min-h-35 overflow-hidden",
           )}
           aria-label="Surf summary"
         >
@@ -1840,7 +1841,20 @@ const Summary = ({
                       </span>
                     </div>
                     <p className="mt-0 text-xs leading-snug text-muted-foreground">
-                      {surfPeriod ? `${surfPeriod} period` : "\u00a0"}
+                      {surfPeriod ? (
+                        <span className="inline-flex items-center gap-1">
+                          <Timer
+                            className="h-3.5 w-3.5 text-muted-foreground/80"
+                            aria-hidden="true"
+                          />
+                          <span className="font-medium tabular-nums text-foreground/80">
+                            {surfPeriod}
+                          </span>
+                          <span className="sr-only">period</span>
+                        </span>
+                      ) : (
+                        "\u00a0"
+                      )}
                     </p>
                   </>
                 )}
@@ -1851,7 +1865,7 @@ const Summary = ({
                     "mt-[3px] shrink-0 grid place-items-center size-10 @min-md:size-12 rounded-xl @min-md:rounded-2xl",
                     "border border-border/25 bg-foreground/[0.03] shadow-sm",
                     "dark:bg-foreground/[0.07]",
-                    "animate-pulse motion-reduce:animate-none"
+                    "animate-pulse motion-reduce:animate-none",
                   )}
                   aria-hidden="true"
                 />
@@ -1893,7 +1907,7 @@ const Summary = ({
             usingPreview
               ? "col-span-6"
               : "col-span-6 @min-md:col-span-6 @min-xl:col-span-4 @min-2xl:col-span-4 @min-3xl:col-span-4 @min-4xl:col-span-3",
-            "p-4 flex flex-col min-h-45 overflow-hidden"
+            "p-4 flex flex-col min-h-40 @min-sm:min-h-45 overflow-hidden",
           )}
           aria-label="Wind summary"
         >
@@ -1931,9 +1945,15 @@ const Summary = ({
                       </span>
                     </div>
                     <p className="mt-0 text-xs leading-snug text-muted-foreground">
-                      gust{" "}
-                      <span className="font-medium tabular-nums">
-                        {windGust ?? "--"}
+                      <span className="inline-flex items-center gap-1">
+                        <Wind
+                          className="h-3.5 w-3.5 text-muted-foreground/80"
+                          aria-hidden="true"
+                        />
+                        <span className="font-medium tabular-nums text-foreground/80">
+                          {windGust ?? "--"}
+                        </span>
+                        <span className="sr-only">gust</span>
                       </span>
                     </p>
                   </>
@@ -1945,7 +1965,7 @@ const Summary = ({
                     "mt-[3px] shrink-0 grid place-items-center size-10 @min-md:size-12 rounded-xl @min-md:rounded-2xl",
                     "border border-border/25 bg-foreground/[0.03] shadow-sm",
                     "dark:bg-foreground/[0.07]",
-                    "animate-pulse motion-reduce:animate-none"
+                    "animate-pulse motion-reduce:animate-none",
                   )}
                   aria-hidden="true"
                 />
@@ -1989,7 +2009,7 @@ const Summary = ({
             usingPreview
               ? "col-span-6"
               : "col-span-6 @min-xl:col-span-8 @min-2xl:col-span-4 @min-3xl:col-span-5 @min-4xl:col-span-3 @min-6xl:col-span-4",
-            "p-4 flex flex-col min-h-35 overflow-hidden"
+            "p-4 flex flex-col min-h-35 overflow-hidden",
           )}
           aria-label="Tide summary"
         >
@@ -2134,7 +2154,7 @@ const Summary = ({
               ? "col-span-6"
               : "col-span-6 @min-xl:col-span-4 @min-3xl:col-span-3 @min-6xl:col-span-2",
             "p-4 flex flex-col overflow-hidden",
-            "min-h-35 @min-xl:min-h-40 @min-2xl:min-h-35 @min-5xl:min-h-40"
+            "min-h-35 @min-xl:min-h-40 @min-2xl:min-h-35 @min-5xl:min-h-40",
           )}
           aria-label="Temperature summary"
         >
@@ -2153,7 +2173,7 @@ const Summary = ({
                   <div
                     className={cn(
                       "h-[54px] w-[54px] rounded-full border border-border/25 bg-foreground/5",
-                      "animate-pulse motion-reduce:animate-none"
+                      "animate-pulse motion-reduce:animate-none",
                     )}
                     aria-hidden="true"
                   />
@@ -2190,7 +2210,7 @@ const Summary = ({
                   <div
                     className={cn(
                       "h-[54px] w-[54px] rounded-full border border-border/25 bg-foreground/5",
-                      "animate-pulse motion-reduce:animate-none"
+                      "animate-pulse motion-reduce:animate-none",
                     )}
                     aria-hidden="true"
                   />
@@ -2229,7 +2249,7 @@ const Summary = ({
             usingPreview
               ? "col-span-12"
               : "col-span-12 @min-xl:col-span-8 @min-2xl:col-span-12 @min-4xl:col-span-6",
-            "p-4 overflow-hidden flex flex-col"
+            "p-4 overflow-hidden flex flex-col",
           )}
           aria-label="Beach features"
         >
@@ -2247,7 +2267,7 @@ const Summary = ({
                 "p-0.5 flex flex-1 min-w-0 items-start overflow-x-hidden min-h-12",
                 showSkeletons
                   ? "flex-nowrap"
-                  : "flex-wrap content-start overflow-y-visible"
+                  : "flex-wrap content-start overflow-y-visible",
               )}
               style={{ gap: `${gapPx}px` }}
             >
@@ -2258,7 +2278,7 @@ const Summary = ({
                       className={cn(
                         "shrink-0 inline-flex items-center gap-2 rounded-full px-2.5 py-1.5",
                         "bg-foreground/5 shadow-even",
-                        "animate-pulse motion-reduce:animate-none"
+                        "animate-pulse motion-reduce:animate-none",
                       )}
                       style={{ width: `${w}px` }}
                       aria-hidden="true"
@@ -2303,7 +2323,7 @@ const Summary = ({
     <ul
       className={cn(
         "grid grid-cols-2 @min-md:grid-cols-3 @min-4xl:grid-cols-6",
-        isOverviewVariant ? "gap-4 @min-md:gap-4" : "gap-3"
+        isOverviewVariant ? "gap-4 @min-md:gap-4" : "gap-3",
       )}
     >
       {/* Overview card */}
@@ -2311,7 +2331,7 @@ const Summary = ({
         className={cn(
           "highlight-card shadow-even flex flex-col gap-3 xl:gap-0 overflow-hidden col-span-2 min-h-35",
           isOverviewVariant &&
-            "p-4 rounded-[22px] bg-highlight-7/40 border-border/25 backdrop-blur-md transition-shadow duration-200 ease-out motion-reduce:transition-none hover:z-10 hover:shadow-[0_10px_30px_rgba(0,0,0,0.12)] dark:hover:shadow-[0_18px_50px_rgba(0,0,0,0.70),0_0_0_1px_rgba(255,255,255,0.08),0_12px_26px_rgba(255,255,255,0.04)] focus-within:ring-1 focus-within:ring-foreground/10"
+            "p-4 rounded-[22px] bg-highlight-7/40 border-border/25 backdrop-blur-md transition-shadow duration-200 ease-out motion-reduce:transition-none hover:z-10 hover:shadow-[0_10px_30px_rgba(0,0,0,0.12)] dark:hover:shadow-[0_18px_50px_rgba(0,0,0,0.70),0_0_0_1px_rgba(255,255,255,0.08),0_12px_26px_rgba(255,255,255,0.04)] focus-within:ring-1 focus-within:ring-foreground/10",
         )}
       >
         <div className="flex items-top justify-between flex-shrink-0">
@@ -2319,7 +2339,7 @@ const Summary = ({
             className={cn(
               "highlight-title bg-highlight-5 h-1/2 flex items-center px-2 py-1 rounded-xl",
               isOverviewVariant &&
-                "bg-foreground/5 text-muted-foreground tracking-wider uppercase"
+                "bg-foreground/5 text-muted-foreground tracking-wider uppercase",
             )}
           >
             SUMMARY
@@ -2328,7 +2348,7 @@ const Summary = ({
             className={cn(
               "py-1 px-2 rounded-md bg-highlight-6 grid grid-cols-[80px_1fr] grid-rows-2 space-y-0.5 items-center text-xs text-muted-foreground uppercase tracking-wide leading-tight",
               isOverviewVariant &&
-                "bg-foreground/5 border border-border/25 rounded-xl px-3 py-2"
+                "bg-foreground/5 border border-border/25 rounded-xl px-3 py-2",
             )}
           >
             <span className="flex gap-2 items-center">
@@ -2358,7 +2378,7 @@ const Summary = ({
             <p
               className={cn(
                 "text-center text-sm leading-snug text-foreground/90",
-                isOverviewVariant && "text-[0.9rem] @min-md:text-sm"
+                isOverviewVariant && "text-[0.9rem] @min-md:text-sm",
               )}
             >
               {computedOverviewText}
@@ -2368,13 +2388,13 @@ const Summary = ({
               <div
                 className={cn(
                   "mx-auto h-3 w-full rounded-md animate-pulse motion-reduce:animate-none",
-                  isOverviewVariant ? "bg-foreground/12" : "bg-highlight-6/70"
+                  isOverviewVariant ? "bg-foreground/12" : "bg-highlight-6/70",
                 )}
               />
               <div
                 className={cn(
                   "mx-auto mt-2 h-3 w-5/6 rounded-md animate-pulse motion-reduce:animate-none",
-                  isOverviewVariant ? "bg-foreground/8" : "bg-highlight-6/50"
+                  isOverviewVariant ? "bg-foreground/8" : "bg-highlight-6/50",
                 )}
               />
             </div>
@@ -2542,7 +2562,7 @@ const Summary = ({
                   (isOverviewVariant ? "opacity-70" : "animate-pulse"),
                 stat.type === "features"
                   ? "col-span-2 @min-md:col-span-3 @min-4xl:col-span-6"
-                  : "min-h-43"
+                  : "min-h-43",
               )}
             >
               <div className="flex items-start justify-between">
@@ -2550,7 +2570,7 @@ const Summary = ({
                   className={cn(
                     "highlight-title mt-0.5 bg-highlight-5 px-2 py-1 rounded-xl",
                     isOverviewVariant &&
-                      "bg-foreground/5 text-muted-foreground tracking-wider uppercase"
+                      "bg-foreground/5 text-muted-foreground tracking-wider uppercase",
                   )}
                 >
                   {stat.type.toUpperCase()}
@@ -2598,7 +2618,7 @@ const Summary = ({
                 <div
                   className={cn(
                     "flex-1 flex items-center gap-1 mt-1",
-                    "justify-center"
+                    "justify-center",
                   )}
                 >
                   {content}

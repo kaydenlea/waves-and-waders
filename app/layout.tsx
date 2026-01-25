@@ -1,14 +1,8 @@
 import "./globals.css";
-import { ThemeProvider } from "@/components/ui/theme-provider";
-import { ScrollToTopOnRouteChange } from "@/lib/utils/scrollTop";
 import { getServerSupabase } from "@/lib/supabaseServer";
-import { SupabaseProvider } from "@/components/providers/SupabaseProvider";
-import { QueryProvider } from "@/components/providers/QueryProvider";
-import { ToastProvider } from "@/components/providers/ToastProvider";
-import { SearchProvider } from "@/components/context/SearchContext";
-import ScrollPerfHandler from "@/components/general/ScrollPerfHandler";
 import { poppins } from "@/lib/fonts";
 import { buildDefaultMetadata, getSiteUrl } from "@/lib/seo";
+import { AppProviders } from "./providers";
 
 export const metadata = buildDefaultMetadata();
 
@@ -75,24 +69,7 @@ export default async function RootLayout({
         className={`${poppins.variable} font-poppins antialiased`}
         suppressHydrationWarning
       >
-        <SupabaseProvider initialSession={initialSession}>
-          <QueryProvider>
-            <ThemeProvider
-              attribute="class"
-              defaultTheme="system"
-              enableSystem
-              disableTransitionOnChange
-            >
-              <ToastProvider>
-                <SearchProvider>
-                  <ScrollToTopOnRouteChange />
-                  <ScrollPerfHandler />
-                  {children}
-                </SearchProvider>
-              </ToastProvider>
-            </ThemeProvider>
-          </QueryProvider>
-        </SupabaseProvider>
+        <AppProviders initialSession={initialSession}>{children}</AppProviders>
       </body>
     </html>
   );
