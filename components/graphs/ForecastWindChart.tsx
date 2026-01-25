@@ -241,6 +241,12 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
 
   // Pointer & animation refs
   const currentTranslateRef = useRef(0);
+  const pointerStateRef = useRef<{
+    dragging: boolean;
+    startX: number;
+    startY: number;
+    startTranslate: number;
+  } | null>(null);
 
   const rafRef = useRef<number | null>(null);
   const dragRafRef = useRef<number | null>(null);
@@ -503,6 +509,105 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
     viewportWidth,
   ]);
 
+  // Desktop pointer handlers for drag panning (mouse only)
+  const startDrag = useCallback((ev: React.PointerEvent) => {
+    const node = ev.currentTarget as Element;
+    node.setPointerCapture?.(ev.pointerId);
+    if (pointerStateRef.current) {
+      pointerStateRef.current.dragging = true;
+    }
+    document.body.style.userSelect = "none";
+  }, []);
+
+  const onPointerDown = useCallback(
+    (ev: React.PointerEvent) => {
+      if (ev.pointerType !== "mouse") return;
+      pointerStateRef.current = {
+        dragging: false,
+        startX: ev.clientX,
+        startY: ev.clientY,
+        startTranslate: currentTranslateRef.current,
+      };
+      setInnerTranslatePx(currentTranslateRef.current, false);
+    },
+    [setInnerTranslatePx]
+  );
+
+  const onPointerMove = useCallback(
+    (ev: React.PointerEvent) => {
+      if (ev.pointerType !== "mouse") return;
+      const ps = pointerStateRef.current;
+      if (!ps) return;
+      const deltaX = ev.clientX - ps.startX;
+      const deltaY = ev.clientY - ps.startY;
+      if (!ps.dragging) {
+        if (
+          Math.abs(deltaX) < DRAG_THRESHOLD_PX ||
+          Math.abs(deltaX) < Math.abs(deltaY)
+        ) {
+          return;
+        }
+        startDrag(ev);
+      }
+      if (!pointerStateRef.current?.dragging) return;
+      const next = clampTranslatePx(ps.startTranslate - deltaX);
+      pendingTranslateRef.current = next;
+      if (!dragRafRef.current) {
+        dragRafRef.current = requestAnimationFrame(() => {
+          dragRafRef.current = null;
+          const pendingPx = pendingTranslateRef.current;
+          if (typeof pendingPx !== "number") return;
+          setInnerTranslatePx(pendingPx, false);
+          setPanFraction(pendingPx / dayPx, myId, "drag");
+        });
+      }
+    },
+    [
+      clampTranslatePx,
+      dayPx,
+      myId,
+      setInnerTranslatePx,
+      setPanFraction,
+      startDrag,
+    ]
+  );
+
+  const onPointerUp = useCallback(
+    (ev: React.PointerEvent) => {
+      if (ev.pointerType !== "mouse") return;
+      const node = ev.currentTarget as Element;
+      node.releasePointerCapture?.(ev.pointerId);
+      const ps = pointerStateRef.current;
+      pointerStateRef.current = null;
+      if (!ps?.dragging) return;
+      document.body.style.userSelect = "";
+      if (dragRafRef.current) {
+        cancelAnimationFrame(dragRafRef.current);
+        dragRafRef.current = null;
+      }
+      if (typeof pendingTranslateRef.current === "number") {
+        setInnerTranslatePx(pendingTranslateRef.current, false);
+        pendingTranslateRef.current = null;
+      }
+      const finalPx = clampTranslatePx(currentTranslateRef.current);
+      const fractionalDayOffset = finalPx / dayPx;
+      setDayOffset(fractionalDayOffset);
+      setInnerTranslatePx(finalPx, false);
+      setPanFraction(fractionalDayOffset, myId, "animate");
+      const maxTranslate = Math.max(0, chartInnerWidth - viewportWidth);
+      setIsAtRightEdge(finalPx >= maxTranslate - 1);
+    },
+    [
+      clampTranslatePx,
+      dayPx,
+      myId,
+      setInnerTranslatePx,
+      setPanFraction,
+      chartInnerWidth,
+      viewportWidth,
+    ]
+  );
+
   // Mobile touch tooltip system
   const mobileChartId = `forecast-wind-${beachId ?? "default"}`;
   
@@ -737,6 +842,36 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
     onInspectEnd: handleMobileInspectEnd,
     enabled: isTouchOnlyDevice,
   });
+  const mergedHandlers = {
+    onPointerDown: (ev: React.PointerEvent) => {
+      if (isTouchOnlyDevice) {
+        mobileHandlers.onPointerDown?.(ev);
+      } else {
+        onPointerDown(ev);
+      }
+    },
+    onPointerMove: (ev: React.PointerEvent) => {
+      if (isTouchOnlyDevice) {
+        mobileHandlers.onPointerMove?.(ev);
+      } else {
+        onPointerMove(ev);
+      }
+    },
+    onPointerUp: (ev: React.PointerEvent) => {
+      if (isTouchOnlyDevice) {
+        mobileHandlers.onPointerUp?.(ev);
+      } else {
+        onPointerUp(ev);
+      }
+    },
+    onPointerCancel: (ev: React.PointerEvent) => {
+      if (isTouchOnlyDevice) {
+        mobileHandlers.onPointerCancel?.(ev);
+      } else {
+        onPointerUp(ev);
+      }
+    },
+  };
 
   // Button controls
   const handleNext = useCallback(() => {
@@ -1261,7 +1396,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
         {/* moving inner (chart + day labels) */}
         <div
           ref={innerRef}
-          {...mobileHandlers}
+          {...mergedHandlers}
           className="chart-touch-no-select"
           style={{
             marginTop: 60,
