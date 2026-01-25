@@ -2,6 +2,7 @@
 
 import React, {
   useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
   useCallback,
@@ -159,8 +160,8 @@ DatePickerProps) => {
     Record<string, number>
   >({});
 
-  // Debounce timer for date selection
-  const dateSelectionTimerRef = useRef<NodeJS.Timeout | null>(null);
+  // rAF handle for batching date selection propagation
+  const dateSelectionFrameRef = useRef<number | null>(null);
   const interactionLockReleaseRef = useRef<(() => void) | null>(null);
   const carouselPointerDownRef = useRef(false);
   const carouselSawScrollRef = useRef(false);
@@ -548,14 +549,14 @@ DatePickerProps) => {
   }, [beachId, pacificFormatter, pacificNoonFormatter, storageKey]);
 
   // Keep internal selection in sync with controlled value
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (value instanceof Date) {
       const next = dayjs(value).startOf("day");
       if (!selectedDate || !selectedDate.isSame(next, "day")) {
         setSelectedDate(next);
       }
     }
-  }, [value]);
+  }, [value, selectedDate]);
 
   // const [startIdx, setStartIdx] = useState<number>(0);
   // const [endIdx, setEndIdx] = useState<number>(0);
@@ -641,9 +642,10 @@ DatePickerProps) => {
   );
 
   useEffect(() => {
-    // Debounce context updates to batch rapid date changes
-    if (dateSelectionTimerRef.current) {
-      clearTimeout(dateSelectionTimerRef.current);
+    // Batch context updates to the next frame so the 4-day range changes feel instantaneous.
+    if (dateSelectionFrameRef.current != null) {
+      cancelAnimationFrame(dateSelectionFrameRef.current);
+      dateSelectionFrameRef.current = null;
     }
 
     const datesEqual = (a: Date[] | null, b: Date[] | null) => {
@@ -656,7 +658,8 @@ DatePickerProps) => {
       return true;
     };
 
-    dateSelectionTimerRef.current = setTimeout(() => {
+    dateSelectionFrameRef.current = requestAnimationFrame(() => {
+      dateSelectionFrameRef.current = null;
       const daysRange: Date[] = [];
       orderedKeys.forEach((key, index) => {
         if (rangeStartIdx <= index && index <= rangeEndIdx) {
@@ -711,11 +714,12 @@ DatePickerProps) => {
         setSurfIntensityForDate(null);
         setSurfRange(null);
       }
-    }, 50); // 50ms debounce
+    });
 
     return () => {
-      if (dateSelectionTimerRef.current) {
-        clearTimeout(dateSelectionTimerRef.current);
+      if (dateSelectionFrameRef.current != null) {
+        cancelAnimationFrame(dateSelectionFrameRef.current);
+        dateSelectionFrameRef.current = null;
       }
     };
   }, [
@@ -826,7 +830,8 @@ DatePickerProps) => {
                         onSelect?.(day.toDate());
                       }}
                       className={cn(
-                        "relative mx-1 my-0.5 flex flex-col items-center w-full py-1.5 text-center text-sm font-medium transition-colors dark:hover:bg-highlight-5/60 hover:bg-highlight-5/60 shadow-even border-1 border-border/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/25 dark:focus-visible:ring-foreground/30 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                        "relative mx-1 my-0.5 flex flex-col items-center w-full py-1.5 text-center text-sm font-medium dark:hover:bg-highlight-5/60 hover:bg-highlight-5/60 shadow-even border-1 border-border/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/25 dark:focus-visible:ring-foreground/30 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                        forecast ? "transition-none" : "transition-colors",
                         buttonRounding,
                         rangeClasses,
                         isSelected && selectedClasses

@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRight, ChevronDown, Waves } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BrandWordmark } from "@/components/general/BrandWordmark";
 
 const Footer = ({ className }: { className?: string }) => {
   const year = new Date().getFullYear();
@@ -10,7 +11,7 @@ const Footer = ({ className }: { className?: string }) => {
     <footer
       className={cn(
         "touch-pan-y relative z-20 w-full border-t border-border/10 bg-highlight-3 @min-4xl:rounded-t-xl",
-        className
+        className,
       )}
     >
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
@@ -26,9 +27,7 @@ const Footer = ({ className }: { className?: string }) => {
                   className="h-10 w-10 object-contain"
                 />
               </span>
-              <span className="font-semibold tracking-tight text-foreground">
-                Waves & Waders
-              </span>
+              <BrandWordmark className="font-semibold tracking-tight text-foreground" />
             </Link>
 
             <p className="mt-4 max-w-sm text-sm leading-relaxed text-foreground/60">

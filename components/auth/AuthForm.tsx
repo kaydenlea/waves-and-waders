@@ -299,7 +299,10 @@ export const AuthForm = ({
       </header>
 
       <form
-        className="mt-2 flex flex-col gap-4"
+        className={cn(
+          "flex flex-col gap-4",
+          showOAuth ? "mt-2" : "mt-6"
+        )}
         onSubmit={handleSubmit}
         aria-busy={loading}
       >
@@ -374,16 +377,19 @@ export const AuthForm = ({
               </div>
             </label>
             {mode !== "forgot-password" && (
-              <label className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-muted-foreground">
+                  <label
+                    htmlFor="auth-password"
+                    className="text-sm font-medium text-muted-foreground"
+                  >
                     Password
-                  </span>
+                  </label>
                   {mode === "signin" ? (
                     <button
                       type="button"
                       onClick={showForgotPassword}
-                      className="text-xs text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 rounded-sm"
+                      className="inline-flex p-0 text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 rounded-sm"
                     >
                       Forgot password?
                     </button>
@@ -402,6 +408,7 @@ export const AuthForm = ({
                     aria-hidden="true"
                   />
                   <input
+                    id="auth-password"
                     required
                     type="password"
                     autoComplete={
@@ -413,7 +420,7 @@ export const AuthForm = ({
                     className="h-11 w-full rounded-xl border border-border bg-background/75 px-3 pl-10 text-sm outline-none ring-offset-background transition focus:border-foreground/30 focus:ring-2 focus:ring-ring/40 dark:bg-background/35"
                   />
                 </div>
-              </label>
+              </div>
             )}
           </>
         )}
@@ -432,6 +439,15 @@ export const AuthForm = ({
             ? "Send reset link"
             : "Update password"}
         </Button>
+        {showResetBack ? (
+          <button
+            type="button"
+            onClick={backToSignIn}
+            className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 rounded-sm"
+          >
+            Back to sign in
+          </button>
+        ) : null}
       </form>
 
       {showOAuth && (
@@ -469,16 +485,6 @@ export const AuthForm = ({
             </button>
           </div>
         </div>
-      )}
-
-      {showResetBack && (
-        <button
-          type="button"
-          onClick={backToSignIn}
-          className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 rounded-sm"
-        >
-          Back to sign in
-        </button>
       )}
 
       <div className="min-h-[3.25rem] space-y-2" aria-live="polite">

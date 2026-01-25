@@ -87,10 +87,10 @@ const BeachCard = React.memo(
     const color = !b.conditions.rating
       ? "bg-highlight-3"
       : maxRounded! >= 6
-      ? "bg-red-400"
-      : maxRounded! >= 3
-      ? "bg-orange-300"
-      : "bg-green-300";
+        ? "bg-red-400"
+        : maxRounded! >= 3
+          ? "bg-orange-300"
+          : "bg-green-300";
     const rotation =
       typeof b.conditions.windDir === "number" ? b.conditions.windDir - 315 : 0;
 
@@ -160,7 +160,7 @@ const BeachCard = React.memo(
               [pt.x - pad, pt.y - pad],
               [pt.x + pad, pt.y + pad],
             ],
-            { layers: ["unclustered-point"] }
+            { layers: ["unclustered-point"] },
           );
         }
       } catch {}
@@ -182,7 +182,7 @@ const BeachCard = React.memo(
         <Link
           href={beachUrl}
           aria-label={`Open ${b.name} overview`}
-          title={`Open ${b.name} overview`}
+          title={b.name}
           className="absolute inset-0 z-0 rounded-3xl focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-400"
         />
         <div className="relative z-10 pointer-events-none">
@@ -255,7 +255,7 @@ const BeachCard = React.memo(
               >
                 <button
                   type="button"
-                  title="Toggle direction rings legend"
+                  title="Toggle legend"
                   aria-label={`Toggle direction rings legend for ${b.name}`}
                   className="pointer-events-auto text-white absolute bottom-3 right-3 z-50 p-1.5 rounded-full bg-black/60 hover:bg-black/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
                 >
@@ -322,7 +322,7 @@ const BeachCard = React.memo(
             <div
               className={cn(
                 "pointer-events-auto absolute right-2 top-2 z-10",
-                preview && "pointer-events-none"
+                preview && "pointer-events-none",
               )}
             >
               <SaveButton
@@ -580,7 +580,7 @@ const BeachCard = React.memo(
     prev.useMiles === next.useMiles &&
     prev.isFav === next.isFav &&
     prev.map === next.map &&
-    prev.setHoverCardId === next.setHoverCardId
+    prev.setHoverCardId === next.setHoverCardId,
 );
 
 BeachCard.displayName = "BeachCard";

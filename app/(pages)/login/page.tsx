@@ -6,6 +6,7 @@ import Link from "next/link";
 import { getServerSupabase } from "@/lib/supabaseServer";
 import { AuthForm } from "@/components/auth/AuthForm";
 import { buildPageMetadata } from "@/lib/seo";
+import { BrandWordmark } from "@/components/general/BrandWordmark";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = buildPageMetadata({
@@ -64,7 +65,10 @@ export default async function LoginPage() {
 
       <div className="relative grid min-h-[100svh] grid-rows-[auto,1fr] lg:grid-cols-2 lg:grid-rows-1">
         <section className="relative flex min-h-[18rem] items-end px-5 pb-10 pt-[calc(2.5rem+env(safe-area-inset-top))] sm:px-8 sm:pb-12 lg:min-h-[100svh] lg:items-center lg:px-14 lg:py-16">
-          <div aria-hidden className="pointer-events-none absolute inset-0 hidden lg:block">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 hidden lg:block"
+          >
             <div className="absolute inset-0 bg-gradient-to-br from-sky-600/75 via-cyan-500/55 to-indigo-600/70 dark:from-sky-500/40 dark:via-cyan-500/30 dark:to-indigo-500/40" />
             <div className="absolute inset-0 bg-[radial-gradient(900px_circle_at_15%_0%,rgba(255,255,255,0.55),transparent_60%)] opacity-50 dark:opacity-15" />
             <div className="absolute -top-24 -right-24 h-[360px] w-[360px] rounded-full bg-white/22 blur-3xl dark:bg-white/10" />
@@ -92,9 +96,10 @@ export default async function LoginPage() {
                   priority
                 />
               </span>
-              <span className="text-base font-semibold tracking-tight">
-                Waves<span className="ml-[0.9]">&</span>Waders
-              </span>
+              <BrandWordmark
+                className="text-base font-semibold tracking-tight"
+                spacing="-mt-1.5"
+              />
             </Link>
 
             <h1 className="mt-9 text-balance text-4xl font-semibold tracking-tight text-white sm:text-5xl">

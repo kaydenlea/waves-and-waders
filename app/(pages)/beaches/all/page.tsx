@@ -99,7 +99,7 @@ export default async function AllBeachesPage() {
               </div>
               <a
                 href="/beaches"
-                className="group rounded-3xl border border-border/40 bg-highlight-7/20 px-4 py-4 text-left shadow-xs transition hover:bg-background/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                className="group rounded-3xl border border-border/40 bg-highlight-7/20 px-4 py-4 text-left shadow-xs transition hover:bg-highlight-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
               >
                 <div className="flex items-center justify-between">
                   <div>
@@ -132,7 +132,7 @@ export default async function AllBeachesPage() {
                 >
                   <summary
                     id={countyId}
-                    className="bg-highlight-7 hover:bg-highlight-7/50 flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 rounded-3xl"
+                    className="bg-highlight-7/50 hover:bg-highlight-5 flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 rounded-3xl"
                   >
                     <div className="min-w-0">
                       <h2 className="text-base font-semibold text-foreground sm:text-lg">
