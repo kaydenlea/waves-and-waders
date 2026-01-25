@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { publicEnv } from "@/lib/env/public";
 import type { ReactNode } from "react";
 
 type Mode = "signin" | "signup" | "forgot-password" | "reset-password";
@@ -74,7 +75,8 @@ export const AuthForm = ({
     setError(null);
     setMessage(null);
     const origin =
-      typeof window !== "undefined" ? window.location.origin : undefined;
+      publicEnv.NEXT_PUBLIC_SITE_URL ??
+      (typeof window !== "undefined" ? window.location.origin : undefined);
     const params = new URLSearchParams();
     if (redirectTarget && redirectTarget !== "/") {
       params.set("next", redirectTarget);

@@ -1197,7 +1197,16 @@ const SelectedBeachOverlay = React.memo(
     if (overlayZoom < MIN_OVERLAY_ZOOM) {
       return null;
     }
-    const scale = overlayZoom >= 14 ? 1 : overlayZoom / 14;
+    const baseScale = overlayZoom >= 14 ? 1 : overlayZoom / 14;
+    const container = mapRef.current?.getContainer?.();
+    const containerRect =
+      container && typeof container.getBoundingClientRect === "function"
+        ? container.getBoundingClientRect()
+        : null;
+    const maxSize = containerRect
+      ? Math.min(containerRect.width, containerRect.height) * 0.72
+      : null;
+    const scale = maxSize ? Math.min(baseScale, maxSize / 160) : baseScale;
     const ringSize = 160 * scale;
     const outerRadius = 110 * scale;
     const labelDistance = 148 * scale;

@@ -6,6 +6,7 @@ import { SupabaseProvider } from "@/components/providers/SupabaseProvider";
 import { QueryProvider } from "@/components/providers/QueryProvider";
 import { ToastProvider } from "@/components/providers/ToastProvider";
 import { SearchProvider } from "@/components/context/SearchContext";
+import ScrollPerfHandler from "@/components/general/ScrollPerfHandler";
 import { poppins } from "@/lib/fonts";
 import { buildDefaultMetadata, getSiteUrl } from "@/lib/seo";
 
@@ -85,6 +86,7 @@ export default async function RootLayout({
               <ToastProvider>
                 <SearchProvider>
                   <ScrollToTopOnRouteChange />
+                  <ScrollPerfHandler />
                   {children}
                 </SearchProvider>
               </ToastProvider>

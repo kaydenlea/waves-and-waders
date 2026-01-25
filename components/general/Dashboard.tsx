@@ -627,7 +627,7 @@ export default function Dashboard({
 
                 <section className="grid grid-cols-1 @min-3xl:grid-cols-2 gap-4 items-stretch">
                   {isFull ? (
-                    <div className="rounded-2xl border border-dashed p-2 flex flex-col @min-3xl:flex-row w-full @min-3xl:col-span-2 gap-2">
+                    <div className="flex w-full flex-col gap-2 @min-3xl:col-span-2 @min-3xl:flex-row @min-3xl:rounded-2xl @min-3xl:border @min-3xl:border-dashed @min-3xl:p-2">
                       <Slot
                         className="w-full"
                         rowId={row.id}
@@ -667,7 +667,7 @@ export default function Dashboard({
                       ) : null}
                     </div>
                   ) : (
-                    <div className="rounded-2xl border border-dashed p-2 flex flex-col @min-3xl:flex-row w-full @min-3xl:col-span-2 gap-2">
+                    <div className="flex w-full flex-col gap-2 @min-3xl:col-span-2 @min-3xl:flex-row @min-3xl:rounded-2xl @min-3xl:border @min-3xl:border-dashed @min-3xl:p-2">
                       <Slot
                         className="w-full"
                         rowId={row.id}

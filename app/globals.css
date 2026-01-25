@@ -154,6 +154,10 @@
   body[data-ww-scrolling="1"] .ww-hero-blob-3 {
     animation-play-state: paused !important;
   }
+  /* Perf: disable expensive blur filters while scrolling. */
+  body[data-ww-scrolling="1"] .ww-hero-float {
+    filter: none !important;
+  }
 
   /* Perf: blend modes can be expensive while scrolling. */
   body[data-ww-scrolling="1"] .ww-hero-noise {
