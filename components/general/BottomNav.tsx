@@ -443,7 +443,7 @@ export default function BottomNav() {
       {/* Bottom Navigation */}
       <div
         className={cn(
-          "shadow-md @min-4xl:hidden safe-area-inset-bottom bg-highlight-4 backdrop-blur border-t border-border fixed bottom-0 left-0 right-0 z-30 transition-all duration-300 touch-none",
+          "shadow-md @min-4xl:hidden safe-area-inset-bottom bg-highlight-4 backdrop-blur border-t border-border fixed bottom-0 left-0 right-0 z-60 transition-all duration-300 touch-none",
           showBottomUI ? "translate-y-0" : "translate-y-full"
         )}
       >

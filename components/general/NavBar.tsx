@@ -11,6 +11,7 @@ import NavBarActions from "./NavBarActions";
 import NavMoreMenu from "./NavMoreMenu";
 import MarketingSearchButton from "@/components/general/MarketingSearchButton";
 import { HandHeart } from "lucide-react";
+import { BrandWordmark } from "@/components/general/BrandWordmark";
 
 {
   /* <div className="mx-auto flex items-center justify-between px-4 py-5.5 sm:px-6">
@@ -121,7 +122,7 @@ const NavBar = ({
     <header
       className={cn(
         "fixed @min-4xl:p-0 z-50 w-full @container touch-pan-y",
-        beachesPage && "px-1.5 pt-1.5 hidden @min-4xl:block"
+        beachesPage && "px-1.5 pt-1.5 hidden @min-4xl:block",
       )}
     >
       <nav
@@ -140,7 +141,7 @@ const NavBar = ({
                 "@min-4xl:border @min-4xl:border-border/70 @min-4xl:shadow-none",
               ],
           beachesPage && "shadow-even",
-          !landingPage && !beachesPage ? "px-2 @min-4xl:px-6" : "px-6"
+          !landingPage && !beachesPage ? "px-2 @min-4xl:px-6" : "px-6",
         )}
       >
         {/* <Link href="/" className="p-3 icon-button">
@@ -153,8 +154,8 @@ const NavBar = ({
             !landingPage && !beachesPage
               ? "hidden @min-4xl:inline-flex"
               : beachesPage
-              ? "hidden @min-xl:inline-flex"
-              : "inline-flex"
+                ? "hidden @min-xl:inline-flex"
+                : "inline-flex",
           )}
         >
           <div className="relative h-10 w-10 overflow-hidden rounded-xl">
@@ -167,25 +168,10 @@ const NavBar = ({
               priority
             />
           </div>
-          <span
-            className={cn(
-              "text-lg font-semibold tracking-tight text-foreground flex flex-col",
-              beachesPage || landingPage
-                ? beachesPage
-                  ? "@min-5xl:flex-row"
-                  : "@min-5xl:flex-row"
-                : "flex-col"
-            )}
-          >
-            <span
-              className={cn(
-                beachesPage || landingPage ? "-mb-2 @min-5xl:mb-0" : "-mb-2"
-              )}
-            >
-              Waves<span className="ml-[0.9]">&</span>
-            </span>
-            <span>Waders</span>
-          </span>
+          <BrandWordmark
+            className="text-lg font-semibold tracking-tight text-foreground"
+            spacing="-mt-2.5"
+          />
         </Link>
 
         {variant === "marketing" ? (
@@ -209,7 +195,7 @@ const NavBar = ({
                       "rounded-md px-1 py-1 transition hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring/40",
                       item.label === "Donate"
                         ? "inline-flex items-center gap-2"
-                        : undefined
+                        : undefined,
                     )}
                   >
                     {item.icon &&
@@ -230,7 +216,7 @@ const NavBar = ({
                       "rounded-md px-1 py-1 transition hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring/40",
                       item.label === "Donate"
                         ? "inline-flex items-center gap-2"
-                        : undefined
+                        : undefined,
                     )}
                   >
                     {item.icon &&
@@ -273,13 +259,13 @@ const NavBar = ({
         <div
           className={cn(
             "items-center gap-2",
-            landingPage ? "flex" : "hidden @min-4xl:flex"
+            landingPage ? "flex" : "hidden @min-4xl:flex",
           )}
         >
           <div
             className={cn(
               // landingPage ? "hidden @min-md:flex" : "hidden @min-5xl:flex"
-              landingPage ? "hidden @min-5xl:flex" : "hidden @min-4xl:flex"
+              landingPage ? "hidden @min-5xl:flex" : "hidden @min-4xl:flex",
             )}
           >
             <UserMenu landingPage />
