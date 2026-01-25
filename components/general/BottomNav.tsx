@@ -157,11 +157,21 @@ export default function BottomNav() {
   useEffect(() => {
     const html = document.documentElement;
     const body = document.body;
-    if (openPanel === "filters") html.style.overflow = "hidden";
+    if (openPanel === "filters") {
+      html.style.overflow = "hidden";
+      if (mobile) {
+        body.classList.add("ww-disable-backdrop");
+        html.style.overscrollBehaviorY = "contain";
+        body.style.overscrollBehaviorY = "contain";
+      }
+    }
     else {
       // Restore defaults
       html.style.overflow = "";
       body.style.overflow = "";
+      html.style.overscrollBehaviorY = "";
+      body.style.overscrollBehaviorY = "";
+      body.classList.remove("ww-disable-backdrop");
       html.style.paddingRight = "";
       body.style.paddingRight = "";
     }
@@ -169,10 +179,13 @@ export default function BottomNav() {
       // Restore defaults
       html.style.overflow = "";
       body.style.overflow = "";
+      html.style.overscrollBehaviorY = "";
+      body.style.overscrollBehaviorY = "";
+      body.classList.remove("ww-disable-backdrop");
       html.style.paddingRight = "";
       body.style.paddingRight = "";
     };
-  }, [openPanel]);
+  }, [openPanel, mobile]);
 
   useEffect(() => {
     let ticking = false;

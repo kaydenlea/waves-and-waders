@@ -2902,7 +2902,13 @@ const SelectedBeachMarker = React.memo(
       return null;
     }
 
-    const scale = zoom >= 14 ? 1 : zoom / 14;
+    const baseScale = zoom >= 14 ? 1 : zoom / 14;
+    const viewportMin =
+      typeof window !== "undefined"
+        ? Math.min(window.innerWidth, window.innerHeight)
+        : null;
+    const maxSize = viewportMin ? viewportMin * 0.72 : null;
+    const scale = maxSize ? Math.min(baseScale, maxSize / 160) : baseScale;
     const ringSize = 160 * scale;
     const outerRadius = 110 * scale;
     const labelDistance = 140 * scale;
