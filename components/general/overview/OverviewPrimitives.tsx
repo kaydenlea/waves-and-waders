@@ -47,7 +47,10 @@ export function OverviewCardHeader({
     >
       <div className="flex items-center gap-2 min-w-0">
         {icon ? (
-          <div className="grid size-8 shrink-0 place-items-center rounded-full bg-foreground/5 text-foreground/80 ring-1 ring-border/25">
+          <div
+            data-ww-widget-icon
+            className="grid size-8 shrink-0 place-items-center rounded-full bg-foreground/5 text-foreground/80 ring-1 ring-border/25"
+          >
             {icon}
           </div>
         ) : null}

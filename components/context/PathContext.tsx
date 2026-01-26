@@ -1,7 +1,14 @@
 "use client";
 
 import { usePathname, useSearchParams } from "next/navigation";
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+} from "react";
 
 type Ctx = {
   pathname: string;
@@ -23,7 +30,7 @@ export function PathProvider({ children }: { children: React.ReactNode }) {
   }, [pathname, searchParams]);
   const [selectedTab, setSelectedTab] = useState(initialTab);
   // Restore persisted tab per-path on mount/path change
-  useEffect(() => {
+  useLayoutEffect(() => {
     try {
       if (typeof window === "undefined") return;
 

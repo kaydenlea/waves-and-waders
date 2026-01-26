@@ -15,7 +15,6 @@ import { SunDataProvider } from "@/components/context/SunDataContext";
 import { useOptionalDashboardEditMode } from "@/components/context/DashboardEditModeContext";
 import { OverviewPageBusyProvider } from "@/components/context/OverviewPageBusyContext";
 import { OverviewChartsLoadingProvider } from "@/components/context/OverviewChartsLoadingContext";
-import DashboardEditorScreen from "@/components/general/DashboardEditorScreen";
 import type { BeachPoint } from "@/components/context/MapFilterContext";
 import type {
   Row,
@@ -103,16 +102,9 @@ export default function OverviewPageClient({
 }: Props) {
   const dashboardEdit = useOptionalDashboardEditMode();
   const noop = React.useCallback(() => {}, []);
-  const getCachedLayoutFallback = React.useCallback((type: unknown) => {
-    void type;
-    return null;
-  }, []);
   const isEditing = dashboardEdit?.isEditing ?? false;
-  const dashboardType = dashboardEdit?.dashboardType ?? null;
   const pendingScrollToId = dashboardEdit?.pendingScrollToId ?? null;
   const clearPendingScrollTo = dashboardEdit?.clearPendingScrollTo ?? noop;
-  const getCachedLayout =
-    dashboardEdit?.getCachedLayout ?? getCachedLayoutFallback;
 
   React.useLayoutEffect(() => {
     if (isEditing || !pendingScrollToId) return;
@@ -128,31 +120,13 @@ export default function OverviewPageClient({
     clearPendingScrollTo();
   }, [isEditing, pendingScrollToId, clearPendingScrollTo]);
 
-  const editType = dashboardType ?? "overview";
-  const cachedLayout = getCachedLayout(editType);
-  const editorInitialMeta =
-    cachedLayout?.meta ??
-    (editType === "forecast" ? initialForecastMeta : initialOverviewMeta);
-  const editorInitialRows =
-    cachedLayout?.rows ??
-    (editType === "forecast" ? initialForecastRows : initialOverviewRows);
-
   const updatedAtLabel = formatPacificDateTime(seoSummary?.updatedAt ?? null);
   const windDirLabel = getWindDirectionLabel(seoSummary?.windDirection ?? null);
   const visibleFeatures = (seoSummary?.features ?? []).slice(0, 6);
 
   return (
     <>
-      {isEditing ? (
-        <DashboardEditorScreen
-          beachParam={beachParam}
-          type={editType}
-          initialMeta={editorInitialMeta}
-          initialRows={editorInitialRows}
-        />
-      ) : null}
-
-      <div className={isEditing ? "hidden" : undefined} aria-hidden={isEditing}>
+      <div>
         <NavBar />
         <OverviewPageBusyProvider>
           <main

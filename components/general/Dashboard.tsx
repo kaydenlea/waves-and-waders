@@ -1,23 +1,25 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
+import { flushSync } from "react-dom";
 import Link from "next/link";
 import { useSessionContext } from "@supabase/auth-helpers-react";
 import {
   DndContext,
-  type DragEndEvent,
-  DragOverEvent,
-  DragStartEvent,
   DragOverlay,
+  type DragEndEvent,
+  DragStartEvent,
   PointerSensor,
   useSensor,
   useSensors,
   useDraggable,
   useDroppable,
-  type Modifier,
   closestCenter,
   TouchSensor,
+  AutoScrollActivator,
 } from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
+import { restrictToWindowEdges } from "@dnd-kit/modifiers";
 import { cn } from "@/lib/utils";
 import {
   rid,
@@ -29,12 +31,49 @@ import {
 import {
   DashboardWidgetMiniature,
   DashboardWidgetHeaderMiniature,
-  getDashboardWidgetIcon,
 } from "./dashboardMiniatures";
 
 import { Check, X, RotateCcw, GripVertical } from "lucide-react";
 
 /* ------------------------------ Widget Miniatures ---------------------------- */
+
+const StableNode = React.memo(
+  function StableNodeImpl({ node }: { node: React.ReactNode }) {
+    return <>{node}</>;
+  },
+  (prev, next) => prev.node === next.node,
+);
+
+const DashboardDragOverlay = React.memo(function DashboardDragOverlay({
+  id,
+  variant,
+  renderWidget,
+}: {
+  id: WidgetId;
+  variant: "full" | "half";
+  renderWidget: (id: WidgetId, variant: "full" | "half") => React.ReactNode;
+}) {
+  const node = React.useMemo(() => renderWidget(id, variant), [id, renderWidget, variant]);
+  if (!node) return null;
+
+  return (
+    <div
+      style={{ pointerEvents: "none" }}
+      className="relative w-full"
+      data-ww-dashboard-edit-card
+      data-ww-dashboard-dragging=""
+      aria-hidden="true"
+    >
+      <div className="pointer-events-none select-none">
+        <StableNode node={node} />
+      </div>
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 rounded-[22px] bg-foreground/10"
+      />
+    </div>
+  );
+});
 
 /* ------------------------------ Drop Target IDs --------------------------- */
 
@@ -50,31 +89,45 @@ const slotId = (rowId: string, pos: 0 | 1) => `slot:${rowId}:${pos}` as const;
 const isSlotId = (id: string) => id.startsWith("slot:");
 const parseSlot = (id: string): { rowId: string; pos: 0 | 1 } | null => {
   if (!isSlotId(id)) return null;
-  const [, rowId, p] = id.split(":");
-  const pos = Number(p);
+  // Row ids can contain ":" (e.g. auto-generated ids), so parse from the end.
+  const rest = id.slice("slot:".length);
+  const last = rest.lastIndexOf(":");
+  if (last === -1) return null;
+  const rowId = rest.slice(0, last);
+  const pos = Number(rest.slice(last + 1));
   if ((pos !== 0 && pos !== 1) || !rowId) return null;
   return { rowId, pos: pos as 0 | 1 };
 };
 
 /* ------------------------------ Draggable Card ---------------------------- */
 
-function DraggableCard({
+const DraggableCard = React.memo(function DraggableCard({
   id,
   meta,
   dashboardType,
   dim,
   isFull,
+  renderVariant,
+  renderWidget,
 }: {
   id: WidgetId;
   meta: WidgetMeta | undefined;
   dashboardType: DashboardType;
   dim: boolean;
   isFull: boolean;
+  renderVariant?: "full" | "half";
+  renderWidget?: (id: WidgetId, variant: "full" | "half") => React.ReactNode;
 }) {
-  const { attributes, listeners, setNodeRef, setActivatorNodeRef, isDragging } =
-    useDraggable({
-      id: `w:${id}`,
-    });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    isDragging,
+    transform,
+  } = useDraggable({
+    id: `w:${id}`,
+  });
 
   if (!meta) return null;
 
@@ -82,32 +135,93 @@ function DraggableCard({
     id === "stats" && dashboardType === "overview" && isFull === true;
   const cardHeight = isShortStats ? "h-[13rem]" : "h-[13rem]";
 
+  const usesDragOverlay = Boolean(renderWidget);
+  const dragStyle: React.CSSProperties | undefined =
+    transform && !(usesDragOverlay && isDragging)
+      ? {
+          transform: CSS.Translate.toString(transform),
+          willChange: "transform",
+        }
+      : isDragging && !usesDragOverlay
+        ? { willChange: "transform" }
+        : undefined;
+
+  if (renderWidget) {
+    const content = renderWidget(id, renderVariant ?? (isFull ? "full" : "half"));
+    if (!content) return null;
+
+    const opacityClass = dim
+      ? "opacity-60"
+      : isDragging && usesDragOverlay
+        ? "opacity-35"
+        : isDragging
+          ? "opacity-80"
+          : "opacity-100";
+
+    return (
+      <div
+        ref={setNodeRef}
+        style={dragStyle}
+        className={cn(
+          "relative w-full transition-opacity",
+          opacityClass,
+          isDragging && !usesDragOverlay && "z-50 cursor-grabbing",
+        )}
+        data-ww-dashboard-edit-card
+        data-ww-dashboard-dragging={
+          isDragging && !usesDragOverlay ? "" : undefined
+        }
+        aria-roledescription="card"
+      >
+        <div className="pointer-events-none select-none">
+          <StableNode node={content} />
+        </div>
+        {dim || isDragging ? (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 rounded-[22px] bg-foreground/10 z-50"
+          />
+        ) : null}
+        <button
+          type="button"
+          aria-label={`Drag ${meta.title}`}
+          title="Drag to move"
+          {...attributes}
+          {...listeners}
+          ref={setActivatorNodeRef}
+          className={cn(
+            "touch-none cursor-grab rounded-full",
+            "grid size-8 place-items-center ring-1 ring-border/25",
+            "bg-foreground/5 text-foreground/80 shadow-sm",
+            "hover:bg-foreground/10 active:cursor-grabbing",
+            "absolute left-4 top-4 z-[60]",
+          )}
+        >
+          <GripVertical className="h-4.5 w-4.5 text-foreground/80" />
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div
       ref={setNodeRef}
+      style={dragStyle}
       className={cn(
-        "w-full h-full transition-opacity",
+        "relative w-full h-full transition-opacity",
         dim ? "opacity-60" : "opacity-100",
-        isDragging && "opacity-0"
+        isDragging && "z-50 cursor-grabbing",
       )}
+      data-ww-dashboard-dragging={isDragging ? "" : undefined}
       aria-roledescription="card"
     >
       <article
         className={cn(
           "flex flex-col rounded-2xl border border-border bg-background p-4 shadow-sm ring-1 ring-black/5",
-          cardHeight
+          cardHeight,
         )}
       >
         <header className="relative flex items-center gap-2">
-          {getDashboardWidgetIcon(id)}
-          <h3 className="text-sm font-semibold min-w-0 flex-1 truncate">
-            {meta.title}
-          </h3>
-          {(id === "table" || id === "stats") && (
-            <div className="ml-auto flex items-center gap-2">
-              <DashboardWidgetHeaderMiniature widgetId={id} />
-            </div>
-          )}
           <button
             type="button"
             aria-label={`Drag ${meta.title}`}
@@ -116,15 +230,22 @@ function DraggableCard({
             {...listeners}
             ref={setActivatorNodeRef}
             className={cn(
-              "touch-none cursor-grab rounded-full border border-border/40",
-              "bg-highlight-7/70 p-2 shadow-even",
-              "supports-[backdrop-filter]:bg-highlight-7/40 supports-[backdrop-filter]:backdrop-blur-md",
-              "hover:bg-highlight-6/60 active:cursor-grabbing",
-              "absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2"
+              "touch-none cursor-grab rounded-full",
+              "grid size-8 place-items-center ring-1 ring-border/25",
+              "bg-foreground/5 text-foreground/80 shadow-sm",
+              "hover:bg-foreground/10 active:cursor-grabbing",
             )}
           >
-            <GripVertical className="h-5 w-5 text-foreground/70" />
+            <GripVertical className="h-4.5 w-4.5 text-foreground/80" />
           </button>
+          <h3 className="text-sm font-semibold min-w-0 flex-1 truncate">
+            {meta.title}
+          </h3>
+          {(id === "table" || id === "stats") && (
+            <div className="ml-auto flex items-center gap-2">
+              <DashboardWidgetHeaderMiniature widgetId={id} />
+            </div>
+          )}
         </header>
         <div className="mt-3 flex-1 overflow-hidden text-sm text-gray-700">
           <div className="h-full w-full pointer-events-none select-none">
@@ -138,64 +259,137 @@ function DraggableCard({
       </article>
     </div>
   );
-}
+});
 
 /* ------------------------------ Droppable Gaps & Slots -------------------- */
 
-function Gap({ index, highlight }: { index: number; highlight: boolean }) {
-  const { setNodeRef } = useDroppable({ id: gapId(index) });
-  const label = "Drop here (new row)";
+const Gap = React.memo(function Gap({
+  index,
+  className,
+}: {
+  index: number;
+  className?: string;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: gapId(index) });
   return (
-    <div ref={setNodeRef} className="relative w-full select-none z-50">
+    <div
+      ref={setNodeRef}
+      className={cn("relative w-full select-none z-50 py-3", className)}
+    >
       <div
-        className={`mx-0 my-2 h-2 rounded transition-all ${
-          highlight ? "bg-indigo-500/90" : "bg-transparent"
-        }`}
+        className={cn(
+          "h-2 rounded transition-colors",
+          isOver ? "bg-indigo-500/90" : "bg-transparent",
+        )}
       />
-      {highlight && (
+      {isOver ? (
         <div
           className="pointer-events-none absolute -mt-8 w-full text-center text-xs font-medium text-indigo-400"
           aria-hidden
         >
-          {label}
+          Drop to create a new row
         </div>
-      )}
+      ) : null}
     </div>
   );
-}
+});
 
-function Slot({
+const Slot = React.memo(function Slot({
   rowId,
   pos,
-  highlight,
+  highlightEnabled,
+  showEmptyOutline,
   children,
   className,
 }: {
   rowId: string;
   pos: 0 | 1;
-  highlight: boolean;
+  highlightEnabled: boolean;
+  showEmptyOutline?: boolean;
   children: React.ReactNode;
   className?: string;
 }) {
-  const { setNodeRef } = useDroppable({ id: slotId(rowId, pos) });
+  const { setNodeRef, isOver } = useDroppable({
+    id: slotId(rowId, pos),
+    disabled: !highlightEnabled,
+  });
+  const highlight = highlightEnabled && isOver;
   return (
     <div
       ref={setNodeRef}
       className={cn(
-        "h-full",
+        "relative flex flex-col flex-1 min-w-0 self-stretch",
         highlight && "rounded-xl ring-2 ring-indigo-400",
-        className
+        className,
       )}
     >
+      {showEmptyOutline ? (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 rounded-[22px] border border-dashed border-border/50"
+        />
+      ) : null}
       {children}
     </div>
   );
-}
+});
 
 /* --------------------------------- Helpers -------------------------------- */
 
 function cloneRows(rows: Row[]): Row[] {
   return rows.map((r) => ({ id: r.id, items: [...r.items] }));
+}
+
+function normalizeRowsForSingleColumn(rows: Row[]): Row[] {
+  const next: Row[] = [];
+  for (const row of rows) {
+    if (row.items.length <= 1) {
+      next.push(row);
+      continue;
+    }
+    next.push({ id: row.id, items: [row.items[0]] });
+    for (const item of row.items.slice(1)) {
+      next.push({ id: rid(), items: [item] });
+    }
+  }
+  return next;
+}
+
+function packRowsForTwoColumn(
+  rows: Row[],
+  meta: Partial<Record<WidgetId, WidgetMeta>>,
+): Row[] {
+  const singles = normalizeRowsForSingleColumn(rows);
+  const next: Row[] = [];
+
+  for (let i = 0; i < singles.length; i++) {
+    const row = singles[i];
+    const item = row.items[0];
+    if (!item) continue;
+
+    const span = meta[item]?.span;
+    const isFull = span === "full" || Boolean(meta[item]?.immutableFull);
+    if (isFull) {
+      next.push({ id: row.id, items: [item] });
+      continue;
+    }
+
+    const nextRow = singles[i + 1];
+    const nextItem = nextRow?.items[0];
+    const nextSpan = nextItem ? meta[nextItem]?.span : undefined;
+    const nextIsFull =
+      nextSpan === "full" || Boolean(nextItem && meta[nextItem]?.immutableFull);
+
+    if (nextItem && !nextIsFull) {
+      next.push({ id: row.id, items: [item, nextItem] });
+      i++;
+      continue;
+    }
+
+    next.push({ id: row.id, items: [item] });
+  }
+
+  return next;
 }
 
 /* -------------------------------- Dashboard -------------------------------- */
@@ -208,6 +402,7 @@ export default function Dashboard({
   setRows,
   reset,
   allowAnonymous = false,
+  renderWidget,
 }: {
   type?: DashboardType;
   meta: Partial<Record<WidgetId, WidgetMeta>>;
@@ -216,45 +411,69 @@ export default function Dashboard({
     next:
       | Partial<Record<WidgetId, WidgetMeta>>
       | ((
-          prev: Partial<Record<WidgetId, WidgetMeta>>
-        ) => Partial<Record<WidgetId, WidgetMeta>>)
+          prev: Partial<Record<WidgetId, WidgetMeta>>,
+        ) => Partial<Record<WidgetId, WidgetMeta>>),
   ) => void;
   setRows: (next: Row[] | ((prev: Row[]) => Row[])) => void;
   reset: () => void;
   allowAnonymous?: boolean;
+  renderWidget?: (id: WidgetId, variant: "full" | "half") => React.ReactNode;
 }) {
   const { session } = useSessionContext();
   const [activeWidget, setActiveWidget] = useState<WidgetId | null>(null);
-  const [overId, setOverId] = useState<string | null>(null);
-  const [activeWidth, setActiveWidth] = useState<number | null>(null);
-
-  const keepGrabOffsetOnWidthChange = React.useCallback<Modifier>(
-    ({ draggingNodeRect, overlayNodeRect, transform }) => {
-      if (!draggingNodeRect || !overlayNodeRect) return transform;
-
-      const draggingWidth = draggingNodeRect.width;
-      const overlayRectWidth = overlayNodeRect.width;
-      if (!draggingWidth || !overlayRectWidth) return transform;
-
-      const delta = (draggingWidth - overlayRectWidth) / 2;
-      if (Math.abs(delta) < 0.5) return transform;
-
-      return { ...transform, x: transform.x + delta };
-    },
-    []
-  );
+  const containerRef = React.useRef<HTMLDivElement | null>(null);
+  const twoColumnSentinelRef = React.useRef<HTMLDivElement | null>(null);
+  const [isTwoColumn, setIsTwoColumn] = React.useState(true);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 1 } }),
     useSensor(TouchSensor, {
       activationConstraint: { delay: 100, tolerance: 5 },
-    })
+    }),
   );
 
   const visibleRows = useMemo(
     () => rows.filter((r) => r.items.some((id) => meta[id]?.visible)),
-    [rows, meta]
+    [rows, meta],
   );
+  React.useLayoutEffect(() => {
+    if (!containerRef.current) return;
+    if (!twoColumnSentinelRef.current) return;
+    if (typeof ResizeObserver === "undefined") return;
+    const el = containerRef.current;
+    const sentinel = twoColumnSentinelRef.current;
+
+    const update = () => {
+      // Use the same container-query breakpoint as the row layout
+      // (`flex-col @min-4xl:flex-row`) so the drop rules match what the user sees.
+      const dir = window.getComputedStyle(sentinel).flexDirection;
+      const next = dir === "row";
+      setIsTwoColumn((prev) => (prev === next ? prev : next));
+    };
+
+    update();
+    const ro = new ResizeObserver(() => update());
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const prevTwoColRef = React.useRef<boolean | null>(null);
+  React.useEffect(() => {
+    if (prevTwoColRef.current === null) {
+      prevTwoColRef.current = isTwoColumn;
+      return;
+    }
+    if (activeWidget) return;
+    if (prevTwoColRef.current === isTwoColumn) return;
+
+    if (!isTwoColumn) {
+      setRows((prev) => normalizeRowsForSingleColumn(prev));
+    } else {
+      setRows((prev) => packRowsForTwoColumn(prev, meta));
+    }
+
+    prevTwoColRef.current = isTwoColumn;
+  }, [activeWidget, isTwoColumn, meta, setRows]);
   if (!session && !allowAnonymous) {
     return (
       <div className="mt-3 overflow-hidden @container">
@@ -277,36 +496,45 @@ export default function Dashboard({
   /* ---------------------------- DnD Handlers ---------------------------- */
   function onDragStart(e: DragStartEvent) {
     const id = String(e.active.id);
-    if (id.startsWith("w:")) setActiveWidget(id.slice(2) as WidgetId);
-    setOverId(null);
-    const r = e.active.rect.current.initial;
-    if (r) {
-      setActiveWidth(r.width);
+    if (id.startsWith("w:")) {
+      setActiveWidget(id.slice(2) as WidgetId);
     }
-  }
-
-  function onDragOver(e: DragOverEvent) {
-    const id = e.over?.id ? String(e.over.id) : null;
-    setOverId((prev) => (prev === id ? prev : id));
   }
 
   function onDragEnd(e: DragEndEvent) {
     const over = e.over?.id ? String(e.over.id) : null;
     const active = activeWidget;
-    setOverId(null);
-
-    const cleanup = () => {
-      setActiveWidget(null);
-      setActiveWidth(null);
-    };
-
-    const finish = () => {
-      if (typeof window !== "undefined") window.requestAnimationFrame(cleanup);
-      else cleanup();
-    };
 
     if (!active || !over) {
-      finish();
+      flushSync(() => setActiveWidget(null));
+      return;
+    }
+
+    // In 1-column layouts, treat every widget as its own row and only allow
+    // reordering via gaps (no slot drops).
+    if (!isTwoColumn) {
+      if (!isGapId(over)) {
+        flushSync(() => setActiveWidget(null));
+        return;
+      }
+      const gapIndex = parseGap(over);
+      if (gapIndex === null) {
+        flushSync(() => setActiveWidget(null));
+        return;
+      }
+      const srcRowIndex = rows.findIndex((r) => r.items.includes(active));
+      if (srcRowIndex === -1) {
+        flushSync(() => setActiveWidget(null));
+        return;
+      }
+      const next = cloneRows(rows);
+      const [movedRow] = next.splice(srcRowIndex, 1);
+      const insertIndex = gapIndex > srcRowIndex ? gapIndex - 1 : gapIndex;
+      next.splice(Math.max(0, Math.min(insertIndex, next.length)), 0, movedRow);
+      flushSync(() => {
+        setRows(next);
+        setActiveWidget(null);
+      });
       return;
     }
 
@@ -317,19 +545,19 @@ export default function Dashboard({
     // FULL -> only allow drops on gaps
     if (span === "full" && !allowSlotDropAsHalf) {
       if (!isGapId(over)) {
-        finish();
+        flushSync(() => setActiveWidget(null));
         return;
       }
       const gapIndex = parseGap(over);
       if (gapIndex === null) {
-        finish();
+        flushSync(() => setActiveWidget(null));
         return;
       }
 
       // find source row index (the row that contains the active widget)
       const srcRowIndex = rows.findIndex((r) => r.items.includes(active));
       if (srcRowIndex === -1) {
-        finish();
+        flushSync(() => setActiveWidget(null));
         return;
       }
 
@@ -339,141 +567,137 @@ export default function Dashboard({
       // insert at gapIndex (gaps index correspond to position before row at that index)
       const insertIndex = gapIndex > srcRowIndex ? gapIndex - 1 : gapIndex;
       next.splice(Math.max(0, Math.min(insertIndex, next.length)), 0, movedRow);
-      setRows(next);
-      finish();
+      flushSync(() => {
+        setRows(next);
+        setActiveWidget(null);
+      });
       return;
-    }
-
-    // A full-width widget can become half-width when dropped into a slot.
-    if (allowSlotDropAsHalf) {
-      setMeta((prev) => ({
-        ...prev,
-        [active]: { ...prev[active], span: "half" },
-      }));
     }
 
     // HALF -> allow slot drops and gap drops
     if (isSlotId(over)) {
       const slot = parseSlot(over);
       if (!slot) {
-        finish();
+        flushSync(() => setActiveWidget(null));
         return;
       }
       const { rowId, pos } = slot;
 
-      // First check if we need to convert a full-width widget to half-width
-      // We need to do this BEFORE updating rows to avoid race conditions
-      const targetRow = rows.find((r) => r.id === rowId);
-      if (targetRow) {
-        const tgtIsFull =
-          targetRow.items.length === 1 &&
-          meta[targetRow.items[0]]?.span === "full";
-
-        if (tgtIsFull) {
-          const fullWidgetId = targetRow.items[0];
-          // Don't allow drops on immutableFull widgets (like table)
-          if (meta[fullWidgetId]?.immutableFull) {
-            finish();
-            return;
-          }
-
-          // Convert the full-width widget to half-width
+      flushSync(() => {
+        // A full-width widget can become half-width when dropped into a slot.
+        if (allowSlotDropAsHalf) {
           setMeta((prev) => ({
             ...prev,
-            [fullWidgetId]: { ...prev[fullWidgetId], span: "half" },
+            [active]: { ...prev[active], span: "half" },
           }));
         }
-      }
 
-      setRows((prev) => {
-        const next = cloneRows(prev);
-        const srcIdx = next.findIndex((r) => r.items.includes(active));
-        if (srcIdx === -1) return prev;
-        const srcRow = next[srcIdx];
-        const srcPos = srcRow.items.indexOf(active);
+        // Convert a full-width target row to half-width before placing into its slot.
+        const targetRow = rows.find((r) => r.id === rowId);
+        if (targetRow) {
+          const tgtIsFull =
+            targetRow.items.length === 1 &&
+            meta[targetRow.items[0]]?.span === "full";
 
-        const tgtIdx = next.findIndex((r) => r.id === rowId);
-        if (tgtIdx === -1) return prev;
-        const tgtRow = next[tgtIdx];
-
-        // if same row, do swap logic
-
-        if (srcIdx === tgtIdx) {
-          if (srcPos === pos) return prev; // no-op
-          if (tgtRow.items.length === 2) {
-            const tmp = tgtRow.items[pos];
-            tgtRow.items[pos] = active;
-            tgtRow.items[srcPos] = tmp as WidgetId;
-            return next;
-          }
-          return prev; // single item row -> no change
-        }
-
-        // remove from source
-        srcRow.items.splice(srcPos, 1);
-        const sourceEmptied = srcRow.items.length === 0;
-        if (sourceEmptied) next.splice(srcIdx, 1);
-
-        // place into target
-        if (tgtRow.items.length === 0) {
-          tgtRow.items = [active];
-          return next;
-        }
-        if (tgtRow.items.length === 1) {
-          if (pos === 0) tgtRow.items = [active, tgtRow.items[0]];
-          else tgtRow.items.push(active);
-          return next;
-        }
-
-        // target has 2 items -> swap with occupant
-        const displaced = tgtRow.items[pos];
-        tgtRow.items[pos] = active;
-
-        // try to rehome displaced into source row if it still exists and has space
-        if (!sourceEmptied) {
-          const newSrcIdx = next.findIndex((r) => r.id === srcRow.id);
-          if (newSrcIdx !== -1 && next[newSrcIdx].items.length < 2) {
-            next[newSrcIdx].items.push(displaced);
-            return next;
+          if (tgtIsFull) {
+            const fullWidgetId = targetRow.items[0];
+            if (meta[fullWidgetId]?.immutableFull) {
+              setActiveWidget(null);
+              return;
+            }
+            setMeta((prev) => ({
+              ...prev,
+              [fullWidgetId]: { ...prev[fullWidgetId], span: "half" },
+            }));
           }
         }
-        // otherwise create new single-row under target
-        next.splice(srcIdx, 0, { id: rid(), items: [displaced] });
-        return next;
+
+        setRows((prev) => {
+          const next = cloneRows(prev);
+          const srcIdx = next.findIndex((r) => r.items.includes(active));
+          if (srcIdx === -1) return prev;
+          const srcRow = next[srcIdx];
+          const srcPos = srcRow.items.indexOf(active);
+
+          const tgtIdx = next.findIndex((r) => r.id === rowId);
+          if (tgtIdx === -1) return prev;
+          const tgtRow = next[tgtIdx];
+
+          if (srcIdx === tgtIdx) {
+            if (srcPos === pos) return prev;
+            if (tgtRow.items.length === 2) {
+              const tmp = tgtRow.items[pos];
+              tgtRow.items[pos] = active;
+              tgtRow.items[srcPos] = tmp as WidgetId;
+              return next;
+            }
+            return prev;
+          }
+
+          srcRow.items.splice(srcPos, 1);
+          const sourceEmptied = srcRow.items.length === 0;
+          if (sourceEmptied) next.splice(srcIdx, 1);
+
+          if (tgtRow.items.length === 0) {
+            tgtRow.items = [active];
+            return next;
+          }
+          if (tgtRow.items.length === 1) {
+            if (pos === 0) tgtRow.items = [active, tgtRow.items[0]];
+            else tgtRow.items.push(active);
+            return next;
+          }
+
+          const displaced = tgtRow.items[pos];
+          tgtRow.items[pos] = active;
+
+          if (!sourceEmptied) {
+            const newSrcIdx = next.findIndex((r) => r.id === srcRow.id);
+            if (newSrcIdx !== -1 && next[newSrcIdx].items.length < 2) {
+              next[newSrcIdx].items.push(displaced);
+              return next;
+            }
+          }
+          next.splice(srcIdx, 0, { id: rid(), items: [displaced] });
+          return next;
+        });
+
+        setActiveWidget(null);
       });
-      finish();
       return;
     }
 
     if (isGapId(over)) {
       const gi = parseGap(over);
       if (gi === null) {
-        finish();
+        flushSync(() => setActiveWidget(null));
         return;
       }
 
-      setRows((prev) => {
-        const next = cloneRows(prev);
-        const srcIdx = next.findIndex((r) => r.items.includes(active));
-        if (srcIdx === -1) return prev;
-        const srcRow = next[srcIdx];
-        const srcPos = srcRow.items.indexOf(active);
-        srcRow.items.splice(srcPos, 1);
-        if (srcRow.items.length === 0) next.splice(srcIdx, 1);
+      flushSync(() => {
+        setRows((prev) => {
+          const next = cloneRows(prev);
+          const srcIdx = next.findIndex((r) => r.items.includes(active));
+          if (srcIdx === -1) return prev;
+          const srcRow = next[srcIdx];
+          const srcPos = srcRow.items.indexOf(active);
+          srcRow.items.splice(srcPos, 1);
+          if (srcRow.items.length === 0) next.splice(srcIdx, 1);
 
-        const insertIndex =
-          srcIdx < gi && srcRow.items.length === 0 ? gi - 1 : gi;
-        next.splice(Math.max(0, Math.min(insertIndex, next.length)), 0, {
-          id: rid(),
-          items: [active],
+          const insertIndex =
+            srcIdx < gi && srcRow.items.length === 0 ? gi - 1 : gi;
+          next.splice(Math.max(0, Math.min(insertIndex, next.length)), 0, {
+            id: rid(),
+            items: [active],
+          });
+          return next;
         });
-        return next;
+        setActiveWidget(null);
       });
-      finish();
       return;
     }
 
-    finish();
+    flushSync(() => setActiveWidget(null));
   }
 
   /* ---------------------------- Visibility & Span ---------------------------- */
@@ -505,7 +729,7 @@ export default function Dashboard({
           const target = next.find(
             (r) =>
               r.items.length < 2 &&
-              (r.items.length === 0 || meta[r.items[0]]?.span === "half")
+              (r.items.length === 0 || meta[r.items[0]]?.span === "half"),
           );
           if (target) target.items.push(id);
           else next.push({ id: rid(), items: [id] });
@@ -527,23 +751,38 @@ export default function Dashboard({
     !meta[activeWidget]?.immutableFull;
 
   const isDraggingHalf =
-    !!activeWidget && (activeSpan === "half" || activeIsConvertibleFull);
+    !!activeWidget &&
+    isTwoColumn &&
+    (activeSpan === "half" || activeIsConvertibleFull);
 
-  const activeIsFullForPreview = (() => {
-    if (!activeWidget) return false;
-    return meta[activeWidget]?.span === "full";
-  })();
+  const dragOverlayVariant: "full" | "half" | null = (() => {
+    if (!activeWidget) return null;
+    if (!renderWidget) return null;
+    if (activeWidget === "table") return "half";
 
-  const overlayPreviewWidth = (() => {
-    if (!activeWidget) return undefined;
-    if (activeWidth == null || activeWidth <= 0) return undefined;
-    return activeWidth;
+    const row = rows.find((r) => r.items.includes(activeWidget));
+    if (!row) return "half";
+    const visibleItems = row.items.filter((wid) => meta[wid]?.visible);
+    if (visibleItems.length !== 1) return "half";
+
+    const onlyId = visibleItems[0];
+    const isFixedFullRow = Boolean(onlyId && meta[onlyId]?.immutableFull);
+    const isFullRow = !isDraggingHalf || isFixedFullRow;
+    return isFullRow ? "full" : "half";
   })();
 
   return (
-    <div className="mt-3 overflow-hidden @container">
+    <div
+      ref={containerRef}
+      className="overflow-x-clip overflow-y-visible @container px-0.5"
+    >
+      <div
+        ref={twoColumnSentinelRef}
+        aria-hidden="true"
+        className="invisible h-0 w-0 overflow-hidden flex flex-col @min-4xl:flex-row"
+      />
       {/* Controls */}
-      <div className="border border-border/40 shadow-sm p-5 rounded-xl flex flex-col gap-2 bg-highlight-4 mx-1">
+      <div className="border border-border/40 shadow-sm p-5 rounded-xl flex flex-col gap-2 bg-highlight-4 mt-6">
         <span className="text-sm font-medium">
           Select widgets to show. Please select at least one.
         </span>
@@ -572,7 +811,7 @@ export default function Dashboard({
                   key={m.id}
                   className={cn(
                     "flex items-center justify-center gap-1 px-2 py-1 rounded-xl border border-border shadow-sm hover:border-muted-foreground text-xs",
-                    m.visible ? "bg-green" : "bg-red"
+                    m.visible ? "bg-green" : "bg-red",
                   )}
                   aria-label={`toggle ${m.title} visibility`}
                   onClick={() => toggleVisible(m.id)}
@@ -584,7 +823,7 @@ export default function Dashboard({
                   )}
                   <span>{m.title}</span>
                 </button>
-              )
+              ),
           )}
           <button
             aria-label="reset layout"
@@ -601,210 +840,167 @@ export default function Dashboard({
       <DndContext
         sensors={sensors}
         onDragStart={onDragStart}
-        onDragOver={onDragOver}
         onDragEnd={onDragEnd}
+        onDragCancel={() => setActiveWidget(null)}
         collisionDetection={closestCenter}
-        autoScroll
+        autoScroll={{
+          // Use the draggable rect as the activator so the dragged widget stays stable
+          // against the viewport edge while the page auto-scrolls.
+          activator: AutoScrollActivator.Pointer,
+          // Reduce edge-jitter by avoiding extra scroll "compensation" while dragging.
+          layoutShiftCompensation: false,
+          threshold: { x: 0.2, y: 0.25 },
+          interval: 8,
+        }}
+        modifiers={[restrictToWindowEdges]}
       >
+        <DragOverlay dropAnimation={null} adjustScale={false}>
+          {activeWidget && renderWidget && dragOverlayVariant ? (
+            <DashboardDragOverlay
+              id={activeWidget}
+              variant={dragOverlayVariant}
+              renderWidget={renderWidget}
+            />
+          ) : null}
+        </DragOverlay>
         {/* Render rows and gaps. Nothing reflows during drag; only indicators update */}
-        <div className="space-y-2">
+        <div>
           {rows.map((row, idx) => {
             const visibleItems = row.items.filter((id) => meta[id]?.visible);
             if (visibleItems.length === 0) return null;
-            // A row is full-width only if it has exactly one item AND that item's span is "full"
-            // Don't treat single half-width items as full-width
-            const isFull =
-              visibleItems.length === 1 &&
-              meta[visibleItems[0]]?.span === "full";
-            const isFixed =
+            const spacingClass = idx === 0 ? "pt-4" : "pt-5";
+            const isFixedFullRow =
               visibleItems.length === 1 &&
               Boolean(meta[visibleItems[0]]?.immutableFull);
             return (
               <React.Fragment key={`frag-${row.id}`}>
-                <div className="w-full">
-                  <Gap index={idx} highlight={overId === gapId(idx)} />
-                </div>
+                <Gap index={idx} className={spacingClass} />
 
-                <section className="grid grid-cols-1 @min-3xl:grid-cols-2 gap-4 items-stretch">
-                  {isFull ? (
-                    <div className="flex w-full flex-col gap-2 @min-3xl:col-span-2 @min-3xl:flex-row @min-3xl:rounded-2xl @min-3xl:border @min-3xl:border-dashed @min-3xl:p-2">
-                      <Slot
-                        className="w-full"
-                        rowId={row.id}
-                        pos={0}
-                        highlight={
-                          isDraggingHalf && overId === slotId(row.id, 0)
-                        }
-                      >
-                        <div
-                          className={cn(
-                            "h-full",
-                            visibleItems[0] === "stats" &&
-                              type === "overview" &&
-                              !isDraggingHalf
-                              ? "min-h-[13rem]"
-                              : "min-h-[13rem]"
-                          )}
-                        >
-                          <DraggableCard
-                            id={visibleItems[0]}
-                            meta={meta[visibleItems[0]]}
-                            dashboardType={type}
-                            dim={isDraggingHalf && !isFixed}
-                            isFull={!isDraggingHalf || isFixed}
-                          />
-                        </div>
-                      </Slot>
-                      {isDraggingHalf && !isFixed ? (
-                        <Slot
-                          className="w-full"
-                          rowId={row.id}
-                          pos={1}
-                          highlight={overId === slotId(row.id, 1)}
-                        >
-                          <div className="h-full min-h-[13rem] rounded-2xl border border-dashed bg-highlight-2/50" />
-                        </Slot>
-                      ) : null}
-                    </div>
-                  ) : (
-                    <div className="flex w-full flex-col gap-2 @min-3xl:col-span-2 @min-3xl:flex-row @min-3xl:rounded-2xl @min-3xl:border @min-3xl:border-dashed @min-3xl:p-2">
-                      <Slot
-                        className="w-full"
-                        rowId={row.id}
-                        pos={0}
-                        highlight={
-                          isDraggingHalf && overId === slotId(row.id, 0)
-                        }
-                      >
-                        <div
-                          className={cn(
-                            "h-full",
-                            visibleItems.length === 1 &&
-                              visibleItems[0] === "stats" &&
-                              type === "overview" &&
-                              !isDraggingHalf
-                              ? "min-h-[13rem]"
-                              : "min-h-[13rem]"
-                          )}
-                        >
-                          {visibleItems[0] ? (
-                            <DraggableCard
-                              id={visibleItems[0]}
-                              meta={meta[visibleItems[0]]}
-                              dashboardType={type}
-                              dim={
-                                isDraggingHalf &&
-                                activeWidget !== visibleItems[0]
-                              }
-                              isFull={
-                                visibleItems.length === 1 && !isDraggingHalf
-                              }
-                            />
-                          ) : (
-                            <div className="h-full min-h-[13rem] rounded-2xl border border-dashed" />
-                          )}
-                        </div>
-                      </Slot>
-
-                      {(visibleItems[1] || isDraggingHalf) && (
-                        <Slot
-                          className="w-full"
-                          rowId={row.id}
-                          pos={1}
-                          highlight={
-                            isDraggingHalf && overId === slotId(row.id, 1)
+                {visibleItems.length === 1 &&
+                (!isDraggingHalf || isFixedFullRow) ? (
+                  <div className="w-full relative">
+                    <Slot
+                      className="w-full"
+                      rowId={row.id}
+                      pos={0}
+                      highlightEnabled={
+                        isDraggingHalf &&
+                        (isTwoColumn ||
+                          (activeWidget != null &&
+                            row.items.includes(activeWidget)))
+                      }
+                    >
+                      <DraggableCard
+                        id={visibleItems[0]}
+                        meta={meta[visibleItems[0]]}
+                        dashboardType={type}
+                        dim={false}
+                        isFull
+                        renderVariant={undefined}
+                        renderWidget={renderWidget}
+                      />
+                    </Slot>
+                  </div>
+                ) : (
+                  <div
+                    className="w-full flex flex-col @min-4xl:flex-row gap-4 relative items-stretch"
+                    data-ww-dashboard-row
+                  >
+                    <Slot
+                      className="w-full"
+                      rowId={row.id}
+                      pos={0}
+                      highlightEnabled={
+                        isDraggingHalf &&
+                        (isTwoColumn ||
+                          (activeWidget != null &&
+                            row.items.includes(activeWidget)))
+                      }
+                      showEmptyOutline={!visibleItems[0] && isDraggingHalf}
+                    >
+                      {visibleItems[0] ? (
+                        <DraggableCard
+                          id={visibleItems[0]}
+                          meta={meta[visibleItems[0]]}
+                          dashboardType={type}
+                          dim={
+                            isDraggingHalf && activeWidget !== visibleItems[0]
                           }
-                        >
-                          <div className="h-full min-h-[13rem]">
-                            {visibleItems[1] ? (
-                              <DraggableCard
-                                id={visibleItems[1]}
-                                meta={meta[visibleItems[1]]}
-                                dashboardType={type}
-                                dim={
-                                  isDraggingHalf &&
-                                  activeWidget !== visibleItems[1]
-                                }
-                                isFull={false}
-                              />
-                            ) : (
-                              <div className="h-full rounded-2xl border border-dashed bg-highlight-2/50" />
-                            )}
-                          </div>
-                        </Slot>
-                      )}
-                    </div>
-                  )}
-                </section>
+                          isFull={visibleItems.length === 1 && !isDraggingHalf}
+                          renderVariant={undefined}
+                          renderWidget={renderWidget}
+                        />
+                      ) : null}
+                    </Slot>
+
+                    {(visibleItems[1] || (isDraggingHalf && isTwoColumn)) && (
+                      <Slot
+                        className={cn(
+                          "w-full",
+                          !visibleItems[1] &&
+                            isDraggingHalf &&
+                            "hidden @min-4xl:flex",
+                        )}
+                        rowId={row.id}
+                        pos={1}
+                        highlightEnabled={
+                          isDraggingHalf &&
+                          (isTwoColumn ||
+                            (activeWidget != null &&
+                              row.items.includes(activeWidget)))
+                        }
+                        showEmptyOutline={!visibleItems[1] && isDraggingHalf}
+                      >
+                        {visibleItems[1] ? (
+                          <DraggableCard
+                            id={visibleItems[1]}
+                            meta={meta[visibleItems[1]]}
+                            dashboardType={type}
+                            dim={
+                              isDraggingHalf && activeWidget !== visibleItems[1]
+                            }
+                            isFull={false}
+                            renderVariant={undefined}
+                            renderWidget={renderWidget}
+                          />
+                        ) : null}
+                      </Slot>
+                    )}
+                  </div>
+                )}
               </React.Fragment>
             );
           })}
 
           {/* trailing gap */}
-          <div className="w-full">
-            <Gap
-              index={rows.length}
-              highlight={overId === gapId(rows.length)}
-            />
-          </div>
+          <Gap index={rows.length} className="pt-5 pb-4" />
         </div>
-        <DragOverlay
-          adjustScale={false}
-          zIndex={40}
-          dropAnimation={null}
-          modifiers={[keepGrabOffsetOnWidthChange]}
-        >
-          {activeWidget && meta[activeWidget] ? (
-            <div
-              className="pointer-events-none"
-              style={{ width: overlayPreviewWidth ?? activeWidth ?? undefined }}
-            >
-              <article
-                className={cn(
-                  "flex flex-col rounded-2xl border border-border bg-background p-4 shadow-sm ring-1 ring-black/5",
-                  activeWidget === "stats" &&
-                    type === "overview" &&
-                    activeIsFullForPreview
-                    ? "h-[13rem]"
-                    : "h-[13rem]"
-                )}
-              >
-                <header className="relative flex items-center gap-2">
-                  {getDashboardWidgetIcon(activeWidget)}
-                  <h3 className="text-sm font-semibold min-w-0 flex-1 truncate">
-                    {meta[activeWidget].title}
-                  </h3>
-                  {(activeWidget === "table" || activeWidget === "stats") && (
-                    <div className="ml-auto flex items-center gap-2">
-                      <DashboardWidgetHeaderMiniature widgetId={activeWidget} />
-                    </div>
-                  )}
-                  <div
-                    aria-hidden="true"
-                    className={cn(
-                      "rounded-full border border-border/40",
-                      "bg-highlight-7/70 p-2 shadow-even",
-                      "supports-[backdrop-filter]:bg-highlight-7/40 supports-[backdrop-filter]:backdrop-blur-md",
-                      "absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2"
-                    )}
-                  >
-                    <GripVertical className="h-5 w-5 text-foreground/70" />
-                  </div>
-                </header>
-                <div className="mt-3 flex-1 overflow-hidden text-sm text-gray-700">
-                  <div className="h-full w-full pointer-events-none select-none">
-                    <DashboardWidgetMiniature
-                      dashboardType={type}
-                      widgetId={activeWidget}
-                      isFull={activeIsFullForPreview}
-                    />
-                  </div>
-                </div>
-              </article>
-            </div>
-          ) : null}
-        </DragOverlay>
       </DndContext>
+      <style jsx global>{`
+        [data-ww-dashboard-edit-card] [data-ww-widget-icon] {
+          opacity: 0 !important;
+        }
+        [data-ww-dashboard-edit-card] [data-ww-stat-table-sticky] {
+          position: static !important;
+          top: auto !important;
+          bottom: auto !important;
+        }
+        [data-ww-dashboard-edit-card] [data-ww-stat-table-sticky="header"] {
+          background: transparent !important;
+          backdrop-filter: none !important;
+          -webkit-backdrop-filter: none !important;
+        }
+        [data-ww-dashboard-edit-card] [data-ww-stat-table] .sticky {
+          position: static !important;
+          top: auto !important;
+          bottom: auto !important;
+          left: auto !important;
+        }
+        [data-ww-dashboard-edit-card][data-ww-dashboard-dragging] * {
+          backdrop-filter: none !important;
+          -webkit-backdrop-filter: none !important;
+        }
+      `}</style>
     </div>
   );
 }

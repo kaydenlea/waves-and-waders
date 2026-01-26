@@ -3634,7 +3634,10 @@ const LeafletMap: React.FC<Props> = ({
     null,
   );
 
-  React.useEffect(() => {
+  // NOTE: This must be `useLayoutEffect` so the callbacks ref is populated before
+  // the map initialization `useLayoutEffect` runs. In production builds, `useEffect`
+  // runs too late (and does not trigger a re-render), which can leave the map uninitialized.
+  React.useLayoutEffect(() => {
     mapLifecycleCallbacksRef.current = {
       refreshZoomControl,
       emitCameraUpdate,
@@ -4007,22 +4010,8 @@ const LeafletMap: React.FC<Props> = ({
       });
     }
     const useVectorBasemap = canUseWebGL();
-    if (useVectorBasemap) {
-      const basemapLayer = L.maplibreGL({
-        // Official OpenFreeMap vector basemap style.
-        style: OPENFREEMAP_STYLE_URL,
-        // Basemap only: Leaflet owns interactions.
-        interactive: false,
-        // We provide a single, complete attribution string via Leaflet to avoid duplicates.
-        attributionControl: false,
-        // Ensure tiles repeat seamlessly as users pan horizontally across world copies.
-        renderWorldCopies: true,
-      });
-      basemapLayer.addTo(map);
-      basemapLayerRef.current = basemapLayer;
-      map.attributionControl?.addAttribution(OPENFREEMAP_ATTRIBUTION_HTML);
-    } else {
-      debugLog("[LeafletMap] WebGL unavailable; using raster OSM tiles");
+    const addRasterBasemap = () => {
+      debugLog("[LeafletMap] Using raster OSM tiles");
       const basemapLayer = L.tileLayer(
         "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
         {
@@ -4032,6 +4021,46 @@ const LeafletMap: React.FC<Props> = ({
       );
       basemapLayer.addTo(map);
       basemapLayerRef.current = basemapLayer;
+    };
+
+    if (useVectorBasemap) {
+      try {
+        const maplibreFactory = (L as unknown as { maplibreGL?: unknown })
+          .maplibreGL;
+        if (typeof maplibreFactory !== "function") {
+          // In production builds, bundlers can occasionally tree-shake side-effect-only
+          // imports. If MapLibre GL Leaflet isn't registered, fall back to raster.
+          // eslint-disable-next-line no-console
+          console.warn(
+            "[LeafletMap] MapLibre GL Leaflet not available; falling back to raster tiles",
+          );
+          addRasterBasemap();
+        } else {
+          const basemapLayer = (maplibreFactory as (opts: unknown) => any)({
+            // Official OpenFreeMap vector basemap style.
+            style: OPENFREEMAP_STYLE_URL,
+            // Basemap only: Leaflet owns interactions.
+            interactive: false,
+            // We provide a single, complete attribution string via Leaflet to avoid duplicates.
+            attributionControl: false,
+            // Ensure tiles repeat seamlessly as users pan horizontally across world copies.
+            renderWorldCopies: true,
+          });
+          basemapLayer.addTo(map);
+          basemapLayerRef.current = basemapLayer;
+          map.attributionControl?.addAttribution(OPENFREEMAP_ATTRIBUTION_HTML);
+        }
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          "[LeafletMap] Failed to initialize vector basemap; falling back to raster tiles",
+          error,
+        );
+        addRasterBasemap();
+      }
+    } else {
+      debugLog("[LeafletMap] WebGL unavailable; using raster OSM tiles");
+      addRasterBasemap();
     }
     mapRef.current = map;
     if (!map.getPane(OVERLAY_PANE_ID)) {
@@ -4262,14 +4291,7 @@ const LeafletMap: React.FC<Props> = ({
       setMapReady(false);
       latestClearHoverState();
     };
-  }, [
-    effectiveShowMap,
-    resetMarkerRegistry,
-    embedded,
-    initialBeach,
-    pathname,
-    smallScreen,
-  ]);
+  }, [effectiveShowMap, resetMarkerRegistry]);
 
   const focusMapToLatLng = React.useCallback(
     (

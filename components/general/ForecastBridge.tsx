@@ -24,6 +24,7 @@ import { LazyLoadForecastWaveEnergy } from "./LazyLoad/LazyLoadForecastWaveEnerg
 import { LazyLoadForecastSurf } from "./LazyLoad/LazyLoadForecastSurf";
 import { LazyLoadForecastWind } from "./LazyLoad/LazyLoadForecastWind";
 import { LazyLoadForecastSwell } from "./LazyLoad/LazyLoadForecastSwell";
+import DashboardEditorPanel from "./DashboardEditorPanel";
 import { type Row, type WidgetId, type WidgetMeta } from "./dashboardLayout";
 import { useDashboardLayout } from "./useDashboardLayout";
 import { useForecastData } from "../context/ForecastDataContext";
@@ -162,16 +163,17 @@ const ForecastBridge: React.FC<Props> = ({
     clearPendingLayoutApply,
     cacheLayout,
     isEditing,
+    getCachedLayout,
   } = useDashboardEditMode();
   const [layoutOverlayActive, setLayoutOverlayActive] = useState(false);
   useLayoutEffect(() => {
-    if (!pendingLayoutApply) return;
-    if (pendingLayoutApply.type !== "forecast") return;
+    const pending = pendingLayoutApply.forecast;
+    if (!pending) return;
     if (isEditing) return;
     setLayoutOverlayActive(true);
-    setLayoutMeta(pendingLayoutApply.meta);
-    setLayoutRows(pendingLayoutApply.rows);
-    clearPendingLayoutApply();
+    setLayoutMeta(pending.meta);
+    setLayoutRows(pending.rows);
+    clearPendingLayoutApply("forecast");
   }, [
     isEditing,
     pendingLayoutApply,
@@ -185,9 +187,10 @@ const ForecastBridge: React.FC<Props> = ({
     return () => window.clearTimeout(timeout);
   }, [layoutOverlayActive]);
   useEffect(() => {
+    if (isEditing) return;
     if (!layoutHydrated) return;
     cacheLayout({ type: "forecast", meta: layoutMeta, rows: layoutRows });
-  }, [cacheLayout, layoutHydrated, layoutMeta, layoutRows]);
+  }, [cacheLayout, isEditing, layoutHydrated, layoutMeta, layoutRows]);
   const { prefetchSunData } = useSunData();
   const { rows: forecastRows, loading: forecastLoading } = useForecastData();
   const chartsLoading = useForecastChartsLoadingState();
@@ -218,8 +221,9 @@ const ForecastBridge: React.FC<Props> = ({
   }, [layoutMeta, layoutRows]);
 
   useLayoutEffect(() => {
+    if (isEditing) return;
     setExpectedCharts(expectedChartIds);
-  }, [expectedChartIds, setExpectedCharts]);
+  }, [expectedChartIds, isEditing, setExpectedCharts]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -300,7 +304,7 @@ const ForecastBridge: React.FC<Props> = ({
   );
 
   const pendingLayoutApplyActive = Boolean(
-    pendingLayoutApply && pendingLayoutApply.type === "forecast" && !isEditing
+    pendingLayoutApply.forecast && !isEditing
   );
 
   // Memoize individual widgets to prevent unnecessary re-renders
@@ -479,6 +483,26 @@ const ForecastBridge: React.FC<Props> = ({
       windowString,
     ]
   );
+
+  if (isEditing) {
+    const cachedLayout = getCachedLayout("forecast");
+    const editorInitialMeta = cachedLayout?.meta ?? layoutMeta;
+    const editorInitialRows = cachedLayout?.rows ?? layoutRows;
+
+    return (
+      <section
+        id="forecast-content"
+        className="relative flex flex-col gap-4 scroll-mt-45"
+      >
+        <DashboardEditorPanel
+          type="forecast"
+          initialMeta={editorInitialMeta}
+          initialRows={editorInitialRows}
+          renderWidget={renderWidget}
+        />
+      </section>
+    );
+  }
 
   return (
     <section

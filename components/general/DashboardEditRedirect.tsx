@@ -17,10 +17,12 @@ export default function DashboardEditRedirect({ beachParam, type }: Props) {
 
   React.useEffect(() => {
     enterEdit(type);
+    const sectionId =
+      type === "forecast" ? "forecast-content" : "overview-content";
     const href =
       type === "forecast"
-        ? `/${beachParam}/overview?tab=forecast`
-        : `/${beachParam}/overview`;
+        ? `/${beachParam}/overview?tab=forecast#${sectionId}`
+        : `/${beachParam}/overview#${sectionId}`;
     router.replace(href);
   }, [beachParam, enterEdit, router, type]);
 

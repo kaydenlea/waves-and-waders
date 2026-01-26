@@ -29,6 +29,7 @@ type Options = {
   initialRows?: Row[] | null;
   persist?: boolean;
   persistAnonymous?: boolean;
+  reconcile?: boolean;
 };
 
 interface NormalizedData {
@@ -44,6 +45,7 @@ export function useDashboardLayout({
   initialRows = null,
   persist = false,
   persistAnonymous = false,
+  reconcile = true,
 }: Options) {
   const layoutDefaults = React.useMemo(() => getDefaultLayout(type), [type]);
   const hasInitialLayout = initialMeta != null || initialRows != null;
@@ -58,10 +60,11 @@ export function useDashboardLayout({
     const rows = initialRows
       ? normalizeRows(type, initialRows, meta)
       : layoutDefaults.rows;
-    // Always start not hydrated and flip to true after the first reconciliation pass
-    // (Supabase/localStorage/no-op). This prevents the overview/map loading overlay
-    // from hiding and then re-appearing due to an initial layout swap on hard refresh.
-    const hydrated = false;
+    // Start not hydrated when reconciling (Supabase/localStorage/no-op) so view-mode
+    // overlays don't flicker on hard refresh. When reconciliation is disabled (editor
+    // panels that already receive the up-to-date layout), start hydrated to prevent
+    // a transient layout swap.
+    const hydrated = reconcile ? false : true;
     return { meta, rows, hydrated };
   });
 
@@ -113,6 +116,14 @@ export function useDashboardLayout({
 
   React.useEffect(() => {
     let cancelled = false;
+    if (!reconcile) {
+      // Editor panels can provide the correct layout synchronously. Avoid applying
+      // a second source-of-truth (Supabase/localStorage) that can cause a flash.
+      setState((prev) => (prev.hydrated ? prev : { ...prev, hydrated: true }));
+      return () => {
+        cancelled = true;
+      };
+    }
     const defaults = getDefaultLayout(type);
     const initialMetaNormalized = initialMeta
       ? normalizeMeta(type, initialMeta)
@@ -256,6 +267,7 @@ export function useDashboardLayout({
     };
   }, [
     applyLayout,
+    reconcile,
     storageMetaKey,
     storageRowsKey,
     supabase,

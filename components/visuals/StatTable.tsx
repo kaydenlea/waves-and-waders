@@ -1570,9 +1570,23 @@ const StatTable = ({
     const computeColumnsVariant = (): StatTableVariant => {
       if (variant !== "half") return "full";
 
+      // When the table is being interacted with in the dashboard editor (drag handle press / drag),
+      // force the compact half-columns view even if the layout is currently stacked/full-width.
+      // This avoids a visible "switch" after the drag starts and matches the editor behavior on
+      // both 1-up and 2-up layouts.
+      const forceHalfWhileEditing = Boolean(
+        table.closest(
+          "[data-ww-dashboard-edit-card][data-ww-dashboard-dragging], [data-ww-dashboard-edit-card][data-ww-dashboard-activating]",
+        ),
+      );
+      if (forceHalfWhileEditing) return "half";
+
+      const figure = table.closest("figure") as HTMLElement | null;
+      const row =
+        (table.closest("[data-ww-dashboard-row]") as HTMLElement | null) ??
+        (figure?.parentElement as HTMLElement | null);
+
       const isHalfStacked = (() => {
-        const figure = table.closest("figure");
-        const row = figure?.parentElement;
         if (!row) return null;
         const style = window.getComputedStyle(row);
         if (!style || style.display !== "flex") return null;
@@ -1582,20 +1596,15 @@ const StatTable = ({
         );
       })();
 
-      const isHalfAloneInRow = (() => {
-        const figure = table.closest("figure");
-        const row = figure?.parentElement;
-        if (!row) return null;
-        const figuresInRow = Array.from(row.children).filter(
-          (el) => el.tagName === "FIGURE"
-        ).length;
-        return figuresInRow === 1;
-      })();
+      if (isHalfStacked === true) return "full";
+      if (!row || !figure) return "half";
 
-      const treatHalfAsFull =
-        isHalfStacked === true || isHalfAloneInRow === true;
+      const rowRect = row.getBoundingClientRect();
+      const figureRect = figure.getBoundingClientRect();
+      if (rowRect.width <= 0 || figureRect.width <= 0) return "half";
 
-      return treatHalfAsFull ? "full" : "half";
+      const widthRatio = figureRect.width / rowRect.width;
+      return widthRatio >= 0.82 ? "full" : "half";
     };
 
     const syncColumnsVariant = () => {
@@ -2476,6 +2485,7 @@ const StatTable = ({
   return (
     <div
       ref={assignTableRef}
+      data-ww-stat-table
       className={cn(
         "relative -mx-1 @min-md:mx-0",
         // variant !== "half" && "@min-2xl:mx-4",
@@ -2521,6 +2531,7 @@ const StatTable = ({
         </Button>
       </div> */}
         <div
+          data-ww-stat-table-sticky="header"
           className={cn(
             "sticky top-16 @min-4xl/main:top-27.5 z-40 @min-md:mx-0 rounded-b-[10px] px-0.5 py-0.5",
             headerBgClass
@@ -3101,6 +3112,7 @@ const StatTable = ({
 
       {shouldReserveFooterSpace ? (
         <div
+          data-ww-stat-table-sticky="pager"
           className={cn(
             // Keep the pager attached to the bottom edge of the widget while the
             // page scrolls; within-table scrolling is handled by the flex layout above.

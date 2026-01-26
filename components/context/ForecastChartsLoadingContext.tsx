@@ -171,6 +171,11 @@ export function useForecastChartsLoadingControls() {
   return { setExpectedCharts: ctx.setExpectedCharts };
 }
 
+export function useOptionalForecastChartsLoadingControls() {
+  const ctx = React.useContext(ForecastChartsLoadingContext);
+  return ctx ? { setExpectedCharts: ctx.setExpectedCharts } : null;
+}
+
 export function useForecastChartsBusyState() {
   const ctx = React.useContext(ForecastChartsLoadingContext);
   if (!ctx) {

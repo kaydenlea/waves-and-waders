@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import PeekingSideTab from "./PeekingSideTab";
 import SaveButton from "./SaveButton";
 import { useMapUI } from "../context/MapFilterContext";
-import { Calendar1, CalendarDays, MapPinned, Pencil } from "lucide-react";
+import { Calendar1, CalendarDays, CircleCheck, MapPinned, Pencil } from "lucide-react";
 import { useClientPath } from "../context/PathContext";
 import { poppins } from "@/lib/fonts";
 import { useDashboardEditMode } from "@/components/context/DashboardEditModeContext";
@@ -28,6 +28,7 @@ type PageTabsProps = {
   placement?: "default" | "inline";
   fullWidth?: boolean;
   responsiveFull?: boolean;
+  onEditDone?: () => void;
 };
 
 const PageTabs = ({
@@ -44,13 +45,14 @@ const PageTabs = ({
   placement = "default",
   fullWidth = false,
   responsiveFull = false,
+  onEditDone,
 }: PageTabsProps) => {
   const router = useRouter();
   const [favorite, setFavorite] = useState(isFavorite);
   const [isDesktop, setIsDesktop] = useState(false);
   const { selectedTab, setSelectedTab } = useClientPath();
   const { showMap, setShowMap } = useMapUI();
-  const { enterEdit } = useDashboardEditMode();
+  const { enterEdit, isEditing, confirm } = useDashboardEditMode();
 
   const tabsRef = useRef<HTMLDivElement>(null);
   const normalizedTabs = tabs.map((tab) => tab.toLowerCase());
@@ -220,6 +222,23 @@ const PageTabs = ({
                         Edit
                       </span>
                     </Link>
+                  );
+                }
+
+                if (isEditing) {
+                  return (
+                    <button
+                      type="button"
+                      className={className}
+                      title={`Done editing ${editType} dashboard`}
+                      aria-label={`Done editing ${editType} dashboard`}
+                      onClick={onEditDone ?? confirm}
+                    >
+                      <CircleCheck className="stroke-[2.5px] w-4.5 h-4.5 @min-2xl:mb-0.5" />
+                      <span className="font-medium hidden @min-2xl:inline-block text-[15px]">
+                        Done
+                      </span>
+                    </button>
                   );
                 }
 

@@ -171,25 +171,24 @@ export function useSwellDirections(
   selectedDate: Date | null,
   selectedHour: number | null
 ) {
-  const { startWindow, endWindow } = React.useMemo(() => {
-    const now = new Date();
-    let start = now;
-    let end = new Date(now.getTime() + 6 * 60 * 60 * 1000);
-
+  const { start: startWindow, end: endWindow } = React.useMemo(() => {
     const selectedDateObj =
       selectedDate instanceof Date
         ? new Date(selectedDate.getTime())
         : selectedDate
-        ? new Date(selectedDate)
-        : null;
+          ? new Date(selectedDate)
+          : null;
 
-    if (selectedDateObj && !Number.isNaN(selectedDateObj.getTime())) {
-      selectedDateObj.setHours(0, 0, 0, 0);
-      start = selectedDateObj;
-      end = new Date(selectedDateObj.getTime() + 24 * 60 * 60 * 1000);
-    }
+    // IMPORTANT: Keep the query key stable across client re-mounts by using a
+    // deterministic day window (Pacific time) instead of a moving "now..+6h" window.
+    // This prevents the direction rings from disappearing during tab navigations that
+    // re-render client components but should reuse cached forecast data.
+    const anchorDate =
+      selectedDateObj && !Number.isNaN(selectedDateObj.getTime())
+        ? selectedDateObj
+        : new Date();
 
-    return { startWindow: start, endWindow: end };
+    return getPacificDayRange(anchorDate);
   }, [selectedDate]);
 
   const { data: beach } = useBeachById(beachId);
@@ -199,7 +198,7 @@ export function useSwellDirections(
     resolvedId,
     startWindow,
     endWindow,
-    !!beachId
+    !!resolvedId
   );
 
   const result = React.useMemo(() => {

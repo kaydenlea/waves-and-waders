@@ -23,8 +23,9 @@ import { ForecastChartProvider } from "../context/ForecastChartContext";
 import { SunDataProvider, useSunData } from "../context/SunDataContext";
 import ForecastBridge from "./ForecastBridge";
 import PageTabs from "./PageTabs";
+import DashboardEditorPanel from "./DashboardEditorPanel";
 import Link from "next/link";
-import { Pencil, ArrowUp, ArrowDown } from "lucide-react";
+import { ArrowDown, ArrowUp, CircleCheck, Pencil } from "lucide-react";
 import { useDashboardEditMode } from "@/components/context/DashboardEditModeContext";
 import { getTidesCached } from "@/lib/dataCache";
 import { useCachedForecast } from "@/lib/hooks/useCachedForecast";
@@ -232,6 +233,8 @@ const DateSummaryBridge: React.FC<Props> = ({
     pendingLayoutApply,
     clearPendingLayoutApply,
     cacheLayout,
+    getCachedLayout,
+    confirm,
   } = useDashboardEditMode();
   const [mounted, setMounted] = React.useState(false);
   const formatNow = React.useCallback(() => {
@@ -256,13 +259,13 @@ const DateSummaryBridge: React.FC<Props> = ({
     initialRows: initialOverviewRows,
   });
   React.useLayoutEffect(() => {
-    if (!pendingLayoutApply) return;
-    if (pendingLayoutApply.type !== "overview") return;
+    const pending = pendingLayoutApply.overview;
+    if (!pending) return;
     if (isEditing) return;
     setLayoutOverlayActive(true);
-    setLayoutMeta(pendingLayoutApply.meta);
-    setLayoutRows(pendingLayoutApply.rows);
-    clearPendingLayoutApply();
+    setLayoutMeta(pending.meta);
+    setLayoutRows(pending.rows);
+    clearPendingLayoutApply("overview");
   }, [
     isEditing,
     pendingLayoutApply,
@@ -271,9 +274,10 @@ const DateSummaryBridge: React.FC<Props> = ({
     clearPendingLayoutApply,
   ]);
   React.useEffect(() => {
+    if (isEditing) return;
     if (!layoutHydrated) return;
     cacheLayout({ type: "overview", meta: layoutMeta, rows: layoutRows });
-  }, [cacheLayout, layoutHydrated, layoutMeta, layoutRows]);
+  }, [cacheLayout, isEditing, layoutHydrated, layoutMeta, layoutRows]);
   const [forecastWindow, setForecastWindow] = React.useState("Select range");
   const [dailyTableDensity, setDailyTableDensity] =
     React.useState<StatTableDensity>("3h");
@@ -422,8 +426,9 @@ const DateSummaryBridge: React.FC<Props> = ({
   }, [layoutMeta, layoutRows]);
 
   React.useLayoutEffect(() => {
+    if (isEditing) return;
     overviewChartsControls?.setExpectedCharts(expectedOverviewChartIds);
-  }, [expectedOverviewChartIds, overviewChartsControls]);
+  }, [expectedOverviewChartIds, overviewChartsControls, isEditing]);
 
   const [sharedSunSegments, setSharedSunSegments] =
     React.useState<SharedSunSegments>({
@@ -611,8 +616,7 @@ const DateSummaryBridge: React.FC<Props> = ({
   }, [layoutOverlayActive]);
 
   const pendingLayoutApplyActive = Boolean(
-    pendingLayoutApply &&
-      pendingLayoutApply.type === "overview" &&
+    pendingLayoutApply.overview &&
       // If we're still editing, the overview tab is hidden and we shouldn't flash an overlay.
       !isEditing
   );
@@ -1005,6 +1009,11 @@ const DateSummaryBridge: React.FC<Props> = ({
     ]
   );
 
+  const renderEditorWidget = React.useCallback(
+    (id: WidgetId, variant: "full" | "half") => renderWidget(id, variant === "full"),
+    [renderWidget]
+  );
+
   const sectionId = isOverview ? "overview-content" : "forecast-content";
   const headerTitle = isOverview ? "Daily Overview" : "Weekly Forecast";
   const headerSubtitle = isOverview ? "Today's surf insights" : forecastWindow;
@@ -1056,7 +1065,7 @@ const DateSummaryBridge: React.FC<Props> = ({
             className="mt-10 flex flex-col gap-1 w-full scroll-mt-35"
           >
             <header className="mx-2 flex flex-col gap-3 @min-xl:flex-row @min-xl:items-start @min-xl:justify-between">
-              <div className="flex items-start justify-between gap-2 w-full">
+                <div className="flex items-start justify-between gap-2 w-full">
                 <div className="space-y-0 min-w-0">
                   <h2 className="text-2xl @min-md:text-3xl font-semibold tracking-tight truncate">
                     {headerTitle}
@@ -1067,31 +1076,51 @@ const DateSummaryBridge: React.FC<Props> = ({
                 </div>
                 {/* Mobile edit button (hidden on wide screens). Signed-out users go to login with return URL. */}
                 {loggedIn ? (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      enterEdit(
+                  isEditing ? (
+                    <button
+                      type="button"
+                      onClick={confirm}
+                      className={cn(
+                        "@min-xl:hidden inline-flex items-center rounded-full px-4 py-2.5 gap-1.5 shrink-0",
+                        "border border-border/25 bg-highlight-7/50 hover:bg-highlight-6/60 shadow-even",
+                        "transition-colors duration-200 motion-reduce:transition-none",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0"
+                      )}
+                      aria-label="Done editing dashboard"
+                      title="Done editing dashboard"
+                    >
+                      <CircleCheck className="stroke-[2.5px] w-4.5 h-4.5 @min-sm:mb-0.5" />
+                      <span className="font-medium hidden @min-sm:inline-block text-[15px]">
+                        Done
+                      </span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        enterEdit(
+                          selectedTab === "forecast" ? "forecast" : "overview"
+                        )
+                      }
+                      className={cn(
+                        "@min-xl:hidden inline-flex items-center rounded-full px-4 py-2.5 gap-1.5 shrink-0",
+                        "border border-border/25 bg-highlight-7/50 hover:bg-highlight-6/60 shadow-even",
+                        "transition-colors duration-200 motion-reduce:transition-none",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0"
+                      )}
+                      aria-label={`Edit ${
                         selectedTab === "forecast" ? "forecast" : "overview"
-                      )
-                    }
-                    className={cn(
-                      "@min-xl:hidden inline-flex items-center rounded-full px-4 py-2.5 gap-1.5 shrink-0",
-                      "border border-border/25 bg-highlight-7/50 hover:bg-highlight-6/60 shadow-even",
-                      "transition-colors duration-200 motion-reduce:transition-none",
-                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0"
-                    )}
-                    aria-label={`Edit ${
-                      selectedTab === "forecast" ? "forecast" : "overview"
-                    } dashboard`}
-                    title={`Edit ${
-                      selectedTab === "forecast" ? "forecast" : "overview"
-                    } dashboard`}
-                  >
-                    <Pencil className="stroke-[2.5px] w-4.5 h-4.5 @min-sm:mb-0.5" />
-                    <span className="font-medium hidden @min-sm:inline-block text-[15px]">
-                      Edit
-                    </span>
-                  </button>
+                      } dashboard`}
+                      title={`Edit ${
+                        selectedTab === "forecast" ? "forecast" : "overview"
+                      } dashboard`}
+                    >
+                      <Pencil className="stroke-[2.5px] w-4.5 h-4.5 @min-sm:mb-0.5" />
+                      <span className="font-medium hidden @min-sm:inline-block text-[15px]">
+                        Edit
+                      </span>
+                    </button>
+                  )
                 ) : (
                   <Link
                     href={loggedOutEditHref}
@@ -1130,9 +1159,27 @@ const DateSummaryBridge: React.FC<Props> = ({
             {/* Tabs now live inside header for all breakpoints */}
 
             {/* Overview content - hidden when forecast is active */}
-            <div className={isOverview ? "" : "hidden"}>
+            <div className={cn(isOverview ? "" : "hidden")}>
               <div className="relative min-h-[640px]">
-                {visibleRows.length === 0 ? (
+                {isEditing ? (
+                  (() => {
+                    if (!isOverview) return null;
+                    const cachedLayout = getCachedLayout("overview");
+                    const editorInitialMeta =
+                      cachedLayout?.meta ?? layoutMeta;
+                    const editorInitialRows =
+                      cachedLayout?.rows ?? layoutRows;
+
+                    return (
+                      <DashboardEditorPanel
+                        type="overview"
+                        initialMeta={editorInitialMeta}
+                        initialRows={editorInitialRows}
+                        renderWidget={renderEditorWidget}
+                      />
+                    );
+                  })()
+                ) : visibleRows.length === 0 ? (
                   layoutHydrated ? (
                     <p className="mx-2 mt-6 text-sm text-muted-foreground">
                       All widgets are hidden. Use the edit screen to enable
@@ -1184,36 +1231,38 @@ const DateSummaryBridge: React.FC<Props> = ({
             </div>
 
             {/* Forecast content - hidden when overview is active */}
-            <div className={isOverview ? "hidden" : ""}>
+            <div className={cn(isOverview ? "hidden" : "")}>
               <div className="relative">
-                <ForecastChartsLoadingProvider>
-                  <SunDataProvider>
-                    <ForecastChartProvider>
-                      <ForecastDataProvider
-                        value={{
-                          rows: forecastTabRows ?? null,
-                          start: forecastTabRange.start,
-                          end: forecastTabRange.end,
-                          loading: forecastTabLoading,
-                        }}
-                      >
-                        <ForecastBridge
-                          beachId={beachId}
-                          hideHeader
-                          onWindowStringChange={setForecastWindow}
-                          onBusyChange={setForecastBridgeBusy}
-                          initialMeta={initialForecastMeta ?? undefined}
-                          initialRows={initialForecastRows ?? undefined}
-                          cardVariant="forecast"
-                          tableDensity={dailyTableDensity}
-                          onTableDensityChange={(next) =>
-                            setDailyTableDensity(next)
-                          }
-                        />
-                      </ForecastDataProvider>
-                    </ForecastChartProvider>
-                  </SunDataProvider>
-                </ForecastChartsLoadingProvider>
+                {!isEditing || isForecastTab ? (
+                  <ForecastChartsLoadingProvider>
+                    <SunDataProvider>
+                      <ForecastChartProvider>
+                        <ForecastDataProvider
+                          value={{
+                            rows: forecastTabRows ?? null,
+                            start: forecastTabRange.start,
+                            end: forecastTabRange.end,
+                            loading: forecastTabLoading,
+                          }}
+                        >
+                          <ForecastBridge
+                            beachId={beachId}
+                            hideHeader
+                            onWindowStringChange={setForecastWindow}
+                            onBusyChange={setForecastBridgeBusy}
+                            initialMeta={initialForecastMeta ?? undefined}
+                            initialRows={initialForecastRows ?? undefined}
+                            cardVariant="forecast"
+                            tableDensity={dailyTableDensity}
+                            onTableDensityChange={(next) =>
+                              setDailyTableDensity(next)
+                            }
+                          />
+                        </ForecastDataProvider>
+                      </ForecastChartProvider>
+                    </SunDataProvider>
+                  </ForecastChartsLoadingProvider>
+                ) : null}
               </div>
             </div>
           </section>

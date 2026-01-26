@@ -90,6 +90,7 @@ const VisualWrapper = ({
                     "rounded-full flex items-center justify-center p-1 border border-border",
                     iconDef.bgColor
                   )}
+                  data-ww-widget-icon
                 >
                   {iconDef.icon}
                 </div>
