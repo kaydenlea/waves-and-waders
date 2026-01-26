@@ -1411,6 +1411,12 @@ export default React.memo(function ForecastTideChart({
     return buildLinearYAxisTicks(axisMin, axisMax, 4, true);
   }, [data]);
 
+  const sunMarkerMap = useMemo(() => {
+    const map = new Map<number, "sunrise" | "sunset">();
+    sunMarkers.forEach((m) => map.set(m.hour, m.type));
+    return map;
+  }, [sunMarkers]);
+
   // Y-axis domain for line proximity detection
   const yMin = tideTicks[0] ?? -2;
   const yMax = tideTicks[tideTicks.length - 1] ?? 8;
@@ -2114,12 +2120,27 @@ export default React.memo(function ForecastTideChart({
                               const tideValue = Number(props.value).toFixed(1);
 
                               // Get collision-adjusted offset
-                              const yOffset =
+                              let yOffset =
                                 labelPositions.get(props.index) ?? -32;
 
-                              // Calculate boundaries - Y-axis is approximately 30px wide
-                              const Y_AXIS_WIDTH = 30;
-                              const LEFT_BOUNDARY = Y_AXIS_WIDTH + 5; // Just past Y-axis
+                              const markerType = sunMarkerMap.get(h);
+                              if (markerType && yOffset < 0) {
+                                yOffset = 26;
+                              }
+                              // Keep labels inside the plot top edge.
+                              if (safeY + yOffset < 18) {
+                                yOffset = 18 - safeY;
+                              }
+                              const plotBottom =
+                                250 - X_AXIS_SHADE_EXCLUDE_PX - 6;
+                              if (safeY + yOffset + 15 > plotBottom) {
+                                yOffset = -32;
+                              }
+
+                              // Calculate boundaries based on plot bounds.
+                              const LEFT_BOUNDARY = dayLabelLeftOffset + 6;
+                              const RIGHT_BOUNDARY =
+                                dayLabelLeftOffset + dataAreaWidth - 6;
                               const LABEL_HALF_WIDTH = 35; // Approximate half-width of label text
 
                               // Determine text anchor and adjusted x position based on boundaries
@@ -2127,21 +2148,15 @@ export default React.memo(function ForecastTideChart({
                                 "middle";
                               let adjustedX = safeX;
 
-                              // Check if label would bleed off the left edge (Y-axis wall)
                               if (safeX - LABEL_HALF_WIDTH < LEFT_BOUNDARY) {
                                 textAnchor = "start";
-                                adjustedX = Math.max(safeX, LEFT_BOUNDARY);
-                              }
-                              // Check if label would bleed off the right edge
-                              else {
-                                const hourMod24 = h % 24;
-                                if (hourMod24 >= 23) {
-                                  textAnchor = "end";
-                                  adjustedX = Math.max(
-                                    safeX - 6,
-                                    LEFT_BOUNDARY
-                                  );
-                                }
+                                adjustedX = LEFT_BOUNDARY;
+                              } else if (
+                                safeX + LABEL_HALF_WIDTH >
+                                RIGHT_BOUNDARY
+                              ) {
+                                textAnchor = "end";
+                                adjustedX = RIGHT_BOUNDARY;
                               }
 
                               return (

@@ -1446,30 +1446,45 @@ const TideChart: React.FC<TideChartProps> = ({
                   const safeX = typeof props.x === "number" ? props.x : 0;
                   const safeY = typeof props.y === "number" ? props.y : 0;
 
-                  // Calculate boundaries - Y-axis width is approximately 40px from left margin
-                  const LEFT_BOUNDARY = yAxisInsetPx + 6; // Just past the in-plot Y-axis wall
+                  const markerAtHour = sunMarkerMap.get(point.hour);
+                  // Optimized: use pre-computed placement map
+                  let placeBelow =
+                    peakPlacementMap.get(point.timestamp) ?? false;
+                  if (markerAtHour) {
+                    placeBelow = true;
+                  }
+                  if (point.isPeak <= 0) {
+                    placeBelow = false;
+                  }
+
+                  // Calculate boundaries based on plot bounds.
+                  const LEFT_BOUNDARY = yAxisInsetPx + 6;
+                  const RIGHT_BOUNDARY = yAxisInsetPx + plotWidthPx - 6;
                   const LABEL_HALF_WIDTH = 35; // Approximate half-width of label text
                   // Determine text anchor and adjusted x position based on boundaries
                   let textAnchor: "start" | "middle" | "end" = "middle";
                   let adjustedX = safeX;
 
-                  // Check if label would bleed off the left edge
                   if (safeX - LABEL_HALF_WIDTH < LEFT_BOUNDARY) {
                     textAnchor = "start";
-                    adjustedX = Math.max(safeX, LEFT_BOUNDARY);
-                  }
-                  // Check if label would bleed off the right edge
-                  else if (point.hour >= hours - 0.5) {
+                    adjustedX = LEFT_BOUNDARY;
+                  } else if (safeX + LABEL_HALF_WIDTH > RIGHT_BOUNDARY) {
                     textAnchor = "end";
-                    adjustedX = Math.max(safeX - 6, yAxisInsetPx + 6);
+                    adjustedX = RIGHT_BOUNDARY;
                   }
 
-                  // Optimized: use pre-computed placement map
-                  const placeBelow =
-                    peakPlacementMap.get(point.timestamp) ?? false;
-
-                  const timeY = placeBelow ? safeY + 25 : safeY - 32;
-                  const heightY = placeBelow ? safeY + 40 : safeY - 17;
+                  let timeY = placeBelow ? safeY + 25 : safeY - 32;
+                  let heightY = placeBelow ? safeY + 40 : safeY - 17;
+                  if (timeY < 18) {
+                    const push = 18 - timeY;
+                    timeY += push;
+                    heightY += push;
+                  }
+                  const plotBottom = 250 - X_AXIS_SHADE_EXCLUDE_PX - 6;
+                  if (heightY > plotBottom) {
+                    timeY = safeY - 32;
+                    heightY = safeY - 17;
+                  }
 
                   return (
                     <g>
