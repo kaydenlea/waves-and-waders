@@ -11,6 +11,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Rectangle,
   XAxis,
   LabelList,
   YAxis,
@@ -526,15 +527,35 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   };
 
   const tooltipCursor = useMemo(
-    () => ({
-      fill: "var(--foreground)",
-      fillOpacity: chartTheme.hoverOpacity,
-      stroke: "var(--foreground)",
-      strokeOpacity: Math.min(0.28, chartTheme.hoverOpacity + 0.08),
-      strokeWidth: 1,
-    }),
+    () => {
+      const fillOpacity = chartTheme.hoverOpacity;
+      const strokeOpacity = Math.min(0.28, fillOpacity + 0.08);
+      return (
+        <Rectangle
+          radius={[6, 6, 6, 6]}
+          fill="var(--foreground)"
+          fillOpacity={fillOpacity}
+          stroke="var(--foreground)"
+          strokeOpacity={strokeOpacity}
+          strokeWidth={1}
+        />
+      );
+    },
     [chartTheme.hoverOpacity]
   );
+
+  const tooltipCursorStyle = useMemo(() => {
+    const fillOpacity = chartTheme.hoverOpacity;
+    const strokeOpacity = Math.min(0.28, fillOpacity + 0.08);
+    return {
+      fill: "var(--foreground)",
+      fillOpacity,
+      stroke: "var(--foreground)",
+      strokeOpacity,
+      strokeWidth: 1,
+      radius: 6,
+    };
+  }, [chartTheme.hoverOpacity]);
 
   // Mobile touch tooltip system
   const getIndexFromChartX = useCallback(
@@ -573,13 +594,15 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         .replaceAll("AÅ³", "\u00B0")
         .replaceAll("\u0173", "\u00B0");
       const formattedValue = (
-        <span className="inline-flex flex-col items-start gap-0.5">
-          <span className="inline-flex items-center gap-1.5">
-            <span className="text-sm font-semibold tabular-nums">
-              {Math.round(point.wind)}
-            </span>
-            <span className="text-[0.65rem] font-medium text-muted-foreground">
-              mph
+        <div className="mx-auto w-fit max-w-full text-center">
+          <div className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap">
+            <span className="inline-flex items-baseline gap-1">
+              <span className="text-[0.96rem] font-semibold tabular-nums leading-none text-foreground">
+                {Math.round(point.wind)}
+              </span>
+              <span className="text-[0.62rem] font-medium text-muted-foreground leading-none">
+                mph
+              </span>
             </span>
             {typeof direction === "number" ? (
               <ArrowIcon
@@ -591,11 +614,11 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
                 }}
               />
             ) : null}
-          </span>
-          <span className="text-[0.65rem] text-muted-foreground">
+          </div>
+          <div className="mt-0.5 whitespace-nowrap text-[0.62rem] leading-none text-muted-foreground">
             {dirTextDisplay}
-          </span>
-        </span>
+          </div>
+        </div>
       );
 
       return {
@@ -632,13 +655,15 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         .replaceAll("AÅ³", "\u00B0")
         .replaceAll("\u0173", "\u00B0");
       const formattedValue = (
-        <span className="inline-flex flex-col items-start gap-0.5">
-          <span className="inline-flex items-center gap-1.5">
-            <span className="text-sm font-semibold tabular-nums">
-              {Math.round(point.wind)}
-            </span>
-            <span className="text-[0.65rem] font-medium text-muted-foreground">
-              mph
+        <div className="mx-auto w-fit max-w-full text-center">
+          <div className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap">
+            <span className="inline-flex items-baseline gap-1">
+              <span className="text-[0.96rem] font-semibold tabular-nums leading-none text-foreground">
+                {Math.round(point.wind)}
+              </span>
+              <span className="text-[0.62rem] font-medium text-muted-foreground leading-none">
+                mph
+              </span>
             </span>
             {typeof direction === "number" ? (
               <ArrowIcon
@@ -650,11 +675,11 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
                 }}
               />
             ) : null}
-          </span>
-          <span className="text-[0.65rem] text-muted-foreground">
+          </div>
+          <div className="mt-0.5 whitespace-nowrap text-[0.62rem] leading-none text-muted-foreground">
             {dirTextDisplay}
-          </span>
-        </span>
+          </div>
+        </div>
       );
 
       return {
@@ -1013,6 +1038,13 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           getDataPointForHour={getDataPointForHour}
           anchorRef={containerRef}
           getXPositionForHour={getXPositionForHour}
+          renderCursor
+          cursorStyle={tooltipCursorStyle}
+          cursorInsets={{
+            top: CHART_TOP_MARGIN + 1,
+            bottom: X_AXIS_SHADE_EXCLUDE_PX + 1,
+            radius: 6,
+          }}
           positionInside
         />
       )}

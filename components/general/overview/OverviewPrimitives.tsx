@@ -10,6 +10,7 @@ export function OverviewCard({
 }: React.ComponentPropsWithoutRef<"section">) {
   return (
     <section
+      data-ww-overview-card=""
       className={cn(
         // NOTE: Backdrop blur can cause intermittent paint/flicker issues on some browsers while scrolling.
         // Keep a solid-ish fallback background and only apply blur when supported.
@@ -41,24 +42,41 @@ export function OverviewCardHeader({
   return (
     <header
       className={cn(
-        "flex items-start justify-between gap-3 px-4 pt-4 pb-3",
+        "relative flex items-start justify-between gap-3 px-4 pt-4 pb-3",
         className
       )}
     >
-      <div className="flex items-center gap-2 min-w-0">
-        {icon ? (
-          <div
-            data-ww-widget-icon
-            className="grid size-8 shrink-0 place-items-center rounded-full bg-foreground/5 text-foreground/80 ring-1 ring-border/25"
-          >
-            {icon}
-          </div>
-        ) : null}
-        <h3 className="min-w-0 text-[0.95rem] font-semibold leading-tight tracking-[-0.01em] truncate">
-          {title}
-        </h3>
+      <div
+        aria-hidden="true"
+        data-ww-mobile-tooltip-host=""
+        className={cn(
+          "pointer-events-none absolute inset-0 z-20 overflow-hidden rounded-t-[22px]",
+          "transition-[opacity,transform] duration-150 ease-out motion-reduce:transition-none"
+        )}
+      />
+      <div
+        data-ww-widget-header-content=""
+        className={cn(
+          "flex w-full items-start justify-between gap-3",
+          "transition-[opacity,filter] duration-150 ease-out motion-reduce:transition-none",
+          "[body.ww-mobile-tooltip-active_&]:opacity-0 [body.ww-mobile-tooltip-active_&]:invisible"
+        )}
+      >
+        <div className="flex items-center gap-2 min-w-0">
+          {icon ? (
+            <div
+              data-ww-widget-icon
+              className="grid size-8 shrink-0 place-items-center rounded-full bg-foreground/5 text-foreground/80 ring-1 ring-border/25"
+            >
+              {icon}
+            </div>
+          ) : null}
+          <h3 className="min-w-0 text-[0.95rem] font-semibold leading-tight tracking-[-0.01em] truncate">
+            {title}
+          </h3>
+        </div>
+        {right ? <div className="shrink-0">{right}</div> : null}
       </div>
-      {right ? <div className="shrink-0">{right}</div> : null}
     </header>
   );
 }

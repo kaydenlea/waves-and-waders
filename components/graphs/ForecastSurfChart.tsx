@@ -13,6 +13,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Rectangle,
   XAxis,
   LabelList,
   YAxis,
@@ -129,7 +130,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
   const [baseStartMs, setBaseStartMs] = useState<number | null>(null);
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
   const [nightAreas, setNightAreas] = useState<{ x1: number; x2?: number }[]>(
-    []
+    [],
   );
   const [axisPadding, setAxisPadding] = useState(10);
 
@@ -189,7 +190,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
 
   const chartInnerWidth = useMemo(
     () => totalFetchedDays * dayPx,
-    [totalFetchedDays, dayPx]
+    [totalFetchedDays, dayPx],
   );
   const surfTicks = useMemo(
     () =>
@@ -199,11 +200,11 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
           0,
           4,
           0.2,
-          5
+          5,
         ),
-        4
+        4,
       ),
-    [surfData]
+    [surfData],
   );
   const yAxisTick = useCallback(
     (props: YAxisTickProps) => {
@@ -244,11 +245,11 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
         </text>
       );
     },
-    [surfTicks]
+    [surfTicks],
   );
   const hoursSpan = useMemo(
     () => totalFetchedDays * HOURS_PER_DAY,
-    [totalFetchedDays]
+    [totalFetchedDays],
   );
   const edgePadHours = useMemo(() => {
     if (!chartInnerWidth || hoursSpan === 0) return 0;
@@ -257,12 +258,12 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
 
   const viewportWidth = useMemo(
     () => Math.min(containerWidth || 0, dayPx * VISIBLE_DAYS),
-    [containerWidth, dayPx]
+    [containerWidth, dayPx],
   );
   const isScrollable = chartInnerWidth > viewportWidth + 1;
   const xAxisLeftPadding = useMemo(
     () => Math.max(6, axisPadding / 2),
-    [axisPadding]
+    [axisPadding],
   );
 
   // Header alignment: this matches Recharts' inner plot rect (chart width minus margins + axis gutter),
@@ -283,7 +284,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
         hoursPerDay: HOURS_PER_DAY,
         includeDomainPaddingInEdgeDays: true,
       }),
-    [dayLabelLeftOffset, dataAreaWidth, totalFetchedDays, domainMin, domainMax]
+    [dayLabelLeftOffset, dataAreaWidth, totalFetchedDays, domainMin, domainMax],
   );
 
   const shadingBackground = useMemo(
@@ -312,7 +313,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
       chartTheme.dayShading,
       chartTheme.nightShading,
       chartTheme.shadingOpacity,
-    ]
+    ],
   );
 
   // helpers: clamp translate (px)
@@ -321,7 +322,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
       const maxTranslate = Math.max(0, chartInnerWidth - viewportWidth);
       return Math.max(0, Math.min(px, maxTranslate));
     },
-    [chartInnerWidth, viewportWidth]
+    [chartInnerWidth, viewportWidth],
   );
 
   // set transform imperatively
@@ -339,7 +340,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
       node.style.transform = `translate3d(-${px}px,0,0)`;
       currentTranslateRef.current = px;
     },
-    []
+    [],
   );
 
   // animate to target px
@@ -375,7 +376,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
 
       rafRef.current = requestAnimationFrame(step);
     },
-    [clampTranslatePx, setInnerTranslatePx]
+    [clampTranslatePx, setInnerTranslatePx],
   );
 
   // Pointer handlers for panning
@@ -396,7 +397,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
         });
       }
     },
-    [clampTranslatePx, dayPx, myId, setInnerTranslatePx, setPanFraction]
+    [clampTranslatePx, dayPx, myId, setInnerTranslatePx, setPanFraction],
   );
 
   const onPanEnd = useCallback(() => {
@@ -448,7 +449,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
       };
       setInnerTranslatePx(currentTranslateRef.current, false);
     },
-    [setInnerTranslatePx]
+    [setInnerTranslatePx],
   );
 
   const onPointerMove = useCallback(
@@ -487,7 +488,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
       setInnerTranslatePx,
       setPanFraction,
       startDrag,
-    ]
+    ],
   );
 
   const onPointerUp = useCallback(
@@ -523,23 +524,29 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
       setPanFraction,
       chartInnerWidth,
       viewportWidth,
-    ]
+    ],
   );
 
   // Mobile touch tooltip system
   const mobileChartId = `forecast-surf-${beachId ?? "default"}`;
-  
+
   const getIndexFromChartX = useCallback(
     (chartX: number): number => {
       if (!dataAreaWidth) return 0;
-      const plotX = Math.max(0, Math.min(chartX - dayLabelLeftOffset, dataAreaWidth));
+      const plotX = Math.max(
+        0,
+        Math.min(chartX - dayLabelLeftOffset, dataAreaWidth),
+      );
       const t = dataAreaWidth > 0 ? plotX / dataAreaWidth : 0;
       const hour = domainMin + t * (domainMax - domainMin);
       const roundedHour = Math.round(hour / DATA_STEP_HOURS) * DATA_STEP_HOURS;
-      const clampedHour = Math.max(0, Math.min(roundedHour, totalFetchedDays * HOURS_PER_DAY));
+      const clampedHour = Math.max(
+        0,
+        Math.min(roundedHour, totalFetchedDays * HOURS_PER_DAY),
+      );
       return Math.round(clampedHour / DATA_STEP_HOURS);
     },
-    [dataAreaWidth, dayLabelLeftOffset, domainMin, domainMax, totalFetchedDays]
+    [dataAreaWidth, dayLabelLeftOffset, domainMin, domainMax, totalFetchedDays],
   );
 
   const getMobileTooltipDataPoint = useCallback(
@@ -550,7 +557,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
       const normalized = ((hour % 24) + 24) % 24;
       const displayHour = normalized % 12 === 0 ? 12 : normalized % 12;
       const ampm = normalized >= 12 ? "PM" : "AM";
-      
+
       return {
         hour: point.hour,
         label: `${displayHour} ${ampm}`,
@@ -559,7 +566,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
         icon: <Droplets className="h-3.5 w-3.5" />,
       };
     },
-    [surfData]
+    [surfData],
   );
 
   // Get data point for a given hour (for synced tooltip display on this chart)
@@ -572,7 +579,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
       const normalized = ((point.hour % 24) + 24) % 24;
       const displayHour = normalized % 12 === 0 ? 12 : normalized % 12;
       const ampm = normalized >= 12 ? "PM" : "AM";
-      
+
       return {
         hour: point.hour,
         label: `${displayHour} ${ampm}`,
@@ -581,7 +588,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
         icon: <Droplets className="h-3.5 w-3.5" />,
       };
     },
-    [surfData]
+    [surfData],
   );
 
   // Get X position for a given hour (for synced tooltip positioning)
@@ -594,14 +601,14 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
       if (t < 0 || t > 1) return null;
       return dayLabelLeftOffset + t * dataAreaWidth;
     },
-    [dataAreaWidth, dayLabelLeftOffset, domainMin, domainMax]
+    [dataAreaWidth, dayLabelLeftOffset, domainMin, domainMax],
   );
 
   const handleMobileInspect = useCallback(
     (_index: number, hour: number) => {
       setHoveredHour(hour);
     },
-    [setHoveredHour]
+    [setHoveredHour],
   );
 
   const handleMobileInspectEnd = useCallback(() => {
@@ -617,32 +624,33 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
   const isOnBar = useCallback(
     (chartX: number, chartY: number): boolean => {
       if (!dataAreaWidth || dataAreaWidth <= 0) return false;
-      
+
       // Calculate the position within the plot area
       const plotX = chartX - dayLabelLeftOffset;
-      
+
       // If outside the data area horizontally, not on a bar
       if (plotX < 0 || plotX > dataAreaWidth) return false;
-      
+
       // Chart dimensions
       const chartHeight = 250;
       const topMargin = 0; // top of bar area
       const bottomAxisHeight = 25; // x-axis labels at bottom
       const barAreaHeight = chartHeight - topMargin - bottomAxisHeight;
       const barAreaBottom = chartHeight - bottomAxisHeight;
-      
+
       // If touch is in the axis area, not on a bar
       if (chartY > barAreaBottom) return false;
-      
+
       // Calculate which bar index this X corresponds to
       const t = plotX / dataAreaWidth;
       const hour = domainMin + t * (domainMax - domainMin);
       const totalHours = domainMax - domainMin;
-      
+
       // Find the nearest bar
-      const nearestBarHour = Math.round(hour / DATA_STEP_HOURS) * DATA_STEP_HOURS;
+      const nearestBarHour =
+        Math.round(hour / DATA_STEP_HOURS) * DATA_STEP_HOURS;
       const barIndex = Math.round(nearestBarHour / DATA_STEP_HOURS);
-      
+
       // Check X is close enough to bar center
       const hoursPerPixel = totalHours / dataAreaWidth;
       const barSpacingPx = DATA_STEP_HOURS / hoursPerPixel;
@@ -650,36 +658,45 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
       const nearestBarT = (nearestBarHour - domainMin) / totalHours;
       const nearestBarX = nearestBarT * dataAreaWidth;
       const distanceFromBarX = Math.abs(plotX - nearestBarX);
-      
+
       if (distanceFromBarX > barWidthPx / 2) return false;
-      
+
       // Get the bar's value
       if (barIndex < 0 || barIndex >= surfData.length) return false;
       const barValue = surfData[barIndex].surf;
-      
+
       // Calculate bar's top Y position
       // Bars render from bottom up. Y=barAreaBottom is value=yMin, Y=topMargin is value=yMax
       const valueRatio = (barValue - yMin) / (yMax - yMin);
-      const barTopY = barAreaBottom - (valueRatio * barAreaHeight);
-      
+      const barTopY = barAreaBottom - valueRatio * barAreaHeight;
+
       // Touch is on bar if touch Y is below the bar's top (larger Y = lower on screen)
       return chartY >= barTopY;
     },
-    [dataAreaWidth, dayLabelLeftOffset, domainMin, domainMax, surfData, yMin, yMax]
+    [
+      dataAreaWidth,
+      dayLabelLeftOffset,
+      domainMin,
+      domainMax,
+      surfData,
+      yMin,
+      yMax,
+    ],
   );
 
-  const { handlers: mobileHandlers, styles: mobileStyles } = useMobileChartTouch({
-    chartId: mobileChartId,
-    containerRef: innerRef,
-    dataLength: surfData.length,
-    getIndexFromX: getIndexFromChartX,
-    isOnBar,
-    onPan,
-    onPanEnd,
-    onInspect: handleMobileInspect,
-    onInspectEnd: handleMobileInspectEnd,
-    enabled: isTouchOnlyDevice,
-  });
+  const { handlers: mobileHandlers, styles: mobileStyles } =
+    useMobileChartTouch({
+      chartId: mobileChartId,
+      containerRef: innerRef,
+      dataLength: surfData.length,
+      getIndexFromX: getIndexFromChartX,
+      isOnBar,
+      onPan,
+      onPanEnd,
+      onInspect: handleMobileInspect,
+      onInspectEnd: handleMobileInspectEnd,
+      enabled: isTouchOnlyDevice,
+    });
   const mergedHandlers = {
     onPointerDown: (ev: React.PointerEvent) => {
       if (isTouchOnlyDevice) {
@@ -753,7 +770,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
           setInnerTranslatePx(px, false);
         }
       },
-      { immediate: true }
+      { immediate: true },
     );
     return () => unsub();
   }, [
@@ -789,7 +806,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
         }
         const maxTranslate = Math.max(
           0,
-          chartInnerWidth - Math.min(w || 0, dayPx * VISIBLE_DAYS)
+          chartInnerWidth - Math.min(w || 0, dayPx * VISIBLE_DAYS),
         );
         setIsAtRightEdge(currentTranslateRef.current >= maxTranslate - 1);
       }
@@ -879,7 +896,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
             : new Date();
         const start = getPacificMidnightUTC(baseDateValue);
         const end = new Date(
-          start.getTime() + numDaysToFetch * 24 * 60 * 60 * 1000
+          start.getTime() + numDaysToFetch * 24 * 60 * 60 * 1000,
         );
         const startMs = start.getTime();
         const endMs = end.getTime();
@@ -898,14 +915,14 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
               .sort(
                 (a, b) =>
                   new Date(a.timestamp).getTime() -
-                  new Date(b.timestamp).getTime()
+                  new Date(b.timestamp).getTime(),
               ) ?? [];
           if (!filtered.length) {
             return [];
           }
           const firstTs = new Date(filtered[0].timestamp).getTime();
           const lastTs = new Date(
-            filtered[filtered.length - 1].timestamp
+            filtered[filtered.length - 1].timestamp,
           ).getTime();
           const coversStart = firstTs <= startMs + coverageToleranceMs;
           const coversEnd = lastTs >= endMs - coverageToleranceMs;
@@ -927,7 +944,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
 
         rows.sort(
           (a, b) =>
-            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
         );
 
         const shadingBaseDate = baseDateValue;
@@ -941,12 +958,12 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
         });
         const dateParts = dateFormatter.formatToParts(shadingBaseDate);
         const year = parseInt(
-          dateParts.find((p) => p.type === "year")?.value || "0"
+          dateParts.find((p) => p.type === "year")?.value || "0",
         );
         const month =
           parseInt(dateParts.find((p) => p.type === "month")?.value || "1") - 1;
         const day = parseInt(
-          dateParts.find((p) => p.type === "day")?.value || "1"
+          dateParts.find((p) => p.type === "day")?.value || "1",
         );
 
         // Calculate UTC timestamp for Pacific midnight using offset at noon
@@ -1016,7 +1033,9 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
               w2 = 0.6,
               w3 = 0.3;
             const combined = Math.sqrt(
-              Math.pow(w1 * s1, 2) + Math.pow(w2 * s2, 2) + Math.pow(w3 * s3, 2)
+              Math.pow(w1 * s1, 2) +
+                Math.pow(w2 * s2, 2) +
+                Math.pow(w3 * s3, 2),
             );
             const wind = r.conditions.windSpeed ?? 0;
             const windPenalty = Math.min(0.5, Math.max(0, (wind - 5) / 35));
@@ -1085,7 +1104,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
       const dayEndHour = dayStartHour + hoursPerDay;
 
       const dayData = surfData.filter(
-        (point) => point.hour >= dayStartHour && point.hour < dayEndHour
+        (point) => point.hour >= dayStartHour && point.hour < dayEndHour,
       );
 
       if (dayData.length > 0) {
@@ -1112,7 +1131,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
             month: "short",
             day: "numeric",
             timeZone: "America/Los_Angeles",
-          })
+          }),
         )
       : null;
 
@@ -1138,7 +1157,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
       const ampm = normalized >= 12 ? "PM" : "AM";
       return `${displayHour} ${ampm}`;
     },
-    []
+    [],
   );
 
   // Hover sync handlers
@@ -1161,7 +1180,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
         }
       }
     },
-    [isTouchOnlyDevice, setHoveredHour]
+    [isTouchOnlyDevice, setHoveredHour],
   );
 
   const handleMouseLeave = useCallback(() => {
@@ -1170,16 +1189,33 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
     setHoveredHour(null);
   }, [isTouchOnlyDevice, setHoveredHour]);
 
-  const tooltipCursor = useMemo(
-    () => ({
+  const tooltipCursor = useMemo(() => {
+    const fillOpacity = chartTheme.hoverOpacity;
+    const strokeOpacity = Math.min(0.28, fillOpacity + 0.08);
+    return (
+      <Rectangle
+        radius={[6, 6, 6, 6]}
+        fill="var(--foreground)"
+        fillOpacity={fillOpacity}
+        stroke="var(--foreground)"
+        strokeOpacity={strokeOpacity}
+        strokeWidth={1}
+      />
+    );
+  }, [chartTheme.hoverOpacity]);
+
+  const tooltipCursorStyle = useMemo(() => {
+    const fillOpacity = chartTheme.hoverOpacity;
+    const strokeOpacity = Math.min(0.28, fillOpacity + 0.08);
+    return {
       fill: "var(--foreground)",
-      fillOpacity: chartTheme.hoverOpacity,
+      fillOpacity,
       stroke: "var(--foreground)",
-      strokeOpacity: Math.min(0.28, chartTheme.hoverOpacity + 0.08),
+      strokeOpacity,
       strokeWidth: 1,
-    }),
-    [chartTheme.hoverOpacity]
-  );
+      radius: 6,
+    };
+  }, [chartTheme.hoverOpacity]);
   const tooltipViewport = useMemo(
     () => ({
       x: clampTranslatePx(dayOffset * dayPx),
@@ -1187,11 +1223,11 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
       width: viewportWidth,
       height: Math.max(0, 250 - X_AXIS_SHADE_EXCLUDE_PX),
     }),
-    [clampTranslatePx, dayOffset, dayPx, viewportWidth]
+    [clampTranslatePx, dayOffset, dayPx, viewportWidth],
   );
 
   const [stableSelectedHour, setStableSelectedHour] = useState<number | null>(
-    null
+    null,
   );
   const { setReady } = useForecastChartLoading("forecast-surf");
   const daysReady = Array.isArray(days) && days.length > 0;
@@ -1263,7 +1299,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
           onClick={handleBack}
           className={cn(
             "absolute left-1 top-[55%] -translate-y-1/2 z-50 rounded-full bg-highlight-7/90 p-1 shadow border border-border/30 shadow-even backdrop-blur-xl",
-            (!isScrollable || dayOffset === 0) && "hidden"
+            (!isScrollable || dayOffset === 0) && "hidden",
           )}
         >
           <ChevronLeft className="w-5 h-5" />
@@ -1273,7 +1309,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
           onClick={handleNext}
           className={cn(
             "absolute right-1 top-[55%] -translate-y-1/2 z-50 rounded-full bg-highlight-7/90 p-1 shadow border border-border/30 shadow-even backdrop-blur-xl",
-            (!isScrollable || isAtRightEdge) && "hidden"
+            (!isScrollable || isAtRightEdge) && "hidden",
           )}
         >
           <ChevronRight className="w-5 h-5" />
@@ -1542,10 +1578,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                         return String(labelHour);
                       }}
                     />
-                    {isTouchOnlyDevice ? (
-                      /* Mobile: Use custom MobileChartTooltip rendered via portal */
-                      null
-                    ) : (
+                    {isTouchOnlyDevice /* Mobile: Use custom MobileChartTooltip rendered via portal */ ? null : (
                       <ChartTooltip
                         content={
                           <ChartTooltipViewportContent
@@ -1563,8 +1596,8 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                     {(() => {
                       try {
                         const effectiveHour = dashboardBusy
-                          ? stableSelectedHour ?? selectedHour ?? null
-                          : selectedHour ?? null;
+                          ? (stableSelectedHour ?? selectedHour ?? null)
+                          : (selectedHour ?? null);
                         const base =
                           normalizedDays && normalizedDays.length > 0
                             ? normalizedDays[0]
@@ -1574,15 +1607,15 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                         const baseMid = new Date(
                           base.getFullYear(),
                           base.getMonth(),
-                          base.getDate()
+                          base.getDate(),
                         ).getTime();
                         const selMid = new Date(
                           selectedDate.getFullYear(),
                           selectedDate.getMonth(),
-                          selectedDate.getDate()
+                          selectedDate.getDate(),
                         ).getTime();
                         const dayDelta = Math.floor(
-                          (selMid - baseMid) / (24 * 3600 * 1000)
+                          (selMid - baseMid) / (24 * 3600 * 1000),
                         );
                         const baseX = dayDelta * 24 + effectiveHour;
                         if (baseX < 0 || baseX > totalFetchedDays * 24)
@@ -1703,6 +1736,13 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
           getDataPointForHour={getDataPointForHour}
           anchorRef={containerRef}
           getXPositionForHour={getXPositionForHour}
+          renderCursor
+          cursorStyle={tooltipCursorStyle}
+          cursorInsets={{
+            top: 0,
+            bottom: X_AXIS_SHADE_EXCLUDE_PX + 1,
+            radius: 6,
+          }}
           positionInside
           topOffset={55}
         />

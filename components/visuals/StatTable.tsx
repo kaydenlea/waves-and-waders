@@ -150,7 +150,7 @@ function MiniMarkerTrack({
           "absolute top-1/2 h-2 w-1.5 -translate-y-1/2 rounded-full",
           "bg-background dark:bg-foreground shadow-md ring-1 ring-foreground/40 dark:ring-background/55",
           "outline outline-2 outline-foreground/15 dark:outline-background/80",
-          markerClassName
+          markerClassName,
         )}
         style={{
           left: `clamp(0px, calc(${
@@ -175,7 +175,7 @@ function CellSurface({
         "mx-auto w-full rounded-lg border border-border/25 bg-foreground/[0.03] dark:bg-foreground/[0.05]",
         "shadow-[0_1px_0_rgba(0,0,0,0.04)] dark:shadow-[0_1px_0_rgba(0,0,0,0.35)]",
         "h-14 min-h-14 px-2.5 py-1.5 flex items-center justify-center",
-        className
+        className,
       )}
     >
       {children}
@@ -192,7 +192,7 @@ function TimeCell({ time, selected }: { time: string; selected: boolean }) {
       className={cn(
         "rounded-xl",
         selected &&
-          "ring-2 ring-sky-500/35 shadow-sm dark:ring-sky-400/30 dark:shadow-[0_8px_16px_rgba(0,0,0,0.35)]"
+          "ring-2 ring-sky-500/35 shadow-sm dark:ring-sky-400/30 dark:shadow-[0_8px_16px_rgba(0,0,0,0.35)]",
       )}
     >
       <div className="relative h-14 w-12 overflow-hidden rounded-xl border border-foreground/10 bg-foreground/[0.07] dark:bg-foreground/[0.09]">
@@ -202,7 +202,7 @@ function TimeCell({ time, selected }: { time: string; selected: boolean }) {
             "absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full",
             selected
               ? "bg-sky-500/60 ring-1 ring-sky-500/30 dark:bg-sky-400/55 dark:ring-sky-400/25"
-              : "bg-foreground/20"
+              : "bg-foreground/20",
           )}
         />
         <div className="grid h-full place-items-center px-1 text-center">
@@ -258,7 +258,7 @@ function DirectionBadge({
           : "inline-flex items-center gap-1.5",
         "h-[23px] rounded-full border border-border/40 bg-foreground/[0.03] px-1.5 py-0.5",
         widthClassName,
-        className
+        className,
       )}
     >
       <span
@@ -281,7 +281,7 @@ function DirectionBadge({
             "@min-4xl:hidden @min-5xl:inline-block",
           showMap &&
             variant === "half" &&
-            "@min-4xl:hidden @min-6xl:inline-block"
+            "@min-4xl:hidden @min-6xl:inline-block",
           // !showMap &&
           //   !showSecondarySwells &&
           //   "@min-5xl:hidden @min-6xl:inline-block"
@@ -298,7 +298,7 @@ function DirectionBadge({
         <span
           className={cn(
             "text-[0.65rem] font-semibold tabular-nums text-muted-foreground",
-            layout === "grid" && "justify-self-end"
+            layout === "grid" && "justify-self-end",
           )}
         >
           {degreesText}
@@ -329,7 +329,7 @@ function DotScale({
           key={i}
           className={cn(
             "h-1.5 w-1.5 rounded-full",
-            i < filled ? fillClassName : "bg-foreground/10"
+            i < filled ? fillClassName : "bg-foreground/10",
           )}
         />
       ))}
@@ -352,7 +352,7 @@ function PeriodTicks({ period }: { period: number | null }) {
           className={cn(
             "h-2 w-[3px] rounded-full",
             i < filled ? groupAccentFillClass.swell : "bg-foreground/10",
-            i >= 3 && "h-2.5"
+            i >= 3 && "h-2.5",
           )}
         />
       ))}
@@ -496,7 +496,7 @@ const SwellStat = ({
   return (
     <CellSurface
       className={cn(
-        primary ? "bg-foreground/[0.04] dark:bg-foreground/[0.06]" : undefined
+        primary ? "bg-foreground/[0.04] dark:bg-foreground/[0.06]" : undefined,
       )}
     >
       <div className="w-full">
@@ -508,7 +508,7 @@ const SwellStat = ({
                   "tabular-nums leading-none",
                   primary
                     ? "text-[1rem] font-semibold"
-                    : "text-[1rem] font-semibold"
+                    : "text-[1rem] font-semibold",
                 )}
               >
                 {height}
@@ -523,7 +523,7 @@ const SwellStat = ({
               <span
                 className={cn(
                   "tabular-nums leading-none",
-                  primary ? "text-sm font-semibold" : "text-sm font-semibold"
+                  primary ? "text-sm font-semibold" : "text-sm font-semibold",
                 )}
               >
                 {period}
@@ -555,7 +555,7 @@ const SwellStat = ({
             </div> */}
             <span
               className={cn(
-                "pr-1 text-[0.7rem] font-semibold tabular-nums text-muted-foreground"
+                "pr-1 text-[0.7rem] font-semibold tabular-nums text-muted-foreground",
               )}
             >
               {degreesText}
@@ -816,8 +816,8 @@ const PressureStat = ({
     trend === "up"
       ? "text-emerald-600 dark:text-emerald-400"
       : trend === "down"
-      ? "text-rose-600 dark:text-rose-400"
-      : "text-muted-foreground";
+        ? "text-rose-600 dark:text-rose-400"
+        : "text-muted-foreground";
   const deltaText =
     prev == null ? "0.00" : `${delta >= 0 ? "+" : ""}${delta.toFixed(2)}`;
 
@@ -826,7 +826,7 @@ const PressureStat = ({
       <div
         className={cn(
           "flex w-full items-center justify-center @min-xl:justify-between @min-4xl:justify-center gap-2",
-          showMap ? "@min-5xl:justify-between" : "@min-6xl:justify-between"
+          showMap ? "@min-5xl:justify-between" : "@min-6xl:justify-between",
         )}
       >
         <div className="flex min-w-0 flex-col items-start mt-1">
@@ -842,7 +842,7 @@ const PressureStat = ({
             className={cn(
               "inline-flex items-center gap-0.5",
               "text-[0.65rem] font-semibold tabular-nums",
-              trendClass
+              trendClass,
             )}
           >
             <TrendIcon
@@ -855,7 +855,7 @@ const PressureStat = ({
         <PressureNeedle
           className={cn(
             "hidden @min-xl:block @min-4xl:hidden",
-            showMap ? "@min-5xl:block" : "@min-6xl:block"
+            showMap ? "@min-5xl:block" : "@min-6xl:block",
           )}
           value={value}
           min={min}
@@ -1039,13 +1039,13 @@ function getHalfColumnsPerPage(widthPx: number): number {
 
 function buildHalfColumnPages(
   columns: Array<{ id: string; label: string }>,
-  widthPx: number
+  widthPx: number,
 ) {
   const perPage = getHalfColumnsPerPage(widthPx);
   const ordered = columns
     .slice()
     .sort(
-      (a, b) => (COLUMN_PRIORITY[a.id] ?? 999) - (COLUMN_PRIORITY[b.id] ?? 999)
+      (a, b) => (COLUMN_PRIORITY[a.id] ?? 999) - (COLUMN_PRIORITY[b.id] ?? 999),
     );
 
   const pages: Array<Array<{ id: string; label: string }>> = [];
@@ -1157,7 +1157,7 @@ const StatTable = ({
   // Extract requestedDate at component level so it's accessible throughout
   const requestedDate = React.useMemo(
     () => (isValidDate(date) ? date : undefined),
-    [date]
+    [date],
   );
 
   // Memoize date range calculation to prevent unnecessary recalculations
@@ -1175,19 +1175,19 @@ const StatTable = ({
       requestedDate && !forecastPage
         ? new Date(anchorStart.getTime() - bufferBefore * DAY_MS)
         : hasSelectedDays
-        ? selectedDays![0]
-        : new Date(anchorStart.getTime() - bufferBefore * DAY_MS);
+          ? selectedDays![0]
+          : new Date(anchorStart.getTime() - bufferBefore * DAY_MS);
 
     const daysToFetch = Math.max(numDays, 1) + bufferAfter;
     const rangeEnd =
       requestedDate && !forecastPage
         ? new Date(anchorStart.getTime() + daysToFetch * DAY_MS)
         : hasSelectedDays
-        ? new Date(
-            selectedDays![selectedDays!.length - 1].getTime() +
-              bufferAfter * DAY_MS
-          )
-        : new Date(anchorStart.getTime() + daysToFetch * DAY_MS);
+          ? new Date(
+              selectedDays![selectedDays!.length - 1].getTime() +
+                bufferAfter * DAY_MS,
+            )
+          : new Date(anchorStart.getTime() + daysToFetch * DAY_MS);
 
     return { rangeStart, rangeEnd };
   }, [beachId, requestedDate, selectedDays, forecastPage, numDays]);
@@ -1222,14 +1222,14 @@ const StatTable = ({
               .sort(
                 (a, b) =>
                   new Date(a.timestamp).getTime() -
-                  new Date(b.timestamp).getTime()
+                  new Date(b.timestamp).getTime(),
               ) ?? [];
           if (!filtered.length) {
             return [];
           }
           const firstTs = new Date(filtered[0].timestamp).getTime();
           const lastTs = new Date(
-            filtered[filtered.length - 1].timestamp
+            filtered[filtered.length - 1].timestamp,
           ).getTime();
           const coversStart = firstTs <= rangeStartMs + coverageToleranceMs;
           const coversEnd = lastTs >= rangeEndMs - coverageToleranceMs;
@@ -1254,7 +1254,7 @@ const StatTable = ({
           weekly = await getForecastCached(
             String(resolvedId),
             rangeStart,
-            rangeEnd
+            rangeEnd,
           );
 
           // Update cache
@@ -1315,10 +1315,10 @@ const StatTable = ({
             allowedKeys = new Set([onlyKey]);
           } else if (requestedDate) {
             const prev = getPacificDayKey(
-              new Date(requestedDate.getTime() - DAY_MS).toISOString()
+              new Date(requestedDate.getTime() - DAY_MS).toISOString(),
             );
             const next = getPacificDayKey(
-              new Date(requestedDate.getTime() + DAY_MS).toISOString()
+              new Date(requestedDate.getTime() + DAY_MS).toISOString(),
             );
             const cands = [prev, next].filter((k) => dayKeys.includes(k));
             if (cands.length) allowedKeys = new Set([cands[0]]);
@@ -1329,7 +1329,7 @@ const StatTable = ({
           if (allowedKeys && !allowedKeys.has(dayKey)) continue;
           rows.sort(
             (a, b) =>
-              new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+              new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
           );
 
           // Use the EXACT same hour calculation as charts - local browser hours
@@ -1357,8 +1357,8 @@ const StatTable = ({
               minR === 0 && maxR === 0
                 ? "-"
                 : minR === maxR
-                ? `${maxR}`
-                : `${minR}-${maxR}`;
+                  ? `${maxR}`
+                  : `${minR}-${maxR}`;
 
             const priH =
               r.swell.primary.height != null
@@ -1444,7 +1444,7 @@ const StatTable = ({
             }
           }
           const entries: TableEntry[] = Array.from(entriesByHour.values()).sort(
-            (a, b) => a.index - b.index
+            (a, b) => a.index - b.index,
           );
 
           const firstTs = rows[0]?.timestamp ?? new Date().toISOString();
@@ -1452,7 +1452,7 @@ const StatTable = ({
           const midnight = new Date(
             d0.getFullYear(),
             d0.getMonth(),
-            d0.getDate()
+            d0.getDate(),
           ).getTime();
           const displayLabel = fmtDayLabel(d0);
           days.push({
@@ -1531,7 +1531,7 @@ const StatTable = ({
       return TABLE_COLUMNS;
     }
     return TABLE_COLUMNS.filter(
-      (col) => col.id !== "swellSecondary" && col.id !== "swellTertiary"
+      (col) => col.id !== "swellSecondary" && col.id !== "swellTertiary",
     );
   }, [showSecondarySwells]);
 
@@ -1540,7 +1540,7 @@ const StatTable = ({
   const skipForecastViewModePersistRef = React.useRef(true);
   const [forecastViewMode, setForecastViewMode] =
     React.useState<ForecastViewMode>(() =>
-      variant === "half" ? "single" : "all"
+      variant === "half" ? "single" : "all",
     );
 
   const [columnPages, setColumnPages] = React.useState([TABLE_COLUMNS]);
@@ -1622,7 +1622,7 @@ const StatTable = ({
     const adjustData = () => {
       widthNow.current = measuredWidthRef.current || table.clientWidth;
       setTableWidthPx((prev) =>
-        prev === widthNow.current ? prev : widthNow.current
+        prev === widthNow.current ? prev : widthNow.current,
       );
 
       const nextColumnsVariant = computeColumnsVariant();
@@ -1803,7 +1803,7 @@ const StatTable = ({
   const maxVisibleDays = 4;
   const selectorDays = React.useMemo(
     () => (forecastPage ? data.slice(0, maxVisibleDays) : []),
-    [data, forecastPage]
+    [data, forecastPage],
   );
 
   const showForecastViewToggle = forecastPage && !isHalfColumns;
@@ -1816,7 +1816,7 @@ const StatTable = ({
     if (!forecastPage) return;
     try {
       const stored = window.localStorage.getItem(
-        "waves-and-waders.statTable.forecastViewMode"
+        "waves-and-waders.statTable.forecastViewMode",
       );
       if (stored === "all" || stored === "single") {
         skipForecastViewModePersistRef.current = true;
@@ -1834,7 +1834,7 @@ const StatTable = ({
     try {
       window.localStorage.setItem(
         "waves-and-waders.statTable.forecastViewMode",
-        forecastViewMode
+        forecastViewMode,
       );
     } catch {}
   }, [forecastPage, forecastViewMode]);
@@ -1855,7 +1855,7 @@ const StatTable = ({
     !(forecastPage && useSingleDayView);
 
   const [forecastDayKey, setForecastDayKey] = React.useState<string | null>(
-    null
+    null,
   );
 
   React.useEffect(() => {
@@ -1866,7 +1866,7 @@ const StatTable = ({
     const next =
       preferredForecastDayKey && keys.has(preferredForecastDayKey)
         ? preferredForecastDayKey
-        : selectorDays[0]?.key ?? null;
+        : (selectorDays[0]?.key ?? null);
     setForecastDayKey(next);
   }, [
     forecastDayKey,
@@ -1988,7 +1988,7 @@ const StatTable = ({
       const half = Math.floor(windowSize / 2);
       const start = Math.max(
         0,
-        Math.min(currentPage - half, totalPages - windowSize)
+        Math.min(currentPage - half, totalPages - windowSize),
       );
       return Array.from({ length: windowSize }, (_, idx) => start + idx);
     })();
@@ -2010,7 +2010,7 @@ const StatTable = ({
             "h-8 w-8",
             "rounded-full text-muted-foreground",
             "hover:bg-foreground/5 hover:text-foreground",
-            "focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0"
+            "focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0",
           )}
           onClick={handleBack}
           disabled={currentPage === 0}
@@ -2030,7 +2030,7 @@ const StatTable = ({
               className={cn(
                 "rounded-full transition-colors motion-reduce:transition-none",
                 "h-2 w-2",
-                idx === currentPage ? "bg-foreground/80" : "bg-foreground/25"
+                idx === currentPage ? "bg-foreground/80" : "bg-foreground/25",
               )}
             />
           ))}
@@ -2049,7 +2049,7 @@ const StatTable = ({
             "h-8 w-8",
             "rounded-full text-muted-foreground",
             "hover:bg-foreground/5 hover:text-foreground",
-            "focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0"
+            "focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0",
           )}
           onClick={handleNext}
           disabled={currentPage === totalPages - 1}
@@ -2092,7 +2092,7 @@ const StatTable = ({
         "pointer-events-auto inline-flex h-10 max-w-full items-center rounded-full",
         loading && "pointer-events-none opacity-70",
         "bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/90",
-        "border border-border/40 shadow-xs"
+        "border border-border/40 shadow-xs",
       )}
     >
       {isCompactPill ? (
@@ -2104,7 +2104,7 @@ const StatTable = ({
               className={cn(
                 "inline-flex h-9 items-center gap-2 rounded-full px-3 text-xs font-semibold",
                 "text-foreground hover:bg-foreground/5",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0"
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0",
               )}
             >
               <SlidersHorizontal
@@ -2112,7 +2112,7 @@ const StatTable = ({
                 className="h-4 w-4 text-muted-foreground"
               />
               <span className="max-w-[9.5rem] truncate">
-                {showDateSegment ? footerDateLabel ?? "Date" : "Controls"}
+                {showDateSegment ? (footerDateLabel ?? "Date") : "Controls"}
               </span>
             </button>
           </DropdownMenuTrigger>
@@ -2124,7 +2124,7 @@ const StatTable = ({
               "w-56 rounded-2xl border border-border/40 p-1.5 shadow-xl",
               "bg-background/95 supports-[backdrop-filter]:backdrop-blur-md",
               "max-h-none overflow-visible",
-              "z-20"
+              "z-20",
             )}
           >
             {showForecastViewToggleInPill ? (
@@ -2134,12 +2134,12 @@ const StatTable = ({
                   onSelect={(e) => {
                     e.preventDefault();
                     setForecastViewMode((prev) =>
-                      prev === "all" ? "single" : "all"
+                      prev === "all" ? "single" : "all",
                     );
                   }}
                   className={cn(
                     "rounded-xl px-2.5 py-2",
-                    !canToggleForecastView && "opacity-60"
+                    !canToggleForecastView && "opacity-60",
                   )}
                 >
                   {resolvedForecastViewMode === "all" ? (
@@ -2188,7 +2188,7 @@ const StatTable = ({
                             "rounded-xl px-2.5 py-2 pl-8",
                             "focus:outline-none",
                             "data-[state=checked]:bg-foreground/6 data-[state=checked]:shadow-even",
-                            "hover:bg-foreground/5 focus:bg-foreground/6"
+                            "hover:bg-foreground/5 focus:bg-foreground/6",
                           )}
                         >
                           <span className="flex min-w-0 flex-col">
@@ -2224,7 +2224,7 @@ const StatTable = ({
                 }}
                 className={cn(
                   "rounded-xl px-2.5 py-2",
-                  !canToggleDensity && "opacity-60"
+                  !canToggleDensity && "opacity-60",
                 )}
               >
                 <ClockFading aria-hidden="true" className="h-4 w-4" />
@@ -2277,7 +2277,7 @@ const StatTable = ({
             "text-foreground hover:bg-foreground/5",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0",
             !canToggleForecastView &&
-              "opacity-60 cursor-not-allowed hover:bg-transparent"
+              "opacity-60 cursor-not-allowed hover:bg-transparent",
           )}
         >
           {resolvedForecastViewMode === "all" ? (
@@ -2323,7 +2323,7 @@ const StatTable = ({
                   className={cn(
                     "inline-flex h-9 items-center gap-2 rounded-full px-3 text-xs font-semibold",
                     "text-foreground hover:bg-foreground/5",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0"
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0",
                   )}
                 >
                   <CalendarDays
@@ -2333,14 +2333,14 @@ const StatTable = ({
                   <span className="max-w-[10rem] truncate">
                     {footerDateLabel ??
                       PACIFIC_COMPACT_DATE_FORMATTER.format(
-                        new Date(forecastSelectedDay.dateMs)
+                        new Date(forecastSelectedDay.dateMs),
                       )}
                   </span>
                   <ChevronDown
                     aria-hidden="true"
                     className={cn(
                       "h-4 w-4 text-muted-foreground transition-transform duration-200",
-                      forecastDateMenuOpen && "rotate-180"
+                      forecastDateMenuOpen && "rotate-180",
                     )}
                   />
                 </button>
@@ -2353,7 +2353,7 @@ const StatTable = ({
                 className={cn(
                   "w-44 rounded-2xl border border-border/40 p-1 shadow-xl",
                   "bg-background/95 supports-[backdrop-filter]:backdrop-blur-md",
-                  "z-20"
+                  "z-20",
                 )}
               >
                 <DropdownMenuRadioGroup
@@ -2374,7 +2374,7 @@ const StatTable = ({
                           "rounded-xl px-2.5 py-2 pl-8",
                           "focus:outline-none",
                           "data-[state=checked]:bg-foreground/6 data-[state=checked]:shadow-even",
-                          "hover:bg-foreground/5 focus:bg-foreground/6"
+                          "hover:bg-foreground/5 focus:bg-foreground/6",
                         )}
                       >
                         <span className="flex min-w-0 flex-col">
@@ -2396,7 +2396,7 @@ const StatTable = ({
           <div
             className={cn(
               "inline-flex h-9 items-center gap-2 rounded-full px-3 text-xs font-semibold",
-              "text-foreground"
+              "text-foreground",
             )}
           >
             <CalendarDays
@@ -2431,7 +2431,7 @@ const StatTable = ({
             "text-foreground hover:bg-foreground/5",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0",
             !canToggleDensity &&
-              "opacity-60 cursor-not-allowed hover:bg-transparent"
+              "opacity-60 cursor-not-allowed hover:bg-transparent",
           )}
         >
           <ClockFading
@@ -2456,7 +2456,7 @@ const StatTable = ({
           className={cn(
             "inline-flex h-9 items-center gap-2 rounded-full px-3 text-xs font-semibold",
             "text-foreground hover:bg-foreground/5",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0"
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-0",
           )}
         >
           {showSecondarySwells ? (
@@ -2490,7 +2490,7 @@ const StatTable = ({
         "relative -mx-1 @min-md:mx-0",
         // variant !== "half" && "@min-2xl:mx-4",
         // controlsEnabled && "pb-16",
-        "rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        "rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
       )}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
@@ -2533,8 +2533,8 @@ const StatTable = ({
         <div
           data-ww-stat-table-sticky="header"
           className={cn(
-            "sticky top-16 @min-4xl/main:top-27.5 z-40 @min-md:mx-0 rounded-b-[10px] px-0.5 py-0.5",
-            headerBgClass
+            "sticky top-15.5 @min-4xl/main:top-27.5 z-40 @min-md:mx-0 rounded-b-[10px] px-0.5 py-0.5",
+            headerBgClass,
           )}
         >
           <table className="w-full table-fixed border-separate border-spacing-x-2 border-spacing-y-0 text-sm">
@@ -2581,7 +2581,7 @@ const StatTable = ({
                         : widthNow.current >= TABLE_BREAKPOINT_LG &&
                           "w-[clamp(5.25rem,10vw,6.75rem)]"
                       : "",
-                    col.id === "__spacer" && "w-[10rem]"
+                    col.id === "__spacer" && "w-[10rem]",
                   )}
                 />
               ))}
@@ -2608,7 +2608,7 @@ const StatTable = ({
                       key={col.id}
                       scope="col"
                       className={cn(
-                        "pb-0 text-center text-[0.7rem] font-medium uppercase tracking-wide text-muted-foreground sm:text-xs"
+                        "pb-0 text-center text-[0.7rem] font-medium uppercase tracking-wide text-muted-foreground sm:text-xs",
                       )}
                     >
                       <div className="flex flex-col items-center gap-1">
@@ -2626,7 +2626,7 @@ const StatTable = ({
                           className={cn(
                             "h-[2px] w-10 rounded-full",
                             groupAccentFillClass[group],
-                            col.id === "__spacer" ? "opacity-0" : "opacity-60"
+                            col.id === "__spacer" ? "opacity-0" : "opacity-60",
                           )}
                         />
                       </div>
@@ -2649,7 +2649,7 @@ const StatTable = ({
             forecastPage &&
               variant === "full" &&
               resolvedForecastViewMode === "all" &&
-              "-mt-5"
+              "-mt-5",
           )}
         >
           <colgroup>
@@ -2695,7 +2695,7 @@ const StatTable = ({
                       : widthNow.current >= TABLE_BREAKPOINT_LG &&
                         "w-[clamp(5.25rem,10vw,6.75rem)]"
                     : "",
-                  col.id === "__spacer" && "w-[10rem]"
+                  col.id === "__spacer" && "w-[10rem]",
                 )}
               />
             ))}
@@ -2714,44 +2714,46 @@ const StatTable = ({
             {(visibleDays.length
               ? visibleDays
               : loading
-              ? (() => {
-                  const daysForPlaceholder = useSingleDayView
-                    ? 1
-                    : Math.min(maxVisibleDays, Math.max(numDays, 1));
-                  const anchor =
-                    (forecastPage && forecastSelectedDay?.dateMs
-                      ? new Date(forecastSelectedDay.dateMs)
-                      : requestedDate ??
-                        (selected instanceof Date ? selected : null)) ??
-                    new Date();
-                  const { start: anchorStart } = getPacificDayRange(anchor);
-                  return Array.from(
-                    { length: daysForPlaceholder },
-                    (_, idx) => {
-                      const d = new Date(anchorStart.getTime() + idx * DAY_MS);
-                      return {
-                        key: `loading-${idx}`,
-                        date: d.toLocaleDateString("en-US", {
-                          weekday: "long",
-                          month: "long",
-                          day: "numeric",
-                        }),
-                        dateMs: new Date(
-                          d.getFullYear(),
-                          d.getMonth(),
-                          d.getDate()
-                        ).getTime(),
-                        vals: [],
-                      } satisfies TableDay;
-                    }
-                  );
-                })()
-              : []
+                ? (() => {
+                    const daysForPlaceholder = useSingleDayView
+                      ? 1
+                      : Math.min(maxVisibleDays, Math.max(numDays, 1));
+                    const anchor =
+                      (forecastPage && forecastSelectedDay?.dateMs
+                        ? new Date(forecastSelectedDay.dateMs)
+                        : (requestedDate ??
+                          (selected instanceof Date ? selected : null))) ??
+                      new Date();
+                    const { start: anchorStart } = getPacificDayRange(anchor);
+                    return Array.from(
+                      { length: daysForPlaceholder },
+                      (_, idx) => {
+                        const d = new Date(
+                          anchorStart.getTime() + idx * DAY_MS,
+                        );
+                        return {
+                          key: `loading-${idx}`,
+                          date: d.toLocaleDateString("en-US", {
+                            weekday: "long",
+                            month: "long",
+                            day: "numeric",
+                          }),
+                          dateMs: new Date(
+                            d.getFullYear(),
+                            d.getMonth(),
+                            d.getDate(),
+                          ).getTime(),
+                          vals: [],
+                        } satisfies TableDay;
+                      },
+                    );
+                  })()
+                : []
             ).map((day, i) => {
               const dayEntries = targetHours.map(
                 (hour) =>
                   day.vals.find((entry) => entry.index === hour) ??
-                  buildMissingEntry(hour)
+                  buildMissingEntry(hour),
               );
 
               const content = dayEntries.flatMap((entry, rowIdx) => {
@@ -2764,7 +2766,7 @@ const StatTable = ({
                     ? new Date(
                         sel.getFullYear(),
                         sel.getMonth(),
-                        sel.getDate()
+                        sel.getDate(),
                       ).getTime() === day.dateMs
                     : false;
                   if (sameDay) {
@@ -2773,8 +2775,8 @@ const StatTable = ({
                       .sort((a, b) => a - b);
                     // pick the last hour <= selected hour, otherwise first
                     const effectiveHour = dashboardBusy
-                      ? stableSelectedHour ?? selectedHour ?? null
-                      : selectedHour ?? null;
+                      ? (stableSelectedHour ?? selectedHour ?? null)
+                      : (selectedHour ?? null);
                     if (effectiveHour != null) {
                       const bucket = pickClosestBucket(hours, effectiveHour);
                       isSelectedHour = bucket != null && entry.index === bucket;
@@ -2890,8 +2892,8 @@ const StatTable = ({
                                 max={barScales.pressureMax}
                                 prev={
                                   rowIdx > 0
-                                    ? day.vals[rowIdx - 1]?.pressure.value ??
-                                      null
+                                    ? (day.vals[rowIdx - 1]?.pressure.value ??
+                                      null)
                                     : null
                                 }
                               />
@@ -2925,7 +2927,7 @@ const StatTable = ({
                             className={cn(
                               "rounded-lg",
                               isSelectedHour &&
-                                "ring-2 ring-sky-500/30 shadow-sm dark:ring-sky-400/25 dark:shadow-[0_8px_16px_rgba(0,0,0,0.35)]"
+                                "ring-2 ring-sky-500/30 shadow-sm dark:ring-sky-400/25 dark:shadow-[0_8px_16px_rgba(0,0,0,0.35)]",
                             )}
                           >
                             {content}
@@ -2959,7 +2961,7 @@ const StatTable = ({
                         <div
                           className={cn(
                             "mx-0 mb-3 mt-5 relative overflow-hidden rounded-2xl border border-border/60 bg-foreground/[0.06] px-4 py-3 shadow-[0_1px_0_rgba(0,0,0,0.04),0_12px_30px_rgba(0,0,0,0.06)] dark:bg-foreground/[0.09] dark:shadow-[0_1px_0_rgba(0,0,0,0.35),0_12px_30px_rgba(0,0,0,0.35)]",
-                            i === 0 && variant === "half" && "mt-0"
+                            i === 0 && variant === "half" && "mt-0",
                           )}
                         >
                           <div className="absolute inset-0 bg-gradient-to-r from-foreground/[0.06] via-transparent to-foreground/[0.02] dark:from-foreground/[0.09] dark:to-foreground/[0.04]" />
@@ -3118,7 +3120,7 @@ const StatTable = ({
             // page scrolls; within-table scrolling is handled by the flex layout above.
             "sticky z-50 bottom-[calc(0.75rem+env(safe-area-inset-bottom))]",
             "mt-2",
-            "shrink-0 flex min-h-10 items-center justify-center px-1 pt-1"
+            "shrink-0 flex min-h-10 items-center justify-center px-1 pt-1",
           )}
         >
           {footerControlsPill ? (
@@ -3129,7 +3131,7 @@ const StatTable = ({
               className={cn(
                 "pointer-events-none h-10 w-[min(22rem,100%)] rounded-full",
                 "border border-border/30 bg-foreground/10",
-                "animate-pulse motion-reduce:animate-none"
+                "animate-pulse motion-reduce:animate-none",
               )}
             />
           )}

@@ -5,6 +5,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Rectangle,
   XAxis,
   LabelList,
   YAxis,
@@ -521,15 +522,35 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   };
 
   const tooltipCursor = useMemo(
-    () => ({
-      fill: "var(--foreground)",
-      fillOpacity: chartTheme.hoverOpacity,
-      stroke: "var(--foreground)",
-      strokeOpacity: Math.min(0.28, chartTheme.hoverOpacity + 0.08),
-      strokeWidth: 1,
-    }),
+    () => {
+      const fillOpacity = chartTheme.hoverOpacity;
+      const strokeOpacity = Math.min(0.28, fillOpacity + 0.08);
+      return (
+        <Rectangle
+          radius={[6, 6, 6, 6]}
+          fill="var(--foreground)"
+          fillOpacity={fillOpacity}
+          stroke="var(--foreground)"
+          strokeOpacity={strokeOpacity}
+          strokeWidth={1}
+        />
+      );
+    },
     [chartTheme.hoverOpacity]
   );
+
+  const tooltipCursorStyle = useMemo(() => {
+    const fillOpacity = chartTheme.hoverOpacity;
+    const strokeOpacity = Math.min(0.28, fillOpacity + 0.08);
+    return {
+      fill: "var(--foreground)",
+      fillOpacity,
+      stroke: "var(--foreground)",
+      strokeOpacity,
+      strokeWidth: 1,
+      radius: 6,
+    };
+  }, [chartTheme.hoverOpacity]);
 
   // Mobile touch tooltip system
   const getIndexFromChartX = useCallback(
@@ -871,6 +892,13 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           getDataPointForHour={getDataPointForHour}
           anchorRef={containerRef}
           getXPositionForHour={getXPositionForHour}
+          renderCursor
+          cursorStyle={tooltipCursorStyle}
+          cursorInsets={{
+            top: CHART_TOP_MARGIN + 1,
+            bottom: X_AXIS_SHADE_EXCLUDE_PX + 1,
+            radius: 6,
+          }}
           positionInside
         />
       )}

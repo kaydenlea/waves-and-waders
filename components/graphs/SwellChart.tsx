@@ -143,7 +143,7 @@ export const SwellStatsHeader = ({
       .map((r) => r.swell.primary.height)
       .filter(
         (v): v is number =>
-          typeof v === "number" && !Number.isNaN(v) && v !== null
+          typeof v === "number" && !Number.isNaN(v) && v !== null,
       );
     if (!swellValues.length) {
       return { highSwell: null, lowSwell: null };
@@ -184,17 +184,17 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     useOptionalOverviewChartLoading("overview-swell");
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
   const [nightAreas, setNightAreas] = useState<{ x1: number; x2?: number }[]>(
-    []
+    [],
   );
   const [containerWidth, setContainerWidth] = useState<number>(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const mobileChartId = "overview-swell";
   const [isTouchInspecting, setIsTouchInspecting] = useState(false);
   const [touchDefaultIndex, setTouchDefaultIndex] = useState<number | null>(
-    null
+    null,
   );
   const touchInspectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null
+    null,
   );
   const touchInspectStartRef = useRef<{
     clientX: number;
@@ -224,7 +224,7 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         ? `${displayHour}:${minutes.toString().padStart(2, "0")} ${ampm}`
         : `${displayHour} ${ampm}`;
     },
-    []
+    [],
   );
 
   const formatSwellTooltipValue = React.useCallback(
@@ -245,13 +245,13 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         typeof value === "number"
           ? value
           : typeof value === "string"
-          ? Number(value)
-          : Number.NaN;
+            ? Number(value)
+            : Number.NaN;
       const heightValue = Number.isFinite(valueNum)
         ? valueNum.toFixed(1)
         : Array.isArray(value)
-        ? value.join(", ")
-        : `${value ?? "--"}`;
+          ? value.join(", ")
+          : `${value ?? "--"}`;
       const dirLabelDisplay = dirLabel
         .replaceAll("\u00C2\u00B0", "\u00B0")
         .replaceAll("A\u0173", "\u00B0")
@@ -294,7 +294,7 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         </div>
       );
     },
-    []
+    [],
   );
 
   const {
@@ -350,7 +350,7 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           primary: Number((2 + Math.sin((time / 24) * Math.PI)).toFixed(1)),
           secondary: Number((1 + Math.cos((time / 24) * Math.PI)).toFixed(1)),
           tertiary: Number(
-            (0.5 + Math.sin((time / 12) * Math.PI) * 0.3).toFixed(1)
+            (0.5 + Math.sin((time / 12) * Math.PI) * 0.3).toFixed(1),
           ),
           primaryDir: (time * 15) % 360,
           secondaryDir: (time * 20) % 360,
@@ -360,7 +360,7 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           tertiaryPeriod: Math.round(8 + Math.sin((time / 12) * Math.PI) * 1),
         };
       }),
-    []
+    [],
   );
 
   const data = useMemo<Row[]>(() => {
@@ -406,12 +406,12 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       try {
         const sunData = await getSunData(
           String(beachId),
-          new Date(windowStartMs)
+          new Date(windowStartMs),
         );
         const segments = buildSunSegments(
           hours,
           sunData?.sunrise ?? null,
-          sunData?.sunset ?? null
+          sunData?.sunset ?? null,
         );
         if (!cancelled) {
           setDayAreas(segments.dayAreas);
@@ -449,13 +449,13 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         data
           .flatMap((row) => [row.primary, row.secondary, row.tertiary])
           .filter(
-            (v): v is number => typeof v === "number" && Number.isFinite(v)
+            (v): v is number => typeof v === "number" && Number.isFinite(v),
           ),
         0,
         4,
-        0.2
+        0.2,
       ),
-    [data]
+    [data],
   );
   const yAxisTick = React.useCallback(
     (props: YAxisTickProps) => {
@@ -496,13 +496,13 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         </text>
       );
     },
-    [swellTicks]
+    [swellTicks],
   );
 
   const yAxisInsetPx = CHART_LEFT_MARGIN + Y_AXIS_WIDTH;
   const plotWidthPx = useMemo(
     () => Math.max(0, containerWidth - yAxisInsetPx - CHART_RIGHT_MARGIN),
-    [containerWidth, yAxisInsetPx]
+    [containerWidth, yAxisInsetPx],
   );
 
   const getTouchActivationFromChartX = React.useCallback(
@@ -536,18 +536,18 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       }
       const hoveredHour = Math.max(
         0,
-        Math.min(hours, Math.round(nearestTime / 3) * 3)
+        Math.min(hours, Math.round(nearestTime / 3) * 3),
       );
 
       return { defaultIndex: bestIndex, hoveredHour };
     },
-    [data, hours, plotWidthPx, yAxisInsetPx]
+    [data, hours, plotWidthPx, yAxisInsetPx],
   );
 
   const plotClipIdRaw = React.useId();
   const plotClipId = useMemo(
     () => `overview-swell-plot-clip-${plotClipIdRaw.replace(/:/g, "")}`,
-    [plotClipIdRaw]
+    [plotClipIdRaw],
   );
   const plotShading = useMemo(
     () =>
@@ -567,7 +567,7 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       chartTheme.dayShading,
       chartTheme.nightShading,
       chartTheme.shadingOpacity,
-    ]
+    ],
   );
   const edgeFill = useMemo(() => {
     const isDayAt = (h: number) =>
@@ -576,11 +576,11 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     const rightIsDay = isDayAt(Math.max(0, hours - 0.0001));
     const left = applyForecastShadingOpacity(
       leftIsDay ? chartTheme.dayShading : chartTheme.nightShading,
-      chartTheme.shadingOpacity
+      chartTheme.shadingOpacity,
     );
     const right = applyForecastShadingOpacity(
       rightIsDay ? chartTheme.dayShading : chartTheme.nightShading,
-      chartTheme.shadingOpacity
+      chartTheme.shadingOpacity,
     );
     return { left, right };
   }, [
@@ -708,7 +708,7 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       key: "primary" | "secondary" | "tertiary",
       cx: number,
       cy: number,
-      dx: number
+      dx: number,
     ) => {
       const prev = lastArrowPointRef.current[key];
       lastArrowPointRef.current[key] = { cx, cy };
@@ -724,7 +724,7 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       const t = Math.max(-1, Math.min(0, dx / vx));
       return { x: cx + dx, y: cy + t * vy };
     },
-    []
+    [],
   );
 
   // Mobile touch tooltip callbacks
@@ -738,7 +738,7 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       const clampedHour = Math.max(0, Math.min(roundedHour, hours));
       return Math.round(clampedHour / 3);
     },
-    [plotWidthPx, yAxisInsetPx, hours]
+    [plotWidthPx, yAxisInsetPx, hours],
   );
 
   const getMobileTooltipDataPoint = React.useCallback(
@@ -752,53 +752,31 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
 
       const dirLabel = (direction?: number) =>
         typeof direction === "number" ? getWindDirection(direction) : "--";
-      // Show all 3 swell values with colored 1/2/3 labels
+
       const formattedValue = (
-        <span className="inline-flex flex-col items-start gap-0.5">
-          <span className="inline-flex items-center gap-1.5">
-            <span className="inline-flex items-center gap-0.5">
+        <div className="mx-auto grid w-fit max-w-full grid-cols-3 gap-x-3">
+          <div className="min-w-0 flex flex-col items-center gap-1 text-center">
+            <div className="inline-flex items-baseline justify-center gap-1 whitespace-nowrap leading-none">
               <span
-                className="text-[0.65rem] font-bold"
+                className="text-[0.62rem] font-bold tabular-nums"
                 style={{ color: chartConfig.primary.color }}
               >
                 1
               </span>
-              <span className="text-xs font-semibold tabular-nums">
+              <span className="text-[0.82rem] font-semibold tabular-nums leading-none text-foreground">
                 {point.primary.toFixed(1)}
               </span>
-            </span>
-            <span className="inline-flex items-center gap-0.5">
-              <span
-                className="text-[0.65rem] font-bold"
-                style={{ color: chartConfig.secondary.color }}
-              >
-                2
+              <span className="text-[0.62rem] font-medium text-muted-foreground leading-none">
+                ft
               </span>
-              <span className="text-xs font-semibold tabular-nums">
-                {point.secondary.toFixed(1)}
+              <span className="text-[0.62rem] font-medium text-muted-foreground tabular-nums leading-none">
+                ·{" "}
+                {typeof point.primaryPeriod === "number"
+                  ? `${Math.round(point.primaryPeriod)}s`
+                  : "--s"}
               </span>
-            </span>
-            <span className="inline-flex items-center gap-0.5">
-              <span
-                className="text-[0.65rem] font-bold"
-                style={{ color: chartConfig.tertiary.color }}
-              >
-                3
-              </span>
-              <span className="text-xs font-semibold tabular-nums">
-                {point.tertiary.toFixed(1)}
-              </span>
-            </span>
-            <span className="text-[0.6rem] text-muted-foreground">ft</span>
-          </span>
-          <span className="inline-flex items-center gap-2 text-[0.6rem] text-muted-foreground">
-            <span className="inline-flex items-center gap-0.5">
-              <span
-                className="text-[0.6rem] font-bold"
-                style={{ color: chartConfig.primary.color }}
-              >
-                1
-              </span>
+            </div>
+            <div className="inline-flex items-center justify-center gap-1 whitespace-nowrap text-[0.62rem] leading-none text-muted-foreground">
               {typeof point.primaryDir === "number" ? (
                 <ArrowIcon
                   size={10}
@@ -809,15 +787,34 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
                   }}
                 />
               ) : null}
-              <span>{dirLabel(point.primaryDir)}</span>
-            </span>
-            <span className="inline-flex items-center gap-0.5">
+              <span className="font-medium leading-none">
+                {dirLabel(point.primaryDir)}
+              </span>
+            </div>
+          </div>
+
+          <div className="min-w-0 flex flex-col items-center gap-1 text-center">
+            <div className="inline-flex items-baseline justify-center gap-1 whitespace-nowrap leading-none">
               <span
-                className="text-[0.6rem] font-bold"
+                className="text-[0.62rem] font-bold tabular-nums"
                 style={{ color: chartConfig.secondary.color }}
               >
                 2
               </span>
+              <span className="text-[0.82rem] font-semibold tabular-nums leading-none text-foreground">
+                {point.secondary.toFixed(1)}
+              </span>
+              <span className="text-[0.62rem] font-medium text-muted-foreground leading-none">
+                ft
+              </span>
+              <span className="text-[0.62rem] font-medium text-muted-foreground tabular-nums leading-none">
+                ·{" "}
+                {typeof point.secondaryPeriod === "number"
+                  ? `${Math.round(point.secondaryPeriod)}s`
+                  : "--s"}
+              </span>
+            </div>
+            <div className="inline-flex items-center justify-center gap-1 whitespace-nowrap text-[0.62rem] leading-none text-muted-foreground">
               {typeof point.secondaryDir === "number" ? (
                 <ArrowIcon
                   size={10}
@@ -828,15 +825,34 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
                   }}
                 />
               ) : null}
-              <span>{dirLabel(point.secondaryDir)}</span>
-            </span>
-            <span className="inline-flex items-center gap-0.5">
+              <span className="font-medium leading-none">
+                {dirLabel(point.secondaryDir)}
+              </span>
+            </div>
+          </div>
+
+          <div className="min-w-0 flex flex-col items-center gap-1 text-center">
+            <div className="inline-flex items-baseline justify-center gap-1 whitespace-nowrap leading-none">
               <span
-                className="text-[0.6rem] font-bold"
+                className="text-[0.62rem] font-bold tabular-nums"
                 style={{ color: chartConfig.tertiary.color }}
               >
                 3
               </span>
+              <span className="text-[0.82rem] font-semibold tabular-nums leading-none text-foreground">
+                {point.tertiary.toFixed(1)}
+              </span>
+              <span className="text-[0.62rem] font-medium text-muted-foreground leading-none">
+                ft
+              </span>
+              <span className="text-[0.62rem] font-medium text-muted-foreground tabular-nums leading-none">
+                ·{" "}
+                {typeof point.tertiaryPeriod === "number"
+                  ? `${Math.round(point.tertiaryPeriod)}s`
+                  : "--s"}
+              </span>
+            </div>
+            <div className="inline-flex items-center justify-center gap-1 whitespace-nowrap text-[0.62rem] leading-none text-muted-foreground">
               {typeof point.tertiaryDir === "number" ? (
                 <ArrowIcon
                   size={10}
@@ -847,10 +863,12 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
                   }}
                 />
               ) : null}
-              <span>{dirLabel(point.tertiaryDir)}</span>
-            </span>
-          </span>
-        </span>
+              <span className="font-medium leading-none">
+                {dirLabel(point.tertiaryDir)}
+              </span>
+            </div>
+          </div>
+        </div>
       );
 
       return {
@@ -859,9 +877,10 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         value: point.primary,
         unit: "ft",
         formattedValue,
+        labelSpacing: "spacious",
       };
     },
-    [data]
+    [data],
   );
 
   const getDataPointForHour = React.useCallback(
@@ -876,51 +895,29 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       const dirLabel = (direction?: number) =>
         typeof direction === "number" ? getWindDirection(direction) : "--";
       const formattedValue = (
-        <span className="inline-flex flex-col items-start gap-0.5">
-          <span className="inline-flex items-center gap-1.5">
-            <span className="inline-flex items-center gap-0.5">
+        <div className="mx-auto grid w-fit max-w-full grid-cols-3 gap-x-3">
+          <div className="min-w-0 flex flex-col items-center gap-1 text-center">
+            <div className="inline-flex items-baseline justify-center gap-1 whitespace-nowrap leading-none">
               <span
-                className="text-[0.65rem] font-bold"
+                className="text-[0.62rem] font-bold tabular-nums"
                 style={{ color: chartConfig.primary.color }}
               >
                 1
               </span>
-              <span className="text-xs font-semibold tabular-nums">
+              <span className="text-[0.82rem] font-semibold tabular-nums leading-none text-foreground">
                 {point.primary.toFixed(1)}
               </span>
-            </span>
-            <span className="inline-flex items-center gap-0.5">
-              <span
-                className="text-[0.65rem] font-bold"
-                style={{ color: chartConfig.secondary.color }}
-              >
-                2
+              <span className="text-[0.62rem] font-medium text-muted-foreground leading-none">
+                ft
               </span>
-              <span className="text-xs font-semibold tabular-nums">
-                {point.secondary.toFixed(1)}
+              <span className="text-[0.62rem] font-medium text-muted-foreground tabular-nums leading-none">
+                ·{" "}
+                {typeof point.primaryPeriod === "number"
+                  ? `${Math.round(point.primaryPeriod)}s`
+                  : "--s"}
               </span>
-            </span>
-            <span className="inline-flex items-center gap-0.5">
-              <span
-                className="text-[0.65rem] font-bold"
-                style={{ color: chartConfig.tertiary.color }}
-              >
-                3
-              </span>
-              <span className="text-xs font-semibold tabular-nums">
-                {point.tertiary.toFixed(1)}
-              </span>
-            </span>
-            <span className="text-[0.6rem] text-muted-foreground">ft</span>
-          </span>
-          <span className="inline-flex items-center gap-2 text-[0.6rem] text-muted-foreground">
-            <span className="inline-flex items-center gap-0.5">
-              <span
-                className="text-[0.6rem] font-bold"
-                style={{ color: chartConfig.primary.color }}
-              >
-                1
-              </span>
+            </div>
+            <div className="inline-flex items-center justify-center gap-1 whitespace-nowrap text-[0.62rem] leading-none text-muted-foreground">
               {typeof point.primaryDir === "number" ? (
                 <ArrowIcon
                   size={10}
@@ -931,15 +928,34 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
                   }}
                 />
               ) : null}
-              <span>{dirLabel(point.primaryDir)}</span>
-            </span>
-            <span className="inline-flex items-center gap-0.5">
+              <span className="font-medium leading-none">
+                {dirLabel(point.primaryDir)}
+              </span>
+            </div>
+          </div>
+
+          <div className="min-w-0 flex flex-col items-center gap-1 text-center">
+            <div className="inline-flex items-baseline justify-center gap-1 whitespace-nowrap leading-none">
               <span
-                className="text-[0.6rem] font-bold"
+                className="text-[0.62rem] font-bold tabular-nums"
                 style={{ color: chartConfig.secondary.color }}
               >
                 2
               </span>
+              <span className="text-[0.82rem] font-semibold tabular-nums leading-none text-foreground">
+                {point.secondary.toFixed(1)}
+              </span>
+              <span className="text-[0.62rem] font-medium text-muted-foreground leading-none">
+                ft
+              </span>
+              <span className="text-[0.62rem] font-medium text-muted-foreground tabular-nums leading-none">
+                ·{" "}
+                {typeof point.secondaryPeriod === "number"
+                  ? `${Math.round(point.secondaryPeriod)}s`
+                  : "--s"}
+              </span>
+            </div>
+            <div className="inline-flex items-center justify-center gap-1 whitespace-nowrap text-[0.62rem] leading-none text-muted-foreground">
               {typeof point.secondaryDir === "number" ? (
                 <ArrowIcon
                   size={10}
@@ -950,15 +966,34 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
                   }}
                 />
               ) : null}
-              <span>{dirLabel(point.secondaryDir)}</span>
-            </span>
-            <span className="inline-flex items-center gap-0.5">
+              <span className="font-medium leading-none">
+                {dirLabel(point.secondaryDir)}
+              </span>
+            </div>
+          </div>
+
+          <div className="min-w-0 flex flex-col items-center gap-1 text-center">
+            <div className="inline-flex items-baseline justify-center gap-1 whitespace-nowrap leading-none">
               <span
-                className="text-[0.6rem] font-bold"
+                className="text-[0.62rem] font-bold tabular-nums"
                 style={{ color: chartConfig.tertiary.color }}
               >
                 3
               </span>
+              <span className="text-[0.82rem] font-semibold tabular-nums leading-none text-foreground">
+                {point.tertiary.toFixed(1)}
+              </span>
+              <span className="text-[0.62rem] font-medium text-muted-foreground leading-none">
+                ft
+              </span>
+              <span className="text-[0.62rem] font-medium text-muted-foreground tabular-nums leading-none">
+                ·{" "}
+                {typeof point.tertiaryPeriod === "number"
+                  ? `${Math.round(point.tertiaryPeriod)}s`
+                  : "--s"}
+              </span>
+            </div>
+            <div className="inline-flex items-center justify-center gap-1 whitespace-nowrap text-[0.62rem] leading-none text-muted-foreground">
               {typeof point.tertiaryDir === "number" ? (
                 <ArrowIcon
                   size={10}
@@ -969,10 +1004,12 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
                   }}
                 />
               ) : null}
-              <span>{dirLabel(point.tertiaryDir)}</span>
-            </span>
-          </span>
-        </span>
+              <span className="font-medium leading-none">
+                {dirLabel(point.tertiaryDir)}
+              </span>
+            </div>
+          </div>
+        </div>
       );
 
       return {
@@ -981,9 +1018,10 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         value: point.primary,
         unit: "ft",
         formattedValue,
+        labelSpacing: "spacious",
       };
     },
-    [data, getWindDirection]
+    [data, getWindDirection],
   );
 
   const getXPositionForHour = React.useCallback(
@@ -994,29 +1032,30 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       if (t < 0 || t > 1) return null;
       return yAxisInsetPx + t * plotWidthPx;
     },
-    [plotWidthPx, yAxisInsetPx, hours]
+    [plotWidthPx, yAxisInsetPx, hours],
   );
 
   const handleMobileInspect = React.useCallback(
     (_index: number, hour: number) => {
       setHoveredHour(hour);
     },
-    [setHoveredHour]
+    [setHoveredHour],
   );
 
   const handleMobileInspectEnd = React.useCallback(() => {
     setHoveredHour(null);
   }, [setHoveredHour]);
 
-  const { handlers: mobileHandlers, styles: mobileStyles } = useMobileChartTouch({
-    chartId: mobileChartId,
-    containerRef,
-    dataLength: data.length,
-    getIndexFromX: getIndexFromChartX,
-    onInspect: handleMobileInspect,
-    onInspectEnd: handleMobileInspectEnd,
-    enabled: isTouchOnlyDevice,
-  });
+  const { handlers: mobileHandlers, styles: mobileStyles } =
+    useMobileChartTouch({
+      chartId: mobileChartId,
+      containerRef,
+      dataLength: data.length,
+      getIndexFromX: getIndexFromChartX,
+      onInspect: handleMobileInspect,
+      onInspectEnd: handleMobileInspectEnd,
+      enabled: isTouchOnlyDevice,
+    });
 
   return (
     <div
@@ -1278,7 +1317,7 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
                   "primary",
                   cxNum,
                   cyNum,
-                  dx
+                  dx,
                 );
                 const direction = payload?.primaryDir ?? 0;
                 const rotation = direction - 315; // Arrow points at 315° by default
@@ -1325,7 +1364,7 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
                   "secondary",
                   cxNum,
                   cyNum,
-                  dx
+                  dx,
                 );
                 const direction = payload?.secondaryDir ?? 0;
                 const rotation = direction - 315;
@@ -1372,7 +1411,7 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
                   "tertiary",
                   cxNum,
                   cyNum,
-                  dx
+                  dx,
                 );
                 const direction = payload?.tertiaryDir ?? 0;
                 const rotation = direction - 315;
