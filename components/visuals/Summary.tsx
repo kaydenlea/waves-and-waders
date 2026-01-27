@@ -119,6 +119,17 @@ const TagsOverflowPopover = ({
     if (open) setPage(0);
   }, [open]);
 
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    window.addEventListener("scroll", close, { passive: true });
+    window.addEventListener("touchmove", close, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", close);
+      window.removeEventListener("touchmove", close);
+    };
+  }, [open]);
+
   const pageCount = Math.max(
     1,
     Math.ceil(tags.length / TAGS_POPOVER_PAGE_SIZE),

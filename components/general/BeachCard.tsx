@@ -63,10 +63,22 @@ const BeachCard = React.memo(
     const measureTagRefs = React.useRef<Array<HTMLDivElement | null>>([]);
     const moreMeasureRef = React.useRef<HTMLDivElement | null>(null);
     const [imageLoaded, setImageLoaded] = React.useState(false);
+    const [legendOpen, setLegendOpen] = React.useState(false);
 
     React.useEffect(() => {
       setImageLoaded(false);
     }, [b.image]);
+
+    React.useEffect(() => {
+      if (!legendOpen) return;
+      const close = () => setLegendOpen(false);
+      window.addEventListener("scroll", close, { passive: true });
+      window.addEventListener("touchmove", close, { passive: true });
+      return () => {
+        window.removeEventListener("scroll", close);
+        window.removeEventListener("touchmove", close);
+      };
+    }, [legendOpen]);
 
     React.useEffect(() => {
       return () => {
@@ -248,7 +260,7 @@ const BeachCard = React.memo(
                 />
               </span>
             </div>
-            <Popover>
+            <Popover open={legendOpen} onOpenChange={setLegendOpen}>
               <PopoverTrigger
                 asChild
                 className={cn(preview && "pointer-events-none")}
@@ -266,7 +278,7 @@ const BeachCard = React.memo(
                 side="bottom"
                 align="end"
                 sideOffset={8}
-                className="w-80 touch-pan-y max-w-[150px]"
+                className="z-40 w-80 touch-pan-y max-w-[150px]"
               >
                 <span className="text-[11px] font-semibold uppercase text-muted-foreground">
                   Direction Rings
