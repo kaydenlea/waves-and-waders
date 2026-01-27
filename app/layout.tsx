@@ -14,13 +14,15 @@ export default async function RootLayout({
   const supabase = await getServerSupabase();
 
   // Get the actual session data which includes access tokens
-  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  const { data: userData, error: userError } = await supabase.auth.getUser();
 
-  if (sessionError) {
-    console.error("Failed to load session", sessionError);
+  if (userError) {
+    console.error("Failed to load user", userError);
   }
 
-  const initialSession = session;
+  const initialSession = userData?.user
+    ? { user: userData.user }
+    : null;
   const baseUrl = getSiteUrl();
 
   const structuredData = {

@@ -10,8 +10,7 @@ import {
 import type React from "react";
 
 import type { Beach } from "@/components/general/BeachCard";
-import { SunDataProvider } from "@/components/context/SunDataContext";
-import HeroVisualDeck from "@/components/marketing/HeroVisualDeck";
+import HeroVisualDeckLazy from "@/components/marketing/HeroVisualDeckLazy";
 import type { ForecastData } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 
@@ -174,12 +173,10 @@ export default function Hero() {
             className="mx-auto w-full max-w-[480px] lg:mx-0 ww-hero-reveal motion-reduce:animate-none"
             style={{ animationDelay: "380ms" }}
           >
-            <SunDataProvider>
-              <HeroVisualDeck
-                previewBeach={previewBeach}
-                previewForecast={previewForecast}
-              />
-            </SunDataProvider>
+            <HeroVisualDeckLazy
+              previewBeach={previewBeach}
+              previewForecast={previewForecast}
+            />
           </div>
         </div>
       </div>

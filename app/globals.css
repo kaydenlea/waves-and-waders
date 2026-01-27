@@ -157,6 +157,7 @@
   /* Perf: disable expensive blur filters while scrolling. */
   body[data-ww-scrolling="1"] .ww-hero-float {
     filter: none !important;
+    opacity: 0 !important;
   }
 
   /* Perf: blend modes can be expensive while scrolling. */
@@ -195,11 +196,43 @@
     .ww-hero-blob-3,
     .ww-hero-float {
       animation: none !important;
+      filter: none !important;
     }
 
     .ww-hero-noise {
       mix-blend-mode: normal !important;
       opacity: 0.03 !important;
+    }
+  }
+
+  /* Perf: force lightweight hero effects on devices flagged at runtime. */
+  body[data-ww-lite="1"] .ww-hero-blob-1,
+  body[data-ww-lite="1"] .ww-hero-blob-2,
+  body[data-ww-lite="1"] .ww-hero-blob-3,
+  body[data-ww-lite="1"] .ww-hero-float {
+    animation: none !important;
+    filter: none !important;
+  }
+
+  body[data-ww-lite="1"] .ww-hero-noise {
+    mix-blend-mode: normal !important;
+    opacity: 0.03 !important;
+  }
+
+  body[data-ww-lite="1"] .ww-hero-reveal {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  /* Perf: drop hero blobs/noise on laptop-sized viewports. */
+  @media (max-width: 1440px) {
+    .ww-hero-blob-1,
+    .ww-hero-blob-2,
+    .ww-hero-blob-3,
+    .ww-hero-noise,
+    .ww-hero-float {
+      display: none !important;
     }
   }
 

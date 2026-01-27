@@ -715,6 +715,7 @@ export default function HeroVisualDeck({
   const deckContainerRef = React.useRef<HTMLDivElement | null>(null);
   const [deckScale, setDeckScale] = React.useState(1);
   const [deckReady, setDeckReady] = React.useState(false);
+  const [renderSlides, setRenderSlides] = React.useState(false);
 
   React.useEffect(() => {
     const el = deckContainerRef.current;
@@ -779,6 +780,33 @@ export default function HeroVisualDeck({
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+
+  React.useEffect(() => {
+    if (prefersReducedMotion) {
+      setRenderSlides(true);
+      return;
+    }
+
+    if (typeof window === "undefined") return;
+    let cancelled = false;
+    const schedule = () => {
+      if (!cancelled) setRenderSlides(true);
+    };
+
+    if ("requestIdleCallback" in window) {
+      const id = window.requestIdleCallback(schedule, { timeout: 400 });
+      return () => {
+        cancelled = true;
+        window.cancelIdleCallback?.(id);
+      };
+    }
+
+    const id = window.setTimeout(schedule, 120);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(id);
+    };
+  }, [prefersReducedMotion]);
 
   const basisDate = React.useMemo(() => {
     return selected instanceof Date && !Number.isNaN(selected.getTime())
@@ -1050,7 +1078,14 @@ export default function HeroVisualDeck({
                   {...((!isActive ? ({ inert: true } as any) : {}) as any)}
                 >
                   <div className="h-full rounded-[32px] border border-border/35 bg-background shadow-even overflow-hidden">
-                    {slide.render()}
+                    {renderSlides && isActive ? (
+                      slide.render()
+                    ) : (
+                      <div
+                        aria-hidden
+                        className="h-full w-full bg-[radial-gradient(circle_at_30%_20%,rgba(56,189,248,0.14),transparent_55%),radial-gradient(circle_at_80%_70%,rgba(59,130,246,0.10),transparent_45%)]"
+                      />
+                    )}
                   </div>
                 </motion.div>
               );
