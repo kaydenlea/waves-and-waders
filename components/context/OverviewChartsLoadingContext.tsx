@@ -15,6 +15,24 @@ let idCounter = 0;
 const makeId = (hint?: string) =>
   `${hint ?? "chart"}-${Date.now().toString(36)}-${idCounter++}`;
 
+type NamedInstances = Map<string, Map<string, boolean>>;
+const namedInstancesByProvider = new WeakMap<object, NamedInstances>();
+
+function getNamedInstances(providerKey: object): NamedInstances {
+  const existing = namedInstancesByProvider.get(providerKey);
+  if (existing) return existing;
+  const next: NamedInstances = new Map();
+  namedInstancesByProvider.set(providerKey, next);
+  return next;
+}
+
+function anyReady(instances: Map<string, boolean>) {
+  for (const ready of instances.values()) {
+    if (ready) return true;
+  }
+  return false;
+}
+
 export function OverviewChartsLoadingProvider({
   children,
   expectedCharts: expectedChartsProp,
@@ -107,19 +125,54 @@ export function useOverviewChartLoading(name?: string) {
     );
   }
   const idRef = React.useRef<string>(name ?? makeId());
+  const stableName = name;
+  const instanceIdRef = React.useRef<string>(makeId(stableName));
   const reportStatus = ctx.reportStatus;
   const unregister = ctx.unregister;
+  const providerKey = ctx as unknown as object;
 
   React.useEffect(() => {
-    reportStatus(idRef.current, false);
+    if (stableName === undefined) {
+      reportStatus(idRef.current, false);
+      return () => {
+        unregister(idRef.current);
+      };
+    }
+
+    const store = getNamedInstances(providerKey);
+    const instances = store.get(stableName) ?? new Map<string, boolean>();
+    store.set(stableName, instances);
+    instances.set(instanceIdRef.current, false);
+    reportStatus(stableName, anyReady(instances));
+
     return () => {
-      unregister(idRef.current);
+      const currentStore = namedInstancesByProvider.get(providerKey);
+      const currentInstances = currentStore?.get(stableName);
+      if (!currentStore || !currentInstances) return;
+      currentInstances.delete(instanceIdRef.current);
+      if (currentInstances.size === 0) {
+        currentStore.delete(stableName);
+        unregister(stableName);
+        if (currentStore.size === 0) namedInstancesByProvider.delete(providerKey);
+        return;
+      }
+      reportStatus(stableName, anyReady(currentInstances));
     };
-  }, [reportStatus, unregister]);
+  }, [providerKey, reportStatus, stableName, unregister]);
 
   const setReady = React.useCallback(
-    (ready: boolean) => reportStatus(idRef.current, ready),
-    [reportStatus]
+    (ready: boolean) => {
+      if (stableName === undefined) {
+        reportStatus(idRef.current, ready);
+        return;
+      }
+      const store = namedInstancesByProvider.get(providerKey);
+      const instances = store?.get(stableName);
+      if (!instances) return;
+      instances.set(instanceIdRef.current, ready);
+      reportStatus(stableName, anyReady(instances));
+    },
+    [providerKey, reportStatus, stableName]
   );
 
   return { setReady, loading: ctx.loading };
@@ -128,23 +181,58 @@ export function useOverviewChartLoading(name?: string) {
 export function useOptionalOverviewChartLoading(name?: string) {
   const ctx = React.useContext(OverviewChartsLoadingContext);
   const idRef = React.useRef<string>(name ?? makeId());
+  const stableName = name;
+  const instanceIdRef = React.useRef<string>(makeId(stableName));
   const reportStatus = ctx?.reportStatus;
   const unregister = ctx?.unregister;
+  const providerKey = (ctx ?? null) as unknown as object | null;
 
   React.useEffect(() => {
     if (!reportStatus || !unregister) return;
-    reportStatus(idRef.current, false);
+    if (stableName === undefined) {
+      reportStatus(idRef.current, false);
+      return () => {
+        unregister(idRef.current);
+      };
+    }
+    if (!providerKey) return;
+
+    const store = getNamedInstances(providerKey);
+    const instances = store.get(stableName) ?? new Map<string, boolean>();
+    store.set(stableName, instances);
+    instances.set(instanceIdRef.current, false);
+    reportStatus(stableName, anyReady(instances));
+
     return () => {
-      unregister(idRef.current);
+      const currentStore = namedInstancesByProvider.get(providerKey);
+      const currentInstances = currentStore?.get(stableName);
+      if (!currentStore || !currentInstances) return;
+      currentInstances.delete(instanceIdRef.current);
+      if (currentInstances.size === 0) {
+        currentStore.delete(stableName);
+        unregister(stableName);
+        if (currentStore.size === 0) namedInstancesByProvider.delete(providerKey);
+        return;
+      }
+      reportStatus(stableName, anyReady(currentInstances));
     };
-  }, [reportStatus, unregister]);
+  }, [providerKey, reportStatus, stableName, unregister]);
 
   const setReady = React.useCallback(
     (ready: boolean) => {
       if (!reportStatus) return;
-      reportStatus(idRef.current, ready);
+      if (stableName === undefined) {
+        reportStatus(idRef.current, ready);
+        return;
+      }
+      if (!providerKey) return;
+      const store = namedInstancesByProvider.get(providerKey);
+      const instances = store?.get(stableName);
+      if (!instances) return;
+      instances.set(instanceIdRef.current, ready);
+      reportStatus(stableName, anyReady(instances));
     },
-    [reportStatus]
+    [providerKey, reportStatus, stableName]
   );
 
   return { setReady, loading: ctx?.loading ?? false };

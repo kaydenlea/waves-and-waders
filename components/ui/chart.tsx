@@ -237,7 +237,7 @@ function ChartTooltipContent({
   return (
     <div
       className={cn(
-        "relative grid min-w-[9.5rem] items-start gap-2 overflow-hidden rounded-2xl border border-border/60 bg-background/90 px-2 py-2 text-xs shadow-[0_18px_45px_rgba(0,0,0,0.25)] ring-1 ring-white/10 backdrop-blur-md transition-transform duration-150 ease-out motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-95 before:pointer-events-none before:absolute before:inset-0 before:opacity-90 [@media(hover:none)_and_(pointer:coarse)]:min-w-[9.5rem] [@media(hover:none)_and_(pointer:coarse)]:px-2 [@media(hover:none)_and_(pointer:coarse)]:py-2",
+        "relative grid min-w-[9.5rem] items-start gap-2 overflow-hidden rounded-2xl border border-border/60 bg-background/90 px-2 py-2 text-xs shadow-[0_18px_45px_rgba(0,0,0,0.25)] ring-1 ring-white/10 backdrop-blur-md motion-safe:animate-in motion-safe:fade-in-0 before:pointer-events-none before:absolute before:inset-0 before:opacity-90 [@media(hover:none)_and_(pointer:coarse)]:min-w-[9.5rem] [@media(hover:none)_and_(pointer:coarse)]:px-2 [@media(hover:none)_and_(pointer:coarse)]:py-2",
         className
       )}
     >
@@ -456,6 +456,9 @@ function ChartTooltipViewportContent({
   }) {
   const contentRef = React.useRef<HTMLDivElement | null>(null);
   const [size, setSize] = React.useState({ width: 0, height: 0 });
+  const lastSizeRef = React.useRef<{ width: number; height: number } | null>(
+    null
+  );
   const lastCoordinateRef = React.useRef<{ x?: number; y?: number } | null>(
     null
   );
@@ -469,6 +472,7 @@ function ChartTooltipViewportContent({
     const update = () => {
       const rect = node.getBoundingClientRect();
       if (!rect.width || !rect.height) return;
+      lastSizeRef.current = { width: rect.width, height: rect.height };
       setSize((prev) =>
         prev.width !== rect.width || prev.height !== rect.height
           ? { width: rect.width, height: rect.height }
@@ -522,8 +526,15 @@ function ChartTooltipViewportContent({
     if (last && typeof last.y === "number") return last.y;
     return viewport.y;
   })();
-  const width = size.width || 0;
-  const height = size.height || 0;
+
+  const fallbackWidth = 260;
+  const fallbackHeight = 220;
+  const width =
+    size.width || lastSizeRef.current?.width || Math.min(fallbackWidth, viewport.width);
+  const height =
+    size.height ||
+    lastSizeRef.current?.height ||
+    Math.min(fallbackHeight, viewport.height);
 
   let x = coordX + offset;
   if (x + width > viewport.x + viewport.width) {
@@ -543,7 +554,7 @@ function ChartTooltipViewportContent({
         position: "absolute",
         left: 0,
         top: 0,
-        transform: `translate(${x}px, ${y}px)`,
+        transform: `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0)`,
       }}
     >
       <div ref={contentRef}>

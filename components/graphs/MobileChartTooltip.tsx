@@ -402,9 +402,9 @@ export function MobileChartTooltip({
     if (isThisChartActive && state.dataIndex !== null) {
       // This chart is being touched - use exact index
       dataPoint = getDataPoint(state.dataIndex);
-    } else if (getDataPointForHour) {
+    } else if (getDataPointForHour && state.syncHour !== null) {
       // This chart is synced - use syncHour to find data
-      dataPoint = getDataPointForHour(state.syncHour!);
+      dataPoint = getDataPointForHour(state.syncHour);
     }
 
     if (isAnyActive && dataPoint) {
@@ -447,9 +447,7 @@ export function MobileChartTooltip({
   const labelToValueGapClass =
     dataPoint.labelSpacing === "spacious" ? "mt-2" : "mt-0.5";
 
-  const visibilityClassName = isAnyActive
-    ? "opacity-100 translate-y-0"
-    : "opacity-0 -translate-y-1 delay-75";
+  const visibilityClassName = isAnyActive ? "opacity-100" : "opacity-0 delay-75";
 
   if (headerPortalEl) {
     const headerRect = headerPortalEl.getBoundingClientRect();
@@ -739,7 +737,7 @@ export function MobileChartTooltip({
       <div
         className={cn(
           "absolute inset-0 pointer-events-none",
-          "transition-[opacity,transform] duration-150 ease-out motion-reduce:transition-none",
+          "transition-opacity duration-150 ease-out motion-reduce:transition-none",
           visibilityClassName,
         )}
       >

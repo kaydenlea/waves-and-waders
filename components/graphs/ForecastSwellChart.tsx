@@ -1937,7 +1937,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
                           />
                         }
                         cursor={false}
-                        wrapperStyle={{ transform: "translate(0px, 0px)" }}
+                        wrapperStyle={{ display: "none" }}
                         animationDuration={0}
                         isAnimationActive={false}
                       />

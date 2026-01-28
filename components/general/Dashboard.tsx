@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { flushSync } from "react-dom";
+import { createPortal, flushSync } from "react-dom";
 import Link from "next/link";
 import { useSessionContext } from "@supabase/auth-helpers-react";
 import {
@@ -9,12 +9,14 @@ import {
   DragOverlay,
   type DragEndEvent,
   DragStartEvent,
+  type CollisionDetection,
   PointerSensor,
   useSensor,
   useSensors,
   useDraggable,
   useDroppable,
   closestCenter,
+  pointerWithin,
   TouchSensor,
   AutoScrollActivator,
 } from "@dnd-kit/core";
@@ -27,6 +29,8 @@ import {
   type Row,
   type WidgetId,
   type WidgetMeta,
+  normalizeRowsForSingleColumn,
+  packRowsForTwoColumn,
 } from "./dashboardLayout";
 import {
   DashboardWidgetMiniature,
@@ -53,7 +57,10 @@ const DashboardDragOverlay = React.memo(function DashboardDragOverlay({
   variant: "full" | "half";
   renderWidget: (id: WidgetId, variant: "full" | "half") => React.ReactNode;
 }) {
-  const node = React.useMemo(() => renderWidget(id, variant), [id, renderWidget, variant]);
+  const node = React.useMemo(
+    () => renderWidget(id, variant),
+    [id, renderWidget, variant],
+  );
   if (!node) return null;
 
   return (
@@ -71,6 +78,17 @@ const DashboardDragOverlay = React.memo(function DashboardDragOverlay({
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 rounded-[22px] bg-foreground/10"
       />
+      <div
+        aria-hidden="true"
+        className={cn(
+          "touch-none cursor-grabbing rounded-full",
+          "grid size-8 place-items-center ring-1 ring-border/25",
+          "bg-foreground/5 text-foreground/80 shadow-sm",
+          "absolute left-4 top-4 z-[60]",
+        )}
+      >
+        <GripVertical className="h-4.5 w-4.5 text-foreground/80" />
+      </div>
     </div>
   );
 });
@@ -129,6 +147,13 @@ const DraggableCard = React.memo(function DraggableCard({
     id: `w:${id}`,
   });
 
+  const resolvedVariant = renderVariant ?? (isFull ? "full" : "half");
+  const renderedWidgetNode = React.useMemo(() => {
+    if (!renderWidget) return null;
+    if (!meta) return null;
+    return renderWidget(id, resolvedVariant);
+  }, [id, meta, renderWidget, resolvedVariant]);
+
   if (!meta) return null;
 
   const isShortStats =
@@ -147,13 +172,13 @@ const DraggableCard = React.memo(function DraggableCard({
         : undefined;
 
   if (renderWidget) {
-    const content = renderWidget(id, renderVariant ?? (isFull ? "full" : "half"));
+    const content = renderedWidgetNode;
     if (!content) return null;
 
     const opacityClass = dim
       ? "opacity-60"
       : isDragging && usesDragOverlay
-        ? "opacity-35"
+        ? "opacity-20 grayscale"
         : isDragging
           ? "opacity-80"
           : "opacity-100";
@@ -179,7 +204,10 @@ const DraggableCard = React.memo(function DraggableCard({
         {dim || isDragging ? (
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-0 rounded-[22px] bg-foreground/10 z-50"
+            className={cn(
+              "pointer-events-none absolute inset-0 rounded-[22px] z-50",
+              dim ? "bg-foreground/10" : "bg-foreground/5",
+            )}
           />
         ) : null}
         <button
@@ -271,26 +299,121 @@ const Gap = React.memo(function Gap({
   className?: string;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: gapId(index) });
+  const localRef = React.useRef<HTMLDivElement | null>(null);
+  const rafRef = React.useRef<number | null>(null);
+  const [overlayRect, setOverlayRect] = React.useState<{
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+  } | null>(null);
+  const setRefs = React.useCallback(
+    (node: HTMLDivElement | null) => {
+      localRef.current = node;
+      setNodeRef(node);
+    },
+    [setNodeRef],
+  );
+
+  React.useLayoutEffect(() => {
+    if (!isOver) {
+      setOverlayRect(null);
+      if (rafRef.current != null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      return;
+    }
+    if (typeof window === "undefined") return;
+
+    const measure = () => {
+      const el = localRef.current;
+      if (!el) {
+        setOverlayRect(null);
+        return;
+      }
+      const rect = el.getBoundingClientRect();
+      const next = {
+        left: rect.left,
+        top: rect.top,
+        width: rect.width,
+        height: rect.height,
+      };
+      setOverlayRect((prev) => {
+        if (
+          prev &&
+          prev.left === next.left &&
+          prev.top === next.top &&
+          prev.width === next.width &&
+          prev.height === next.height
+        )
+          return prev;
+        return next;
+      });
+      rafRef.current = window.requestAnimationFrame(measure);
+    };
+
+    rafRef.current = window.requestAnimationFrame(measure);
+    return () => {
+      if (rafRef.current != null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+    };
+  }, [isOver]);
+
+  const showOverlay =
+    isOver && overlayRect != null && typeof document !== "undefined";
+  const showInline = isOver && !showOverlay;
+
   return (
-    <div
-      ref={setNodeRef}
-      className={cn("relative w-full select-none z-50 py-3", className)}
-    >
+    <>
       <div
-        className={cn(
-          "h-2 rounded transition-colors",
-          isOver ? "bg-indigo-500/90" : "bg-transparent",
-        )}
-      />
-      {isOver ? (
+        ref={setRefs}
+        className={cn("relative w-full select-none py-4", className)}
+      >
         <div
-          className="pointer-events-none absolute -mt-8 w-full text-center text-xs font-medium text-indigo-400"
-          aria-hidden
-        >
-          Drop to create a new row
-        </div>
-      ) : null}
-    </div>
+          className={cn(
+            "h-2 rounded transition-colors",
+            showInline ? "bg-indigo-500/90" : "bg-transparent",
+          )}
+        />
+        {showInline ? (
+          <div
+            className="pointer-events-none absolute -mt-8 w-full text-center text-xs font-medium text-indigo-400"
+            aria-hidden
+          >
+            Drop to create a new row
+          </div>
+        ) : null}
+      </div>
+      {showOverlay
+        ? createPortal(
+            <div
+              aria-hidden="true"
+              style={{
+                position: "fixed",
+                left: overlayRect.left,
+                top: overlayRect.top,
+                width: overlayRect.width,
+                height: overlayRect.height,
+                pointerEvents: "none",
+                zIndex: 1000002,
+              }}
+            >
+              <div
+                className={cn("relative w-full select-none py-4", className)}
+              >
+                <div className="h-2 rounded bg-indigo-500/90" />
+                <div className="pointer-events-none absolute -mt-8 w-full text-center text-xs font-medium text-indigo-400">
+                  Drop to create a new row
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
   );
 });
 
@@ -319,7 +442,7 @@ const Slot = React.memo(function Slot({
       ref={setNodeRef}
       className={cn(
         "relative flex flex-col flex-1 min-w-0 self-stretch",
-        highlight && "rounded-xl ring-2 ring-indigo-400",
+        highlight && "rounded-[22px] ring-2 ring-indigo-400",
         className,
       )}
     >
@@ -340,56 +463,60 @@ function cloneRows(rows: Row[]): Row[] {
   return rows.map((r) => ({ id: r.id, items: [...r.items] }));
 }
 
-function normalizeRowsForSingleColumn(rows: Row[]): Row[] {
-  const next: Row[] = [];
-  for (const row of rows) {
-    if (row.items.length <= 1) {
-      next.push(row);
-      continue;
-    }
-    next.push({ id: row.id, items: [row.items[0]] });
-    for (const item of row.items.slice(1)) {
-      next.push({ id: rid(), items: [item] });
-    }
-  }
-  return next;
-}
-
-function packRowsForTwoColumn(
+function sanitizeRows(
   rows: Row[],
   meta: Partial<Record<WidgetId, WidgetMeta>>,
 ): Row[] {
-  const singles = normalizeRowsForSingleColumn(rows);
+  const usedRowIds = new Set<string>();
+  const usedWidgets = new Set<WidgetId>();
   const next: Row[] = [];
 
-  for (let i = 0; i < singles.length; i++) {
-    const row = singles[i];
-    const item = row.items[0];
-    if (!item) continue;
+  for (const row of rows) {
+    const items = row.items.filter((id) => {
+      if (!meta[id]) return false;
+      if (usedWidgets.has(id)) return false;
+      usedWidgets.add(id);
+      return true;
+    });
+    if (!items.length) continue;
 
-    const span = meta[item]?.span;
-    const isFull = span === "full" || Boolean(meta[item]?.immutableFull);
-    if (isFull) {
-      next.push({ id: row.id, items: [item] });
-      continue;
+    let id = row.id || rid();
+    if (usedRowIds.has(id)) {
+      let suffix = 1;
+      while (usedRowIds.has(`${id}:${suffix}`)) suffix++;
+      id = `${id}:${suffix}`;
     }
+    usedRowIds.add(id);
 
-    const nextRow = singles[i + 1];
-    const nextItem = nextRow?.items[0];
-    const nextSpan = nextItem ? meta[nextItem]?.span : undefined;
-    const nextIsFull =
-      nextSpan === "full" || Boolean(nextItem && meta[nextItem]?.immutableFull);
-
-    if (nextItem && !nextIsFull) {
-      next.push({ id: row.id, items: [item, nextItem] });
-      i++;
-      continue;
-    }
-
-    next.push({ id: row.id, items: [item] });
+    next.push({ id, items });
   }
 
   return next;
+}
+
+function finalizeRows(
+  prev: Row[],
+  next: Row[],
+  meta: Partial<Record<WidgetId, WidgetMeta>>,
+) {
+  const sanitized = sanitizeRows(next, meta);
+  return rowsEqual(prev, sanitized) ? prev : sanitized;
+}
+
+function rowsEqual(a: Row[], b: Row[]) {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const ra = a[i];
+    const rb = b[i];
+    if (!ra || !rb) return false;
+    if (ra.id !== rb.id) return false;
+    if (ra.items.length !== rb.items.length) return false;
+    for (let j = 0; j < ra.items.length; j++) {
+      if (ra.items[j] !== rb.items[j]) return false;
+    }
+  }
+  return true;
 }
 
 /* -------------------------------- Dashboard -------------------------------- */
@@ -425,6 +552,24 @@ export default function Dashboard({
   const twoColumnSentinelRef = React.useRef<HTMLDivElement | null>(null);
   const [isTwoColumn, setIsTwoColumn] = React.useState(true);
 
+  const safeRows = useMemo(() => sanitizeRows(rows, meta), [meta, rows]);
+
+  React.useLayoutEffect(() => {
+    if (activeWidget) return;
+    if (rowsEqual(rows, safeRows)) return;
+    setRows(safeRows);
+  }, [activeWidget, rows, safeRows, setRows]);
+
+  React.useEffect(() => {
+    if (typeof document === "undefined") return;
+    if (!activeWidget) return;
+    const prev = document.body.style.cursor;
+    document.body.style.cursor = "grabbing";
+    return () => {
+      document.body.style.cursor = prev;
+    };
+  }, [activeWidget]);
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 1 } }),
     useSensor(TouchSensor, {
@@ -433,8 +578,8 @@ export default function Dashboard({
   );
 
   const visibleRows = useMemo(
-    () => rows.filter((r) => r.items.some((id) => meta[id]?.visible)),
-    [rows, meta],
+    () => safeRows.filter((r) => r.items.some((id) => meta[id]?.visible)),
+    [safeRows, meta],
   );
   React.useLayoutEffect(() => {
     if (!containerRef.current) return;
@@ -457,22 +602,14 @@ export default function Dashboard({
     return () => ro.disconnect();
   }, []);
 
-  const prevTwoColRef = React.useRef<boolean | null>(null);
-  React.useEffect(() => {
-    if (prevTwoColRef.current === null) {
-      prevTwoColRef.current = isTwoColumn;
-      return;
-    }
+  React.useLayoutEffect(() => {
     if (activeWidget) return;
-    if (prevTwoColRef.current === isTwoColumn) return;
-
-    if (!isTwoColumn) {
-      setRows((prev) => normalizeRowsForSingleColumn(prev));
-    } else {
-      setRows((prev) => packRowsForTwoColumn(prev, meta));
-    }
-
-    prevTwoColRef.current = isTwoColumn;
+    setRows((prev) => {
+      const next = isTwoColumn
+        ? packRowsForTwoColumn(prev, meta)
+        : normalizeRowsForSingleColumn(prev);
+      return finalizeRows(prev, next, meta);
+    });
   }, [activeWidget, isTwoColumn, meta, setRows]);
   if (!session && !allowAnonymous) {
     return (
@@ -522,17 +659,20 @@ export default function Dashboard({
         flushSync(() => setActiveWidget(null));
         return;
       }
-      const srcRowIndex = rows.findIndex((r) => r.items.includes(active));
-      if (srcRowIndex === -1) {
-        flushSync(() => setActiveWidget(null));
-        return;
-      }
-      const next = cloneRows(rows);
-      const [movedRow] = next.splice(srcRowIndex, 1);
-      const insertIndex = gapIndex > srcRowIndex ? gapIndex - 1 : gapIndex;
-      next.splice(Math.max(0, Math.min(insertIndex, next.length)), 0, movedRow);
       flushSync(() => {
-        setRows(next);
+        setRows((prev) => {
+          const srcRowIndex = prev.findIndex((r) => r.items.includes(active));
+          if (srcRowIndex === -1) return prev;
+          const next = cloneRows(prev);
+          const [movedRow] = next.splice(srcRowIndex, 1);
+          const insertIndex = gapIndex > srcRowIndex ? gapIndex - 1 : gapIndex;
+          next.splice(
+            Math.max(0, Math.min(insertIndex, next.length)),
+            0,
+            movedRow,
+          );
+          return finalizeRows(prev, next, meta);
+        });
         setActiveWidget(null);
       });
       return;
@@ -553,22 +693,22 @@ export default function Dashboard({
         flushSync(() => setActiveWidget(null));
         return;
       }
-
-      // find source row index (the row that contains the active widget)
-      const srcRowIndex = rows.findIndex((r) => r.items.includes(active));
-      if (srcRowIndex === -1) {
-        flushSync(() => setActiveWidget(null));
-        return;
-      }
-
-      const next = cloneRows(rows);
-      const [movedRow] = next.splice(srcRowIndex, 1);
-
-      // insert at gapIndex (gaps index correspond to position before row at that index)
-      const insertIndex = gapIndex > srcRowIndex ? gapIndex - 1 : gapIndex;
-      next.splice(Math.max(0, Math.min(insertIndex, next.length)), 0, movedRow);
       flushSync(() => {
-        setRows(next);
+        setRows((prev) => {
+          const srcRowIndex = prev.findIndex((r) => r.items.includes(active));
+          if (srcRowIndex === -1) return prev;
+
+          const next = cloneRows(prev);
+          const [movedRow] = next.splice(srcRowIndex, 1);
+
+          const insertIndex = gapIndex > srcRowIndex ? gapIndex - 1 : gapIndex;
+          next.splice(
+            Math.max(0, Math.min(insertIndex, next.length)),
+            0,
+            movedRow,
+          );
+          return finalizeRows(prev, next, meta);
+        });
         setActiveWidget(null);
       });
       return;
@@ -582,10 +722,32 @@ export default function Dashboard({
         return;
       }
       const { rowId, pos } = slot;
+      const targetRow = safeRows.find((r) => r.id === rowId);
+      const sourceRowId =
+        safeRows.find((r) => r.items.includes(active))?.id ?? null;
+      const isSameRow = sourceRowId != null && sourceRowId === rowId;
+      const treatOccupiedSingleAsRowLevel =
+        !isSameRow && targetRow?.items.length === 1 && pos === 0;
+      const shouldConvertActiveToHalf =
+        allowSlotDropAsHalf &&
+        !isSameRow &&
+        !treatOccupiedSingleAsRowLevel &&
+        !!targetRow &&
+        (targetRow.items.length === 2 ||
+          (targetRow.items.length === 1 && pos === 1));
+      const insertAfterWhenDroppingOnOccupiedSingle = (() => {
+        const activeRect =
+          e.active.rect.current.translated ?? e.active.rect.current.initial;
+        const overRect = e.over?.rect;
+        if (!activeRect || !overRect) return true;
+        const activeCenterY = activeRect.top + activeRect.height / 2;
+        const overCenterY = overRect.top + overRect.height / 2;
+        return activeCenterY >= overCenterY;
+      })();
 
       flushSync(() => {
         // A full-width widget can become half-width when dropped into a slot.
-        if (allowSlotDropAsHalf) {
+        if (shouldConvertActiveToHalf) {
           setMeta((prev) => ({
             ...prev,
             [active]: { ...prev[active], span: "half" },
@@ -593,8 +755,7 @@ export default function Dashboard({
         }
 
         // Convert a full-width target row to half-width before placing into its slot.
-        const targetRow = rows.find((r) => r.id === rowId);
-        if (targetRow) {
+        if (!treatOccupiedSingleAsRowLevel && targetRow && pos === 1) {
           const tgtIsFull =
             targetRow.items.length === 1 &&
             meta[targetRow.items[0]]?.span === "full";
@@ -629,9 +790,30 @@ export default function Dashboard({
               const tmp = tgtRow.items[pos];
               tgtRow.items[pos] = active;
               tgtRow.items[srcPos] = tmp as WidgetId;
-              return next;
+              return finalizeRows(prev, next, meta);
             }
             return prev;
+          }
+
+          // When dropping onto the *occupied* side of a single-widget row,
+          // treat it as a row-level drop (insert before/after) rather than
+          // merging into a 2-up row. Merging is still available by dropping
+          // into the empty slot (pos=1).
+          if (tgtRow.items.length === 1 && pos === 0) {
+            srcRow.items.splice(srcPos, 1);
+            if (srcRow.items.length === 0) next.splice(srcIdx, 1);
+
+            const targetIndexNow = next.findIndex((r) => r.id === rowId);
+            if (targetIndexNow === -1) return prev;
+
+            const insertAt =
+              targetIndexNow +
+              (insertAfterWhenDroppingOnOccupiedSingle ? 1 : 0);
+            next.splice(Math.max(0, Math.min(insertAt, next.length)), 0, {
+              id: rid(),
+              items: [active],
+            });
+            return finalizeRows(prev, next, meta);
           }
 
           srcRow.items.splice(srcPos, 1);
@@ -640,12 +822,12 @@ export default function Dashboard({
 
           if (tgtRow.items.length === 0) {
             tgtRow.items = [active];
-            return next;
+            return finalizeRows(prev, next, meta);
           }
           if (tgtRow.items.length === 1) {
             if (pos === 0) tgtRow.items = [active, tgtRow.items[0]];
             else tgtRow.items.push(active);
-            return next;
+            return finalizeRows(prev, next, meta);
           }
 
           const displaced = tgtRow.items[pos];
@@ -655,11 +837,11 @@ export default function Dashboard({
             const newSrcIdx = next.findIndex((r) => r.id === srcRow.id);
             if (newSrcIdx !== -1 && next[newSrcIdx].items.length < 2) {
               next[newSrcIdx].items.push(displaced);
-              return next;
+              return finalizeRows(prev, next, meta);
             }
           }
           next.splice(srcIdx, 0, { id: rid(), items: [displaced] });
-          return next;
+          return finalizeRows(prev, next, meta);
         });
 
         setActiveWidget(null);
@@ -675,6 +857,14 @@ export default function Dashboard({
       }
 
       flushSync(() => {
+        // Dropping a half-width widget onto a gap is treated as "make a new row",
+        // which should persist as full-width across breakpoints.
+        if (meta[active]?.span !== "full" && !meta[active]?.immutableFull) {
+          setMeta((prev) => ({
+            ...prev,
+            [active]: { ...prev[active], span: "full" },
+          }));
+        }
         setRows((prev) => {
           const next = cloneRows(prev);
           const srcIdx = next.findIndex((r) => r.items.includes(active));
@@ -690,7 +880,7 @@ export default function Dashboard({
             id: rid(),
             items: [active],
           });
-          return next;
+          return finalizeRows(prev, next, meta);
         });
         setActiveWidget(null);
       });
@@ -735,7 +925,7 @@ export default function Dashboard({
           else next.push({ id: rid(), items: [id] });
         }
       }
-      return next;
+      return finalizeRows(prev, next, meta);
     });
   }
 
@@ -760,7 +950,7 @@ export default function Dashboard({
     if (!renderWidget) return null;
     if (activeWidget === "table") return "half";
 
-    const row = rows.find((r) => r.items.includes(activeWidget));
+    const row = safeRows.find((r) => r.items.includes(activeWidget));
     if (!row) return "half";
     const visibleItems = row.items.filter((wid) => meta[wid]?.visible);
     if (visibleItems.length !== 1) return "half";
@@ -807,22 +997,23 @@ export default function Dashboard({
               //   </button>
               // )}
               typeof m.visible !== "undefined" && (
-                <button
-                  key={m.id}
-                  className={cn(
-                    "flex items-center justify-center gap-1 px-2 py-1 rounded-xl border border-border shadow-sm hover:border-muted-foreground text-xs",
-                    m.visible ? "bg-green" : "bg-red",
-                  )}
-                  aria-label={`toggle ${m.title} visibility`}
-                  onClick={() => toggleVisible(m.id)}
-                >
-                  {m.visible ? (
-                    <Check className="w-4 h-4" strokeWidth={3} />
-                  ) : (
-                    <X className="w-4 h-4" strokeWidth={3} />
-                  )}
-                  <span>{m.title}</span>
-                </button>
+                <React.Fragment key={m.id}>
+                  <button
+                    className={cn(
+                      "flex items-center justify-center gap-1 px-2 py-1 rounded-xl border border-border shadow-sm hover:border-muted-foreground text-xs",
+                      m.visible ? "bg-green" : "bg-red",
+                    )}
+                    aria-label={`toggle ${m.title} visibility`}
+                    onClick={() => toggleVisible(m.id)}
+                  >
+                    {m.visible ? (
+                      <Check className="w-4 h-4" strokeWidth={3} />
+                    ) : (
+                      <X className="w-4 h-4" strokeWidth={3} />
+                    )}
+                    <span>{m.title}</span>
+                  </button>
+                </React.Fragment>
               ),
           )}
           <button
@@ -847,25 +1038,35 @@ export default function Dashboard({
           // Use the draggable rect as the activator so the dragged widget stays stable
           // against the viewport edge while the page auto-scrolls.
           activator: AutoScrollActivator.Pointer,
-          // Reduce edge-jitter by avoiding extra scroll "compensation" while dragging.
-          layoutShiftCompensation: false,
+          // Keep the grabbed widget aligned with the pointer when the dashboard
+          // layout reflows (e.g. single-row widgets temporarily become half width).
+          layoutShiftCompensation: true,
           threshold: { x: 0.2, y: 0.25 },
           interval: 8,
         }}
         modifiers={[restrictToWindowEdges]}
       >
-        <DragOverlay dropAnimation={null} adjustScale={false}>
-          {activeWidget && renderWidget && dragOverlayVariant ? (
-            <DashboardDragOverlay
-              id={activeWidget}
-              variant={dragOverlayVariant}
-              renderWidget={renderWidget}
-            />
-          ) : null}
-        </DragOverlay>
+        {typeof document !== "undefined"
+          ? createPortal(
+              <DragOverlay
+                dropAnimation={null}
+                adjustScale={false}
+                zIndex={1000001}
+              >
+                {activeWidget && renderWidget && dragOverlayVariant ? (
+                  <DashboardDragOverlay
+                    id={activeWidget}
+                    variant={dragOverlayVariant}
+                    renderWidget={renderWidget}
+                  />
+                ) : null}
+              </DragOverlay>,
+              document.body,
+            )
+          : null}
         {/* Render rows and gaps. Nothing reflows during drag; only indicators update */}
         <div>
-          {rows.map((row, idx) => {
+          {safeRows.map((row, idx) => {
             const visibleItems = row.items.filter((id) => meta[id]?.visible);
             if (visibleItems.length === 0) return null;
             const spacingClass = idx === 0 ? "pt-4" : "pt-5";
@@ -973,7 +1174,7 @@ export default function Dashboard({
           })}
 
           {/* trailing gap */}
-          <Gap index={rows.length} className="pt-5 pb-4" />
+          <Gap index={safeRows.length} className="pt-5 pb-4" />
         </div>
       </DndContext>
       <style jsx global>{`

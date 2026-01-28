@@ -142,7 +142,7 @@ const ForecastBridge: React.FC<Props> = ({
 
   const [uncontrolledDailyTableDensity, setUncontrolledDailyTableDensity] =
 
-    useState<StatTableDensity>("3h");
+    useState<StatTableDensity>("12h");
 
   const skipDailyTableDensityPersistRef = useRef(true);
 

@@ -1705,7 +1705,7 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
         getDataPointForHour={getDataPointForHour}
         anchorRef={containerRef}
         getXPositionForHour={getXPositionForHour}
-        renderCursor
+        renderCursor={isTouchOnlyDevice}
         cursorStyle={tooltipCursorStyle}
         cursorInsets={{
           top: 0,

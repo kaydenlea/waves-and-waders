@@ -14,6 +14,7 @@ import type {
 } from "@/components/general/dashboardLayout";
 import Dashboard from "@/components/general/Dashboard";
 import { useDashboardLayout } from "@/components/general/useDashboardLayout";
+import { packRowsForTwoColumn } from "@/components/general/dashboardLayout";
 
 type Props = {
   beachParam: string;
@@ -54,7 +55,7 @@ export default function DashboardEditorScreen({
       if (current !== base) router.replace(base, { scroll: false });
     }
 
-    queueLayoutApply({ type, meta, rows });
+    queueLayoutApply({ type, meta, rows: packRowsForTwoColumn(rows, meta) });
     requestScrollTo(sectionId);
     exitEdit();
   };

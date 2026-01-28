@@ -279,9 +279,12 @@ const DateSummaryBridge: React.FC<Props> = ({
     cacheLayout({ type: "overview", meta: layoutMeta, rows: layoutRows });
   }, [cacheLayout, isEditing, layoutHydrated, layoutMeta, layoutRows]);
   const [forecastWindow, setForecastWindow] = React.useState("Select range");
-  const [dailyTableDensity, setDailyTableDensity] =
+  const [overviewTableDensity, setOverviewTableDensity] =
     React.useState<StatTableDensity>("3h");
-  const skipDailyTableDensityPersistRef = React.useRef(true);
+  const [forecastTableDensity, setForecastTableDensity] =
+    React.useState<StatTableDensity>("12h");
+  const skipOverviewTableDensityPersistRef = React.useRef(true);
+  const skipForecastTableDensityPersistRef = React.useRef(true);
   const [dailyTableUi, setDailyTableUi] =
     React.useState<StatTableUiState | null>(null);
   const onDailyTableUiStateChange = React.useCallback(
@@ -301,7 +304,7 @@ const DateSummaryBridge: React.FC<Props> = ({
     []
   );
   const toggleDailyTableDensity = React.useCallback(() => {
-    setDailyTableDensity((prev) => (prev === "3h" ? "12h" : "3h"));
+    setOverviewTableDensity((prev) => (prev === "3h" ? "12h" : "3h"));
   }, []);
 
   React.useEffect(() => {
@@ -310,24 +313,49 @@ const DateSummaryBridge: React.FC<Props> = ({
         "waves-and-waders.statTable.density"
       );
       if (stored === "3h" || stored === "12h") {
-        skipDailyTableDensityPersistRef.current = true;
-        setDailyTableDensity(stored);
+        skipOverviewTableDensityPersistRef.current = true;
+        setOverviewTableDensity(stored);
       }
     } catch {}
   }, []);
 
   React.useEffect(() => {
-    if (skipDailyTableDensityPersistRef.current) {
-      skipDailyTableDensityPersistRef.current = false;
+    if (skipOverviewTableDensityPersistRef.current) {
+      skipOverviewTableDensityPersistRef.current = false;
       return;
     }
     try {
       window.localStorage.setItem(
         "waves-and-waders.statTable.density",
-        dailyTableDensity
+        overviewTableDensity
       );
     } catch {}
-  }, [dailyTableDensity]);
+  }, [overviewTableDensity]);
+
+  React.useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(
+        "waves-and-waders.forecastTable.density"
+      );
+      if (stored === "3h" || stored === "12h") {
+        skipForecastTableDensityPersistRef.current = true;
+        setForecastTableDensity(stored);
+      }
+    } catch {}
+  }, []);
+
+  React.useEffect(() => {
+    if (skipForecastTableDensityPersistRef.current) {
+      skipForecastTableDensityPersistRef.current = false;
+      return;
+    }
+    try {
+      window.localStorage.setItem(
+        "waves-and-waders.forecastTable.density",
+        forecastTableDensity
+      );
+    } catch {}
+  }, [forecastTableDensity]);
 
   const defaultSelectedMs = React.useMemo(
     () => getPacificMidnightUTC().getTime(),
@@ -963,7 +991,7 @@ const DateSummaryBridge: React.FC<Props> = ({
           );
         case "table": {
           const tableUnit =
-            (dailyTableUi?.effectiveDensity ?? dailyTableDensity) === "12h"
+            (dailyTableUi?.effectiveDensity ?? overviewTableDensity) === "12h"
               ? "12 hrs"
               : "3 hrs";
           return (
@@ -978,7 +1006,7 @@ const DateSummaryBridge: React.FC<Props> = ({
                 numDays={1}
                 date={selectedDateForData}
                 variant={isFull ? "full" : "half"}
-                density={dailyTableDensity}
+                density={overviewTableDensity}
                 onToggleDensity={toggleDailyTableDensity}
                 onUiStateChange={onDailyTableUiStateChange}
               />
@@ -991,7 +1019,7 @@ const DateSummaryBridge: React.FC<Props> = ({
     },
     [
       beachId,
-      dailyTableDensity,
+      overviewTableDensity,
       dailyTableUi,
       onDailyTableUiStateChange,
       selectedDateForData,
@@ -1253,9 +1281,9 @@ const DateSummaryBridge: React.FC<Props> = ({
                             initialMeta={initialForecastMeta ?? undefined}
                             initialRows={initialForecastRows ?? undefined}
                             cardVariant="forecast"
-                            tableDensity={dailyTableDensity}
+                            tableDensity={forecastTableDensity}
                             onTableDensityChange={(next) =>
-                              setDailyTableDensity(next)
+                              setForecastTableDensity(next)
                             }
                           />
                         </ForecastDataProvider>

@@ -3,11 +3,12 @@
 import * as React from "react";
 import { useToast } from "@/components/providers/ToastProvider";
 
-import type {
-  DashboardType,
-  Row,
-  WidgetId,
-  WidgetMeta,
+import {
+  packRowsForTwoColumn,
+  type DashboardType,
+  type Row,
+  type WidgetId,
+  type WidgetMeta,
 } from "@/components/general/dashboardLayout";
 
 type PendingLayoutApply = {
@@ -46,12 +47,12 @@ export function DashboardEditModeProvider({
   children: React.ReactNode;
 }) {
   const { toast } = useToast();
-  const cachedLayoutsRef = React.useRef<Partial<
-    Record<DashboardType, LayoutSnapshot>
-  > >({});
-  const baselineSignaturesRef = React.useRef<Partial<Record<DashboardType, string>>>(
-    {},
-  );
+  const cachedLayoutsRef = React.useRef<
+    Partial<Record<DashboardType, LayoutSnapshot>>
+  >({});
+  const baselineSignaturesRef = React.useRef<
+    Partial<Record<DashboardType, string>>
+  >({});
   const dirtyTypesRef = React.useRef<Partial<Record<DashboardType, boolean>>>(
     {},
   );
@@ -68,23 +69,26 @@ export function DashboardEditModeProvider({
     return JSON.stringify({ meta: snapshot.meta, rows: snapshot.rows });
   }, []);
 
-  const enterEdit = React.useCallback((type: DashboardType) => {
-    baselineSignaturesRef.current = {
-      overview: cachedLayoutsRef.current.overview
-        ? layoutSignature(cachedLayoutsRef.current.overview)
-        : undefined,
-      forecast: cachedLayoutsRef.current.forecast
-        ? layoutSignature(cachedLayoutsRef.current.forecast)
-        : undefined,
-    };
-    dirtyTypesRef.current = {};
-    setState({
-      isEditing: true,
-      dashboardType: type,
-      pendingScrollToId: null,
-      pendingLayoutApply: {},
-    });
-  }, [layoutSignature]);
+  const enterEdit = React.useCallback(
+    (type: DashboardType) => {
+      baselineSignaturesRef.current = {
+        overview: cachedLayoutsRef.current.overview
+          ? layoutSignature(cachedLayoutsRef.current.overview)
+          : undefined,
+        forecast: cachedLayoutsRef.current.forecast
+          ? layoutSignature(cachedLayoutsRef.current.forecast)
+          : undefined,
+      };
+      dirtyTypesRef.current = {};
+      setState({
+        isEditing: true,
+        dashboardType: type,
+        pendingScrollToId: null,
+        pendingLayoutApply: {},
+      });
+    },
+    [layoutSignature],
+  );
 
   const exitEdit = React.useCallback(() => {
     setState((prev) => ({ ...prev, isEditing: false, dashboardType: null }));
@@ -98,12 +102,12 @@ export function DashboardEditModeProvider({
       if (typeof baseline === "undefined") return false;
       return layoutSignature(snapshot) !== baseline;
     });
-    const message =
-      dirtyTypes.length === 2
-        ? "Dashboard saved (Overview + Forecast)"
-        : dirtyTypes.length === 1
-          ? `Dashboard saved (${dirtyTypes[0] === "overview" ? "Overview" : "Forecast"})`
-          : "Dashboard saved";
+    const message = "Dashboard saved";
+    // dirtyTypes.length === 2
+    //   ? "Dashboard saved (Overview + Forecast)"
+    //   : dirtyTypes.length === 1
+    //     ? `Dashboard saved (${dirtyTypes[0] === "overview" ? "Overview" : "Forecast"})`
+    //     : "Dashboard saved";
 
     setState((prev) => {
       const nextPending = { ...prev.pendingLayoutApply };
@@ -152,18 +156,25 @@ export function DashboardEditModeProvider({
     });
   }, []);
 
-  const cacheLayout = React.useCallback((next: LayoutSnapshot) => {
-    cachedLayoutsRef.current[next.type] = next;
-    if (!state.isEditing) return;
-    const sig = layoutSignature(next);
-    const baseline = baselineSignaturesRef.current[next.type];
-    if (typeof baseline === "undefined") {
-      baselineSignaturesRef.current[next.type] = sig;
-      dirtyTypesRef.current[next.type] = false;
-      return;
-    }
-    dirtyTypesRef.current[next.type] = baseline !== sig;
-  }, [layoutSignature, state.isEditing]);
+  const cacheLayout = React.useCallback(
+    (next: LayoutSnapshot) => {
+      const canonical = {
+        ...next,
+        rows: packRowsForTwoColumn(next.rows, next.meta),
+      };
+      cachedLayoutsRef.current[canonical.type] = canonical;
+      if (!state.isEditing) return;
+      const sig = layoutSignature(canonical);
+      const baseline = baselineSignaturesRef.current[canonical.type];
+      if (typeof baseline === "undefined") {
+        baselineSignaturesRef.current[canonical.type] = sig;
+        dirtyTypesRef.current[canonical.type] = false;
+        return;
+      }
+      dirtyTypesRef.current[canonical.type] = baseline !== sig;
+    },
+    [layoutSignature, state.isEditing],
+  );
 
   const getCachedLayout = React.useCallback((type: DashboardType) => {
     return cachedLayoutsRef.current[type] ?? null;
@@ -193,7 +204,7 @@ export function DashboardEditModeProvider({
       clearPendingLayoutApply,
       cacheLayout,
       getCachedLayout,
-    ]
+    ],
   );
 
   return (
@@ -207,7 +218,7 @@ export function useDashboardEditMode() {
   const ctx = React.useContext(DashboardEditModeContext);
   if (!ctx) {
     throw new Error(
-      "useDashboardEditMode must be used within DashboardEditModeProvider"
+      "useDashboardEditMode must be used within DashboardEditModeProvider",
     );
   }
   return ctx;

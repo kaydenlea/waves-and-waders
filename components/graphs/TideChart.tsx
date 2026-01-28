@@ -256,13 +256,20 @@ const TideChart: React.FC<TideChartProps> = ({
     setOverviewReady(overviewReady);
   }, [overviewKey, overviewReady, setOverviewReady]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const node = containerRef.current;
     if (!node) return;
+    if (typeof ResizeObserver === "undefined") return;
+
+    const initialWidth = Math.floor(node.getBoundingClientRect().width);
+    if (initialWidth > 0) setContainerWidth(initialWidth);
+
     const ro = new ResizeObserver((entries) => {
       const entry = entries[0];
       const width = entry ? Math.floor(entry.contentRect.width) : 0;
-      setContainerWidth(width);
+      // Avoid transient 0px measurements (e.g. during layout transitions) that can
+      // collapse labels into the left edge for a single frame.
+      setContainerWidth((prev) => (width > 0 ? width : prev));
     });
     ro.observe(node);
     return () => ro.disconnect();

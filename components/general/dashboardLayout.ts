@@ -157,23 +157,31 @@ export const buildInitialRows = (
   const nextAutoId = (items: WidgetId[]) =>
     `auto:${type}:${rows.length}:${items.join("-")}`;
 
+  const flushHalfBuffer = () => {
+    while (halfBuffer.length >= 2) {
+      const items: WidgetId[] = [halfBuffer[0]!, halfBuffer[1]!];
+      rows.push({ id: nextAutoId(items), items });
+      halfBuffer.splice(0, 2);
+    }
+    if (halfBuffer.length) {
+      const only = halfBuffer[0]!;
+      rows.push({ id: nextAutoId([only]), items: [only] });
+      halfBuffer.length = 0;
+    }
+  };
+
   for (const id of order) {
     const m = meta[id];
     if (!m || m.visible === false) continue;
     if (m.span === "full") {
+      if (halfBuffer.length) flushHalfBuffer();
       rows.push({ id: nextAutoId([m.id]), items: [m.id] });
     } else {
       halfBuffer.push(m.id);
-      if (halfBuffer.length === 2) {
-        const items: WidgetId[] = [halfBuffer[0], halfBuffer[1]];
-        rows.push({ id: nextAutoId(items), items });
-        halfBuffer.length = 0;
-      }
+      if (halfBuffer.length === 2) flushHalfBuffer();
     }
   }
-  if (halfBuffer.length) {
-    rows.push({ id: nextAutoId([halfBuffer[0]]), items: [halfBuffer[0]] });
-  }
+  if (halfBuffer.length) flushHalfBuffer();
   return rows;
 };
 
@@ -281,4 +289,61 @@ export const normalizeRows = (
   }
 
   return rows.length ? rows : fallback;
+};
+
+export const normalizeRowsForSingleColumn = (rows: Row[]): Row[] => {
+  const next: Row[] = [];
+  for (const row of rows) {
+    if (row.items.length <= 1) {
+      next.push(row);
+      continue;
+    }
+    const first = row.items[0];
+    if (first) next.push({ id: row.id, items: [first] });
+    for (let i = 1; i < row.items.length; i++) {
+      const item = row.items[i];
+      if (!item) continue;
+      // Deterministic derived IDs prevent unnecessary remount/flicker when
+      // normalizing across breakpoints.
+      next.push({ id: `${row.id}:s${i}`, items: [item] });
+    }
+  }
+  return next;
+};
+
+export const packRowsForTwoColumn = (
+  rows: Row[],
+  meta: Partial<Record<WidgetId, WidgetMeta>>
+): Row[] => {
+  const singles = normalizeRowsForSingleColumn(rows);
+  const next: Row[] = [];
+
+  for (let i = 0; i < singles.length; i++) {
+    const row = singles[i];
+    const item = row.items[0];
+    if (!item) continue;
+
+    const span = meta[item]?.span;
+    const isFull = span === "full" || Boolean(meta[item]?.immutableFull);
+    if (isFull) {
+      next.push({ id: row.id, items: [item] });
+      continue;
+    }
+
+    const nextRow = singles[i + 1];
+    const nextItem = nextRow?.items[0];
+    const nextSpan = nextItem ? meta[nextItem]?.span : undefined;
+    const nextIsFull =
+      nextSpan === "full" || Boolean(nextItem && meta[nextItem]?.immutableFull);
+
+    if (nextItem && !nextIsFull) {
+      next.push({ id: row.id, items: [item, nextItem] });
+      i++;
+      continue;
+    }
+
+    next.push({ id: row.id, items: [item] });
+  }
+
+  return next;
 };
