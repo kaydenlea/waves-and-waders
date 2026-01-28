@@ -39,14 +39,6 @@ function useLiteMode() {
   return lite;
 }
 
-function HeroDeckPlaceholder() {
-  return (
-    <div className="h-full w-full rounded-[32px] border border-border/35 bg-background shadow-even overflow-hidden">
-      <div className="h-full w-full bg-[radial-gradient(circle_at_30%_20%,rgba(56,189,248,0.14),transparent_55%),radial-gradient(circle_at_80%_70%,rgba(59,130,246,0.10),transparent_45%)]" />
-    </div>
-  );
-}
-
 function LiteHeroCard({ previewBeach, previewForecast }: Props) {
   return (
     <div className="h-full w-full rounded-[32px] border border-border/35 bg-background shadow-even overflow-hidden">
@@ -93,36 +85,6 @@ function LiteHeroCard({ previewBeach, previewForecast }: Props) {
 
 export default function HeroVisualDeckLazy(props: Props) {
   const liteMode = useLiteMode();
-  const [ready, setReady] = React.useState(false);
-
-  React.useEffect(() => {
-    if (liteMode) return;
-    if (typeof window === "undefined") return;
-
-    let cancelled = false;
-    const schedule = () => {
-      if (!cancelled) setReady(true);
-    };
-
-    const w = window as unknown as {
-      requestIdleCallback?: (callback: () => void, opts?: { timeout: number }) => number;
-      cancelIdleCallback?: (id: number) => void;
-    };
-
-    if (typeof w.requestIdleCallback === "function") {
-      const id = w.requestIdleCallback(schedule, { timeout: 500 });
-      return () => {
-        cancelled = true;
-        w.cancelIdleCallback?.(id);
-      };
-    }
-
-    const id = window.setTimeout(schedule, 160);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(id);
-    };
-  }, [liteMode]);
 
   React.useEffect(() => {
     if (!liteMode) return;
@@ -139,8 +101,6 @@ export default function HeroVisualDeckLazy(props: Props) {
     <div className="w-full h-[500px] @min-sm:h-[700px] @min-md:h-[760px]">
       {liteMode ? (
         <LiteHeroCard {...props} />
-      ) : !ready ? (
-        <HeroDeckPlaceholder />
       ) : (
         <SunDataProvider>
           <HeroVisualDeck {...props} />

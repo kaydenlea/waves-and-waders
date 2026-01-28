@@ -892,6 +892,9 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
       if (!beachId || totalDays <= 0) {
         setDayAreas([]);
         setNightAreas([]);
+        if (!cancelled) {
+          setSunReady(true);
+        }
         return;
       }
 
@@ -942,6 +945,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
           if (!cancelled) {
             setSwellData([]);
             setBaseStartMs(null);
+            setLoading(false);
           }
           return;
         }
@@ -1009,6 +1013,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
           if (!cancelled) {
             setSwellData([]);
             setBaseStartMs(null);
+            setLoading(false);
           }
           return;
         }
@@ -1094,7 +1099,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
         }
         if (!cancelled) {
           setSwellData(series);
-          setLoading(series.length === 0);
+          setLoading(false);
         }
       } catch (e) {
         if (process.env.NODE_ENV !== "production") {
@@ -1105,7 +1110,7 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
           setBaseStartMs(null);
           setDayAreas([]);
           setNightAreas([]);
-          setLoading(true);
+          setLoading(false);
         }
       }
     };
@@ -1510,40 +1515,10 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
   const dashboardBusy = useForecastChartsBusyState();
   const wasBusyRef = useRef(dashboardBusy);
 
-  // When the visible day range changes (user adjusts the forecast date range),
-  // pessimistically mark this widget as not ready so the global forecast overlay
-  // turns on before any chart content updates are painted.
-  useLayoutEffect(() => {
-    if (!rangeSignature) return;
-    setReady(false);
-  }, [rangeSignature, setReady]);
-
-  // Mark this widget as not ready until the day range exists (day headers depend on it).
+  // Report ready state: chart is ready when days exist, data is loaded, and sun shading is complete
   useEffect(() => {
-    if (!daysReady) {
-      setReady(false);
-    }
-  }, [daysReady, setReady]);
-
-  // Mark this widget as not ready whenever its sun/shading pipeline is not ready.
-  useEffect(() => {
-    if (!sunReady) {
-      setReady(false);
-    }
-  }, [sunReady, setReady]);
-
-  // Mark this widget as not ready whenever its local loading flag is true.
-  useEffect(() => {
-    if (loading) {
-      setReady(false);
-    }
-  }, [loading, setReady]);
-
-  // Mark ready only after data and sun/shading are fully ready.
-  useEffect(() => {
-    if (daysReady && !loading && sunReady) {
-      setReady(true);
-    }
+    const ready = daysReady && !loading && sunReady;
+    setReady(ready);
   }, [daysReady, loading, sunReady, setReady]);
 
   useEffect(() => {

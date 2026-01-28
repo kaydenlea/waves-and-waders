@@ -1110,34 +1110,15 @@ const StatTable = ({
   >(null);
   const wasBusyRef = React.useRef(dashboardBusy);
 
-  // Forecast dashboard readiness reporting for the table: mark not ready
-  // whenever the table is loading, and ready once data is present.
+  // Forecast dashboard readiness reporting for the table
   React.useEffect(() => {
     if (!forecastPage) return;
-    if (loading) {
-      setReady(false);
-    }
+    setReady(!loading);
   }, [forecastPage, loading, setReady]);
 
   React.useEffect(() => {
-    if (!forecastPage) return;
-    if (!loading && data.length > 0) {
-      setReady(true);
-    }
-  }, [forecastPage, loading, data.length, setReady]);
-
-  React.useEffect(() => {
     if (forecastPage) return;
-    if (loading) {
-      setOverviewReady(false);
-    }
-  }, [forecastPage, loading, setOverviewReady]);
-
-  React.useEffect(() => {
-    if (forecastPage) return;
-    if (!loading) {
-      setOverviewReady(true);
-    }
+    setOverviewReady(!loading);
   }, [forecastPage, loading, setOverviewReady]);
 
   React.useEffect(() => {

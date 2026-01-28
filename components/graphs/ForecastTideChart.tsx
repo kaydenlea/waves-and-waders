@@ -257,43 +257,11 @@ export default React.memo(function ForecastTideChart({
     [data.length]
   );
   const shadingReady = dayAreas.length > 0 || nightAreas.length > 0;
-  useEffect(() => {
-    setLoading(data.length === 0);
-  }, [data]);
 
-  // When the visible day range changes (user adjusts the forecast date range),
-  // pessimistically mark this widget as not ready so the global forecast overlay
-  // turns on before any chart content updates are painted.
-  useLayoutEffect(() => {
-    if (!rangeSignature) return;
-    setReady(false);
-  }, [rangeSignature, setReady]);
-
-  // Mark this widget as not ready until the day range exists (day headers depend on it).
+  // Report ready state: chart is ready when days exist, data is loaded, and shading is complete
   useEffect(() => {
-    if (!daysReady) {
-      setReady(false);
-    }
-  }, [daysReady, setReady]);
-
-  // Mark this widget as not ready whenever its sun/shading pipeline is not ready.
-  useEffect(() => {
-    if (!shadingReady) {
-      setReady(false);
-    }
-  }, [shadingReady, setReady]);
-
-  // Mark this widget as not ready whenever its local loading flag is true.
-  useEffect(() => {
-    if (loading) {
-      setReady(false);
-    }
-  }, [loading, setReady]);
-  // Mark ready only after data and shading are fully ready.
-  useEffect(() => {
-    if (daysReady && !loading && shadingReady) {
-      setReady(true);
-    }
+    const ready = daysReady && !loading && shadingReady;
+    setReady(ready);
   }, [daysReady, loading, shadingReady, setReady]);
   useEffect(() => {
     if (dashboardBusy && !wasBusyRef.current) {
@@ -1027,7 +995,15 @@ export default React.memo(function ForecastTideChart({
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      if (!beachId) return;
+      if (!cancelled) {
+        setLoading(true);
+      }
+      if (!beachId) {
+        if (!cancelled) {
+          setLoading(false);
+        }
+        return;
+      }
       try {
         const resolved = await fetchBeachByIdLoose(beachId);
         const id = resolved?.id ?? beachId;
@@ -1075,6 +1051,7 @@ export default React.memo(function ForecastTideChart({
               nightAreas: [],
               sunMarkers: [],
             });
+            setLoading(false);
           }
           return;
         }
@@ -1120,10 +1097,14 @@ export default React.memo(function ForecastTideChart({
             nightAreas: [],
             sunMarkers: [],
           });
+          setLoading(false);
         }
       } catch (e) {
         if (process.env.NODE_ENV !== "production") {
           console.error("ForecastTideChart load error:", e);
+        }
+        if (!cancelled) {
+          setLoading(false);
         }
       }
     })();
