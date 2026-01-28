@@ -1580,14 +1580,9 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
                     />
                     {isTouchOnlyDevice /* Mobile: Use custom MobileChartTooltip rendered via portal */ ? null : (
                       <ChartTooltip
-                        content={
-                          <ChartTooltipViewportContent
-                            viewport={tooltipViewport}
-                            labelFormatter={formatHourLabel}
-                          />
-                        }
+                        content={() => null}
                         cursor={tooltipCursor}
-                        wrapperStyle={{ transform: "translate(0px, 0px)" }}
+                        wrapperStyle={{ visibility: "hidden" }}
                         animationDuration={0}
                         isAnimationActive={false}
                       />
@@ -1728,25 +1723,23 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
         />
       </div>
 
-      {/* Mobile touch tooltip - rendered via portal */}
-      {isTouchOnlyDevice && (
-        <MobileChartTooltip
-          chartId={mobileChartId}
-          getDataPoint={getMobileTooltipDataPoint}
-          getDataPointForHour={getDataPointForHour}
-          anchorRef={containerRef}
-          getXPositionForHour={getXPositionForHour}
-          renderCursor
-          cursorStyle={tooltipCursorStyle}
-          cursorInsets={{
-            top: 0,
-            bottom: X_AXIS_SHADE_EXCLUDE_PX + 1,
-            radius: 6,
-          }}
-          positionInside
-          topOffset={55}
-        />
-      )}
+      {/* Header tooltip (touch + desktop) - rendered via portal */}
+      <MobileChartTooltip
+        chartId={mobileChartId}
+        getDataPoint={getMobileTooltipDataPoint}
+        getDataPointForHour={getDataPointForHour}
+        anchorRef={containerRef}
+        getXPositionForHour={getXPositionForHour}
+        renderCursor
+        cursorStyle={tooltipCursorStyle}
+        cursorInsets={{
+          top: 0,
+          bottom: X_AXIS_SHADE_EXCLUDE_PX + 1,
+          radius: 6,
+        }}
+        positionInside
+        topOffset={55}
+      />
     </div>
   );
 };

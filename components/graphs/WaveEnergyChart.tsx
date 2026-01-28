@@ -106,7 +106,7 @@ const Y_AXIS_TICK = {
 function buildTrendStops(
   series: EnergyPoint[],
   incColor: string,
-  decColor: string
+  decColor: string,
 ) {
   if (series.length < 2) {
     return [
@@ -150,22 +150,22 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   const gradientIdRaw = React.useId();
   const fillGradientId = useMemo(
     () => `energySplitColor-${gradientIdRaw.replace(/:/g, "")}`,
-    [gradientIdRaw]
+    [gradientIdRaw],
   );
   const strokeGradientId = useMemo(
     () => `energySplitColorStroke-${gradientIdRaw.replace(/:/g, "")}`,
-    [gradientIdRaw]
+    [gradientIdRaw],
   );
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2?: number }[]>([]);
   const [nightAreas, setNightAreas] = useState<{ x1: number; x2?: number }[]>(
-    []
+    [],
   );
   const [containerWidth, setContainerWidth] = useState<number>(0);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const mobileChartId = "overview-energy";
   const [isTouchInspecting, setIsTouchInspecting] = useState(false);
   const [touchDefaultIndex, setTouchDefaultIndex] = useState<number | null>(
-    null
+    null,
   );
   const touchInspectTimerRef = React.useRef<ReturnType<
     typeof setTimeout
@@ -250,8 +250,8 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         0,
         Math.min(
           hours,
-          (new Date(r.timestamp).getTime() - windowStartMs) / HOURS_TO_MS
-        )
+          (new Date(r.timestamp).getTime() - windowStartMs) / HOURS_TO_MS,
+        ),
       ),
       energy: r.surf.waveEnergy ?? 0,
     }));
@@ -287,7 +287,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       }
       return <g key={key} />;
     },
-    [series.length]
+    [series.length],
   );
 
   const energyActiveDot = useCallback(
@@ -303,8 +303,8 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       const inc = prev
         ? curr.energy >= prev.energy
         : next
-        ? next.energy >= curr.energy
-        : true;
+          ? next.energy >= curr.energy
+          : true;
       const color = inc ? "var(--energy-fill-inc)" : "var(--energy-fill-dec)";
       const isLastPoint = idx === series.length - 1;
       const dx = isLastPoint ? -HOVER_LINE_END_INSET_PX : 0;
@@ -334,7 +334,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         />
       );
     },
-    [series]
+    [series],
   );
 
   useEffect(() => {
@@ -358,12 +358,12 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       try {
         const sunData = await getSunData(
           String(beachId),
-          new Date(windowStartMs)
+          new Date(windowStartMs),
         );
         const segments = buildSunSegments(
           hours,
           sunData?.sunrise ?? null,
-          sunData?.sunset ?? null
+          sunData?.sunset ?? null,
         );
         if (!cancelled) {
           setDayAreas(segments.dayAreas);
@@ -402,13 +402,13 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         series
           .map((p) => p.energy)
           .filter(
-            (v): v is number => typeof v === "number" && Number.isFinite(v)
+            (v): v is number => typeof v === "number" && Number.isFinite(v),
           ),
         0,
         4,
-        0.25
+        0.25,
       ),
-    [series]
+    [series],
   );
   const yAxisTick = React.useCallback(
     (props: YAxisTickProps) => {
@@ -449,13 +449,13 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         </text>
       );
     },
-    [energyTicks]
+    [energyTicks],
   );
 
   const yAxisInsetPx = CHART_LEFT_MARGIN + Y_AXIS_WIDTH;
   const plotWidthPx = useMemo(
     () => Math.max(0, containerWidth - yAxisInsetPx - CHART_RIGHT_MARGIN),
-    [containerWidth, yAxisInsetPx]
+    [containerWidth, yAxisInsetPx],
   );
 
   const getTouchActivationFromChartX = useCallback(
@@ -490,18 +490,18 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
 
       const hoveredHour = Math.max(
         0,
-        Math.min(hours, Math.round(nearestHour / 3) * 3)
+        Math.min(hours, Math.round(nearestHour / 3) * 3),
       );
 
       return { defaultIndex: bestIndex, hoveredHour };
     },
-    [hours, plotWidthPx, series, yAxisInsetPx]
+    [hours, plotWidthPx, series, yAxisInsetPx],
   );
 
   const plotClipIdRaw = React.useId();
   const plotClipId = useMemo(
     () => `overview-wave-energy-plot-clip-${plotClipIdRaw.replace(/:/g, "")}`,
-    [plotClipIdRaw]
+    [plotClipIdRaw],
   );
   const plotShading = useMemo(
     () =>
@@ -521,7 +521,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       chartTheme.dayShading,
       chartTheme.nightShading,
       chartTheme.shadingOpacity,
-    ]
+    ],
   );
   const edgeFill = useMemo(() => {
     const isDayAt = (h: number) =>
@@ -530,11 +530,11 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     const rightIsDay = isDayAt(Math.max(0, hours - 0.0001));
     const left = applyForecastShadingOpacity(
       leftIsDay ? chartTheme.dayShading : chartTheme.nightShading,
-      chartTheme.shadingOpacity
+      chartTheme.shadingOpacity,
     );
     const right = applyForecastShadingOpacity(
       rightIsDay ? chartTheme.dayShading : chartTheme.nightShading,
-      chartTheme.shadingOpacity
+      chartTheme.shadingOpacity,
     );
     return { left, right };
   }, [
@@ -550,9 +550,9 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       buildTrendStops(
         series,
         "var(--energy-fill-inc)",
-        "var(--energy-fill-dec)"
+        "var(--energy-fill-dec)",
       ),
-    [series]
+    [series],
   );
 
   const strokeStops = useMemo(
@@ -560,9 +560,9 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       buildTrendStops(
         series,
         "var(--energy-stroke-inc)",
-        "var(--energy-stroke-dec)"
+        "var(--energy-stroke-dec)",
       ),
-    [series]
+    [series],
   );
 
   const lastHoveredRef = React.useRef<number | null>(null);
@@ -678,7 +678,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       const clampedHour = Math.max(0, Math.min(roundedHour, hours));
       return Math.round(clampedHour / 3);
     },
-    [plotWidthPx, yAxisInsetPx, hours]
+    [plotWidthPx, yAxisInsetPx, hours],
   );
 
   const getMobileTooltipDataPoint = React.useCallback(
@@ -697,7 +697,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         unit: "kJ/m²",
       };
     },
-    [series]
+    [series],
   );
 
   const getDataPointForHour = React.useCallback(
@@ -716,7 +716,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         unit: "kJ/m²",
       };
     },
-    [series]
+    [series],
   );
 
   const getXPositionForHour = React.useCallback(
@@ -727,29 +727,30 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       if (t < 0 || t > 1) return null;
       return yAxisInsetPx + t * plotWidthPx;
     },
-    [plotWidthPx, yAxisInsetPx, hours]
+    [plotWidthPx, yAxisInsetPx, hours],
   );
 
   const handleMobileInspect = React.useCallback(
     (_index: number, hour: number) => {
       setHoveredHour(hour);
     },
-    [setHoveredHour]
+    [setHoveredHour],
   );
 
   const handleMobileInspectEnd = React.useCallback(() => {
     setHoveredHour(null);
   }, [setHoveredHour]);
 
-  const { handlers: mobileHandlers, styles: mobileStyles } = useMobileChartTouch({
-    chartId: mobileChartId,
-    containerRef,
-    dataLength: series.length,
-    getIndexFromX: getIndexFromChartX,
-    onInspect: handleMobileInspect,
-    onInspectEnd: handleMobileInspectEnd,
-    enabled: isTouchOnlyDevice,
-  });
+  const { handlers: mobileHandlers, styles: mobileStyles } =
+    useMobileChartTouch({
+      chartId: mobileChartId,
+      containerRef,
+      dataLength: series.length,
+      getIndexFromX: getIndexFromChartX,
+      onInspect: handleMobileInspect,
+      onInspectEnd: handleMobileInspectEnd,
+      enabled: isTouchOnlyDevice,
+    });
 
   return (
     <div
@@ -962,11 +963,11 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
               ]}
               ticks={energyTicks}
             />
-            {/* Mobile: Use MobileChartTooltip via portal instead */}
             {!isTouchOnlyDevice && (
               <ChartTooltip
-                content={<ChartTooltipContent />}
+                content={() => null}
                 cursor={false}
+                wrapperStyle={{ visibility: "hidden" }}
                 animationDuration={0}
                 isAnimationActive={false}
               />
@@ -1021,16 +1022,14 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           </AreaChart>
         </ChartContainer>
       </div>
-      {isTouchOnlyDevice && (
-        <MobileChartTooltip
-          chartId={mobileChartId}
-          getDataPoint={getMobileTooltipDataPoint}
-          getDataPointForHour={getDataPointForHour}
-          anchorRef={containerRef}
-          getXPositionForHour={getXPositionForHour}
-          positionInside
-        />
-      )}
+      <MobileChartTooltip
+        chartId={mobileChartId}
+        getDataPoint={getMobileTooltipDataPoint}
+        getDataPointForHour={getDataPointForHour}
+        anchorRef={containerRef}
+        getXPositionForHour={getXPositionForHour}
+        positionInside
+      />
     </div>
   );
 };

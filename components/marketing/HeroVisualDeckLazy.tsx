@@ -109,11 +109,16 @@ export default function HeroVisualDeckLazy(props: Props) {
       if (!cancelled) setReady(true);
     };
 
-    if ("requestIdleCallback" in window) {
-      const id = window.requestIdleCallback(schedule, { timeout: 500 });
+    const w = window as unknown as {
+      requestIdleCallback?: (callback: () => void, opts?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+
+    if (typeof w.requestIdleCallback === "function") {
+      const id = w.requestIdleCallback(schedule, { timeout: 500 });
       return () => {
         cancelled = true;
-        window.cancelIdleCallback?.(id);
+        w.cancelIdleCallback?.(id);
       };
     }
 

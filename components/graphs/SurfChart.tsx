@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+} from "react";
 import {
   Bar,
   BarChart,
@@ -146,7 +152,7 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     useOptionalOverviewChartLoading("overview-surf");
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]); // sunrise-sunset (hours)
   const [nightAreas, setNightAreas] = useState<{ x1: number; x2?: number }[]>(
-    []
+    [],
   );
   const [containerWidth, setContainerWidth] = useState<number>(0);
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -192,7 +198,7 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
 
     const formatSurfRange = (
       min: number | null | undefined,
-      max: number | null | undefined
+      max: number | null | undefined,
     ) => {
       const safeMin =
         typeof min === "number" && Number.isFinite(min) ? min : null;
@@ -235,7 +241,7 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           0,
           safeMin !== null && safeMax !== null
             ? (effectiveMin + effectiveMax) / 2
-            : effectiveMax
+            : effectiveMax,
         ),
       };
     };
@@ -254,7 +260,7 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         w2 = 0.6,
         w3 = 0.3;
       const combined = Math.sqrt(
-        Math.pow(w1 * s1, 2) + Math.pow(w2 * s2, 2) + Math.pow(w3 * s3, 2)
+        Math.pow(w1 * s1, 2) + Math.pow(w2 * s2, 2) + Math.pow(w3 * s3, 2),
       );
       const wind = r.conditions.windSpeed ?? 0;
       const windPenalty = Math.min(0.5, Math.max(0, (wind - 5) / 35));
@@ -262,7 +268,7 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
 
       const { min, max, label, estimate } = formatSurfRange(
         r.surf.heightMin,
-        r.surf.heightMax
+        r.surf.heightMax,
       );
 
       let representative = effective;
@@ -315,7 +321,7 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   }, []);
 
   const overviewReady = Boolean(
-    beachId && !forecastLoading && containerWidth > 0
+    beachId && !forecastLoading && containerWidth > 0,
   );
   useEffect(() => {
     setOverviewReady(overviewReady);
@@ -345,12 +351,12 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       try {
         const sunData = await getSunData(
           String(beachId),
-          new Date(windowStartMs)
+          new Date(windowStartMs),
         );
         const segments = buildSunSegments(
           hours,
           sunData?.sunrise ?? null,
-          sunData?.sunset ?? null
+          sunData?.sunset ?? null,
         );
         if (!cancelled) {
           setDayAreas(segments.dayAreas);
@@ -382,9 +388,9 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         0,
         4,
         0.2,
-        5
+        5,
       ),
-    [chartData]
+    [chartData],
   );
   const yAxisTick = React.useCallback(
     (props: YAxisTickProps) => {
@@ -425,13 +431,13 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         </text>
       );
     },
-    [surfTicks]
+    [surfTicks],
   );
 
   const yAxisInsetPx = CHART_LEFT_MARGIN + Y_AXIS_WIDTH;
   const plotWidthPx = useMemo(
     () => Math.max(0, containerWidth - yAxisInsetPx - CHART_RIGHT_MARGIN),
-    [containerWidth, yAxisInsetPx]
+    [containerWidth, yAxisInsetPx],
   );
   const shadingBackground = useMemo(
     () =>
@@ -459,7 +465,7 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       chartTheme.dayShading,
       chartTheme.nightShading,
       chartTheme.shadingOpacity,
-    ]
+    ],
   );
 
   const hourTicks = useMemo(() => {
@@ -478,7 +484,7 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       const maxX = Math.max(minX, domainMax - HALF_STEP_HOURS);
       return Math.min(maxX, Math.max(minX, quantized));
     },
-    [domainMin, domainMax]
+    [domainMin, domainMax],
   );
 
   const centeredSelectedHour = centerDomainHour(selectedHour);
@@ -521,23 +527,20 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     setHoveredHour(null);
   };
 
-  const tooltipCursor = useMemo(
-    () => {
-      const fillOpacity = chartTheme.hoverOpacity;
-      const strokeOpacity = Math.min(0.28, fillOpacity + 0.08);
-      return (
-        <Rectangle
-          radius={[6, 6, 6, 6]}
-          fill="var(--foreground)"
-          fillOpacity={fillOpacity}
-          stroke="var(--foreground)"
-          strokeOpacity={strokeOpacity}
-          strokeWidth={1}
-        />
-      );
-    },
-    [chartTheme.hoverOpacity]
-  );
+  const tooltipCursor = useMemo(() => {
+    const fillOpacity = chartTheme.hoverOpacity;
+    const strokeOpacity = Math.min(0.28, fillOpacity + 0.08);
+    return (
+      <Rectangle
+        radius={[6, 6, 6, 6]}
+        fill="var(--foreground)"
+        fillOpacity={fillOpacity}
+        stroke="var(--foreground)"
+        strokeOpacity={strokeOpacity}
+        strokeWidth={1}
+      />
+    );
+  }, [chartTheme.hoverOpacity]);
 
   const tooltipCursorStyle = useMemo(() => {
     const fillOpacity = chartTheme.hoverOpacity;
@@ -563,7 +566,7 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       const clampedHour = Math.max(0, Math.min(roundedHour, hours));
       return Math.round(clampedHour / DATA_STEP_HOURS);
     },
-    [plotWidthPx, yAxisInsetPx, domainMin, domainMax, hours]
+    [plotWidthPx, yAxisInsetPx, domainMin, domainMax, hours],
   );
 
   const getMobileTooltipDataPoint = useCallback(
@@ -582,7 +585,7 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         unit: "ft",
       };
     },
-    [chartData]
+    [chartData],
   );
 
   const getDataPointForHour = useCallback(
@@ -601,7 +604,7 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         unit: "ft",
       };
     },
-    [chartData]
+    [chartData],
   );
 
   const getXPositionForHour = useCallback(
@@ -613,14 +616,14 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       if (t < 0 || t > 1) return null;
       return yAxisInsetPx + t * plotWidthPx;
     },
-    [plotWidthPx, yAxisInsetPx, domainMin, domainMax]
+    [plotWidthPx, yAxisInsetPx, domainMin, domainMax],
   );
 
   const handleMobileInspect = useCallback(
     (_index: number, hour: number) => {
       setHoveredHour(hour);
     },
-    [setHoveredHour]
+    [setHoveredHour],
   );
 
   const handleMobileInspectEnd = useCallback(() => {
@@ -642,19 +645,20 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       // Just check if we're within the general bar region (simplified for overview)
       return true;
     },
-    [plotWidthPx, yAxisInsetPx, domainMin, domainMax, chartData.length]
+    [plotWidthPx, yAxisInsetPx, domainMin, domainMax, chartData.length],
   );
 
-  const { handlers: mobileHandlers, styles: mobileStyles } = useMobileChartTouch({
-    chartId: mobileChartId,
-    containerRef,
-    dataLength: chartData.length,
-    getIndexFromX: getIndexFromChartX,
-    isOnBar,
-    onInspect: handleMobileInspect,
-    onInspectEnd: handleMobileInspectEnd,
-    enabled: isTouchOnlyDevice,
-  });
+  const { handlers: mobileHandlers, styles: mobileStyles } =
+    useMobileChartTouch({
+      chartId: mobileChartId,
+      containerRef,
+      dataLength: chartData.length,
+      getIndexFromX: getIndexFromChartX,
+      isOnBar,
+      onInspect: handleMobileInspect,
+      onInspectEnd: handleMobileInspectEnd,
+      enabled: isTouchOnlyDevice,
+    });
 
   return (
     <div
@@ -803,9 +807,11 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
             />
             {!isTouchOnlyDevice && (
               <ChartTooltip
-                content={<ChartTooltipContent />}
+                content={() => null}
                 cursor={tooltipCursor}
+                wrapperStyle={{ visibility: "hidden" }}
                 animationDuration={0}
+                isAnimationActive={false}
               />
             )}
             {/* Hour indicator line */}
@@ -885,23 +891,21 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           </BarChart>
         </ChartContainer>
       </div>
-      {isTouchOnlyDevice && (
-        <MobileChartTooltip
-          chartId={mobileChartId}
-          getDataPoint={getMobileTooltipDataPoint}
-          getDataPointForHour={getDataPointForHour}
-          anchorRef={containerRef}
-          getXPositionForHour={getXPositionForHour}
-          renderCursor
-          cursorStyle={tooltipCursorStyle}
-          cursorInsets={{
-            top: CHART_TOP_MARGIN + 1,
-            bottom: X_AXIS_SHADE_EXCLUDE_PX + 1,
-            radius: 6,
-          }}
-          positionInside
-        />
-      )}
+      <MobileChartTooltip
+        chartId={mobileChartId}
+        getDataPoint={getMobileTooltipDataPoint}
+        getDataPointForHour={getDataPointForHour}
+        anchorRef={containerRef}
+        getXPositionForHour={getXPositionForHour}
+        renderCursor={isTouchOnlyDevice}
+        cursorStyle={tooltipCursorStyle}
+        cursorInsets={{
+          top: CHART_TOP_MARGIN + 1,
+          bottom: X_AXIS_SHADE_EXCLUDE_PX + 1,
+          radius: 6,
+        }}
+        positionInside
+      />
     </div>
   );
 };

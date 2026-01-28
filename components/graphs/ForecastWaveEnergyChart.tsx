@@ -1831,18 +1831,16 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
         />
       </div>
 
-      {/* Mobile touch tooltip - rendered via portal */}
-      {isTouchOnlyDevice && (
-        <MobileChartTooltip
-          chartId={mobileChartId}
-          getDataPoint={getMobileTooltipDataPoint}
-          getDataPointForHour={getDataPointForHour}
-          anchorRef={containerRef}
-          getXPositionForHour={getXPositionForHour}
-          positionInside
-          topOffset={55}
-        />
-      )}
+      {/* Header tooltip (touch + desktop) - rendered via portal */}
+      <MobileChartTooltip
+        chartId={mobileChartId}
+        getDataPoint={getMobileTooltipDataPoint}
+        getDataPointForHour={getDataPointForHour}
+        anchorRef={containerRef}
+        getXPositionForHour={getXPositionForHour}
+        positionInside
+        topOffset={55}
+      />
     </div>
   );
 };

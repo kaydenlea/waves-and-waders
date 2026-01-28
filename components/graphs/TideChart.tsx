@@ -207,7 +207,7 @@ const TideChart: React.FC<TideChartProps> = ({
   const mobileChartId = "overview-tide";
   const [isTouchInspecting, setIsTouchInspecting] = useState(false);
   const [touchDefaultIndex, setTouchDefaultIndex] = useState<number | null>(
-    null
+    null,
   );
   const touchInspectTimerRef = React.useRef<ReturnType<
     typeof setTimeout
@@ -250,7 +250,7 @@ const TideChart: React.FC<TideChartProps> = ({
   }, [overviewKey, setOverviewReady]);
 
   const overviewReady = Boolean(
-    !preview && beachId && !tideLoading && tideResolved && windowStart != null
+    !preview && beachId && !tideLoading && tideResolved && windowStart != null,
   );
   useEffect(() => {
     setOverviewReady(overviewReady);
@@ -295,7 +295,7 @@ const TideChart: React.FC<TideChartProps> = ({
 
   const peakPoints = useMemo(
     () => renderData.filter((p) => p.isPeak != null),
-    [renderData]
+    [renderData],
   );
 
   const lastTideSegmentRef = React.useRef<{
@@ -343,7 +343,7 @@ const TideChart: React.FC<TideChartProps> = ({
         />
       );
     },
-    [renderData.length]
+    [renderData.length],
   );
 
   // Pre-compute which peaks should be placed below to avoid overlap
@@ -411,7 +411,7 @@ const TideChart: React.FC<TideChartProps> = ({
       (
         rows: ExternalTidePoint[],
         startMs: number,
-        windowHours: number
+        windowHours: number,
       ): TidePoint[] => {
         // Fast path: map and filter in single pass
         const sorted: TidePoint[] = [];
@@ -443,7 +443,7 @@ const TideChart: React.FC<TideChartProps> = ({
 
         return sorted;
       },
-    []
+    [],
   );
 
   // Memoized and optimized resolveStartMs
@@ -539,7 +539,7 @@ const TideChart: React.FC<TideChartProps> = ({
             tide: row.tide,
           })),
           effectiveStartMs,
-          hours
+          hours,
         );
         tideCacheRef.current.set(cacheKey, {
           chartData: built,
@@ -603,7 +603,7 @@ const TideChart: React.FC<TideChartProps> = ({
       }
       return closest;
     },
-    []
+    [],
   );
 
   useEffect(() => {
@@ -671,7 +671,7 @@ const TideChart: React.FC<TideChartProps> = ({
       const segments = buildSunSegments(
         hours,
         tideSunTimes.sunrise ?? null,
-        tideSunTimes.sunset ?? null
+        tideSunTimes.sunset ?? null,
       );
 
       const markers: { hour: number; type: "sunrise" | "sunset" }[] = [];
@@ -791,13 +791,13 @@ const TideChart: React.FC<TideChartProps> = ({
         </text>
       );
     },
-    [tideTicks]
+    [tideTicks],
   );
 
   const yAxisInsetPx = CHART_LEFT_MARGIN + Y_AXIS_WIDTH;
   const plotWidthPx = useMemo(
     () => Math.max(0, containerWidth - yAxisInsetPx - CHART_RIGHT_MARGIN),
-    [containerWidth, yAxisInsetPx]
+    [containerWidth, yAxisInsetPx],
   );
 
   const getTouchActivationFromChartX = React.useCallback(
@@ -811,7 +811,7 @@ const TideChart: React.FC<TideChartProps> = ({
       const clampedHourAtX = Math.max(0, Math.min(hours, hourAtX));
       const targetHour = Math.max(
         0,
-        Math.min(hours, Math.round(clampedHourAtX / 3) * 3)
+        Math.min(hours, Math.round(clampedHourAtX / 3) * 3),
       );
 
       // `renderData` is monotonic by hour; use binary search for nearest point.
@@ -850,7 +850,7 @@ const TideChart: React.FC<TideChartProps> = ({
 
       return { defaultIndex, hoveredHour: targetHour };
     },
-    [hours, plotWidthPx, renderData, yAxisInsetPx]
+    [hours, plotWidthPx, renderData, yAxisInsetPx],
   );
 
   const plotShading = useMemo(
@@ -871,7 +871,7 @@ const TideChart: React.FC<TideChartProps> = ({
       chartTheme.dayShading,
       chartTheme.nightShading,
       chartTheme.shadingOpacity,
-    ]
+    ],
   );
   const edgeFill = useMemo(() => {
     const isDayAt = (h: number) =>
@@ -880,11 +880,11 @@ const TideChart: React.FC<TideChartProps> = ({
     const rightIsDay = isDayAt(Math.max(0, hours - 0.0001));
     const left = applyForecastShadingOpacity(
       leftIsDay ? chartTheme.dayShading : chartTheme.nightShading,
-      chartTheme.shadingOpacity
+      chartTheme.shadingOpacity,
     );
     const right = applyForecastShadingOpacity(
       rightIsDay ? chartTheme.dayShading : chartTheme.nightShading,
-      chartTheme.shadingOpacity
+      chartTheme.shadingOpacity,
     );
     return { left, right };
   }, [
@@ -919,10 +919,12 @@ const TideChart: React.FC<TideChartProps> = ({
     if (e && e.activeLabel !== undefined) {
       const hour = Number(e.activeLabel);
       if (!isNaN(hour)) {
-        // Round to nearest 3-hour interval for syncing with other charts
-        const rounded = Math.round(hour / 3) * 3;
-        if (lastHoveredRef.current === rounded) return;
-        pendingHoverRef.current = rounded;
+        if (
+          typeof lastHoveredRef.current === "number" &&
+          Math.abs(lastHoveredRef.current - hour) < 1e-6
+        )
+          return;
+        pendingHoverRef.current = hour;
         if (!hoverRafRef.current) {
           hoverRafRef.current = requestAnimationFrame(() => {
             hoverRafRef.current = null;
@@ -1030,21 +1032,23 @@ const TideChart: React.FC<TideChartProps> = ({
         if (midHour < targetHour) lo = mid + 1;
         else hi = mid;
       }
-      
+
       // Check if previous point is actually closer
       let closestIndex = lo;
       if (closestIndex > 0) {
         const currHour = renderData[closestIndex]?.hour;
         const prevHour = renderData[closestIndex - 1]?.hour;
         if (typeof currHour === "number" && typeof prevHour === "number") {
-          if (Math.abs(prevHour - targetHour) <= Math.abs(currHour - targetHour)) {
+          if (
+            Math.abs(prevHour - targetHour) <= Math.abs(currHour - targetHour)
+          ) {
             closestIndex = closestIndex - 1;
           }
         }
       }
       return Math.max(0, Math.min(closestIndex, renderData.length - 1));
     },
-    [plotWidthPx, yAxisInsetPx, hours, renderData]
+    [plotWidthPx, yAxisInsetPx, hours, renderData],
   );
 
   // Return actual hour from data index (syncing to 3-hour is handled by MobileChartTooltip)
@@ -1053,7 +1057,7 @@ const TideChart: React.FC<TideChartProps> = ({
       if (index < 0 || index >= renderData.length) return 0;
       return renderData[index]?.hour ?? 0;
     },
-    [renderData]
+    [renderData],
   );
 
   const getMobileTooltipDataPoint = React.useCallback(
@@ -1066,9 +1070,10 @@ const TideChart: React.FC<TideChartProps> = ({
       const minutes = Math.round((normalized - wholeHour) * 60);
       const displayHour = wholeHour % 12 === 0 ? 12 : wholeHour % 12;
       const ampm = wholeHour >= 12 ? "PM" : "AM";
-      const label = minutes > 0
-        ? `${displayHour}:${minutes.toString().padStart(2, "0")} ${ampm}`
-        : `${displayHour} ${ampm}`;
+      const label =
+        minutes > 0
+          ? `${displayHour}:${minutes.toString().padStart(2, "0")} ${ampm}`
+          : `${displayHour} ${ampm}`;
 
       return {
         hour: point.hour,
@@ -1077,7 +1082,7 @@ const TideChart: React.FC<TideChartProps> = ({
         unit: "ft",
       };
     },
-    [renderData]
+    [renderData],
   );
 
   const getDataPointForHour = React.useCallback(
@@ -1099,9 +1104,10 @@ const TideChart: React.FC<TideChartProps> = ({
       const minutes = Math.round((normalized - wholeHour) * 60);
       const displayHour = wholeHour % 12 === 0 ? 12 : wholeHour % 12;
       const ampm = wholeHour >= 12 ? "PM" : "AM";
-      const label = minutes > 0
-        ? `${displayHour}:${minutes.toString().padStart(2, "0")} ${ampm}`
-        : `${displayHour} ${ampm}`;
+      const label =
+        minutes > 0
+          ? `${displayHour}:${minutes.toString().padStart(2, "0")} ${ampm}`
+          : `${displayHour} ${ampm}`;
 
       return {
         hour: point.hour,
@@ -1110,7 +1116,7 @@ const TideChart: React.FC<TideChartProps> = ({
         unit: "ft",
       };
     },
-    [renderData]
+    [renderData],
   );
 
   const getXPositionForHour = React.useCallback(
@@ -1121,30 +1127,32 @@ const TideChart: React.FC<TideChartProps> = ({
       if (t < 0 || t > 1) return null;
       return yAxisInsetPx + t * plotWidthPx;
     },
-    [plotWidthPx, yAxisInsetPx, hours]
+    [plotWidthPx, yAxisInsetPx, hours],
   );
 
   const handleMobileInspect = React.useCallback(
     (_index: number, hour: number) => {
       setHoveredHour(hour);
     },
-    [setHoveredHour]
+    [setHoveredHour],
   );
 
   const handleMobileInspectEnd = React.useCallback(() => {
     setHoveredHour(null);
   }, [setHoveredHour]);
 
-  const { handlers: mobileHandlers, styles: mobileStyles } = useMobileChartTouch({
-    chartId: mobileChartId,
-    containerRef,
-    dataLength: renderData.length,
-    getIndexFromX: getIndexFromChartX,
-    getHourFromIndex,
-    onInspect: handleMobileInspect,
-    onInspectEnd: handleMobileInspectEnd,
-    enabled: isTouchOnlyDevice,
-  });
+  const { handlers: mobileHandlers, styles: mobileStyles } =
+    useMobileChartTouch({
+      chartId: mobileChartId,
+      containerRef,
+      dataLength: renderData.length,
+      getIndexFromX: getIndexFromChartX,
+      getHourFromIndex,
+      onInspect: handleMobileInspect,
+      onInspectEnd: handleMobileInspectEnd,
+      enableHoverInspect: preview,
+      enabled: isTouchOnlyDevice,
+    });
 
   return (
     <div
@@ -1154,7 +1162,7 @@ const TideChart: React.FC<TideChartProps> = ({
         "chart-touch-no-select relative aspect-auto w-full [&_.recharts-legend-wrapper]:hidden",
         preview
           ? "h-[300px]"
-          : "h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px]"
+          : "h-[250px] @min-3xl:h-[280px] @min-4xl:h-[300px]",
       )}
       style={mobileStyles}
     >
@@ -1293,8 +1301,8 @@ const TideChart: React.FC<TideChartProps> = ({
             }}
             syncId="allCharts"
             syncMethod="value"
-            onMouseMove={handleMouseMove}
-            onMouseLeave={handleMouseLeave}
+            onMouseMove={preview ? undefined : handleMouseMove}
+            onMouseLeave={preview ? undefined : handleMouseLeave}
           >
             {/* Hour indicator line */}
             <ReferenceLine
@@ -1333,17 +1341,11 @@ const TideChart: React.FC<TideChartProps> = ({
               ]}
               ticks={tideTicks}
             />
-            {/* Mobile: Use MobileChartTooltip via portal instead */}
             {!isTouchOnlyDevice && (
               <ChartTooltip
-                content={<ChartTooltipContent />}
+                content={() => null}
                 cursor={false}
-                labelFormatter={(_, payload) => {
-                  const entry = Array.isArray(payload)
-                    ? (payload[0]?.payload as TidePoint | undefined)
-                    : undefined;
-                  return entry ? formatTime(entry.timestamp) : "";
-                }}
+                wrapperStyle={{ visibility: "hidden" }}
                 animationDuration={0}
                 isAnimationActive={false}
               />
@@ -1531,16 +1533,14 @@ const TideChart: React.FC<TideChartProps> = ({
           </LineChart>
         </ChartContainer>
       </div>
-      {isTouchOnlyDevice && (
-        <MobileChartTooltip
-          chartId={mobileChartId}
-          getDataPoint={getMobileTooltipDataPoint}
-          getDataPointForHour={getDataPointForHour}
-          anchorRef={containerRef}
-          getXPositionForHour={getXPositionForHour}
-          positionInside
-        />
-      )}
+      <MobileChartTooltip
+        chartId={mobileChartId}
+        getDataPoint={getMobileTooltipDataPoint}
+        getDataPointForHour={getDataPointForHour}
+        anchorRef={containerRef}
+        getXPositionForHour={getXPositionForHour}
+        positionInside
+      />
     </div>
   );
 };

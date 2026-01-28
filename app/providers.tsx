@@ -9,6 +9,7 @@ import { SupabaseProvider } from "@/components/providers/SupabaseProvider";
 import { QueryProvider } from "@/components/providers/QueryProvider";
 import { ToastProvider } from "@/components/providers/ToastProvider";
 import { SearchProvider } from "@/components/context/SearchContext";
+import { PathProvider } from "@/components/context/PathContext";
 import ScrollPerfHandler from "@/components/general/ScrollPerfHandler";
 
 export function AppProviders({
@@ -21,22 +22,23 @@ export function AppProviders({
   return (
     <SupabaseProvider initialSession={initialSession}>
       <QueryProvider>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <ToastProvider>
-            <SearchProvider>
-              <ScrollToTopOnRouteChange />
-              <ScrollPerfHandler />
-              {children}
-            </SearchProvider>
-          </ToastProvider>
-        </ThemeProvider>
+        <PathProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <ToastProvider>
+              <SearchProvider>
+                <ScrollToTopOnRouteChange />
+                <ScrollPerfHandler />
+                {children}
+              </SearchProvider>
+            </ToastProvider>
+          </ThemeProvider>
+        </PathProvider>
       </QueryProvider>
     </SupabaseProvider>
   );
 }
-
