@@ -37,7 +37,10 @@ export async function fetchBeachCount(): Promise<number> {
   const usingAdminClient = Boolean(supabaseAdmin);
 
   if (!usingAdminClient) {
-    if (process.env.NODE_ENV !== "production" && !loggedMissingAdminKey) {
+    const shouldWarn =
+      process.env.NODE_ENV !== "production" &&
+      process.env.SUPABASE_LOG_MISSING_SERVICE_ROLE_KEY === "true";
+    if (shouldWarn && !loggedMissingAdminKey) {
       loggedMissingAdminKey = true;
       console.warn(
         "SUPABASE_SERVICE_ROLE_KEY not set; using anon client for beach count."

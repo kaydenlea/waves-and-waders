@@ -802,6 +802,24 @@ const isTouchInteraction = (event?: Event | null) => {
   return false;
 };
 
+const formatSurfRange = (
+  minValue: number | null | undefined,
+  maxValue: number | null | undefined,
+) => {
+  const hasMin = typeof minValue === "number" && Number.isFinite(minValue);
+  const hasMax = typeof maxValue === "number" && Number.isFinite(maxValue);
+  if (!hasMin && !hasMax) return null;
+  const minRounded = hasMin ? Math.round(minValue as number) : null;
+  const maxRounded = hasMax ? Math.round(maxValue as number) : null;
+  if (minRounded != null && maxRounded != null) {
+    const low = Math.min(minRounded, maxRounded);
+    const high = Math.max(minRounded, maxRounded);
+    return low === high ? String(low) : `${low}-${high}`;
+  }
+  const value = minRounded ?? maxRounded ?? null;
+  return value != null ? String(value) : null;
+};
+
 const buildPopupHtml = (
   beach: BeachPoint,
   stats: {
@@ -840,6 +858,7 @@ const buildPopupHtml = (
           </svg>
         </span>`
       : "";
+  const windTail = windArrow;
   const color = getIntensityColor(
     numericIntensity != null ? numericIntensity : 0,
   );
@@ -872,7 +891,7 @@ const buildPopupHtml = (
             <span>Wind</span>
             <strong>${
               windReady
-                ? `${windText}<span>mph</span>${windArrow}`
+                ? `${windText}<span>mph</span>${windTail}`
                 : `<span class="ww-leaflet-popup__placeholder ww-leaflet-popup__placeholder--wide" aria-hidden="true"></span>`
             }</strong>
           </div>
@@ -1621,38 +1640,6 @@ const LeafletMap: React.FC<Props> = ({
       setShowMap(true);
     }
   }, [pathname, showMap, setShowMap]);
-  React.useEffect(() => {
-    if (!pathname.endsWith("/beaches")) return;
-    if (geoRequestedRef.current) {
-      debugLog("[LeafletGeo] Request already in flight");
-      return;
-    }
-    geoRequestedRef.current = true;
-    if (typeof window === "undefined" || !navigator?.geolocation) {
-      debugLog("[LeafletGeo] Navigator not available");
-      return;
-    }
-    debugLog("[LeafletGeo] Requesting user position");
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const next = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        };
-        debugLog("[LeafletGeo] Position received", next);
-        debugLog("[LeafletGeo] Setting user location state");
-        setUserLocation(next);
-        debugLog("[LeafletGeo] Forcing marker revision");
-        // Force component update to ensure button appears
-        forceMarkerRevision();
-        debugLog("[LeafletGeo] Location update complete");
-      },
-      (error) => {
-        debugLog("[LeafletGeo] Error", error.message);
-      },
-      { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 },
-    );
-  }, [pathname, debugLog]);
   const {
     setVisibleBounds,
     setViewportRequestId,
@@ -1801,6 +1788,60 @@ const LeafletMap: React.FC<Props> = ({
   );
   const geoFocusDoneRef = React.useRef(false);
   const geoRequestedRef = React.useRef(false);
+  const geoRequestInFlightRef =
+    React.useRef<Promise<LatLngLiteral | null> | null>(null);
+
+  const requestUserLocation = React.useCallback(
+    (source: "auto" | "button") => {
+      if (typeof window === "undefined" || !navigator?.geolocation) {
+        debugLog("[LeafletGeo] Navigator not available", source);
+        return Promise.resolve(null);
+      }
+      if (geoRequestInFlightRef.current) {
+        debugLog("[LeafletGeo] Request already in flight", source);
+        return geoRequestInFlightRef.current;
+      }
+      geoRequestedRef.current = true;
+      debugLog("[LeafletGeo] Requesting user position", source);
+      geoRequestInFlightRef.current = new Promise((resolve) => {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const next = {
+              lat: position.coords.latitude,
+              lng: position.coords.longitude,
+            };
+            debugLog("[LeafletGeo] Position received", next);
+            debugLog("[LeafletGeo] Setting user location state");
+            setUserLocation(next);
+            debugLog("[LeafletGeo] Forcing marker revision");
+            // Force component update to ensure button appears
+            forceMarkerRevision();
+            debugLog("[LeafletGeo] Location update complete");
+            geoRequestInFlightRef.current = null;
+            resolve(next);
+          },
+          (error) => {
+            debugLog("[LeafletGeo] Error", error.message);
+            geoRequestInFlightRef.current = null;
+            geoRequestedRef.current = false;
+            resolve(null);
+          },
+          { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 },
+        );
+      });
+      return geoRequestInFlightRef.current;
+    },
+    [debugLog],
+  );
+
+  React.useEffect(() => {
+    if (!pathname.endsWith("/beaches")) return;
+    if (geoRequestedRef.current) {
+      debugLog("[LeafletGeo] Request already in flight");
+      return;
+    }
+    void requestUserLocation("auto");
+  }, [pathname, debugLog, requestUserLocation]);
 
   const beachesPage = pathname.endsWith("/beaches");
   const fullMapPage = !beachesPage && !embedded;
@@ -1809,6 +1850,8 @@ const LeafletMap: React.FC<Props> = ({
   const layoutVersion = smallScreen ? 1 : 2;
   const overviewPageBusy = useOptionalOverviewPageBusy();
   const effectiveShowMap = embedded || showMap || smallScreen === true;
+  const canRequestLocation =
+    typeof window !== "undefined" && !!navigator?.geolocation;
 
   const combinedBeaches = React.useMemo(() => {
     if (!initialBeach) {
@@ -1921,6 +1964,36 @@ const LeafletMap: React.FC<Props> = ({
     debugLog,
   ]);
 
+  const zoomToNearby = React.useCallback(
+    (location: LatLngLiteral) => {
+      const map = mapRef.current;
+      if (!map) {
+        debugLog("[LeafletGeo] zoomToNearby - no map");
+        return;
+      }
+      const list = filteredBeaches.length ? filteredBeaches : combinedBeaches;
+      if (!list.length) {
+        debugLog("[LeafletGeo] zoomToNearby - no beaches available");
+        return;
+      }
+      debugLog("[LeafletGeo] zoomToNearby - zooming to nearby beaches");
+      const nearest = getNearestBeaches(location, list, 20);
+      const bounds = getBoundsForBeaches(nearest);
+
+      if (bounds) {
+        map.fitBounds(bounds, {
+          padding: [80, 80],
+          maxZoom: 12,
+          animate: true,
+          duration: 0.6,
+        });
+      } else {
+        map.flyTo([location.lat, location.lng], 10, { duration: 0.6 });
+      }
+    },
+    [filteredBeaches, combinedBeaches, debugLog],
+  );
+
   const handleZoomToNearby = React.useCallback(() => {
     debugLog("[LeafletGeo] handleZoomToNearby called", {
       hasMap: !!mapRef.current,
@@ -1928,34 +2001,20 @@ const LeafletMap: React.FC<Props> = ({
       userLocation,
     });
     const map = mapRef.current;
-    if (!map || !userLocation) {
-      debugLog(
-        "[LeafletGeo] handleZoomToNearby - early exit, no map or location",
-      );
+    if (!map) {
+      debugLog("[LeafletGeo] handleZoomToNearby - early exit, no map");
       return;
     }
-
-    const list = filteredBeaches.length ? filteredBeaches : combinedBeaches;
-    if (!list.length) {
-      debugLog("[LeafletGeo] handleZoomToNearby - no beaches available");
-      return;
-    }
-
-    debugLog("[LeafletGeo] handleZoomToNearby - zooming to nearby beaches");
-    const nearest = getNearestBeaches(userLocation, list, 20);
-    const bounds = getBoundsForBeaches(nearest);
-
-    if (bounds) {
-      map.fitBounds(bounds, {
-        padding: [80, 80],
-        maxZoom: 12,
-        animate: true,
-        duration: 0.6,
+    if (!userLocation) {
+      debugLog("[LeafletGeo] handleZoomToNearby - requesting location");
+      void requestUserLocation("button").then((location) => {
+        if (!location) return;
+        zoomToNearby(location);
       });
-    } else {
-      map.flyTo([userLocation.lat, userLocation.lng], 10, { duration: 0.6 });
+      return;
     }
-  }, [userLocation, filteredBeaches, combinedBeaches, debugLog]);
+    zoomToNearby(userLocation);
+  }, [userLocation, debugLog, requestUserLocation, zoomToNearby]);
 
   const handleZoomToCaliforniaView = React.useCallback(() => {
     const map = mapRef.current;
@@ -3278,6 +3337,21 @@ const LeafletMap: React.FC<Props> = ({
         ctx.statsHourKey,
       ) ?? null;
     const dailyStats = extractDailySurfWindStats(snapshot);
+    const current = snapshot?.current ?? null;
+    const currentSurfLabel = formatSurfRange(
+      current?.surf?.heightMin,
+      current?.surf?.heightMax,
+    );
+    const currentWindSpeed =
+      typeof current?.conditions?.windSpeed === "number" &&
+      Number.isFinite(current.conditions.windSpeed)
+        ? current.conditions.windSpeed
+        : null;
+    const currentWindDirection =
+      typeof current?.conditions?.windDirection === "number" &&
+      Number.isFinite(current.conditions.windDirection)
+        ? current.conditions.windDirection
+        : null;
     const statsIntensity =
       typeof dailyStats.surfIntensity === "number"
         ? dailyStats.surfIntensity
@@ -3285,10 +3359,10 @@ const LeafletMap: React.FC<Props> = ({
     const gridIntensity = resolveSurfIntensity(ctx.surfIntensity, beach);
     const intensity = gridIntensity != null ? gridIntensity : statsIntensity;
     return buildPopupHtml(beach, {
-      surfHeight: dailyStats.surfHeight,
+      surfHeight: currentSurfLabel ?? dailyStats.surfHeight,
       surfIntensity: intensity,
-      windSpeed: dailyStats.windSpeed,
-      windDirection: dailyStats.windDirection,
+      windSpeed: currentWindSpeed ?? dailyStats.windSpeed,
+      windDirection: currentWindDirection ?? dailyStats.windDirection,
     });
   }, []);
 
@@ -5301,12 +5375,12 @@ const LeafletMap: React.FC<Props> = ({
             aria-label="Zoom to nearby beaches"
             title="Zoom to nearby beaches"
             onClick={handleZoomToNearby}
-            disabled={!userLocation}
+            disabled={!canRequestLocation}
             className={cn(
               "z-[1000] absolute left-3 top-[11.4rem] @min-4xl:top-auto @min-4xl:bottom-[10rem]",
               overlayButtonBase,
               "text-sm font-medium",
-              !userLocation && "opacity-50 cursor-not-allowed",
+              !canRequestLocation && "opacity-50 cursor-not-allowed",
             )}
           >
             <Locate className="w-5 h-5 mx-auto" />
@@ -5563,6 +5637,10 @@ const LeafletMap: React.FC<Props> = ({
             font-weight: 400;
             margin-left: 4px;
             color: var(--muted-foreground);
+          }
+          .ww-leaflet-popup__wind-arrow {
+            display: inline-block;
+            transform-origin: center;
           }
           .ww-leaflet-popup__metric-text span {
             font-size: 0.75rem;

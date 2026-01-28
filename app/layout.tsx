@@ -1,5 +1,4 @@
 import "./globals.css";
-import { getServerSupabase } from "@/lib/supabaseServer";
 import { poppins } from "@/lib/fonts";
 import { buildDefaultMetadata, getSiteUrl } from "@/lib/seo";
 import { AppProviders } from "./providers";
@@ -11,17 +10,8 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const supabase = await getServerSupabase();
-
-  // Get the actual session data which includes access tokens
-  const { data: sessionData, error: sessionError } =
-    await supabase.auth.getSession();
-
-  if (sessionError) {
-    console.error("Failed to load session", sessionError);
-  }
-
-  const initialSession = sessionData.session;
+  // Avoid getSession on the server to prevent untrusted user warnings.
+  const initialSession = null;
   const baseUrl = getSiteUrl();
 
   const structuredData = {

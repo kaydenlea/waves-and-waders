@@ -46,6 +46,24 @@ type BeachCardProps = {
 const IMAGE_PLACEHOLDER =
   "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4IiBoZWlnaHQ9IjgiPjxyZWN0IHdpZHRoPSI4IiBoZWlnaHQ9IjgiIGZpbGw9IiNkYmVhZmUiLz48L3N2Zz4=";
 
+const formatSurfRange = (
+  minValue: number | null | undefined,
+  maxValue: number | null | undefined,
+) => {
+  const hasMin = typeof minValue === "number" && Number.isFinite(minValue);
+  const hasMax = typeof maxValue === "number" && Number.isFinite(maxValue);
+  if (!hasMin && !hasMax) return null;
+  const minRounded = hasMin ? Math.round(minValue as number) : null;
+  const maxRounded = hasMax ? Math.round(maxValue as number) : null;
+  if (minRounded != null && maxRounded != null) {
+    const low = Math.min(minRounded, maxRounded);
+    const high = Math.max(minRounded, maxRounded);
+    return low === high ? String(low) : `${low}-${high}`;
+  }
+  const value = minRounded ?? maxRounded ?? null;
+  return value != null ? String(value) : null;
+};
+
 const BeachCard = React.memo(
   ({
     b,
@@ -103,8 +121,24 @@ const BeachCard = React.memo(
         : maxRounded! >= 3
           ? "bg-orange-300"
           : "bg-green-300";
+    const currentSurf = formatSurfRange(
+      b.current?.surf?.heightMin,
+      b.current?.surf?.heightMax,
+    );
+    const currentWindSpeed =
+      typeof b.current?.conditions?.windSpeed === "number" &&
+      Number.isFinite(b.current.conditions.windSpeed)
+        ? String(Math.round(b.current.conditions.windSpeed))
+        : null;
+    const resolvedSurf = currentSurf ?? b.conditions.surf;
+    const resolvedWind = currentWindSpeed ?? b.conditions.wind;
+    const resolvedWindDir =
+      typeof b.current?.conditions?.windDirection === "number" &&
+      Number.isFinite(b.current.conditions.windDirection)
+        ? b.current.conditions.windDirection
+        : b.conditions.windDir;
     const rotation =
-      typeof b.conditions.windDir === "number" ? b.conditions.windDir - 315 : 0;
+      typeof resolvedWindDir === "number" ? resolvedWindDir - 315 : 0;
 
     const beachUrl = `${generateBeachUrl(b.name, b.id)}/overview`;
 
@@ -236,7 +270,7 @@ const BeachCard = React.memo(
                 </span>
                 <span className="flex items-baseline gap-0.5">
                   <span className="font-semibold text-[0.9rem]">
-                    {b.conditions.surf}
+                    {resolvedSurf}
                   </span>
                   ft
                 </span>
@@ -247,7 +281,7 @@ const BeachCard = React.memo(
                 </span>
                 <span className="flex items-baseline gap-0.5">
                   <span className="font-semibold text-[0.9rem]">
-                    {b.conditions.wind}
+                    {resolvedWind}
                   </span>
                   mph
                 </span>
