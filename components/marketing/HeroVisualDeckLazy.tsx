@@ -1,17 +1,12 @@
 "use client";
 
 import * as React from "react";
-import dynamic from "next/dynamic";
 import { Droplets, MapPin, Sparkles } from "lucide-react";
 
 import type { Beach } from "@/components/general/BeachCard";
 import { SunDataProvider } from "@/components/context/SunDataContext";
+import HeroVisualDeck from "@/components/marketing/HeroVisualDeck";
 import type { ForecastData } from "@/lib/supabase";
-
-const HeroVisualDeck = dynamic(() => import("@/components/marketing/HeroVisualDeck"), {
-  ssr: false,
-  loading: () => <HeroDeckPlaceholder />,
-});
 
 type Props = {
   previewBeach: Beach;
@@ -98,31 +93,6 @@ function LiteHeroCard({ previewBeach, previewForecast }: Props) {
 
 export default function HeroVisualDeckLazy(props: Props) {
   const liteMode = useLiteMode();
-  const [ready, setReady] = React.useState(false);
-
-  React.useEffect(() => {
-    if (liteMode) return;
-    if (typeof window === "undefined") return;
-
-    let cancelled = false;
-    const schedule = () => {
-      if (!cancelled) setReady(true);
-    };
-
-    if ("requestIdleCallback" in window) {
-      const id = window.requestIdleCallback(schedule, { timeout: 500 });
-      return () => {
-        cancelled = true;
-        window.cancelIdleCallback?.(id);
-      };
-    }
-
-    const id = window.setTimeout(schedule, 160);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(id);
-    };
-  }, [liteMode]);
 
   React.useEffect(() => {
     if (!liteMode) return;
@@ -135,17 +105,15 @@ export default function HeroVisualDeckLazy(props: Props) {
     };
   }, [liteMode]);
 
-  if (liteMode) {
-    return <LiteHeroCard {...props} />;
-  }
-
-  if (!ready) {
-    return <HeroDeckPlaceholder />;
-  }
-
   return (
-    <SunDataProvider>
-      <HeroVisualDeck {...props} />
-    </SunDataProvider>
+    <div className="w-full h-[500px] @min-sm:h-[700px] @min-md:h-[760px]">
+      {liteMode ? (
+        <LiteHeroCard {...props} />
+      ) : (
+        <SunDataProvider>
+          <HeroVisualDeck {...props} />
+        </SunDataProvider>
+      )}
+    </div>
   );
 }

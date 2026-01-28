@@ -1334,53 +1334,6 @@ export default React.memo(function ForecastTideChart({
         )
       : null;
 
-  // Compute label positions with collision avoidance
-  const labelPositions = useMemo(() => {
-    const peaks = data
-      .map((d, idx) => ({ ...d, index: idx }))
-      .filter((d) => d.isPeak !== undefined && d.isPeak !== null);
-
-    if (peaks.length === 0) return new Map<number, number>();
-
-    const positions = new Map<number, number>(); // index -> y-offset
-    const LABEL_WIDTH = 70; // Approximate width of label text (increased for better detection)
-
-    // Sort peaks by x-position (hour)
-    const sorted = [...peaks].sort((a, b) => a.hour - b.hour);
-
-    // Calculate chart width scale (pixels per hour)
-    const pxPerHour = chartInnerWidth / (totalFetchedDays * 24);
-
-    for (let i = 0; i < sorted.length; i++) {
-      const current = sorted[i];
-      let baseOffset = -32; // Default offset from point (above)
-
-      // Check for collisions with all previous labels
-      for (let j = i - 1; j >= 0; j--) {
-        const prev = sorted[j];
-        const prevOffset = positions.get(prev.index) ?? -32;
-
-        // Calculate horizontal distance in pixels
-        const xDist = Math.abs(current.hour - prev.hour) * pxPerHour;
-
-        // If labels overlap horizontally, alternate above/below
-        if (xDist < LABEL_WIDTH) {
-          // Alternate: if previous is above (negative), place current below (positive)
-          if (prevOffset < 0) {
-            baseOffset = 25; // Below the curve
-          } else {
-            baseOffset = -32; // Above the curve
-          }
-          break; // Only check the most recent overlapping label
-        }
-      }
-
-      positions.set(current.index, baseOffset);
-    }
-
-    return positions;
-  }, [data, chartInnerWidth, totalFetchedDays]);
-
   const hourTicks = useMemo(() => {
     const ticks: number[] = [];
     for (let v = 0; v <= 24 * totalFetchedDays; v += 3) {
@@ -1416,6 +1369,64 @@ export default React.memo(function ForecastTideChart({
     sunMarkers.forEach((m) => map.set(m.hour, m.type));
     return map;
   }, [sunMarkers]);
+
+  // Compute label positions with collision avoidance
+  const labelPositions = useMemo(() => {
+    const peaks = data
+      .map((d, idx) => ({ ...d, index: idx }))
+      .filter((d) => d.isPeak !== undefined && d.isPeak !== null);
+
+    if (peaks.length === 0) return new Map<number, number>();
+
+    const positions = new Map<number, number>(); // index -> y-offset
+    const LABEL_WIDTH = 70; // Approximate width of label text (increased for better detection)
+    const placed: Array<{ x: number; offset: number }> = [];
+
+    // Sort peaks by x-position (hour)
+    const sorted = [...peaks].sort((a, b) => a.hour - b.hour);
+
+    // Calculate chart width scale (pixels per hour)
+    const pxPerHour = chartInnerWidth / (totalFetchedDays * 24);
+
+    for (let i = 0; i < sorted.length; i++) {
+      const current = sorted[i];
+      let baseOffset = -32; // Default offset from point (above)
+      if (sunMarkerMap.get(current.hour)) {
+        baseOffset = 25;
+      }
+      if (typeof current.isPeak === "number" && current.isPeak <= 0) {
+        baseOffset = -32;
+      }
+
+      // Check for collisions with previous labels
+      for (const prev of placed) {
+        const xDist = Math.abs(prev.x - current.hour * pxPerHour);
+        if (
+          xDist < LABEL_WIDTH &&
+          Math.sign(prev.offset) === Math.sign(baseOffset)
+        ) {
+          baseOffset = baseOffset < 0 ? 25 : -32;
+          break;
+        }
+      }
+      // If still colliding on the same side, stack farther
+      for (const prev of placed) {
+        const xDist = Math.abs(prev.x - current.hour * pxPerHour);
+        if (
+          xDist < LABEL_WIDTH &&
+          Math.sign(prev.offset) === Math.sign(baseOffset)
+        ) {
+          baseOffset = baseOffset < 0 ? -52 : 45;
+          break;
+        }
+      }
+
+      placed.push({ x: current.hour * pxPerHour, offset: baseOffset });
+      positions.set(current.index, baseOffset);
+    }
+
+    return positions;
+  }, [data, chartInnerWidth, totalFetchedDays, sunMarkerMap]);
 
   // Y-axis domain for line proximity detection
   const yMin = tideTicks[0] ?? -2;

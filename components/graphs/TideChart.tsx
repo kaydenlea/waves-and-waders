@@ -346,22 +346,6 @@ const TideChart: React.FC<TideChartProps> = ({
     [renderData.length]
   );
 
-  // Pre-compute which peaks should be placed below to avoid overlap
-  const peakPlacementMap = useMemo(() => {
-    const map = new Map<number, boolean>();
-    const peaks = renderData.filter((p) => p.isPeak != null);
-
-    for (let i = 1; i < peaks.length; i++) {
-      const prevPeak = peaks[i - 1];
-      const currPeak = peaks[i];
-      // If the previous peak is within 3 hours, alternate position
-      if (Math.abs(currPeak.hour - prevPeak.hour) < 3) {
-        map.set(currPeak.timestamp, true);
-      }
-    }
-    return map;
-  }, [renderData]);
-
   // Pre-compute sun marker lookup map for O(1) access
   const sunMarkerMap = useMemo(() => {
     const map = new Map<number, "sunrise" | "sunset">();
@@ -799,6 +783,45 @@ const TideChart: React.FC<TideChartProps> = ({
     () => Math.max(0, containerWidth - yAxisInsetPx - CHART_RIGHT_MARGIN),
     [containerWidth, yAxisInsetPx]
   );
+
+  // Pre-compute per-peak label offsets to avoid overlap
+  const peakYOffsetMap = useMemo(() => {
+    const map = new Map<number, number>();
+    if (!plotWidthPx || renderData.length === 0 || hours <= 0) return map;
+
+    const LABEL_WIDTH = 70; // px
+    const pxPerHour = plotWidthPx / hours;
+    if (!Number.isFinite(pxPerHour) || pxPerHour <= 0) return map;
+
+    const placed: Array<{ x: number; offset: number }> = [];
+    const peaks = renderData
+      .filter((p) => p.isPeak != null)
+      .sort((a, b) => a.hour - b.hour);
+
+    for (const peak of peaks) {
+      const x = peak.hour * pxPerHour;
+      let offset = -32;
+      if (sunMarkerMap.get(peak.hour)) {
+        offset = 25;
+      }
+      if (peak.isPeak != null && peak.isPeak <= 0) {
+        offset = -32;
+      }
+
+      const conflicts = placed.filter((p) => Math.abs(p.x - x) < LABEL_WIDTH);
+      if (conflicts.some((p) => Math.sign(p.offset) === Math.sign(offset))) {
+        offset = offset < 0 ? 25 : -32;
+      }
+      if (conflicts.some((p) => Math.sign(p.offset) === Math.sign(offset))) {
+        offset = offset < 0 ? -52 : 45;
+      }
+
+      placed.push({ x, offset });
+      map.set(peak.timestamp, offset);
+    }
+
+    return map;
+  }, [plotWidthPx, renderData, hours, sunMarkerMap]);
 
   const getTouchActivationFromChartX = React.useCallback(
     (chartX: number) => {
@@ -1447,14 +1470,12 @@ const TideChart: React.FC<TideChartProps> = ({
                   const safeY = typeof props.y === "number" ? props.y : 0;
 
                   const markerAtHour = sunMarkerMap.get(point.hour);
-                  // Optimized: use pre-computed placement map
-                  let placeBelow =
-                    peakPlacementMap.get(point.timestamp) ?? false;
-                  if (markerAtHour) {
-                    placeBelow = true;
+                  let yOffset = peakYOffsetMap.get(point.timestamp) ?? -32;
+                  if (markerAtHour && yOffset < 0) {
+                    yOffset = 25;
                   }
                   if (point.isPeak <= 0) {
-                    placeBelow = false;
+                    yOffset = -32;
                   }
 
                   // Calculate boundaries based on plot bounds.
@@ -1473,8 +1494,8 @@ const TideChart: React.FC<TideChartProps> = ({
                     adjustedX = RIGHT_BOUNDARY;
                   }
 
-                  let timeY = placeBelow ? safeY + 25 : safeY - 32;
-                  let heightY = placeBelow ? safeY + 40 : safeY - 17;
+                  let timeY = safeY + yOffset;
+                  let heightY = safeY + yOffset + 15;
                   if (timeY < 18) {
                     const push = 18 - timeY;
                     timeY += push;
