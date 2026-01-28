@@ -919,9 +919,7 @@ export default React.memo(function ForecastTideChart({
 
   const handleMobileInspect = useCallback(
     (_index: number, hour: number) => {
-      // Round to nearest 3-hour for cross-chart sync
-      const roundedHour = Math.round(hour / DATA_STEP_HOURS) * DATA_STEP_HOURS;
-      setHoveredHour(roundedHour);
+      setHoveredHour(hour);
     },
     [setHoveredHour]
   );
@@ -1573,6 +1571,8 @@ export default React.memo(function ForecastTideChart({
 
   // Hover sync handlers
   const lastHoveredRef = React.useRef<number | null>(null);
+  const hoverRafRef = React.useRef<number | null>(null);
+  const pendingHoverRef = React.useRef<number | null>(null);
 
   const handleMouseMove = React.useCallback(
     (e: ChartMouseEvent) => {
@@ -1581,13 +1581,23 @@ export default React.memo(function ForecastTideChart({
       if (e && e.activeLabel !== undefined) {
         const hour = Number(e.activeLabel);
         if (!isNaN(hour)) {
-          // Round to nearest 3-hour increment like overview charts
-          const roundedHour = Math.round(hour / 3) * 3;
-
-          // Only broadcast to other charts when crossing 3-hour boundaries
-          if (lastHoveredRef.current !== roundedHour) {
-            lastHoveredRef.current = roundedHour;
-            setHoveredHour(roundedHour);
+          if (
+            typeof lastHoveredRef.current === "number" &&
+            Math.abs(lastHoveredRef.current - hour) < 1e-6
+          )
+            return;
+          pendingHoverRef.current = hour;
+          if (!hoverRafRef.current) {
+            hoverRafRef.current = requestAnimationFrame(() => {
+              hoverRafRef.current = null;
+              const nextHour = pendingHoverRef.current;
+              pendingHoverRef.current = null;
+              if (typeof nextHour !== "number") return;
+              if (lastHoveredRef.current !== nextHour) {
+                lastHoveredRef.current = nextHour;
+                setHoveredHour(nextHour);
+              }
+            });
           }
         }
       }
@@ -1597,6 +1607,11 @@ export default React.memo(function ForecastTideChart({
 
   const handleMouseLeave = React.useCallback(() => {
     if (isTouchOnlyDevice) return;
+    if (hoverRafRef.current) {
+      cancelAnimationFrame(hoverRafRef.current);
+      hoverRafRef.current = null;
+    }
+    pendingHoverRef.current = null;
     lastHoveredRef.current = null;
     setHoveredHour(null);
   }, [isTouchOnlyDevice, setHoveredHour]);
@@ -1984,14 +1999,9 @@ export default React.memo(function ForecastTideChart({
                       {/* Mobile: Use custom MobileChartTooltip rendered via portal */}
                       {isTouchOnlyDevice ? null : (
                         <ChartTooltip
-                          content={
-                            <ChartTooltipViewportContent
-                              viewport={tooltipViewport}
-                              labelFormatter={formatHourLabel}
-                            />
-                          }
+                          content={() => null}
                           cursor={false}
-                          wrapperStyle={{ transform: "translate(0px, 0px)" }}
+                          wrapperStyle={{ visibility: "hidden" }}
                           animationDuration={0}
                           isAnimationActive={false}
                         />
@@ -2242,18 +2252,16 @@ export default React.memo(function ForecastTideChart({
           />
         </div>
 
-        {/* Mobile touch tooltip - rendered via portal */}
-        {isTouchOnlyDevice && (
-          <MobileChartTooltip
-            chartId={mobileChartId}
-            getDataPoint={getMobileTooltipDataPoint}
-            getDataPointForHour={getDataPointForHour}
-            anchorRef={containerRef}
-            getXPositionForHour={getXPositionForHour}
-            positionInside
-            topOffset={55}
-          />
-        )}
+        {/* Header tooltip (touch + desktop) - rendered via portal */}
+        <MobileChartTooltip
+          chartId={mobileChartId}
+          getDataPoint={getMobileTooltipDataPoint}
+          getDataPointForHour={getDataPointForHour}
+          anchorRef={containerRef}
+          getXPositionForHour={getXPositionForHour}
+          positionInside
+          topOffset={55}
+        />
       </div>
     </div>
   );

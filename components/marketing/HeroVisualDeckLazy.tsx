@@ -93,6 +93,36 @@ function LiteHeroCard({ previewBeach, previewForecast }: Props) {
 
 export default function HeroVisualDeckLazy(props: Props) {
   const liteMode = useLiteMode();
+  const [ready, setReady] = React.useState(false);
+
+  React.useEffect(() => {
+    if (liteMode) return;
+    if (typeof window === "undefined") return;
+
+    let cancelled = false;
+    const schedule = () => {
+      if (!cancelled) setReady(true);
+    };
+
+    const w = window as unknown as {
+      requestIdleCallback?: (callback: () => void, opts?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+
+    if (typeof w.requestIdleCallback === "function") {
+      const id = w.requestIdleCallback(schedule, { timeout: 500 });
+      return () => {
+        cancelled = true;
+        w.cancelIdleCallback?.(id);
+      };
+    }
+
+    const id = window.setTimeout(schedule, 160);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(id);
+    };
+  }, [liteMode]);
 
   React.useEffect(() => {
     if (!liteMode) return;
@@ -109,6 +139,8 @@ export default function HeroVisualDeckLazy(props: Props) {
     <div className="w-full h-[500px] @min-sm:h-[700px] @min-md:h-[760px]">
       {liteMode ? (
         <LiteHeroCard {...props} />
+      ) : !ready ? (
+        <HeroDeckPlaceholder />
       ) : (
         <SunDataProvider>
           <HeroVisualDeck {...props} />

@@ -133,6 +133,7 @@ export function MobileTooltipProvider({
   });
 
   const listenersRef = React.useRef<Set<() => void>>(new Set());
+  const bodyClassRemovalTimeoutRef = React.useRef<number | null>(null);
 
   const notifyChange = React.useCallback(() => {
     listenersRef.current.forEach((cb) => cb());
@@ -171,6 +172,10 @@ export function MobileTooltipProvider({
         chartRect,
       };
       if (typeof document !== "undefined") {
+        if (bodyClassRemovalTimeoutRef.current != null) {
+          window.clearTimeout(bodyClassRemovalTimeoutRef.current);
+          bodyClassRemovalTimeoutRef.current = null;
+        }
         document.body.classList.add("ww-mobile-tooltip-active");
       }
       notifyChange();
@@ -190,7 +195,13 @@ export function MobileTooltipProvider({
       chartRect: null,
     };
     if (typeof document !== "undefined") {
-      document.body.classList.remove("ww-mobile-tooltip-active");
+      if (bodyClassRemovalTimeoutRef.current != null) {
+        window.clearTimeout(bodyClassRemovalTimeoutRef.current);
+      }
+      bodyClassRemovalTimeoutRef.current = window.setTimeout(() => {
+        document.body.classList.remove("ww-mobile-tooltip-active");
+        bodyClassRemovalTimeoutRef.current = null;
+      }, 180);
     }
     notifyChange();
   }, [notifyChange]);
@@ -317,6 +328,8 @@ export function MobileChartTooltip({
   const measureRef = React.useRef<HTMLDivElement | null>(null);
   const lastDataPointRef = React.useRef<MobileTooltipDataPoint | null>(null);
   const lastDesiredCenterClientXRef = React.useRef<number | null>(null);
+  const lastClampedCenterXInHostRef = React.useRef<number | null>(null);
+  const lastClampedTopInHostRef = React.useRef<number | null>(null);
 
   React.useEffect(() => {
     setMounted(true);
@@ -326,6 +339,10 @@ export function MobileChartTooltip({
   const isAnyActive = state.active && state.syncHour !== null;
   // Check if this is the chart being directly touched
   const isThisChartActive = state.chartId === chartId;
+  const isHoverFine =
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 
   React.useEffect(() => {
     if (isAnyActive) {
@@ -368,32 +385,59 @@ export function MobileChartTooltip({
     if (!isPresent) setMeasuredTooltipSize(null);
   }, [isPresent]);
 
-  if (!mounted || (!isAnyActive && !isPresent)) {
+  const shouldAttemptRender = mounted && (isAnyActive || isPresent);
+  const anchorEl = anchorRef?.current ?? null;
+  const headerPortalEl = (anchorEl
+    ?.closest?.("[data-ww-overview-card]")
+    ?.querySelector?.("[data-ww-mobile-tooltip-host]") ??
+    null) as HTMLElement | null;
+  const cardEl = (anchorEl?.closest?.("[data-ww-overview-card]") ?? null) as
+    | HTMLElement
+    | null;
+
+  // Get the data point to display (only when we're actually trying to render)
+  let dataPoint: MobileTooltipDataPoint | null = null;
+
+  if (shouldAttemptRender) {
+    if (isThisChartActive && state.dataIndex !== null) {
+      // This chart is being touched - use exact index
+      dataPoint = getDataPoint(state.dataIndex);
+    } else if (getDataPointForHour) {
+      // This chart is synced - use syncHour to find data
+      dataPoint = getDataPointForHour(state.syncHour!);
+    }
+
+    if (isAnyActive && dataPoint) {
+      lastDataPointRef.current = dataPoint;
+    }
+
+    if (!dataPoint) {
+      dataPoint = lastDataPointRef.current;
+    }
+  }
+
+  const shouldMarkCard = Boolean(
+    cardEl && headerPortalEl && shouldAttemptRender && dataPoint,
+  );
+
+  React.useEffect(() => {
+    if (!cardEl) return;
+    if (shouldMarkCard) {
+      cardEl.setAttribute("data-ww-tooltip-active", "");
+      return () => {
+        cardEl.removeAttribute("data-ww-tooltip-active");
+      };
+    }
+    cardEl.removeAttribute("data-ww-tooltip-active");
+  }, [cardEl, shouldMarkCard]);
+
+  if (!shouldAttemptRender) {
     return null;
   }
 
   // Need anchorRef for positioning
-  if (!anchorRef?.current) {
+  if (!anchorEl) {
     return null;
-  }
-
-  // Get the data point to display
-  let dataPoint: MobileTooltipDataPoint | null = null;
-
-  if (isThisChartActive && state.dataIndex !== null) {
-    // This chart is being touched - use exact index
-    dataPoint = getDataPoint(state.dataIndex);
-  } else if (getDataPointForHour) {
-    // This chart is synced - use syncHour to find data
-    dataPoint = getDataPointForHour(state.syncHour!);
-  }
-
-  if (isAnyActive && dataPoint) {
-    lastDataPointRef.current = dataPoint;
-  }
-
-  if (!dataPoint) {
-    dataPoint = lastDataPointRef.current;
   }
 
   if (!dataPoint) {
@@ -403,12 +447,6 @@ export function MobileChartTooltip({
   const labelToValueGapClass =
     dataPoint.labelSpacing === "spacious" ? "mt-2" : "mt-0.5";
 
-  const anchorEl = anchorRef.current;
-  const headerPortalEl = (anchorEl
-    .closest?.("[data-ww-overview-card]")
-    ?.querySelector?.("[data-ww-mobile-tooltip-host]") ??
-    null) as HTMLElement | null;
-
   const visibilityClassName = isAnyActive
     ? "opacity-100 translate-y-0"
     : "opacity-0 -translate-y-1 delay-75";
@@ -416,6 +454,21 @@ export function MobileChartTooltip({
   if (headerPortalEl) {
     const headerRect = headerPortalEl.getBoundingClientRect();
     const anchorRect = anchorEl.getBoundingClientRect();
+    const isHeroDeck = Boolean(
+      headerPortalEl.closest?.("[data-ww-hero-deck]") ||
+        cardEl?.closest?.("[data-ww-hero-deck]"),
+    );
+    const hostLayoutWidth = headerPortalEl.offsetWidth || headerRect.width;
+    const hostLayoutHeight = headerPortalEl.offsetHeight || headerRect.height;
+    const hostScaleX =
+      isHeroDeck && hostLayoutWidth > 0
+        ? headerRect.width / hostLayoutWidth
+        : 1;
+    const hostScaleY =
+      isHeroDeck && hostLayoutHeight > 0
+        ? headerRect.height / hostLayoutHeight
+        : 1;
+
     const surfaceEl = (() => {
       const surfaces =
         anchorEl.querySelectorAll<SVGElement>(".recharts-surface");
@@ -428,12 +481,23 @@ export function MobileChartTooltip({
         : anchorRect;
 
     const desiredCenterClientX = (() => {
-      if (state.syncHour != null && getXPositionForHour) {
-        const chartX = getXPositionForHour(state.syncHour);
+      const hourForX =
+        isThisChartActive && state.hour != null ? state.hour : state.syncHour;
+
+      if (hourForX != null && getXPositionForHour) {
+        const chartX = getXPositionForHour(hourForX);
         if (typeof chartX === "number" && Number.isFinite(chartX)) {
-          return baseRect.left + chartX;
+          const viewBoxWidth =
+            (surfaceEl as unknown as SVGSVGElement | null)?.viewBox?.baseVal
+              ?.width ?? baseRect.width;
+          const scaleX =
+            viewBoxWidth > 0 && baseRect.width > 0
+              ? baseRect.width / viewBoxWidth
+              : 1;
+          return baseRect.left + chartX * scaleX;
         }
       }
+
       if (isAnyActive && Number.isFinite(state.clientX)) return state.clientX;
       return null;
     })();
@@ -448,9 +512,12 @@ export function MobileChartTooltip({
     const clamp = (value: number, min: number, max: number) =>
       Math.max(min, Math.min(max, value));
 
-    const hostWidth = headerRect.width;
-    const hostHeight = headerRect.height;
-    const horizontalPadding = 16;
+    // IMPORTANT: In the hero deck, the whole card is transformed (scaled/translated).
+    // getBoundingClientRect() is in "visual" pixels, but CSS left/top/width are in layout pixels.
+    // Convert to layout units so the tooltip doesn't drift as X increases.
+    const hostWidth = isHeroDeck ? hostLayoutWidth : headerRect.width;
+    const hostHeight = isHeroDeck ? hostLayoutHeight : headerRect.height;
+    const horizontalPadding = isHeroDeck ? 10 : 16;
     const topPadding = 0;
     const bottomPadding = 0;
     const contentLeft = horizontalPadding;
@@ -459,16 +526,27 @@ export function MobileChartTooltip({
     const contentHeight = Math.max(0, hostHeight - topPadding - bottomPadding);
 
     const maxTooltipWidth = Math.max(0, hostWidth - horizontalPadding * 2);
+    const tooltipWidthCap = isHeroDeck ? 170 : 300;
     const fallbackTooltipWidth = Math.min(
-      280,
+      isHeroDeck ? 160 : 280,
       Math.max(80, Math.min(Math.round(hostWidth * 0.66), maxTooltipWidth)),
     );
+    const measuredTooltipWidth = measuredTooltipSize?.width ?? null;
+    const measuredTooltipHeight = measuredTooltipSize?.height ?? null;
+    const measuredTooltipWidthLayout =
+      measuredTooltipWidth != null
+        ? measuredTooltipWidth / Math.max(1e-6, hostScaleX)
+        : null;
+    const measuredTooltipHeightLayout =
+      measuredTooltipHeight != null
+        ? measuredTooltipHeight / Math.max(1e-6, hostScaleY)
+        : null;
     const tooltipWidth = Math.min(
-      300,
+      tooltipWidthCap,
       Math.max(
         80,
         Math.min(
-          measuredTooltipSize?.width ?? fallbackTooltipWidth,
+          measuredTooltipWidthLayout ?? fallbackTooltipWidth,
           maxTooltipWidth,
         ),
       ),
@@ -478,7 +556,7 @@ export function MobileChartTooltip({
     const isForecastChart = topOffset > 20;
     const minTop = contentTop + (isForecastChart ? 0 : 6);
     const bottomClampPadding = isForecastChart ? 4 : 8;
-    const tooltipHeight = Math.max(1, measuredTooltipSize?.height ?? 64);
+    const tooltipHeight = Math.max(1, measuredTooltipHeightLayout ?? 64);
     const maxTop = Math.max(
       minTop,
       contentTop + contentHeight - bottomClampPadding - tooltipHeight,
@@ -486,30 +564,52 @@ export function MobileChartTooltip({
     const desiredTopActive = contentTop + (isForecastChart ? 0 : 8);
     const desiredTopInactive = contentTop + (contentHeight - tooltipHeight) / 2;
     const clampedTopInHost = clamp(
-      isAnyActive ? desiredTopActive : desiredTopInactive,
+      isAnyActive
+        ? desiredTopActive
+        : (lastClampedTopInHostRef.current ?? desiredTopActive),
       minTop,
       maxTop,
     );
+
+    if (isAnyActive) {
+      lastClampedTopInHostRef.current = clampedTopInHost;
+    }
 
     const desiredCenterXInHost =
       stableCenterClientX != null
         ? stableCenterClientX - headerRect.left
         : null;
+    const desiredCenterXInHostLayout =
+      desiredCenterXInHost != null && Number.isFinite(desiredCenterXInHost)
+        ? desiredCenterXInHost / Math.max(1e-6, hostScaleX)
+        : null;
 
-    const clampedCenterXInHost = isAnyActive
-      ? desiredCenterXInHost != null && Number.isFinite(desiredCenterXInHost)
+    const computedClampedCenterXInHost =
+      desiredCenterXInHostLayout != null &&
+      Number.isFinite(desiredCenterXInHostLayout)
         ? clamp(
-            desiredCenterXInHost,
+            desiredCenterXInHostLayout,
             contentLeft + halfTooltipWidth,
             contentLeft + contentWidth - halfTooltipWidth,
           )
-        : contentLeft + contentWidth / 2
-      : contentLeft + contentWidth / 2;
+        : contentLeft + contentWidth / 2;
 
-    const cursorX =
-      renderCursor && getXPositionForHour && state.syncHour != null
-        ? getXPositionForHour(state.syncHour)
-        : null;
+    if (isAnyActive) {
+      lastClampedCenterXInHostRef.current = computedClampedCenterXInHost;
+    }
+
+    const clampedCenterXInHost =
+      computedClampedCenterXInHost ??
+      lastClampedCenterXInHostRef.current ??
+      contentLeft + contentWidth / 2;
+
+    const cursorX = (() => {
+      if (!renderCursor || !getXPositionForHour) return null;
+      const hourForX =
+        isThisChartActive && state.hour != null ? state.hour : state.syncHour;
+      if (hourForX == null) return null;
+      return getXPositionForHour(hourForX);
+    })();
 
     const cursorWidth =
       renderCursor &&
@@ -518,8 +618,11 @@ export function MobileChartTooltip({
       state.syncHour != null
         ? (() => {
             const step = 3;
-            const next = getXPositionForHour(state.syncHour + step);
-            const prev = getXPositionForHour(state.syncHour - step);
+            const baseHour =
+              isThisChartActive && state.hour != null ? state.hour : state.syncHour;
+            if (baseHour == null) return 20;
+            const next = getXPositionForHour(baseHour + step);
+            const prev = getXPositionForHour(baseHour - step);
             const delta =
               typeof next === "number" && Number.isFinite(next)
                 ? Math.abs(next - cursorX)
@@ -542,7 +645,9 @@ export function MobileChartTooltip({
               className={cn(
                 "pointer-events-none absolute inset-0",
                 "transition-opacity duration-150 ease-out motion-reduce:transition-none",
-                isAnyActive ? "opacity-100" : "opacity-0",
+                isAnyActive && (!isHoverFine || !isThisChartActive)
+                  ? "opacity-100"
+                  : "opacity-0",
               )}
             >
               {(() => {
@@ -572,13 +677,18 @@ export function MobileChartTooltip({
                       height: svgHeight,
                     })
                   : null;
-                const topInset = clipRect ? 0 : (cursorInsets?.top ?? 0);
-                const bottomInset = clipRect ? 0 : (cursorInsets?.bottom ?? 0);
+                const topInset = cursorInsets?.top ?? 0;
+                const bottomInset = cursorInsets?.bottom ?? 0;
 
-                const plotY = clipRect?.y ?? topInset;
-                const plotHeight =
-                  clipRect?.height ??
-                  Math.max(0, svgHeight - topInset - bottomInset);
+                const clipTop = clipRect?.y ?? 0;
+                const clipBottom = clipRect
+                  ? clipRect.y + clipRect.height
+                  : svgHeight;
+
+                const plotTop = Math.max(clipTop, topInset);
+                const plotBottom = Math.min(clipBottom, svgHeight - bottomInset);
+                const plotY = plotTop;
+                const plotHeight = Math.max(0, plotBottom - plotTop);
                 const strokeInset = strokeWidth > 0 ? strokeWidth / 2 : 0;
                 const cursorY = plotY + strokeInset;
                 const cursorHeight = Math.max(0, plotHeight - strokeInset * 2);
@@ -657,7 +767,12 @@ export function MobileChartTooltip({
                 <div className="text-center text-[0.62rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground/90 whitespace-nowrap tabular-nums leading-none">
                   {dataPoint.label}
                 </div>
-                <div className={cn(labelToValueGapClass, "flex w-full min-w-0 justify-center")}>
+                <div
+                  className={cn(
+                    labelToValueGapClass,
+                    "flex w-full min-w-0 justify-center",
+                  )}
+                >
                   <div className="min-w-0">
                     {dataPoint.formattedValue ?? (
                       <span className="text-foreground inline-flex items-baseline justify-center gap-1 font-semibold tabular-nums whitespace-nowrap">
@@ -704,7 +819,12 @@ export function MobileChartTooltip({
               <div className="text-center text-[0.62rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground/90 whitespace-nowrap tabular-nums leading-none">
                 {dataPoint.label}
               </div>
-              <div className={cn(labelToValueGapClass, "flex w-full min-w-0 justify-center")}>
+              <div
+                className={cn(
+                  labelToValueGapClass,
+                  "flex w-full min-w-0 justify-center",
+                )}
+              >
                 <div className="min-w-0">
                   {dataPoint.formattedValue ?? (
                     <span className="text-foreground inline-flex items-baseline justify-center gap-1 font-semibold tabular-nums whitespace-nowrap">
@@ -742,6 +862,17 @@ export function MobileChartTooltip({
         {headerTooltip}
       </>
     );
+  }
+
+  const isTouchLike =
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(hover: none) and (pointer: coarse)").matches;
+
+  // On hover devices, prefer the existing desktop tooltip when no header host exists
+  // to avoid rendering two tooltips (desktop Recharts tooltip + this fallback).
+  if (!isTouchLike) {
+    return null;
   }
 
   // Position tooltip relative to chart container
@@ -831,6 +962,7 @@ export function useMobileChartTouch({
   onPanEnd,
   onInspect,
   onInspectEnd,
+  enableHoverInspect = false,
   enabled = true,
 }: {
   chartId: string;
@@ -848,6 +980,8 @@ export function useMobileChartTouch({
   onInspect?: (index: number, hour: number) => void;
   /** Called when inspection ends */
   onInspectEnd?: () => void;
+  /** On hover devices, also call onInspect/onInspectEnd (does not affect touch behavior). */
+  enableHoverInspect?: boolean;
   enabled?: boolean;
 }) {
   const { activate, deactivate, updatePosition } = useMobileTooltip();
@@ -858,6 +992,12 @@ export function useMobileChartTouch({
   const startRef = React.useRef({ x: 0, y: 0 });
   const lastRef = React.useRef({ x: 0, y: 0 });
   const lastIndexRef = React.useRef<number | null>(null);
+  const hoverActiveRef = React.useRef(false);
+  const hoverLastIndexRef = React.useRef<number | null>(null);
+  const hoverMoveRafRef = React.useRef<number | null>(null);
+  const hoverPendingRef = React.useRef<{ clientX: number; clientY: number } | null>(
+    null,
+  );
 
   const DRAG_THRESHOLD = 14;
   const DATA_STEP_HOURS = 3;
@@ -873,7 +1013,10 @@ export function useMobileChartTouch({
     (clientX: number) => {
       if (!containerRef.current) return 0;
       const rect = containerRef.current.getBoundingClientRect();
-      return clientX - rect.left;
+      const layoutWidth = containerRef.current.offsetWidth;
+      const scaleX =
+        rect.width > 0 && layoutWidth > 0 ? layoutWidth / rect.width : 1;
+      return (clientX - rect.left) * scaleX;
     },
     [containerRef],
   );
@@ -882,7 +1025,10 @@ export function useMobileChartTouch({
     (clientY: number) => {
       if (!containerRef.current) return 0;
       const rect = containerRef.current.getBoundingClientRect();
-      return clientY - rect.top;
+      const layoutHeight = containerRef.current.offsetHeight;
+      const scaleY =
+        rect.height > 0 && layoutHeight > 0 ? layoutHeight / rect.height : 1;
+      return (clientY - rect.top) * scaleY;
     },
     [containerRef],
   );
@@ -1055,6 +1201,206 @@ export function useMobileChartTouch({
     },
     [containerRef, deactivate, onPanEnd, onInspectEnd],
   );
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const el = containerRef.current;
+    if (!el) return;
+
+    const mq =
+      typeof window.matchMedia === "function"
+        ? window.matchMedia("(hover: hover) and (pointer: fine)")
+        : null;
+    if (!mq?.matches) return;
+
+    const headerHost = el
+      .closest?.("[data-ww-overview-card]")
+      ?.querySelector?.("[data-ww-mobile-tooltip-host]");
+    if (!headerHost) return;
+
+    const clampIndex = (index: number) =>
+      Math.max(0, Math.min(dataLength - 1, index));
+
+    const shouldCallHoverInspect = Boolean(enableHoverInspect);
+
+    const isPointerInsidePlotArea = (clientX: number, clientY: number) => {
+      const surfaces = el.querySelectorAll<SVGElement>(".recharts-surface");
+      const surfaceEl = surfaces.length ? surfaces[surfaces.length - 1] : null;
+      if (!surfaceEl) return true;
+
+      const surfaceRect = surfaceEl.getBoundingClientRect();
+      if (!(surfaceRect.width > 4) || !(surfaceRect.height > 4)) return true;
+
+      const svg = surfaceEl as unknown as SVGSVGElement | null;
+      const viewBoxWidth = svg?.viewBox?.baseVal?.width ?? surfaceRect.width;
+      const viewBoxHeight = svg?.viewBox?.baseVal?.height ?? surfaceRect.height;
+      if (!(viewBoxWidth > 0) || !(viewBoxHeight > 0)) return true;
+
+      const clipRect = getLargestClipRect(surfaceEl, {
+        width: viewBoxWidth,
+        height: viewBoxHeight,
+      });
+      if (!clipRect) return true;
+
+      const svgX =
+        ((clientX - surfaceRect.left) / surfaceRect.width) * viewBoxWidth;
+      const svgY =
+        ((clientY - surfaceRect.top) / surfaceRect.height) * viewBoxHeight;
+
+      return (
+        svgX >= clipRect.x &&
+        svgX <= clipRect.x + clipRect.width &&
+        svgY >= clipRect.y &&
+        svgY <= clipRect.y + clipRect.height
+      );
+    };
+
+    const flushHoverMove = () => {
+      hoverMoveRafRef.current = null;
+      const pending = hoverPendingRef.current;
+      hoverPendingRef.current = null;
+      if (!pending) return;
+
+      if (stateRef.current !== "IDLE") return;
+
+      if (!isPointerInsidePlotArea(pending.clientX, pending.clientY)) {
+        if (hoverActiveRef.current) {
+          hoverActiveRef.current = false;
+          hoverLastIndexRef.current = null;
+          deactivate();
+          if (shouldCallHoverInspect || enabled) onInspectEnd?.();
+        }
+        return;
+      }
+
+      const rect = el.getBoundingClientRect();
+      if (!(rect.width > 4) || !(rect.height > 4)) return;
+      const layoutWidth = el.offsetWidth;
+      const scaleX =
+        rect.width > 0 && layoutWidth > 0 ? layoutWidth / rect.width : 1;
+
+      const chartX = (pending.clientX - rect.left) * scaleX;
+      const index = clampIndex(getIndexFromX(chartX));
+      const hour = getHour(index);
+
+      if (!hoverActiveRef.current) {
+        hoverActiveRef.current = true;
+        hoverLastIndexRef.current = index;
+        activate(chartId, index, hour, pending.clientX, pending.clientY, rect);
+        if (shouldCallHoverInspect || enabled) onInspect?.(index, hour);
+        return;
+      }
+
+      updatePosition(index, hour, pending.clientX, pending.clientY);
+
+      if (index !== hoverLastIndexRef.current) {
+        hoverLastIndexRef.current = index;
+        if (shouldCallHoverInspect || enabled) onInspect?.(index, hour);
+      }
+    };
+
+    const onPointerMove = (ev: PointerEvent) => {
+      if (stateRef.current !== "IDLE") return;
+      if (
+        ev.pointerType &&
+        ev.pointerType !== "mouse" &&
+        ev.pointerType !== "pen"
+      )
+        return;
+      if (typeof document !== "undefined") {
+        if (document.body.dataset.wwInteractionLock === "1") {
+          endHover();
+          return;
+        }
+      }
+      if (typeof ev.buttons === "number" && ev.buttons !== 0) {
+        endHover();
+        return;
+      }
+
+      hoverPendingRef.current = { clientX: ev.clientX, clientY: ev.clientY };
+      if (hoverMoveRafRef.current == null) {
+        hoverMoveRafRef.current = window.requestAnimationFrame(flushHoverMove);
+      }
+    };
+
+    const endHover = () => {
+      if (hoverMoveRafRef.current != null) {
+        window.cancelAnimationFrame(hoverMoveRafRef.current);
+        hoverMoveRafRef.current = null;
+      }
+      hoverPendingRef.current = null;
+      if (!hoverActiveRef.current) return;
+      hoverActiveRef.current = false;
+      hoverLastIndexRef.current = null;
+      deactivate();
+      if (shouldCallHoverInspect || enabled) onInspectEnd?.();
+    };
+
+    const onPointerLeave = (ev: PointerEvent) => {
+      if (
+        ev.pointerType &&
+        ev.pointerType !== "mouse" &&
+        ev.pointerType !== "pen"
+      )
+        return;
+      endHover();
+    };
+
+    const onPointerDown = (ev: PointerEvent) => {
+      if (
+        ev.pointerType &&
+        ev.pointerType !== "mouse" &&
+        ev.pointerType !== "pen"
+      )
+        return;
+      if (typeof document !== "undefined") {
+        if (document.body.dataset.wwInteractionLock === "1") {
+          endHover();
+          return;
+        }
+      }
+      endHover();
+    };
+
+    const onPointerUp = (ev: PointerEvent) => {
+      if (
+        ev.pointerType &&
+        ev.pointerType !== "mouse" &&
+        ev.pointerType !== "pen"
+      )
+        return;
+      endHover();
+    };
+
+    const onWindowBlur = () => endHover();
+
+    el.addEventListener("pointermove", onPointerMove, { passive: true });
+    el.addEventListener("pointerleave", onPointerLeave, { passive: true });
+    el.addEventListener("pointerdown", onPointerDown, { passive: true });
+    el.addEventListener("pointerup", onPointerUp, { passive: true });
+    window.addEventListener("blur", onWindowBlur);
+
+    return () => {
+      el.removeEventListener("pointermove", onPointerMove);
+      el.removeEventListener("pointerleave", onPointerLeave);
+      el.removeEventListener("pointerdown", onPointerDown);
+      el.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("blur", onWindowBlur);
+    };
+  }, [
+    activate,
+    chartId,
+    containerRef,
+    dataLength,
+    deactivate,
+    enableHoverInspect,
+    getHour,
+    getIndexFromX,
+    onInspect,
+    onInspectEnd,
+    updatePosition,
+  ]);
 
   return {
     handlers: {

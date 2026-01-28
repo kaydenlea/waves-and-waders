@@ -1277,16 +1277,11 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
               strokeDasharray="3 3"
             />
             {/* <ChartLegend content={<ChartLegendContent />} /> */}
-            {/* Mobile: Use MobileChartTooltip via portal instead */}
             {!isTouchOnlyDevice && (
               <ChartTooltip
-                content={
-                  <ChartTooltipContent
-                    labelFormatter={formatHourLabel}
-                    formatter={formatSwellTooltipValue}
-                  />
-                }
+                content={() => null}
                 cursor={false}
+                wrapperStyle={{ visibility: "hidden" }}
                 animationDuration={0}
                 isAnimationActive={false}
               />
@@ -1436,16 +1431,14 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           </AreaChart>
         </ChartContainer>
       </div>
-      {isTouchOnlyDevice && (
-        <MobileChartTooltip
-          chartId={mobileChartId}
-          getDataPoint={getMobileTooltipDataPoint}
-          getDataPointForHour={getDataPointForHour}
-          anchorRef={containerRef}
-          getXPositionForHour={getXPositionForHour}
-          positionInside
-        />
-      )}
+      <MobileChartTooltip
+        chartId={mobileChartId}
+        getDataPoint={getMobileTooltipDataPoint}
+        getDataPointForHour={getDataPointForHour}
+        anchorRef={containerRef}
+        getXPositionForHour={getXPositionForHour}
+        positionInside
+      />
     </div>
   );
 };

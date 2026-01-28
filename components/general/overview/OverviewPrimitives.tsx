@@ -21,6 +21,7 @@ export function OverviewCard({
         "supports-[backdrop-filter]:[--widget-surface:color-mix(in_oklch,var(--highlight-7)_40%,transparent)]",
         "supports-[backdrop-filter]:[--widget-header-surface:color-mix(in_oklch,var(--highlight-7)_40%,var(--background-2))]",
         "focus-within:ring-1 focus-within:ring-foreground/10",
+        "[&[data-ww-tooltip-active]_.recharts-tooltip-wrapper]:opacity-0 [&[data-ww-tooltip-active]_.recharts-tooltip-wrapper]:invisible",
         className
       )}
       {...props}
@@ -59,7 +60,7 @@ export function OverviewCardHeader({
         className={cn(
           "flex w-full items-start justify-between gap-3",
           "transition-[opacity,filter] duration-150 ease-out motion-reduce:transition-none",
-          "[body.ww-mobile-tooltip-active_&]:opacity-0 [body.ww-mobile-tooltip-active_&]:invisible"
+          "[[data-ww-tooltip-active]_&]:opacity-0 [[data-ww-tooltip-active]_&]:invisible"
         )}
       >
         <div className="flex items-center gap-2 min-w-0">
