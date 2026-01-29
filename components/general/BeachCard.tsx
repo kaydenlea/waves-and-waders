@@ -46,6 +46,14 @@ type BeachCardProps = {
 const IMAGE_PLACEHOLDER =
   "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4IiBoZWlnaHQ9IjgiPjxyZWN0IHdpZHRoPSI4IiBoZWlnaHQ9IjgiIGZpbGw9IiNkYmVhZmUiLz48L3N2Zz4=";
 
+const normalizeSurfLabel = (value: string | null | undefined) => {
+  if (typeof value !== "string") return value;
+  const trimmed = value.trim();
+  if (/^1(?:\.0+)?$/.test(trimmed)) return "0-1";
+  if (/^1(?:\.0+)?-1(?:\.0+)?$/.test(trimmed)) return "0-1";
+  return value;
+};
+
 const formatSurfRange = (
   minValue: number | null | undefined,
   maxValue: number | null | undefined,
@@ -58,9 +66,11 @@ const formatSurfRange = (
   if (minRounded != null && maxRounded != null) {
     const low = Math.min(minRounded, maxRounded);
     const high = Math.max(minRounded, maxRounded);
+    if (low === high && low === 1) return "0-1";
     return low === high ? String(low) : `${low}-${high}`;
   }
   const value = minRounded ?? maxRounded ?? null;
+  if (value === 1) return "0-1";
   return value != null ? String(value) : null;
 };
 
@@ -130,7 +140,7 @@ const BeachCard = React.memo(
       Number.isFinite(b.current.conditions.windSpeed)
         ? String(Math.round(b.current.conditions.windSpeed))
         : null;
-    const resolvedSurf = currentSurf ?? b.conditions.surf;
+    const resolvedSurf = normalizeSurfLabel(currentSurf ?? b.conditions.surf);
     const resolvedWind = currentWindSpeed ?? b.conditions.wind;
     const resolvedWindDir =
       typeof b.current?.conditions?.windDirection === "number" &&

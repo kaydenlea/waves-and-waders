@@ -814,10 +814,20 @@ const formatSurfRange = (
   if (minRounded != null && maxRounded != null) {
     const low = Math.min(minRounded, maxRounded);
     const high = Math.max(minRounded, maxRounded);
+    if (low === high && low === 1) return "0-1";
     return low === high ? String(low) : `${low}-${high}`;
   }
   const value = minRounded ?? maxRounded ?? null;
+  if (value === 1) return "0-1";
   return value != null ? String(value) : null;
+};
+
+const normalizeSurfLabel = (value: string | null | undefined) => {
+  if (typeof value !== "string") return value;
+  const trimmed = value.trim();
+  if (/^1(?:\.0+)?$/.test(trimmed)) return "0-1";
+  if (/^1(?:\.0+)?-1(?:\.0+)?$/.test(trimmed)) return "0-1";
+  return value;
 };
 
 const buildPopupHtml = (
@@ -837,7 +847,8 @@ const buildPopupHtml = (
       : null;
   const surfReady =
     typeof stats.surfHeight === "string" && stats.surfHeight.length > 0;
-  const surfText = surfReady ? escapeHtml(stats.surfHeight as string) : "--";
+  const surfLabel = normalizeSurfLabel(stats.surfHeight);
+  const surfText = surfReady ? escapeHtml(surfLabel as string) : "--";
   const windSpeedValue =
     stats.windSpeed != null && Number.isFinite(stats.windSpeed)
       ? Math.round(stats.windSpeed)
@@ -1790,6 +1801,7 @@ const LeafletMap: React.FC<Props> = ({
   const geoRequestedRef = React.useRef(false);
   const geoRequestInFlightRef =
     React.useRef<Promise<LatLngLiteral | null> | null>(null);
+  const pendingZoomToNearbyRef = React.useRef(false);
 
   const requestUserLocation = React.useCallback(
     (source: "auto" | "button") => {
@@ -2005,16 +2017,42 @@ const LeafletMap: React.FC<Props> = ({
       debugLog("[LeafletGeo] handleZoomToNearby - early exit, no map");
       return;
     }
+    const list = filteredBeaches.length ? filteredBeaches : combinedBeaches;
     if (!userLocation) {
       debugLog("[LeafletGeo] handleZoomToNearby - requesting location");
+      pendingZoomToNearbyRef.current = true;
       void requestUserLocation("button").then((location) => {
-        if (!location) return;
+        if (!location) {
+          pendingZoomToNearbyRef.current = false;
+          return;
+        }
         zoomToNearby(location);
+        pendingZoomToNearbyRef.current = false;
       });
       return;
     }
+    if (!list.length) {
+      pendingZoomToNearbyRef.current = true;
+      return;
+    }
     zoomToNearby(userLocation);
-  }, [userLocation, debugLog, requestUserLocation, zoomToNearby]);
+  }, [
+    userLocation,
+    filteredBeaches,
+    combinedBeaches,
+    debugLog,
+    requestUserLocation,
+    zoomToNearby,
+  ]);
+
+  React.useEffect(() => {
+    if (!pendingZoomToNearbyRef.current) return;
+    if (!mapReady || !userLocation) return;
+    const list = filteredBeaches.length ? filteredBeaches : combinedBeaches;
+    if (!list.length) return;
+    pendingZoomToNearbyRef.current = false;
+    zoomToNearby(userLocation);
+  }, [mapReady, userLocation, filteredBeaches, combinedBeaches, zoomToNearby]);
 
   const handleZoomToCaliforniaView = React.useCallback(() => {
     const map = mapRef.current;
@@ -3359,7 +3397,7 @@ const LeafletMap: React.FC<Props> = ({
     const gridIntensity = resolveSurfIntensity(ctx.surfIntensity, beach);
     const intensity = gridIntensity != null ? gridIntensity : statsIntensity;
     return buildPopupHtml(beach, {
-      surfHeight: currentSurfLabel ?? dailyStats.surfHeight,
+      surfHeight: normalizeSurfLabel(currentSurfLabel ?? dailyStats.surfHeight),
       surfIntensity: intensity,
       windSpeed: currentWindSpeed ?? dailyStats.windSpeed,
       windDirection: currentWindDirection ?? dailyStats.windDirection,
