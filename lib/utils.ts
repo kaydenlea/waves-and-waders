@@ -54,6 +54,40 @@ export function getPacificHour(date: Date | string): number {
   return Number.isFinite(hour) ? hour : 0;
 }
 
+/**
+ * Get the minute (0-59) for a date in Pacific timezone (DST-aware)
+ * @param date - The date to get the minute from
+ * @returns Minute in Pacific timezone (0-59)
+ */
+export function getPacificMinute(date: Date | string): number {
+  const d = typeof date === "string" ? new Date(date) : date;
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Los_Angeles",
+    minute: "2-digit",
+  });
+  const minuteStr = formatter.format(d);
+  const minute = parseInt(minuteStr);
+  return Number.isFinite(minute) ? minute : 0;
+}
+
+/**
+ * Get Pacific midnight UTC, but shift to the prior day if before cutoff time.
+ * Useful for holding last-known-good data until a daily refresh completes.
+ */
+export function getPacificMidnightUTCWithCutoff(
+  date: Date = new Date(),
+  cutoffHour = 1,
+  cutoffMinute = 30
+): Date {
+  const baseMidnight = getPacificMidnightUTC(date);
+  const hour = getPacificHour(date);
+  const minute = getPacificMinute(date);
+  const beforeCutoff =
+    hour < cutoffHour || (hour === cutoffHour && minute < cutoffMinute);
+  if (!beforeCutoff) return baseMidnight;
+  return new Date(baseMidnight.getTime() - 24 * 60 * 60 * 1000);
+}
+
 export function getPacificDayRange(date?: Date, hours = 24) {
   const start = getPacificMidnightUTC(date ?? new Date());
   const end = new Date(start.getTime() + hours * 60 * 60 * 1000);

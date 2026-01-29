@@ -1,6 +1,6 @@
 // lib/supabase.ts
 import { createClient } from "@supabase/supabase-js";
-import { getPacificMidnightUTC } from "./utils";
+import { getPacificMidnightUTC, getPacificMidnightUTCWithCutoff } from "./utils";
 import { publicEnv } from "./env/public";
 
 // Utility function to generate URL-friendly slug from beach name
@@ -1326,7 +1326,7 @@ export async function fetchDailyConditions(
 export async function fetchTodaysForecast(
   beachId: string
 ): Promise<ForecastData[]> {
-  const start = getPacificMidnightUTC();
+  const start = getPacificMidnightUTCWithCutoff();
   const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
   return fetchBeachForecast(beachId, start, end);
 }
@@ -1335,7 +1335,7 @@ export async function fetchWeeklyForecast(
   beachId: string,
   beforeOffset?: number
 ): Promise<ForecastData[]> {
-  const start = getPacificMidnightUTC();
+  const start = getPacificMidnightUTCWithCutoff();
   // for forecast wave energy offset by 3 hours
   const startWithOffset = beforeOffset
     ? new Date(start.getTime() - beforeOffset * 60 * 60 * 1000)

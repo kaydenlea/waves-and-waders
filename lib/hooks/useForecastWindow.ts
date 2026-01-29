@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getPacificMidnightUTC } from "@/lib/utils";
+import {
+  getPacificMidnightUTC,
+  getPacificMidnightUTCWithCutoff,
+} from "@/lib/utils";
 import { getForecastCached } from "@/lib/dataCache";
 import type { ForecastData } from "@/lib/supabase";
 import { useForecastData } from "@/components/context/ForecastDataContext";
@@ -42,8 +45,10 @@ export function useForecastWindowData({
   const dateKey = date instanceof Date ? date.getTime() : null;
 
   const targetStartMs = useMemo(() => {
-    const basis = dateKey != null ? new Date(dateKey) : new Date();
-    return getPacificMidnightUTC(basis).getTime();
+    if (dateKey != null) {
+      return getPacificMidnightUTC(new Date(dateKey)).getTime();
+    }
+    return getPacificMidnightUTCWithCutoff().getTime();
   }, [dateKey]);
 
   const targetEndMs = useMemo(

@@ -29,7 +29,11 @@ import { ArrowDown, ArrowUp, CircleCheck, Pencil } from "lucide-react";
 import { useDashboardEditMode } from "@/components/context/DashboardEditModeContext";
 import { getTidesCached } from "@/lib/dataCache";
 import { useCachedForecast } from "@/lib/hooks/useCachedForecast";
-import { getPacificDayRange, getPacificMidnightUTC } from "@/lib/utils";
+import {
+  getPacificDayRange,
+  getPacificMidnightUTC,
+  getPacificMidnightUTCWithCutoff,
+} from "@/lib/utils";
 import SurfIntensityMarker from "./SurfIntensityMarker";
 import { ForecastDataProvider } from "../context/ForecastDataContext";
 import { useTideWindowData } from "@/lib/hooks/useTideWindow";
@@ -358,7 +362,7 @@ const DateSummaryBridge: React.FC<Props> = ({
   }, [forecastTableDensity]);
 
   const defaultSelectedMs = React.useMemo(
-    () => getPacificMidnightUTC().getTime(),
+    () => getPacificMidnightUTCWithCutoff().getTime(),
     []
   );
   const selectedDateMs =
@@ -397,7 +401,7 @@ const DateSummaryBridge: React.FC<Props> = ({
     const base =
       selected instanceof Date && !Number.isNaN(selected.getTime())
         ? selected
-        : new Date();
+        : getPacificMidnightUTCWithCutoff();
     const start = getPacificMidnightUTC(base);
     const end = new Date(
       start.getTime() + FORECAST_VISIBLE_DAYS * HOURS_PER_DAY * 60 * 60 * 1000
