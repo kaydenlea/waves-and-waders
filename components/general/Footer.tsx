@@ -235,7 +235,10 @@ const Footer = ({ className }: { className?: string }) => {
 
         <div className="mt-10 flex flex-col gap-4 border-t border-border/10 pt-6 text-center sm:text-left sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-foreground/50">
+            {/*
             © {year} Waves and Waders
+            */}
+            © {year} <BrandWordmark variant="inline" />
           </p>
           <p className="text-xs text-foreground/50">
             Forecast data is built from public sources.{" "}
