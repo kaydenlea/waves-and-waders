@@ -822,8 +822,8 @@ const formatSurfRange = (
   return value != null ? String(value) : null;
 };
 
-const normalizeSurfLabel = (value: string | null | undefined) => {
-  if (typeof value !== "string") return value;
+const normalizeSurfLabel = (value: string | null | undefined): string | null => {
+  if (typeof value !== "string") return null;
   const trimmed = value.trim();
   if (/^1(?:\.0+)?$/.test(trimmed)) return "0-1";
   if (/^1(?:\.0+)?-1(?:\.0+)?$/.test(trimmed)) return "0-1";
