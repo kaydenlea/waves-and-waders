@@ -391,9 +391,8 @@ export function MobileChartTooltip({
     ?.closest?.("[data-ww-overview-card]")
     ?.querySelector?.("[data-ww-mobile-tooltip-host]") ??
     null) as HTMLElement | null;
-  const cardEl = (anchorEl?.closest?.("[data-ww-overview-card]") ?? null) as
-    | HTMLElement
-    | null;
+  const cardEl = (anchorEl?.closest?.("[data-ww-overview-card]") ??
+    null) as HTMLElement | null;
 
   // Get the data point to display (only when we're actually trying to render)
   let dataPoint: MobileTooltipDataPoint | null = null;
@@ -447,14 +446,16 @@ export function MobileChartTooltip({
   const labelToValueGapClass =
     dataPoint.labelSpacing === "spacious" ? "mt-2" : "mt-0.5";
 
-  const visibilityClassName = isAnyActive ? "opacity-100" : "opacity-0 delay-75";
+  const visibilityClassName = isAnyActive
+    ? "opacity-100"
+    : "opacity-0 delay-75";
 
   if (headerPortalEl) {
     const headerRect = headerPortalEl.getBoundingClientRect();
     const anchorRect = anchorEl.getBoundingClientRect();
     const isHeroDeck = Boolean(
       headerPortalEl.closest?.("[data-ww-hero-deck]") ||
-        cardEl?.closest?.("[data-ww-hero-deck]"),
+      cardEl?.closest?.("[data-ww-hero-deck]"),
     );
     const hostLayoutWidth = headerPortalEl.offsetWidth || headerRect.width;
     const hostLayoutHeight = headerPortalEl.offsetHeight || headerRect.height;
@@ -617,7 +618,9 @@ export function MobileChartTooltip({
         ? (() => {
             const step = 3;
             const baseHour =
-              isThisChartActive && state.hour != null ? state.hour : state.syncHour;
+              isThisChartActive && state.hour != null
+                ? state.hour
+                : state.syncHour;
             if (baseHour == null) return 20;
             const next = getXPositionForHour(baseHour + step);
             const prev = getXPositionForHour(baseHour - step);
@@ -684,7 +687,10 @@ export function MobileChartTooltip({
                   : svgHeight;
 
                 const plotTop = Math.max(clipTop, topInset);
-                const plotBottom = Math.min(clipBottom, svgHeight - bottomInset);
+                const plotBottom = Math.min(
+                  clipBottom,
+                  svgHeight - bottomInset,
+                );
                 const plotY = plotTop;
                 const plotHeight = Math.max(0, plotBottom - plotTop);
                 const strokeInset = strokeWidth > 0 ? strokeWidth / 2 : 0;
@@ -804,7 +810,7 @@ export function MobileChartTooltip({
               "rounded-2xl",
               "bg-[var(--widget-header-surface)]",
               "px-3 py-2 supports-[backdrop-filter]:bg-[color-mix(in_oklch,var(--widget-header-surface)_78%,transparent)] supports-[backdrop-filter]:backdrop-blur-md",
-              "transition-[left,top] duration-150 ease-out motion-reduce:transition-none",
+              "ease-out",
             )}
             style={{
               width: tooltipWidth,
@@ -993,9 +999,10 @@ export function useMobileChartTouch({
   const hoverActiveRef = React.useRef(false);
   const hoverLastIndexRef = React.useRef<number | null>(null);
   const hoverMoveRafRef = React.useRef<number | null>(null);
-  const hoverPendingRef = React.useRef<{ clientX: number; clientY: number } | null>(
-    null,
-  );
+  const hoverPendingRef = React.useRef<{
+    clientX: number;
+    clientY: number;
+  } | null>(null);
 
   const DRAG_THRESHOLD = 14;
   const DATA_STEP_HOURS = 3;
