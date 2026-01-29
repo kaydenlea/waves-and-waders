@@ -7,12 +7,13 @@ import React, {
   useMemo,
   useRef,
 } from "react";
-import { cn, getPacificDayRange } from "@/lib/utils";
+import { cn, getPacificDayRange, getPacificHour } from "@/lib/utils";
 import { useOptionalOverviewChartLoading } from "@/components/context/OverviewChartsLoadingContext";
 
 import {
   Sun,
   MoonStar,
+  CloudMoon,
   ChevronLeft,
   ChevronRight,
   Cloud as CloudIcon,
@@ -730,26 +731,36 @@ const WeatherStat = ({
   weatherCode,
   isFull,
   showMap,
+  isNight = false,
 }: {
   temp: number;
   label: string;
   weatherCode?: number | null;
   isFull?: boolean;
   showMap?: boolean;
+  isNight?: boolean;
 }) => {
   const getWeatherVisual = (code: number | null | undefined) => {
     if (code == null || code === 0) {
       return {
         label: "Clear",
         icon: (
-          <Sun className="h-5 w-5 stroke-[2.5] text-amber-500 dark:text-amber-400" />
+          isNight ? (
+            <MoonStar className="h-5 w-5 text-violet-500/80 dark:text-violet-400/80" />
+          ) : (
+            <Sun className="h-5 w-5 stroke-[2.5] text-amber-500 dark:text-amber-400" />
+          )
         ),
       };
     }
     if ([1, 2].includes(code)) {
       return {
         label: "Mixed",
-        icon: <MixedCloudSunIcon className="h-5 w-5" />,
+        icon: isNight ? (
+          <CloudMoon className="h-5 w-5 text-violet-500/80 dark:text-violet-400/80" />
+        ) : (
+          <MixedCloudSunIcon className="h-5 w-5" />
+        ),
       };
     }
     if (code === 3) {
@@ -2207,6 +2218,14 @@ const Highlights = ({
     return forecast[0];
   }, [forecast, hour, date]);
 
+  const weatherHour =
+    typeof hour === "number"
+      ? hour
+      : baseRow?.timestamp
+      ? getPacificHour(baseRow.timestamp)
+      : getPacificHour(new Date());
+  const isNight = weatherHour < 6 || weatherHour >= 18;
+
   const statsRef = useRef<Stat[] | null>(null);
   const [statsState, setStatsState] = useState<Stat[] | null>(null);
   const dataReady = usingPreview
@@ -2969,6 +2988,7 @@ const Highlights = ({
                       weatherCode={stat.weather.code}
                       isFull={isFull}
                       showMap={showMap}
+                      isNight={isNight}
                     />
                   );
                   break;

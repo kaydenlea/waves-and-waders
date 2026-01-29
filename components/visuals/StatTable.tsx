@@ -24,6 +24,8 @@ import {
   CalendarDays,
   ChevronDown,
   Sun,
+  MoonStar,
+  CloudMoon,
   Cloud as CloudIcon,
   CloudDrizzle,
   CloudRain,
@@ -630,22 +632,32 @@ const WeatherStat = ({
   water,
   waterMin,
   waterMax,
+  isNight = false,
 }: {
   data?: { condition?: string; temp: number; code?: number | null };
   water?: number;
   waterMin?: number;
   waterMax?: number;
+  isNight?: boolean;
 }) => {
   // Function to get weather icon based on WMO code
   const getWeatherIcon = (code: number | null) => {
+    if (isNight && (code == null || code === 0)) {
+      return <MoonStar className="w-4 h-4" strokeWidth={2.5} color="#9b8cff" />;
+    }
+    if (isNight && [1, 2].includes(code ?? -1)) {
+      return <CloudMoon className="w-4 h-4" strokeWidth={2.5} color="#9b8cff" />;
+    }
     if (code == null)
       return <Sun className="w-4 h-4" strokeWidth={3} color="#f79e55ff" />;
 
     // WMO code groupings
     if (code === 0)
       return <Sun className="w-4 h-4" strokeWidth={3} color="#f79e55ff" />; // Clear
-    if ([1, 2, 3].includes(code))
-      return <MixedCloudSunIcon className="h-4 w-4" />; // Partly cloudy/overcast
+    if ([1, 2].includes(code))
+      return <MixedCloudSunIcon className="h-4 w-4" />; // Partly cloudy
+    if (code === 3)
+      return <CloudIcon className="w-4 h-4" color="#bdbdbdff" />; // Overcast
     if ([45, 48].includes(code))
       return <CloudIcon className="w-4 h-4" color="#bdbdbdff" />; // Fog
     if ([51, 53, 55].includes(code))
@@ -2818,7 +2830,12 @@ const StatTable = ({
                             );
                             break;
                           case "weather":
-                            content = <WeatherStat data={entry.weather} />;
+                            content = (
+                              <WeatherStat
+                                data={entry.weather}
+                                isNight={entry.index < 6 || entry.index >= 18}
+                              />
+                            );
                             break;
                           case "surf":
                             content = (
