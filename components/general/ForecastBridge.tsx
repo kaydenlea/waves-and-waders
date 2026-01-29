@@ -1002,6 +1002,9 @@ const ForecastBridge: React.FC<Props> = ({
 
     const editorInitialRows = cachedLayout?.rows ?? layoutRows;
 
+    const editorRowLayout =
+      isOverviewCards || isForecastCards ? "compact" : "spacious";
+
 
 
     return (
@@ -1021,6 +1024,8 @@ const ForecastBridge: React.FC<Props> = ({
           initialMeta={editorInitialMeta}
 
           initialRows={editorInitialRows}
+
+          rowLayout={editorRowLayout}
 
           renderWidget={renderWidget}
 

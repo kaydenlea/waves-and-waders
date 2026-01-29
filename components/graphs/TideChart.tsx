@@ -30,6 +30,7 @@ import {
 } from "@/components/context/DateContext";
 import { useTideData } from "@/components/context/TideDataContext";
 import { useTideWindowData } from "@/lib/hooks/useTideWindow";
+import { safeFlushSync } from "@/components/graphs/safeFlushSync";
 import {
   buildSunSegments,
   parseSunTimeToHour,
@@ -269,7 +270,14 @@ const TideChart: React.FC<TideChartProps> = ({
       const width = entry ? Math.floor(entry.contentRect.width) : 0;
       // Avoid transient 0px measurements (e.g. during layout transitions) that can
       // collapse labels into the left edge for a single frame.
-      setContainerWidth((prev) => (width > 0 ? width : prev));
+      const apply = () => {
+        setContainerWidth((prev) => (width > 0 ? width : prev));
+      };
+      if (node.closest("[data-ww-dashboard-edit-card]")) {
+        safeFlushSync(apply);
+      } else {
+        apply();
+      }
     });
     ro.observe(node);
     return () => ro.disconnect();

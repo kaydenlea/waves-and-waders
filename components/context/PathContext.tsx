@@ -7,6 +7,9 @@ import {
   useEffect,
   useLayoutEffect,
   useMemo,
+  Suspense,
+  useCallback,
+  useRef,
   useState,
 } from "react";
 
@@ -18,24 +21,45 @@ type Ctx = {
 
 const PathContext = createContext<Ctx | null>(null);
 
+function PathSearchParamsSync({
+  onTabParam,
+}: {
+  onTabParam: (tab: string | null) => void;
+}) {
+  const searchParams = useSearchParams();
+  const qpTab = searchParams?.get("tab") ?? null;
+
+  useLayoutEffect(() => {
+    onTabParam(qpTab);
+  }, [onTabParam, qpTab]);
+
+  return null;
+}
+
 export function PathProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const initialTab = useMemo(() => {
-    const qp = searchParams?.get("tab");
-    if (qp) return qp;
     if (pathname?.includes("/forecast")) return "forecast";
     if (pathname?.includes("/overview")) return "overview";
     return "";
-  }, [pathname, searchParams]);
+  }, [pathname]);
   const [selectedTab, setSelectedTab] = useState(initialTab);
+
+  const tabParamRef = useRef<string | null>(null);
+
+  const handleTabParam = useCallback((tab: string | null) => {
+    tabParamRef.current = tab;
+    if (tab) {
+      setSelectedTab((prev) => (prev === tab ? prev : tab));
+    }
+  }, []);
   // Restore persisted tab per-path on mount/path change
   useLayoutEffect(() => {
     try {
       if (typeof window === "undefined") return;
 
       // Query param takes precedence if provided - check this FIRST
-      const qp = searchParams?.get("tab");
+      const qp = tabParamRef.current;
       if (qp) {
         if (qp !== selectedTab) {
           setSelectedTab(qp);
@@ -65,7 +89,7 @@ export function PathProvider({ children }: { children: React.ReactNode }) {
       }
     } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname, searchParams]);
+  }, [pathname]);
 
   // Persist tab selection per-path
   useEffect(() => {
@@ -84,7 +108,14 @@ export function PathProvider({ children }: { children: React.ReactNode }) {
     }),
     [selectedTab, pathname]
   );
-  return <PathContext.Provider value={value}>{children}</PathContext.Provider>;
+  return (
+    <PathContext.Provider value={value}>
+      <Suspense fallback={null}>
+        <PathSearchParamsSync onTabParam={handleTabParam} />
+      </Suspense>
+      {children}
+    </PathContext.Provider>
+  );
 }
 
 export function useClientPath() {

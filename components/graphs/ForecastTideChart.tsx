@@ -18,6 +18,7 @@ import {
   LabelList,
   LabelProps,
 } from "recharts";
+import { safeFlushSync } from "@/components/graphs/safeFlushSync";
 import {
   ArrowDown,
   ArrowUp,
@@ -972,13 +973,20 @@ export default React.memo(function ForecastTideChart({
     const ro = new ResizeObserver((entries) => {
       for (const e of entries) {
         const w = Math.floor(e.contentRect.width);
-        setContainerWidth(w);
-        // compute right-edge after resize (low frequency)
-        const maxTranslate = Math.max(
-          0,
-          chartInnerWidth - Math.min(w || 0, dayPx * VISIBLE_DAYS)
-        );
-        setIsAtRightEdge(currentTranslateRef.current >= maxTranslate - 1);
+        const apply = () => {
+          setContainerWidth(w);
+          // compute right-edge after resize (low frequency)
+          const maxTranslate = Math.max(
+            0,
+            chartInnerWidth - Math.min(w || 0, dayPx * VISIBLE_DAYS),
+          );
+          setIsAtRightEdge(currentTranslateRef.current >= maxTranslate - 1);
+        };
+        if (el.closest("[data-ww-dashboard-edit-card]")) {
+          safeFlushSync(apply);
+        } else {
+          apply();
+        }
       }
     });
     ro.observe(el);

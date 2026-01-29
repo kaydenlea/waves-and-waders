@@ -29,6 +29,7 @@ import {
   ChartTooltipContent,
   ChartTooltipViewportContent,
 } from "@/components/ui/chart";
+import { safeFlushSync } from "@/components/graphs/safeFlushSync";
 import { useIsTouchOnlyDevice } from "./useIsTouchOnlyDevice";
 import {
   useMobileChartTouch,
@@ -858,12 +859,19 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
     const ro = new ResizeObserver((entries) => {
       for (const e of entries) {
         const w = Math.floor(e.contentRect.width);
-        setContainerWidth(w);
-        const maxTranslate = Math.max(
-          0,
-          chartInnerWidth - Math.min(w || 0, dayPx * VISIBLE_DAYS)
-        );
-        setIsAtRightEdge(currentTranslateRef.current >= maxTranslate - 1);
+        const apply = () => {
+          setContainerWidth(w);
+          const maxTranslate = Math.max(
+            0,
+            chartInnerWidth - Math.min(w || 0, dayPx * VISIBLE_DAYS),
+          );
+          setIsAtRightEdge(currentTranslateRef.current >= maxTranslate - 1);
+        };
+        if (el.closest("[data-ww-dashboard-edit-card]")) {
+          safeFlushSync(apply);
+        } else {
+          apply();
+        }
       }
     });
     ro.observe(el);

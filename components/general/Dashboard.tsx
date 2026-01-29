@@ -19,9 +19,9 @@ import {
   pointerWithin,
   TouchSensor,
   AutoScrollActivator,
+  MeasuringStrategy,
 } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
-import { restrictToWindowEdges } from "@dnd-kit/modifiers";
 import { cn } from "@/lib/utils";
 import {
   rid,
@@ -38,6 +38,8 @@ import {
 } from "./dashboardMiniatures";
 
 import { Check, X, RotateCcw, GripVertical } from "lucide-react";
+
+export type DashboardRowLayout = "compact" | "spacious";
 
 /* ------------------------------ Widget Miniatures ---------------------------- */
 
@@ -66,7 +68,7 @@ const DashboardDragOverlay = React.memo(function DashboardDragOverlay({
   return (
     <div
       style={{ pointerEvents: "none" }}
-      className="relative w-full"
+      className="relative"
       data-ww-dashboard-edit-card
       data-ww-dashboard-dragging=""
       aria-hidden="true"
@@ -127,6 +129,7 @@ const DraggableCard = React.memo(function DraggableCard({
   isFull,
   renderVariant,
   renderWidget,
+  onGrabPointerDownCapture,
 }: {
   id: WidgetId;
   meta: WidgetMeta | undefined;
@@ -135,6 +138,7 @@ const DraggableCard = React.memo(function DraggableCard({
   isFull: boolean;
   renderVariant?: "full" | "half";
   renderWidget?: (id: WidgetId, variant: "full" | "half") => React.ReactNode;
+  onGrabPointerDownCapture?: (id: WidgetId, handleEl: HTMLElement) => void;
 }) {
   const {
     attributes,
@@ -214,6 +218,9 @@ const DraggableCard = React.memo(function DraggableCard({
           type="button"
           aria-label={`Drag ${meta.title}`}
           title="Drag to move"
+          onPointerDownCapture={(e) =>
+            onGrabPointerDownCapture?.(id, e.currentTarget)
+          }
           {...attributes}
           {...listeners}
           ref={setActivatorNodeRef}
@@ -254,6 +261,9 @@ const DraggableCard = React.memo(function DraggableCard({
             type="button"
             aria-label={`Drag ${meta.title}`}
             title="Drag to move"
+            onPointerDownCapture={(e) =>
+              onGrabPointerDownCapture?.(id, e.currentTarget)
+            }
             {...attributes}
             {...listeners}
             ref={setActivatorNodeRef}
@@ -529,6 +539,7 @@ export default function Dashboard({
   setRows,
   reset,
   allowAnonymous = false,
+  rowLayout = "compact",
   renderWidget,
 }: {
   type?: DashboardType;
@@ -544,13 +555,46 @@ export default function Dashboard({
   setRows: (next: Row[] | ((prev: Row[]) => Row[])) => void;
   reset: () => void;
   allowAnonymous?: boolean;
+  rowLayout?: DashboardRowLayout;
   renderWidget?: (id: WidgetId, variant: "full" | "half") => React.ReactNode;
 }) {
   const { session } = useSessionContext();
   const [activeWidget, setActiveWidget] = useState<WidgetId | null>(null);
+  const [grabbedWidget, setGrabbedWidget] = useState<WidgetId | null>(null);
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const twoColumnSentinelRef = React.useRef<HTMLDivElement | null>(null);
   const [isTwoColumn, setIsTwoColumn] = React.useState(true);
+  const lastBreakpointTwoColumnRef = React.useRef<boolean | null>(null);
+  const grabHandleRef = React.useRef<{
+    id: WidgetId;
+    node: HTMLElement;
+    rect: DOMRect;
+    didScroll: boolean;
+  } | null>(null);
+
+  // If the user presses a drag handle but doesn't actually start dragging
+  // (e.g. pointer up without movement), clear the "grabbed" state to avoid
+  // leaving the 2-up layout in its drag-preview mode.
+  React.useEffect(() => {
+    if (!grabbedWidget) return;
+    if (activeWidget) return;
+    if (typeof window === "undefined") return;
+
+    const clear = () => {
+      setGrabbedWidget(null);
+      grabHandleRef.current = null;
+    };
+    window.addEventListener("pointerup", clear, { passive: true });
+    window.addEventListener("pointercancel", clear, { passive: true });
+    return () => {
+      window.removeEventListener("pointerup", clear);
+      window.removeEventListener("pointercancel", clear);
+    };
+  }, [activeWidget, grabbedWidget]);
+
+  // In 2-up layouts we preview all widgets as half-width on grab. That can cause
+  // a one-time layout shift before the drag actually starts; keep the grab handle
+  // under the pointer by scrolling by the same delta.
 
   const safeRows = useMemo(() => sanitizeRows(rows, meta), [meta, rows]);
 
@@ -589,8 +633,7 @@ export default function Dashboard({
     const sentinel = twoColumnSentinelRef.current;
 
     const update = () => {
-      // Use the same container-query breakpoint as the row layout
-      // (`flex-col @min-4xl:flex-row`) so the drop rules match what the user sees.
+      // Use the same container-query breakpoint as the row layout so the drop rules match what the user sees.
       const dir = window.getComputedStyle(sentinel).flexDirection;
       const next = dir === "row";
       setIsTwoColumn((prev) => (prev === next ? prev : next));
@@ -604,6 +647,16 @@ export default function Dashboard({
 
   React.useLayoutEffect(() => {
     if (activeWidget) return;
+    // Only normalize/pack when the breakpoint actually changes.
+    // Continuously repacking during 2-up editing can cause unexpected row moves.
+    const last = lastBreakpointTwoColumnRef.current;
+    if (last === null) {
+      lastBreakpointTwoColumnRef.current = isTwoColumn;
+      return;
+    }
+    if (last === isTwoColumn) return;
+    lastBreakpointTwoColumnRef.current = isTwoColumn;
+
     setRows((prev) => {
       const next = isTwoColumn
         ? packRowsForTwoColumn(prev, meta)
@@ -635,6 +688,7 @@ export default function Dashboard({
     const id = String(e.active.id);
     if (id.startsWith("w:")) {
       setActiveWidget(id.slice(2) as WidgetId);
+      setGrabbedWidget(null);
     }
   }
 
@@ -644,6 +698,7 @@ export default function Dashboard({
 
     if (!active || !over) {
       flushSync(() => setActiveWidget(null));
+      setGrabbedWidget(null);
       return;
     }
 
@@ -652,11 +707,13 @@ export default function Dashboard({
     if (!isTwoColumn) {
       if (!isGapId(over)) {
         flushSync(() => setActiveWidget(null));
+        setGrabbedWidget(null);
         return;
       }
       const gapIndex = parseGap(over);
       if (gapIndex === null) {
         flushSync(() => setActiveWidget(null));
+        setGrabbedWidget(null);
         return;
       }
       flushSync(() => {
@@ -674,6 +731,7 @@ export default function Dashboard({
           return finalizeRows(prev, next, meta);
         });
         setActiveWidget(null);
+        setGrabbedWidget(null);
       });
       return;
     }
@@ -686,11 +744,13 @@ export default function Dashboard({
     if (span === "full" && !allowSlotDropAsHalf) {
       if (!isGapId(over)) {
         flushSync(() => setActiveWidget(null));
+        setGrabbedWidget(null);
         return;
       }
       const gapIndex = parseGap(over);
       if (gapIndex === null) {
         flushSync(() => setActiveWidget(null));
+        setGrabbedWidget(null);
         return;
       }
       flushSync(() => {
@@ -710,6 +770,7 @@ export default function Dashboard({
           return finalizeRows(prev, next, meta);
         });
         setActiveWidget(null);
+        setGrabbedWidget(null);
       });
       return;
     }
@@ -719,6 +780,7 @@ export default function Dashboard({
       const slot = parseSlot(over);
       if (!slot) {
         flushSync(() => setActiveWidget(null));
+        setGrabbedWidget(null);
         return;
       }
       const { rowId, pos } = slot;
@@ -726,24 +788,11 @@ export default function Dashboard({
       const sourceRowId =
         safeRows.find((r) => r.items.includes(active))?.id ?? null;
       const isSameRow = sourceRowId != null && sourceRowId === rowId;
-      const treatOccupiedSingleAsRowLevel =
-        !isSameRow && targetRow?.items.length === 1 && pos === 0;
       const shouldConvertActiveToHalf =
         allowSlotDropAsHalf &&
         !isSameRow &&
-        !treatOccupiedSingleAsRowLevel &&
         !!targetRow &&
-        (targetRow.items.length === 2 ||
-          (targetRow.items.length === 1 && pos === 1));
-      const insertAfterWhenDroppingOnOccupiedSingle = (() => {
-        const activeRect =
-          e.active.rect.current.translated ?? e.active.rect.current.initial;
-        const overRect = e.over?.rect;
-        if (!activeRect || !overRect) return true;
-        const activeCenterY = activeRect.top + activeRect.height / 2;
-        const overCenterY = overRect.top + overRect.height / 2;
-        return activeCenterY >= overCenterY;
-      })();
+        (targetRow.items.length === 2 || targetRow.items.length === 1);
 
       flushSync(() => {
         // A full-width widget can become half-width when dropped into a slot.
@@ -755,7 +804,7 @@ export default function Dashboard({
         }
 
         // Convert a full-width target row to half-width before placing into its slot.
-        if (!treatOccupiedSingleAsRowLevel && targetRow && pos === 1) {
+        if (targetRow && !isSameRow && targetRow.items.length === 1) {
           const tgtIsFull =
             targetRow.items.length === 1 &&
             meta[targetRow.items[0]]?.span === "full";
@@ -764,6 +813,7 @@ export default function Dashboard({
             const fullWidgetId = targetRow.items[0];
             if (meta[fullWidgetId]?.immutableFull) {
               setActiveWidget(null);
+              setGrabbedWidget(null);
               return;
             }
             setMeta((prev) => ({
@@ -796,25 +846,8 @@ export default function Dashboard({
           }
 
           // When dropping onto the *occupied* side of a single-widget row,
-          // treat it as a row-level drop (insert before/after) rather than
-          // merging into a 2-up row. Merging is still available by dropping
-          // into the empty slot (pos=1).
-          if (tgtRow.items.length === 1 && pos === 0) {
-            srcRow.items.splice(srcPos, 1);
-            if (srcRow.items.length === 0) next.splice(srcIdx, 1);
-
-            const targetIndexNow = next.findIndex((r) => r.id === rowId);
-            if (targetIndexNow === -1) return prev;
-
-            const insertAt =
-              targetIndexNow +
-              (insertAfterWhenDroppingOnOccupiedSingle ? 1 : 0);
-            next.splice(Math.max(0, Math.min(insertAt, next.length)), 0, {
-              id: rid(),
-              items: [active],
-            });
-            return finalizeRows(prev, next, meta);
-          }
+          // place the dragged widget into that slot and shift the existing one
+          // to the other slot so both widgets can share the row.
 
           srcRow.items.splice(srcPos, 1);
           const sourceEmptied = srcRow.items.length === 0;
@@ -845,6 +878,7 @@ export default function Dashboard({
         });
 
         setActiveWidget(null);
+        setGrabbedWidget(null);
       });
       return;
     }
@@ -853,6 +887,7 @@ export default function Dashboard({
       const gi = parseGap(over);
       if (gi === null) {
         flushSync(() => setActiveWidget(null));
+        setGrabbedWidget(null);
         return;
       }
 
@@ -883,11 +918,13 @@ export default function Dashboard({
           return finalizeRows(prev, next, meta);
         });
         setActiveWidget(null);
+        setGrabbedWidget(null);
       });
       return;
     }
 
     flushSync(() => setActiveWidget(null));
+    setGrabbedWidget(null);
   }
 
   /* ---------------------------- Visibility & Span ---------------------------- */
@@ -935,15 +972,22 @@ export default function Dashboard({
 
   /* ---------------------------------- Render --------------------------------- */
   const activeSpan = activeWidget ? meta[activeWidget]?.span : undefined;
+  const layoutActiveWidget = activeWidget ?? grabbedWidget;
+  const layoutActiveSpan = layoutActiveWidget
+    ? meta[layoutActiveWidget]?.span
+    : undefined;
   const activeIsConvertibleFull =
     !!activeWidget &&
     activeSpan === "full" &&
     !meta[activeWidget]?.immutableFull;
 
   const isDraggingHalf =
-    !!activeWidget &&
+    !!layoutActiveWidget &&
     isTwoColumn &&
-    (activeSpan === "half" || activeIsConvertibleFull);
+    (layoutActiveSpan === "half" ||
+      (layoutActiveSpan === "full" &&
+        !!layoutActiveWidget &&
+        !meta[layoutActiveWidget]?.immutableFull));
 
   const dragOverlayVariant: "full" | "half" | null = (() => {
     if (!activeWidget) return null;
@@ -961,15 +1005,65 @@ export default function Dashboard({
     return isFullRow ? "full" : "half";
   })();
 
+  const handleGrabPointerDownCapture = (
+    id: WidgetId,
+    handleEl: HTMLElement,
+  ) => {
+    // Only relevant in the 2-up layout where we temporarily render everything
+    // as half-width while grabbing/dragging.
+    if (!isTwoColumn) return;
+    if (activeWidget) return;
+    grabHandleRef.current = {
+      id,
+      node: handleEl,
+      rect: handleEl.getBoundingClientRect(),
+      didScroll: false,
+    };
+
+    // Apply the grab-preview layout before the dnd-kit listeners run (capture runs
+    // before bubble), so initial hit-testing uses the post-shift geometry.
+    flushSync(() => setGrabbedWidget(id));
+
+    const anchor = grabHandleRef.current;
+    if (!anchor || anchor.id !== id) return;
+    if (anchor.didScroll) return;
+    if (typeof window === "undefined") return;
+
+    const now = anchor.node.getBoundingClientRect();
+    const dy = now.top - anchor.rect.top;
+    if (Number.isFinite(dy) && Math.abs(dy) >= 1) {
+      if (typeof document !== "undefined" && document.scrollingElement) {
+        // Force the scroll to apply synchronously so dnd-kit sees the post-shift
+        // geometry on the same pointer event (avoids intermittent hit-test offset).
+        document.scrollingElement.scrollTop += dy;
+      } else {
+        window.scrollBy({ top: dy, left: 0, behavior: "auto" });
+      }
+    }
+    anchor.didScroll = true;
+  };
+
+  const twoColumnRowClass =
+    rowLayout === "spacious"
+      ? "@min-3xl:flex-row gap-5"
+      : "@min-4xl:flex-row gap-4";
+  const twoColumnSentinelClass =
+    rowLayout === "spacious" ? "@min-3xl:flex-row" : "@min-4xl:flex-row";
+  const hideSecondSlotUntilTwoColumn =
+    rowLayout === "spacious" ? "hidden @min-3xl:flex" : "hidden @min-4xl:flex";
+
   return (
     <div
       ref={containerRef}
-      className="overflow-x-clip overflow-y-visible @container px-0.5"
+      className="overflow-x-clip overflow-y-visible px-0.5"
     >
       <div
         ref={twoColumnSentinelRef}
         aria-hidden="true"
-        className="invisible h-0 w-0 overflow-hidden flex flex-col @min-4xl:flex-row"
+        className={cn(
+          "invisible h-0 w-0 overflow-hidden flex flex-col",
+          twoColumnSentinelClass,
+        )}
       />
       {/* Controls */}
       <div className="border border-border/40 shadow-sm p-5 rounded-xl flex flex-col gap-2 bg-highlight-4 mt-6">
@@ -1032,7 +1126,18 @@ export default function Dashboard({
         sensors={sensors}
         onDragStart={onDragStart}
         onDragEnd={onDragEnd}
-        onDragCancel={() => setActiveWidget(null)}
+        measuring={{
+          // This dashboard can reflow while dragging (e.g. full-width widgets previewing as half-width),
+          // which can otherwise leave droppable rects stale and make hit-testing feel offset.
+          droppable: {
+            strategy: MeasuringStrategy.WhileDragging,
+            frequency: 16,
+          },
+        }}
+        onDragCancel={() => {
+          setActiveWidget(null);
+          setGrabbedWidget(null);
+        }}
         collisionDetection={closestCenter}
         autoScroll={{
           // Use the draggable rect as the activator so the dragged widget stays stable
@@ -1044,7 +1149,6 @@ export default function Dashboard({
           threshold: { x: 0.2, y: 0.25 },
           interval: 8,
         }}
-        modifiers={[restrictToWindowEdges]}
       >
         {typeof document !== "undefined"
           ? createPortal(
@@ -1052,6 +1156,7 @@ export default function Dashboard({
                 dropAnimation={null}
                 adjustScale={false}
                 zIndex={1000001}
+                className={isTwoColumn ? undefined : "@container"}
               >
                 {activeWidget && renderWidget && dragOverlayVariant ? (
                   <DashboardDragOverlay
@@ -1061,7 +1166,7 @@ export default function Dashboard({
                   />
                 ) : null}
               </DragOverlay>,
-              document.body,
+              containerRef.current ?? document.body,
             )
           : null}
         {/* Render rows and gaps. Nothing reflows during drag; only indicators update */}
@@ -1099,12 +1204,16 @@ export default function Dashboard({
                         isFull
                         renderVariant={undefined}
                         renderWidget={renderWidget}
+                        onGrabPointerDownCapture={handleGrabPointerDownCapture}
                       />
                     </Slot>
                   </div>
                 ) : (
                   <div
-                    className="w-full flex flex-col @min-4xl:flex-row gap-4 relative items-stretch"
+                    className={cn(
+                      "w-full flex flex-col relative items-stretch",
+                      twoColumnRowClass,
+                    )}
                     data-ww-dashboard-row
                   >
                     <Slot
@@ -1125,11 +1234,16 @@ export default function Dashboard({
                           meta={meta[visibleItems[0]]}
                           dashboardType={type}
                           dim={
-                            isDraggingHalf && activeWidget !== visibleItems[0]
+                            Boolean(activeWidget) &&
+                            isDraggingHalf &&
+                            activeWidget !== visibleItems[0]
                           }
                           isFull={visibleItems.length === 1 && !isDraggingHalf}
                           renderVariant={undefined}
                           renderWidget={renderWidget}
+                          onGrabPointerDownCapture={
+                            handleGrabPointerDownCapture
+                          }
                         />
                       ) : null}
                     </Slot>
@@ -1140,7 +1254,7 @@ export default function Dashboard({
                           "w-full",
                           !visibleItems[1] &&
                             isDraggingHalf &&
-                            "hidden @min-4xl:flex",
+                            hideSecondSlotUntilTwoColumn,
                         )}
                         rowId={row.id}
                         pos={1}
@@ -1158,11 +1272,16 @@ export default function Dashboard({
                             meta={meta[visibleItems[1]]}
                             dashboardType={type}
                             dim={
-                              isDraggingHalf && activeWidget !== visibleItems[1]
+                              Boolean(activeWidget) &&
+                              isDraggingHalf &&
+                              activeWidget !== visibleItems[1]
                             }
                             isFull={false}
                             renderVariant={undefined}
                             renderWidget={renderWidget}
+                            onGrabPointerDownCapture={
+                              handleGrabPointerDownCapture
+                            }
                           />
                         ) : null}
                       </Slot>

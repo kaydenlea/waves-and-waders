@@ -3,7 +3,7 @@
 import * as React from "react";
 
 import { useDashboardEditMode } from "@/components/context/DashboardEditModeContext";
-import Dashboard from "@/components/general/Dashboard";
+import Dashboard, { type DashboardRowLayout } from "@/components/general/Dashboard";
 import {
   useOptionalForecastChartsLoadingControls,
 } from "@/components/context/ForecastChartsLoadingContext";
@@ -22,6 +22,7 @@ type Props = {
   type: DashboardType;
   initialMeta?: Partial<Record<WidgetId, WidgetMeta>> | null;
   initialRows?: Row[] | null;
+  rowLayout?: DashboardRowLayout;
   renderWidget?: (id: WidgetId, variant: "full" | "half") => React.ReactNode;
 };
 
@@ -29,6 +30,7 @@ export default function DashboardEditorPanel({
   type,
   initialMeta = null,
   initialRows = null,
+  rowLayout,
   renderWidget,
 }: Props) {
   const { cacheLayout } = useDashboardEditMode();
@@ -118,6 +120,7 @@ export default function DashboardEditorPanel({
       setMeta={setMeta}
       setRows={setRows}
       reset={reset}
+      rowLayout={rowLayout}
       renderWidget={renderWidget}
     />
   );

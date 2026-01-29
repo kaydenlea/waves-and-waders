@@ -32,6 +32,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
+import { safeFlushSync } from "@/components/graphs/safeFlushSync";
 import { getPacificHour } from "@/lib/utils";
 import { getWindDirection } from "@/lib/supabase";
 import { useDateContext } from "@/components/context/DateContext";
@@ -247,7 +248,14 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     const node = containerRef.current;
     if (!node) return;
 
-    const update = () => setContainerWidth(node.clientWidth);
+    const update = () => {
+      const width = node.clientWidth;
+      if (node.closest("[data-ww-dashboard-edit-card]")) {
+        safeFlushSync(() => setContainerWidth(width));
+      } else {
+        setContainerWidth(width);
+      }
+    };
     const observer = new ResizeObserver(update);
     observer.observe(node);
     update();

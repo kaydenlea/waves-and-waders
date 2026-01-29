@@ -28,6 +28,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
+import { safeFlushSync } from "@/components/graphs/safeFlushSync";
 import { useForecastWindowData } from "@/lib/hooks/useForecastWindow";
 import { useDateContext } from "@/components/context/DateContext";
 import { useSunData } from "@/components/context/SunDataContext";
@@ -312,7 +313,14 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     const node = containerRef.current;
     if (!node) return;
 
-    const update = () => setContainerWidth(node.clientWidth);
+    const update = () => {
+      const width = node.clientWidth;
+      if (node.closest("[data-ww-dashboard-edit-card]")) {
+        safeFlushSync(() => setContainerWidth(width));
+      } else {
+        setContainerWidth(width);
+      }
+    };
     const observer = new ResizeObserver(update);
     observer.observe(node);
     update();

@@ -9,6 +9,7 @@ import {
   useEffect,
   useLayoutEffect,
 } from "react";
+import { safeFlushSync } from "@/components/graphs/safeFlushSync";
 import {
   Bar,
   BarChart,
@@ -926,19 +927,26 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
     const ro = new ResizeObserver((entries) => {
       for (const e of entries) {
         const w = Math.floor(e.contentRect.width);
-        setContainerWidth(w);
-        if (w < 350) {
-          setAxisPadding(8);
-        } else if (w < 800) {
-          setAxisPadding(20);
+        const apply = () => {
+          setContainerWidth(w);
+          if (w < 350) {
+            setAxisPadding(8);
+          } else if (w < 800) {
+            setAxisPadding(20);
+          } else {
+            setAxisPadding(32);
+          }
+          const maxTranslate = Math.max(
+            0,
+            chartInnerWidth - Math.min(w || 0, dayPx * VISIBLE_DAYS),
+          );
+          setIsAtRightEdge(currentTranslateRef.current >= maxTranslate - 1);
+        };
+        if (el.closest("[data-ww-dashboard-edit-card]")) {
+          safeFlushSync(apply);
         } else {
-          setAxisPadding(32);
+          apply();
         }
-        const maxTranslate = Math.max(
-          0,
-          chartInnerWidth - Math.min(w || 0, dayPx * VISIBLE_DAYS),
-        );
-        setIsAtRightEdge(currentTranslateRef.current >= maxTranslate - 1);
       }
     });
     ro.observe(el);

@@ -22,6 +22,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
+import { safeFlushSync } from "@/components/graphs/safeFlushSync";
 import { Atom } from "lucide-react";
 import {
   useDateContext,
@@ -205,7 +206,11 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     const ro = new ResizeObserver((entries) => {
       const entry = entries[0];
       const width = entry ? Math.floor(entry.contentRect.width) : 0;
-      setContainerWidth(width);
+      if (node.closest("[data-ww-dashboard-edit-card]")) {
+        safeFlushSync(() => setContainerWidth(width));
+      } else {
+        setContainerWidth(width);
+      }
     });
     ro.observe(node);
     return () => ro.disconnect();
