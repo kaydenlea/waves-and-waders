@@ -822,7 +822,9 @@ const formatSurfRange = (
   return value != null ? String(value) : null;
 };
 
-const normalizeSurfLabel = (value: string | null | undefined): string | null => {
+const normalizeSurfLabel = (
+  value: string | null | undefined,
+): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   if (/^1(?:\.0+)?$/.test(trimmed)) return "0-1";
@@ -4825,7 +4827,7 @@ const LeafletMap: React.FC<Props> = ({
               const destination = `${generateBeachUrl(
                 beach.name,
                 beach.id,
-              )}/overview#content`;
+              )}/overview`;
 
               // Check if Ctrl/Cmd+Click to open in new tab
               if (

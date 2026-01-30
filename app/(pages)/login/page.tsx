@@ -55,8 +55,8 @@ export default async function LoginPage() {
           style={{ backgroundImage: `url('${authNoiseUrl}')` }}
         />
         <div className="absolute inset-0 opacity-[0.14] lg:hidden [background-image:linear-gradient(to_right,rgba(255,255,255,0.16)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.16)_1px,transparent_1px)] [background-size:24px_24px] dark:opacity-[0.08]" />
-        <div className="absolute -top-56 left-1/2 h-[720px] w-[1220px] -translate-x-1/2 rounded-full bg-cyan-500/14 blur-3xl" />
-        <div className="absolute -bottom-80 -left-52 h-[820px] w-[820px] rounded-full bg-indigo-500/12 blur-3xl" />
+        <div className="absolute -top-56 left-1/2 h-[720px] w-[1220px] -translate-x-1/2 rounded-full bg-indigo-500/12 blur-3xl" />
+        <div className="absolute -bottom-80 -left-52 h-[820px] w-[820px] rounded-full bg-cyan-500/14 blur-3xl" />
         <div className="absolute -bottom-72 -right-52 h-[820px] w-[820px] rounded-full bg-sky-500/12 blur-3xl" />
         <div className="absolute inset-0 bg-[radial-gradient(900px_circle_at_50%_0%,rgba(34,211,238,0.16),transparent_70%)]" />
         <div className="absolute inset-0 bg-[radial-gradient(720px_circle_at_10%_20%,rgba(99,102,241,0.12),transparent_60%)]" />
@@ -70,15 +70,15 @@ export default async function LoginPage() {
             className="pointer-events-none absolute inset-0 hidden lg:block"
           >
             <div className="absolute inset-0 bg-gradient-to-br from-sky-600/20 via-cyan-500/14 to-indigo-600/18 dark:from-sky-500/40 dark:via-cyan-500/30 dark:to-indigo-500/40" />
-            <div className="absolute inset-0 bg-[radial-gradient(900px_circle_at_15%_0%,rgba(255,255,255,0.35),transparent_60%)] opacity-30 dark:opacity-15" />
+            {/* <div className="absolute inset-0 bg-[radial-gradient(900px_circle_at_15%_0%,rgba(255,255,255,0.35),transparent_60%)] opacity-30 dark:opacity-15" />
             <div className="absolute -top-24 -right-24 h-[360px] w-[360px] rounded-full bg-white/10 blur-3xl dark:bg-white/10" />
-            <div className="absolute -bottom-36 -left-28 h-[420px] w-[420px] rounded-full bg-black/10 blur-3xl dark:bg-black/30" />
+            <div className="absolute -bottom-36 -left-28 h-[420px] w-[420px] rounded-full bg-black/10 blur-3xl dark:bg-black/30" /> */}
             <div
               className="ww-hero-noise absolute inset-0 opacity-[0.08] mix-blend-overlay"
               style={{ backgroundImage: `url('${authNoiseUrl}')` }}
             />
-            <div className="absolute inset-0 opacity-[0.18] [background-image:linear-gradient(to_right,rgba(255,255,255,0.18)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.18)_1px,transparent_1px)] [background-size:24px_24px] dark:opacity-[0.1]" />
-            <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-b from-transparent to-black/10 dark:to-black/40 lg:h-24" />
+            {/* <div className="absolute inset-0 opacity-[0.18] [background-image:linear-gradient(to_right,rgba(255,255,255,0.18)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.18)_1px,transparent_1px)] [background-size:24px_24px] dark:opacity-[0.1]" />
+            <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-b from-transparent to-black/10 dark:to-black/40 lg:h-24" /> */}
           </div>
 
           <div className="relative mx-auto w-full max-w-xl lg:mx-0">
@@ -105,7 +105,7 @@ export default async function LoginPage() {
             <h1 className="mt-9 text-balance text-4xl font-semibold tracking-tight text-white sm:text-5xl">
               Sign in or create an account
             </h1>
-            <p className="mt-4 max-w-sm text-pretty text-sm leading-relaxed text-white/80 sm:text-base">
+            <p className="mt-4 max-w-sm text-pretty text-sm leading-relaxed text-white/85 sm:text-base">
               Save beaches, personalize forecasts, and plan sessions with
               confidence.
             </p>

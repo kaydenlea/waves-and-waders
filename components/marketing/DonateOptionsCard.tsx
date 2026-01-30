@@ -65,12 +65,15 @@ export default function DonateOptionsCard({
                   type="button"
                   onClick={() => setAmount(value)}
                   className={cn(
-                    "rounded-full border px-3 py-1.5 text-sm font-semibold shadow-sm",
+                    "cursor-pointer rounded-full border px-3 py-1.5 text-sm font-semibold shadow-sm",
                     "transition-colors duration-200 motion-reduce:transition-none",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
                     selected
                       ? "border-border/70 bg-foreground text-background"
-                      : "border-border/50 bg-background/50 text-foreground/80 hover:bg-background/70"
+                      : cn(
+                          "border-border/50 bg-background/50 text-foreground/80",
+                          "hover:bg-highlight-5/70 hover:border-border/70 dark:hover:bg-highlight-5/40"
+                        )
                   )}
                   aria-pressed={selected}
                 >
@@ -84,12 +87,15 @@ export default function DonateOptionsCard({
               type="button"
               onClick={() => setAmount("custom")}
               className={cn(
-                "rounded-full border px-3 py-1.5 text-sm font-semibold shadow-sm",
+                "cursor-pointer rounded-full border px-3 py-1.5 text-sm font-semibold shadow-sm",
                 "transition-colors duration-200 motion-reduce:transition-none",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
                 amount === "custom"
                   ? "border-border/70 bg-foreground text-background"
-                  : "border-border/50 bg-background/50 text-foreground/70 hover:bg-background/70"
+                  : cn(
+                      "border-border/50 bg-background/50 text-foreground/70",
+                      "hover:bg-highlight-5/70 hover:border-border/70 dark:hover:bg-highlight-5/40"
+                    )
               )}
               aria-pressed={amount === "custom"}
             >
@@ -104,7 +110,8 @@ export default function DonateOptionsCard({
           href={donateHref}
           className={cn(
             "flex-1 inline-flex items-center justify-center gap-2 rounded-full bg-foreground px-5 py-3 text-sm font-medium text-background shadow-sm",
-            "transition-opacity duration-200 motion-reduce:transition-none hover:opacity-95",
+            "cursor-pointer transition-[background-color,box-shadow,transform] duration-200 motion-reduce:transition-none",
+            "hover:bg-foreground/90 hover:shadow-md hover:shadow-black/15 active:scale-[0.99]",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
           )}
         >
@@ -115,7 +122,8 @@ export default function DonateOptionsCard({
           href="/contact?from=donate-section"
           className={cn(
             "flex-1 inline-flex items-center justify-center gap-2 rounded-full border border-border/50 bg-background/50 px-5 py-3 text-sm font-medium text-foreground shadow-sm",
-            "transition-colors duration-200 motion-reduce:transition-none hover:bg-background/70",
+            "cursor-pointer transition-[background-color,border-color,box-shadow,transform] duration-200 motion-reduce:transition-none",
+            "hover:bg-highlight-5/70 hover:border-border/70 dark:hover:bg-highlight-5/40 hover:shadow-sm active:scale-[0.99]",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
           )}
         >

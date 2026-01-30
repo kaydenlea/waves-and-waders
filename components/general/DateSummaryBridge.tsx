@@ -229,6 +229,15 @@ const DateSummaryBridge: React.FC<Props> = ({
   const { id, selected, hour, selectedDays } = useDateContext();
   id.current = beachId;
   const { selectedTab } = useClientPath();
+  const prevSelectedTabRef = React.useRef<string | null>(null);
+  const tabJustSwitched =
+    prevSelectedTabRef.current != null && prevSelectedTabRef.current !== selectedTab;
+  const tabSwitchedToOverview = tabJustSwitched && selectedTab === "overview";
+  const tabSwitchedToForecast = tabJustSwitched && selectedTab === "forecast";
+
+  React.useEffect(() => {
+    prevSelectedTabRef.current = selectedTab;
+  }, [selectedTab]);
   const isOverview = selectedTab === "overview";
   const isForecastTab = selectedTab === "forecast";
   const {
@@ -611,7 +620,7 @@ const DateSummaryBridge: React.FC<Props> = ({
     hours: 24,
   });
   const overviewChartsLoading =
-    !layoutHydrated || !beachId || !selected || forecastLoading;
+    !layoutHydrated || !beachId || forecastLoading;
   const overviewWidgetsLoading = useOptionalOverviewChartsLoadingState();
   const hasVisibleOverviewWidgets = React.useMemo(
     () =>
@@ -671,34 +680,12 @@ const DateSummaryBridge: React.FC<Props> = ({
       !isEditing
   );
 
-  const overviewLoadKey = `${String(beachId)}:${selectedDateMs}`;
-  const overviewInitialBusyCompletedRef = React.useRef<{
-    key: string | null;
-    completed: boolean;
-  }>({ key: null, completed: false });
-
-  if (overviewInitialBusyCompletedRef.current.key !== overviewLoadKey) {
-    overviewInitialBusyCompletedRef.current.key = overviewLoadKey;
-    overviewInitialBusyCompletedRef.current.completed = false;
-  }
-
   const overviewInitialBusyRaw =
     overviewChartsLoading ||
     (isOverview && hasVisibleOverviewWidgets && overviewWidgetsLoading) ||
-    tabOverlayActive;
-
-  React.useEffect(() => {
-    if (!isOverview) return;
-    if (overviewInitialBusyCompletedRef.current.completed) return;
-    if (!overviewInitialBusyRaw) {
-      overviewInitialBusyCompletedRef.current.completed = true;
-    }
-  }, [isOverview, overviewInitialBusyRaw]);
-
-  const overviewInitialBusy =
-    isOverview && overviewInitialBusyCompletedRef.current.completed
-      ? false
-      : overviewInitialBusyRaw;
+    tabOverlayActive ||
+    tabSwitchedToOverview;
+  const overviewInitialBusy = overviewInitialBusyRaw;
 
   const overlayVisible = useStableOverlay(
     overviewInitialBusy || layoutOverlayActive || pendingLayoutApplyActive,
@@ -706,16 +693,6 @@ const DateSummaryBridge: React.FC<Props> = ({
   );
 
   const [forecastBridgeBusy, setForecastBridgeBusy] = React.useState(true);
-  const forecastLoadKey = `${String(beachId)}:${forecastTabRange.start.getTime()}:${forecastTabRange.end.getTime()}`;
-  const forecastInitialBusyCompletedRef = React.useRef<{
-    key: string | null;
-    completed: boolean;
-  }>({ key: null, completed: false });
-
-  if (forecastInitialBusyCompletedRef.current.key !== forecastLoadKey) {
-    forecastInitialBusyCompletedRef.current.key = forecastLoadKey;
-    forecastInitialBusyCompletedRef.current.completed = false;
-  }
   const [forecastTabOverlayActive, setForecastTabOverlayActive] =
     React.useState(false);
   const prevForecastTabRef = React.useRef<string | null>(null);
@@ -753,22 +730,13 @@ const DateSummaryBridge: React.FC<Props> = ({
     return () => window.clearTimeout(timeout);
   }, [forecastBridgeBusy, forecastTabOverlayActive, isOverview]);
 
-  const forecastInitialBusyRaw = !isOverview
-    ? forecastBridgeBusy || forecastTabOverlayActive
+  const forecastInitialBusyRaw = isForecastTab
+    ? forecastBridgeBusy ||
+      forecastTabOverlayActive ||
+      forecastTabLoading ||
+      tabSwitchedToForecast
     : false;
-
-  React.useEffect(() => {
-    if (isOverview) return;
-    if (forecastInitialBusyCompletedRef.current.completed) return;
-    if (!forecastInitialBusyRaw) {
-      forecastInitialBusyCompletedRef.current.completed = true;
-    }
-  }, [forecastInitialBusyRaw, isOverview]);
-
-  const forecastInitialBusy =
-    !isOverview && forecastInitialBusyCompletedRef.current.completed
-      ? false
-      : forecastInitialBusyRaw;
+  const forecastInitialBusy = forecastInitialBusyRaw;
 
   const forecastBusyVisible = useStableOverlay(forecastInitialBusy, 250);
   const setOverviewPageBusy = useOptionalOverviewPageBusyControls();

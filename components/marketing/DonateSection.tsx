@@ -2,6 +2,7 @@ import { HandHeart, ShieldCheck, Sparkles } from "lucide-react";
 import InViewOnce from "@/components/marketing/InViewOnce";
 import DonateOptionsCard from "@/components/marketing/DonateOptionsCard";
 import { cn } from "@/lib/utils";
+import SpotlightCard from "@/components/visuals/SpotlightCard";
 
 export default function DonateSection({ className }: { className?: string }) {
   return (
@@ -11,10 +12,18 @@ export default function DonateSection({ className }: { className?: string }) {
       data-inview="false"
       className={cn(
         "ww-section mx-auto w-full max-w-3xl lg:max-w-4xl 2xl:max-w-6xl px-4 sm:px-6 py-16 sm:py-20",
-        className
+        className,
       )}
     >
-      <div className="relative overflow-hidden rounded-3xl border border-border/50 bg-gradient-to-b from-foreground/[0.035] to-foreground/[0.015] p-6 shadow-sm sm:p-10">
+      <SpotlightCard
+        className={cn(
+          "relative overflow-hidden rounded-3xl border border-border/50 p-6 shadow-sm sm:p-10",
+          // Balance light/dark: avoid foreground-tinted backgrounds that invert between themes.
+          "bg-gradient-to-b from-background/80 to-background/55",
+          "dark:from-highlight-7/35 dark:to-highlight-7/20",
+        )}
+        spotlightColor="rgba(56, 189, 248, 0.18)"
+      >
         <InViewOnce rootAttr="data-ww-section" />
 
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(56,189,248,0.10),transparent_55%),radial-gradient(circle_at_80%_20%,rgba(37,99,235,0.09),transparent_55%)]" />
@@ -60,7 +69,7 @@ export default function DonateSection({ className }: { className?: string }) {
         </div>
 
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-14 bg-gradient-to-b from-transparent to-background/30" />
-      </div>
+      </SpotlightCard>
     </section>
   );
 }

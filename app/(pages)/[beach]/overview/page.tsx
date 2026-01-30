@@ -137,8 +137,9 @@ const Page = async ({
   const { beach } = await params;
   const tabParamRaw = (await searchParams)?.tab;
   const tabParam = Array.isArray(tabParamRaw) ? tabParamRaw[0] : tabParamRaw;
-  const initialTabOverride =
-    tabParam === "forecast" || tabParam === "overview" ? tabParam : undefined;
+  // This route is always `/overview`, so default to the Overview tab on first paint.
+  // Only allow the query param to override to Forecast for deep links.
+  const initialTabOverride = tabParam === "forecast" ? "forecast" : "overview";
   // If user visits /beach/overview (literal "beach"), send them to selector
   if (beach === "beach") {
     redirect("/beaches");

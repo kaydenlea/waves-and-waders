@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { startTransition, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -343,18 +343,24 @@ const PageTabs = ({
                   const base = `/${beach}/overview`;
                   const tabParam = next;
                   const href = `${base}?tab=${encodeURIComponent(tabParam)}`;
-                  router.push(href, { scroll: false });
+                  startTransition(() => {
+                    router.push(href, { scroll: false });
+                  });
                   return;
                 }
 
                 if (forecastPage && !overviewPage && beach) {
                   // Dedicated forecast page: switch routes between overview/forecast.
                   if (next === "overview") {
-                    router.push(`/${beach}/overview`, { scroll: false });
+                    startTransition(() => {
+                      router.push(`/${beach}/overview`, { scroll: false });
+                    });
                     return;
                   }
                   if (next === "forecast") {
-                    router.push(`/${beach}/forecast`, { scroll: false });
+                    startTransition(() => {
+                      router.push(`/${beach}/forecast`, { scroll: false });
+                    });
                     return;
                   }
                 }
