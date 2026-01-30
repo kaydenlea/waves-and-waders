@@ -137,9 +137,10 @@ const Page = async ({
   const { beach } = await params;
   const tabParamRaw = (await searchParams)?.tab;
   const tabParam = Array.isArray(tabParamRaw) ? tabParamRaw[0] : tabParamRaw;
-  // This route is always `/overview`, so default to the Overview tab on first paint.
-  // Only allow the query param to override to Forecast for deep links.
-  const initialTabOverride = tabParam === "forecast" ? "forecast" : "overview";
+  // Only set initialTabOverride when there's an explicit ?tab= query param.
+  // When no query param is present, let the client-side localStorage determine the tab.
+  // This prevents the flash from overview->forecast when the user's preference is forecast.
+  const initialTabOverride = tabParam === "forecast" || tabParam === "overview" ? tabParam : undefined;
   // If user visits /beach/overview (literal "beach"), send them to selector
   if (beach === "beach") {
     redirect("/beaches");

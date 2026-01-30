@@ -58,17 +58,25 @@ export function PathProvider({
     []
   );
   const [selectedTab, setSelectedTab] = useState(() => {
-    if (initialTabOverride) return initialTabOverride;
+    // First check localStorage for persisted tab preference (highest priority when no explicit override)
     if (typeof window !== "undefined") {
+      // If there's an explicit query param, use it (deep-link behavior)
       const params = new URLSearchParams(window.location.search);
       const qp = params.get("tab");
       if (qp) return qp;
+      
+      // Check localStorage for persisted preference
       if (pathname) {
         const key = getTabStorageKey(pathname);
         const saved = window.localStorage.getItem(key);
         if (saved) return saved;
       }
     }
+    
+    // Use server-provided override if available (only set when explicit ?tab= query param)
+    if (initialTabOverride) return initialTabOverride;
+    
+    // Fall back to path-based default
     if (pathname?.includes("/forecast")) return "forecast";
     if (pathname?.includes("/overview")) return "overview";
     return "";
@@ -103,11 +111,17 @@ export function PathProvider({
 
       const key = getTabStorageKey(pathname);
       const saved = window.localStorage.getItem(key);
-      if (saved && saved !== selectedTab) {
-        setSelectedTab(saved);
+      
+      // If localStorage has a saved value, use it (even if it matches current state).
+      // This prevents the path-based fallback from overriding user preference.
+      if (saved) {
+        if (saved !== selectedTab) {
+          setSelectedTab(saved);
+        }
         return;
       }
 
+      // Only fall back to path-based default if no localStorage value exists
       if (isDashboardPath) {
         const fallback = pathname.includes("/forecast") ? "forecast" : "overview";
         if (selectedTab !== fallback) {
@@ -123,10 +137,19 @@ export function PathProvider({
     try {
       if (typeof window === "undefined") return;
       if (!selectedTab) return;
+      
+      // Only persist tab if it's valid for the current path type.
+      // This prevents accidentally saving "nearby" to "tab:beach-dashboard"
+      // when navigating away from beach pages.
       const key = getTabStorageKey(pathname);
+      if (key === "tab:beach-dashboard") {
+        // Only save overview/forecast to beach dashboard key
+        if (selectedTab !== "overview" && selectedTab !== "forecast") return;
+      }
+      
       window.localStorage.setItem(key, selectedTab);
     } catch {}
-  }, [selectedTab, pathname]);
+  }, [selectedTab, pathname, getTabStorageKey]);
 
   // Guard against invalid tab values for dashboard routes (e.g. "nearby" on /overview).
   useEffect(() => {
