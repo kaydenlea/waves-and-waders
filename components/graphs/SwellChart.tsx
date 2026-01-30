@@ -601,6 +601,8 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   const pendingHoverRef = React.useRef<number | null>(null);
 
   const handleMouseMove = (e: ChartMouseEvent) => {
+    // Don't process hover events while loading
+    if (forecastLoading) return;
     if (isTouchOnlyDevice && !isTouchInspecting) return;
     if (e && e.activeLabel !== undefined) {
       const hour = Number(e.activeLabel);
@@ -1443,6 +1445,7 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         anchorRef={containerRef}
         getXPositionForHour={getXPositionForHour}
         positionInside
+        disabled={forecastLoading}
       />
     </div>
   );

@@ -287,6 +287,7 @@ export default React.memo(function ForecastTideChart({
   const innerRef = useRef<HTMLDivElement | null>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [isAtRightEdge, setIsAtRightEdge] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   // Touch inspect timer for long-press detection (legacy - keeping for compatibility)
   const touchInspectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
@@ -538,6 +539,7 @@ export default React.memo(function ForecastTideChart({
     if (pointerStateRef.current) {
       pointerStateRef.current.dragging = true;
     }
+    setIsDragging(true);
     // prevent text selection
     document.body.style.userSelect = "none";
     document.body.style.touchAction = "none";
@@ -701,6 +703,7 @@ export default React.memo(function ForecastTideChart({
     node.releasePointerCapture?.(ev.pointerId);
     clearTouchInspectTimer();
     setIsTouchInspecting(false);
+    setIsDragging(false);
     if (isTouchOnlyDevice && ev.pointerType !== "mouse") {
       setTouchDefaultIndex(null);
       touchInspectStartRef.current = null;
@@ -1503,8 +1506,10 @@ export default React.memo(function ForecastTideChart({
     const span = Math.max(1e-6, max - min);
 
     // Add headroom/footroom so labels/icons never collide with the curve.
+    // The sunrise/sunset icons are positioned at y=15 and are ~18px tall, so we need
+    // extra top padding to ensure the tide curve doesn't reach into that zone.
     const bottomPad = Math.max(2, span * 0.12);
-    const topPad = Math.max(3, span * 0.2);
+    const topPad = Math.max(5, span * 0.35);
     const paddedMin = Math.floor(min - bottomPad);
     const paddedMax = Math.ceil(max + topPad);
 
@@ -1724,6 +1729,8 @@ export default React.memo(function ForecastTideChart({
 
   const handleMouseMove = React.useCallback(
     (e: ChartMouseEvent) => {
+      // Don't process hover events while loading
+      if (loading) return;
       // On touch devices, we use MobileChartTooltip instead
       if (isTouchOnlyDevice) return;
       if (e && e.activeLabel !== undefined) {
@@ -1821,6 +1828,7 @@ export default React.memo(function ForecastTideChart({
                   onPointerCancel: onPointerUp,
                 })}
             className="chart-touch-no-select"
+            data-dragging={isDragging ? "true" : "false"}
             style={{
               marginTop: 60,
               position: "absolute",
@@ -1830,7 +1838,6 @@ export default React.memo(function ForecastTideChart({
               height: 250,
               display: "block",
               willChange: "transform",
-              cursor: "grab",
               ...(isTouchOnlyDevice ? mobileStyles : {}),
             }}
           >
@@ -2409,6 +2416,7 @@ export default React.memo(function ForecastTideChart({
           getXPositionForHour={getXPositionForHour}
           positionInside
           topOffset={55}
+          disabled={loading}
         />
       </div>
     </div>

@@ -299,6 +299,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
   const innerRef = useRef<HTMLDivElement | null>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [isAtRightEdge, setIsAtRightEdge] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const { selected: selectedDate } = useDateContext();
   const isTouchOnlyDevice = useIsTouchOnlyDevice();
   const [isChartInteracting, setIsChartInteracting] = React.useState(false);
@@ -533,6 +534,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
     if (pointerStateRef.current) {
       pointerStateRef.current.dragging = true;
     }
+    setIsDragging(true);
     document.body.style.userSelect = "none";
     document.body.style.touchAction = "none";
   };
@@ -663,6 +665,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
     node.releasePointerCapture?.(ev.pointerId);
     clearTouchInspectTimer();
     setIsTouchInspecting(false);
+    setIsDragging(false);
     if (isTouchOnlyDevice && ev.pointerType !== "mouse") {
       setTouchDefaultIndex(null);
       touchInspectStartRef.current = null;
@@ -1375,6 +1378,8 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
 
   const handleMouseMove = React.useCallback(
     (e: ChartMouseEvent) => {
+      // Don't process hover events while loading
+      if (loading) return;
       // On touch devices, we use MobileChartTooltip instead
       if (isTouchOnlyDevice) return;
       if (e && e.activeLabel !== undefined) {
@@ -1391,7 +1396,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
         }
       }
     },
-    [isTouchOnlyDevice, isChartInteracting, setHoveredHour]
+    [loading, isTouchOnlyDevice, isChartInteracting, setHoveredHour]
   );
 
   const handleMouseLeave = React.useCallback(() => {
@@ -1448,6 +1453,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
                 onPointerCancel: onPointerUp,
               })}
           className="chart-touch-no-select"
+          data-dragging={isDragging ? "true" : "false"}
           style={{
             marginTop: 60,
             position: "absolute",
@@ -1456,7 +1462,6 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
             height: 250,
             display: "block",
             willChange: "transform",
-            cursor: "grab",
             ...(isTouchOnlyDevice ? mobileStyles : {}),
           }}
         >
@@ -1892,6 +1897,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
         getXPositionForHour={getXPositionForHour}
         positionInside
         topOffset={55}
+        disabled={loading}
       />
     </div>
   );

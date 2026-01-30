@@ -156,6 +156,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
   const innerRef = useRef<HTMLDivElement | null>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [isAtRightEdge, setIsAtRightEdge] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const { selected: selectedDate } = useDateContext();
   const isTouchOnlyDevice = useIsTouchOnlyDevice();
 
@@ -483,6 +484,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
     if (pointerStateRef.current) {
       pointerStateRef.current.dragging = true;
     }
+    setIsDragging(true);
     document.body.style.userSelect = "none";
   }, []);
 
@@ -546,6 +548,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
       node.releasePointerCapture?.(ev.pointerId);
       const ps = pointerStateRef.current;
       pointerStateRef.current = null;
+      setIsDragging(false);
       if (!ps?.dragging) return;
       document.body.style.userSelect = "";
       if (dragRafRef.current) {
@@ -1330,6 +1333,8 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
 
   const handleMouseMove = React.useCallback(
     (e: ChartMouseEvent) => {
+      // Don't process hover events while loading
+      if (loading) return;
       // On touch devices, we handle tooltip via useMobileChartTouch, not mouse events
       if (isTouchOnlyDevice) return;
       if (e && e.activeLabel !== undefined) {
@@ -1344,7 +1349,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
         }
       }
     },
-    [isTouchOnlyDevice, setHoveredHour],
+    [loading, isTouchOnlyDevice, setHoveredHour],
   );
 
   const handleMouseLeave = React.useCallback(() => {
@@ -1430,6 +1435,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
           ref={innerRef}
           {...mergedHandlers}
           className="chart-touch-no-select"
+          data-dragging={isDragging ? "true" : "false"}
           style={{
             marginTop: 60,
             position: "absolute",
@@ -1438,7 +1444,6 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
             height: 250,
             display: "block",
             willChange: "transform",
-            cursor: "grab",
             ...mobileStyles,
           }}
         >
@@ -1927,6 +1932,7 @@ const ForecastWindChart: React.FC<Props> = ({ beachId, days }) => {
         }}
         positionInside
         topOffset={55}
+        disabled={loading}
       />
     </div>
   );

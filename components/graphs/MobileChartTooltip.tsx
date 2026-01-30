@@ -299,6 +299,8 @@ interface MobileChartTooltipProps {
     strokeWidth: number;
     radius?: number;
   };
+  /** When true, tooltip interactions and rendering are disabled (e.g., while loading) */
+  disabled?: boolean;
 }
 
 /**
@@ -319,6 +321,7 @@ export function MobileChartTooltip({
   renderCursor = false,
   cursorInsets,
   cursorStyle,
+  disabled = false,
 }: MobileChartTooltipProps) {
   const state = useMobileTooltipState();
   const [mounted, setMounted] = React.useState(false);
@@ -431,6 +434,12 @@ export function MobileChartTooltip({
     }
     cardEl.removeAttribute("data-ww-tooltip-active");
   }, [cardEl, shouldMarkCard]);
+
+  // When disabled (e.g., chart loading), don't render anything
+  // This check is placed after all hooks to satisfy React's Rules of Hooks
+  if (disabled) {
+    return null;
+  }
 
   if (!shouldAttemptRender) {
     return null;

@@ -748,8 +748,10 @@ const TideChart: React.FC<TideChartProps> = ({
     const span = Math.max(1e-6, max - min);
 
     // Add headroom/footroom so labels/icons never collide with the curve.
+    // The sunrise/sunset icons are positioned at y=15 and are ~18px tall, so we need
+    // extra top padding to ensure the tide curve doesn't reach into that zone.
     const bottomPad = Math.max(1, span * 0.12);
-    const topPad = Math.max(4, span * 0.2);
+    const topPad = Math.max(5, span * 0.35);
     const paddedMin = Math.floor(min - bottomPad);
     const paddedMax = Math.ceil(max + topPad);
 
@@ -959,6 +961,8 @@ const TideChart: React.FC<TideChartProps> = ({
   const pendingHoverRef = React.useRef<number | null>(null);
 
   const handleMouseMove = (e: ChartMouseEvent) => {
+    // Don't process hover events while loading
+    if (tideLoading) return;
     if (isTouchOnlyDevice && !isTouchInspecting) return;
     if (e && e.activeLabel !== undefined) {
       const hour = Number(e.activeLabel);
@@ -1720,6 +1724,7 @@ const TideChart: React.FC<TideChartProps> = ({
         anchorRef={containerRef}
         getXPositionForHour={getXPositionForHour}
         positionInside
+        disabled={tideLoading}
       />
     </div>
   );

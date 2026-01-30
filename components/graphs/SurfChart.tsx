@@ -501,6 +501,8 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
   const pendingHoverRef = React.useRef<number | null>(null);
 
   const handleMouseMove = (e: ChartMouseEvent) => {
+    // Don't process hover events while loading
+    if (forecastLoading) return;
     if (e && e.activeLabel !== undefined) {
       const labelValue = Number(e.activeLabel);
       if (!isNaN(labelValue)) {
@@ -975,6 +977,7 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           radius: 6,
         }}
         positionInside
+        disabled={forecastLoading}
       />
     </div>
   );

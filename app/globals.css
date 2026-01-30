@@ -499,3 +499,19 @@ body[data-ww-interaction-lock="1"] [data-slot="chart"] {
   user-select: none;
   touch-action: pan-y;
 }
+
+/* Forecast chart grab cursor for desktop dragging */
+@media (hover: hover) and (pointer: fine) {
+  .chart-touch-no-select[data-dragging="false"] {
+    cursor: grab;
+  }
+  .chart-touch-no-select[data-dragging="false"] * {
+    cursor: grab;
+  }
+  .chart-touch-no-select[data-dragging="true"] {
+    cursor: grabbing;
+  }
+  .chart-touch-no-select[data-dragging="true"] * {
+    cursor: grabbing;
+  }
+}

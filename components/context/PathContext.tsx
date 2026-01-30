@@ -83,6 +83,7 @@ export function PathProvider({
   });
 
   const tabParamRef = useRef<string | null>(null);
+  const hasMountedRef = useRef(false);
 
   useLayoutEffect(() => {
     if (!initialTabOverride) return;
@@ -129,6 +130,9 @@ export function PathProvider({
         }
       }
     } catch {}
+    
+    // Mark as mounted after the first run to prevent race with persist effect
+    hasMountedRef.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
@@ -137,6 +141,11 @@ export function PathProvider({
     try {
       if (typeof window === "undefined") return;
       if (!selectedTab) return;
+      
+      // Skip the first render to avoid overwriting localStorage before
+      // useLayoutEffect has a chance to read and restore the saved value.
+      // This prevents a race condition during hydration.
+      if (!hasMountedRef.current) return;
       
       // Only persist tab if it's valid for the current path type.
       // This prevents accidentally saving "nearby" to "tab:beach-dashboard"
