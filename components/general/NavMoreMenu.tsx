@@ -142,13 +142,13 @@ export default function NavMoreMenu({
           <>
             <AppMenuSeparator
               className={cn(
-                landingPage ? "@min-5xl:hidden" : "@min-5xl:hidden"
+                landingPage ? "@min-5xl:hidden" : "@min-4xl:hidden",
               )}
             />
             <AppMenuItem
               asChild
               className={cn(
-                landingPage ? "@min-5xl:hidden" : "@min-5xl:hidden"
+                landingPage ? "@min-5xl:hidden" : "@min-4xl:hidden",
               )}
               onSelect={() => {
                 setOpen(false);

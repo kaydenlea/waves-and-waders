@@ -140,7 +140,7 @@ const Footer = ({ className }: { className?: string }) => {
             <div className="divide-y divide-border/10 rounded-2xl border border-border/20 bg-background/30">
               <details className="group px-4">
                 <summary className="flex list-none cursor-pointer items-center justify-between py-4 text-sm font-semibold text-foreground/80 [&::-webkit-details-marker]:hidden">
-                  Product
+                  Tools
                   <ChevronDown
                     className="h-4 w-4 text-foreground/50 transition group-open:rotate-180"
                     aria-hidden="true"

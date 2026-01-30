@@ -1679,7 +1679,7 @@ const LeafletMap: React.FC<Props> = ({
   } = useBeachStatsCache();
   const [smallScreen, setSmallScreen] = React.useState<boolean>(() => {
     if (typeof window === "undefined") return false;
-    return window.innerWidth < 896;
+    return window.innerWidth < 911;
   });
   const [navigationPending, setNavigationPending] = React.useState(false);
   const [previewEngaged, setPreviewEngaged] = React.useState(
@@ -2660,7 +2660,7 @@ const LeafletMap: React.FC<Props> = ({
 
   React.useEffect(() => {
     const handleResize = () => {
-      setSmallScreen(window.innerWidth < 896);
+      setSmallScreen(window.innerWidth < 911);
     };
     handleResize();
     window.addEventListener("resize", handleResize);
