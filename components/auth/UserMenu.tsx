@@ -58,13 +58,13 @@ export const UserMenu = ({
           "px-2 flex-1 rounded-md bg-highlight-4/40 py-1.5 w-full flex items-center gap-2",
           landingPage
             ? "@min-md:text-center @min-md:pl-[13px] @min-md:rounded-full @min-md:py-3 @min-md:w-20"
-            : "@min-5xl:text-center @min-5xl:pl-[13px] @min-5xl:rounded-full @min-5xl:py-3 @min-5xl:w-20"
+            : "@min-4xl:text-center @min-4xl:pl-[13px] @min-4xl:rounded-full @min-4xl:py-3 @min-4xl:w-20",
         )}
       >
         <div
           className={cn(
             "w-5 h-5 rounded-md bg-highlight-5/60",
-            landingPage ? "@min-md:hidden" : "@min-5xl:hidden"
+            landingPage ? "@min-md:hidden" : "@min-4xl:hidden",
           )}
         />
         <div className="h-4 w-12 rounded-md bg-highlight-5/60" />
@@ -79,20 +79,20 @@ export const UserMenu = ({
           "px-2 flex-1 rounded-md hover:bg-highlight-5 py-1.5 w-full text-left flex items-center gap-2",
           landingPage
             ? "@min-md:text-center @min-md:pl-[13px] @min-md:rounded-full @min-md:py-3 @min-md:w-20"
-            : "@min-5xl:text-center @min-5xl:pl-[13px] @min-5xl:rounded-full @min-5xl:py-3 @min-5xl:w-20"
+            : "@min-4xl:text-center @min-4xl:pl-[13px] @min-4xl:rounded-full @min-4xl:py-3 @min-4xl:w-20",
         )}
         href="/login"
       >
         <LogIn
           className={cn(
             "w-5 h-5 -mt-0.5 block",
-            landingPage ? "@min-md:hidden" : "@min-5xl:hidden"
+            landingPage ? "@min-md:hidden" : "@min-4xl:hidden",
           )}
         />
         <span
           className={cn(
             "text-base font-normal",
-            landingPage ? "@min-md:font-medium" : "@min-5xl:font-medium"
+            landingPage ? "@min-md:font-medium" : "@min-4xl:font-medium",
           )}
         >
           Sign in

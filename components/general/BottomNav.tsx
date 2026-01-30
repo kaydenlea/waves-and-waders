@@ -80,7 +80,7 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
   // Detect screen width and reset nav visibility when switching to mobile
   useEffect(() => {
     const handleResize = () => {
-      const mobile = window.innerWidth < 910; // Tailwind's `md` breakpoint
+      const mobile = window.innerWidth < 911; // Tailwind's `md` breakpoint
       setIsMobile(mobile);
 
       if (mobile) {
