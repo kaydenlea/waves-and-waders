@@ -92,8 +92,9 @@ const PageTabs = ({
   // Set a default only if no tab has been selected/restored yet.
   useEffect(() => {
     if (selectedTab !== "") return;
-    setSelectedTab(overviewPage ? "overview" : "nearby");
-  }, [selectedTab, overviewPage, setSelectedTab]);
+    if (overviewPage || forecastPage) return;
+    setSelectedTab("nearby");
+  }, [selectedTab, overviewPage, forecastPage, setSelectedTab]);
 
   // If user is not logged in and Saved is active on the beaches page, redirect to login.
   useEffect(() => {

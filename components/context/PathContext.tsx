@@ -44,13 +44,35 @@ export function PathProvider({
   initialTabOverride?: string;
 }) {
   const pathname = usePathname();
-  const initialTab = useMemo(() => {
+  const isDashboardPath = useMemo(() => {
+    if (!pathname) return false;
+    return pathname.includes("/overview") || pathname.includes("/forecast");
+  }, [pathname]);
+  const getTabStorageKey = useCallback(
+    (path: string) => {
+      if (path.includes("/overview") || path.includes("/forecast")) {
+        return "tab:beach-dashboard";
+      }
+      return `tab:${path}`;
+    },
+    []
+  );
+  const [selectedTab, setSelectedTab] = useState(() => {
     if (initialTabOverride) return initialTabOverride;
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const qp = params.get("tab");
+      if (qp) return qp;
+      if (pathname) {
+        const key = getTabStorageKey(pathname);
+        const saved = window.localStorage.getItem(key);
+        if (saved) return saved;
+      }
+    }
     if (pathname?.includes("/forecast")) return "forecast";
     if (pathname?.includes("/overview")) return "overview";
     return "";
-  }, [initialTabOverride, pathname]);
-  const [selectedTab, setSelectedTab] = useState(initialTab);
+  });
 
   const tabParamRef = useRef<string | null>(null);
 
@@ -79,25 +101,18 @@ export function PathProvider({
         return;
       }
 
-      const isForecastPath = pathname.includes("/forecast");
-      const isOverviewPath = pathname.includes("/overview");
-
-      // For dedicated forecast/overview routes, the URL semantics win over any
-      // saved local state to avoid tab flicker on refresh.
-      if (isForecastPath && selectedTab !== "forecast") {
-        setSelectedTab("forecast");
-        return;
-      }
-      if (isOverviewPath && selectedTab !== "overview") {
-        setSelectedTab("overview");
-        return;
-      }
-
-      const key = `tab:${pathname}`;
+      const key = getTabStorageKey(pathname);
       const saved = window.localStorage.getItem(key);
       if (saved && saved !== selectedTab) {
         setSelectedTab(saved);
         return;
+      }
+
+      if (isDashboardPath) {
+        const fallback = pathname.includes("/forecast") ? "forecast" : "overview";
+        if (selectedTab !== fallback) {
+          setSelectedTab(fallback);
+        }
       }
     } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -108,10 +123,19 @@ export function PathProvider({
     try {
       if (typeof window === "undefined") return;
       if (!selectedTab) return;
-      const key = `tab:${pathname}`;
+      const key = getTabStorageKey(pathname);
       window.localStorage.setItem(key, selectedTab);
     } catch {}
   }, [selectedTab, pathname]);
+
+  // Guard against invalid tab values for dashboard routes (e.g. "nearby" on /overview).
+  useEffect(() => {
+    if (!pathname) return;
+    if (!isDashboardPath) return;
+    if (selectedTab === "overview" || selectedTab === "forecast") return;
+    const fallback = pathname.includes("/forecast") ? "forecast" : "overview";
+    setSelectedTab(fallback);
+  }, [pathname, selectedTab, isDashboardPath]);
   const value = useMemo(
     () => ({
       pathname,

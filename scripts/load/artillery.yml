@@ -1,0 +1,31 @@
+config:
+  target: "http://localhost:3000"
+  phases:
+    - duration: 120
+      arrivalRate: 10
+      name: "warmup"
+    - duration: 180
+      arrivalRate: 30
+      name: "steady"
+  variables:
+    beachId: "1"
+    viewport: "-124.6,32.5,-117.0,42.2"
+  defaults:
+    headers:
+      User-Agent: "artillery-load"
+
+scenarios:
+  - name: "api-burst"
+    flow:
+      - get:
+          url: "/api/forecast?beachId={{ beachId }}&startDate={{ $isoNow }}&endDate={{ $isoNow }}"
+      - get:
+          url: "/api/tides?beachId={{ beachId }}&startDate={{ $isoNow }}&endDate={{ $isoNow }}"
+      - get:
+          url: "/api/forecast/{{ beachId }}/current"
+      - get:
+          url: "/api/forecast/{{ beachId }}/week"
+      - get:
+          url: "/api/beaches"
+      - get:
+          url: "/api/beaches/viewport?bounds={{ viewport }}&includeStats=1&statsLimit=12"

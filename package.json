@@ -9,7 +9,9 @@
     "lint": "next lint",
     "typecheck": "node ./node_modules/typescript/bin/tsc -p tsconfig.json --noEmit",
     "generate-beach-maps": "node scripts/generate-beach-map-screenshots.js",
-    "generate-beach-maps:test": "node scripts/generate-beach-map-screenshots.js --limit 5"
+    "generate-beach-maps:test": "node scripts/generate-beach-map-screenshots.js --limit 5",
+    "load:k6": "k6 run scripts/load/k6-api.js",
+    "load:artillery": "npx artillery run scripts/load/artillery.yml"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

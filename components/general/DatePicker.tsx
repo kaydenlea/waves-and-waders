@@ -710,7 +710,7 @@ DatePickerProps) => {
           daysRange.push(day.toDate());
         }
       });
-      if (forecast) {
+      if (forecast && orderedKeys.length > 0) {
         setSelectedDays((prev) =>
           datesEqual(prev, daysRange) ? prev : daysRange
         );
