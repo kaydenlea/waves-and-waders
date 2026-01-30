@@ -25,7 +25,6 @@ import {
   ChevronDown,
   Sun,
   MoonStar,
-  CloudMoon,
   Cloud as CloudIcon,
   CloudDrizzle,
   CloudRain,
@@ -174,7 +173,7 @@ function CellSurface({
   return (
     <div
       className={cn(
-        "mx-auto w-full rounded-lg border border-border/25 bg-foreground/[0.03] dark:bg-foreground/[0.05]",
+        "mx-auto w-full rounded-lg bg-foreground/[0.03] dark:bg-foreground/[0.05]",
         "shadow-[0_1px_0_rgba(0,0,0,0.04)] dark:shadow-[0_1px_0_rgba(0,0,0,0.35)]",
         "h-14 min-h-14 px-2.5 py-1.5 flex items-center justify-center",
         className,
@@ -194,10 +193,10 @@ function TimeCell({ time, selected }: { time: string; selected: boolean }) {
       className={cn(
         "rounded-xl",
         selected &&
-          "ring-2 ring-sky-500/35 shadow-sm dark:ring-sky-400/30 dark:shadow-[0_8px_16px_rgba(0,0,0,0.35)]",
+          "ring-2 dark:ring-[3.5px] ring-sky-500/35 shadow-sm dark:ring-sky-400/30 dark:shadow-[0_8px_16px_rgba(0,0,0,0.35)]",
       )}
     >
-      <div className="relative h-14 w-12 overflow-hidden rounded-xl border border-foreground/10 bg-foreground/[0.07] dark:bg-foreground/[0.09]">
+      <div className="relative h-14 w-12 overflow-hidden rounded-xl bg-foreground/[0.07] dark:bg-foreground/[0.09]">
         <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-foreground/30 via-foreground/10 to-transparent dark:from-foreground/30 dark:via-foreground/10" />
         <div
           className={cn(
@@ -643,21 +642,29 @@ const WeatherStat = ({
   // Function to get weather icon based on WMO code
   const getWeatherIcon = (code: number | null) => {
     if (isNight && (code == null || code === 0)) {
-      return <MoonStar className="w-4 h-4" strokeWidth={2.5} color="#9b8cff" />;
+      return (
+        <MoonStar
+          className="w-4 h-4 text-violet-400 dark:text-violet-300"
+          strokeWidth={1.5}
+        />
+      );
     }
     if (isNight && [1, 2].includes(code ?? -1)) {
-      return <CloudMoon className="w-4 h-4" strokeWidth={2.5} color="#9b8cff" />;
+      return (
+        <MoonStar
+          className="w-4 h-4 text-violet-400 dark:text-violet-300"
+          strokeWidth={1.5}
+        />
+      );
     }
     if (code == null)
-      return <Sun className="w-4 h-4" strokeWidth={3} color="#f79e55ff" />;
+      return <Sun className="w-4 h-4" strokeWidth={2.5} color="#f79e55ff" />;
 
     // WMO code groupings
     if (code === 0)
-      return <Sun className="w-4 h-4" strokeWidth={3} color="#f79e55ff" />; // Clear
-    if ([1, 2].includes(code))
-      return <MixedCloudSunIcon className="h-4 w-4" />; // Partly cloudy
-    if (code === 3)
-      return <CloudIcon className="w-4 h-4" color="#bdbdbdff" />; // Overcast
+      return <Sun className="w-4 h-4" strokeWidth={2.5} color="#f79e55ff" />; // Clear
+    if ([1, 2].includes(code)) return <MixedCloudSunIcon className="h-4 w-4" />; // Partly cloudy
+    if (code === 3) return <CloudIcon className="w-4 h-4" color="#bdbdbdff" />; // Overcast
     if ([45, 48].includes(code))
       return <CloudIcon className="w-4 h-4" color="#bdbdbdff" />; // Fog
     if ([51, 53, 55].includes(code))
@@ -2925,7 +2932,7 @@ const StatTable = ({
                             className={cn(
                               "rounded-lg",
                               isSelectedHour &&
-                                "ring-2 ring-sky-500/30 shadow-sm dark:ring-sky-400/25 dark:shadow-[0_8px_16px_rgba(0,0,0,0.35)]",
+                                "ring-2 dark:ring-[3.5px] ring-sky-500/30 shadow-sm dark:ring-sky-400/25 dark:shadow-[0_8px_16px_rgba(0,0,0,0.35)]",
                             )}
                           >
                             {content}
@@ -2958,7 +2965,8 @@ const StatTable = ({
                       <td colSpan={visibleColumns.length + 1} className="p-0">
                         <div
                           className={cn(
-                            "mx-0 mb-3 mt-5 relative overflow-hidden rounded-2xl border border-border/60 bg-foreground/[0.06] px-4 py-3 shadow-[0_1px_0_rgba(0,0,0,0.04),0_12px_30px_rgba(0,0,0,0.06)] dark:bg-foreground/[0.09] dark:shadow-[0_1px_0_rgba(0,0,0,0.35),0_12px_30px_rgba(0,0,0,0.35)]",
+                            "mx-0 mb-3 mt-3 relative overflow-hidden rounded-2xl border border-border/60 bg-foreground/[0.06] px-4 py-3 shadow-[0_1px_0_rgba(0,0,0,0.04),0_12px_30px_rgba(0,0,0,0.06)] dark:bg-foreground/[0.09] dark:shadow-[0_1px_0_rgba(0,0,0,0.35),0_12px_30px_rgba(0,0,0,0.35)]",
+                            i === 0 && variant !== "half" && "mt-5",
                             i === 0 && variant === "half" && "mt-0",
                           )}
                         >

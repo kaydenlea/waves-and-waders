@@ -1596,17 +1596,19 @@ const MapDateOverlay: React.FC<{
                   ) : isToday ? (
                     "Today"
                   ) : (
-                    date.toLocaleDateString(undefined, {
+                    date.toLocaleDateString("en-US", {
                       weekday: "short",
+                      timeZone: "America/Los_Angeles",
                     })
                   )}
                 </span>
                 <span className="text-[14px] font-semibold">
                   {i === dateOptions.length - 1
                     ? "Soon!"
-                    : date.toLocaleDateString(undefined, {
+                    : date.toLocaleDateString("en-US", {
                         month: "short",
                         day: "numeric",
+                        timeZone: "America/Los_Angeles",
                       })}
                 </span>
               </button>

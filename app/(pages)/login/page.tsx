@@ -47,9 +47,9 @@ export default async function LoginPage() {
         className="pointer-events-none absolute inset-0 [contain:paint]"
       >
         <div className="absolute inset-0 bg-gradient-to-b from-background via-background-2 to-background" />
-        <div className="absolute inset-0 lg:hidden bg-gradient-to-br from-sky-600/75 via-cyan-500/55 to-indigo-600/70 dark:from-sky-500/40 dark:via-cyan-500/30 dark:to-indigo-500/40" />
-        <div className="absolute inset-0 lg:hidden bg-[radial-gradient(900px_circle_at_15%_0%,rgba(255,255,255,0.55),transparent_60%)] opacity-40 dark:opacity-15" />
-        <div className="absolute -top-24 -right-24 h-[360px] w-[360px] rounded-full bg-white/20 blur-3xl lg:hidden dark:bg-white/10" />
+        <div className="absolute inset-0 lg:hidden bg-gradient-to-br from-sky-600/20 via-cyan-500/14 to-indigo-600/18 dark:from-sky-500/40 dark:via-cyan-500/30 dark:to-indigo-500/40" />
+        <div className="absolute inset-0 lg:hidden bg-[radial-gradient(900px_circle_at_15%_0%,rgba(255,255,255,0.35),transparent_60%)] opacity-25 dark:opacity-15" />
+        <div className="absolute -top-24 -right-24 h-[360px] w-[360px] rounded-full bg-white/10 blur-3xl lg:hidden dark:bg-white/10" />
         <div
           className="ww-hero-noise absolute inset-0 opacity-[0.08] mix-blend-overlay lg:hidden"
           style={{ backgroundImage: `url('${authNoiseUrl}')` }}
@@ -69,9 +69,9 @@ export default async function LoginPage() {
             aria-hidden
             className="pointer-events-none absolute inset-0 hidden lg:block"
           >
-            <div className="absolute inset-0 bg-gradient-to-br from-sky-600/75 via-cyan-500/55 to-indigo-600/70 dark:from-sky-500/40 dark:via-cyan-500/30 dark:to-indigo-500/40" />
-            <div className="absolute inset-0 bg-[radial-gradient(900px_circle_at_15%_0%,rgba(255,255,255,0.55),transparent_60%)] opacity-50 dark:opacity-15" />
-            <div className="absolute -top-24 -right-24 h-[360px] w-[360px] rounded-full bg-white/22 blur-3xl dark:bg-white/10" />
+            <div className="absolute inset-0 bg-gradient-to-br from-sky-600/20 via-cyan-500/14 to-indigo-600/18 dark:from-sky-500/40 dark:via-cyan-500/30 dark:to-indigo-500/40" />
+            <div className="absolute inset-0 bg-[radial-gradient(900px_circle_at_15%_0%,rgba(255,255,255,0.35),transparent_60%)] opacity-30 dark:opacity-15" />
+            <div className="absolute -top-24 -right-24 h-[360px] w-[360px] rounded-full bg-white/10 blur-3xl dark:bg-white/10" />
             <div className="absolute -bottom-36 -left-28 h-[420px] w-[420px] rounded-full bg-black/10 blur-3xl dark:bg-black/30" />
             <div
               className="ww-hero-noise absolute inset-0 opacity-[0.08] mix-blend-overlay"

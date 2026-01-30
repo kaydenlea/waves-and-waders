@@ -2,10 +2,15 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useSupabaseClient, useUser } from "@supabase/auth-helpers-react";
+import {
+  useSessionContext,
+  useSupabaseClient,
+  useUser,
+} from "@supabase/auth-helpers-react";
 import { LogIn, LogOut, User, UserCircle2, Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import React from "react";
+import type { User as SupabaseUser } from "@supabase/supabase-js";
 import {
   AppMenu,
   AppMenuContent,
@@ -17,10 +22,13 @@ import {
 
 export const UserMenu = ({
   landingPage = false,
+  initialUser,
 }: {
   landingPage?: boolean;
+  initialUser?: SupabaseUser | null;
 }) => {
   const supabase = useSupabaseClient();
+  const { isLoading } = useSessionContext();
   const user = useUser();
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
@@ -32,7 +40,39 @@ export const UserMenu = ({
     }
   }, []);
 
-  if (!user) {
+  // Avoid auth UI flicker by using the server-provided user state when available.
+  // `initialUser` is explicitly `null` when signed out (so we should NOT show a skeleton).
+  const effectiveUser = React.useMemo(() => {
+    if (user) return user;
+    if (initialUser !== undefined) return initialUser;
+    return user;
+  }, [initialUser, user]);
+
+  const showSkeleton = isLoading && initialUser === undefined && !effectiveUser;
+
+  if (showSkeleton) {
+    return (
+      <div
+        aria-hidden="true"
+        className={cn(
+          "px-2 flex-1 rounded-md bg-highlight-4/40 py-1.5 w-full flex items-center gap-2",
+          landingPage
+            ? "@min-md:text-center @min-md:pl-[13px] @min-md:rounded-full @min-md:py-3 @min-md:w-20"
+            : "@min-5xl:text-center @min-5xl:pl-[13px] @min-5xl:rounded-full @min-5xl:py-3 @min-5xl:w-20"
+        )}
+      >
+        <div
+          className={cn(
+            "w-5 h-5 rounded-md bg-highlight-5/60",
+            landingPage ? "@min-md:hidden" : "@min-5xl:hidden"
+          )}
+        />
+        <div className="h-4 w-12 rounded-md bg-highlight-5/60" />
+      </div>
+    );
+  }
+
+  if (!effectiveUser) {
     return (
       <Link
         className={cn(
@@ -61,7 +101,7 @@ export const UserMenu = ({
     );
   }
 
-  const displayEmail = user.email ?? "Account";
+  const displayEmail = effectiveUser.email ?? "Account";
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();

@@ -564,11 +564,11 @@ const ForecastBridge: React.FC<Props> = ({
 
 
 
-  // Build the human readable window string only after mounted and when days exist.
+  // Build the human readable window string from the selected days.
 
   const windowString = useMemo(() => {
 
-    if (!isMounted || !effectiveDays || effectiveDays.length === 0) {
+    if (!effectiveDays || effectiveDays.length === 0) {
 
       return "Select range";
 
@@ -604,7 +604,7 @@ const ForecastBridge: React.FC<Props> = ({
 
     return `${windowStart} – ${windowEnd}`;
 
-  }, [effectiveDays, isMounted]);
+  }, [effectiveDays]);
 
 
 

@@ -22,6 +22,8 @@ import {
   type WidgetId,
 } from "@/components/general/dashboardLayout";
 import { getSiteUrl, toAbsoluteUrl } from "@/lib/seo";
+import NavBar from "@/components/general/NavBar";
+import { PathProvider } from "@/components/context/PathContext";
 
 const buildFeatureList = (source: Record<string, unknown> | null) => {
   if (!source) return [];
@@ -125,8 +127,18 @@ export async function generateMetadata({
   };
 }
 
-const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
+const Page = async ({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ beach: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) => {
   const { beach } = await params;
+  const tabParamRaw = (await searchParams)?.tab;
+  const tabParam = Array.isArray(tabParamRaw) ? tabParamRaw[0] : tabParamRaw;
+  const initialTabOverride =
+    tabParam === "forecast" || tabParam === "overview" ? tabParam : undefined;
   // If user visits /beach/overview (literal "beach"), send them to selector
   if (beach === "beach") {
     redirect("/beaches");
@@ -347,19 +359,22 @@ const Page = async ({ params }: { params: Promise<{ beach: string }> }) => {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
       />
-      <OverviewPageClient
-        beachId={beachId}
-        beachParam={canonicalParam}
-        beachName={beachName}
-        loggedIn={Boolean(user)}
-        isFavorite={isFav}
-        initialBeach={initialBeach}
-        initialOverviewMeta={initialOverviewMeta}
-        initialOverviewRows={initialOverviewRows}
-        initialForecastMeta={initialForecastMeta}
-        initialForecastRows={initialForecastRows}
-        seoSummary={seoSummary}
-      />
+      <PathProvider initialTabOverride={initialTabOverride}>
+        <OverviewPageClient
+          beachId={beachId}
+          beachParam={canonicalParam}
+          beachName={beachName}
+          loggedIn={Boolean(user)}
+          isFavorite={isFav}
+          navBar={<NavBar />}
+          initialBeach={initialBeach}
+          initialOverviewMeta={initialOverviewMeta}
+          initialOverviewRows={initialOverviewRows}
+          initialForecastMeta={initialForecastMeta}
+          initialForecastRows={initialForecastRows}
+          seoSummary={seoSummary}
+        />
+      </PathProvider>
     </>
   );
 };

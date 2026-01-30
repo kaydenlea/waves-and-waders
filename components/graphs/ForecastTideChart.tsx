@@ -180,7 +180,7 @@ export default React.memo(function ForecastTideChart({
   const mobileChartId = React.useId();
   const [loading, setLoading] = useState(true);
   const [stableSelectedHour, setStableSelectedHour] = useState<number | null>(
-    null
+    null,
   );
   const { setReady } = useForecastChartLoading("forecast-tide");
   const daysReady = Array.isArray(days) && days.length > 0;
@@ -189,7 +189,7 @@ export default React.memo(function ForecastTideChart({
     const daySig = Array.isArray(days)
       ? days
           .filter(
-            (d): d is Date => d instanceof Date && !Number.isNaN(d.getTime())
+            (d): d is Date => d instanceof Date && !Number.isNaN(d.getTime()),
           )
           .map((d) => d.getTime())
           .sort((a, b) => a - b)
@@ -210,6 +210,11 @@ export default React.memo(function ForecastTideChart({
     tideStats: [],
   });
   const { data, dayAreas, nightAreas, sunMarkers, tideStats } = chartState;
+  const sunMarkerMap = useMemo(() => {
+    const map = new Map<number, "sunrise" | "sunset">();
+    sunMarkers.forEach((m) => map.set(m.hour, m.type));
+    return map;
+  }, [sunMarkers]);
   const lastTideSegmentRef = useRef<{
     prev: { cx: number; cy: number } | null;
     curr: { cx: number; cy: number } | null;
@@ -255,7 +260,7 @@ export default React.memo(function ForecastTideChart({
         />
       );
     },
-    [data.length]
+    [data.length],
   );
   const shadingReady = dayAreas.length > 0 || nightAreas.length > 0;
 
@@ -282,19 +287,23 @@ export default React.memo(function ForecastTideChart({
   const innerRef = useRef<HTMLDivElement | null>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [isAtRightEdge, setIsAtRightEdge] = useState(false);
-  
+
   // Touch inspect timer for long-press detection (legacy - keeping for compatibility)
-  const touchInspectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const touchInspectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const clearTouchInspectTimer = useCallback(() => {
     if (touchInspectTimerRef.current) {
       clearTimeout(touchInspectTimerRef.current);
       touchInspectTimerRef.current = null;
     }
   }, []);
-  
+
   // Legacy touch inspection state (used by the old pointer handlers)
   const [isTouchInspecting, setIsTouchInspecting] = useState(false);
-  const [touchDefaultIndex, setTouchDefaultIndex] = useState<number | null>(null);
+  const [touchDefaultIndex, setTouchDefaultIndex] = useState<number | null>(
+    null,
+  );
   const touchInspectStartRef = useRef<{
     startChartX: number;
     chartX: number;
@@ -316,7 +325,7 @@ export default React.memo(function ForecastTideChart({
 
   const chartInnerWidth = useMemo(
     () => totalFetchedDays * dayPx,
-    [totalFetchedDays, dayPx]
+    [totalFetchedDays, dayPx],
   );
   // Header alignment: this matches Recharts' inner plot rect (chart width minus margins + axis gutter),
   // keeping each header column pixel-aligned with the 24h day boundaries. The axis gutter doubles as an
@@ -334,7 +343,7 @@ export default React.memo(function ForecastTideChart({
       if (data.length === 0) return null;
       const plotX = Math.max(
         0,
-        Math.min(chartX - dayLabelLeftOffset, dataAreaWidth)
+        Math.min(chartX - dayLabelLeftOffset, dataAreaWidth),
       );
       const t = dataAreaWidth > 0 ? plotX / dataAreaWidth : 0;
       const targetHour = domainMin + t * (domainMax - domainMin);
@@ -370,7 +379,7 @@ export default React.memo(function ForecastTideChart({
         Math.round(pointHour / DATA_STEP_HOURS) * DATA_STEP_HOURS;
       const hoverHourClamped = Math.max(
         0,
-        Math.min(hoverHourRounded3h, totalFetchedDays * HOURS_PER_DAY)
+        Math.min(hoverHourRounded3h, totalFetchedDays * HOURS_PER_DAY),
       );
       return {
         defaultIndex: closestIndex,
@@ -386,7 +395,7 @@ export default React.memo(function ForecastTideChart({
       domainMax,
       totalFetchedDays,
       data,
-    ]
+    ],
   );
   const dayHeaderLayout = useMemo(
     () =>
@@ -398,7 +407,7 @@ export default React.memo(function ForecastTideChart({
         domainMaxHours: domainMax,
         hoursPerDay: HOURS_PER_DAY,
       }),
-    [dayLabelLeftOffset, dataAreaWidth, totalFetchedDays, domainMax]
+    [dayLabelLeftOffset, dataAreaWidth, totalFetchedDays, domainMax],
   );
 
   const shadingBackground = useMemo(
@@ -427,12 +436,12 @@ export default React.memo(function ForecastTideChart({
       chartTheme.dayShading,
       chartTheme.nightShading,
       chartTheme.shadingOpacity,
-    ]
+    ],
   );
 
   const viewportWidth = useMemo(
     () => Math.min(containerWidth || 0, dayPx * VISIBLE_DAYS),
-    [containerWidth, dayPx]
+    [containerWidth, dayPx],
   );
   const isScrollable = chartInnerWidth > viewportWidth + 1;
   const showSkeleton = loading || !shadingReady || containerWidth === 0;
@@ -456,7 +465,7 @@ export default React.memo(function ForecastTideChart({
       const maxTranslate = Math.max(0, chartInnerWidth - viewportWidth);
       return Math.max(0, Math.min(px, maxTranslate));
     },
-    [chartInnerWidth, viewportWidth]
+    [chartInnerWidth, viewportWidth],
   );
 
   // set transform imperatively (no setState) - removed per-frame setState here
@@ -475,7 +484,7 @@ export default React.memo(function ForecastTideChart({
       currentTranslateRef.current = px;
       // IMPORTANT: intentionally do NOT call setIsAtRightEdge here to avoid re-renders per-frame
     },
-    []
+    [],
   );
 
   // animate from currentTranslateRef to targetPx with RAF (smooth)
@@ -513,7 +522,7 @@ export default React.memo(function ForecastTideChart({
 
       rafRef.current = requestAnimationFrame(step);
     },
-    [clampTranslatePx, setInnerTranslatePx]
+    [clampTranslatePx, setInnerTranslatePx],
   );
 
   // pointer handlers (imperative)
@@ -566,7 +575,7 @@ export default React.memo(function ForecastTideChart({
         const activation = getTouchActivationFromChartX(start.chartX);
         if (!activation) return;
         setTouchDefaultIndex((prev) =>
-          prev === activation.defaultIndex ? prev : activation.defaultIndex
+          prev === activation.defaultIndex ? prev : activation.defaultIndex,
         );
         if (hoveredHourRef.current !== activation.hour) {
           setHoveredHour(activation.hour);
@@ -584,7 +593,7 @@ export default React.memo(function ForecastTideChart({
               cancelable: true,
               clientX: start.clientX,
               clientY: start.clientY,
-            })
+            }),
           );
         });
       }, TOUCH_INSPECT_LONG_PRESS_MS);
@@ -612,7 +621,7 @@ export default React.memo(function ForecastTideChart({
               cancelable: true,
               clientX: ev.clientX,
               clientY: ev.clientY,
-            })
+            }),
           );
         }
         return;
@@ -642,7 +651,7 @@ export default React.memo(function ForecastTideChart({
     }
     if (!pointerStateRef.current?.dragging) return;
     const next = clampTranslatePx(
-      pointerStateRef.current.startTranslate - deltaX
+      pointerStateRef.current.startTranslate - deltaX,
     );
     pendingTranslateRef.current = next;
     if (!dragRafRef.current) {
@@ -668,11 +677,11 @@ export default React.memo(function ForecastTideChart({
       const day = Math.round(px / dayPx);
       const dayClamped = Math.max(
         0,
-        Math.min(day, totalFetchedDays - VISIBLE_DAYS)
+        Math.min(day, totalFetchedDays - VISIBLE_DAYS),
       );
       return dayClamped;
     },
-    [dayPx, totalFetchedDays]
+    [dayPx, totalFetchedDays],
   );
 
   const RoundToNearestDayFromPx = useCallback(
@@ -680,11 +689,11 @@ export default React.memo(function ForecastTideChart({
       const day = Math.round(px / dayPx);
       const dayClamped = Math.max(
         0,
-        Math.min(day, totalFetchedDays - VISIBLE_DAYS)
+        Math.min(day, totalFetchedDays - VISIBLE_DAYS),
       );
       return dayClamped;
     },
-    [dayPx, totalFetchedDays]
+    [dayPx, totalFetchedDays],
   );
 
   const onPointerUp = (ev: React.PointerEvent) => {
@@ -742,7 +751,7 @@ export default React.memo(function ForecastTideChart({
       setInnerTranslatePx(next, false);
       setPanFraction(next / dayPx, myId, "drag");
     },
-    [clampTranslatePx, setInnerTranslatePx, setPanFraction, dayPx, myId]
+    [clampTranslatePx, setInnerTranslatePx, setPanFraction, dayPx, myId],
   );
 
   const onPanEnd = useCallback(() => {
@@ -753,16 +762,27 @@ export default React.memo(function ForecastTideChart({
     setPanFraction(fractionalDayOffset, myId, "animate");
     const maxTranslate = Math.max(0, chartInnerWidth - viewportWidth);
     setIsAtRightEdge(finalPx >= maxTranslate - 1);
-  }, [clampTranslatePx, dayPx, myId, setInnerTranslatePx, setPanFraction, chartInnerWidth, viewportWidth]);
+  }, [
+    clampTranslatePx,
+    dayPx,
+    myId,
+    setInnerTranslatePx,
+    setPanFraction,
+    chartInnerWidth,
+    viewportWidth,
+  ]);
 
   const getIndexFromChartX = useCallback(
     (chartX: number): number => {
       if (!Number.isFinite(chartX) || !dataAreaWidth) return 0;
       if (data.length === 0) return 0;
-      const plotX = Math.max(0, Math.min(chartX - dayLabelLeftOffset, dataAreaWidth));
+      const plotX = Math.max(
+        0,
+        Math.min(chartX - dayLabelLeftOffset, dataAreaWidth),
+      );
       const t = dataAreaWidth > 0 ? plotX / dataAreaWidth : 0;
       const targetHour = domainMin + t * (domainMax - domainMin);
-      
+
       let lo = 0;
       let hi = data.length - 1;
       while (lo < hi) {
@@ -772,20 +792,73 @@ export default React.memo(function ForecastTideChart({
         if (midHour < targetHour) lo = mid + 1;
         else hi = mid;
       }
-      
+
       let closestIndex = lo;
       if (closestIndex > 0) {
         const currHour = data[closestIndex]?.hour;
         const prevHour = data[closestIndex - 1]?.hour;
         if (typeof currHour === "number" && typeof prevHour === "number") {
-          if (Math.abs(prevHour - targetHour) <= Math.abs(currHour - targetHour)) {
+          if (
+            Math.abs(prevHour - targetHour) <= Math.abs(currHour - targetHour)
+          ) {
             closestIndex = closestIndex - 1;
           }
         }
       }
       return closestIndex;
     },
-    [dataAreaWidth, dayLabelLeftOffset, domainMin, domainMax, data]
+    [dataAreaWidth, dayLabelLeftOffset, domainMin, domainMax, data],
+  );
+
+  const getValueIconForIndex = useCallback(
+    (index: number): React.ReactNode | null => {
+      const point = data[index];
+      if (!point) return null;
+
+      const sunMarkerType = sunMarkerMap.get(point.hour);
+      if (sunMarkerType === "sunrise") {
+        return (
+          <Sunrise
+            className="h-3.5 w-3.5 fill-amber-500/80 stroke-muted-foreground"
+            aria-hidden="true"
+          />
+        );
+      }
+      if (sunMarkerType === "sunset") {
+        return (
+          <Sunset
+            className="h-3.5 w-3.5 fill-amber-500/80 stroke-muted-foreground"
+            aria-hidden="true"
+          />
+        );
+      }
+
+      if (point.isPeak == null) return null;
+      const prev = index > 0 ? data[index - 1] : null;
+      const next = index + 1 < data.length ? data[index + 1] : null;
+      if (!prev || !next) return null;
+
+      const isHigh = point.tide >= prev.tide && point.tide >= next.tide;
+      const isLow = point.tide <= prev.tide && point.tide <= next.tide;
+      if (isHigh) {
+        return (
+          <ArrowUp
+            className="h-3 w-3 text-emerald-500/80 stroke-4"
+            aria-hidden="true"
+          />
+        );
+      }
+      if (isLow) {
+        return (
+          <ArrowDown
+            className="h-3 w-3 text-rose-500/80 stroke-4"
+            aria-hidden="true"
+          />
+        );
+      }
+      return null;
+    },
+    [data, sunMarkerMap],
   );
 
   const getMobileTooltipDataPoint = useCallback(
@@ -798,19 +871,63 @@ export default React.memo(function ForecastTideChart({
       const minutes = Math.round((normalized - wholeHour) * 60);
       const displayHour = wholeHour % 12 === 0 ? 12 : wholeHour % 12;
       const ampm = wholeHour >= 12 ? "PM" : "AM";
-      const label = minutes > 0
-        ? `${displayHour}:${minutes.toString().padStart(2, "0")} ${ampm}`
-        : `${displayHour} ${ampm}`;
-      
+      const label =
+        minutes > 0
+          ? `${displayHour}:${minutes.toString().padStart(2, "0")} ${ampm}`
+          : `${displayHour} ${ampm}`;
+      const prev = index > 0 ? data[index - 1] : null;
+      const next = index + 1 < data.length ? data[index + 1] : null;
+      const isHigh =
+        prev && next ? point.tide >= prev.tide && point.tide >= next.tide : false;
+      const isLow =
+        prev && next ? point.tide <= prev.tide && point.tide <= next.tide : false;
+      const rising = prev ? point.tide >= prev.tide : next ? next.tide >= point.tide : true;
+      const trendLabel = isHigh
+        ? "High tide"
+        : isLow
+          ? "Low tide"
+          : rising
+            ? "Rising"
+            : "Falling";
+      const trendColor = isHigh || rising ? "#10b981cc" : "#f43f5ecc";
+      const valueIcon = getValueIconForIndex(index);
+      const formattedValue = (
+        <div className="mx-auto w-fit max-w-full text-center flex flex-col items-center gap-1">
+          <div className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap">
+            <span className="inline-flex items-baseline gap-1">
+              <span className="text-[0.96rem] font-semibold tabular-nums leading-none text-foreground">
+                {Number(point.tide.toFixed(1)).toString()}
+              </span>
+              <span className="text-[0.62rem] font-medium text-muted-foreground leading-none">
+                ft
+              </span>
+            </span>
+            {valueIcon ? (
+              <span className="inline-flex items-center">{valueIcon}</span>
+            ) : null}
+          </div>
+          <div className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-[0.62rem] leading-none text-muted-foreground">
+            <span
+              aria-hidden="true"
+              className="h-1.5 w-1.5 rounded-full"
+              style={{ backgroundColor: trendColor }}
+            />
+            <span>{trendLabel}</span>
+          </div>
+        </div>
+      );
+
       return {
         hour: point.hour,
         label,
         value: point.tide,
         unit: "ft",
         icon: <TideIcon className="h-3.5 w-3.5" />,
+        valueIcon: getValueIconForIndex(index),
+        formattedValue,
       };
     },
-    [data]
+    [data, getValueIconForIndex],
   );
 
   // Get hour from data index (for synced tooltip system)
@@ -819,7 +936,7 @@ export default React.memo(function ForecastTideChart({
       if (index < 0 || index >= data.length) return 0;
       return data[index]?.hour ?? 0;
     },
-    [data]
+    [data],
   );
 
   // Get data point for a given hour (for synced tooltip display on this chart)
@@ -827,7 +944,7 @@ export default React.memo(function ForecastTideChart({
     (hour: number): MobileTooltipDataPoint | null => {
       // Find the data point closest to this hour using binary search
       if (data.length === 0) return null;
-      
+
       let lo = 0;
       let hi = data.length;
       while (lo < hi) {
@@ -837,7 +954,7 @@ export default React.memo(function ForecastTideChart({
         if (midHour < hour) lo = mid + 1;
         else hi = mid;
       }
-      
+
       let closestIndex = lo;
       if (closestIndex > 0 && closestIndex < data.length) {
         const currHour = data[closestIndex]?.hour;
@@ -849,28 +966,73 @@ export default React.memo(function ForecastTideChart({
         }
       }
       closestIndex = Math.max(0, Math.min(data.length - 1, closestIndex));
-      
+
       const point = data[closestIndex];
       if (!point) return null;
-      
+
       const normalized = ((point.hour % 24) + 24) % 24;
       const wholeHour = Math.floor(normalized);
       const minutes = Math.round((normalized - wholeHour) * 60);
       const displayHour = wholeHour % 12 === 0 ? 12 : wholeHour % 12;
       const ampm = wholeHour >= 12 ? "PM" : "AM";
-      const label = minutes > 0
-        ? `${displayHour}:${minutes.toString().padStart(2, "0")} ${ampm}`
-        : `${displayHour} ${ampm}`;
-      
+      const label =
+        minutes > 0
+          ? `${displayHour}:${minutes.toString().padStart(2, "0")} ${ampm}`
+          : `${displayHour} ${ampm}`;
+      const prev = closestIndex > 0 ? data[closestIndex - 1] : null;
+      const next =
+        closestIndex + 1 < data.length ? data[closestIndex + 1] : null;
+      const isHigh =
+        prev && next ? point.tide >= prev.tide && point.tide >= next.tide : false;
+      const isLow =
+        prev && next ? point.tide <= prev.tide && point.tide <= next.tide : false;
+      const rising = prev ? point.tide >= prev.tide : next ? next.tide >= point.tide : true;
+      const trendLabel = isHigh
+        ? "High tide"
+        : isLow
+          ? "Low tide"
+          : rising
+            ? "Rising"
+            : "Falling";
+      const trendColor = isHigh || rising ? "#10b981cc" : "#f43f5ecc";
+      const valueIcon = getValueIconForIndex(closestIndex);
+      const formattedValue = (
+        <div className="mx-auto w-fit max-w-full text-center flex flex-col items-center gap-1">
+          <div className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap">
+            <span className="inline-flex items-baseline gap-1">
+              <span className="text-[0.96rem] font-semibold tabular-nums leading-none text-foreground">
+                {Number(point.tide.toFixed(1)).toString()}
+              </span>
+              <span className="text-[0.62rem] font-medium text-muted-foreground leading-none">
+                ft
+              </span>
+            </span>
+            {valueIcon ? (
+              <span className="inline-flex items-center">{valueIcon}</span>
+            ) : null}
+          </div>
+          <div className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-[0.62rem] leading-none text-muted-foreground">
+            <span
+              aria-hidden="true"
+              className="h-1.5 w-1.5 rounded-full"
+              style={{ backgroundColor: trendColor }}
+            />
+            <span>{trendLabel}</span>
+          </div>
+        </div>
+      );
+
       return {
         hour: point.hour,
         label,
         value: point.tide,
         unit: "ft",
         icon: <TideIcon className="h-3.5 w-3.5" />,
+        valueIcon: getValueIconForIndex(closestIndex),
+        formattedValue,
       };
     },
-    [data]
+    [data, getValueIconForIndex],
   );
 
   // Get X position for a given hour (for synced tooltip positioning)
@@ -883,14 +1045,14 @@ export default React.memo(function ForecastTideChart({
       if (t < 0 || t > 1) return null;
       return dayLabelLeftOffset + t * dataAreaWidth;
     },
-    [dataAreaWidth, dayLabelLeftOffset, domainMin, domainMax]
+    [dataAreaWidth, dayLabelLeftOffset, domainMin, domainMax],
   );
 
   const handleMobileInspect = useCallback(
     (_index: number, hour: number) => {
       setHoveredHour(hour);
     },
-    [setHoveredHour]
+    [setHoveredHour],
   );
 
   const handleMobileInspectEnd = useCallback(() => {
@@ -941,7 +1103,7 @@ export default React.memo(function ForecastTideChart({
           setInnerTranslatePx(px, false);
         }
       },
-      { immediate: true }
+      { immediate: true },
     );
     return () => unsub();
   }, [subscribePan, myId, dayPx, clampTranslatePx, setInnerTranslatePx]);
@@ -1020,17 +1182,17 @@ export default React.memo(function ForecastTideChart({
           const points = await getTidesCached(
             String(id),
             new Date(startMs),
-            end
+            end,
           );
           if (!points || points.length === 0) {
             const rows = await getForecastCached(
               String(id),
               new Date(startMs),
-              end
+              end,
             );
             return rows.map((r) => ({
               hour: Math.round(
-                (new Date(r.timestamp).getTime() - startMs) / (60 * 60 * 1000)
+                (new Date(r.timestamp).getTime() - startMs) / (60 * 60 * 1000),
               ),
               tide: r.conditions.tideLevel ?? 0,
             }));
@@ -1086,7 +1248,7 @@ export default React.memo(function ForecastTideChart({
           const dayStart = di * 24;
           const dayEnd = (di + 1) * 24;
           const dayPoints = out.filter(
-            (p) => p.hour >= dayStart && p.hour < dayEnd
+            (p) => p.hour >= dayStart && p.hour < dayEnd,
           );
 
           if (dayPoints.length > 0) {
@@ -1129,7 +1291,7 @@ export default React.memo(function ForecastTideChart({
     let cancelled = false;
     const snapSunMarkersToData = (
       targets: { hour: number; type: "sunrise" | "sunset" }[],
-      data: TidePoint[]
+      data: TidePoint[],
     ) => {
       if (!targets.length) return [];
       if (!data.length) return targets;
@@ -1215,7 +1377,7 @@ export default React.memo(function ForecastTideChart({
           Array.from({ length: FETCH_DAYS }, (_, di) => {
             const currentDate = new Date(startMs + di * 24 * 60 * 60 * 1000);
             return getSunData(beachId, currentDate).catch(() => null);
-          })
+          }),
         );
 
         for (let di = 0; di < FETCH_DAYS; di++) {
@@ -1317,7 +1479,7 @@ export default React.memo(function ForecastTideChart({
             month: "short",
             day: "numeric",
             timeZone: "America/Los_Angeles",
-          })
+          }),
         )
       : null;
 
@@ -1350,12 +1512,6 @@ export default React.memo(function ForecastTideChart({
     const axisMax = Math.ceil(paddedMax);
     return buildLinearYAxisTicks(axisMin, axisMax, 4, true);
   }, [data]);
-
-  const sunMarkerMap = useMemo(() => {
-    const map = new Map<number, "sunrise" | "sunset">();
-    sunMarkers.forEach((m) => map.set(m.hour, m.type));
-    return map;
-  }, [sunMarkers]);
 
   // Compute label positions with collision avoidance
   const labelPositions = useMemo(() => {
@@ -1423,22 +1579,22 @@ export default React.memo(function ForecastTideChart({
   const isOnLine = useCallback(
     (chartX: number, chartY: number): boolean => {
       if (!dataAreaWidth || dataAreaWidth <= 0) return false;
-      
+
       const plotX = chartX - dayLabelLeftOffset;
       if (plotX < 0 || plotX > dataAreaWidth) return false;
-      
+
       // Chart dimensions
       const chartHeight = 250;
       const bottomAxisHeight = 25;
       const lineAreaHeight = chartHeight - bottomAxisHeight;
       const lineAreaBottom = chartHeight - bottomAxisHeight;
-      
+
       if (chartY > lineAreaBottom || chartY < 0) return false;
-      
+
       // Find the nearest data point to this X
       const t = plotX / dataAreaWidth;
       const targetHour = domainMin + t * (domainMax - domainMin);
-      
+
       // Binary search for closest point (tide data is high resolution)
       let lo = 0;
       let hi = data.length - 1;
@@ -1449,46 +1605,49 @@ export default React.memo(function ForecastTideChart({
         if (midHour < targetHour) lo = mid + 1;
         else hi = mid;
       }
-      
+
       let closestIndex = lo;
       if (closestIndex > 0) {
         const currHour = data[closestIndex]?.hour;
         const prevHour = data[closestIndex - 1]?.hour;
         if (typeof currHour === "number" && typeof prevHour === "number") {
-          if (Math.abs(prevHour - targetHour) <= Math.abs(currHour - targetHour)) {
+          if (
+            Math.abs(prevHour - targetHour) <= Math.abs(currHour - targetHour)
+          ) {
             closestIndex = closestIndex - 1;
           }
         }
       }
-      
+
       const point = data[closestIndex];
       if (!point || typeof point.tide !== "number") return false;
-      
+
       // Convert touch Y to data value
-      const touchValueRatio = 1 - (chartY / lineAreaHeight);
+      const touchValueRatio = 1 - chartY / lineAreaHeight;
       const touchValue = yMin + touchValueRatio * (yMax - yMin);
-      
+
       // Check if touch is within tolerance of the line value
       const toleranceInDataUnits = (yMax - yMin) * 0.15; // 15% of Y range
-      
+
       return Math.abs(touchValue - point.tide) <= toleranceInDataUnits;
     },
-    [dataAreaWidth, dayLabelLeftOffset, domainMin, domainMax, data, yMin, yMax]
+    [dataAreaWidth, dayLabelLeftOffset, domainMin, domainMax, data, yMin, yMax],
   );
 
-  const { handlers: mobileHandlers, styles: mobileStyles } = useMobileChartTouch({
-    chartId: mobileChartId,
-    containerRef: innerRef,
-    dataLength: data.length,
-    getIndexFromX: getIndexFromChartX,
-    getHourFromIndex,
-    isOnBar: isOnLine,
-    onPan,
-    onPanEnd,
-    onInspect: handleMobileInspect,
-    onInspectEnd: handleMobileInspectEnd,
-    enabled: isTouchOnlyDevice,
-  });
+  const { handlers: mobileHandlers, styles: mobileStyles } =
+    useMobileChartTouch({
+      chartId: mobileChartId,
+      containerRef: innerRef,
+      dataLength: data.length,
+      getIndexFromX: getIndexFromChartX,
+      getHourFromIndex,
+      isOnBar: isOnLine,
+      onPan,
+      onPanEnd,
+      onInspect: handleMobileInspect,
+      onInspectEnd: handleMobileInspectEnd,
+      enabled: isTouchOnlyDevice,
+    });
 
   const yAxisTick = useCallback(
     (props: YAxisTickProps) => {
@@ -1529,7 +1688,7 @@ export default React.memo(function ForecastTideChart({
         </text>
       );
     },
-    [tideTicks]
+    [tideTicks],
   );
   const formatHourLabel = useCallback(
     (label: unknown, payload: TooltipPayload) => {
@@ -1546,7 +1705,7 @@ export default React.memo(function ForecastTideChart({
         ? `${displayHour}:${minutes.toString().padStart(2, "0")} ${ampm}`
         : `${displayHour} ${ampm}`;
     },
-    []
+    [],
   );
   const tooltipViewport = useMemo(
     () => ({
@@ -1555,7 +1714,7 @@ export default React.memo(function ForecastTideChart({
       width: viewportWidth,
       height: Math.max(0, 250 - X_AXIS_SHADE_EXCLUDE_PX),
     }),
-    [clampTranslatePx, dayOffset, dayPx, viewportWidth]
+    [clampTranslatePx, dayOffset, dayPx, viewportWidth],
   );
 
   // Hover sync handlers
@@ -1591,7 +1750,7 @@ export default React.memo(function ForecastTideChart({
         }
       }
     },
-    [isTouchOnlyDevice, setHoveredHour]
+    [isTouchOnlyDevice, setHoveredHour],
   );
 
   const handleMouseLeave = React.useCallback(() => {
@@ -1625,7 +1784,7 @@ export default React.memo(function ForecastTideChart({
         <div
           className={cn(
             "h-full transition-opacity duration-200",
-            showSkeleton ? "opacity-0" : "opacity-100"
+            showSkeleton ? "opacity-0" : "opacity-100",
           )}
         >
           {/* prev/next buttons */}
@@ -1634,7 +1793,7 @@ export default React.memo(function ForecastTideChart({
             onClick={handleBack}
             className={cn(
               "absolute left-1 top-[55%] -translate-y-1/2 z-50 rounded-full bg-highlight-7/90 p-1 shadow border border-border/30 shadow-even backdrop-blur-xl",
-              (!isScrollable || dayOffset === 0) && "hidden"
+              (!isScrollable || dayOffset === 0) && "hidden",
             )}
           >
             <ChevronLeft className="w-5 h-5" />
@@ -1644,7 +1803,7 @@ export default React.memo(function ForecastTideChart({
             onClick={handleNext}
             className={cn(
               "absolute right-1 top-[55%] -translate-y-1/2 z-50 rounded-full bg-highlight-7/90 p-1 shadow border border-border/30 shadow-even backdrop-blur-xl",
-              (!isScrollable || isAtRightEdge) && "hidden"
+              (!isScrollable || isAtRightEdge) && "hidden",
             )}
           >
             <ChevronRight className="w-5 h-5" />
@@ -1954,23 +2113,23 @@ export default React.memo(function ForecastTideChart({
                       {(() => {
                         try {
                           const effectiveHour = dashboardBusy
-                            ? stableSelectedHour ?? selectedHour ?? null
-                            : selectedHour ?? null;
+                            ? (stableSelectedHour ?? selectedHour ?? null)
+                            : (selectedHour ?? null);
                           const base = days && days.length > 0 ? days[0] : null;
                           if (!base || !selectedDate || effectiveHour == null)
                             return null;
                           const baseMid = new Date(
                             base.getFullYear(),
                             base.getMonth(),
-                            base.getDate()
+                            base.getDate(),
                           ).getTime();
                           const selMid = new Date(
                             selectedDate.getFullYear(),
                             selectedDate.getMonth(),
-                            selectedDate.getDate()
+                            selectedDate.getDate(),
                           ).getTime();
                           const dayDelta = Math.floor(
-                            (selMid - baseMid) / (24 * 3600 * 1000)
+                            (selMid - baseMid) / (24 * 3600 * 1000),
                           );
                           const x = dayDelta * 24 + effectiveHour;
                           if (x < 0 || x > totalFetchedDays * 24) return null;
@@ -2038,7 +2197,7 @@ export default React.memo(function ForecastTideChart({
                           const hour = payload.hour as number;
                           // Exact match for sun markers (no duplicates)
                           const sunMarker = sunMarkers.find(
-                            (m) => m.hour === hour
+                            (m) => m.hour === hour,
                           );
                           if (sunMarker) {
                             return (
@@ -2082,7 +2241,7 @@ export default React.memo(function ForecastTideChart({
                               typeof props.x === "number" ? props.x : 0;
                             const hour = data[props.index ?? -1]?.hour;
                             const marker = sunMarkers.find(
-                              (m) => m.hour === hour
+                              (m) => m.hour === hour,
                             );
                             if (!marker) return null;
 

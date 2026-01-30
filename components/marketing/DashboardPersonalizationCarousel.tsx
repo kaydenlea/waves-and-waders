@@ -268,7 +268,6 @@ export default function DashboardPersonalizationCarousel() {
               ? { duration: 0 }
               : { duration: 0.32, ease: [0.16, 1, 0.3, 1] }
           }
-          style={{ willChange: reducedMotion ? "auto" : "transform" }}
         >
           <div
             className="h-full w-full"

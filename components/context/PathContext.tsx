@@ -36,16 +36,30 @@ function PathSearchParamsSync({
   return null;
 }
 
-export function PathProvider({ children }: { children: React.ReactNode }) {
+export function PathProvider({
+  children,
+  initialTabOverride,
+}: {
+  children: React.ReactNode;
+  initialTabOverride?: string;
+}) {
   const pathname = usePathname();
   const initialTab = useMemo(() => {
+    if (initialTabOverride) return initialTabOverride;
     if (pathname?.includes("/forecast")) return "forecast";
     if (pathname?.includes("/overview")) return "overview";
     return "";
-  }, [pathname]);
+  }, [initialTabOverride, pathname]);
   const [selectedTab, setSelectedTab] = useState(initialTab);
 
   const tabParamRef = useRef<string | null>(null);
+
+  useLayoutEffect(() => {
+    if (!initialTabOverride) return;
+    if (selectedTab !== initialTabOverride) {
+      setSelectedTab(initialTabOverride);
+    }
+  }, [initialTabOverride, selectedTab]);
 
   const handleTabParam = useCallback((tab: string | null) => {
     tabParamRef.current = tab;

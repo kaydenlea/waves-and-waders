@@ -13,7 +13,6 @@ import { useOptionalOverviewChartLoading } from "@/components/context/OverviewCh
 import {
   Sun,
   MoonStar,
-  CloudMoon,
   ChevronLeft,
   ChevronRight,
   Cloud as CloudIcon,
@@ -35,7 +34,7 @@ const cubicBezier = (
   p1: number,
   p2: number,
   p3: number,
-  t: number
+  t: number,
 ) => {
   const mt = 1 - t;
   return (
@@ -76,15 +75,15 @@ function SegmentedGauge({
       ? colors
       : ["#22c55e", "#84cc16", "#eab308", "#f59e0b", "#ef4444"].slice(
           0,
-          segments
+          segments,
         );
   const pct = clamp(valuePct, 0, 100);
   const caretTransform =
     pct <= 0
       ? "translateX(0%)"
       : pct >= 100
-      ? "translateX(-100%)"
-      : "translateX(-50%)";
+        ? "translateX(-100%)"
+        : "translateX(-50%)";
   return (
     <div className={cn("relative w-full", className)} aria-hidden>
       <div className="flex w-full gap-[1.5px]">
@@ -392,7 +391,7 @@ function PressureDonut({
         opacity={0.28}
         strokeWidth={1}
         strokeLinecap="round"
-      />
+      />,
     );
   }
 
@@ -627,10 +626,10 @@ function PressureDialApple({
         const lx = roundCoord(center + lblOffset * Math.cos(toRad(startDeg)));
         const ly = roundCoord(center + lblOffset * Math.sin(toRad(startDeg)));
         const hx = roundCoord(
-          center + lblOffset * Math.cos(toRad(startDeg + spanDeg))
+          center + lblOffset * Math.cos(toRad(startDeg + spanDeg)),
         );
         const hy = roundCoord(
-          center + lblOffset * Math.sin(toRad(startDeg + spanDeg))
+          center + lblOffset * Math.sin(toRad(startDeg + spanDeg)),
         );
         return (
           <g>
@@ -686,7 +685,7 @@ function VerticalSegmentedGauge({
       ? colors
       : ["#22c55e", "#84cc16", "#eab308", "#f59e0b", "#ef4444"].slice(
           0,
-          segments
+          segments,
         );
   return (
     <div
@@ -744,12 +743,13 @@ const WeatherStat = ({
     if (code == null || code === 0) {
       return {
         label: "Clear",
-        icon: (
-          isNight ? (
-            <MoonStar className="h-5 w-5 text-violet-500/80 dark:text-violet-400/80" />
-          ) : (
-            <Sun className="h-5 w-5 stroke-[2.5] text-amber-500 dark:text-amber-400" />
-          )
+        icon: isNight ? (
+          <MoonStar
+            className="w-5 h-5 text-violet-400 dark:text-violet-300"
+            strokeWidth={1.5}
+          />
+        ) : (
+          <Sun className="h-5 w-5 stroke-[2.5] text-amber-500 dark:text-amber-400" />
         ),
       };
     }
@@ -757,7 +757,10 @@ const WeatherStat = ({
       return {
         label: "Mixed",
         icon: isNight ? (
-          <CloudMoon className="h-5 w-5 text-violet-500/80 dark:text-violet-400/80" />
+          <MoonStar
+            className="w-5 h-5 text-violet-400 dark:text-violet-300"
+            strokeWidth={1.5}
+          />
         ) : (
           <MixedCloudSunIcon className="h-5 w-5" />
         ),
@@ -829,7 +832,7 @@ const WeatherStat = ({
         <span
           className={cn(
             "text-[0.65rem] font-medium text-muted-foreground leading-none",
-            isFull && ""
+            isFull && "",
           )}
         >
           {visual.label}
@@ -1134,7 +1137,7 @@ const MoonStat = ({
               isFull && layout !== "carousel" && "@min-6xl:text-[0.75rem]",
               layout === "carousel"
                 ? "text-[0.7rem]"
-                : "text-[0.7rem] @min-sm:text-[0.82rem]"
+                : "text-[0.7rem] @min-sm:text-[0.82rem]",
             )}
           >
             {info.lines[0]}
@@ -1152,7 +1155,7 @@ const MoonStat = ({
               isFull && layout !== "carousel" && "@min-6xl:text-[0.75rem]",
               layout === "carousel"
                 ? "text-[0.7rem]"
-                : "text-[0.7rem] @min-sm:text-[0.82rem]"
+                : "text-[0.7rem] @min-sm:text-[0.82rem]",
             )}
           >
             {info.lines[1]}
@@ -1238,7 +1241,7 @@ const WindStat = ({
   isFull: boolean;
 }) => {
   const dirLabel = getWindDirection(
-    typeof data.dir === "number" && Number.isFinite(data.dir) ? data.dir : 0
+    typeof data.dir === "number" && Number.isFinite(data.dir) ? data.dir : 0,
   );
   const effMax = Math.max(1, maxScale ?? 30);
   const speedPct = clamp(data.speed / effMax, 0, 1);
@@ -1276,7 +1279,7 @@ const WindStat = ({
               "text-[1.15rem] @min-sm:text-[1.2rem] @min-sm:mb-0.5 font-semibold tabular-nums tracking-tight",
               !isFull &&
                 showMap &&
-                "@min-4xl:text-[1.15rem] @min-6xl:text-[1.2rem]"
+                "@min-4xl:text-[1.15rem] @min-6xl:text-[1.2rem]",
             )}
           >
             {data.speed}
@@ -1286,7 +1289,7 @@ const WindStat = ({
               "text-[0.65rem] @min-sm:text-[0.75rem] font-medium text-muted-foreground",
               !isFull &&
                 showMap &&
-                "@min-4xl:text-[0.65rem] @min-6xl:text-[0.75rem]"
+                "@min-4xl:text-[0.65rem] @min-6xl:text-[0.75rem]",
             )}
           >
             mph
@@ -1443,7 +1446,7 @@ const EnergyStat = ({
                   "h-1.5 w-1.5 rounded-full",
                   i < filled
                     ? "bg-gradient-to-r from-indigo-500/75 to-cyan-500/75 dark:from-indigo-400/75 dark:to-cyan-400/75"
-                    : "bg-foreground/10"
+                    : "bg-foreground/10",
                 )}
               />
             ))}
@@ -1493,7 +1496,7 @@ const PressureStat = ({
   const pct = clamp(
     (data.value - effMin) / Math.max(1e-6, effMax - effMin),
     0,
-    1
+    1,
   );
   const trend: Trend = data.trend ?? "steady";
   const trendLabel =
@@ -1534,7 +1537,7 @@ const PressureStat = ({
               isFull && layout !== "carousel" && "@min-6xl:text-[1.15rem]",
               layout === "carousel"
                 ? "text-[1.15rem]"
-                : "text-[1.15rem] @min-sm:text-[1.2rem] @min-sm:mb-0.5"
+                : "text-[1.15rem] @min-sm:text-[1.2rem] @min-sm:mb-0.5",
             )}
           >
             {formattedValue}
@@ -1551,7 +1554,7 @@ const PressureStat = ({
                 !isFull &&
                 layout !== "carousel" &&
                 "@min-4xl:hidden @min-6xl:inline",
-              layout === "carousel" ? "hidden" : "hidden @min-sm:block"
+              layout === "carousel" ? "hidden" : "hidden @min-sm:block",
             )}
           >
             {displayUnit}
@@ -1573,7 +1576,7 @@ const PressureStat = ({
                     !isFull &&
                     layout !== "carousel" &&
                     "@min-4xl:hidden @min-6xl:inline",
-                  layout === "carousel" ? "hidden" : "hidden @min-sm:inline"
+                  layout === "carousel" ? "hidden" : "hidden @min-sm:inline",
                 )}
               >
                 {trendLabel}
@@ -1587,7 +1590,7 @@ const PressureStat = ({
                   showMap &&
                     !isFull &&
                     layout !== "carousel" &&
-                    "@min-4xl:inline @min-6xl:hidden"
+                    "@min-4xl:inline @min-6xl:hidden",
                 )}
               >
                 {displayUnit}
@@ -1727,7 +1730,7 @@ const TideStat = ({
   const fallbackPct = clamp(
     toPct(magnitude, 0, Math.max(1, maxAbs ?? (magnitude || 1))) / 100,
     0,
-    1
+    1,
   );
   const pct = clamp(data.pct ?? fallbackPct, 0, 1);
   const stage = pct < 0.33 ? "Low" : pct < 0.66 ? "Mid" : "High";
@@ -1785,7 +1788,7 @@ const TideStat = ({
               !isFull &&
                 showMap &&
                 layout !== "carousel" &&
-                "@min-4xl:hidden @min-6xl:inline-block"
+                "@min-4xl:hidden @min-6xl:inline-block",
             )}
           >
             / {trendLabel}
@@ -1880,7 +1883,7 @@ function VisualSlot({
             ? ""
             : "scale-[1] @min-4xl:scale-[0.85] @min-5xl:scale-[1]"
           : "scale-[1] @min-4xl:scale-[0.85] @min-5xl:scale-[1]",
-        className
+        className,
       )}
     >
       {children}
@@ -1914,7 +1917,7 @@ function HighlightCard({
           secondary && label === "swell"
             ? "@min-xl:gap-3 @min-3xl:gap-0 @min-6xl:gap-3"
             : "gap-3",
-          label === "swell" && isFull && "@min-6xl:gap-0"
+          label === "swell" && isFull && "@min-6xl:gap-0",
         )}
       >
         <div className={cn("min-w-0", label === "swell" && "scale-[0.95]")}>
@@ -1923,7 +1926,7 @@ function HighlightCard({
               "flex min-w-0 items-baseline gap-1 leading-none",
               label === "swell" &&
                 "justify-center @min-xl:justify-start @min-3xl:justify-center @min-6xl:justify-start",
-              label === "swell" && isFull && "@min-6xl:justify-center"
+              label === "swell" && isFull && "@min-6xl:justify-center",
             )}
           >
             {primary}
@@ -1934,7 +1937,7 @@ function HighlightCard({
                 "mt-1 min-w-0 leading-none",
                 label === "swell" &&
                   "flex justify-center @min-xl:justify-start @min-3xl:justify-center @min-6xl:justify-start",
-                label === "swell" && isFull && "@min-6xl:justify-center"
+                label === "swell" && isFull && "@min-6xl:justify-center",
               )}
             >
               {secondary}
@@ -1991,7 +1994,7 @@ type Stat =
       };
       secondary: [
         { height: number; period: number; wind: { dir: string; deg: number } },
-        { height: number; period: number; wind: { dir: string; deg: number } }
+        { height: number; period: number; wind: { dir: string; deg: number } },
       ];
     }
   | {
@@ -2080,7 +2083,7 @@ const Highlights = ({
   // Calculate time windows (DST-aware for Pacific timezone)
   const { startWindow, endWindow } = useMemo(() => {
     const { start, end } = getPacificDayRange(
-      date instanceof Date ? date : undefined
+      date instanceof Date ? date : undefined,
     );
     return { startWindow: start, endWindow: end };
   }, [date]);
@@ -2088,19 +2091,19 @@ const Highlights = ({
   // Fetch beach data
   const { data: beach } = useBeachById(
     beachId ?? null,
-    Boolean(beachId) && !usingPreview
+    Boolean(beachId) && !usingPreview,
   );
-  const resolvedId = usingPreview ? beachId ?? null : beach?.id ?? beachId;
+  const resolvedId = usingPreview ? (beachId ?? null) : (beach?.id ?? beachId);
 
   const { showMap } = useMapUI();
 
   // Fetch all data with React Query
   const { data: currentFromQuery } = useCurrentConditions(
     resolvedId ?? null,
-    Boolean(resolvedId) && !usingPreview
+    Boolean(resolvedId) && !usingPreview,
   );
   const current = usingPreview
-    ? previewData?.current ?? null
+    ? (previewData?.current ?? null)
     : currentFromQuery;
   // TODO(overview-perf): When ForecastDataContext is present, rely on the shared daily forecast
   // rows instead of starting a separate React Query forecast pipeline here.
@@ -2109,31 +2112,33 @@ const Highlights = ({
     resolvedId ?? null,
     startWindow,
     endWindow,
-    Boolean(resolvedId) && !hasPrefetched && !usingPreview
+    Boolean(resolvedId) && !hasPrefetched && !usingPreview,
   );
   const forecast = useMemo<ForecastData[]>(
     () =>
-      hasPrefetched ? forecastRows ?? [] : (fetchedForecast as ForecastData[]),
-    [hasPrefetched, forecastRows, fetchedForecast]
+      hasPrefetched
+        ? (forecastRows ?? [])
+        : (fetchedForecast as ForecastData[]),
+    [hasPrefetched, forecastRows, fetchedForecast],
   );
   const { data: tidesFromQuery = [], isLoading: tidesLoading } = useBeachTides(
     resolvedId ?? null,
     startWindow,
     endWindow,
-    Boolean(resolvedId) && !usingPreview
+    Boolean(resolvedId) && !usingPreview,
   );
-  const tides = usingPreview ? previewData?.tides ?? [] : tidesFromQuery;
+  const tides = usingPreview ? (previewData?.tides ?? []) : tidesFromQuery;
 
   const county = usingPreview
-    ? previewData?.county ?? null
-    : beach?.COUNTY ?? null;
+    ? (previewData?.county ?? null)
+    : (beach?.COUNTY ?? null);
   const { data: dailyFromQuery, isLoading: dailyLoading } = useDailyConditions(
     county,
     date instanceof Date ? date : undefined,
-    Boolean(county) && !usingPreview
+    Boolean(county) && !usingPreview,
   ) as { data: DailyConditions | null; isLoading: boolean };
   const daily = usingPreview
-    ? previewData?.dailyConditions ?? null
+    ? (previewData?.dailyConditions ?? null)
     : dailyFromQuery;
 
   // Dynamic scales from forecast
@@ -2142,7 +2147,7 @@ const Highlights = ({
     const sorted = [...arr].sort((a, b) => a - b);
     const idx = Math.max(
       0,
-      Math.min(sorted.length - 1, Math.round((p / 100) * (sorted.length - 1)))
+      Math.min(sorted.length - 1, Math.round((p / 100) * (sorted.length - 1))),
     );
     return sorted[idx];
   };
@@ -2191,9 +2196,9 @@ const Highlights = ({
 
   // Prefetch adjacent hours
   usePrefetchAdjacentHours(
-    usingPreview ? null : resolvedId ?? null,
+    usingPreview ? null : (resolvedId ?? null),
     date ?? null,
-    hour ?? 0
+    hour ?? 0,
   );
 
   // Memoize expensive calculations
@@ -2222,8 +2227,8 @@ const Highlights = ({
     typeof hour === "number"
       ? hour
       : baseRow?.timestamp
-      ? getPacificHour(baseRow.timestamp)
-      : getPacificHour(new Date());
+        ? getPacificHour(baseRow.timestamp)
+        : getPacificHour(new Date());
   const isNight = weatherHour < 6 || weatherHour >= 18;
 
   const statsRef = useRef<Stat[] | null>(null);
@@ -2296,7 +2301,7 @@ const Highlights = ({
       },
     });
 
-    const base = date ? baseRow : current ?? baseRow;
+    const base = date ? baseRow : (current ?? baseRow);
 
     // swell primary/secondary
     if (baseRow) {
@@ -2366,8 +2371,8 @@ const Highlights = ({
       Math.abs(pressureDelta) < 0.02
         ? "steady"
         : pressureDelta > 0
-        ? "rising"
-        : "falling";
+          ? "rising"
+          : "falling";
     nextStats.push({
       label: "pressure",
       pressure: {
@@ -2397,7 +2402,7 @@ const Highlights = ({
   const overviewReady = usingPreview ? true : !tidesLoading && !dailyLoading;
 
   const { setReady: setOverviewReady } = useOptionalOverviewChartLoading(
-    "overview-highlights"
+    "overview-highlights",
   );
   const overviewKey = `${
     resolvedId ?? ""
@@ -2426,7 +2431,7 @@ const Highlights = ({
     layout === "carousel"
       ? effectiveStats.slice(
           carouselStart,
-          Math.min(sliceEnd + 1, carouselStart + pageSize)
+          Math.min(sliceEnd + 1, carouselStart + pageSize),
         )
       : effectiveStats.slice(sliceStart, sliceEnd + 1);
   const displayScales = scalesState;
@@ -2437,8 +2442,8 @@ const Highlights = ({
     layout === "carousel"
       ? "h-[112px]"
       : isFull
-      ? "min-h-[100px]"
-      : "min-h-[100px] @min-4xl:min-h-[92px]";
+        ? "min-h-[100px]"
+        : "min-h-[100px] @min-4xl:min-h-[92px]";
 
   return (
     <div className={cn("w-full", layout === "grid" && "max-w-7xl mx-auto p-1")}>
@@ -2450,8 +2455,8 @@ const Highlights = ({
               cn(
                 "grid-cols-2 @min-xl:grid-cols-3 @min-3xl:grid-cols-4",
                 !isFull && "@min-2xl:grid-cols-3 @min-4xl:grid-cols-3",
-                isFull && "@min-4xl:grid-cols-4 @min-6xl:grid-cols-8"
-              )
+                isFull && "@min-4xl:grid-cols-4 @min-6xl:grid-cols-8",
+              ),
           )}
           style={
             layout === "carousel"
@@ -2463,7 +2468,7 @@ const Highlights = ({
         >
           {(layout === "carousel"
             ? Array.from({ length: pageSize }).map(
-                (_, idx) => visibleStats[idx] ?? null
+                (_, idx) => visibleStats[idx] ?? null,
               )
             : visibleStats
           ).map((stat, idx) => {
@@ -2483,7 +2488,7 @@ const Highlights = ({
                 <div
                   className={cn(
                     "w-full h-full rounded-xl border border-border/15 bg-highlight-6/50",
-                    "flex items-center justify-center text-xs font-medium text-muted-foreground"
+                    "flex items-center justify-center text-xs font-medium text-muted-foreground",
                   )}
                 >
                   <span>More soon!</span>
@@ -2507,7 +2512,7 @@ const Highlights = ({
                   const dirPill = (
                     dir: string,
                     deg: number,
-                    primary: boolean = false
+                    primary: boolean = false,
                   ) => (
                     <span
                       className={cn(
@@ -2517,7 +2522,7 @@ const Highlights = ({
                           "@min-3xl:grid-cols-[10px_35px] @min-4xl:grid-cols-[10px_35px_20px] @min-6xl:grid-cols-[auto]",
                         layout === "carousel"
                           ? "grid-cols-[auto]"
-                          : "grid-cols-[auto] @min-sm:grid-cols-[10px_30px] @min-md:grid-cols-[10px_35px_20px] @min-3xl:grid-cols-[10px_30px] @min-4xl:grid-cols-[10px_35px_20px]"
+                          : "grid-cols-[auto] @min-sm:grid-cols-[10px_30px] @min-md:grid-cols-[10px_35px_20px] @min-3xl:grid-cols-[10px_30px] @min-4xl:grid-cols-[10px_35px_20px]",
                       )}
                     >
                       <svg
@@ -2529,7 +2534,7 @@ const Highlights = ({
                           "shrink-0",
                           primary
                             ? "text-foreground/70 dark:text-foreground/80"
-                            : "text-muted-foreground/70 dark:text-muted-foreground/70"
+                            : "text-muted-foreground/70 dark:text-muted-foreground/70",
                         )}
                       >
                         <g transform={`rotate(${deg ?? 0} 6 6)`}>
@@ -2558,7 +2563,7 @@ const Highlights = ({
                           isFull && "@min-6xl:hidden",
                           layout === "carousel"
                             ? "hidden"
-                            : "hidden @min-sm:block"
+                            : "hidden @min-sm:block",
                         )}
                       >
                         {dir}
@@ -2571,7 +2576,7 @@ const Highlights = ({
                             "@min-3xl:hidden @min-4xl:block @min-6xl:hidden",
                           layout === "carousel"
                             ? "hidden"
-                            : "hidden @min-md:block @min-3xl:hidden @min-4xl:block"
+                            : "hidden @min-md:block @min-3xl:hidden @min-4xl:block",
                         )}
                       >
                         {deg.toFixed(0)}&deg;
@@ -2591,7 +2596,7 @@ const Highlights = ({
                               "@min-6xl:grid-cols-[0.375rem_2rem_1.5rem_auto]",
                             layout === "carousel"
                               ? "grid-cols-[0.375rem_1.75rem_1.25rem_auto]"
-                              : "grid-cols-[0.375rem_1.75rem_1.25rem_auto] @min-md:grid-cols-[0.375rem_2.3rem_1.8rem_auto]"
+                              : "grid-cols-[0.375rem_1.75rem_1.25rem_auto] @min-md:grid-cols-[0.375rem_2.3rem_1.8rem_auto]",
                           )}
                         >
                           <span
@@ -2606,7 +2611,7 @@ const Highlights = ({
                                 isFull && "@min-6xl:text-[0.75rem]",
                                 layout === "carousel"
                                   ? "text-[0.7rem]"
-                                  : "text-[0.7rem] @min-md:text-[0.8rem]"
+                                  : "text-[0.7rem] @min-md:text-[0.8rem]",
                               )}
                             >
                               {stat.primary.height.toFixed(1)}
@@ -2622,7 +2627,7 @@ const Highlights = ({
                                 isFull && "@min-6xl:text-[0.75rem]",
                                 layout === "carousel"
                                   ? "text-[0.7rem]"
-                                  : "text-[0.7rem] @min-md:text-[0.8rem]"
+                                  : "text-[0.7rem] @min-md:text-[0.8rem]",
                               )}
                             >
                               {stat.primary.period}
@@ -2634,7 +2639,7 @@ const Highlights = ({
                           {dirPill(
                             stat.primary.wind.dir,
                             stat.primary.wind.deg,
-                            true
+                            true,
                           )}
                         </div>
                       }
@@ -2647,7 +2652,7 @@ const Highlights = ({
                                 "@min-6xl:grid-cols-[0.375rem_2rem_1.5rem_auto]",
                               layout === "carousel"
                                 ? "grid-cols-[0.375rem_1.75rem_1.25rem_auto]"
-                                : "grid-cols-[0.375rem_1.75rem_1.25rem_auto] @min-md:grid-cols-[0.375rem_2.3rem_1.8rem_auto]"
+                                : "grid-cols-[0.375rem_1.75rem_1.25rem_auto] @min-md:grid-cols-[0.375rem_2.3rem_1.8rem_auto]",
                             )}
                           >
                             <span
@@ -2662,7 +2667,7 @@ const Highlights = ({
                                   isFull && "@min-6xl:text-[0.75rem]",
                                   layout === "carousel"
                                     ? "text-[0.7rem]"
-                                    : "text-[0.7rem] @min-md:text-[0.8rem]"
+                                    : "text-[0.7rem] @min-md:text-[0.8rem]",
                                 )}
                               >
                                 {stat.secondary[0].height.toFixed(1)}
@@ -2678,7 +2683,7 @@ const Highlights = ({
                                   isFull && "@min-6xl:text-[0.75rem]",
                                   layout === "carousel"
                                     ? "text-[0.7rem]"
-                                    : "text-[0.7rem] @min-md:text-[0.8rem]"
+                                    : "text-[0.7rem] @min-md:text-[0.8rem]",
                                 )}
                               >
                                 {stat.secondary[0].period}
@@ -2689,7 +2694,7 @@ const Highlights = ({
                             </span>
                             {dirPill(
                               stat.secondary[0].wind.dir,
-                              stat.secondary[0].wind.deg
+                              stat.secondary[0].wind.deg,
                             )}
                           </div>
 
@@ -2700,7 +2705,7 @@ const Highlights = ({
                                 "@min-6xl:grid-cols-[0.375rem_2rem_1.5rem_auto]",
                               layout === "carousel"
                                 ? "grid-cols-[0.375rem_1.75rem_1.25rem_auto]"
-                                : "grid-cols-[0.375rem_1.75rem_1.25rem_auto] @min-md:grid-cols-[0.375rem_2.3rem_1.8rem_auto]"
+                                : "grid-cols-[0.375rem_1.75rem_1.25rem_auto] @min-md:grid-cols-[0.375rem_2.3rem_1.8rem_auto]",
                             )}
                           >
                             <span
@@ -2715,7 +2720,7 @@ const Highlights = ({
                                   isFull && "@min-6xl:text-[0.75rem]",
                                   layout === "carousel"
                                     ? "text-[0.7rem]"
-                                    : "text-[0.7rem] @min-md:text-[0.8rem]"
+                                    : "text-[0.7rem] @min-md:text-[0.8rem]",
                                 )}
                               >
                                 {stat.secondary[1].height.toFixed(1)}
@@ -2731,7 +2736,7 @@ const Highlights = ({
                                   isFull && "@min-6xl:text-[0.75rem]",
                                   layout === "carousel"
                                     ? "text-[0.7rem]"
-                                    : "text-[0.7rem] @min-md:text-[0.8rem]"
+                                    : "text-[0.7rem] @min-md:text-[0.8rem]",
                                 )}
                               >
                                 {stat.secondary[1].period}
@@ -2742,7 +2747,7 @@ const Highlights = ({
                             </span>
                             {dirPill(
                               stat.secondary[1].wind.dir,
-                              stat.secondary[1].wind.deg
+                              stat.secondary[1].wind.deg,
                             )}
                           </div>
                         </div>
@@ -2754,7 +2759,7 @@ const Highlights = ({
                             className={cn(
                               "hidden @min-xl:block @min-3xl:hidden relative -mt-4 overflow-hidden rounded-xl bg-foreground/5 ring-1 ring-border/25 w-[8rem] @min-xl:w-[8rem] @min-2xl:w-[12rem] @min-6xl:w-[8rem]",
                               "shadow-[0_1px_0_rgba(0,0,0,0.04)] dark:shadow-[0_1px_0_rgba(0,0,0,0.35)]",
-                              isFull ? "" : "@min-6xl:block"
+                              isFull ? "" : "@min-6xl:block",
                             )}
                           >
                             <div className="flex h-full flex-col gap-1.5 px-2 py-2">
@@ -2776,11 +2781,11 @@ const Highlights = ({
                                     color: SWELL_COLORS.secondary,
                                     height: Math.max(
                                       0,
-                                      stat.secondary[0].height
+                                      stat.secondary[0].height,
                                     ),
                                     period: Math.max(
                                       1,
-                                      stat.secondary[0].period
+                                      stat.secondary[0].period,
                                     ),
                                     size: 7,
                                     opacity: 0.9,
@@ -2790,11 +2795,11 @@ const Highlights = ({
                                     color: SWELL_COLORS.tertiary,
                                     height: Math.max(
                                       0,
-                                      stat.secondary[1].height
+                                      stat.secondary[1].height,
                                     ),
                                     period: Math.max(
                                       1,
-                                      stat.secondary[1].period
+                                      stat.secondary[1].period,
                                     ),
                                     size: 7,
                                     opacity: 0.86,
@@ -2803,18 +2808,18 @@ const Highlights = ({
 
                                 const heightMax = Math.max(
                                   1,
-                                  ...swells.map((s) => s.height)
+                                  ...swells.map((s) => s.height),
                                 );
                                 const periodMax = Math.max(
                                   1,
-                                  ...swells.map((s) => s.period)
+                                  ...swells.map((s) => s.period),
                                 );
 
                                 const trackGradient =
                                   "bg-gradient-to-r from-indigo-500/45 via-sky-400/35 to-cyan-300/30 dark:from-indigo-400/35 dark:via-sky-400/25 dark:to-cyan-300/20";
 
                                 const computeDotOffsets = (
-                                  pcts: number[]
+                                  pcts: number[],
                                 ): [number, number, number] => {
                                   const sorted = pcts
                                     .map((p, i) => ({ p, i }))
@@ -2839,12 +2844,12 @@ const Highlights = ({
                                 };
 
                                 const mixPowers = swells.map(
-                                  (s) => s.height * s.period
+                                  (s) => s.height * s.period,
                                 );
                                 const mixTotal =
                                   mixPowers.reduce((sum, v) => sum + v, 0) || 1;
                                 const mixPercents = mixPowers.map(
-                                  (v) => (v / mixTotal) * 100
+                                  (v) => (v / mixTotal) * 100,
                                 );
 
                                 const Track = ({
@@ -2859,7 +2864,7 @@ const Highlights = ({
                                       <div
                                         className={cn(
                                           "absolute inset-0 opacity-25",
-                                          trackGradient
+                                          trackGradient,
                                         )}
                                       />
                                     </div>
@@ -3025,7 +3030,10 @@ const Highlights = ({
                       }
                       visual={
                         <VisualSlot isFull={isFull} showMap={showMap}>
-                          <MoonStar className="h-5 w-5 text-violet-600/70 dark:text-violet-400/70" />
+                          <MoonStar
+                            className="w-5 h-5 text-violet-400 dark:text-violet-300"
+                            strokeWidth={1.5}
+                          />
                         </VisualSlot>
                       }
                     />
@@ -3104,7 +3112,7 @@ const Highlights = ({
                       resolvedStat?.label === "swell" &&
                       isFull &&
                       "@min-xl:col-span-2",
-                    !isHydrated && "animate-pulse motion-reduce:animate-none"
+                    !isHydrated && "animate-pulse motion-reduce:animate-none",
                   )}
                   aria-hidden={!isHydrated ? "true" : undefined}
                   aria-label={
@@ -3116,7 +3124,7 @@ const Highlights = ({
                   <div
                     className={cn(
                       "flex-1 flex items-center justify-center gap-1 h-full",
-                      !isHydrated && "opacity-0 pointer-events-none"
+                      !isHydrated && "opacity-0 pointer-events-none",
                     )}
                   >
                     {content}
@@ -3137,7 +3145,7 @@ const Highlights = ({
                 "absolute left-0 top-1/2 -translate-y-1/2 z-10",
                 "h-8 w-8 rounded-full border border-border/35 bg-background/90 text-foreground shadow-sm backdrop-blur-sm",
                 "transition disabled:opacity-40 disabled:pointer-events-none",
-                "hover:bg-highlight-6/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15"
+                "hover:bg-highlight-6/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15",
               )}
             >
               <ChevronLeft className="h-4 w-4 mx-auto" aria-hidden="true" />
@@ -3153,7 +3161,7 @@ const Highlights = ({
                 "absolute right-0 top-1/2 -translate-y-1/2 z-10",
                 "h-8 w-8 rounded-full border border-border/35 bg-background/90 text-foreground shadow-sm backdrop-blur-sm",
                 "transition disabled:opacity-40 disabled:pointer-events-none",
-                "hover:bg-highlight-6/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15"
+                "hover:bg-highlight-6/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15",
               )}
             >
               <ChevronRight className="h-4 w-4 mx-auto" aria-hidden="true" />

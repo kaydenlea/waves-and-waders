@@ -39,7 +39,7 @@ import { useDateContext } from "@/components/context/DateContext";
 import { useSunData } from "@/components/context/SunDataContext";
 import { buildSunSegments } from "@/components/graphs/sunSegments";
 import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
-import { buildYAxisTicks } from "@/components/graphs/yAxisTicks";
+import { buildLinearYAxisTicks } from "@/components/graphs/yAxisTicks";
 import { useForecastWindowData } from "@/lib/hooks/useForecastWindow";
 import { useChartTheme } from "@/components/graphs/useChartTheme";
 import { buildForecastShadingBackground } from "@/components/graphs/forecastShadingBackground";
@@ -184,14 +184,15 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
     const count = Math.max(1, Math.ceil(hours / DATA_STEP_HOURS) + 1);
     return Array.from({ length: count }, (_, idx) => {
       const rawHour = Math.min(hours, idx * DATA_STEP_HOURS);
+      const wind = Number(
+        Math.max(0, 3 + Math.sin(((rawHour % 24) / 24) * Math.PI * 2) * 2).toFixed(
+          1,
+        ),
+      );
       return {
         hour: rawHour,
-        wind: Number(
-          Math.max(
-            0,
-            3 + Math.sin(((rawHour % 24) / 24) * Math.PI * 2) * 2,
-          ).toFixed(1),
-        ),
+        wind,
+        gust: Math.round(Math.max(wind, wind + 3)),
         direction: (rawHour * 15) % 360,
       };
     });
@@ -220,9 +221,12 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         Math.round(getPacificHour(row.timestamp) / DATA_STEP_HOURS) *
         DATA_STEP_HOURS;
       const centeredHour = Math.min(hours, Math.max(0, roundedHour));
+      const wind = Math.round(row.conditions.windSpeed ?? 0);
+      const gust = Math.round(row.conditions.windGust ?? wind);
       return {
         hour: centeredHour,
-        wind: Math.round(row.conditions.windSpeed ?? 0),
+        wind,
+        gust: Math.max(wind, gust),
         direction: row.conditions.windDirection ?? undefined,
       };
     });
@@ -338,14 +342,16 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
 
   const centeredSelectedHour = centerDomainHour(selectedHour);
   const windTicks = useMemo(
-    () =>
-      buildYAxisTicks(
-        chartData.map((d) => d.wind),
-        0,
-        4,
-        0.2,
-        10,
-      ),
+    () => {
+      const values = chartData.flatMap((d) => [
+        d.wind,
+        typeof d.gust === "number" ? d.gust : d.wind,
+      ]);
+      const finite = values.filter((v) => typeof v === "number" && Number.isFinite(v));
+      const maxRaw = finite.length ? Math.max(...finite) : 0;
+      const paddedMax = Math.max(1, Math.ceil(maxRaw + Math.max(2, maxRaw * 0.25)));
+      return buildLinearYAxisTicks(0, paddedMax, 4, true);
+    },
     [chartData],
   );
   const yAxisTick = React.useCallback(
@@ -589,29 +595,23 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       const directionLabel = getWindDirection(
         typeof direction === "number" ? direction : 0,
       );
-      const dirText =
-        typeof direction === "number"
-          ? `${directionLabel} (${Math.round(direction)}°)`
-          : directionLabel;
-      const dirTextDisplay = dirText
-        .replaceAll("\u00C2\u00B0", "\u00B0")
-        .replaceAll("A\u0173", "\u00B0")
-        .replaceAll("AÅ³", "\u00B0")
-        .replaceAll("\u0173", "\u00B0");
       const formattedValue = (
-        <div className="mx-auto w-fit max-w-full text-center">
-          <div className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap">
-            <span className="inline-flex items-baseline gap-1">
-              <span className="text-[0.96rem] font-semibold tabular-nums leading-none text-foreground">
-                {Math.round(point.wind)}
-              </span>
-              <span className="text-[0.62rem] font-medium text-muted-foreground leading-none">
-                mph
-              </span>
+        <div className="mx-auto w-fit max-w-full text-center flex flex-col items-center gap-1">
+          <div className="inline-flex items-baseline justify-center gap-1 whitespace-nowrap leading-none">
+            <span className="text-[0.96rem] font-semibold tabular-nums leading-none text-foreground">
+              {Math.round(point.wind)}
             </span>
+            <span className="text-[0.62rem] font-medium text-muted-foreground leading-none">
+              mph
+            </span>
+            <span className="text-[0.62rem] font-medium text-muted-foreground tabular-nums leading-none">
+              {"\u00B7"} {Math.round(point.gust ?? point.wind)}
+            </span>
+          </div>
+          <div className="inline-flex items-center justify-center gap-1 whitespace-nowrap text-[0.62rem] leading-none text-muted-foreground">
             {typeof direction === "number" ? (
               <ArrowIcon
-                size={12}
+                size={10}
                 className="fill-foreground/15 text-foreground/60"
                 style={{
                   transform: `rotate(${direction - 315}deg)`,
@@ -619,9 +619,7 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
                 }}
               />
             ) : null}
-          </div>
-          <div className="mt-0.5 whitespace-nowrap text-[0.62rem] leading-none text-muted-foreground">
-            {dirTextDisplay}
+            <span className="font-medium leading-none">{directionLabel}</span>
           </div>
         </div>
       );
@@ -650,29 +648,23 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       const directionLabel = getWindDirection(
         typeof direction === "number" ? direction : 0,
       );
-      const dirText =
-        typeof direction === "number"
-          ? `${directionLabel} (${Math.round(direction)}°)`
-          : directionLabel;
-      const dirTextDisplay = dirText
-        .replaceAll("\u00C2\u00B0", "\u00B0")
-        .replaceAll("A\u0173", "\u00B0")
-        .replaceAll("AÅ³", "\u00B0")
-        .replaceAll("\u0173", "\u00B0");
       const formattedValue = (
-        <div className="mx-auto w-fit max-w-full text-center">
-          <div className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap">
-            <span className="inline-flex items-baseline gap-1">
-              <span className="text-[0.96rem] font-semibold tabular-nums leading-none text-foreground">
-                {Math.round(point.wind)}
-              </span>
-              <span className="text-[0.62rem] font-medium text-muted-foreground leading-none">
-                mph
-              </span>
+        <div className="mx-auto w-fit max-w-full text-center flex flex-col items-center gap-1">
+          <div className="inline-flex items-baseline justify-center gap-1 whitespace-nowrap leading-none">
+            <span className="text-[0.96rem] font-semibold tabular-nums leading-none text-foreground">
+              {Math.round(point.wind)}
             </span>
+            <span className="text-[0.62rem] font-medium text-muted-foreground leading-none">
+              mph
+            </span>
+            <span className="text-[0.62rem] font-medium text-muted-foreground tabular-nums leading-none">
+              {"\u00B7"} {Math.round(point.gust ?? point.wind)}
+            </span>
+          </div>
+          <div className="inline-flex items-center justify-center gap-1 whitespace-nowrap text-[0.62rem] leading-none text-muted-foreground">
             {typeof direction === "number" ? (
               <ArrowIcon
-                size={12}
+                size={10}
                 className="fill-foreground/15 text-foreground/60"
                 style={{
                   transform: `rotate(${direction - 315}deg)`,
@@ -680,9 +672,7 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
                 }}
               />
             ) : null}
-          </div>
-          <div className="mt-0.5 whitespace-nowrap text-[0.62rem] leading-none text-muted-foreground">
-            {dirTextDisplay}
+            <span className="font-medium leading-none">{directionLabel}</span>
           </div>
         </div>
       );
@@ -962,9 +952,23 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
                   // Arrow points at 315Â° by default, adjust rotation
                   const rotation = direction - 315;
 
+                  const windValue =
+                    typeof props.value === "number" ? props.value : 0;
+                  const gustValue =
+                    typeof dataPoint?.gust === "number"
+                      ? dataPoint.gust
+                      : windValue;
+                  const ratio =
+                    windValue > 0
+                      ? Math.min(2.5, Math.max(1, gustValue / windValue))
+                      : 1;
+                  const baseY = safeY + safeHeight;
+                  const gustHeight = safeHeight * ratio;
+                  const gustY = baseY - gustHeight;
+
                   // Calculate center point for rotation - position on top of bar
                   const centerX = safeX + safeWidth / 2;
-                  const centerY = safeY - iconSize / 2 - 7; // Position above the bar
+                  const centerY = gustY - iconSize / 2 - 7; // Position above gust bar
 
                   return (
                     <g pointerEvents="none">
@@ -997,11 +1001,33 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
                   // Get color based on wind value
                   const windValue =
                     typeof props.value === "number" ? props.value : 0;
+                  const dataPoint = chartData[props.index ?? 0];
+                  const gustValue =
+                    typeof dataPoint?.gust === "number"
+                      ? dataPoint.gust
+                      : windValue;
                   const barColor = getWindColor(windValue);
+                  const gustColor = getWindColor(gustValue);
 
                   if (typeof props.value === "number") {
+                    const ratio =
+                      windValue > 0
+                        ? Math.min(2.5, Math.max(1, gustValue / windValue))
+                        : 1;
+                    const baseY = safeY + safeHeight;
+                    const gustHeight = safeHeight * ratio;
+                    const gustY = baseY - gustHeight;
                     return (
                       <g>
+                        <rect
+                          x={safeX}
+                          y={gustY}
+                          width={safeWidth}
+                          height={gustHeight}
+                          fill={gustColor}
+                          opacity={0.28}
+                          rx={6}
+                        />
                         {/* Render the colored bar */}
                         <rect
                           x={safeX}

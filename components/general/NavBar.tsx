@@ -5,7 +5,7 @@ import type { ElementType } from "react";
 import SearchBar from "./SearchBar";
 import ThemeToggle from "./ThemeToggle";
 // Popover handled inside client subcomponent
-import { UserMenu } from "@/components/auth/UserMenu";
+import { UserMenuServer } from "@/components/auth/UserMenuServer";
 import { cn } from "@/lib/utils";
 import NavBarActions from "./NavBarActions";
 import NavMoreMenu from "./NavMoreMenu";
@@ -268,7 +268,7 @@ const NavBar = ({
               landingPage ? "hidden @min-5xl:flex" : "hidden @min-4xl:flex",
             )}
           >
-            <UserMenu landingPage />
+            <UserMenuServer landingPage={landingPage} />
           </div>
           {variant === "marketing" ? (
             <MarketingSearchButton

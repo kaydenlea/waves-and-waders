@@ -585,15 +585,46 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       const normalized = ((hour % 24) + 24) % 24;
       const displayHour = normalized % 12 === 0 ? 12 : normalized % 12;
       const ampm = normalized >= 12 ? "PM" : "AM";
+      const surfValue = point.surf;
+      const surfColor = getSurfColor(surfValue);
+      const surfLabel =
+        surfValue >= 5
+          ? "Solid"
+          : surfValue >= 3
+            ? "Good"
+            : surfValue >= 1.5
+              ? "Moderate"
+              : "Small";
+      const formattedValue = (
+        <div className="mx-auto w-fit max-w-full text-center flex flex-col items-center gap-1">
+          <div className="inline-flex items-baseline justify-center gap-1 whitespace-nowrap">
+            <span className="text-[0.96rem] font-semibold tabular-nums leading-none text-foreground">
+              {Number(surfValue.toFixed(1)).toString()}
+            </span>
+            <span className="text-[0.62rem] font-medium text-muted-foreground leading-none">
+              ft
+            </span>
+          </div>
+          <div className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-[0.62rem] leading-none text-muted-foreground">
+            <span
+              aria-hidden="true"
+              className="h-1.5 w-1.5 rounded-full"
+              style={{ backgroundColor: surfColor }}
+            />
+            <span>{surfLabel}</span>
+          </div>
+        </div>
+      );
 
       return {
         hour: point.hour,
         label: `${displayHour} ${ampm}`,
         value: point.surf,
         unit: "ft",
+        formattedValue,
       };
     },
-    [chartData],
+    [chartData, getSurfColor],
   );
 
   const getDataPointForHour = useCallback(
@@ -604,15 +635,46 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
       const normalized = ((point.hour % 24) + 24) % 24;
       const displayHour = normalized % 12 === 0 ? 12 : normalized % 12;
       const ampm = normalized >= 12 ? "PM" : "AM";
+      const surfValue = point.surf;
+      const surfColor = getSurfColor(surfValue);
+      const surfLabel =
+        surfValue >= 5
+          ? "Solid"
+          : surfValue >= 3
+            ? "Good"
+            : surfValue >= 1.5
+              ? "Moderate"
+              : "Small";
+      const formattedValue = (
+        <div className="mx-auto w-fit max-w-full text-center flex flex-col items-center gap-1">
+          <div className="inline-flex items-baseline justify-center gap-1 whitespace-nowrap">
+            <span className="text-[0.96rem] font-semibold tabular-nums leading-none text-foreground">
+              {Number(surfValue.toFixed(1)).toString()}
+            </span>
+            <span className="text-[0.62rem] font-medium text-muted-foreground leading-none">
+              ft
+            </span>
+          </div>
+          <div className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-[0.62rem] leading-none text-muted-foreground">
+            <span
+              aria-hidden="true"
+              className="h-1.5 w-1.5 rounded-full"
+              style={{ backgroundColor: surfColor }}
+            />
+            <span>{surfLabel}</span>
+          </div>
+        </div>
+      );
 
       return {
         hour: point.hour,
         label: `${displayHour} ${ampm}`,
         value: point.surf,
         unit: "ft",
+        formattedValue,
       };
     },
-    [chartData],
+    [chartData, getSurfColor],
   );
 
   const getXPositionForHour = useCallback(

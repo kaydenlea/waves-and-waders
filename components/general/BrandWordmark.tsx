@@ -11,9 +11,11 @@ export function BrandWordmark({
 }) {
   if (variant === "inline") {
     return (
-      <span className={cn("inline-flex items-baseline leading-none", className)}>
+      <span
+        className={cn("inline-flex items-baseline leading-none", className)}
+      >
         <span>Waves</span>
-        <span className="mx-[3px] text-[14px] font-medium">&</span>
+        <span className="mx-[3px] text-[12px] font-normal">&</span>
         <span className={cn("tracking-[0.1px]", spacing)}>Waders</span>
       </span>
     );

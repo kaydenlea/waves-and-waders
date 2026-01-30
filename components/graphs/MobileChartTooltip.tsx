@@ -60,6 +60,8 @@ export interface MobileTooltipDataPoint {
   formattedValue?: React.ReactNode; // Custom formatted value display
   color?: string;
   icon?: React.ReactNode;
+  /** Optional: small indicator shown inline before the value */
+  valueIcon?: React.ReactNode;
   /** Optional: increase time-to-value spacing for dense tooltips (e.g. swell) */
   labelSpacing?: "default" | "spacious";
 }
@@ -444,7 +446,7 @@ export function MobileChartTooltip({
   }
 
   const labelToValueGapClass =
-    dataPoint.labelSpacing === "spacious" ? "mt-2" : "mt-0.5";
+    dataPoint.labelSpacing === "default" ? "mt-0.5" : "mt-1.5";
 
   const visibilityClassName = isAnyActive
     ? "opacity-100"
@@ -780,6 +782,11 @@ export function MobileChartTooltip({
                   <div className="min-w-0">
                     {dataPoint.formattedValue ?? (
                       <span className="text-foreground inline-flex items-baseline justify-center gap-1 font-semibold tabular-nums whitespace-nowrap">
+                        {dataPoint.valueIcon ? (
+                          <span className="inline-flex items-center text-foreground/60">
+                            {dataPoint.valueIcon}
+                          </span>
+                        ) : null}
                         <span className="text-[0.96rem] leading-none">
                           {typeof dataPoint.value === "number"
                             ? dataPoint.value.toLocaleString(undefined, {
@@ -832,6 +839,11 @@ export function MobileChartTooltip({
                 <div className="min-w-0">
                   {dataPoint.formattedValue ?? (
                     <span className="text-foreground inline-flex items-baseline justify-center gap-1 font-semibold tabular-nums whitespace-nowrap">
+                      {dataPoint.valueIcon ? (
+                        <span className="inline-flex items-center text-foreground/60">
+                          {dataPoint.valueIcon}
+                        </span>
+                      ) : null}
                       <span className="text-[0.96rem] leading-none">
                         {typeof dataPoint.value === "number"
                           ? dataPoint.value.toLocaleString(undefined, {
@@ -928,6 +940,11 @@ export function MobileChartTooltip({
         {/* Value display - inline */}
         {dataPoint.formattedValue ?? (
           <span className="text-foreground inline-flex items-baseline gap-1 font-semibold tabular-nums whitespace-nowrap">
+            {dataPoint.valueIcon ? (
+              <span className="inline-flex items-center text-foreground/60">
+                {dataPoint.valueIcon}
+              </span>
+            ) : null}
             <span className="text-sm leading-none">
               {typeof dataPoint.value === "number"
                 ? dataPoint.value.toLocaleString(undefined, {

@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { acquireInteractionLock } from "@/lib/uiInteractionLock";
 import { useForecastWindowData } from "@/lib/hooks/useForecastWindow";
 import {
+  getCachedHourSliderTrackGradient,
   setCachedHourSliderTrackGradient,
 } from "@/lib/ui/hourSliderTrackCache";
 import {
@@ -77,13 +78,28 @@ const HourSlider = ({
   const pendingWindowStartMsRef = useRef<number | null>(null);
   const pendingSinceMsRef = useRef<number | null>(null);
   const lastBeachKeyRef = useRef<string>("");
+  const lastBeachIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    const nextKey = `${beachId ?? ""}::${date?.toISOString?.() ?? ""}`;
+    const normalizedBeachId = beachId ? String(beachId) : "";
+    const nextKey = `${normalizedBeachId}::${date?.toISOString?.() ?? ""}`;
     if (lastBeachKeyRef.current !== nextKey) {
+      const beachChanged =
+        lastBeachIdRef.current != null &&
+        lastBeachIdRef.current !== normalizedBeachId;
+
+      lastBeachIdRef.current = normalizedBeachId;
       lastBeachKeyRef.current = nextKey;
-      lastGradientRef.current = null;
-      setCachedHourSliderTrackGradient(null);
+
+      // Keep the previous track gradient while switching dates so the slider
+      // never flashes to an "unknown" state on the first uncached fetch.
+      if (beachChanged) {
+        lastGradientRef.current = null;
+        setCachedHourSliderTrackGradient(null);
+      } else if (lastGradientRef.current == null) {
+        lastGradientRef.current = getCachedHourSliderTrackGradient();
+      }
+
       pendingWindowStartMsRef.current = null;
       pendingSinceMsRef.current = null;
     }

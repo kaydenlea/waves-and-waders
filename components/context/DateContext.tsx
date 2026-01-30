@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { getPacificMidnightUTCWithCutoff } from "@/lib/utils";
+import { usePacificTodayMs } from "@/lib/hooks/usePacificTodayMs";
 
 type Ctx = {
   id: React.RefObject<string>;
@@ -25,12 +25,28 @@ type Ctx = {
 
 const DateContext = React.createContext<Ctx | null>(null);
 
-export function DateProvider({ children }: { children: React.ReactNode }) {
+export function DateProvider({
+  children,
+  initialSelectedMs,
+}: {
+  children: React.ReactNode;
+  initialSelectedMs?: number;
+}) {
+  const initialSelectedMsSafe =
+    typeof initialSelectedMs === "number" && Number.isFinite(initialSelectedMs)
+      ? initialSelectedMs
+      : null;
   const [showSecondarySwells, setShowSecondarySwells] = React.useState(false);
   const skipSecondarySwellsPersistRef = React.useRef(true);
   const id = React.useRef<string>("");
   const [mode, setMode] = React.useState<string>("date");
-  const [selected, setSelected] = React.useState<Date | null>(null);
+  const [selected, setSelected] = React.useState<Date | null>(() =>
+    initialSelectedMsSafe != null ? new Date(initialSelectedMsSafe) : null
+  );
+  const pacificTodayMs = usePacificTodayMs();
+  const lastPacificTodayMsRef = React.useRef<number | null>(
+    initialSelectedMsSafe
+  );
   // Hydration-safe default; adjust to local time after mount
   const [hour, setHour] = React.useState<number>(12);
   const [selectedDays, setSelectedDays] = React.useState<Date[] | null>([]);
@@ -112,12 +128,34 @@ export function DateProvider({ children }: { children: React.ReactNode }) {
     } catch {}
   }, [showSecondarySwells]);
 
-  // After mount, ensure selected date defaults to today if not set
   React.useEffect(() => {
-    if (!selected) {
-      setSelected(getPacificMidnightUTCWithCutoff());
+    const prevTodayMs = lastPacificTodayMsRef.current;
+    const nextTodayMs = pacificTodayMs;
+
+    // First run: establish the baseline "today" and initialize selection.
+    if (prevTodayMs == null) {
+      lastPacificTodayMsRef.current = nextTodayMs;
+      if (!selected) {
+        setSelected(new Date(nextTodayMs));
+      }
+      return;
     }
-  }, []);
+
+    if (prevTodayMs === nextTodayMs) return;
+
+    // If the user is still on the previously-current day (or never selected),
+    // roll everything forward to the new current day.
+    const selectedMs = selected?.getTime() ?? null;
+    const shouldRollForward = selectedMs == null || selectedMs === prevTodayMs;
+    lastPacificTodayMsRef.current = nextTodayMs;
+
+    if (!shouldRollForward) return;
+
+    setSelected(new Date(nextTodayMs));
+    setSelectedDays([]);
+    setSurfRange(null);
+  }, [pacificTodayMs, selected]);
+
   return <DateContext.Provider value={value}>{children}</DateContext.Provider>;
 }
 

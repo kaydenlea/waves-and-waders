@@ -3,11 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   getPacificMidnightUTC,
-  getPacificMidnightUTCWithCutoff,
 } from "@/lib/utils";
 import { getForecastCached } from "@/lib/dataCache";
 import type { ForecastData } from "@/lib/supabase";
 import { useForecastData } from "@/components/context/ForecastDataContext";
+import { usePacificTodayMs } from "@/lib/hooks/usePacificTodayMs";
 
 const HOUR_MS = 60 * 60 * 1000;
 const MATCH_TOLERANCE_MS = 30 * 60 * 1000;
@@ -31,6 +31,7 @@ export function useForecastWindowData({
   date,
   hours = 24,
 }: Options): UseForecastWindowResult {
+  const pacificTodayMs = usePacificTodayMs();
   const {
     rows: sharedRows,
     start: sharedStart,
@@ -48,8 +49,8 @@ export function useForecastWindowData({
     if (dateKey != null) {
       return getPacificMidnightUTC(new Date(dateKey)).getTime();
     }
-    return getPacificMidnightUTCWithCutoff().getTime();
-  }, [dateKey]);
+    return pacificTodayMs;
+  }, [dateKey, pacificTodayMs]);
 
   const targetEndMs = useMemo(
     () => targetStartMs + hours * HOUR_MS,

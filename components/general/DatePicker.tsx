@@ -30,6 +30,7 @@ import MixedCloudSunIcon from "@/components/icons/MixedCloudSunIcon";
 import { fetchBeachForecast, type ForecastData } from "@/lib/supabase";
 import { fetchSurfIntensityAPI } from "@/lib/api";
 import { useSurfIntensity } from "@/lib/hooks/useSurfIntensity";
+import { usePacificTodayMs } from "@/lib/hooks/usePacificTodayMs";
 import {
   getSurfIntensityBand,
   getSurfIntensityColorCss,
@@ -144,6 +145,7 @@ const DatePicker = ({
 DatePickerProps) => {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [useNativeDragScroll, setUseNativeDragScroll] = useState(false);
+  const pacificTodayMs = usePacificTodayMs();
 
   useLayoutEffect(() => {
     const el = rootRef.current;
@@ -162,6 +164,7 @@ DatePickerProps) => {
   // Cache forecast data to avoid refetching
   const forecastCacheRef = useRef<{
     beachId: string;
+    pacificTodayKey: string;
     data: Record<string, DaySummary>;
     keys: string[];
   } | null>(null);
@@ -201,6 +204,17 @@ DatePickerProps) => {
         hour12: false,
       }),
     []
+  );
+  const pacificDayKeyFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/Los_Angeles",
+      }),
+    []
+  );
+  const pacificTodayKey = useMemo(
+    () => pacificDayKeyFormatter.format(new Date(pacificTodayMs)),
+    [pacificDayKeyFormatter, pacificTodayMs]
   );
 
   const storageKey = useMemo(
@@ -324,8 +338,13 @@ DatePickerProps) => {
         const parsed = JSON.parse(raw) as {
           data: Record<string, DaySummary>;
           keys: string[];
+          pacificTodayKey?: string;
         };
-        if (parsed?.data && parsed?.keys?.length) {
+        if (
+          parsed?.data &&
+          parsed?.keys?.length &&
+          parsed.pacificTodayKey === pacificTodayKey
+        ) {
           setSummaries(reviveSummaries(parsed.data));
           setOrderedKeys(parsed.keys);
           return { ...parsed, data: reviveSummaries(parsed.data) };
@@ -355,7 +374,10 @@ DatePickerProps) => {
       if (!beachId) return;
 
       // Check if we already have cached data for this beach
-      if (forecastCacheRef.current?.beachId === beachId) {
+      if (
+        forecastCacheRef.current?.beachId === beachId &&
+        forecastCacheRef.current?.pacificTodayKey === pacificTodayKey
+      ) {
         const cached = forecastCacheRef.current;
         setSummaries(cached.data);
         setOrderedKeys(cached.keys);
@@ -497,9 +519,6 @@ DatePickerProps) => {
           // Order keys ascending and cap to first seven entries to avoid overcrowding.
           const keys = Object.keys(groups).sort();
           // Hide days that are fully in the past once the Pacific day rolls over.
-          const pacificTodayKey = new Intl.DateTimeFormat("en-CA", {
-            timeZone: "America/Los_Angeles",
-          }).format(new Date());
           const upcomingKeys = keys.filter((key) => key >= pacificTodayKey);
           const visibleKeys =
             upcomingKeys.length > 0 ? upcomingKeys : keys.slice(-7);
@@ -514,6 +533,7 @@ DatePickerProps) => {
           // Cache the processed data
           forecastCacheRef.current = {
             beachId,
+            pacificTodayKey,
             data: limitedGroups,
             keys: limitedKeys,
           };
@@ -521,7 +541,11 @@ DatePickerProps) => {
             try {
               sessionStorage.setItem(
                 storageKey,
-                JSON.stringify({ data: limitedGroups, keys: limitedKeys })
+                JSON.stringify({
+                  data: limitedGroups,
+                  keys: limitedKeys,
+                  pacificTodayKey,
+                })
               );
             } catch (err) {
               if (process.env.NODE_ENV !== "production") {
@@ -556,7 +580,13 @@ DatePickerProps) => {
     return () => {
       active = false;
     };
-  }, [beachId, pacificFormatter, pacificNoonFormatter, storageKey]);
+  }, [
+    beachId,
+    pacificFormatter,
+    pacificNoonFormatter,
+    storageKey,
+    pacificTodayKey,
+  ]);
 
   // Keep internal selection in sync with controlled value
   useLayoutEffect(() => {
@@ -680,9 +710,11 @@ DatePickerProps) => {
           daysRange.push(day.toDate());
         }
       });
-      setSelectedDays((prev) =>
-        datesEqual(prev, daysRange) ? prev : daysRange
-      );
+      if (forecast) {
+        setSelectedDays((prev) =>
+          datesEqual(prev, daysRange) ? prev : daysRange
+        );
+      }
 
       const targetKey = selectedDate
         ? selectedDate.format("YYYY-MM-DD")
@@ -845,7 +877,7 @@ DatePickerProps) => {
                   )}
                 >
                   <span className="font-semibold text-[0.7rem] @min-sm:text-[0.7rem] whitespace-nowrap">
-                    {day.startOf("day").isSame(dayjs().startOf("day")) ? (
+                    {key === pacificTodayKey ? (
                       "Today"
                     ) : (
                       <>

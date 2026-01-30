@@ -7,7 +7,6 @@ import BottomNav from "@/components/general/BottomNav";
 import DateSummaryBridge from "@/components/general/DateSummaryBridge";
 import Footer from "@/components/general/Footer";
 import { LazyLoadMap } from "@/components/general/LazyLoad/LazyLoadMap";
-import NavBar from "@/components/general/NavBar";
 import PathStyleWrapper from "@/components/general/PathStyleWrapper";
 import SaveButton from "@/components/general/SaveButton";
 import Breadcrumbs from "@/components/general/Breadcrumbs";
@@ -42,6 +41,7 @@ type Props = {
   initialOverviewRows: Row[];
   initialForecastMeta: Partial<Record<WidgetId, WidgetMeta>>;
   initialForecastRows: Row[];
+  navBar?: React.ReactNode;
 };
 
 const getWindDirectionLabel = (degrees: number | null) => {
@@ -99,6 +99,7 @@ export default function OverviewPageClient({
   initialOverviewRows,
   initialForecastMeta,
   initialForecastRows,
+  navBar,
 }: Props) {
   const dashboardEdit = useOptionalDashboardEditMode();
   const noop = React.useCallback(() => {}, []);
@@ -127,7 +128,7 @@ export default function OverviewPageClient({
   return (
     <>
       <div>
-        <NavBar />
+        {navBar}
         <OverviewPageBusyProvider>
           <main
             id="main-content"

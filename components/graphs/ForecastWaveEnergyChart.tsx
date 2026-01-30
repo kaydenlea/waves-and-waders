@@ -301,6 +301,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
   const [isAtRightEdge, setIsAtRightEdge] = useState(false);
   const { selected: selectedDate } = useDateContext();
   const isTouchOnlyDevice = useIsTouchOnlyDevice();
+  const [isChartInteracting, setIsChartInteracting] = React.useState(false);
   const mobileChartId = React.useId();
   
   // Touch inspect timer for long-press detection (legacy - keeping for compatibility)
@@ -733,11 +734,43 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
       const normalized = ((hour % 24) + 24) % 24;
       const displayHour = normalized % 12 === 0 ? 12 : normalized % 12;
       const ampm = normalized >= 12 ? "PM" : "AM";
+      const prev = index > 0 ? energyData[index - 1] : null;
+      const next = index + 1 < energyData.length ? energyData[index + 1] : null;
+      const increasing = prev
+        ? point.energy >= prev.energy
+        : next
+          ? next.energy >= point.energy
+          : true;
+      const trendLabel = increasing ? "Rising" : "Dropping";
+      const trendColor = increasing
+        ? "var(--energy-fill-inc)"
+        : "var(--energy-fill-dec)";
+      const formattedValue = (
+        <div className="mx-auto w-fit max-w-full text-center flex flex-col items-center gap-1">
+          <div className="inline-flex items-baseline justify-center gap-1 whitespace-nowrap">
+            <span className="text-[0.96rem] font-semibold tabular-nums leading-none text-foreground">
+              {Number(point.energy.toFixed(1)).toString()}
+            </span>
+            <span className="text-[0.62rem] font-medium text-muted-foreground leading-none">
+              kJ/m²
+            </span>
+          </div>
+          <div className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-[0.62rem] leading-none text-muted-foreground">
+            <span
+              aria-hidden="true"
+              className="h-1.5 w-1.5 rounded-full"
+              style={{ backgroundColor: trendColor }}
+            />
+            <span>{trendLabel}</span>
+          </div>
+        </div>
+      );
       
       return {
         hour: point.hour,
         label: `${displayHour} ${ampm}`,
         value: point.energy,
+        formattedValue,
         unit: "kJ/m²",
         icon: <Atom className="h-3.5 w-3.5" />,
       };
@@ -755,11 +788,43 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
       const normalized = ((point.hour % 24) + 24) % 24;
       const displayHour = normalized % 12 === 0 ? 12 : normalized % 12;
       const ampm = normalized >= 12 ? "PM" : "AM";
+      const prev = index > 0 ? energyData[index - 1] : null;
+      const next = index + 1 < energyData.length ? energyData[index + 1] : null;
+      const increasing = prev
+        ? point.energy >= prev.energy
+        : next
+          ? next.energy >= point.energy
+          : true;
+      const trendLabel = increasing ? "Rising" : "Dropping";
+      const trendColor = increasing
+        ? "var(--energy-fill-inc)"
+        : "var(--energy-fill-dec)";
+      const formattedValue = (
+        <div className="mx-auto w-fit max-w-full text-center flex flex-col items-center gap-1">
+          <div className="inline-flex items-baseline justify-center gap-1 whitespace-nowrap">
+            <span className="text-[0.96rem] font-semibold tabular-nums leading-none text-foreground">
+              {Number(point.energy.toFixed(1)).toString()}
+            </span>
+            <span className="text-[0.62rem] font-medium text-muted-foreground leading-none">
+              kJ/m²
+            </span>
+          </div>
+          <div className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-[0.62rem] leading-none text-muted-foreground">
+            <span
+              aria-hidden="true"
+              className="h-1.5 w-1.5 rounded-full"
+              style={{ backgroundColor: trendColor }}
+            />
+            <span>{trendLabel}</span>
+          </div>
+        </div>
+      );
       
       return {
         hour: point.hour,
         label: `${displayHour} ${ampm}`,
         value: point.energy,
+        formattedValue,
         unit: "kJ/m²",
         icon: <Atom className="h-3.5 w-3.5" />,
       };
@@ -1315,6 +1380,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
       if (e && e.activeLabel !== undefined) {
         const hour = Number(e.activeLabel);
         if (!isNaN(hour)) {
+          if (!isChartInteracting) setIsChartInteracting(true);
           // Round to nearest 3-hour increment
           const roundedHour = Math.round(hour / 3) * 3;
 
@@ -1325,14 +1391,15 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
         }
       }
     },
-    [isTouchOnlyDevice, setHoveredHour]
+    [isTouchOnlyDevice, isChartInteracting, setHoveredHour]
   );
 
   const handleMouseLeave = React.useCallback(() => {
     if (isTouchOnlyDevice) return;
     lastHoveredRef.current = null;
     setHoveredHour(null);
-  }, [isTouchOnlyDevice, setHoveredHour]);
+    if (isChartInteracting) setIsChartInteracting(false);
+  }, [isTouchOnlyDevice, isChartInteracting, setHoveredHour]);
 
   return (
     <div className="w-full">
@@ -1726,7 +1793,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
                       fill={`url(#${fillGradientId})`}
                       fillOpacity={1}
                       clipPath={`url(#${plotClipId})`}
-                      activeDot={energyActiveDot}
+                      activeDot={isChartInteracting ? energyActiveDot : false}
                       dot={trackEnergyDot}
                       isAnimationActive={false}
                       animationDuration={0}

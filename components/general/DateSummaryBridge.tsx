@@ -29,10 +29,10 @@ import { ArrowDown, ArrowUp, CircleCheck, Pencil } from "lucide-react";
 import { useDashboardEditMode } from "@/components/context/DashboardEditModeContext";
 import { getTidesCached } from "@/lib/dataCache";
 import { useCachedForecast } from "@/lib/hooks/useCachedForecast";
+import { usePacificTodayMs } from "@/lib/hooks/usePacificTodayMs";
 import {
   getPacificDayRange,
   getPacificMidnightUTC,
-  getPacificMidnightUTCWithCutoff,
 } from "@/lib/utils";
 import SurfIntensityMarker from "./SurfIntensityMarker";
 import { ForecastDataProvider } from "../context/ForecastDataContext";
@@ -282,7 +282,7 @@ const DateSummaryBridge: React.FC<Props> = ({
     if (!layoutHydrated) return;
     cacheLayout({ type: "overview", meta: layoutMeta, rows: layoutRows });
   }, [cacheLayout, isEditing, layoutHydrated, layoutMeta, layoutRows]);
-  const [forecastWindow, setForecastWindow] = React.useState("Select range");
+  const [, setForecastWindow] = React.useState("Select range");
   const [overviewTableDensity, setOverviewTableDensity] =
     React.useState<StatTableDensity>("3h");
   const [forecastTableDensity, setForecastTableDensity] =
@@ -361,10 +361,8 @@ const DateSummaryBridge: React.FC<Props> = ({
     } catch {}
   }, [forecastTableDensity]);
 
-  const defaultSelectedMs = React.useMemo(
-    () => getPacificMidnightUTCWithCutoff().getTime(),
-    []
-  );
+  const pacificTodayMs = usePacificTodayMs();
+  const defaultSelectedMs = pacificTodayMs;
   const selectedDateMs =
     selected instanceof Date && Number.isFinite(selected.getTime())
       ? selected.getTime()
@@ -401,13 +399,13 @@ const DateSummaryBridge: React.FC<Props> = ({
     const base =
       selected instanceof Date && !Number.isNaN(selected.getTime())
         ? selected
-        : getPacificMidnightUTCWithCutoff();
+        : new Date(defaultSelectedMs);
     const start = getPacificMidnightUTC(base);
     const end = new Date(
       start.getTime() + FORECAST_VISIBLE_DAYS * HOURS_PER_DAY * 60 * 60 * 1000
     );
     return { start, end };
-  }, [selected, selectedDays, FORECAST_VISIBLE_DAYS]);
+  }, [selected, selectedDays, FORECAST_VISIBLE_DAYS, defaultSelectedMs]);
 
   const { prefetchSunData, getSunData } = useSunData();
   React.useEffect(() => {
@@ -431,6 +429,26 @@ const DateSummaryBridge: React.FC<Props> = ({
       end: forecastTabRange.end,
       enabled: Boolean(beachId && isForecastTab),
     });
+
+  const forecastWindowFallback = React.useMemo(() => {
+    const HOURS_PER_DAY = 24;
+    const startLabel = forecastTabRange.start.toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      timeZone: "America/Los_Angeles",
+    });
+    const lastDay = new Date(
+      forecastTabRange.end.getTime() - HOURS_PER_DAY * 60 * 60 * 1000
+    );
+    const endLabel = lastDay.toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      timeZone: "America/Los_Angeles",
+    });
+    return `${startLabel} \u2013 ${endLabel}`;
+  }, [forecastTabRange.end, forecastTabRange.start]);
 
   const overviewChartsControls = useOptionalOverviewChartsLoadingControls();
   const expectedOverviewChartIds = React.useMemo(() => {
@@ -688,6 +706,16 @@ const DateSummaryBridge: React.FC<Props> = ({
   );
 
   const [forecastBridgeBusy, setForecastBridgeBusy] = React.useState(true);
+  const forecastLoadKey = `${String(beachId)}:${forecastTabRange.start.getTime()}:${forecastTabRange.end.getTime()}`;
+  const forecastInitialBusyCompletedRef = React.useRef<{
+    key: string | null;
+    completed: boolean;
+  }>({ key: null, completed: false });
+
+  if (forecastInitialBusyCompletedRef.current.key !== forecastLoadKey) {
+    forecastInitialBusyCompletedRef.current.key = forecastLoadKey;
+    forecastInitialBusyCompletedRef.current.completed = false;
+  }
   const [forecastTabOverlayActive, setForecastTabOverlayActive] =
     React.useState(false);
   const prevForecastTabRef = React.useRef<string | null>(null);
@@ -725,10 +753,24 @@ const DateSummaryBridge: React.FC<Props> = ({
     return () => window.clearTimeout(timeout);
   }, [forecastBridgeBusy, forecastTabOverlayActive, isOverview]);
 
-  const forecastBusyVisible = useStableOverlay(
-    forecastBridgeBusy || forecastTabOverlayActive,
-    250
-  );
+  const forecastInitialBusyRaw = !isOverview
+    ? forecastBridgeBusy || forecastTabOverlayActive
+    : false;
+
+  React.useEffect(() => {
+    if (isOverview) return;
+    if (forecastInitialBusyCompletedRef.current.completed) return;
+    if (!forecastInitialBusyRaw) {
+      forecastInitialBusyCompletedRef.current.completed = true;
+    }
+  }, [forecastInitialBusyRaw, isOverview]);
+
+  const forecastInitialBusy =
+    !isOverview && forecastInitialBusyCompletedRef.current.completed
+      ? false
+      : forecastInitialBusyRaw;
+
+  const forecastBusyVisible = useStableOverlay(forecastInitialBusy, 250);
   const setOverviewPageBusy = useOptionalOverviewPageBusyControls();
   const overviewPageBusy = isOverview ? overlayVisible : forecastBusyVisible;
 
@@ -1048,7 +1090,9 @@ const DateSummaryBridge: React.FC<Props> = ({
 
   const sectionId = isOverview ? "overview-content" : "forecast-content";
   const headerTitle = isOverview ? "Daily Overview" : "Weekly Forecast";
-  const headerSubtitle = isOverview ? "Today's surf insights" : forecastWindow;
+  const headerSubtitle = isOverview
+    ? "Today's surf insights"
+    : forecastWindowFallback;
   const loggedOutEditTarget =
     selectedTab === "forecast"
       ? `/${beachId}/forecast/edit#forecast-content`
@@ -1074,10 +1118,11 @@ const DateSummaryBridge: React.FC<Props> = ({
               <SurfIntensityMarker />
               <h2 className="font-medium text-muted-foreground leading-none truncate">
                 {selected
-                  ? selected.toLocaleDateString(undefined, {
+                  ? selected.toLocaleDateString("en-US", {
                       weekday: "long",
                       month: "long",
                       day: "numeric",
+                      timeZone: "America/Los_Angeles",
                     })
                   : "Select a day"}
               </h2>

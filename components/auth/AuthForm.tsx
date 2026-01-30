@@ -272,13 +272,13 @@ export const AuthForm = ({
               <TabsList className="mx-auto h-11 w-full max-w-[20rem] rounded-2xl border border-border/60 bg-background/70 p-1 shadow-sm supports-[backdrop-filter]:bg-background/55 supports-[backdrop-filter]:backdrop-blur-md dark:bg-background/35">
                 <TabsTrigger
                   value="signin"
-                  className="h-9 rounded-xl text-sm font-semibold"
+                  className="h-9 rounded-xl text-sm font-semibold text-muted-foreground data-[state=active]:bg-background/90 data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-border/50 dark:data-[state=active]:bg-background/35"
                 >
                   Sign in
                 </TabsTrigger>
                 <TabsTrigger
                   value="signup"
-                  className="h-9 rounded-xl text-sm font-semibold"
+                  className="h-9 rounded-xl text-sm font-semibold text-muted-foreground data-[state=active]:bg-background/90 data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-border/50 dark:data-[state=active]:bg-background/35"
                 >
                   Sign up
                 </TabsTrigger>

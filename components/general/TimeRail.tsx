@@ -12,7 +12,7 @@ import { Calendar, TimerReset } from "lucide-react";
 import { useDateContext } from "../context/DateContext";
 import { LazyLoadDatePicker } from "./LazyLoad/LazyLoadDatePicker";
 import { LazyLoadHourSlider } from "./LazyLoad/LazyLoadHourSlider";
-import { cn } from "@/lib/utils";
+import { cn, getPacificHour, getPacificMidnightUTC } from "@/lib/utils";
 
 type Props = {
   beachId: string;
@@ -77,8 +77,8 @@ const TimeRail: React.FC<Props> = ({
 
   const onNow = () => {
     const now = new Date();
-    const dateOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const currentHour = now.getHours();
+    const dateOnly = getPacificMidnightUTC(now);
+    const currentHour = getPacificHour(now);
     const rounded = Math.max(0, Math.min(21, Math.round(currentHour / 3) * 3));
     startTransition(() => {
       setSelected(dateOnly);
@@ -210,6 +210,7 @@ const TimeRail: React.FC<Props> = ({
                   ? selected.toLocaleDateString(undefined, {
                       month: "numeric",
                       day: "numeric",
+                      timeZone: "America/Los_Angeles",
                     })
                   : "Date"}
               </span>

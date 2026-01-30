@@ -65,7 +65,7 @@ type Slide = {
 const buildPreviewForecastRows = (
   base: ForecastData,
   windowStart: Date,
-  hours: number
+  hours: number,
 ) => {
   const rows: ForecastData[] = [];
   for (let h = 0; h <= hours; h += 3) {
@@ -79,17 +79,17 @@ const buildPreviewForecastRows = (
       (base.swell.tertiary.height ?? 1.5) + Math.sin(phase * 1.3) * 0.25;
     const wind = Math.max(
       2,
-      (base.conditions.windSpeed ?? 7) + Math.cos(phase) * 2.2
+      (base.conditions.windSpeed ?? 7) + Math.cos(phase) * 2.2,
     );
     const gust = Math.max(
       wind,
-      (base.conditions.windGust ?? 11) + Math.cos(phase) * 2.8
+      (base.conditions.windGust ?? 11) + Math.cos(phase) * 2.8,
     );
     const tide =
       (base.conditions.tideLevel ?? 1.8) + Math.sin(phase * 1.15) * 0.9;
     const surfMax = Math.max(
       0.5,
-      (base.surf.heightMax ?? 6) + Math.sin(phase * 0.8) * 1.1
+      (base.surf.heightMax ?? 6) + Math.sin(phase * 0.8) * 1.1,
     );
     const surfMin = Math.max(0.0, surfMax - 2.2);
 
@@ -134,7 +134,7 @@ const buildPreviewForecastRows = (
 
 const buildPreviewTideRows = (
   windowStart: Date,
-  hours: number
+  hours: number,
 ): TidePoint[] => {
   const out: TidePoint[] = [];
   for (let h = 0; h <= hours; h++) {
@@ -177,7 +177,7 @@ function SummarySlide({
 }
 
 function formatHourLabel(hour: number) {
-  const normalized = ((hour % 24) + 24) % 24 | 0;
+  const normalized = (((hour % 24) + 24) % 24) | 0;
   const displayHour = normalized % 12 === 0 ? 12 : normalized % 12;
   const ampm = normalized >= 12 ? "PM" : "AM";
   return `${displayHour} ${ampm}`;
@@ -193,7 +193,7 @@ function useNowTimeLabel() {
           hour: "numeric",
           minute: "2-digit",
           timeZoneName: "short",
-        })
+        }),
       );
     update();
     const id = window.setInterval(update, 60_000);
@@ -262,7 +262,7 @@ function ChartsSlide({
 }) {
   const windowEnd = React.useMemo(
     () => new Date(windowStart.getTime() + PREVIEW_HOURS * HOUR_MS),
-    [windowStart]
+    [windowStart],
   );
 
   const currentPreview = React.useMemo(() => {
@@ -270,7 +270,7 @@ function ChartsSlide({
     const targetHour = (((Math.round(hour / 3) * 3) % 24) + 24) % 24;
     return (
       forecastRows.find(
-        (r) => new Date(r.timestamp).getHours() === targetHour
+        (r) => new Date(r.timestamp).getHours() === targetHour,
       ) ??
       forecastRows[0] ??
       null
@@ -430,12 +430,12 @@ function BeachPreviewSlide({
           region: "Los Angeles County, CA",
         },
       ] satisfies Array<Pick<Beach, "id" | "name" | "region">>,
-    []
+    [],
   );
 
   const previewBeaches = React.useMemo(
     () => beachVariants.map((variant) => ({ ...beach, ...variant })),
-    [beach, beachVariants]
+    [beach, beachVariants],
   );
 
   React.useEffect(() => {
@@ -447,7 +447,7 @@ function BeachPreviewSlide({
 
   const goPrevBeach = React.useCallback(() => {
     setActiveBeachIndex((idx) =>
-      beachCount ? (idx - 1 + beachCount) % beachCount : 0
+      beachCount ? (idx - 1 + beachCount) % beachCount : 0,
     );
   }, [beachCount]);
 
@@ -510,15 +510,15 @@ function BeachPreviewSlide({
     return {
       primary: fmt(
         forecast.swell.primary.height,
-        forecast.swell.primary.period
+        forecast.swell.primary.period,
       ),
       secondary: fmt(
         forecast.swell.secondary.height,
-        forecast.swell.secondary.period
+        forecast.swell.secondary.period,
       ),
       tertiary: fmt(
         forecast.swell.tertiary.height,
-        forecast.swell.tertiary.period
+        forecast.swell.tertiary.period,
       ),
       wind:
         typeof forecast.conditions.windSpeed === "number"
@@ -556,7 +556,7 @@ function BeachPreviewSlide({
                   "bg-highlight-7/80 backdrop-blur hover:bg-blue-200 dark:hover:bg-blue-400 rounded-full border border-border shadow-lg p-3 text-sm font-medium",
                   "active:scale-95 transition motion-reduce:transition-none",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15",
-                  legendOpen && "bg-blue-300"
+                  legendOpen && "bg-blue-300",
                 )}
               >
                 <Info className="w-5 h-5 mx-auto" aria-hidden="true" />
@@ -596,7 +596,7 @@ function BeachPreviewSlide({
                 <div
                   className={cn(
                     "absolute bg-background rounded-lg border border-border px-3 py-1.5 shadow-lg whitespace-nowrap z-10 text-sm font-semibold text-foreground",
-                    legendOpen ? "-top-30" : "-top-24"
+                    legendOpen ? "-top-30" : "-top-24",
                   )}
                 >
                   {activeBeach.name}
@@ -661,7 +661,7 @@ function BeachPreviewSlide({
                 className={cn(
                   "h-9 w-9 shrink-0 rounded-full border border-border/40 bg-background/75 text-foreground/80 shadow-sm backdrop-blur-md transition",
                   "hover:bg-highlight-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15",
-                  "active:scale-95 motion-reduce:transition-none"
+                  "active:scale-95 motion-reduce:transition-none",
                 )}
               >
                 <ChevronLeft className="mx-auto h-4 w-4" aria-hidden="true" />
@@ -682,7 +682,7 @@ function BeachPreviewSlide({
                 className={cn(
                   "h-9 w-9 shrink-0 rounded-full border border-border/40 bg-background/75 text-foreground/80 shadow-sm backdrop-blur-md transition",
                   "hover:bg-highlight-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15",
-                  "active:scale-95 motion-reduce:transition-none"
+                  "active:scale-95 motion-reduce:transition-none",
                 )}
               >
                 <ChevronRight className="mx-auto h-4 w-4" aria-hidden="true" />
@@ -710,7 +710,7 @@ export default function HeroVisualDeck({
   const scrollingRef = React.useRef(false);
   const scrollStopTimerRef = React.useRef<number | null>(null);
   const [filtersPreview, setFiltersPreview] = React.useState<Set<string>>(
-    () => new Set(["PARKING", "RESTROOMS"])
+    () => new Set(["PARKING", "RESTROOMS"]),
   );
   const deckContainerRef = React.useRef<HTMLDivElement | null>(null);
   const [deckScale, setDeckScale] = React.useState(1);
@@ -727,7 +727,7 @@ export default function HeroVisualDeck({
       ([entry]) => {
         setInView(Boolean(entry?.isIntersecting));
       },
-      { rootMargin: "240px 0px", threshold: 0.01 }
+      { rootMargin: "240px 0px", threshold: 0.01 },
     );
     observer.observe(el);
     return () => observer.disconnect();
@@ -794,7 +794,10 @@ export default function HeroVisualDeck({
     };
 
     const w = window as unknown as {
-      requestIdleCallback?: (callback: () => void, opts?: { timeout: number }) => number;
+      requestIdleCallback?: (
+        callback: () => void,
+        opts?: { timeout: number },
+      ) => number;
       cancelIdleCallback?: (id: number) => void;
     };
 
@@ -824,17 +827,17 @@ export default function HeroVisualDeck({
 
   const windowStart = React.useMemo(
     () => getPacificMidnightUTC(basisDate),
-    [basisDate]
+    [basisDate],
   );
 
   const forecastRows = React.useMemo(
     () => buildPreviewForecastRows(previewForecast, windowStart, PREVIEW_HOURS),
-    [previewForecast, windowStart]
+    [previewForecast, windowStart],
   );
 
   const tideRows = React.useMemo(
     () => buildPreviewTideRows(windowStart, PREVIEW_HOURS),
-    [windowStart]
+    [windowStart],
   );
 
   const tideSamples = React.useMemo(
@@ -843,7 +846,7 @@ export default function HeroVisualDeck({
         x: new Date(row.timestamp).getTime(),
         tide: row.tideLevelFt ?? 0,
       })),
-    [tideRows]
+    [tideRows],
   );
 
   const sunrise = "6:56 AM";
@@ -880,7 +883,7 @@ export default function HeroVisualDeck({
       RESTROOMS: true,
       SURFING: true,
     }),
-    [previewCounty]
+    [previewCounty],
   );
 
   const slides = React.useMemo<Slide[]>(
@@ -973,7 +976,7 @@ export default function HeroVisualDeck({
       tideRows,
       tideSamples,
       windowStart,
-    ]
+    ],
   );
 
   React.useEffect(() => {
@@ -1007,11 +1010,11 @@ export default function HeroVisualDeck({
           scale: 0.9,
         }}
       >
-        <div className="absolute -inset-6 rounded-[46px] bg-gradient-to-br from-cyan-500/12 via-transparent to-indigo-500/12 blur-2xl ww-hero-float motion-reduce:animate-none" />
+        {/* <div className="absolute -inset-6 rounded-[46px] bg-gradient-to-br from-cyan-500/12 via-transparent to-indigo-500/12 blur-2xl ww-hero-float motion-reduce:animate-none" /> */}
 
         <motion.div
           className={cn(
-            "relative h-full rounded-[38px] border border-border/50 bg-highlight-7 p-2 shadow-[0_18px_55px_rgba(0,0,0,0.10)] flex flex-col"
+            "relative h-full rounded-[38px] border border-border/50 bg-highlight-7 p-2 shadow-[0_18px_55px_rgba(0,0,0,0.10)] flex flex-col",
           )}
           data-ww-hero-deck=""
           initial={false}
@@ -1051,7 +1054,7 @@ export default function HeroVisualDeck({
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15",
                     idx === active
                       ? "bg-foreground text-background"
-                      : "hover:bg-highlight-6/50"
+                      : "hover:bg-highlight-6/50",
                   )}
                 >
                   {idx + 1}

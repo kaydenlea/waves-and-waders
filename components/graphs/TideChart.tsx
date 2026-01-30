@@ -17,7 +17,13 @@ import {
   LabelList,
   LabelProps,
 } from "recharts";
-import { Sunrise, Sunset, Waves as TideIcon } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  Sunrise,
+  Sunset,
+  Waves as TideIcon,
+} from "lucide-react";
 import {
   ChartConfig,
   ChartContainer,
@@ -1098,6 +1104,57 @@ const TideChart: React.FC<TideChartProps> = ({
     [renderData],
   );
 
+  const getValueIconForIndex = React.useCallback(
+    (index: number): React.ReactNode | null => {
+      const point = renderData[index];
+      if (!point) return null;
+
+      const sunMarkerType = sunMarkerMap.get(point.hour);
+      if (sunMarkerType === "sunrise") {
+        return (
+          <Sunrise
+            className="h-3.5 w-3.5 fill-amber-500/80 stroke-muted-foreground"
+            aria-hidden="true"
+          />
+        );
+      }
+      if (sunMarkerType === "sunset") {
+        return (
+          <Sunset
+            className="h-3.5 w-3.5 fill-amber-500/80 stroke-muted-foreground"
+            aria-hidden="true"
+          />
+        );
+      }
+
+      if (point.isPeak == null) return null;
+      const prev = index > 0 ? renderData[index - 1] : null;
+      const next = index + 1 < renderData.length ? renderData[index + 1] : null;
+      if (!prev || !next) return null;
+
+      const isHigh = point.tide >= prev.tide && point.tide >= next.tide;
+      const isLow = point.tide <= prev.tide && point.tide <= next.tide;
+      if (isHigh) {
+        return (
+          <ArrowUp
+            className="h-3 w-3 text-emerald-500/80 stroke-4"
+            aria-hidden="true"
+          />
+        );
+      }
+      if (isLow) {
+        return (
+          <ArrowDown
+            className="h-3 w-3 text-rose-500/80 stroke-4"
+            aria-hidden="true"
+          />
+        );
+      }
+      return null;
+    },
+    [renderData, sunMarkerMap],
+  );
+
   const getMobileTooltipDataPoint = React.useCallback(
     (index: number): MobileTooltipDataPoint | null => {
       if (index < 0 || index >= renderData.length) return null;
@@ -1112,15 +1169,58 @@ const TideChart: React.FC<TideChartProps> = ({
         minutes > 0
           ? `${displayHour}:${minutes.toString().padStart(2, "0")} ${ampm}`
           : `${displayHour} ${ampm}`;
+      const prev = index > 0 ? renderData[index - 1] : null;
+      const next = index + 1 < renderData.length ? renderData[index + 1] : null;
+      const isHigh =
+        prev && next ? point.tide >= prev.tide && point.tide >= next.tide : false;
+      const isLow =
+        prev && next ? point.tide <= prev.tide && point.tide <= next.tide : false;
+      const rising = prev ? point.tide >= prev.tide : next ? next.tide >= point.tide : true;
+      const trendLabel = isHigh
+        ? "High tide"
+        : isLow
+          ? "Low tide"
+          : rising
+            ? "Rising"
+            : "Falling";
+      const trendColor = isHigh || rising ? "#10b981cc" : "#f43f5ecc";
+      const valueIcon = getValueIconForIndex(index);
+      const formattedValue = (
+        <div className="mx-auto w-fit max-w-full text-center flex flex-col items-center gap-1">
+          <div className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap">
+            <span className="inline-flex items-baseline gap-1">
+              <span className="text-[0.96rem] font-semibold tabular-nums leading-none text-foreground">
+                {Number(point.tide.toFixed(1)).toString()}
+              </span>
+              <span className="text-[0.62rem] font-medium text-muted-foreground leading-none">
+                ft
+              </span>
+            </span>
+            {valueIcon ? (
+              <span className="inline-flex items-center">{valueIcon}</span>
+            ) : null}
+          </div>
+          <div className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-[0.62rem] leading-none text-muted-foreground">
+            <span
+              aria-hidden="true"
+              className="h-1.5 w-1.5 rounded-full"
+              style={{ backgroundColor: trendColor }}
+            />
+            <span>{trendLabel}</span>
+          </div>
+        </div>
+      );
 
       return {
         hour: point.hour,
         label,
         value: Number(point.tide.toFixed(1)),
         unit: "ft",
+        valueIcon: getValueIconForIndex(index),
+        formattedValue,
       };
     },
-    [renderData],
+    [renderData, getValueIconForIndex],
   );
 
   const getDataPointForHour = React.useCallback(
@@ -1146,15 +1246,59 @@ const TideChart: React.FC<TideChartProps> = ({
         minutes > 0
           ? `${displayHour}:${minutes.toString().padStart(2, "0")} ${ampm}`
           : `${displayHour} ${ampm}`;
+      const prev = bestIndex > 0 ? renderData[bestIndex - 1] : null;
+      const next =
+        bestIndex + 1 < renderData.length ? renderData[bestIndex + 1] : null;
+      const isHigh =
+        prev && next ? point.tide >= prev.tide && point.tide >= next.tide : false;
+      const isLow =
+        prev && next ? point.tide <= prev.tide && point.tide <= next.tide : false;
+      const rising = prev ? point.tide >= prev.tide : next ? next.tide >= point.tide : true;
+      const trendLabel = isHigh
+        ? "High tide"
+        : isLow
+          ? "Low tide"
+          : rising
+            ? "Rising"
+            : "Falling";
+      const trendColor = isHigh || rising ? "#10b981cc" : "#f43f5ecc";
+      const valueIcon = getValueIconForIndex(bestIndex);
+      const formattedValue = (
+        <div className="mx-auto w-fit max-w-full text-center flex flex-col items-center gap-1">
+          <div className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap">
+            <span className="inline-flex items-baseline gap-1">
+              <span className="text-[0.96rem] font-semibold tabular-nums leading-none text-foreground">
+                {Number(point.tide.toFixed(1)).toString()}
+              </span>
+              <span className="text-[0.62rem] font-medium text-muted-foreground leading-none">
+                ft
+              </span>
+            </span>
+            {valueIcon ? (
+              <span className="inline-flex items-center">{valueIcon}</span>
+            ) : null}
+          </div>
+          <div className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-[0.62rem] leading-none text-muted-foreground">
+            <span
+              aria-hidden="true"
+              className="h-1.5 w-1.5 rounded-full"
+              style={{ backgroundColor: trendColor }}
+            />
+            <span>{trendLabel}</span>
+          </div>
+        </div>
+      );
 
       return {
         hour: point.hour,
         label,
         value: Number(point.tide.toFixed(1)),
         unit: "ft",
+        valueIcon: getValueIconForIndex(bestIndex),
+        formattedValue,
       };
     },
-    [renderData],
+    [renderData, getValueIconForIndex],
   );
 
   const getXPositionForHour = React.useCallback(

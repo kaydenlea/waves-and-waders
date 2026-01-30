@@ -6,10 +6,12 @@ import { DashboardEditModeProvider } from "@/components/context/DashboardEditMod
 import { BeachStatsCacheProvider } from "@/components/context/BeachStatsCacheContext";
 import { MobileTooltipProvider } from "@/components/graphs/MobileChartTooltip";
 import ViewportBeachesManager from "@/components/context/ViewportBeachesManager";
+import { getPacificMidnightUTC } from "@/lib/utils";
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
+  const initialSelectedMs = getPacificMidnightUTC(new Date()).getTime();
   return (
-    <DateProvider>
+    <DateProvider initialSelectedMs={initialSelectedMs}>
       <MobileTooltipProvider>
         <MapViewportProvider>
           <MapFilterProvider>
