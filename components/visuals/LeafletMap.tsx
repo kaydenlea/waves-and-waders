@@ -2223,16 +2223,33 @@ const LeafletMap: React.FC<Props> = ({
   const [loadingPillKind, setLoadingPillKind] = React.useState<
     "markers" | "content"
   >("markers");
-  const nextLoadingPillKind =
-    markersLoading || mapViewportStatus === "loading"
-      ? "markers"
-      : overviewPageBusy
-        ? "content"
+  // Prefer "Loading" when any content/viewport work is happening; only show "Updating markers"
+  // when it's purely a marker refresh. This prevents the pill from rapidly flipping labels.
+  const desiredLoadingPillKind: "markers" | "content" =
+    overviewPageBusy || mapViewportStatus === "loading"
+      ? "content"
+      : markersLoading
+        ? "markers"
         : "markers";
+  const prevShowLoadingPillRef = React.useRef<boolean>(false);
   React.useEffect(() => {
+    const wasShowing = prevShowLoadingPillRef.current;
+    prevShowLoadingPillRef.current = showLoadingPill;
+
     if (!showLoadingPill) return;
-    setLoadingPillKind(nextLoadingPillKind);
-  }, [showLoadingPill, nextLoadingPillKind]);
+
+    // Set the label when the pill first appears.
+    if (!wasShowing) {
+      setLoadingPillKind(desiredLoadingPillKind);
+      return;
+    }
+
+    // While visible, allow escalation to "Loading" but never downgrade back to markers,
+    // avoiding disruptive rapid switches.
+    if (loadingPillKind === "markers" && desiredLoadingPillKind === "content") {
+      setLoadingPillKind("content");
+    }
+  }, [desiredLoadingPillKind, loadingPillKind, showLoadingPill]);
 
   const loadingPillLabel =
     loadingPillKind === "markers" ? "Updating markers" : "Loading";

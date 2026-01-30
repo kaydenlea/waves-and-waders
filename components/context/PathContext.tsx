@@ -56,10 +56,8 @@ export function PathProvider({
 
   useLayoutEffect(() => {
     if (!initialTabOverride) return;
-    if (selectedTab !== initialTabOverride) {
-      setSelectedTab(initialTabOverride);
-    }
-  }, [initialTabOverride, selectedTab]);
+    setSelectedTab((prev) => (prev === initialTabOverride ? prev : initialTabOverride));
+  }, [initialTabOverride]);
 
   const handleTabParam = useCallback((tab: string | null) => {
     tabParamRef.current = tab;
