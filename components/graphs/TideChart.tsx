@@ -121,6 +121,7 @@ type TideChartProps = {
     sunrise?: string | null;
     sunset?: string | null;
   };
+  parentLoading?: boolean;
 };
 
 // Cached formatter - created once, reused
@@ -199,6 +200,7 @@ const TideChart: React.FC<TideChartProps> = ({
   chartData: chartDataProp,
   date,
   sunSegments,
+  parentLoading,
 }) => {
   const tideCacheRef = React.useRef<
     Map<string, { chartData: TidePoint[]; windowStart: number | null }>
@@ -1724,7 +1726,7 @@ const TideChart: React.FC<TideChartProps> = ({
         anchorRef={containerRef}
         getXPositionForHour={getXPositionForHour}
         positionInside
-        disabled={tideLoading}
+        disabled={tideLoading || parentLoading}
       />
     </div>
   );

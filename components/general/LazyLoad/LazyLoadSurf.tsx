@@ -8,6 +8,7 @@ type Props = {
   beachId?: string;
   date?: Date;
   sunSegments?: SharedSunSegments;
+  parentLoading?: boolean;
 };
 
 const SurfChartLazy = dynamic<Props>(() => import("../../graphs/SurfChart"), {

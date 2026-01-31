@@ -93,6 +93,7 @@ type Props = {
   hours?: number;
   date?: Date;
   sunSegments?: SharedSunSegments;
+  parentLoading?: boolean;
 };
 type Row = {
   time: number;
@@ -175,7 +176,7 @@ export const SwellStatsHeader = ({
   );
 };
 
-const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
+const SwellChart = ({ beachId, hours = 24, date, sunSegments, parentLoading }: Props) => {
   const { hour: selectedHour, setHoveredHour } = useDateContext();
   const { getSunData } = useSunData();
   const chartTheme = useChartTheme();
@@ -1445,7 +1446,7 @@ const SwellChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         anchorRef={containerRef}
         getXPositionForHour={getXPositionForHour}
         positionInside
-        disabled={forecastLoading}
+        disabled={forecastLoading || parentLoading}
       />
     </div>
   );

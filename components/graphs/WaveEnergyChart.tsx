@@ -71,6 +71,7 @@ type Props = {
   hours?: number;
   date?: Date;
   sunSegments?: SharedSunSegments;
+  parentLoading?: boolean;
 };
 type EnergyPoint = { hour: number; energy: number };
 type YAxisTickProps = {
@@ -140,7 +141,7 @@ function buildTrendStops(
   return stops;
 }
 
-const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
+const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments, parentLoading }: Props) => {
   const { hour: selectedHour, setHoveredHour } = useDateContext();
   const { getSunData } = useSunData();
   const hoveredHour = useHoveredHour();
@@ -1109,7 +1110,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
         anchorRef={containerRef}
         getXPositionForHour={getXPositionForHour}
         positionInside
-        disabled={forecastLoading}
+        disabled={forecastLoading || parentLoading}
       />
     </div>
   );

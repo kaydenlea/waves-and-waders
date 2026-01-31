@@ -940,6 +940,7 @@ const DateSummaryBridge: React.FC<Props> = ({
                 beachId={beachId}
                 date={selectedDateForData}
                 sunSegments={sharedSunSegments}
+                parentLoading={overlayVisible}
               />
             </OverviewWidget>
           );
@@ -955,6 +956,7 @@ const DateSummaryBridge: React.FC<Props> = ({
                 beachId={beachId}
                 date={selectedDateForData}
                 sunSegments={sharedSunSegments}
+                parentLoading={overlayVisible}
               />
             </OverviewWidget>
           );
@@ -970,6 +972,7 @@ const DateSummaryBridge: React.FC<Props> = ({
                 beachId={beachId}
                 date={selectedDateForData}
                 sunSegments={sharedSunSegments}
+                parentLoading={overlayVisible}
               />
             </OverviewWidget>
           );
@@ -985,6 +988,7 @@ const DateSummaryBridge: React.FC<Props> = ({
                 beachId={beachId}
                 date={selectedDateForData}
                 sunSegments={sharedSunSegments}
+                parentLoading={overlayVisible}
               />
             </OverviewWidget>
           );
@@ -1000,6 +1004,7 @@ const DateSummaryBridge: React.FC<Props> = ({
                 beachId={beachId}
                 date={selectedDateForData}
                 sunSegments={sharedSunSegments}
+                parentLoading={overlayVisible}
               />
             </OverviewWidget>
           );

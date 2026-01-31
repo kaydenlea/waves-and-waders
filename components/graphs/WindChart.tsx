@@ -57,6 +57,7 @@ type Props = {
   hours?: number;
   date?: Date;
   sunSegments?: SharedSunSegments;
+  parentLoading?: boolean;
 };
 type YAxisTickProps = {
   x?: number;
@@ -143,7 +144,7 @@ export const WindStatsHeader = ({
   );
 };
 
-const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
+const WindChart = ({ beachId, hours = 24, date, sunSegments, parentLoading }: Props) => {
   const { hour: selectedHour, setHoveredHour } = useDateContext();
   const { getSunData } = useSunData();
   const chartTheme = useChartTheme();
@@ -1075,7 +1076,7 @@ const WindChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           radius: 6,
         }}
         positionInside
-        disabled={forecastLoading}
+        disabled={forecastLoading || parentLoading}
       />
     </div>
   );

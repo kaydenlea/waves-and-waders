@@ -322,8 +322,8 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
       <div
         className={cn(
           "fixed bottom-34 left-1/2 transform -translate-x-1/2 z-40 transition-all duration-300 @min-4xl:hidden flex items-center justify-center h-0",
-          // Hide when filters, search overlay, or editing mode is active
-          showBottomUI && openPanel !== "filters" && !isOverlay && !isEditing
+          // Hide when filters or editing mode is active (search overlay covers it)
+          showBottomUI && openPanel !== "filters" && !isEditing
             ? "opacity-100 translate-y-0"
             : "opacity-0 translate-y-5 pointer-events-none",
         )}
@@ -451,8 +451,8 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
       <div
         className={cn(
           "shadow-md @min-4xl:hidden safe-area-inset-bottom bg-highlight-4 backdrop-blur border-t border-border fixed bottom-0 left-0 right-0 z-60 transition-all duration-300 touch-none",
-          // Hide when: scrolled away, filters open, search overlay open, or editing mode
-          showBottomUI && openPanel !== "filters" && !isOverlay && !isEditing
+          // Hide when: scrolled away, filters open, or editing mode (search overlay covers it)
+          showBottomUI && openPanel !== "filters" && !isEditing
             ? "translate-y-0"
             : "translate-y-full",
         )}

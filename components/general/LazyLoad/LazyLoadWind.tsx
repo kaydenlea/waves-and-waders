@@ -4,7 +4,7 @@ import React from "react";
 import dynamic from "next/dynamic";
 import type { SharedSunSegments } from "@/components/graphs/sharedSunSegments";
 
-type Props = { beachId?: string; date?: Date; sunSegments?: SharedSunSegments };
+type Props = { beachId?: string; date?: Date; sunSegments?: SharedSunSegments; parentLoading?: boolean };
 
 const WindChartLazy = dynamic<Props>(() => import("../../graphs/WindChart"), {
   ssr: false,

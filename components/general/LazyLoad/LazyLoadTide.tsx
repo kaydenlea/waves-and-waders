@@ -9,6 +9,7 @@ type Props = {
   date?: Date;
   chartData?: Array<{ x: number; tide: number; isPeak?: number }>;
   sunSegments?: SharedSunSegments;
+  parentLoading?: boolean;
 };
 
 // Preload the chunk as soon as this module loads

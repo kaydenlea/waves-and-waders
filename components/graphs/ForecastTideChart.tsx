@@ -1757,7 +1757,7 @@ export default React.memo(function ForecastTideChart({
         }
       }
     },
-    [isTouchOnlyDevice, setHoveredHour],
+    [loading, isTouchOnlyDevice, setHoveredHour],
   );
 
   const handleMouseLeave = React.useCallback(() => {

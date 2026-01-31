@@ -51,6 +51,7 @@ type Props = {
   hours?: number;
   date?: Date;
   sunSegments?: SharedSunSegments;
+  parentLoading?: boolean;
 };
 type Row = {
   hour: number;
@@ -145,7 +146,7 @@ export const SurfStatsHeader = ({
   );
 };
 
-const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
+const SurfChart = ({ beachId, hours = 24, date, sunSegments, parentLoading }: Props) => {
   const { hour: selectedHour, setHoveredHour } = useDateContext();
   const { getSunData } = useSunData();
   const chartTheme = useChartTheme();
@@ -977,7 +978,7 @@ const SurfChart = ({ beachId, hours = 24, date, sunSegments }: Props) => {
           radius: 6,
         }}
         positionInside
-        disabled={forecastLoading}
+        disabled={forecastLoading || parentLoading}
       />
     </div>
   );
