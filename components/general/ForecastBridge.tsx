@@ -1,22 +1,17 @@
 "use client";
 
-
-
 import React, {
-
   useCallback,
-
   useEffect,
-
   useLayoutEffect,
-
   useMemo,
-
   useRef,
-
   useState,
-
 } from "react";
+
+import { createPortal } from "react-dom";
+
+import { CircleCheck, X } from "lucide-react";
 
 import { cn, getPacificMidnightUTC } from "@/lib/utils";
 
@@ -29,11 +24,8 @@ import { LazyLoadForecastTide } from "@/components/general/LazyLoad/LazyLoadFore
 import { LazyLoadTable } from "@/components/general/LazyLoad/LazyLoadTable";
 
 import type {
-
   StatTableDensity,
-
   StatTableUiState,
-
 } from "@/components/general/LazyLoad/LazyLoadTable";
 
 import { useDateContext } from "../context/DateContext";
@@ -65,23 +57,15 @@ import { useDashboardLayout } from "./useDashboardLayout";
 import { useForecastData } from "../context/ForecastDataContext";
 
 import {
-
   useForecastChartsLoadingControls,
-
   useForecastChartsLoadingState,
-
 } from "../context/ForecastChartsLoadingContext";
 
 import { useStableOverlay } from "../hooks/useStableOverlay";
 
-
-
 // ------------------------------------------------------
 
-
-
 type Props = {
-
   beachId: string;
 
   hideHeader?: boolean;
@@ -99,10 +83,7 @@ type Props = {
   tableDensity?: StatTableDensity;
 
   onTableDensityChange?: (next: StatTableDensity) => void;
-
 };
-
-
 
 /**
 
@@ -115,7 +96,6 @@ type Props = {
  */
 
 const ForecastBridge: React.FC<Props> = ({
-
   beachId,
 
   hideHeader = false,
@@ -133,9 +113,7 @@ const ForecastBridge: React.FC<Props> = ({
   tableDensity: controlledTableDensity,
 
   onTableDensityChange,
-
 }) => {
-
   const DEFAULT_FORECAST_DAYS = 4;
 
   const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -153,7 +131,9 @@ const ForecastBridge: React.FC<Props> = ({
     () =>
       cn(
         "sr-only flex flex-col",
-        isOverviewCards || isForecastCards ? "@min-4xl:flex-row" : "@min-3xl:flex-row",
+        isOverviewCards || isForecastCards
+          ? "@min-4xl:flex-row"
+          : "@min-3xl:flex-row",
       ),
     [isForecastCards, isOverviewCards],
   );
@@ -182,136 +162,87 @@ const ForecastBridge: React.FC<Props> = ({
   const isTableDensityControlled = controlledTableDensity != null;
 
   const [uncontrolledDailyTableDensity, setUncontrolledDailyTableDensity] =
-
     useState<StatTableDensity>("12h");
 
   const skipDailyTableDensityPersistRef = useRef(true);
 
-
-
   const dailyTableDensity =
-
     controlledTableDensity ?? uncontrolledDailyTableDensity;
 
-
-
   const setDailyTableDensity = useCallback(
-
     (next: StatTableDensity) => {
-
       if (onTableDensityChange) {
-
         onTableDensityChange(next);
 
         return;
-
       }
 
       setUncontrolledDailyTableDensity(next);
-
     },
 
-    [onTableDensityChange]
-
+    [onTableDensityChange],
   );
 
   const [dailyTableUi, setDailyTableUi] = useState<StatTableUiState | null>(
-
-    null
-
+    null,
   );
 
   const onDailyTableUiStateChange = useCallback((next: StatTableUiState) => {
-
     setDailyTableUi((prev) => {
-
       if (
-
         prev &&
-
         prev.canToggleDensity === next.canToggleDensity &&
-
         prev.effectiveDensity === next.effectiveDensity &&
-
         prev.isHalfColumns === next.isHalfColumns
-
       ) {
-
         return prev;
-
       }
 
       return next;
-
     });
-
   }, []);
 
   const toggleDailyTableDensity = useCallback(() => {
-
     setDailyTableDensity(dailyTableDensity === "3h" ? "12h" : "3h");
-
   }, [dailyTableDensity, setDailyTableDensity]);
 
-
-
   useEffect(() => {
-
     if (isTableDensityControlled) return;
 
     try {
-
       const stored = window.localStorage.getItem(
-
-        "waves-and-waders.statTable.density"
-
+        "waves-and-waders.statTable.density",
       );
 
       if (stored === "3h" || stored === "12h") {
-
         skipDailyTableDensityPersistRef.current = true;
 
         setDailyTableDensity(stored);
-
       }
-
     } catch {}
-
   }, [isTableDensityControlled]);
 
-
-
   useEffect(() => {
-
     if (isTableDensityControlled) return;
 
     if (skipDailyTableDensityPersistRef.current) {
-
       skipDailyTableDensityPersistRef.current = false;
 
       return;
-
     }
 
     try {
-
       window.localStorage.setItem(
-
         "waves-and-waders.statTable.density",
 
-        dailyTableDensity
-
+        dailyTableDensity,
       );
-
     } catch {}
-
   }, [dailyTableDensity, isTableDensityControlled]);
 
   // local selected date (kept for the DatePicker's controlled value)
 
   // const [selected, setSelected] = useState<Date | null>(dayjs().toDate());
-
-
 
   // this context may be client-populated; we will only read it after mount to avoid hydration mismatch
 
@@ -320,34 +251,23 @@ const ForecastBridge: React.FC<Props> = ({
   id.current = beachId;
 
   const effectiveDays = useMemo(() => {
-
     if (selectedDays && selectedDays.length > 0) return selectedDays;
 
     const base =
-
       selected instanceof Date && !Number.isNaN(selected.getTime())
-
         ? selected
-
         : new Date();
 
     const baseDate = getPacificMidnightUTC(base);
 
     return Array.from({ length: DEFAULT_FORECAST_DAYS }, (_, i) => {
-
       return new Date(baseDate.getTime() + i * MS_PER_DAY);
-
     });
-
   }, [selected, selectedDays]);
-
-
 
   // ref for the in-page date picker
 
   const pickerRef = useRef<HTMLDivElement | null>(null);
-
-
 
   // mounted flag: false during SSR and initial client render; true after mount.
 
@@ -355,16 +275,11 @@ const ForecastBridge: React.FC<Props> = ({
 
   const [isMounted, setIsMounted] = useState(false);
 
-
-
   // whether the picker is visible in the viewport; default true so compact bar is NOT shown on SSR/initial render.
 
   const [, setIsPickerVisible] = useState<boolean>(true);
 
-
-
   const {
-
     meta: layoutMeta,
 
     rows: layoutRows,
@@ -374,19 +289,15 @@ const ForecastBridge: React.FC<Props> = ({
     setMeta: setLayoutMeta,
 
     setRows: setLayoutRows,
-
   } = useDashboardLayout({
-
     type: "forecast",
 
     initialMeta,
 
     initialRows,
-
   });
 
   const {
-
     pendingLayoutApply,
 
     clearPendingLayoutApply,
@@ -397,12 +308,100 @@ const ForecastBridge: React.FC<Props> = ({
 
     getCachedLayout,
 
+    cancel,
+    confirm,
   } = useDashboardEditMode();
+
+  const floatingConfirmTopSentinelRef = useRef<HTMLDivElement | null>(null);
+  const floatingConfirmBottomSentinelRef = useRef<HTMLDivElement | null>(null);
+  const floatingConfirmWrapperRef = useRef<HTMLDivElement | null>(null);
+  const floatingConfirmActiveRef = useRef(false);
+  const floatingConfirmNearEndRef = useRef(false);
+
+  useEffect(() => {
+    if (!isEditing) return;
+    if (typeof IntersectionObserver === "undefined") return;
+
+    const topSentinel = floatingConfirmTopSentinelRef.current;
+    const bottomSentinel = floatingConfirmBottomSentinelRef.current;
+    const wrapper = floatingConfirmWrapperRef.current;
+    if (!topSentinel || !bottomSentinel || !wrapper) return;
+
+    const applyVisibility = () => {
+      const visible =
+        floatingConfirmActiveRef.current && !floatingConfirmNearEndRef.current;
+      wrapper.classList.toggle("opacity-100", visible);
+      wrapper.classList.toggle("opacity-0", !visible);
+      wrapper.setAttribute("aria-hidden", visible ? "false" : "true");
+      const buttons = wrapper.querySelectorAll("button");
+      buttons.forEach((btn) => {
+        if (!(btn instanceof HTMLButtonElement)) return;
+        btn.tabIndex = visible ? 0 : -1;
+        btn.setAttribute("aria-hidden", visible ? "false" : "true");
+        btn.style.pointerEvents = visible ? "auto" : "none";
+      });
+    };
+
+    const updateCenter = () => {
+      const container = dashboardContainerProbeRef.current;
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      wrapper.style.left = `${rect.left + rect.width / 2}px`;
+    };
+
+    let rafId: number | null = null;
+    const scheduleUpdateCenter = () => {
+      if (rafId != null) window.cancelAnimationFrame(rafId);
+      rafId = window.requestAnimationFrame(() => {
+        rafId = null;
+        updateCenter();
+      });
+    };
+
+    scheduleUpdateCenter();
+    applyVisibility();
+
+    const topObserver = new IntersectionObserver(
+      ([entry]) => {
+        floatingConfirmActiveRef.current =
+          !entry.isIntersecting && entry.boundingClientRect.top < 0;
+        applyVisibility();
+      },
+      { root: null, threshold: 0, rootMargin: "0px" },
+    );
+
+    const bottomObserver = new IntersectionObserver(
+      ([entry]) => {
+        floatingConfirmNearEndRef.current = entry.isIntersecting;
+        applyVisibility();
+      },
+      { root: null, threshold: 0, rootMargin: "0px 0px 48px 0px" },
+    );
+
+    topObserver.observe(topSentinel);
+    bottomObserver.observe(bottomSentinel);
+    window.addEventListener("resize", scheduleUpdateCenter);
+    window.visualViewport?.addEventListener("resize", scheduleUpdateCenter);
+
+    const ro = new ResizeObserver(() => scheduleUpdateCenter());
+    const centerTarget = dashboardContainerProbeRef.current;
+    if (centerTarget) ro.observe(centerTarget);
+    return () => {
+      topObserver.disconnect();
+      bottomObserver.disconnect();
+      window.removeEventListener("resize", scheduleUpdateCenter);
+      window.visualViewport?.removeEventListener(
+        "resize",
+        scheduleUpdateCenter,
+      );
+      ro.disconnect();
+      if (rafId != null) window.cancelAnimationFrame(rafId);
+    };
+  }, [isEditing]);
 
   const [layoutOverlayActive, setLayoutOverlayActive] = useState(false);
 
   useLayoutEffect(() => {
-
     const pending = pendingLayoutApply.forecast;
 
     if (!pending) return;
@@ -416,9 +415,7 @@ const ForecastBridge: React.FC<Props> = ({
     setLayoutRows(pending.rows);
 
     clearPendingLayoutApply("forecast");
-
   }, [
-
     isEditing,
 
     pendingLayoutApply,
@@ -428,27 +425,22 @@ const ForecastBridge: React.FC<Props> = ({
     setLayoutRows,
 
     clearPendingLayoutApply,
-
   ]);
 
   useEffect(() => {
-
     if (!layoutOverlayActive) return;
 
     const timeout = window.setTimeout(() => setLayoutOverlayActive(false), 250);
 
     return () => window.clearTimeout(timeout);
-
   }, [layoutOverlayActive]);
 
   useEffect(() => {
-
     if (isEditing) return;
 
     if (!layoutHydrated) return;
 
     cacheLayout({ type: "forecast", meta: layoutMeta, rows: layoutRows });
-
   }, [cacheLayout, isEditing, layoutHydrated, layoutMeta, layoutRows]);
 
   const { prefetchSunData } = useSunData();
@@ -459,14 +451,10 @@ const ForecastBridge: React.FC<Props> = ({
 
   const { setExpectedCharts } = useForecastChartsLoadingControls();
 
-
-
   const expectedChartIds = useMemo(() => {
-
     const ids = new Set<string>();
 
     const widgetToCharts: Partial<Record<WidgetId, readonly string[]>> = {
-
       tide: ["forecast-tide"],
 
       surf: ["forecast-surf"],
@@ -480,15 +468,10 @@ const ForecastBridge: React.FC<Props> = ({
       table: ["forecast-table"],
 
       surfAndWind: ["forecast-surf", "forecast-wind"],
-
     };
 
-
-
     for (const row of layoutRows) {
-
       for (const widgetId of row.items) {
-
         if (layoutMeta[widgetId]?.visible === false) continue;
 
         const charts = widgetToCharts[widgetId];
@@ -496,87 +479,57 @@ const ForecastBridge: React.FC<Props> = ({
         if (!charts) continue;
 
         for (const chartId of charts) ids.add(chartId);
-
       }
-
     }
 
-
-
     return Array.from(ids).sort();
-
   }, [layoutMeta, layoutRows]);
 
-
-
   useLayoutEffect(() => {
-
     if (isEditing) return;
 
     setExpectedCharts(expectedChartIds);
-
   }, [expectedChartIds, isEditing, setExpectedCharts]);
 
-
-
   useEffect(() => {
-
     setIsMounted(true);
-
   }, []);
-
-
 
   // Prefetch sun data for all selected days to speed up chart rendering
 
   useEffect(() => {
-
     if (!beachId || !effectiveDays || effectiveDays.length === 0) return;
-
-
 
     // Prefetch sun data for all days in the range
 
     void prefetchSunData(beachId, effectiveDays);
-
   }, [beachId, effectiveDays, prefetchSunData]);
-
-
 
   // Set up the IntersectionObserver on client only (after mount). Keeps layout stable on SSR.
 
   useEffect(() => {
-
     if (!isMounted) return;
 
     if (!pickerRef.current) return;
 
     if (typeof IntersectionObserver === "undefined") {
-
       // fail-safe: assume visible
 
       setIsPickerVisible(true);
 
       return;
-
     }
 
-
-
     const observer = new IntersectionObserver(
-
       (entries) => {
-
         const e = entries[0];
 
         // update visibility based on intersection status
 
         setIsPickerVisible(Boolean(e.isIntersecting));
-
       },
 
       {
-
         root: null,
 
         // rootMargin triggers when the element is mostly out of view
@@ -584,39 +537,24 @@ const ForecastBridge: React.FC<Props> = ({
         rootMargin: "0px 0px -70% 0px",
 
         threshold: 0,
-
-      }
-
+      },
     );
-
-
 
     observer.observe(pickerRef.current);
 
-
-
     return () => {
-
       observer.disconnect();
-
     };
-
   }, [isMounted]);
-
-
 
   // Build the human readable window string from the selected days.
 
   const windowString = useMemo(() => {
-
     if (!effectiveDays || effectiveDays.length === 0) {
-
       return "Select range";
-
     }
 
     const windowStart = effectiveDays[0].toLocaleDateString("en-US", {
-
       weekday: "short",
 
       month: "short",
@@ -624,15 +562,11 @@ const ForecastBridge: React.FC<Props> = ({
       day: "numeric",
 
       timeZone: "America/Los_Angeles",
-
     });
 
     const windowEnd = effectiveDays[
-
       effectiveDays.length - 1
-
     ].toLocaleDateString("en-US", {
-
       weekday: "short",
 
       month: "short",
@@ -640,22 +574,14 @@ const ForecastBridge: React.FC<Props> = ({
       day: "numeric",
 
       timeZone: "America/Los_Angeles",
-
     });
 
     return `${windowStart} – ${windowEnd}`;
-
   }, [effectiveDays]);
 
-
-
   useEffect(() => {
-
     onWindowStringChange?.(windowString);
-
   }, [windowString, onWindowStringChange]);
-
-
 
   const displayRows = useMemo(() => {
     const packed = packRowsForTwoColumn(layoutRows, layoutMeta);
@@ -672,341 +598,189 @@ const ForecastBridge: React.FC<Props> = ({
     [displayRows, layoutMeta],
   );
 
-
-
   const pendingLayoutApplyActive = Boolean(
-
-    pendingLayoutApply.forecast && !isEditing
-
+    pendingLayoutApply.forecast && !isEditing,
   );
-
-
 
   // Memoize individual widgets to prevent unnecessary re-renders
 
   const rawWidgetLoading =
-
     chartsLoading ||
-
     !layoutHydrated ||
-
     !selected ||
-
     forecastLoading ||
-
     layoutOverlayActive ||
-
     pendingLayoutApplyActive;
 
   const stableWidgetLoading = useStableOverlay(rawWidgetLoading, 220);
 
-
-
   useLayoutEffect(() => {
-
     onBusyChange?.(stableWidgetLoading);
-
   }, [onBusyChange, stableWidgetLoading]);
 
-
-
   const Wrapper = useMemo(
-
     () =>
-
       (cardVariant === "overview" || cardVariant === "forecast"
-
         ? OverviewWidget
-
         : VisualWrapper) as React.ComponentType<
-
         React.ComponentProps<typeof VisualWrapper>
-
       >,
 
-    [cardVariant]
-
+    [cardVariant],
   );
 
-
-
   const renderWidget = useCallback(
-
     (id: WidgetId, variant: "full" | "half") => {
-
       const firstDay = effectiveDays?.[0] ?? undefined;
 
-
-
       switch (id) {
-
         case "stats":
-
           return (
-
             <Wrapper label="Forecast Overview" loading={stableWidgetLoading}>
-
               <div className="space-y-2 text-sm text-muted-foreground">
-
                 <p className="font-medium text-foreground">{windowString}</p>
 
                 <p>
-
                   Adjust the date range above or use the edit mode to customize
-
                   which panels show here.
-
                 </p>
-
               </div>
-
             </Wrapper>
-
           );
 
         case "tide":
-
           return (
-
             <Wrapper
-
               label="Tide"
-
               extraPadding={isForecastCards}
-
               unit="ft"
-
               loading={stableWidgetLoading}
-
             >
-
               <LazyLoadForecastTide
-
                 beachId={beachId}
-
                 date={firstDay}
-
                 days={effectiveDays ?? undefined}
                 suppressSkeleton={isEditing}
-
               />
-
             </Wrapper>
-
           );
 
         case "surf":
-
           return (
-
             <Wrapper
-
               extraPadding={isForecastCards}
-
               label="Surf"
-
               unit="ft"
-
               loading={stableWidgetLoading}
-
             >
-
               <LazyLoadForecastSurf beachId={beachId} days={effectiveDays} />
-
             </Wrapper>
-
           );
 
         case "wind":
-
           return (
-
             <Wrapper
-
               extraPadding={isForecastCards}
-
               label="Wind"
-
               unit="mph"
-
               loading={stableWidgetLoading}
-
             >
-
               <LazyLoadForecastWind beachId={beachId} days={effectiveDays} />
-
             </Wrapper>
-
           );
 
         case "surfAndWind":
-
           return (
-
             <div
-
               className={cn(
-
                 "w-full flex flex-col @min-2xl:flex-row",
 
-                isOverviewCards ? "gap-4" : "gap-6"
-
+                isOverviewCards ? "gap-4" : "gap-6",
               )}
-
             >
-
               <Wrapper label="Wind" unit="mph" loading={stableWidgetLoading}>
-
                 <LazyLoadForecastWind beachId={beachId} days={effectiveDays} />
-
               </Wrapper>
 
               <Wrapper label="Surf" unit="ft" loading={stableWidgetLoading}>
-
                 <LazyLoadForecastSurf beachId={beachId} days={effectiveDays} />
-
               </Wrapper>
-
             </div>
-
           );
 
         case "energy":
-
           return (
-
             <Wrapper
-
               extraPadding={isForecastCards}
-
               label="Energy"
-
               unit="kJ"
-
               loading={stableWidgetLoading}
-
             >
-
               <LazyLoadForecastWaveEnergy
-
                 beachId={beachId}
-
                 days={effectiveDays}
-
               />
-
             </Wrapper>
-
           );
 
         case "table": {
-
           const tableUnit =
-
             (dailyTableUi?.effectiveDensity ?? dailyTableDensity) === "12h"
-
               ? "12 hrs"
-
               : "3 hrs";
 
           const table = (
-
             <LazyLoadTable
-
               beachId={beachId}
-
               numHours={3}
-
               numDays={7}
-
               header
-
               date={selected ?? undefined}
-
               variant={variant}
-
               density={dailyTableDensity}
-
               onToggleDensity={toggleDailyTableDensity}
-
               onUiStateChange={onDailyTableUiStateChange}
-
             />
-
           );
-
-
 
           return isOverviewCards || isForecastCards ? (
-
             <OverviewWidget
-
               label="Daily"
-
               unit={tableUnit}
-
               loading={stableWidgetLoading}
-
               extraPadding
-
             >
-
               {table}
-
             </OverviewWidget>
-
           ) : (
-
             <Wrapper
-
               label="Daily"
-
               unit={tableUnit}
-
               loading={stableWidgetLoading}
-
             >
-
               {table}
-
             </Wrapper>
-
           );
-
         }
 
         case "swell":
-
           return (
-
             <Wrapper
-
               extraPadding={isForecastCards}
-
               label="Swell"
-
               unit="ft"
-
               loading={stableWidgetLoading}
-
             >
-
               <LazyLoadForecastSwell beachId={beachId} days={effectiveDays} />
-
             </Wrapper>
-
           );
 
         default:
-
           return null;
-
       }
-
     },
 
     [
-
       Wrapper,
 
       beachId,
@@ -1030,15 +804,10 @@ const ForecastBridge: React.FC<Props> = ({
       toggleDailyTableDensity,
 
       windowString,
-
-    ]
-
+    ],
   );
 
-
-
   if (isEditing) {
-
     const cachedLayout = getCachedLayout("forecast");
 
     const editorInitialMeta = cachedLayout?.meta ?? layoutMeta;
@@ -1048,55 +817,106 @@ const ForecastBridge: React.FC<Props> = ({
     const editorRowLayout =
       isOverviewCards || isForecastCards ? "compact" : "spacious";
 
-
-
     return (
-
       <section
-
         id="forecast-content"
         ref={dashboardContainerProbeRef}
-
         className="relative flex flex-col gap-4 scroll-mt-45"
-
       >
         <div
           ref={dashboardTwoColumnSentinelRef}
           aria-hidden="true"
           className={dashboardTwoColumnSentinelClass}
         />
+        <div className="relative">
+          <div
+            aria-hidden="true"
+            ref={floatingConfirmTopSentinelRef}
+            className="pointer-events-none absolute left-0 top-[-300px] h-px w-full"
+          />
+          <div
+            aria-hidden="true"
+            ref={floatingConfirmBottomSentinelRef}
+            className="absolute left-0 bottom-0 h-px w-full"
+          />
+          {typeof document !== "undefined"
+            ? createPortal(
+                <div
+                  ref={floatingConfirmWrapperRef}
+                  className="ww-floating-edit-save hidden @min-4xl/main:block fixed z-[1000004] pointer-events-none opacity-0 transition-opacity duration-200 motion-reduce:transition-none"
+                  style={{
+                    left: "50%",
+                    bottom: "16px",
+                    transform: "translateX(-50%)",
+                  }}
+                  aria-hidden="true"
+                >
+                  <div
+                    className={cn(
+                      "pointer-events-auto inline-flex items-center gap-2 rounded-full",
+                      "border border-border/40 bg-background/85 shadow-xl ring-1 ring-border/30",
+                      "supports-[backdrop-filter]:backdrop-blur-md",
+                      "px-2 py-2",
+                    )}
+                  >
+                    <button
+                      type="button"
+                      onClick={confirm}
+                      className={cn(
+                        "inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold",
+                        "border border-border bg-highlight-4 ring-1 ring-border/55",
+                        "supports-[backdrop-filter]:backdrop-blur-md",
+                        "hover:bg-highlight-5 hover:dark:bg-highlight-5 hover:shadow-2xl transition-[opacity,background-color,box-shadow,transform] duration-200 motion-reduce:transition-none",
+                        "active:scale-[0.99]",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/25 focus-visible:ring-offset-0",
+                        "ww-floating-edit-save__button",
+                      )}
+                      aria-label="Save dashboard changes"
+                      title="Save dashboard changes"
+                    >
+                      <CircleCheck className="stroke-[2.5px] w-4.5 h-4.5" />
+                      <span>Save</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={cancel}
+                      className={cn(
+                        "inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold",
+                        "border border-destructive/45 bg-transparent",
+                        "text-destructive",
+                        "supports-[backdrop-filter]:backdrop-blur-md",
+                        "hover:bg-destructive/10 transition-colors duration-200 motion-reduce:transition-none",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/25 focus-visible:ring-offset-0",
+                      )}
+                      aria-label="Cancel dashboard changes"
+                      title="Cancel dashboard changes"
+                    >
+                      <X className="stroke-[2.5px] w-4.5 h-4.5" />
+                      <span>Cancel</span>
+                    </button>
+                  </div>
+                </div>,
+                document.body,
+              )
+            : null}
 
-        <DashboardEditorPanel
-
-          type="forecast"
-
-          initialMeta={editorInitialMeta}
-
-          initialRows={editorInitialRows}
-
-          rowLayout={editorRowLayout}
-
-          renderWidget={renderWidget}
-
-        />
-
+          <DashboardEditorPanel
+            type="forecast"
+            initialMeta={editorInitialMeta}
+            initialRows={editorInitialRows}
+            rowLayout={editorRowLayout}
+            renderWidget={renderWidget}
+          />
+        </div>
       </section>
-
     );
-
   }
 
-
-
   return (
-
     <section
-
       id="forecast-content"
       ref={dashboardContainerProbeRef}
-
       className="relative flex flex-col gap-4 scroll-mt-45"
-
     >
       <div
         ref={dashboardTwoColumnSentinelRef}
@@ -1107,25 +927,18 @@ const ForecastBridge: React.FC<Props> = ({
       {/* --- Date picker area: sticky on all sizes so behavior is identical everywhere --- */}
 
       <section
-
         ref={pickerRef}
 
         // className="sticky top-[var(--nav-height,60px)] z-60"
 
         // aria-label="Date picker region"
-
       >
-
         {!hideHeader && (
-
           <header className="mx-2 flex gap-5 justify-between">
-
             <div>
-
               <h2 className="text-3xl font-semibold">Weekly Forecast</h2>
 
               <p className="text-sm text-muted-foreground">{windowString}</p>
-
             </div>
 
             {/* <Link
@@ -1141,9 +954,7 @@ const ForecastBridge: React.FC<Props> = ({
             Edit
 
           </Link> */}
-
           </header>
-
         )}
 
         {/* <h2 className="ml-2 mb-0 text-muted-foreground text-lg">
@@ -1195,122 +1006,71 @@ const ForecastBridge: React.FC<Props> = ({
         </div> */}
 
         <div className="flex flex-col">
-
           {visibleRows.length === 0 ? (
-
             <p className="mx-2 mt-4 text-sm text-muted-foreground">
-
               All widgets are hidden. Use the edit page to re-enable panels for
-
               the forecast view.
-
             </p>
-
           ) : (
-
             visibleRows.map((row, index) => {
-
               const visibleItems = row.items.filter(
-
-                (id) => layoutMeta[id]?.visible !== false
-
+                (id) => layoutMeta[id]?.visible !== false,
               );
 
               if (!visibleItems.length) return null;
 
-
-
               const renderedItems = visibleItems
 
                 .map((id) => {
-
                   const span = layoutMeta[id]?.span ?? "half";
 
                   const variant = span === "half" ? "half" : "full";
 
                   return { id, content: renderWidget(id, variant) };
-
                 })
 
                 .filter((entry) => Boolean(entry.content));
 
-
-
               if (!renderedItems.length) return null;
-
-
 
               const spacingClass = index === 0 ? "mt-4" : "mt-5";
 
               const isFull = renderedItems.length === 1;
 
-
-
               if (isFull) {
-
                 const singleContent =
-
                   renderWidget(renderedItems[0].id, "full") ??
-
                   renderedItems[0].content;
 
                 return (
-
                   <div key={row.id} className={`${spacingClass} w-full`}>
-
                     {singleContent}
-
                   </div>
-
                 );
-
               }
 
-
-
               return (
-
                 <div
-
                   key={row.id}
-
                   className={cn(
-
                     `${spacingClass} w-full flex flex-col`,
 
                     isOverviewCards || isForecastCards
-
                       ? "@min-4xl:flex-row gap-4"
-
-                      : "@min-3xl:flex-row gap-5"
-
+                      : "@min-3xl:flex-row gap-5",
                   )}
-
                 >
-
                   {renderedItems.map((entry) => (
-
                     <React.Fragment key={entry.id}>
-
                       {entry.content}
-
                     </React.Fragment>
-
                   ))}
-
                 </div>
-
               );
-
             })
-
           )}
-
         </div>
-
       </section>
-
-
 
       {/* --- Main content header --- */}
 
@@ -1353,14 +1113,8 @@ const ForecastBridge: React.FC<Props> = ({
         </header>
 
       </section> */}
-
     </section>
-
   );
-
 };
 
-
-
 export default ForecastBridge;
-

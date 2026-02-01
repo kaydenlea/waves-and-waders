@@ -16,6 +16,7 @@ import {
   TreePine,
   Waves,
   CircleCheck,
+  X,
 } from "lucide-react";
 import BackToMapButton from "./BackToMapButton";
 import Link from "next/link";
@@ -143,7 +144,6 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
     if (typeof window === "undefined") return;
     if (!mobile) return;
     if (landingPage) return;
-    if (isEditing) return;
     if (!atTop) return;
     if (openPanel === "filters") return;
 
@@ -322,8 +322,8 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
       <div
         className={cn(
           "fixed bottom-34 left-1/2 transform -translate-x-1/2 z-40 transition-all duration-300 @min-4xl:hidden flex items-center justify-center h-0",
-          // Hide when filters or editing mode is active (search overlay covers it)
-          showBottomUI && openPanel !== "filters" && !isEditing
+          // Hide when filters are active (overlay covers it)
+          showBottomUI && openPanel !== "filters"
             ? "opacity-100 translate-y-0"
             : "opacity-0 translate-y-5 pointer-events-none",
         )}
@@ -382,7 +382,7 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
               </button>
             </div>
           )
-        ) : (
+        ) : isEditing ? null : (
           <BackToMapButton />
         )}
       </div>
@@ -450,17 +450,58 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
       {/* Bottom Navigation */}
       <div
         className={cn(
-          "shadow-md @min-4xl:hidden safe-area-inset-bottom bg-highlight-4 backdrop-blur border-t border-border fixed bottom-0 left-0 right-0 z-60 transition-all duration-300 touch-none",
-          // Hide when: scrolled away, filters open, or editing mode (search overlay covers it)
-          showBottomUI && openPanel !== "filters" && !isEditing
+          "shadow-md @min-4xl:hidden safe-area-inset-bottom bg-highlight-4 backdrop-blur border-t border-border fixed bottom-0 left-0 right-0 transition-all duration-300 touch-none",
+          isEditing ? "z-[1000003]" : "z-60",
+          // Hide when: scrolled away or filters open
+          showBottomUI && openPanel !== "filters"
             ? "translate-y-0"
             : "translate-y-full",
         )}
       >
         <nav
           aria-label="bottom navigation"
-          className="max-w-150 mx-auto flex justify-around items-center h-17"
+          className={cn(
+            "max-w-150 mx-auto flex items-center h-17",
+            isEditing ? "justify-center px-4" : "justify-around",
+          )}
         >
+          {isEditing ? (
+            <div className="w-full max-w-sm flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => dashboardEditMode?.confirm?.()}
+                className={cn(
+                  "flex-1 inline-flex items-center justify-center gap-2",
+                  "rounded-full px-4 py-2.5 text-sm font-semibold",
+                  "border border-border bg-highlight-4 ring-1 ring-border/55",
+                  "supports-[backdrop-filter]:backdrop-blur-md",
+                  "hover:bg-highlight-5 hover:dark:bg-highlight-5 hover:shadow-2xl transition-[opacity,background-color,box-shadow,transform] duration-200 motion-reduce:transition-none",
+                  "active:scale-[0.99]",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/35 focus-visible:ring-offset-0",
+                )}
+              >
+                <CircleCheck className="stroke-[2.5px] w-4.5 h-4.5" />
+                <span>Save</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => dashboardEditMode?.cancel?.()}
+                className={cn(
+                  "flex-1 inline-flex items-center justify-center gap-2",
+                  "rounded-full px-4 py-2.5 text-sm font-semibold",
+                  "border border-destructive/45 bg-transparent",
+                  "text-destructive",
+                  "supports-[backdrop-filter]:backdrop-blur-md",
+                  "hover:bg-destructive/10 transition-colors duration-200 motion-reduce:transition-none",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/25 focus-visible:ring-offset-0",
+                )}
+              >
+                <X className="stroke-[2.5px] w-4 h-4" />
+                <span>Cancel</span>
+              </button>
+            </div>
+          ) : (
+            <>
           {(() => {
             const isBeaches = pathname.endsWith("/beaches");
             const isNearby = isBeaches && selectedTab === "nearby";
@@ -626,38 +667,11 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
             landingPage={landingPage}
             links={BOTTOM_NAV_MORE_LINKS}
           />
+            </>
+          )}
         </nav>
       </div>
 
-      {/* Mobile Edit Mode Confirm Button */}
-      {isEditing && (
-        <div
-          className={cn(
-            "fixed bottom-0 left-0 right-0 z-60 @min-4xl:hidden",
-            "safe-area-inset-bottom bg-highlight-4/95 backdrop-blur border-t border-border",
-            "transition-all duration-300",
-            showBottomUI ? "translate-y-0" : "translate-y-full",
-          )}
-        >
-          <div className="max-w-150 mx-auto flex justify-center items-center px-4 py-3">
-            <button
-              type="button"
-              onClick={() => dashboardEditMode?.confirm?.()}
-              className={cn(
-                "flex items-center justify-center gap-2 w-full max-w-xs",
-                "px-6 py-3 rounded-full",
-                "bg-gradient-to-r from-cyan-400 to-blue-500",
-                "text-white font-semibold text-base",
-                "shadow-lg shadow-cyan-500/25",
-                "hover:shadow-xl hover:shadow-cyan-500/30",
-                "active:scale-[0.98] transition-all duration-200",
-              )}
-            >
-              <CircleCheck className="w-5 h-5" />
-              <span>Done Editing</span>
-            </button>
-          </div>
-        </div>
-      )}    </>
+    </>
   );
 }

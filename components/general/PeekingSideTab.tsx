@@ -10,6 +10,7 @@ export type PeekingSideTabProps = {
   label?: string;
   ariaLabel?: string;
   title?: string;
+  hideNearFooter?: boolean;
   className?: string;
 };
 
@@ -18,12 +19,38 @@ export default function PeekingSideTab({
   label = "Map",
   ariaLabel = "Show map",
   title = "Show map",
+  hideNearFooter = false,
   className,
 }: PeekingSideTabProps) {
+  const [hidden, setHidden] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!hideNearFooter) {
+      setHidden(false);
+      return;
+    }
+    if (typeof IntersectionObserver === "undefined") return;
+
+    const footer = document.querySelector("footer");
+    if (!footer) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setHidden(entry.isIntersecting);
+      },
+      // Hide slightly before the footer reaches the viewport to avoid overlap.
+      { root: null, threshold: 0, rootMargin: "0px 0px 220px 0px" },
+    );
+
+    observer.observe(footer);
+    return () => observer.disconnect();
+  }, [hideNearFooter]);
+
   return (
     <div
       className={cn(
-        "pointer-events-none fixed left-0 top-[42%] sm:top-3/4 -translate-y-3/4 z-[60]",
+        "pointer-events-none fixed left-0 top-[42%] sm:top-3/4 -translate-y-3/4 z-[60] transition-opacity duration-200 motion-reduce:transition-none",
+        hidden && "opacity-0",
         className
       )}
     >
@@ -34,6 +61,7 @@ export default function PeekingSideTab({
         onClick={onClick}
         className={cn(
           "group pointer-events-auto relative flex items-center gap-2",
+          hidden && "pointer-events-none",
           "h-14 pl-5 pr-2",
           "rounded-r-2xl",
           "border border-border/40 bg-highlight-7 text-foreground",

@@ -3,6 +3,7 @@
 import React from "react";
 import { flushSync } from "react-dom";
 import { cn, getPacificDayRange } from "@/lib/utils";
+import { usePathname } from "next/navigation";
 import { Button } from "../ui/button";
 import {
   DropdownMenu,
@@ -1117,6 +1118,8 @@ const StatTable = ({
   const { selectedTab } = useClientPath();
   const { showMap } = useMapUI();
   const forecastPage = selectedTab === "forecast";
+  const pathname = usePathname();
+  const isEditingPage = pathname.endsWith("/edit");
   const headerBgClass =
     "bg-[var(--widget-header-surface,var(--widget-surface,var(--highlight-4)))]";
   const { rows: sharedRows } = useForecastData();
@@ -1969,6 +1972,8 @@ const StatTable = ({
     if (e.deltaX < -8) handleBack();
   };
   const [forecastDateMenuOpen, setForecastDateMenuOpen] = React.useState(false);
+  const [tableControlsMenuOpen, setTableControlsMenuOpen] =
+    React.useState(false);
 
   React.useEffect(() => {
     const canShowForecastDateMenu =
@@ -1977,6 +1982,29 @@ const StatTable = ({
       setForecastDateMenuOpen(false);
     }
   }, [forecastPage, selectorDays.length, useSingleDayView]);
+
+  // Match the "+n features" popover behavior: close any open menu while scrolling.
+  React.useEffect(() => {
+    if (!tableControlsMenuOpen) return;
+    const close = () => setTableControlsMenuOpen(false);
+    window.addEventListener("scroll", close, { passive: true });
+    window.addEventListener("touchmove", close, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", close);
+      window.removeEventListener("touchmove", close);
+    };
+  }, [tableControlsMenuOpen]);
+
+  React.useEffect(() => {
+    if (!forecastDateMenuOpen) return;
+    const close = () => setForecastDateMenuOpen(false);
+    window.addEventListener("scroll", close, { passive: true });
+    window.addEventListener("touchmove", close, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", close);
+      window.removeEventListener("touchmove", close);
+    };
+  }, [forecastDateMenuOpen]);
 
   const Pager = ({ compact }: { compact?: boolean }) => {
     const totalPages = columnPages.length;
@@ -2079,6 +2107,10 @@ const StatTable = ({
     tableWidthPx > 0 &&
     (isHalfColumns ? tableWidthPx < 450 : tableWidthPx < 540);
 
+  React.useEffect(() => {
+    if (!isCompactPill) setTableControlsMenuOpen(false);
+  }, [isCompactPill]);
+
   const divider = (
     <span
       aria-hidden="true"
@@ -2096,7 +2128,11 @@ const StatTable = ({
       )}
     >
       {isCompactPill ? (
-        <DropdownMenu modal={false}>
+        <DropdownMenu
+          modal={false}
+          open={tableControlsMenuOpen}
+          onOpenChange={setTableControlsMenuOpen}
+        >
           <DropdownMenuTrigger asChild>
             <button
               type="button"
@@ -2481,6 +2517,127 @@ const StatTable = ({
   ) : null;
 
   const shouldReserveFooterSpace = Boolean(footerControlsPill) || loading;
+  // When the table is in its 12h layout (12am / 12pm / 9pm), keep the pager pill
+  // docked at the bottom of the widget (no scroll-follow / reveal behavior needed).
+  // Exception: for multi-day forecast tables, keep the scroll-follow behavior.
+  const dockPagerInFlow =
+    targetHours.length <= 3 && !(forecastPage && !useSingleDayView);
+  const pagerStickyRef = React.useRef<HTMLDivElement | null>(null);
+  const pagerRevealSentinelRef = React.useRef<HTMLDivElement | null>(null);
+  const pagerBottomSentinelRef = React.useRef<HTMLDivElement | null>(null);
+  const pagerRevealPastRef = React.useRef(false);
+  const pagerBottomReachedRef = React.useRef(false);
+  const pagerPillFullyVisibleRef = React.useRef(false);
+  const pagerVisibleRef = React.useRef(isEditingPage);
+
+  React.useEffect(() => {
+    const el = pagerStickyRef.current;
+    const sentinel = pagerRevealSentinelRef.current;
+    const bottomSentinel = pagerBottomSentinelRef.current;
+    if (!shouldReserveFooterSpace || !el) return;
+    if (isEditingPage) {
+      pagerVisibleRef.current = true;
+      el.dataset.wwVisible = "true";
+      el.setAttribute("aria-hidden", "false");
+      const ui = el.querySelector("[data-ww-stat-table-pager-ui]");
+      if (ui instanceof HTMLElement) {
+        ui.style.pointerEvents = "auto";
+        try {
+          ui.removeAttribute("inert");
+        } catch {}
+      }
+      return;
+    }
+    if (dockPagerInFlow) {
+      pagerVisibleRef.current = true;
+      el.dataset.wwVisible = "true";
+      el.setAttribute("aria-hidden", "false");
+      const ui = el.querySelector("[data-ww-stat-table-pager-ui]");
+      if (ui instanceof HTMLElement) {
+        ui.style.pointerEvents = "auto";
+        try {
+          ui.removeAttribute("inert");
+        } catch {}
+      }
+      return;
+    }
+
+    const setVisible = (visible: boolean) => {
+      pagerVisibleRef.current = visible;
+      el.dataset.wwVisible = visible ? "true" : "false";
+      el.setAttribute("aria-hidden", visible ? "false" : "true");
+      const ui = el.querySelector("[data-ww-stat-table-pager-ui]");
+      if (ui instanceof HTMLElement) {
+        ui.style.pointerEvents = visible ? "auto" : "none";
+        try {
+          if (visible) ui.removeAttribute("inert");
+          else ui.setAttribute("inert", "");
+        } catch {}
+      }
+    };
+
+    if (
+      typeof IntersectionObserver === "undefined" ||
+      !sentinel ||
+      !bottomSentinel
+    ) {
+      setVisible(true);
+      return;
+    }
+
+    const recompute = () => {
+      setVisible(
+        (pagerRevealPastRef.current || pagerBottomReachedRef.current) &&
+          pagerPillFullyVisibleRef.current,
+      );
+    };
+
+    // Show slightly after entering the StatTable (prevents appearing immediately at the top).
+    const revealOffsetPx = 500;
+    const revealObserver = new IntersectionObserver(
+      ([entry]) => {
+        pagerRevealPastRef.current = !entry.isIntersecting;
+        recompute();
+      },
+      {
+        root: null,
+        threshold: 0,
+        rootMargin: `-${revealOffsetPx}px 0px 0px 0px`,
+      },
+    );
+
+    // Safety net: if the user reaches/passes the bottom of the widget, ensure the pill
+    // becomes eligible to show (prevents "never appears even past the widget").
+    const bottomObserver = new IntersectionObserver(
+      ([entry]) => {
+        pagerBottomReachedRef.current = entry.isIntersecting;
+        recompute();
+      },
+      { root: null, threshold: 0 },
+    );
+
+    // Only show once the pill is fully visible so it can't be "partially revealed".
+    const pillObserver = new IntersectionObserver(
+      ([entry]) => {
+        const targetRect = entry.boundingClientRect;
+        const intersection = entry.intersectionRect;
+        pagerPillFullyVisibleRef.current =
+          intersection.height >= Math.max(0, targetRect.height - 2) &&
+          intersection.width >= Math.max(0, targetRect.width - 2);
+        recompute();
+      },
+      { root: null, threshold: [0, 1] },
+    );
+
+    revealObserver.observe(sentinel);
+    bottomObserver.observe(bottomSentinel);
+    pillObserver.observe(el);
+    return () => {
+      revealObserver.disconnect();
+      bottomObserver.disconnect();
+      pillObserver.disconnect();
+    };
+  }, [dockPagerInFlow, isEditingPage, shouldReserveFooterSpace]);
 
   return (
     <div
@@ -3118,29 +3275,56 @@ const StatTable = ({
         ) : null}
       </div>
 
+      {shouldReserveFooterSpace && !dockPagerInFlow ? (
+        <div
+          aria-hidden="true"
+          ref={pagerRevealSentinelRef}
+          className="absolute left-0 top-0 h-px w-px"
+        />
+      ) : null}
+
+      {shouldReserveFooterSpace && !dockPagerInFlow ? (
+        <div
+          aria-hidden="true"
+          ref={pagerBottomSentinelRef}
+          className="absolute left-0 bottom-0 h-px w-px"
+        />
+      ) : null}
+
       {shouldReserveFooterSpace ? (
         <div
           data-ww-stat-table-sticky="pager"
+          ref={pagerStickyRef}
+          data-ww-visible={
+            dockPagerInFlow || pagerVisibleRef.current ? "true" : "false"
+          }
           className={cn(
-            // Keep the pager attached to the bottom edge of the widget while the
-            // page scrolls; within-table scrolling is handled by the flex layout above.
-            "sticky z-50 bottom-[calc(0.75rem+env(safe-area-inset-bottom))]",
+            dockPagerInFlow
+              ? "relative z-50"
+              : // Keep the pager attached to the bottom edge of the widget while the
+                // page scrolls; within-table scrolling is handled by the flex layout above.
+                "sticky z-50 bottom-[calc(0.75rem+env(safe-area-inset-bottom))]",
             "mt-2",
             "shrink-0 flex min-h-10 items-center justify-center px-1 pt-1",
+            !dockPagerInFlow &&
+              "invisible opacity-0 pointer-events-none transition-opacity duration-150 motion-reduce:transition-none data-[ww-visible=true]:visible data-[ww-visible=true]:opacity-100 data-[ww-visible=true]:pointer-events-auto",
           )}
+          aria-hidden="true"
         >
-          {footerControlsPill ? (
-            footerControlsPill
-          ) : (
-            <div
-              aria-hidden="true"
-              className={cn(
-                "pointer-events-none h-10 w-[min(22rem,100%)] rounded-full",
-                "border border-border/30 bg-foreground/10",
-                "animate-pulse motion-reduce:animate-none",
-              )}
-            />
-          )}
+          <div data-ww-stat-table-pager-ui>
+            {footerControlsPill ? (
+              footerControlsPill
+            ) : (
+              <div
+                aria-hidden="true"
+                className={cn(
+                  "pointer-events-none h-10 w-[min(22rem,100%)] rounded-full",
+                  "border border-border/30 bg-foreground/10",
+                  "animate-pulse motion-reduce:animate-none",
+                )}
+              />
+            )}
+          </div>
         </div>
       ) : null}
     </div>

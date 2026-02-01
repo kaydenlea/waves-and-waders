@@ -84,12 +84,14 @@ const DashboardDragOverlay = React.memo(function DashboardDragOverlay({
         aria-hidden="true"
         className={cn(
           "touch-none cursor-grabbing rounded-full",
-          "grid size-8 place-items-center ring-1 ring-border/25",
-          "bg-foreground/5 text-foreground/80 shadow-sm",
+          "grid size-9 place-items-center",
+          "border border-border/80 bg-background/85 shadow-lg ring-1 ring-foreground/10",
+          "supports-[backdrop-filter]:backdrop-blur-md",
+          "text-foreground",
           "absolute left-4 top-4 z-[60]",
         )}
       >
-        <GripVertical className="h-4.5 w-4.5 text-foreground/80" />
+        <GripVertical className="h-5 w-5 text-foreground" />
       </div>
     </div>
   );
@@ -226,13 +228,14 @@ const DraggableCard = React.memo(function DraggableCard({
           ref={setActivatorNodeRef}
           className={cn(
             "touch-none cursor-grab rounded-full",
-            "grid size-8 place-items-center ring-1 ring-border/25",
-            "bg-foreground/5 text-foreground/80 shadow-sm",
-            "hover:bg-foreground/10 active:cursor-grabbing",
+            "grid size-9 place-items-center",
+            "border border-border/80 bg-background/85 shadow-lg ring-1 ring-foreground/10",
+            "supports-[backdrop-filter]:backdrop-blur-md",
+            "hover:bg-background/95 hover:shadow-xl active:cursor-grabbing",
             "absolute left-4 top-4 z-[60]",
           )}
         >
-          <GripVertical className="h-4.5 w-4.5 text-foreground/80" />
+          <GripVertical className="h-5 w-5 text-foreground" />
         </button>
       </div>
     );
@@ -269,12 +272,13 @@ const DraggableCard = React.memo(function DraggableCard({
             ref={setActivatorNodeRef}
             className={cn(
               "touch-none cursor-grab rounded-full",
-              "grid size-8 place-items-center ring-1 ring-border/25",
-              "bg-foreground/5 text-foreground/80 shadow-sm",
-              "hover:bg-foreground/10 active:cursor-grabbing",
+              "grid size-9 place-items-center",
+              "border border-border/80 bg-background/85 shadow-lg ring-1 ring-foreground/10",
+              "supports-[backdrop-filter]:backdrop-blur-md",
+              "hover:bg-background/95 hover:shadow-xl active:cursor-grabbing",
             )}
           >
-            <GripVertical className="h-4.5 w-4.5 text-foreground/80" />
+            <GripVertical className="h-5 w-5 text-foreground" />
           </button>
           <h3 className="text-sm font-semibold min-w-0 flex-1 truncate">
             {meta.title}

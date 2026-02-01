@@ -155,7 +155,12 @@ const PageTabs = ({
           {!beachPage &&
             (overviewPage || forecastPage) &&
             !showMap &&
-            isDesktop && <PeekingSideTab onClick={() => setShowMap(true)} />}
+            isDesktop && (
+              <PeekingSideTab
+                onClick={() => setShowMap(true)}
+                hideNearFooter
+              />
+            )}
           <div className="w-full hidden @min-md:block @min-xl:hidden max-w-45">
             <span
               className={cn(

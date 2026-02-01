@@ -31,7 +31,8 @@ export default function PathStyleWrapper({
         id="content"
         className={cn(
           "relative touch-pan-y w-full px-2 relative @min-4xl:pt-4 bg-background border-t border-x border-border/70 @min-4xl:border-none mx-auto",
-          effectiveEditPage ? "z-auto" : "z-1",
+          // Keep drag overlays / floating edit controls above the footer.
+          effectiveEditPage ? "z-auto" : "z-30",
           cls,
           !effectiveEditPage
             ? "rounded-t-4xl @min-4xl:rounded-t-none pt-10"

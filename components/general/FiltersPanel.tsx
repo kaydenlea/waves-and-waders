@@ -303,7 +303,12 @@ export default function FiltersPanel({
             onApply(new Set(tempFilters));
             onClose?.();
           }}
-          className="flex items-center gap-2 px-5 py-1.5 rounded-full text-sm font-semibold text-white bg-sky-400 hover:bg-sky-600 dark:bg-sky-400 dark:hover:bg-sky-300 transition"
+          className={cn(
+            "flex items-center gap-2 px-5 py-1.5 rounded-full text-sm font-semibold transition-colors",
+            "border border-sky-500/35 bg-sky-500/15 text-sky-800 hover:bg-sky-500/20",
+            "dark:border-sky-400/40 dark:bg-sky-400/15 dark:text-sky-200 dark:hover:bg-sky-400/20",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/25 focus-visible:ring-offset-0",
+          )}
         >
           Apply Filters
         </button>

@@ -31,15 +31,13 @@ import ForecastBridge from "./ForecastBridge";
 import PageTabs from "./PageTabs";
 import DashboardEditorPanel from "./DashboardEditorPanel";
 import Link from "next/link";
-import { ArrowDown, ArrowUp, CircleCheck, Pencil } from "lucide-react";
+import { createPortal } from "react-dom";
+import { ArrowDown, ArrowUp, CircleCheck, Pencil, X } from "lucide-react";
 import { useDashboardEditMode } from "@/components/context/DashboardEditModeContext";
 import { getTidesCached } from "@/lib/dataCache";
 import { useCachedForecast } from "@/lib/hooks/useCachedForecast";
 import { usePacificTodayMs } from "@/lib/hooks/usePacificTodayMs";
-import {
-  getPacificDayRange,
-  getPacificMidnightUTC,
-} from "@/lib/utils";
+import { getPacificDayRange, getPacificMidnightUTC } from "@/lib/utils";
 import SurfIntensityMarker from "./SurfIntensityMarker";
 import { ForecastDataProvider } from "../context/ForecastDataContext";
 import { useTideWindowData } from "@/lib/hooks/useTideWindow";
@@ -126,21 +124,21 @@ const TideStatsHeader = ({
         const HOURS_TO_MS = 60 * 60 * 1000;
 
         const { start, end } = getPacificDayRange(
-          date instanceof Date ? date : undefined
+          date instanceof Date ? date : undefined,
         );
 
         const BUFFER_HOURS = 6;
         const tideFetchStart = new Date(
-          start.getTime() - BUFFER_HOURS * HOURS_TO_MS
+          start.getTime() - BUFFER_HOURS * HOURS_TO_MS,
         );
         const tideFetchEnd = new Date(
-          end.getTime() + BUFFER_HOURS * HOURS_TO_MS
+          end.getTime() + BUFFER_HOURS * HOURS_TO_MS,
         );
 
         const tideRows = await getTidesCached(
           beachId,
           tideFetchStart,
-          tideFetchEnd
+          tideFetchEnd,
         );
         if (cancelled) return;
 
@@ -237,7 +235,8 @@ const DateSummaryBridge: React.FC<Props> = ({
   const { selectedTab } = useClientPath();
   const prevSelectedTabRef = React.useRef<string | null>(null);
   const tabJustSwitched =
-    prevSelectedTabRef.current != null && prevSelectedTabRef.current !== selectedTab;
+    prevSelectedTabRef.current != null &&
+    prevSelectedTabRef.current !== selectedTab;
   const tabSwitchedToOverview = tabJustSwitched && selectedTab === "overview";
   const tabSwitchedToForecast = tabJustSwitched && selectedTab === "forecast";
 
@@ -248,7 +247,9 @@ const DateSummaryBridge: React.FC<Props> = ({
   const isForecastTab = selectedTab === "forecast";
 
   const dashboardContainerProbeRef = React.useRef<HTMLDivElement | null>(null);
-  const dashboardTwoColumnSentinelRef = React.useRef<HTMLDivElement | null>(null);
+  const dashboardTwoColumnSentinelRef = React.useRef<HTMLDivElement | null>(
+    null,
+  );
   const [isTwoColumnDashboardLayout, setIsTwoColumnDashboardLayout] =
     React.useState(true);
 
@@ -279,8 +280,102 @@ const DateSummaryBridge: React.FC<Props> = ({
     clearPendingLayoutApply,
     cacheLayout,
     getCachedLayout,
+    cancel,
     confirm,
   } = useDashboardEditMode();
+  const floatingConfirmTopSentinelRef = React.useRef<HTMLDivElement | null>(
+    null,
+  );
+  const floatingConfirmBottomSentinelRef = React.useRef<HTMLDivElement | null>(
+    null,
+  );
+  const floatingConfirmWrapperRef = React.useRef<HTMLDivElement | null>(null);
+  const floatingConfirmActiveRef = React.useRef(false);
+  const floatingConfirmNearEndRef = React.useRef(false);
+
+  React.useEffect(() => {
+    if (!isEditing || !isOverview) return;
+    if (typeof IntersectionObserver === "undefined") return;
+
+    const topSentinel = floatingConfirmTopSentinelRef.current;
+    const bottomSentinel = floatingConfirmBottomSentinelRef.current;
+    const wrapper = floatingConfirmWrapperRef.current;
+    if (!topSentinel || !bottomSentinel || !wrapper) return;
+
+    const applyVisibility = () => {
+      const visible =
+        floatingConfirmActiveRef.current && !floatingConfirmNearEndRef.current;
+      wrapper.classList.toggle("opacity-100", visible);
+      wrapper.classList.toggle("opacity-0", !visible);
+      wrapper.setAttribute("aria-hidden", visible ? "false" : "true");
+      const buttons = wrapper.querySelectorAll("button");
+      buttons.forEach((btn) => {
+        if (!(btn instanceof HTMLButtonElement)) return;
+        btn.tabIndex = visible ? 0 : -1;
+        btn.setAttribute("aria-hidden", visible ? "false" : "true");
+        btn.style.pointerEvents = visible ? "auto" : "none";
+      });
+    };
+
+    const updateCenter = () => {
+      const container = dashboardContainerProbeRef.current;
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      wrapper.style.left = `${rect.left + rect.width / 2}px`;
+    };
+
+    let rafId: number | null = null;
+    const scheduleUpdateCenter = () => {
+      if (rafId != null) window.cancelAnimationFrame(rafId);
+      rafId = window.requestAnimationFrame(() => {
+        rafId = null;
+        updateCenter();
+      });
+    };
+
+    scheduleUpdateCenter();
+    applyVisibility();
+
+    const topObserver = new IntersectionObserver(
+      ([entry]) => {
+        // Activate only after the user has scrolled past the reveal sentinel.
+        // (Prevents activating while the dashboard is still below the viewport.)
+        floatingConfirmActiveRef.current =
+          !entry.isIntersecting && entry.boundingClientRect.top < 0;
+        applyVisibility();
+      },
+      { root: null, threshold: 0, rootMargin: "0px" },
+    );
+
+    const bottomObserver = new IntersectionObserver(
+      ([entry]) => {
+        floatingConfirmNearEndRef.current = entry.isIntersecting;
+        applyVisibility();
+      },
+      { root: null, threshold: 0, rootMargin: "0px 0px 48px 0px" },
+    );
+
+    topObserver.observe(topSentinel);
+    bottomObserver.observe(bottomSentinel);
+    window.addEventListener("resize", scheduleUpdateCenter);
+    window.visualViewport?.addEventListener("resize", scheduleUpdateCenter);
+
+    const ro = new ResizeObserver(() => scheduleUpdateCenter());
+    const centerTarget = dashboardContainerProbeRef.current;
+    if (centerTarget) ro.observe(centerTarget);
+
+    return () => {
+      topObserver.disconnect();
+      bottomObserver.disconnect();
+      window.removeEventListener("resize", scheduleUpdateCenter);
+      window.visualViewport?.removeEventListener(
+        "resize",
+        scheduleUpdateCenter,
+      );
+      ro.disconnect();
+      if (rafId != null) window.cancelAnimationFrame(rafId);
+    };
+  }, [isEditing, isOverview]);
   const [mounted, setMounted] = React.useState(false);
   const formatNow = React.useCallback(() => {
     return new Date().toLocaleTimeString(undefined, {
@@ -290,7 +385,7 @@ const DateSummaryBridge: React.FC<Props> = ({
     });
   }, []);
   const [currentTime, setCurrentTime] = React.useState<string>(() =>
-    formatNow()
+    formatNow(),
   );
   const {
     meta: layoutMeta,
@@ -346,7 +441,7 @@ const DateSummaryBridge: React.FC<Props> = ({
         return next;
       });
     },
-    []
+    [],
   );
   const toggleDailyTableDensity = React.useCallback(() => {
     setOverviewTableDensity((prev) => (prev === "3h" ? "12h" : "3h"));
@@ -355,7 +450,7 @@ const DateSummaryBridge: React.FC<Props> = ({
   React.useEffect(() => {
     try {
       const stored = window.localStorage.getItem(
-        "waves-and-waders.statTable.density"
+        "waves-and-waders.statTable.density",
       );
       if (stored === "3h" || stored === "12h") {
         skipOverviewTableDensityPersistRef.current = true;
@@ -372,7 +467,7 @@ const DateSummaryBridge: React.FC<Props> = ({
     try {
       window.localStorage.setItem(
         "waves-and-waders.statTable.density",
-        overviewTableDensity
+        overviewTableDensity,
       );
     } catch {}
   }, [overviewTableDensity]);
@@ -380,7 +475,7 @@ const DateSummaryBridge: React.FC<Props> = ({
   React.useEffect(() => {
     try {
       const stored = window.localStorage.getItem(
-        "waves-and-waders.forecastTable.density"
+        "waves-and-waders.forecastTable.density",
       );
       if (stored === "3h" || stored === "12h") {
         skipForecastTableDensityPersistRef.current = true;
@@ -397,7 +492,7 @@ const DateSummaryBridge: React.FC<Props> = ({
     try {
       window.localStorage.setItem(
         "waves-and-waders.forecastTable.density",
-        forecastTableDensity
+        forecastTableDensity,
       );
     } catch {}
   }, [forecastTableDensity]);
@@ -410,7 +505,7 @@ const DateSummaryBridge: React.FC<Props> = ({
       : defaultSelectedMs;
   const selectedDateForData = React.useMemo(
     () => new Date(selectedDateMs),
-    [selectedDateMs]
+    [selectedDateMs],
   );
 
   const statsRange = React.useMemo(() => {
@@ -429,10 +524,10 @@ const DateSummaryBridge: React.FC<Props> = ({
     if (normalizedDays && normalizedDays.length > 0) {
       const start = getPacificMidnightUTC(normalizedDays[0]);
       const lastMidnight = getPacificMidnightUTC(
-        normalizedDays[normalizedDays.length - 1]
+        normalizedDays[normalizedDays.length - 1],
       );
       const end = new Date(
-        lastMidnight.getTime() + HOURS_PER_DAY * 60 * 60 * 1000
+        lastMidnight.getTime() + HOURS_PER_DAY * 60 * 60 * 1000,
       );
       return { start, end };
     }
@@ -443,7 +538,7 @@ const DateSummaryBridge: React.FC<Props> = ({
         : new Date(defaultSelectedMs);
     const start = getPacificMidnightUTC(base);
     const end = new Date(
-      start.getTime() + FORECAST_VISIBLE_DAYS * HOURS_PER_DAY * 60 * 60 * 1000
+      start.getTime() + FORECAST_VISIBLE_DAYS * HOURS_PER_DAY * 60 * 60 * 1000,
     );
     return { start, end };
   }, [selected, selectedDays, FORECAST_VISIBLE_DAYS, defaultSelectedMs]);
@@ -480,7 +575,7 @@ const DateSummaryBridge: React.FC<Props> = ({
       timeZone: "America/Los_Angeles",
     });
     const lastDay = new Date(
-      forecastTabRange.end.getTime() - HOURS_PER_DAY * 60 * 60 * 1000
+      forecastTabRange.end.getTime() - HOURS_PER_DAY * 60 * 60 * 1000,
     );
     const endLabel = lastDay.toLocaleDateString("en-US", {
       weekday: "short",
@@ -555,7 +650,7 @@ const DateSummaryBridge: React.FC<Props> = ({
         const segments = buildSunSegments(
           24,
           sunData?.sunrise ?? null,
-          sunData?.sunset ?? null
+          sunData?.sunset ?? null,
         );
         if (!cancelled) {
           setSharedSunSegments({
@@ -599,7 +694,7 @@ const DateSummaryBridge: React.FC<Props> = ({
         const HOURS_PER_DAY = 24;
         const totalDays = Math.max(
           1,
-          Math.round(totalMs / (HOURS_PER_DAY * 60 * 60 * 1000))
+          Math.round(totalMs / (HOURS_PER_DAY * 60 * 60 * 1000)),
         );
 
         const segments = await buildSunSegmentsForRange({
@@ -622,7 +717,7 @@ const DateSummaryBridge: React.FC<Props> = ({
             forecastTabRange.end.getTime() - forecastTabRange.start.getTime();
           const totalDays = Math.max(
             1,
-            Math.round(totalMs / (HOURS_PER_DAY * 60 * 60 * 1000))
+            Math.round(totalMs / (HOURS_PER_DAY * 60 * 60 * 1000)),
           );
 
           setForecastSunSegments({
@@ -651,17 +746,16 @@ const DateSummaryBridge: React.FC<Props> = ({
     date: selectedDateForData,
     hours: 24,
   });
-  const overviewChartsLoading =
-    !layoutHydrated || !beachId || forecastLoading;
+  const overviewChartsLoading = !layoutHydrated || !beachId || forecastLoading;
   const overviewWidgetsLoading = useOptionalOverviewChartsLoadingState();
   const hasVisibleOverviewWidgets = React.useMemo(
     () =>
       layoutRows.some((row) =>
         row.items.some(
-          (id) => id !== "surfAndWind" && layoutMeta[id]?.visible !== false
-        )
+          (id) => id !== "surfAndWind" && layoutMeta[id]?.visible !== false,
+        ),
       ),
-    [layoutMeta, layoutRows]
+    [layoutMeta, layoutRows],
   );
 
   const [tabOverlayActive, setTabOverlayActive] = React.useState(false);
@@ -708,8 +802,8 @@ const DateSummaryBridge: React.FC<Props> = ({
 
   const pendingLayoutApplyActive = Boolean(
     pendingLayoutApply.overview &&
-      // If we're still editing, the overview tab is hidden and we shouldn't flash an overlay.
-      !isEditing
+    // If we're still editing, the overview tab is hidden and we shouldn't flash an overlay.
+    !isEditing,
   );
 
   const overviewInitialBusyRaw =
@@ -721,7 +815,7 @@ const DateSummaryBridge: React.FC<Props> = ({
 
   const overlayVisible = useStableOverlay(
     overviewInitialBusy || layoutOverlayActive || pendingLayoutApplyActive,
-    250
+    250,
   );
 
   const [forecastBridgeBusy, setForecastBridgeBusy] = React.useState(true);
@@ -757,7 +851,7 @@ const DateSummaryBridge: React.FC<Props> = ({
     if (forecastBridgeBusy) return;
     const timeout = window.setTimeout(
       () => setForecastTabOverlayActive(false),
-      250
+      250,
     );
     return () => window.clearTimeout(timeout);
   }, [forecastBridgeBusy, forecastTabOverlayActive, isOverview]);
@@ -789,7 +883,7 @@ const DateSummaryBridge: React.FC<Props> = ({
       const makeEmptyRange = () => ({ min: null, max: null });
       const toRange = (
         values: number[],
-        fractionDigits: number
+        fractionDigits: number,
       ): RangeStats => {
         if (!values.length) {
           return makeEmptyRange();
@@ -837,7 +931,7 @@ const DateSummaryBridge: React.FC<Props> = ({
           const w2 = 0.6;
           const w3 = 0.3;
           const combined = Math.sqrt(
-            Math.pow(w1 * s1, 2) + Math.pow(w2 * s2, 2) + Math.pow(w3 * s3, 2)
+            Math.pow(w1 * s1, 2) + Math.pow(w2 * s2, 2) + Math.pow(w3 * s3, 2),
           );
           const wind = row.conditions.windSpeed ?? 0;
           const windPenalty = Math.min(0.5, Math.max(0, (wind - 5) / 35));
@@ -1092,12 +1186,13 @@ const DateSummaryBridge: React.FC<Props> = ({
       swellStats,
       energyStats,
       overlayVisible,
-    ]
+    ],
   );
 
   const renderEditorWidget = React.useCallback(
-    (id: WidgetId, variant: "full" | "half") => renderWidget(id, variant === "full"),
-    [renderWidget]
+    (id: WidgetId, variant: "full" | "half") =>
+      renderWidget(id, variant === "full"),
+    [renderWidget],
   );
 
   const sectionId = isOverview ? "overview-content" : "forecast-content";
@@ -1110,7 +1205,7 @@ const DateSummaryBridge: React.FC<Props> = ({
       ? `/${beachId}/overview/edit#forecast-content`
       : `/${beachId}/overview/edit#overview-content`;
   const loggedOutEditHref = `/login?next=${encodeURIComponent(
-    loggedOutEditTarget
+    loggedOutEditTarget,
   )}`;
 
   return (
@@ -1160,7 +1255,7 @@ const DateSummaryBridge: React.FC<Props> = ({
               className="sr-only flex flex-col @min-4xl:flex-row"
             />
             <header className="mx-2 flex flex-col gap-3 @min-xl:flex-row @min-xl:items-start @min-xl:justify-between">
-                <div className="flex items-start justify-between gap-2 w-full">
+              <div className="flex items-start justify-between gap-2 w-full">
                 <div className="space-y-0 min-w-0">
                   <h2 className="text-2xl @min-md:text-3xl font-semibold tracking-tight truncate">
                     {headerTitle}
@@ -1179,7 +1274,7 @@ const DateSummaryBridge: React.FC<Props> = ({
                         "@min-xl:hidden inline-flex items-center rounded-full px-4 py-2.5 gap-1.5 shrink-0",
                         "border border-border/25 bg-highlight-7/50 hover:bg-highlight-6/60 shadow-even",
                         "transition-colors duration-200 motion-reduce:transition-none",
-                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0"
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0",
                       )}
                       aria-label="Done editing dashboard"
                       title="Done editing dashboard"
@@ -1194,14 +1289,14 @@ const DateSummaryBridge: React.FC<Props> = ({
                       type="button"
                       onClick={() =>
                         enterEdit(
-                          selectedTab === "forecast" ? "forecast" : "overview"
+                          selectedTab === "forecast" ? "forecast" : "overview",
                         )
                       }
                       className={cn(
                         "@min-xl:hidden inline-flex items-center rounded-full px-4 py-2.5 gap-1.5 shrink-0",
                         "border border-border/25 bg-highlight-7/50 hover:bg-highlight-6/60 shadow-even",
                         "transition-colors duration-200 motion-reduce:transition-none",
-                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0"
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0",
                       )}
                       aria-label={`Edit ${
                         selectedTab === "forecast" ? "forecast" : "overview"
@@ -1223,7 +1318,7 @@ const DateSummaryBridge: React.FC<Props> = ({
                       "@min-xl:hidden inline-flex items-center rounded-full px-4 py-2.5 gap-1.5 shrink-0",
                       "border border-border/25 bg-highlight-7/50 hover:bg-highlight-6/60 shadow-even",
                       "transition-colors duration-200 motion-reduce:transition-none",
-                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0"
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0",
                     )}
                     aria-label={`Edit ${
                       selectedTab === "forecast" ? "forecast" : "overview"
@@ -1260,18 +1355,88 @@ const DateSummaryBridge: React.FC<Props> = ({
                   (() => {
                     if (!isOverview) return null;
                     const cachedLayout = getCachedLayout("overview");
-                    const editorInitialMeta =
-                      cachedLayout?.meta ?? layoutMeta;
-                    const editorInitialRows =
-                      cachedLayout?.rows ?? layoutRows;
+                    const editorInitialMeta = cachedLayout?.meta ?? layoutMeta;
+                    const editorInitialRows = cachedLayout?.rows ?? layoutRows;
 
                     return (
-                      <DashboardEditorPanel
-                        type="overview"
-                        initialMeta={editorInitialMeta}
-                        initialRows={editorInitialRows}
-                        renderWidget={renderEditorWidget}
-                      />
+                      <div className="relative">
+                        <div
+                          aria-hidden="true"
+                          ref={floatingConfirmTopSentinelRef}
+                          className="pointer-events-none absolute left-0 top-[-300px] h-px w-full"
+                        />
+                        {typeof document !== "undefined"
+                          ? createPortal(
+                              <div
+                                ref={floatingConfirmWrapperRef}
+                                className="ww-floating-edit-save hidden @min-4xl/main:block fixed z-[1000004] pointer-events-none opacity-0 transition-opacity duration-200 motion-reduce:transition-none"
+                                style={{
+                                  left: "50%",
+                                  bottom: "16px",
+                                  transform: "translateX(-50%)",
+                                }}
+                                aria-hidden="true"
+                              >
+                                <div
+                                  className={cn(
+                                    "pointer-events-auto inline-flex items-center gap-2 rounded-full",
+                                    "border border-border/40 bg-background/85 shadow-xl ring-1 ring-border/30",
+                                    "supports-[backdrop-filter]:backdrop-blur-md",
+                                    "px-2 py-2",
+                                  )}
+                                >
+                                  <button
+                                    type="button"
+                                    onClick={confirm}
+                                    className={cn(
+                                      "inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold",
+                                      "border border-border bg-highlight-4 ring-1 ring-border/55",
+                                      "supports-[backdrop-filter]:backdrop-blur-md",
+                                      "hover:bg-highlight-5 hover:dark:bg-highlight-5 hover:shadow-2xl transition-[opacity,background-color,box-shadow,transform] duration-200 motion-reduce:transition-none",
+                                      "active:scale-[0.99]",
+                                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/25 focus-visible:ring-offset-0",
+                                      "ww-floating-edit-save__button",
+                                    )}
+                                    aria-label="Save dashboard changes"
+                                    title="Save dashboard changes"
+                                  >
+                                    <CircleCheck className="stroke-[2.5px] w-4.5 h-4.5" />
+                                    <span>Save</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={cancel}
+                                    className={cn(
+                                      "inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold",
+                                      "border border-destructive/45 bg-transparent",
+                                      "text-destructive",
+                                      "supports-[backdrop-filter]:backdrop-blur-md",
+                                      "hover:bg-destructive/10 transition-colors duration-200 motion-reduce:transition-none",
+                                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/25 focus-visible:ring-offset-0",
+                                    )}
+                                    aria-label="Cancel dashboard changes"
+                                    title="Cancel dashboard changes"
+                                  >
+                                    <X className="stroke-[2.5px] w-4.5 h-4.5" />
+                                    <span>Cancel</span>
+                                  </button>
+                                </div>
+                              </div>,
+                              document.body,
+                            )
+                          : null}
+                        <DashboardEditorPanel
+                          type="overview"
+                          initialMeta={editorInitialMeta}
+                          initialRows={editorInitialRows}
+                          renderWidget={renderEditorWidget}
+                        />
+                        <div
+                          aria-hidden="true"
+                          ref={floatingConfirmBottomSentinelRef}
+                          className="-mt-px h-px w-full"
+                        />
+                      </div>
                     );
                   })()
                 ) : visibleRows.length === 0 ? (
@@ -1284,7 +1449,7 @@ const DateSummaryBridge: React.FC<Props> = ({
                 ) : (
                   visibleRows.map((row, index) => {
                     const visibleItems = row.items.filter(
-                      (id) => layoutMeta[id]?.visible !== false
+                      (id) => layoutMeta[id]?.visible !== false,
                     );
                     if (!visibleItems.length) return null;
                     const spacing = index === 0 ? "mt-4" : "mt-5";

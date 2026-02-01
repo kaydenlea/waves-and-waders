@@ -30,6 +30,7 @@ type DashboardEditModeState = {
 type DashboardEditModeContextValue = DashboardEditModeState & {
   enterEdit: (type: DashboardType) => void;
   exitEdit: () => void;
+  cancel: () => void;
   confirm: () => void;
   requestScrollTo: (id: string) => void;
   clearPendingScrollTo: () => void;
@@ -120,6 +121,19 @@ export function DashboardEditModeProvider({
 
   const exitEdit = React.useCallback(() => {
     setState((prev) => ({ ...prev, isEditing: false, dashboardType: null }));
+  }, []);
+
+  const cancel = React.useCallback(() => {
+    // Discard any in-progress edits (do not apply pending layouts).
+    cachedLayoutsRef.current = {};
+    dirtyTypesRef.current = {};
+    baselineSignaturesRef.current = {};
+    setState((prev) => ({
+      ...prev,
+      isEditing: false,
+      dashboardType: null,
+      pendingScrollToId: null,
+    }));
   }, []);
 
   const confirm = React.useCallback(() => {
@@ -213,6 +227,7 @@ export function DashboardEditModeProvider({
       ...state,
       enterEdit,
       exitEdit,
+      cancel,
       confirm,
       requestScrollTo,
       clearPendingScrollTo,
@@ -225,6 +240,7 @@ export function DashboardEditModeProvider({
       state,
       enterEdit,
       exitEdit,
+      cancel,
       confirm,
       requestScrollTo,
       clearPendingScrollTo,
