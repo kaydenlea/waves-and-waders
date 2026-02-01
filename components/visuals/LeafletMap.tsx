@@ -3235,6 +3235,38 @@ const LeafletMap: React.FC<Props> = ({
     interactionLockReleaseRef.current = null;
   }, []);
 
+  const navigationPendingLockRef = React.useRef(false);
+  const syncNavigationPendingBody = React.useCallback((pending: boolean) => {
+    try {
+      if (typeof document === "undefined") return;
+      if (pending) {
+        document.body.dataset.wwNavigationPending = "1";
+      } else {
+        delete document.body.dataset.wwNavigationPending;
+      }
+    } catch {}
+  }, []);
+
+  React.useEffect(() => {
+    syncNavigationPendingBody(navigationPending);
+    if (navigationPending) {
+      if (!interactionLockReleaseRef.current) {
+        navigationPendingLockRef.current = true;
+      }
+      enableInteractionLock();
+      return;
+    }
+    if (navigationPendingLockRef.current) {
+      navigationPendingLockRef.current = false;
+      disableInteractionLock();
+    }
+  }, [
+    navigationPending,
+    syncNavigationPendingBody,
+    enableInteractionLock,
+    disableInteractionLock,
+  ]);
+
   const shouldIgnoreTouchActivation = React.useCallback(
     (event?: Event | null) => {
       if (!event || !isTouchInteraction(event)) return false;
@@ -3361,8 +3393,7 @@ const LeafletMap: React.FC<Props> = ({
   React.useEffect(() => {
     if (!navigationPending) return;
     cancelMarkerBuild();
-    disableInteractionLock();
-  }, [navigationPending, cancelMarkerBuild, disableInteractionLock]);
+  }, [navigationPending, cancelMarkerBuild]);
 
   React.useEffect(() => {
     if (navigationPending) return;
@@ -4857,6 +4888,11 @@ const LeafletMap: React.FC<Props> = ({
 
               if (router) {
                 setNavigationPending(true);
+                syncNavigationPendingBody(true);
+                if (!interactionLockReleaseRef.current) {
+                  navigationPendingLockRef.current = true;
+                }
+                enableInteractionLock();
                 router.push(destination);
               }
             };

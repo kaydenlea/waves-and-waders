@@ -492,6 +492,11 @@
 body[data-ww-interaction-lock="1"] [data-slot="chart"] {
   pointer-events: none;
 }
+
+/* While switching beaches from the map, block interactions until the new route commits. */
+body[data-ww-navigation-pending="1"] #main-content {
+  pointer-events: none;
+}
 /* Prevent long-press selection/callout on touch-driven chart scrubbing. */
 .chart-touch-no-select {
   -webkit-touch-callout: none;
