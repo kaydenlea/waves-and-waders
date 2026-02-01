@@ -4,6 +4,7 @@ import React from "react";
 import { flushSync } from "react-dom";
 import { cn, getPacificDayRange } from "@/lib/utils";
 import { usePathname } from "next/navigation";
+import { useOptionalDashboardEditMode } from "../context/DashboardEditModeContext";
 import { Button } from "../ui/button";
 import {
   DropdownMenu,
@@ -1119,7 +1120,8 @@ const StatTable = ({
   const { showMap } = useMapUI();
   const forecastPage = selectedTab === "forecast";
   const pathname = usePathname();
-  const isEditingPage = pathname.endsWith("/edit");
+  const dashboardEditMode = useOptionalDashboardEditMode();
+  const isEditing = (dashboardEditMode?.isEditing ?? false) || pathname.endsWith("/edit");
   const headerBgClass =
     "bg-[var(--widget-header-surface,var(--widget-surface,var(--highlight-4)))]";
   const { rows: sharedRows } = useForecastData();
@@ -1986,6 +1988,7 @@ const StatTable = ({
   // Match the "+n features" popover behavior: close any open menu while scrolling.
   React.useEffect(() => {
     if (!tableControlsMenuOpen) return;
+    if (isEditing) return;
     const close = () => setTableControlsMenuOpen(false);
     window.addEventListener("scroll", close, { passive: true });
     window.addEventListener("touchmove", close, { passive: true });
@@ -1993,10 +1996,11 @@ const StatTable = ({
       window.removeEventListener("scroll", close);
       window.removeEventListener("touchmove", close);
     };
-  }, [tableControlsMenuOpen]);
+  }, [isEditing, tableControlsMenuOpen]);
 
   React.useEffect(() => {
     if (!forecastDateMenuOpen) return;
+    if (isEditing) return;
     const close = () => setForecastDateMenuOpen(false);
     window.addEventListener("scroll", close, { passive: true });
     window.addEventListener("touchmove", close, { passive: true });
@@ -2004,7 +2008,7 @@ const StatTable = ({
       window.removeEventListener("scroll", close);
       window.removeEventListener("touchmove", close);
     };
-  }, [forecastDateMenuOpen]);
+  }, [forecastDateMenuOpen, isEditing]);
 
   const Pager = ({ compact }: { compact?: boolean }) => {
     const totalPages = columnPages.length;
@@ -2160,7 +2164,7 @@ const StatTable = ({
               "w-56 rounded-2xl border border-border/40 p-1.5 shadow-xl",
               "bg-background/95 supports-[backdrop-filter]:backdrop-blur-md",
               "max-h-none overflow-visible",
-              "z-20",
+              isEditing && "z-[1000005]",
             )}
           >
             {showForecastViewToggleInPill ? (
@@ -2389,7 +2393,7 @@ const StatTable = ({
                 className={cn(
                   "w-44 rounded-2xl border border-border/40 p-1 shadow-xl",
                   "bg-background/95 supports-[backdrop-filter]:backdrop-blur-md",
-                  "z-20",
+                  isEditing && "z-[1000005]",
                 )}
               >
                 <DropdownMenuRadioGroup
@@ -2522,33 +2526,21 @@ const StatTable = ({
   // Exception: for multi-day forecast tables, keep the scroll-follow behavior.
   const dockPagerInFlow =
     targetHours.length <= 3 && !(forecastPage && !useSingleDayView);
+  const dockPagerInFlowEffective = isEditing ? true : dockPagerInFlow;
   const pagerStickyRef = React.useRef<HTMLDivElement | null>(null);
   const pagerRevealSentinelRef = React.useRef<HTMLDivElement | null>(null);
   const pagerBottomSentinelRef = React.useRef<HTMLDivElement | null>(null);
   const pagerRevealPastRef = React.useRef(false);
   const pagerBottomReachedRef = React.useRef(false);
   const pagerPillFullyVisibleRef = React.useRef(false);
-  const pagerVisibleRef = React.useRef(isEditingPage);
+  const pagerVisibleRef = React.useRef(isEditing);
 
   React.useEffect(() => {
     const el = pagerStickyRef.current;
     const sentinel = pagerRevealSentinelRef.current;
     const bottomSentinel = pagerBottomSentinelRef.current;
     if (!shouldReserveFooterSpace || !el) return;
-    if (isEditingPage) {
-      pagerVisibleRef.current = true;
-      el.dataset.wwVisible = "true";
-      el.setAttribute("aria-hidden", "false");
-      const ui = el.querySelector("[data-ww-stat-table-pager-ui]");
-      if (ui instanceof HTMLElement) {
-        ui.style.pointerEvents = "auto";
-        try {
-          ui.removeAttribute("inert");
-        } catch {}
-      }
-      return;
-    }
-    if (dockPagerInFlow) {
+    if (isEditing || dockPagerInFlowEffective) {
       pagerVisibleRef.current = true;
       el.dataset.wwVisible = "true";
       el.setAttribute("aria-hidden", "false");
@@ -2637,7 +2629,7 @@ const StatTable = ({
       bottomObserver.disconnect();
       pillObserver.disconnect();
     };
-  }, [dockPagerInFlow, isEditingPage, shouldReserveFooterSpace]);
+  }, [dockPagerInFlowEffective, isEditing, shouldReserveFooterSpace]);
 
   return (
     <div
@@ -3275,7 +3267,7 @@ const StatTable = ({
         ) : null}
       </div>
 
-      {shouldReserveFooterSpace && !dockPagerInFlow ? (
+      {shouldReserveFooterSpace && !dockPagerInFlowEffective ? (
         <div
           aria-hidden="true"
           ref={pagerRevealSentinelRef}
@@ -3283,7 +3275,7 @@ const StatTable = ({
         />
       ) : null}
 
-      {shouldReserveFooterSpace && !dockPagerInFlow ? (
+      {shouldReserveFooterSpace && !dockPagerInFlowEffective ? (
         <div
           aria-hidden="true"
           ref={pagerBottomSentinelRef}
@@ -3296,17 +3288,17 @@ const StatTable = ({
           data-ww-stat-table-sticky="pager"
           ref={pagerStickyRef}
           data-ww-visible={
-            dockPagerInFlow || pagerVisibleRef.current ? "true" : "false"
+            dockPagerInFlowEffective || pagerVisibleRef.current ? "true" : "false"
           }
           className={cn(
-            dockPagerInFlow
+            dockPagerInFlowEffective
               ? "relative z-50"
               : // Keep the pager attached to the bottom edge of the widget while the
                 // page scrolls; within-table scrolling is handled by the flex layout above.
                 "sticky z-50 bottom-[calc(0.75rem+env(safe-area-inset-bottom))]",
             "mt-2",
             "shrink-0 flex min-h-10 items-center justify-center px-1 pt-1",
-            !dockPagerInFlow &&
+            !dockPagerInFlowEffective &&
               "invisible opacity-0 pointer-events-none transition-opacity duration-150 motion-reduce:transition-none data-[ww-visible=true]:visible data-[ww-visible=true]:opacity-100 data-[ww-visible=true]:pointer-events-auto",
           )}
           aria-hidden="true"

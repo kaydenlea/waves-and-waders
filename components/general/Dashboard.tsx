@@ -204,7 +204,14 @@ const DraggableCard = React.memo(function DraggableCard({
         }
         aria-roledescription="card"
       >
-        <div className="pointer-events-none select-none">
+        <div
+          className={cn(
+            "select-none",
+            id === "table" || id === "stats"
+              ? "pointer-events-auto"
+              : "pointer-events-none",
+          )}
+        >
           <StableNode node={content} />
         </div>
         {dim || isDragging ? (
