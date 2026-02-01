@@ -2,6 +2,7 @@ import "./globals.css";
 import { poppins } from "@/lib/fonts";
 import { buildDefaultMetadata, getSiteUrl } from "@/lib/seo";
 import { AppProviders } from "./providers";
+import { cookies } from "next/headers";
 
 export const metadata = buildDefaultMetadata();
 
@@ -13,6 +14,11 @@ export default async function RootLayout({
   // Avoid getSession on the server to prevent untrusted user warnings.
   const initialSession = null;
   const baseUrl = getSiteUrl();
+  const cookieStore = await cookies();
+  const initialTabPreferences = {
+    beaches: cookieStore.get("ww_tab_beaches")?.value ?? null,
+    beachDashboard: cookieStore.get("ww_tab_beach_dashboard")?.value ?? null,
+  };
 
   const structuredData = {
     "@context": "https://schema.org",
@@ -60,7 +66,12 @@ export default async function RootLayout({
         className={`${poppins.variable} font-poppins antialiased`}
         suppressHydrationWarning
       >
-        <AppProviders initialSession={initialSession}>{children}</AppProviders>
+        <AppProviders
+          initialSession={initialSession}
+          initialTabPreferences={initialTabPreferences}
+        >
+          {children}
+        </AppProviders>
       </body>
     </html>
   );

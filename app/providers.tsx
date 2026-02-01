@@ -14,15 +14,20 @@ import ScrollPerfHandler from "@/components/general/ScrollPerfHandler";
 
 export function AppProviders({
   initialSession,
+  initialTabPreferences,
   children,
 }: {
   initialSession: Session | null;
+  initialTabPreferences?: {
+    beaches?: string | null;
+    beachDashboard?: string | null;
+  };
   children: React.ReactNode;
 }) {
   return (
     <SupabaseProvider initialSession={initialSession}>
       <QueryProvider>
-        <PathProvider>
+        <PathProvider initialTabPreferences={initialTabPreferences}>
           <ThemeProvider
             attribute="class"
             defaultTheme="system"

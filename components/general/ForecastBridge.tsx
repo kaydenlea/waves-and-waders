@@ -1123,7 +1123,7 @@ const ForecastBridge: React.FC<Props> = ({
 
           <Link
 
-            href={`/${beachId}/forecast/edit#forecast-content`}
+            href={`/${beachId}/overview/edit#forecast-content`}
 
             className="flex justify-center text-sm gap-1 h-10 px-3 items-center border border-border bg-highlight-4 rounded-full drop-shadow-sm hover:bg-highlight-3"
 
@@ -1281,7 +1281,7 @@ const ForecastBridge: React.FC<Props> = ({
 
           <Link
 
-            href={`/${beachId}/forecast/edit#forecast-content`}
+            href={`/${beachId}/overview/edit#forecast-content`}
 
             className="flex justify-center text-sm gap-1 h-10 px-3 items-center border border-border bg-highlight-4 rounded-full drop-shadow-sm hover:bg-highlight-3"
 

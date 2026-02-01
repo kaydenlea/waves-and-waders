@@ -5389,7 +5389,14 @@ const LeafletMap: React.FC<Props> = ({
                 className={cn(overlayButtonBase, "text-sm font-medium")}
                 onClick={() => {
                   if (openPanel) setOpenPanel(null);
-                  router.push("/beaches");
+                  let target = "/beaches";
+                  try {
+                    if (typeof window !== "undefined") {
+                      const tab = window.localStorage.getItem("tab:/beaches");
+                      if (tab === "saved") target = "/beaches?tab=saved";
+                    }
+                  } catch {}
+                  router.push(target);
                 }}
               >
                 <MapIcon className="w-5 h-5 mx-auto" />

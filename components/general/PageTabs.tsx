@@ -1,7 +1,7 @@
 "use client";
 
 import { startTransition, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 
 import { cn } from "@/lib/utils";
@@ -40,13 +40,14 @@ const PageTabs = ({
   beachPage = false,
   forecastPage = false,
   overviewPage = false,
-  loggedIn = false,
+  loggedIn,
   className,
   placement = "default",
   fullWidth = false,
   responsiveFull = false,
   onEditDone,
 }: PageTabsProps) => {
+  const pathname = usePathname() ?? "";
   const router = useRouter();
   const [favorite, setFavorite] = useState(isFavorite);
   const [isDesktop, setIsDesktop] = useState(false);
@@ -58,7 +59,8 @@ const PageTabs = ({
   const normalizedTabs = tabs.map((tab) => tab.toLowerCase());
   const tabCount = Math.max(1, tabs.length);
   const activeIndexRaw = normalizedTabs.indexOf(selectedTab);
-  const activeIndex = activeIndexRaw >= 0 ? activeIndexRaw : 0;
+  const hasActiveTab = activeIndexRaw >= 0;
+  const activeIndex = hasActiveTab ? activeIndexRaw : 0;
 
   useEffect(() => {
     const adjustScreenSize = () => {
@@ -89,17 +91,13 @@ const PageTabs = ({
     };
   }, []);
 
-  // Set a default only if no tab has been selected/restored yet.
-  useEffect(() => {
-    if (selectedTab !== "") return;
-    if (overviewPage || forecastPage) return;
-    setSelectedTab("nearby");
-  }, [selectedTab, overviewPage, forecastPage, setSelectedTab]);
-
   // If user is not logged in and Saved is active on the beaches page, redirect to login.
   useEffect(() => {
     if (!beachPage) return;
-    if (loggedIn) return;
+    // Only enforce the redirect when we *know* the user is logged out.
+    // Treating `undefined` as logged-out can incorrectly reset the Saved tab
+    // during certain navigation transitions.
+    if (loggedIn !== false) return;
     if (selectedTab !== "saved") return;
 
     // If Saved is active only due to persisted local state, don't hijack `/beaches`.
@@ -125,6 +123,28 @@ const PageTabs = ({
     setSelectedTab("nearby");
     router.push(`/login?next=${encodeURIComponent("/beaches?tab=saved")}`);
   }, [beachPage, loggedIn, selectedTab, router, setSelectedTab]);
+
+  // Overview page: if the URL doesn't specify a tab, restore the last selected tab.
+  // This makes `/[beach]/overview` reopen on the previously selected dashboard tab.
+  useEffect(() => {
+    if (!overviewPage || beachPage) return;
+    if (typeof window === "undefined") return;
+
+    const qp = new URLSearchParams(window.location.search).get("tab");
+    if (qp === "overview" || qp === "forecast") return;
+
+    try {
+      const saved = window.localStorage.getItem("tab:beach-dashboard");
+      if (saved !== "overview" && saved !== "forecast") return;
+      if (selectedTab === saved) return;
+
+      setSelectedTab(saved);
+      if (!beach) return;
+      router.replace(`/${beach}/overview?tab=${encodeURIComponent(saved)}`, {
+        scroll: false,
+      });
+    } catch {}
+  }, [overviewPage, beachPage, selectedTab, setSelectedTab, beach, router]);
 
   useEffect(() => {
     setFavorite(isFavorite);
@@ -198,7 +218,7 @@ const PageTabs = ({
                   selectedTab === "forecast" ? "forecast" : "overview";
                 const nextTarget =
                   selectedTab === "forecast"
-                    ? `/${beachId}/forecast/edit#forecast-content`
+                    ? `/${beachId}/overview/edit#forecast-content`
                     : `/${beachId}/overview/edit#overview-content`;
 
                 const className = cn(
@@ -210,7 +230,7 @@ const PageTabs = ({
                   "p-3 @min-2xl:py-2.5 @min-2xl:px-4"
                 );
 
-                if (!loggedIn) {
+                if (loggedIn === false) {
                   return (
                     <Link
                       href={`/login?next=${encodeURIComponent(nextTarget)}`}
@@ -251,19 +271,6 @@ const PageTabs = ({
                     aria-label={`Edit ${editType} dashboard`}
                     onClick={() => {
                       enterEdit(editType);
-
-                      // Dedicated forecast/overview routes should jump to the combined
-                      // editor on the overview route.
-                      if (forecastPage && !overviewPage) {
-                        const targetBase = beach ? `/${beach}/overview` : null;
-                        if (!targetBase) return;
-                        router.push(
-                          `${targetBase}?tab=${encodeURIComponent(
-                            selectedTab
-                          )}`,
-                          { scroll: false }
-                        );
-                      }
                     }}
                   >
                     <Pencil className="stroke-[2.5px] w-4.5 h-4.5 @min-2xl:mb-0.5" />
@@ -299,17 +306,19 @@ const PageTabs = ({
             "hidden @min-4xl:block absolute left-3 top-3 shadow-lg bg-highlight-3/80 backdrop-blur z-[1000]"
         )}
       >
-        <div
-          aria-hidden="true"
-          className={cn(
-            "absolute inset-y-1 left-1 z-0 rounded-full bg-highlight-3/50 dark:bg-highlight-5/80 shadow-sm transition-transform duration-200 ease-out motion-reduce:transition-none",
-            beachPage && "bg-background"
-          )}
-          style={{
-            width: `calc((100% - 0.5rem) / ${tabCount})`,
-            transform: `translateX(${activeIndex * 100}%)`,
-          }}
-        />
+        {hasActiveTab && (
+          <div
+            aria-hidden="true"
+            className={cn(
+              "absolute inset-y-1 left-1 z-0 rounded-full bg-highlight-3/50 dark:bg-highlight-5/80 shadow-sm transition-transform duration-200 ease-out motion-reduce:transition-none",
+              beachPage && "bg-background"
+            )}
+            style={{
+              width: `calc((100% - 0.5rem) / ${tabCount})`,
+              transform: `translateX(${activeIndex * 100}%)`,
+            }}
+          />
+        )}
         {tabs.map((tab) => {
           const normalizedTab = tab.toLowerCase();
           const isActive = selectedTab === normalizedTab;
@@ -319,14 +328,14 @@ const PageTabs = ({
           //       ? `/${beach}/overview`
           //       : "/beaches"
           //     : beach
-          //     ? `/${beach}/forecast`
+          //     ? `/${beach}/overview?tab=forecast`
           //     : "/beaches?tab=saved";
 
           return (
             <button
               onClick={() => {
                 const next = tab.toLowerCase();
-                if (beachPage && next === "saved" && !loggedIn) {
+                if (beachPage && next === "saved" && loggedIn === false) {
                   // Redirect unauthenticated users to login when selecting Saved on beaches page
                   router.push(
                     `/login?next=${encodeURIComponent("/beaches?tab=saved")}`
@@ -334,6 +343,34 @@ const PageTabs = ({
                   return;
                 }
                 setSelectedTab(next);
+                try {
+                  if (typeof window !== "undefined") {
+                    if (beachPage && (next === "nearby" || next === "saved")) {
+                      window.localStorage.setItem("tab:/beaches", next);
+
+                      const raw =
+                        typeof window !== "undefined" ? window.location.search : "";
+                      const params = new URLSearchParams(
+                        raw.startsWith("?") ? raw.slice(1) : raw
+                      );
+                      params.set("tab", next);
+
+                      const qs = params.toString();
+                      const hash = window.location.hash ?? "";
+                      const href = qs ? `${pathname}?${qs}${hash}` : `${pathname}${hash}`;
+                      startTransition(() => {
+                        router.replace(href, { scroll: false });
+                      });
+                    }
+                    if (
+                      !beachPage &&
+                      (overviewPage || forecastPage) &&
+                      (next === "overview" || next === "forecast")
+                    ) {
+                      window.localStorage.setItem("tab:beach-dashboard", next);
+                    }
+                  }
+                } catch {}
 
                 // Keep URL/tab state in sync for overview/forecast dashboards to avoid
                 // flicker on refresh and allow deep-linking.
@@ -350,21 +387,7 @@ const PageTabs = ({
                   return;
                 }
 
-                if (forecastPage && !overviewPage && beach) {
-                  // Dedicated forecast page: switch routes between overview/forecast.
-                  if (next === "overview") {
-                    startTransition(() => {
-                      router.push(`/${beach}/overview`, { scroll: false });
-                    });
-                    return;
-                  }
-                  if (next === "forecast") {
-                    startTransition(() => {
-                      router.push(`/${beach}/forecast`, { scroll: false });
-                    });
-                    return;
-                  }
-                }
+                // No dedicated `/${beach}/forecast` route exists; "forecast" is a tab on `/${beach}/overview`.
               }}
               type="button"
               aria-label={`${tab} tab`}
@@ -405,7 +428,7 @@ const PageTabs = ({
               ? "bg-background dark:bg-highlight-5"
               : "hover:bg-background/50 dark:hover:bg-highlight-5/50"
           )}
-          href={beach ? `/${beach}/forecast` : "/beaches?tab=saved"}
+          href={beach ? `/${beach}/overview?tab=forecast` : "/beaches?tab=saved"}
         >
           {tabs[1]}
         </Link>

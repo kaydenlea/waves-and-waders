@@ -23,7 +23,7 @@ import {
 import BeachCard from "@/components/general/BeachCard";
 import type { Beach as UIBeach } from "@/components/general/BeachCard";
 import { cn } from "@/lib/utils";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { FEATURE_COLUMNS, getFeatureDisplayName } from "@/lib/supabase";
 import { ChevronDown, ChevronUp, SearchX } from "lucide-react";
 import {
@@ -97,6 +97,7 @@ const decorateBeachWithStats = (
 };
 
 export default function NearbyBeaches() {
+  const router = useRouter();
   const pathname = usePathname() ?? "/beaches";
   const searchParams = useSearchParams();
   const {
@@ -270,7 +271,18 @@ export default function NearbyBeaches() {
 
   const buildPageHref = useCallback(
     (nextPage: number) => {
-      const params = new URLSearchParams(searchParams?.toString());
+      const raw =
+        typeof window !== "undefined" ? window.location.search : searchParams?.toString();
+      const params = new URLSearchParams(
+        raw?.startsWith("?") ? raw.slice(1) : raw
+      );
+      // Always keep `tab` in the query string so any navigation back to /beaches
+      // preserves the current selection (and avoids other URL updates reintroducing a stale tab).
+      if (selectedTab === "nearby" || selectedTab === "saved") {
+        params.set("tab", selectedTab);
+      } else {
+        params.delete("tab");
+      }
       if (nextPage <= 1) {
         params.delete("page");
       } else {
@@ -279,16 +291,17 @@ export default function NearbyBeaches() {
       const qs = params.toString();
       return qs ? `${pathname}?${qs}#content` : `${pathname}#content`;
     },
-    [pathname, searchParams]
+    [pathname, searchParams, selectedTab]
   );
 
   const updateUrlForPage = useCallback(
     (nextPage: number) => {
-      if (typeof window === "undefined") return;
       const href = buildPageHref(nextPage);
-      window.history.replaceState(null, "", href);
+      try {
+        router.replace(href, { scroll: false });
+      } catch {}
     },
-    [buildPageHref]
+    [buildPageHref, router]
   );
 
   useEffect(() => {

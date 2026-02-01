@@ -1068,7 +1068,7 @@ const DateSummaryBridge: React.FC<Props> = ({
     : forecastWindowFallback;
   const loggedOutEditTarget =
     selectedTab === "forecast"
-      ? `/${beachId}/forecast/edit#forecast-content`
+      ? `/${beachId}/overview/edit#forecast-content`
       : `/${beachId}/overview/edit#overview-content`;
   const loggedOutEditHref = `/login?next=${encodeURIComponent(
     loggedOutEditTarget

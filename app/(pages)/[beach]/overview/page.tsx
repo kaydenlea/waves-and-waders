@@ -23,7 +23,6 @@ import {
 } from "@/components/general/dashboardLayout";
 import { getSiteUrl, toAbsoluteUrl } from "@/lib/seo";
 import NavBar from "@/components/general/NavBar";
-import { PathProvider } from "@/components/context/PathContext";
 
 const buildFeatureList = (source: Record<string, unknown> | null) => {
   if (!source) return [];
@@ -129,18 +128,10 @@ export async function generateMetadata({
 
 const Page = async ({
   params,
-  searchParams,
 }: {
   params: Promise<{ beach: string }>;
-  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) => {
   const { beach } = await params;
-  const tabParamRaw = (await searchParams)?.tab;
-  const tabParam = Array.isArray(tabParamRaw) ? tabParamRaw[0] : tabParamRaw;
-  // Only set initialTabOverride when there's an explicit ?tab= query param.
-  // When no query param is present, let the client-side localStorage determine the tab.
-  // This prevents the flash from overview->forecast when the user's preference is forecast.
-  const initialTabOverride = tabParam === "forecast" || tabParam === "overview" ? tabParam : undefined;
   // If user visits /beach/overview (literal "beach"), send them to selector
   if (beach === "beach") {
     redirect("/beaches");
@@ -361,22 +352,20 @@ const Page = async ({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
       />
-      <PathProvider initialTabOverride={initialTabOverride}>
-        <OverviewPageClient
-          beachId={beachId}
-          beachParam={canonicalParam}
-          beachName={beachName}
-          loggedIn={Boolean(user)}
-          isFavorite={isFav}
-          navBar={<NavBar />}
-          initialBeach={initialBeach}
-          initialOverviewMeta={initialOverviewMeta}
-          initialOverviewRows={initialOverviewRows}
-          initialForecastMeta={initialForecastMeta}
-          initialForecastRows={initialForecastRows}
-          seoSummary={seoSummary}
-        />
-      </PathProvider>
+      <OverviewPageClient
+        beachId={beachId}
+        beachParam={canonicalParam}
+        beachName={beachName}
+        loggedIn={Boolean(user)}
+        isFavorite={isFav}
+        navBar={<NavBar />}
+        initialBeach={initialBeach}
+        initialOverviewMeta={initialOverviewMeta}
+        initialOverviewRows={initialOverviewRows}
+        initialForecastMeta={initialForecastMeta}
+        initialForecastRows={initialForecastRows}
+        seoSummary={seoSummary}
+      />
     </>
   );
 };
