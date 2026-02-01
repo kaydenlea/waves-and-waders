@@ -2220,6 +2220,9 @@ const LeafletMap: React.FC<Props> = ({
     mapReady &&
     mapViewportStatus !== "error" &&
     (markersLoading || mapViewportStatus === "loading" || overviewPageBusy);
+  const [showLoadingPillStable, setShowLoadingPillStable] =
+    React.useState(false);
+  const loadingPillHideTimeoutRef = React.useRef<number | null>(null);
   const [loadingPillKind, setLoadingPillKind] = React.useState<
     "markers" | "content"
   >("markers");
@@ -2231,12 +2234,12 @@ const LeafletMap: React.FC<Props> = ({
       : markersLoading
         ? "markers"
         : "markers";
-  const prevShowLoadingPillRef = React.useRef<boolean>(false);
+  const prevShowLoadingPillStableRef = React.useRef<boolean>(false);
   React.useEffect(() => {
-    const wasShowing = prevShowLoadingPillRef.current;
-    prevShowLoadingPillRef.current = showLoadingPill;
+    const wasShowing = prevShowLoadingPillStableRef.current;
+    prevShowLoadingPillStableRef.current = showLoadingPillStable;
 
-    if (!showLoadingPill) return;
+    if (!showLoadingPillStable) return;
 
     // Set the label when the pill first appears.
     if (!wasShowing) {
@@ -2249,13 +2252,10 @@ const LeafletMap: React.FC<Props> = ({
     if (loadingPillKind === "markers" && desiredLoadingPillKind === "content") {
       setLoadingPillKind("content");
     }
-  }, [desiredLoadingPillKind, loadingPillKind, showLoadingPill]);
+  }, [desiredLoadingPillKind, loadingPillKind, showLoadingPillStable]);
 
   const loadingPillLabel =
     loadingPillKind === "markers" ? "Updating markers" : "Loading";
-  const [showLoadingPillStable, setShowLoadingPillStable] =
-    React.useState(false);
-  const loadingPillHideTimeoutRef = React.useRef<number | null>(null);
 
   const mapLoadingOverlayActive = !embedded && !previewUi && overviewPageBusy;
   const mapLoadingInteractionsDisabledRef = React.useRef(false);

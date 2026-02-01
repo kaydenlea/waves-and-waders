@@ -4,7 +4,12 @@ import dynamic from "next/dynamic";
 import React, { useEffect } from "react";
 import { ForecastChartSkeleton } from "@/components/graphs/ForecastChartSkeleton";
 
-type Props = { beachId?: string; date?: Date; days?: Date[] };
+type Props = {
+  beachId?: string;
+  date?: Date;
+  days?: Date[];
+  suppressSkeleton?: boolean;
+};
 
 // Preload the chunk as soon as this module loads
 const forecastTideImport = () => import("../../graphs/ForecastTideChart");
@@ -21,6 +26,20 @@ const ForecastTideChart = dynamic<ForecastTideChartProps>(
   }
 );
 
+const ForecastTideChartNoSkeleton = dynamic<ForecastTideChartProps>(
+  forecastTideImport,
+  {
+    ssr: false,
+    // While editing we suppress the in-chart skeleton to avoid flicker during grabs,
+    // but we still need a stable placeholder height while the dynamic chunk loads.
+    loading: () => (
+      <div className="w-full" style={{ height: 300 }}>
+        <ForecastChartSkeleton className="h-full w-full" />
+      </div>
+    ),
+  }
+);
+
 // Preload on module initialization
 if (typeof window !== "undefined") {
   forecastTideImport();
@@ -32,5 +51,9 @@ export const LazyLoadForecastTide: React.FC<Props> = (props) => {
     forecastTideImport();
   }, []);
 
-  return <ForecastTideChart {...props} />;
+  return props.suppressSkeleton ? (
+    <ForecastTideChartNoSkeleton {...props} />
+  ) : (
+    <ForecastTideChart {...props} />
+  );
 };

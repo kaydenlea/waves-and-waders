@@ -125,26 +125,8 @@ const PageTabs = ({
   }, [beachPage, loggedIn, selectedTab, router, setSelectedTab]);
 
   // Overview page: if the URL doesn't specify a tab, restore the last selected tab.
-  // This makes `/[beach]/overview` reopen on the previously selected dashboard tab.
-  useEffect(() => {
-    if (!overviewPage || beachPage) return;
-    if (typeof window === "undefined") return;
-
-    const qp = new URLSearchParams(window.location.search).get("tab");
-    if (qp === "overview" || qp === "forecast") return;
-
-    try {
-      const saved = window.localStorage.getItem("tab:beach-dashboard");
-      if (saved !== "overview" && saved !== "forecast") return;
-      if (selectedTab === saved) return;
-
-      setSelectedTab(saved);
-      if (!beach) return;
-      router.replace(`/${beach}/overview?tab=${encodeURIComponent(saved)}`, {
-        scroll: false,
-      });
-    } catch {}
-  }, [overviewPage, beachPage, selectedTab, setSelectedTab, beach, router]);
+  // This is handled globally by PathProvider (components/context/PathContext.tsx),
+  // including keeping `?tab=` in sync with the selected dashboard tab.
 
   useEffect(() => {
     setFavorite(isFavorite);

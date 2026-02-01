@@ -11,6 +11,7 @@ import {
   getDefaultLayout,
   normalizeMeta,
   normalizeRows,
+  packRowsForTwoColumn,
   type DashboardType,
   type Row,
   type WidgetId,
@@ -282,8 +283,9 @@ export function useDashboardLayout({
     if (!persistAnonymous) return;
     if (!state.hydrated || typeof window === "undefined" || session) return;
     try {
+      const packedRows = packRowsForTwoColumn(state.rows, state.meta);
       window.localStorage.setItem(storageMetaKey, JSON.stringify(state.meta));
-      window.localStorage.setItem(storageRowsKey, JSON.stringify(state.rows));
+      window.localStorage.setItem(storageRowsKey, JSON.stringify(packedRows));
     } catch (error) {
       if (process.env.NODE_ENV !== "production") {
         console.warn("Failed to persist dashboard layout", error);
@@ -306,12 +308,13 @@ export function useDashboardLayout({
 
     const columnMeta = type === "overview" ? "overview_meta" : "forecast_meta";
     const columnRows = type === "overview" ? "overview_rows" : "forecast_rows";
+    const packedRows = packRowsForTwoColumn(state.rows, state.meta);
 
     const persistLayout = async () => {
       const payload = {
         user_id: session.user.id,
         [columnMeta]: state.meta,
-        [columnRows]: state.rows,
+        [columnRows]: packedRows,
         updated_at: new Date().toISOString(),
       };
 

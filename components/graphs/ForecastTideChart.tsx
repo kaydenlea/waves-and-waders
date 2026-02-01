@@ -89,7 +89,12 @@ const Y_AXIS_TICK = {
   filter: "drop-shadow(0 0 4px var(--background))",
 } as const;
 
-type Props = { beachId?: string; date?: Date; days?: Date[] };
+type Props = {
+  beachId?: string;
+  date?: Date;
+  days?: Date[];
+  suppressSkeleton?: boolean;
+};
 type TidePoint = { hour: number; tide: number; isPeak?: number };
 type ChartState = {
   data: TidePoint[];
@@ -97,6 +102,107 @@ type ChartState = {
   nightAreas: { x1: number; x2?: number }[];
   sunMarkers: { hour: number; type: "sunrise" | "sunset" }[];
   tideStats: { dayIndex: number; high: number; low: number }[];
+};
+
+type TideCacheEntry = {
+  data: TidePoint[];
+  tideStats: { dayIndex: number; high: number; low: number }[];
+  ts: number;
+};
+
+const TIDE_CACHE_TTL_MS = 10 * 60 * 1000;
+const TIDE_CACHE_MAX = 12;
+const tideCache = new Map<string, TideCacheEntry>();
+
+const getFreshTideCache = (key: string) => {
+  if (!key) return null;
+  const cached = tideCache.get(key);
+  if (!cached) return null;
+  if (Date.now() - cached.ts > TIDE_CACHE_TTL_MS) {
+    tideCache.delete(key);
+    return null;
+  }
+  return cached;
+};
+
+const setTideCache = (key: string, next: Omit<TideCacheEntry, "ts">) => {
+  if (!key) return;
+  tideCache.set(key, { ...next, ts: Date.now() });
+  if (tideCache.size <= TIDE_CACHE_MAX) return;
+
+  const oldest = [...tideCache.entries()].sort((a, b) => a[1].ts - b[1].ts);
+  for (let i = 0; i < oldest.length - TIDE_CACHE_MAX; i++) {
+    const entry = oldest[i];
+    if (!entry) continue;
+    tideCache.delete(entry[0]);
+  }
+};
+
+type SunMarkerTarget = { hour: number; type: "sunrise" | "sunset" };
+
+type SunCacheEntry = {
+  dayAreas: { x1: number; x2: number }[];
+  nightAreas: { x1: number; x2?: number }[];
+  markerTargets: SunMarkerTarget[];
+  sunMarkers: SunMarkerTarget[];
+  ts: number;
+};
+
+const SUN_CACHE_TTL_MS = 10 * 60 * 1000;
+const SUN_CACHE_MAX = 12;
+const sunCache = new Map<string, SunCacheEntry>();
+
+const getFreshSunCache = (key: string) => {
+  if (!key) return null;
+  const cached = sunCache.get(key);
+  if (!cached) return null;
+  if (Date.now() - cached.ts > SUN_CACHE_TTL_MS) {
+    sunCache.delete(key);
+    return null;
+  }
+  return cached;
+};
+
+const setSunCache = (key: string, next: Omit<SunCacheEntry, "ts">) => {
+  if (!key) return;
+  sunCache.set(key, { ...next, ts: Date.now() });
+  if (sunCache.size <= SUN_CACHE_MAX) return;
+
+  const oldest = [...sunCache.entries()].sort((a, b) => a[1].ts - b[1].ts);
+  for (let i = 0; i < oldest.length - SUN_CACHE_MAX; i++) {
+    const entry = oldest[i];
+    if (!entry) continue;
+    sunCache.delete(entry[0]);
+  }
+};
+
+const snapSunMarkersToData = (targets: SunMarkerTarget[], data: TidePoint[]) => {
+  if (!targets.length) return [];
+  if (!data.length) return targets;
+
+  const usedHours = new Set<number>();
+  const snapped: SunMarkerTarget[] = [];
+
+  for (const target of targets) {
+    let best: TidePoint | null = null;
+    let bestDiff = Number.POSITIVE_INFINITY;
+    for (const point of data) {
+      if (usedHours.has(point.hour)) continue;
+      const diff = Math.abs(point.hour - target.hour);
+      if (diff < bestDiff) {
+        bestDiff = diff;
+        best = point;
+      }
+    }
+    if (best) {
+      usedHours.add(best.hour);
+      snapped.push({ hour: best.hour, type: target.type });
+    } else {
+      snapped.push(target);
+    }
+  }
+
+  return snapped;
 };
 
 type YAxisTickProps = {
@@ -122,12 +228,28 @@ export default React.memo(function ForecastTideChart({
   beachId,
   date,
   days,
+  suppressSkeleton,
 }: Props) {
   const chartTheme = useChartTheme();
 
+  const lastValidStartInputRef = useRef<Date | null>(null);
+  const resolvedStartInput = useMemo(() => {
+    const isValidDate = (d: unknown): d is Date =>
+      d instanceof Date && !Number.isNaN(d.getTime());
+
+    const fromDate = isValidDate(date) ? date : null;
+    const fromDays = Array.isArray(days)
+      ? (days.find((d) => isValidDate(d)) ?? null)
+      : null;
+
+    const next = fromDate ?? fromDays ?? lastValidStartInputRef.current ?? new Date();
+    if (fromDate || fromDays) lastValidStartInputRef.current = next;
+    return next;
+  }, [date, days]);
+
   // Compute Pacific midnight for the requested start date once
   const { startMs, fetchHours } = useMemo(() => {
-    const startInput = date instanceof Date ? new Date(date) : new Date();
+    const startInput = resolvedStartInput;
     const formatter = new Intl.DateTimeFormat("en-US", {
       timeZone: "America/Los_Angeles",
       year: "numeric",
@@ -153,22 +275,11 @@ export default React.memo(function ForecastTideChart({
     const start = Date.UTC(year, month, day, -offsetHours, 0, 0, 0);
     const hours = FETCH_DAYS * HOURS_PER_DAY;
     return { startMs: start, fetchHours: hours };
-  }, [date]);
+  }, [resolvedStartInput]);
 
   const { setPanFraction, subscribePan } = useForecastChartContext();
   const { getSunData } = useSunData();
   const myId = React.useId();
-  const sunCacheRef = useRef<
-    Map<
-      string,
-      {
-        dayAreas: { x1: number; x2: number }[];
-        nightAreas: { x1: number; x2?: number }[];
-        markerTargets: { hour: number; type: "sunrise" | "sunset" }[];
-        sunMarkers: { hour: number; type: "sunrise" | "sunset" }[];
-      }
-    >
-  >(new Map());
   const {
     selected: selectedDate,
     hour: selectedHour,
@@ -178,7 +289,22 @@ export default React.memo(function ForecastTideChart({
   } = useDateContext();
   const isTouchOnlyDevice = useIsTouchOnlyDevice();
   const mobileChartId = React.useId();
-  const [loading, setLoading] = useState(true);
+  const tideCacheKey = useMemo(() => {
+    if (!suppressSkeleton) return "";
+    if (!beachId) return "";
+    return `${beachId}:${startMs}:${fetchHours}`;
+  }, [beachId, fetchHours, startMs, suppressSkeleton]);
+  const cachedTide = suppressSkeleton ? getFreshTideCache(tideCacheKey) : null;
+  const sunCacheKey = useMemo(() => {
+    if (!suppressSkeleton) return "";
+    if (!beachId) return "";
+    return `${beachId}-${startMs}`;
+  }, [beachId, startMs, suppressSkeleton]);
+  const cachedSun = suppressSkeleton ? getFreshSunCache(sunCacheKey) : null;
+
+  const [loading, setLoading] = useState(() => {
+    return cachedTide ? false : true;
+  });
   const [stableSelectedHour, setStableSelectedHour] = useState<number | null>(
     null,
   );
@@ -202,12 +328,26 @@ export default React.memo(function ForecastTideChart({
   const wasBusyRef = useRef(dashboardBusy);
 
   // data loaded for FETCH_DAYS days (hours)
-  const [chartState, setChartState] = useState<ChartState>({
-    data: [],
-    dayAreas: [],
-    nightAreas: [],
-    sunMarkers: [],
-    tideStats: [],
+  const [chartState, setChartState] = useState<ChartState>(() => {
+    if (cachedTide) {
+      const cachedSunMarkers = cachedSun
+        ? snapSunMarkersToData(cachedSun.markerTargets, cachedTide.data)
+        : [];
+      return {
+        data: cachedTide.data,
+        tideStats: cachedTide.tideStats,
+        dayAreas: cachedSun?.dayAreas ?? [],
+        nightAreas: cachedSun?.nightAreas ?? [],
+        sunMarkers: cachedSunMarkers,
+      };
+    }
+    return {
+      data: [],
+      dayAreas: [],
+      nightAreas: [],
+      sunMarkers: [],
+      tideStats: [],
+    };
   });
   const { data, dayAreas, nightAreas, sunMarkers, tideStats } = chartState;
   const sunMarkerMap = useMemo(() => {
@@ -445,7 +585,20 @@ export default React.memo(function ForecastTideChart({
     [containerWidth, dayPx],
   );
   const isScrollable = chartInnerWidth > viewportWidth + 1;
-  const showSkeleton = loading || !shadingReady || containerWidth === 0;
+  const showSkeleton =
+    !suppressSkeleton && (loading || !shadingReady || containerWidth === 0);
+
+  // When the widget is "grabbed" in the dashboard editor, the card can briefly
+  // remount. Measure width in a layout effect so we don't paint a 0-width frame.
+  useLayoutEffect(() => {
+    if (containerWidth !== 0) return;
+    const el = containerRef.current;
+    if (!el) return;
+    const w = Math.floor(el.getBoundingClientRect().width);
+    if (w > 0) {
+      setContainerWidth(w);
+    }
+  }, [containerWidth]);
 
   // Pointer & animation refs (imperative values to avoid re-renders)
   const currentTranslateRef = useRef(0); // px
@@ -1135,10 +1288,15 @@ export default React.memo(function ForecastTideChart({
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
+    let lastNonZero = containerWidth > 0 ? containerWidth : 0;
     const ro = new ResizeObserver((entries) => {
       for (const e of entries) {
         const w = Math.floor(e.contentRect.width);
         const apply = () => {
+          if (suppressSkeleton && w === 0 && lastNonZero > 0) {
+            return;
+          }
+          if (w > 0) lastNonZero = w;
           setContainerWidth(w);
           // compute right-edge after resize (low frequency)
           const maxTranslate = Math.max(
@@ -1162,14 +1320,16 @@ export default React.memo(function ForecastTideChart({
     setIsAtRightEdge(currentTranslateRef.current >= maxTranslateOnMount - 1);
 
     return () => ro.disconnect();
-  }, [chartInnerWidth, dayPx, viewportWidth]);
+  }, [chartInnerWidth, dayPx, viewportWidth, containerWidth, suppressSkeleton]);
 
   // Fetch tide + day info for FETCH_DAYS
   useEffect(() => {
     let cancelled = false;
     (async () => {
       if (!cancelled) {
-        setLoading(true);
+        if (!(suppressSkeleton && data.length > 0)) {
+          setLoading(true);
+        }
       }
       if (!beachId) {
         if (!cancelled) {
@@ -1220,9 +1380,9 @@ export default React.memo(function ForecastTideChart({
             setChartState({
               data: [],
               tideStats: [],
-              dayAreas: [],
-              nightAreas: [],
-              sunMarkers: [],
+              dayAreas: suppressSkeleton ? dayAreas : [],
+              nightAreas: suppressSkeleton ? nightAreas : [],
+              sunMarkers: suppressSkeleton ? sunMarkers : [],
             });
             setLoading(false);
           }
@@ -1263,14 +1423,17 @@ export default React.memo(function ForecastTideChart({
         }
 
         if (!cancelled) {
-          setChartState({
+          setChartState((prev) => ({
             data: out,
             tideStats: tideStatsBuild,
-            dayAreas: [],
-            nightAreas: [],
-            sunMarkers: [],
-          });
+            dayAreas: suppressSkeleton ? prev.dayAreas : [],
+            nightAreas: suppressSkeleton ? prev.nightAreas : [],
+            sunMarkers: suppressSkeleton ? prev.sunMarkers : [],
+          }));
           setLoading(false);
+          if (suppressSkeleton && tideCacheKey) {
+            setTideCache(tideCacheKey, { data: out, tideStats: tideStatsBuild });
+          }
         }
       } catch (e) {
         if (process.env.NODE_ENV !== "production") {
@@ -1285,48 +1448,17 @@ export default React.memo(function ForecastTideChart({
     return () => {
       cancelled = true;
     };
-  }, [beachId, startMs, fetchHours]);
+  }, [beachId, startMs, fetchHours, data.length, suppressSkeleton]);
 
   // TODO(overview-perf): Align this sun/shading pipeline with buildSunSegmentsForRange so
   // tide lines and night/day shading load together and reuse the same multi-day segments.
   // Load sun/shading markers after tide data is ready so lines render sooner
   useEffect(() => {
     let cancelled = false;
-    const snapSunMarkersToData = (
-      targets: { hour: number; type: "sunrise" | "sunset" }[],
-      data: TidePoint[],
-    ) => {
-      if (!targets.length) return [];
-      if (!data.length) return targets;
-
-      const usedHours = new Set<number>();
-      const snapped: { hour: number; type: "sunrise" | "sunset" }[] = [];
-
-      for (const target of targets) {
-        let best: TidePoint | null = null;
-        let bestDiff = Number.POSITIVE_INFINITY;
-        for (const point of data) {
-          if (usedHours.has(point.hour)) continue;
-          const diff = Math.abs(point.hour - target.hour);
-          if (diff < bestDiff) {
-            bestDiff = diff;
-            best = point;
-          }
-        }
-        if (best) {
-          usedHours.add(best.hour);
-          snapped.push({ hour: best.hour, type: target.type });
-        } else {
-          snapped.push(target);
-        }
-      }
-
-      return snapped;
-    };
     (async () => {
       if (!beachId) return;
       const cacheKey = `${beachId}-${startMs}`;
-      const cached = sunCacheRef.current.get(cacheKey);
+      const cached = getFreshSunCache(cacheKey);
       if (cached) {
         // Always re-snap cached targets to the latest tide series so the sunrise/sunset
         // icons match an actual x-value in the rendered data (prevents "missing" icons
@@ -1415,7 +1547,7 @@ export default React.memo(function ForecastTideChart({
               nightAreas: nightAreasBuild,
               sunMarkers: markers,
             };
-            sunCacheRef.current.set(cacheKey, {
+            setSunCache(cacheKey, {
               dayAreas: dayAreasBuild,
               nightAreas: nightAreasBuild,
               markerTargets,
@@ -1436,7 +1568,7 @@ export default React.memo(function ForecastTideChart({
               nightAreas: [],
               sunMarkers: [],
             };
-            sunCacheRef.current.set(cacheKey, {
+            setSunCache(cacheKey, {
               dayAreas: [],
               nightAreas: [],
               markerTargets: [],

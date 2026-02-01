@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { usePathname } from "next/navigation";
 import { useToast } from "@/components/providers/ToastProvider";
 
 import {
@@ -47,6 +48,7 @@ export function DashboardEditModeProvider({
   children: React.ReactNode;
 }) {
   const { toast } = useToast();
+  const pathname = usePathname() ?? "";
   const cachedLayoutsRef = React.useRef<
     Partial<Record<DashboardType, LayoutSnapshot>>
   >({});
@@ -56,6 +58,7 @@ export function DashboardEditModeProvider({
   const dirtyTypesRef = React.useRef<Partial<Record<DashboardType, boolean>>>(
     {},
   );
+  const lastPathnameRef = React.useRef<string>("");
 
   const [state, setState] = React.useState<DashboardEditModeState>({
     isEditing: false,
@@ -63,6 +66,31 @@ export function DashboardEditModeProvider({
     pendingScrollToId: null,
     pendingLayoutApply: {},
   });
+
+  React.useEffect(() => {
+    const prev = lastPathnameRef.current;
+    lastPathnameRef.current = pathname;
+    if (!state.isEditing) return;
+    if (!prev) return;
+    if (prev === pathname) return;
+
+    const wasOverviewRoute = prev.includes("/overview");
+    const isOverviewRoute = pathname.includes("/overview");
+    if (wasOverviewRoute && !isOverviewRoute) {
+      setState((current) =>
+        current.isEditing
+          ? {
+              ...current,
+              isEditing: false,
+              dashboardType: null,
+              pendingScrollToId: null,
+            }
+          : current,
+      );
+      dirtyTypesRef.current = {};
+      baselineSignaturesRef.current = {};
+    }
+  }, [pathname, state.isEditing]);
 
   const layoutSignature = React.useCallback((snapshot: LayoutSnapshot) => {
     // Stable, cheap-enough signature for detecting user edits across tabs.

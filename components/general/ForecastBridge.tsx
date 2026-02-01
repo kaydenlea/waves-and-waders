@@ -52,7 +52,13 @@ import { LazyLoadForecastSwell } from "./LazyLoad/LazyLoadForecastSwell";
 
 import DashboardEditorPanel from "./DashboardEditorPanel";
 
-import { type Row, type WidgetId, type WidgetMeta } from "./dashboardLayout";
+import {
+  normalizeRowsForSingleColumn,
+  packRowsForTwoColumn,
+  type Row,
+  type WidgetId,
+  type WidgetMeta,
+} from "./dashboardLayout";
 
 import { useDashboardLayout } from "./useDashboardLayout";
 
@@ -137,6 +143,41 @@ const ForecastBridge: React.FC<Props> = ({
   const isOverviewCards = cardVariant === "overview";
 
   const isForecastCards = cardVariant === "forecast";
+
+  const dashboardContainerProbeRef = useRef<HTMLDivElement | null>(null);
+  const dashboardTwoColumnSentinelRef = useRef<HTMLDivElement | null>(null);
+  const [isTwoColumnDashboardLayout, setIsTwoColumnDashboardLayout] =
+    useState(true);
+
+  const dashboardTwoColumnSentinelClass = useMemo(
+    () =>
+      cn(
+        "sr-only flex flex-col",
+        isOverviewCards || isForecastCards ? "@min-4xl:flex-row" : "@min-3xl:flex-row",
+      ),
+    [isForecastCards, isOverviewCards],
+  );
+
+  useLayoutEffect(() => {
+    const probe = dashboardContainerProbeRef.current;
+    const sentinel = dashboardTwoColumnSentinelRef.current;
+    if (!probe || !sentinel) return;
+    if (typeof ResizeObserver === "undefined") return;
+
+    const containerEl =
+      (probe.closest?.(".\\@container") as HTMLElement | null) ?? probe;
+
+    const update = () => {
+      const dir = window.getComputedStyle(sentinel).flexDirection;
+      const next = dir === "row";
+      setIsTwoColumnDashboardLayout((prev) => (prev === next ? prev : next));
+    };
+
+    update();
+    const ro = new ResizeObserver(() => update());
+    ro.observe(containerEl);
+    return () => ro.disconnect();
+  }, []);
 
   const isTableDensityControlled = controlledTableDensity != null;
 
@@ -616,18 +657,19 @@ const ForecastBridge: React.FC<Props> = ({
 
 
 
+  const displayRows = useMemo(() => {
+    const packed = packRowsForTwoColumn(layoutRows, layoutMeta);
+    return isTwoColumnDashboardLayout
+      ? packed
+      : normalizeRowsForSingleColumn(packed);
+  }, [isTwoColumnDashboardLayout, layoutMeta, layoutRows]);
+
   const visibleRows = useMemo(
-
     () =>
-
-      layoutRows.filter((row) =>
-
-        row.items.some((id) => layoutMeta[id]?.visible !== false)
-
+      displayRows.filter((row) =>
+        row.items.some((id) => layoutMeta[id]?.visible !== false),
       ),
-
-    [layoutRows, layoutMeta]
-
+    [displayRows, layoutMeta],
   );
 
 
@@ -745,6 +787,7 @@ const ForecastBridge: React.FC<Props> = ({
                 date={firstDay}
 
                 days={effectiveDays ?? undefined}
+                suppressSkeleton={isEditing}
 
               />
 
@@ -1012,10 +1055,16 @@ const ForecastBridge: React.FC<Props> = ({
       <section
 
         id="forecast-content"
+        ref={dashboardContainerProbeRef}
 
         className="relative flex flex-col gap-4 scroll-mt-45"
 
       >
+        <div
+          ref={dashboardTwoColumnSentinelRef}
+          aria-hidden="true"
+          className={dashboardTwoColumnSentinelClass}
+        />
 
         <DashboardEditorPanel
 
@@ -1044,10 +1093,16 @@ const ForecastBridge: React.FC<Props> = ({
     <section
 
       id="forecast-content"
+      ref={dashboardContainerProbeRef}
 
       className="relative flex flex-col gap-4 scroll-mt-45"
 
     >
+      <div
+        ref={dashboardTwoColumnSentinelRef}
+        aria-hidden="true"
+        className={dashboardTwoColumnSentinelClass}
+      />
 
       {/* --- Date picker area: sticky on all sizes so behavior is identical everywhere --- */}
 

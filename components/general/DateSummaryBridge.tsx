@@ -15,7 +15,13 @@ import type {
   StatTableUiState,
 } from "@/components/general/LazyLoad/LazyLoadTable";
 import { LazyLoadEnergy } from "@/components/general/LazyLoad/LazyLoadEnergy";
-import { type Row, type WidgetId, type WidgetMeta } from "./dashboardLayout";
+import {
+  normalizeRowsForSingleColumn,
+  packRowsForTwoColumn,
+  type Row,
+  type WidgetId,
+  type WidgetMeta,
+} from "./dashboardLayout";
 import { useDashboardLayout } from "./useDashboardLayout";
 import { useDateContext } from "../context/DateContext";
 import { useClientPath } from "../context/PathContext";
@@ -240,6 +246,32 @@ const DateSummaryBridge: React.FC<Props> = ({
   }, [selectedTab]);
   const isOverview = selectedTab === "overview";
   const isForecastTab = selectedTab === "forecast";
+
+  const dashboardContainerProbeRef = React.useRef<HTMLDivElement | null>(null);
+  const dashboardTwoColumnSentinelRef = React.useRef<HTMLDivElement | null>(null);
+  const [isTwoColumnDashboardLayout, setIsTwoColumnDashboardLayout] =
+    React.useState(true);
+
+  React.useLayoutEffect(() => {
+    const probe = dashboardContainerProbeRef.current;
+    const sentinel = dashboardTwoColumnSentinelRef.current;
+    if (!probe || !sentinel) return;
+    if (typeof ResizeObserver === "undefined") return;
+
+    const containerEl =
+      (probe.closest?.(".\\@container") as HTMLElement | null) ?? probe;
+
+    const update = () => {
+      const dir = window.getComputedStyle(sentinel).flexDirection;
+      const next = dir === "row";
+      setIsTwoColumnDashboardLayout((prev) => (prev === next ? prev : next));
+    };
+
+    update();
+    const ro = new ResizeObserver(() => update());
+    ro.observe(containerEl);
+    return () => ro.disconnect();
+  }, []);
   const {
     enterEdit,
     isEditing,
@@ -895,12 +927,19 @@ const DateSummaryBridge: React.FC<Props> = ({
     };
   }, [currentTime, hour, selected]);
 
+  const displayRows = React.useMemo(() => {
+    const packed = packRowsForTwoColumn(layoutRows, layoutMeta);
+    return isTwoColumnDashboardLayout
+      ? packed
+      : normalizeRowsForSingleColumn(packed);
+  }, [layoutMeta, layoutRows, isTwoColumnDashboardLayout]);
+
   const visibleRows = React.useMemo(
     () =>
-      layoutRows.filter((row) =>
-        row.items.some((id) => layoutMeta[id]?.visible !== false)
+      displayRows.filter((row) =>
+        row.items.some((id) => layoutMeta[id]?.visible !== false),
       ),
-    [layoutRows, layoutMeta]
+    [displayRows, layoutMeta],
   );
 
   // TODO(overview-perf): Centralize widget loading/skeleton handling here so all cards
@@ -1112,8 +1151,14 @@ const DateSummaryBridge: React.FC<Props> = ({
 
           <section
             id={sectionId}
+            ref={dashboardContainerProbeRef}
             className="mt-10 flex flex-col gap-1 w-full scroll-mt-35"
           >
+            <div
+              ref={dashboardTwoColumnSentinelRef}
+              aria-hidden="true"
+              className="sr-only flex flex-col @min-4xl:flex-row"
+            />
             <header className="mx-2 flex flex-col gap-3 @min-xl:flex-row @min-xl:items-start @min-xl:justify-between">
                 <div className="flex items-start justify-between gap-2 w-full">
                 <div className="space-y-0 min-w-0">

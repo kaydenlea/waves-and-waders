@@ -259,10 +259,13 @@ export function PathProvider({
   }, [pathname, selectedTab, router, getTabStorageKey]);
 
   // Guard against invalid tab values for dashboard routes (e.g. "nearby" on /overview).
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!pathname) return;
     if (!isDashboardPath) return;
     if (!selectedTab) return;
+    // When navigating from a non-dashboard route, selectedTab may briefly be a non-dashboard
+    // value (e.g. "nearby"). Don't override while a dashboard tab restore is in-flight.
+    if (pendingRestoreTabRef.current) return;
     if (selectedTab === "overview" || selectedTab === "forecast") return;
     setSelectedTab("overview");
   }, [pathname, selectedTab, isDashboardPath]);
