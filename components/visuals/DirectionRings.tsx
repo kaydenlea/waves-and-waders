@@ -338,8 +338,9 @@ export const SwellRings: React.FC<{
           const start = normDeg(direction - spanDeg / 2);
           const end = normDeg(direction + spanDeg / 2);
           const lower = isLowerHalf(direction);
-          // Text sits inside the stroke thickness (toward the center).
-          const textRadius = radius - arcStroke * (lower ? 0.05 : 0.01);
+          // Text path follows the arc center (same radius as the stroke centerline)
+          // so text naturally centers on the colored band.
+          const textRadius = radius;
 
           // Text placement & readability:
           // - The label must stay on the same arc segment (never mirrored to the opposite side).
@@ -399,6 +400,12 @@ export const SwellRings: React.FC<{
         const centerBearing = normDeg(bearingAt(0.5));
         const spanRad = (spanDeg * Math.PI) / 180;
         const arcLen = Math.max(1, Math.abs(radius * spanRad));
+        // No dy offset needed - text path is at arc center and dominantBaseline handles vertical centering
+        const textWidth = valueLabel
+          ? estimateTextWidthPx(valueLabel, labelFont)
+          : 0;
+        const maxTextLen = arcLen * (isPreview ? 0.84 : 0.9);
+        const textLength = textWidth > maxTextLen ? maxTextLen : undefined;
 
         const arcD = arcPath(center, center, radius, start, end, 1);
         const arcOuterRadius = radius + arcStroke / 2;
@@ -556,7 +563,11 @@ export const SwellRings: React.FC<{
                       5,
                       95,
                     )}%`}
-                    dy={0}
+                    alignmentBaseline="middle"
+                    textLength={textLength}
+                    lengthAdjust={
+                      textLength ? "spacingAndGlyphs" : undefined
+                    }
                   >
                     {valueLabel}
                   </textPath>
@@ -641,6 +652,11 @@ export const WindRing: React.FC<{
   const centerBearing = normDeg(bearingAt(0.5));
   const spanRad = (spanDeg * Math.PI) / 180;
   const arcLen = Math.max(1, Math.abs(radius * spanRad));
+  // No dy offset needed - text path is at arc center and dominantBaseline handles vertical centering
+  const windTextWidth = label ? estimateTextWidthPx(label, labelFont) : 0;
+  const windMaxTextLen = arcLen * (isPreview ? 0.84 : 0.9);
+  const windTextLength =
+    windTextWidth > windMaxTextLen ? windMaxTextLen : undefined;
 
   const iconGapPx = 4 * scale;
   const iconSize = Math.max(13 * scale, arcStroke * 0.98);
@@ -718,7 +734,9 @@ export const WindRing: React.FC<{
       <defs>
         {hasData &&
           (() => {
-            const textRadius = radius - arcStroke * (lower ? 0.05 : -0.05);
+            // Text path follows the arc center (same radius as the stroke centerline)
+            // so text naturally centers on the colored band.
+            const textRadius = radius;
 
             const textStart = lower ? end + 180 : start;
             const textEnd = lower ? start + 180 : end;
@@ -897,7 +915,11 @@ export const WindRing: React.FC<{
                   5,
                   95,
                 )}%`}
-                dy={0}
+                alignmentBaseline="middle"
+                textLength={windTextLength}
+                lengthAdjust={
+                  windTextLength ? "spacingAndGlyphs" : undefined
+                }
               >
                 {label}
               </textPath>
