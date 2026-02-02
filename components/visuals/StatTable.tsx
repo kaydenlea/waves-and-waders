@@ -1174,13 +1174,18 @@ const StatTable = ({
     const bufferBefore = requestedDate ? 1 : 0;
     const bufferAfter = requestedDate ? 1 : 0;
 
-    const hasSelectedDays =
-      Array.isArray(selectedDays) && selectedDays.length > 0;
+    const normalizedSelectedDays = Array.isArray(selectedDays)
+      ? selectedDays
+          .filter((d): d is Date => isValidDate(d))
+          .slice()
+          .sort((a, b) => a.getTime() - b.getTime())
+      : [];
+    const hasSelectedDays = normalizedSelectedDays.length > 0;
     const rangeStart =
       requestedDate && !forecastPage
         ? new Date(anchorStart.getTime() - bufferBefore * DAY_MS)
         : hasSelectedDays
-          ? selectedDays![0]
+          ? normalizedSelectedDays[0]
           : new Date(anchorStart.getTime() - bufferBefore * DAY_MS);
 
     const daysToFetch = Math.max(numDays, 1) + bufferAfter;
@@ -1189,7 +1194,7 @@ const StatTable = ({
         ? new Date(anchorStart.getTime() + daysToFetch * DAY_MS)
         : hasSelectedDays
           ? new Date(
-              selectedDays![selectedDays!.length - 1].getTime() +
+              normalizedSelectedDays[normalizedSelectedDays.length - 1].getTime() +
                 bufferAfter * DAY_MS,
             )
           : new Date(anchorStart.getTime() + daysToFetch * DAY_MS);
@@ -1199,6 +1204,8 @@ const StatTable = ({
 
   React.useEffect(() => {
     let cancelled = false;
+    let retryTimer: number | null = null;
+    let attempts = 0;
 
     const load = async () => {
       try {
@@ -1253,7 +1260,11 @@ const StatTable = ({
         const shared = filterSharedRows();
         if (shared.length) {
           weekly = shared;
-        } else if (cached && now - cached.timestamp < CACHE_DURATION) {
+        } else if (
+          cached &&
+          cached.data.length > 0 &&
+          now - cached.timestamp < CACHE_DURATION
+        ) {
           weekly = cached.data;
         } else {
           weekly = await getForecastCached(
@@ -1263,7 +1274,11 @@ const StatTable = ({
           );
 
           // Update cache
-          forecastCache.set(cacheKey, { data: weekly, timestamp: now });
+          // Avoid caching empty datasets; they can be transient and cause a "stuck empty table"
+          // until a full page reload clears module-level state.
+          if (weekly.length > 0) {
+            forecastCache.set(cacheKey, { data: weekly, timestamp: now });
+          }
 
           // Clean up old cache entries
           if (forecastCache.size > 10) {
@@ -1273,6 +1288,17 @@ const StatTable = ({
         }
 
         if (cancelled) {
+          return;
+        }
+
+        // Empty datasets can occur transiently during UI transitions (e.g. after editing the dashboard).
+        // Retry once shortly to avoid rendering a blank table that only resolves on reload.
+        if (weekly.length === 0 && attempts < 1 && typeof window !== "undefined") {
+          attempts += 1;
+          retryTimer = window.setTimeout(() => {
+            if (cancelled) return;
+            void load();
+          }, 450);
           return;
         }
 
@@ -1307,7 +1333,11 @@ const StatTable = ({
             : null;
         const onlyKeys =
           Array.isArray(selectedDays) && selectedDays.length > 0
-            ? selectedDays.map((day) => getPacificDayKey(day.toISOString()))
+            ? selectedDays
+                .filter((d): d is Date => isValidDate(d))
+                .slice()
+                .sort((a, b) => a.getTime() - b.getTime())
+                .map((day) => getPacificDayKey(day.toISOString()))
             : null;
         let allowedKeys: Set<string> | null = null;
         const dayKeys = entriesByDay.map(([key]) => key);
@@ -1510,6 +1540,14 @@ const StatTable = ({
           if (process.env.NODE_ENV !== "production") {
             console.error("Failed to load StatTable data", e);
           }
+          if (attempts < 1 && typeof window !== "undefined") {
+            attempts += 1;
+            retryTimer = window.setTimeout(() => {
+              if (cancelled) return;
+              void load();
+            }, 600);
+            return;
+          }
           setLoading(false);
         }
       }
@@ -1518,6 +1556,9 @@ const StatTable = ({
 
     return () => {
       cancelled = true;
+      if (retryTimer != null && typeof window !== "undefined") {
+        window.clearTimeout(retryTimer);
+      }
     };
   }, [
     dateRange,
@@ -2586,6 +2627,36 @@ const StatTable = ({
 
     // Show slightly after entering the StatTable (prevents appearing immediately at the top).
     const revealOffsetPx = 500;
+
+    // Bootstrap once from current layout so the pill can't get stuck hidden if observers
+    // don't fire after settings/layout edits.
+    const bootstrapFromLayout = () => {
+      try {
+        const vh = window.innerHeight || document.documentElement.clientHeight;
+        const vw = window.innerWidth || document.documentElement.clientWidth;
+        const sentinelRect = sentinel.getBoundingClientRect();
+        const bottomRect = bottomSentinel.getBoundingClientRect();
+        const pillRect = el.getBoundingClientRect();
+
+        const rootTop = revealOffsetPx;
+        const rootBottom = vh;
+        const sentinelIntersecting =
+          sentinelRect.bottom >= rootTop && sentinelRect.top <= rootBottom;
+        pagerRevealPastRef.current = !sentinelIntersecting;
+        pagerBottomReachedRef.current =
+          bottomRect.bottom >= 0 && bottomRect.top <= vh;
+        pagerPillFullyVisibleRef.current =
+          pillRect.width > 0 &&
+          pillRect.height > 0 &&
+          pillRect.top >= -1 &&
+          pillRect.left >= -1 &&
+          pillRect.bottom <= vh + 1 &&
+          pillRect.right <= vw + 1;
+      } catch {
+        pagerPillFullyVisibleRef.current = true;
+      }
+      recompute();
+    };
     const revealObserver = new IntersectionObserver(
       ([entry]) => {
         pagerRevealPastRef.current = !entry.isIntersecting;
@@ -2624,12 +2695,27 @@ const StatTable = ({
     revealObserver.observe(sentinel);
     bottomObserver.observe(bottomSentinel);
     pillObserver.observe(el);
+    if (typeof window !== "undefined") {
+      window.requestAnimationFrame(bootstrapFromLayout);
+    } else {
+      bootstrapFromLayout();
+    }
     return () => {
       revealObserver.disconnect();
       bottomObserver.disconnect();
       pillObserver.disconnect();
     };
-  }, [dockPagerInFlowEffective, isEditing, shouldReserveFooterSpace]);
+  }, [
+    dockPagerInFlowEffective,
+    isEditing,
+    shouldReserveFooterSpace,
+    loading,
+    controlsEnabled,
+    columnPages.length,
+    effectiveDensity,
+    showSecondarySwells,
+    tableWidthPx,
+  ]);
 
   return (
     <div
@@ -3301,7 +3387,7 @@ const StatTable = ({
             !dockPagerInFlowEffective &&
               "invisible opacity-0 pointer-events-none transition-opacity duration-150 motion-reduce:transition-none data-[ww-visible=true]:visible data-[ww-visible=true]:opacity-100 data-[ww-visible=true]:pointer-events-auto",
           )}
-          aria-hidden="true"
+          aria-hidden={!(dockPagerInFlowEffective || pagerVisibleRef.current)}
         >
           <div data-ww-stat-table-pager-ui>
             {footerControlsPill ? (

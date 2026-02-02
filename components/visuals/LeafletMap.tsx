@@ -3241,8 +3241,10 @@ const LeafletMap: React.FC<Props> = ({
       if (typeof document === "undefined") return;
       if (pending) {
         document.body.dataset.wwNavigationPending = "1";
+        document.documentElement.dataset.wwNavigationPending = "1";
       } else {
         delete document.body.dataset.wwNavigationPending;
+        delete document.documentElement.dataset.wwNavigationPending;
       }
     } catch {}
   }, []);

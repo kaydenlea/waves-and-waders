@@ -497,6 +497,13 @@ body[data-ww-interaction-lock="1"] [data-slot="chart"] {
 body[data-ww-navigation-pending="1"] #main-content {
   pointer-events: none;
 }
+
+/* Prevent iOS/trackpad overscroll bounce from revealing the fixed map beneath content
+   while a map-driven navigation is in-flight. */
+html[data-ww-navigation-pending="1"],
+body[data-ww-navigation-pending="1"] {
+  overscroll-behavior-y: none;
+}
 /* Prevent long-press selection/callout on touch-driven chart scrubbing. */
 .chart-touch-no-select {
   -webkit-touch-callout: none;

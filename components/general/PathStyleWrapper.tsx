@@ -26,7 +26,15 @@ export default function PathStyleWrapper({
 
   return (
     <>
-      <div className={effectiveEditPage ? "h-0" : "h-[100vh] @min-4xl:h-0"} />
+      <div
+        className={
+          effectiveEditPage
+            ? "h-0"
+            : // Match the fixed map height on small screens to avoid scroll/viewport jumps
+              // that can briefly reveal the map under the content during loading/dragging.
+              "h-[100dvh] max-[911px]:h-[calc(100dvh-4.25rem-env(safe-area-inset-bottom,0px))] @min-4xl:h-0"
+        }
+      />
       <article
         id="content"
         className={cn(
