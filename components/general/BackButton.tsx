@@ -10,6 +10,8 @@ type BackButtonProps = {
   loggedIn?: boolean;
 };
 
+const STORAGE_KEY = "ww:beaches:return";
+
 export default function BackButton({
   className,
   label = "Back",
@@ -18,34 +20,70 @@ export default function BackButton({
   const router = useRouter();
 
   const handleClick = () => {
-    // Always navigate to /beaches (preserving previously selected tab if available)
+    // Navigate back to whichever beaches page the user came from (e.g. /beaches or /beaches/all).
     let tab: string | null = null;
     let target = "/beaches";
+    let hasStoredTarget = false;
     try {
       if (typeof window !== "undefined") {
-        // 1) Prefer referrer query if it was the beaches page
-        const ref = document.referrer;
-        if (ref) {
-          try {
-            const url = new URL(ref);
-            if (url.pathname === "/beaches") {
-              const qp = url.searchParams.get("tab");
-              if (qp === "saved" || qp === "nearby") tab = qp;
-            }
-          } catch {}
+        // 0) Prefer persisted return href from beaches pages.
+        const stored = window.sessionStorage.getItem(STORAGE_KEY);
+        if (stored && (stored === "/beaches" || stored.startsWith("/beaches?") || stored === "/beaches/all")) {
+          target = stored;
+          hasStoredTarget = true;
+        }
+
+        // 1) If we don't have a stored target, fall back to referrer if it was a beaches page.
+        // Note: document.referrer can be stale across client-side navigations, so it should never
+        // override the stored target.
+        if (!hasStoredTarget) {
+          const ref = document.referrer;
+          if (ref) {
+            try {
+              const url = new URL(ref);
+              if (url.pathname === "/beaches/all") {
+                target = `${url.pathname}${url.search ?? ""}`;
+              } else if (url.pathname === "/beaches") {
+                target = `${url.pathname}${url.search ?? ""}`;
+                const qp = url.searchParams.get("tab");
+                if (qp === "saved" || qp === "nearby") tab = qp;
+              }
+            } catch {}
+          }
         }
         // 2) Fallback to persisted tab
         if (!tab) {
           const savedTab = window.localStorage.getItem("tab:/beaches");
           if (savedTab === "saved" || savedTab === "nearby") tab = savedTab;
         }
-        if (tab) target = `/beaches?tab=${tab}`;
+        // Only apply tab fallback when target is the main beaches page without a tab.
+        if (tab && (target === "/beaches" || target.startsWith("/beaches?"))) {
+          try {
+            const url = new URL(target, window.location.origin);
+            if (!url.searchParams.get("tab")) url.searchParams.set("tab", tab);
+            target = `${url.pathname}${url.search ? url.search : ""}`;
+          } catch {
+            target = `/beaches?tab=${tab}`;
+          }
+        }
       }
     } catch {
       // ignore storage errors and use default
     }
     // If Saved is requested but user is not logged in, forward to login
-    if (tab === "saved" && loggedIn === false) {
+    const wantsSavedTab =
+      tab === "saved" ||
+      (typeof window !== "undefined" &&
+        (() => {
+          try {
+            const url = new URL(target, window.location.origin);
+            return url.pathname === "/beaches" && url.searchParams.get("tab") === "saved";
+          } catch {
+            return false;
+          }
+        })());
+
+    if (wantsSavedTab && loggedIn === false) {
       router.push(`/login?next=${encodeURIComponent(target)}`);
       return;
     }

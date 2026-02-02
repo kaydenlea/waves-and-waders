@@ -29,6 +29,7 @@ import {
   type Row,
   type WidgetId,
   type WidgetMeta,
+  getDefaultLayout,
   normalizeRowsForSingleColumn,
   packRowsForTwoColumn,
 } from "./dashboardLayout";
@@ -978,7 +979,20 @@ export default function Dashboard({
   }
 
   function resetAll() {
-    reset();
+    const defaults = getDefaultLayout(type);
+    const nextRows = isTwoColumn
+      ? packRowsForTwoColumn(defaults.rows, defaults.meta)
+      : normalizeRowsForSingleColumn(defaults.rows);
+
+    // Keep reset in sync with the current 1-up / 2-up layout so it doesn't
+    // restore a 2-up packed layout on a 1-up screen.
+    lastBreakpointTwoColumnRef.current = isTwoColumn;
+    flushSync(() => {
+      setActiveWidget(null);
+      setGrabbedWidget(null);
+      setMeta(defaults.meta);
+      setRows(nextRows);
+    });
   }
 
   /* ---------------------------------- Render --------------------------------- */

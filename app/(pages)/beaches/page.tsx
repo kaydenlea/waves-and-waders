@@ -9,6 +9,7 @@ import { LazyLoadMap } from "@/components/general/LazyLoad/LazyLoadMap";
 import PathStyleWrapper from "@/components/general/PathStyleWrapper";
 import Footer from "@/components/general/Footer";
 import FavoriteIdsHydrator from "@/components/general/FavoriteIdsHydrator";
+import PersistBeachesReturn from "@/components/general/PersistBeachesReturn";
 import { buildPageMetadata, getSiteUrl } from "@/lib/seo";
 import { List } from "lucide-react";
 
@@ -116,6 +117,7 @@ export default async function BeachesPage({
         <LazyLoadMap loggedIn={Boolean(user)} />
         <PathStyleWrapper>
           <div className="@container/beaches pb-4 px-2 pt-0 @min-4xl:pt-8 touch-pan-y">
+            <PersistBeachesReturn />
             <FavoriteIdsHydrator favoriteIds={favoriteIds} />
             <div className="relative w-full flex flex-col gap-6">
               {/* <PageTabs

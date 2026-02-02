@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { unstable_cache } from "next/cache";
 import NavBar from "@/components/general/NavBar";
 import Footer from "@/components/general/Footer";
+import PersistBeachesReturn from "@/components/general/PersistBeachesReturn";
 import { fetchAllBeaches, generateBeachUrl, type Beach } from "@/lib/supabase";
 import { buildPageMetadata } from "@/lib/seo";
 import { ChevronDown, MapPinned, Waves } from "lucide-react";
@@ -58,6 +59,7 @@ export default async function AllBeachesPage() {
         id="main-content"
         className="relative min-h-[100dvh] overflow-hidden bg-background text-foreground pt-32 pb-16 @min-4xl:pt-32"
       >
+        <PersistBeachesReturn />
         <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
           <div className="absolute inset-0 bg-gradient-to-b from-background via-background to-background" />
           <div className="absolute inset-0 bg-[radial-gradient(900px_circle_at_15%_0%,rgba(34,211,238,0.16),transparent_65%)]" />

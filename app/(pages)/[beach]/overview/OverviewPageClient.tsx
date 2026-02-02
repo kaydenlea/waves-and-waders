@@ -107,6 +107,30 @@ export default function OverviewPageClient({
   const pendingScrollToId = dashboardEdit?.pendingScrollToId ?? null;
   const clearPendingScrollTo = dashboardEdit?.clearPendingScrollTo ?? noop;
 
+  const [beachesHref, setBeachesHref] = React.useState("/beaches");
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const stored = window.sessionStorage.getItem("ww:beaches:return");
+      if (stored && (stored === "/beaches" || stored.startsWith("/beaches?") || stored === "/beaches/all")) {
+        setBeachesHref(stored);
+        return;
+      }
+
+      const ref = document.referrer;
+      if (!ref) return;
+      const url = new URL(ref);
+      if (url.pathname === "/beaches/all") {
+        setBeachesHref(`${url.pathname}${url.search ?? ""}`);
+      } else if (url.pathname === "/beaches") {
+        setBeachesHref(`${url.pathname}${url.search ?? ""}`);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
   React.useLayoutEffect(() => {
     if (isEditing || !pendingScrollToId) return;
 
@@ -146,7 +170,7 @@ export default function OverviewPageClient({
                 >
                   <Breadcrumbs
                     items={[
-                      { label: "Beaches", href: "/beaches" },
+                      { label: "Beaches", href: beachesHref },
                       {
                         label: beachName,
                         href: `/${beachParam}/overview`,
