@@ -28,7 +28,12 @@ export default function BackButton({
       if (typeof window !== "undefined") {
         // 0) Prefer persisted return href from beaches pages.
         const stored = window.sessionStorage.getItem(STORAGE_KEY);
-        if (stored && (stored === "/beaches" || stored.startsWith("/beaches?") || stored === "/beaches/all")) {
+        if (
+          stored &&
+          (stored === "/beaches" ||
+            stored.startsWith("/beaches?") ||
+            stored === "/beaches/all")
+        ) {
           target = stored;
           hasStoredTarget = true;
         }
@@ -77,7 +82,10 @@ export default function BackButton({
         (() => {
           try {
             const url = new URL(target, window.location.origin);
-            return url.pathname === "/beaches" && url.searchParams.get("tab") === "saved";
+            return (
+              url.pathname === "/beaches" &&
+              url.searchParams.get("tab") === "saved"
+            );
           } catch {
             return false;
           }
@@ -104,7 +112,7 @@ export default function BackButton({
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0",
         // On overview we show icon + label with slightly larger padding
         "flex items-center gap-1 p-2 @min-2xl:px-4 @min-2xl:py-2.5",
-        className
+        className,
       )}
     >
       <Undo2 className="w-6 h-6 text-foreground @min-2xl:-mt-[3px]" />
