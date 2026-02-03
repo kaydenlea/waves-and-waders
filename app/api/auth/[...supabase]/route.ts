@@ -15,16 +15,9 @@ export async function GET(request: Request) {
 
   if (code) {
     const cookieStore = await cookies();
-    const cookieAdapter = {
-      get: (name: string) => cookieStore.get(name)?.value,
-      set: (name: string, value: string, options?: { [key: string]: unknown }) => {
-        cookieStore.set({ name, value, ...(options ?? {}) });
-      },
-      remove: (name: string, options?: { [key: string]: unknown }) => {
-        cookieStore.set({ name, value: "", ...(options ?? {}), maxAge: 0 });
-      },
-    };
-    const supabase = createRouteHandlerClient({ cookies: cookieAdapter });
+    const supabase = createRouteHandlerClient({
+      cookies: (() => cookieStore) as any,
+    });
     try {
       const { error } = await supabase.auth.exchangeCodeForSession(code);
       if (error) {
@@ -46,16 +39,9 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const cookieStore = await cookies();
-  const cookieAdapter = {
-    get: (name: string) => cookieStore.get(name)?.value,
-    set: (name: string, value: string, options?: { [key: string]: unknown }) => {
-      cookieStore.set({ name, value, ...(options ?? {}) });
-    },
-    remove: (name: string, options?: { [key: string]: unknown }) => {
-      cookieStore.set({ name, value: "", ...(options ?? {}), maxAge: 0 });
-    },
-  };
-  const supabase = createRouteHandlerClient({ cookies: cookieAdapter });
+  const supabase = createRouteHandlerClient({
+    cookies: (() => cookieStore) as any,
+  });
   const formData = await request.formData();
   const event = formData.get("event");
 
