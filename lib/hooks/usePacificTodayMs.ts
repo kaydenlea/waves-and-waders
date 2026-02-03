@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { getPacificMidnightUTC } from "@/lib/utils";
 
 const HOUR_MS = 60 * 60 * 1000;
+const MINUTE_MS = 60 * 1000;
 
 const getPacificTodayMs = () => getPacificMidnightUTC(new Date()).getTime();
 
@@ -21,6 +22,7 @@ export function usePacificTodayMs(): number {
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
 
     const sync = () => {
       const next = getPacificTodayMs();
@@ -42,6 +44,11 @@ export function usePacificTodayMs(): number {
     };
 
     schedule();
+    
+    // Safety net: periodic sync every 5 minutes in case device sleeps through
+    // the scheduled timer (timers can be delayed on mobile/sleeping devices)
+    intervalId = setInterval(sync, 5 * MINUTE_MS);
+    
     window.addEventListener("focus", onFocus, { passive: true });
     document.addEventListener("visibilitychange", onVisibilityChange, {
       passive: true,
@@ -49,6 +56,7 @@ export function usePacificTodayMs(): number {
 
     return () => {
       if (timer) clearTimeout(timer);
+      if (intervalId) clearInterval(intervalId);
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
