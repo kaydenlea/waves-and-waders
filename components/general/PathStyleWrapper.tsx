@@ -32,7 +32,7 @@ export default function PathStyleWrapper({
             ? "h-0"
             : // Match the fixed map height on small screens to avoid scroll/viewport jumps
               // that can briefly reveal the map under the content during loading/dragging.
-              "h-[100dvh] max-[911px]:h-[calc(100dvh-4.25rem-env(safe-area-inset-bottom,0px))] @min-4xl:h-0"
+              "h-[var(--ww-100vh,100dvh)] max-[911px]:h-[calc(var(--ww-100vh,100dvh)-4.25rem-env(safe-area-inset-bottom,0px))] @min-4xl:h-0"
         }
       />
       <article

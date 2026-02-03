@@ -5224,8 +5224,9 @@ const LeafletMap: React.FC<Props> = ({
     : smallScreen
       ? {
           minHeight:
-            "calc(100dvh - 4.25rem - env(safe-area-inset-bottom, 0px))",
-          height: "calc(100dvh - 4.25rem - env(safe-area-inset-bottom, 0px))",
+            "calc(var(--ww-100vh, 100dvh) - 4.25rem - env(safe-area-inset-bottom, 0px))",
+          height:
+            "calc(var(--ww-100vh, 100dvh) - 4.25rem - env(safe-area-inset-bottom, 0px))",
         }
       : {
           minHeight: "28rem",

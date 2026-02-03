@@ -11,6 +11,7 @@ import { ToastProvider } from "@/components/providers/ToastProvider";
 import { SearchProvider } from "@/components/context/SearchContext";
 import { PathProvider } from "@/components/context/PathContext";
 import ScrollPerfHandler from "@/components/general/ScrollPerfHandler";
+import ViewportVars from "@/components/general/ViewportVars";
 
 export function AppProviders({
   initialSession,
@@ -38,6 +39,7 @@ export function AppProviders({
               <SearchProvider>
                 <ScrollToTopOnRouteChange />
                 <ScrollPerfHandler />
+                <ViewportVars />
                 {children}
               </SearchProvider>
             </ToastProvider>
