@@ -15,12 +15,29 @@ export default function ViewportVars() {
 
     const root = document.documentElement;
     let rafId: number | null = null;
+    let clearChangingTimer: number | null = null;
+    let lastHeightPx: number | null = null;
 
     const apply = () => {
       const heightPx = getViewportHeightPx();
       if (!heightPx) return;
       // 1vh equivalent in px based on the *visual* viewport (handles iOS Safari toolbars).
       root.style.setProperty("--ww-vh", `${heightPx * 0.01}px`);
+
+      // When the browser UI (URL bar / bottom controls) hides/shows, visualViewport.height changes.
+      // While that animation is happening, other UI (like our BottomNav auto-hide) should avoid
+      // doing simultaneous direction-based show/hide transitions.
+      if (lastHeightPx == null || Math.abs(heightPx - lastHeightPx) >= 1) {
+        root.dataset.wwViewportChanging = "1";
+        lastHeightPx = heightPx;
+        if (clearChangingTimer != null) {
+          window.clearTimeout(clearChangingTimer);
+        }
+        clearChangingTimer = window.setTimeout(() => {
+          clearChangingTimer = null;
+          delete root.dataset.wwViewportChanging;
+        }, 220);
+      }
     };
 
     const schedule = () => {
@@ -49,9 +66,10 @@ export default function ViewportVars() {
       window.visualViewport?.removeEventListener("resize", schedule);
       window.visualViewport?.removeEventListener("scroll", schedule);
       if (rafId != null) window.cancelAnimationFrame(rafId);
+      if (clearChangingTimer != null) window.clearTimeout(clearChangingTimer);
+      delete root.dataset.wwViewportChanging;
     };
   }, []);
 
   return null;
 }
-

@@ -200,14 +200,20 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
         window.requestAnimationFrame(() => {
           const currentY = window.scrollY;
           const diff = currentY - lastScrollYRef.current;
+          const viewportChanging =
+            typeof document !== "undefined" &&
+            document.documentElement.dataset.wwViewportChanging === "1";
 
           // Show the "View ..." button when near the top (small tolerance).
           const nextAtTop = currentY < 150;
           setAtTop((prev) => (prev === nextAtTop ? prev : nextAtTop));
 
           // Keep the nav visible while at the top; otherwise use scroll direction detection.
+          // On mobile Safari (and similar), the browser chrome animates in/out while scrolling
+          // (visualViewport height changes). Avoid animating our BottomNav at the same time.
           setShowBottomUI((prev) => {
             if (nextAtTop) return true;
+            if (viewportChanging) return prev;
             if (diff > 5) return false;
             if (diff < -5) return true;
             return prev;
