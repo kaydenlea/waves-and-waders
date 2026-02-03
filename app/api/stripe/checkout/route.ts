@@ -11,7 +11,7 @@ const getStripe = () => {
   const secret = process.env.STRIPE_SECRET_KEY;
   if (!secret) return null;
   return new Stripe(secret, {
-    apiVersion: "2024-04-10",
+    apiVersion: "2025-08-27.basil",
   });
 };
 

@@ -3,6 +3,7 @@ import { poppins } from "@/lib/fonts";
 import { buildDefaultMetadata, getSiteUrl } from "@/lib/seo";
 import { AppProviders } from "./providers";
 import { cookies } from "next/headers";
+import { Analytics } from "@vercel/analytics/next";
 
 export const metadata = buildDefaultMetadata();
 
@@ -71,6 +72,7 @@ export default async function RootLayout({
           initialTabPreferences={initialTabPreferences}
         >
           {children}
+          <Analytics />
         </AppProviders>
       </body>
     </html>
