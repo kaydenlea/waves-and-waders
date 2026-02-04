@@ -8,6 +8,7 @@ import type { ForecastData } from "@/lib/supabase";
 import { Waves, Wind, MousePointer2 as ArrowIcon, Info } from "lucide-react";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { Spinner } from "../ui/spinner";
 import { cn } from "@/lib/utils";
 import SaveButton from "./SaveButton";
 import { SwellRings, WindRing } from "../visuals/DirectionRings";
@@ -391,6 +392,12 @@ const BeachCard = React.memo(
             {loadingStats && (
               <div className="pointer-events-none absolute inset-0 rounded-2xl bg-background/40 backdrop-blur-[2px]">
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse rounded-2xl" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="inline-flex items-center gap-2 rounded-full border border-border/50 bg-background/80 px-3 py-1.5 text-xs font-medium text-foreground shadow-sm">
+                    <Spinner className="size-4" />
+                    Updating
+                  </span>
+                </div>
               </div>
             )}
           </section>

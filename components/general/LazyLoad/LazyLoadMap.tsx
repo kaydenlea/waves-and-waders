@@ -38,7 +38,7 @@ const MapLoadingShell: React.FC<Pick<Props, "variant" | "ui">> = ({
   }, []);
 
   const mobileViewportHeight =
-    "calc(var(--ww-100vh, 100dvh) - 4.25rem - env(safe-area-inset-bottom, 0px))";
+    "calc(var(--ww-100vh, 100dvh) + env(safe-area-inset-top, 0px) - 4.25rem - env(safe-area-inset-bottom, 0px))";
   const desktopViewportHeight =
     "calc(var(--ww-100vh, 100dvh) - 8rem - env(safe-area-inset-bottom, 0px))";
   const wrapperHeight = embedded
@@ -62,7 +62,7 @@ const MapLoadingShell: React.FC<Pick<Props, "variant" | "ui">> = ({
           ? "relative flex h-full w-full"
           : cn(
               "touch-none overscroll-none fixed w-full mx-auto max-w-screen transition-all duration-300",
-              "max-[911px]:min-h-[calc(var(--ww-100vh,100dvh)-4.25rem-env(safe-area-inset-bottom,0px))] max-[911px]:h-[calc(var(--ww-100vh,100dvh)-4.25rem-env(safe-area-inset-bottom,0px))]",
+              "max-[911px]:min-h-[calc(var(--ww-100vh,100dvh)+env(safe-area-inset-top,0px)-4.25rem-env(safe-area-inset-bottom,0px))] max-[911px]:h-[calc(var(--ww-100vh,100dvh)+env(safe-area-inset-top,0px)-4.25rem-env(safe-area-inset-bottom,0px))]",
               "@min-4xl:box-border @min-4xl:sticky @min-4xl:top-[7.5rem] @min-4xl:flex-1 @min-4xl:py-3 @min-4xl:pl-5 @min-4xl:pr-3 @min-4xl:h-[calc(var(--ww-100vh,100dvh)-8rem-env(safe-area-inset-bottom,0px))] flex"
             )
       }

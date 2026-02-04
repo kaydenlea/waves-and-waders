@@ -277,7 +277,7 @@ function DirectionBadge({
       <span
         className={cn(
           labelVisibilityClassName,
-          "text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground mt-0.5 hidden @min-lg:inline-block",
+          "text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground mt-0.5 inline-block",
           layout === "grid" && "justify-self-center",
           !showMap &&
             variant === "half" &&
@@ -2033,9 +2033,18 @@ const StatTable = ({
     const close = () => setTableControlsMenuOpen(false);
     window.addEventListener("scroll", close, { passive: true });
     window.addEventListener("touchmove", close, { passive: true });
+    window.addEventListener("wheel", close, { passive: true });
+    document.addEventListener("scroll", close, { passive: true, capture: true });
+    document.addEventListener("touchmove", close, {
+      passive: true,
+      capture: true,
+    });
     return () => {
       window.removeEventListener("scroll", close);
       window.removeEventListener("touchmove", close);
+      window.removeEventListener("wheel", close);
+      document.removeEventListener("scroll", close, true);
+      document.removeEventListener("touchmove", close, true);
     };
   }, [isEditing, tableControlsMenuOpen]);
 
@@ -2045,11 +2054,27 @@ const StatTable = ({
     const close = () => setForecastDateMenuOpen(false);
     window.addEventListener("scroll", close, { passive: true });
     window.addEventListener("touchmove", close, { passive: true });
+    window.addEventListener("wheel", close, { passive: true });
+    document.addEventListener("scroll", close, { passive: true, capture: true });
+    document.addEventListener("touchmove", close, {
+      passive: true,
+      capture: true,
+    });
     return () => {
       window.removeEventListener("scroll", close);
       window.removeEventListener("touchmove", close);
+      window.removeEventListener("wheel", close);
+      document.removeEventListener("scroll", close, true);
+      document.removeEventListener("touchmove", close, true);
     };
   }, [forecastDateMenuOpen, isEditing]);
+
+  const clearControlsMenuFocus = React.useCallback(() => {
+    const active = document.activeElement as HTMLElement | null;
+    if (active?.closest?.("[data-slot='dropdown-menu-content']")) {
+      active.blur();
+    }
+  }, []);
 
   const Pager = ({ compact }: { compact?: boolean }) => {
     const totalPages = columnPages.length;
@@ -2217,6 +2242,7 @@ const StatTable = ({
                     setForecastViewMode((prev) =>
                       prev === "all" ? "single" : "all",
                     );
+                    requestAnimationFrame(clearControlsMenuFocus);
                   }}
                   className={cn(
                     "rounded-xl px-2.5 py-2",
@@ -2252,7 +2278,10 @@ const StatTable = ({
                 <div className="px-1">
                   <DropdownMenuRadioGroup
                     value={forecastSelectedDay.key}
-                    onValueChange={(value) => setForecastDayKey(value)}
+                    onValueChange={(value) => {
+                      setForecastDayKey(value);
+                      requestAnimationFrame(clearControlsMenuFocus);
+                    }}
                     className="grid gap-1"
                   >
                     {selectorDays.map((day) => {
@@ -2268,8 +2297,7 @@ const StatTable = ({
                           className={cn(
                             "rounded-xl px-2.5 py-2 pl-8",
                             "focus:outline-none",
-                            "data-[state=checked]:bg-foreground/6 data-[state=checked]:shadow-even",
-                            "hover:bg-foreground/5 focus:bg-foreground/6",
+                            "hover:bg-foreground/5 focus:bg-foreground/5",
                           )}
                         >
                           <span className="flex min-w-0 flex-col">
@@ -2302,6 +2330,7 @@ const StatTable = ({
                 onSelect={(e) => {
                   e.preventDefault();
                   onToggleDensity?.();
+                  requestAnimationFrame(clearControlsMenuFocus);
                 }}
                 className={cn(
                   "rounded-xl px-2.5 py-2",
@@ -2325,13 +2354,19 @@ const StatTable = ({
                 onSelect={(e) => {
                   e.preventDefault();
                   setShowSecondarySwells(!showSecondarySwells);
+                  requestAnimationFrame(clearControlsMenuFocus);
                 }}
-                className="rounded-xl px-2.5 py-2"
+                className={cn(
+                  "rounded-xl px-2.5 py-2",
+                  showSecondarySwells
+                    ? "bg-highlight-6/70 text-foreground ring-1 ring-foreground/20 shadow-even"
+                    : "hover:bg-foreground/5",
+                )}
               >
                 {showSecondarySwells ? (
-                  <EyeOff aria-hidden="true" className="h-4 w-4" />
-                ) : (
                   <Eye aria-hidden="true" className="h-4 w-4" />
+                ) : (
+                  <EyeOff aria-hidden="true" className="h-4 w-4" />
                 )}
                 <span className="font-semibold">Swells</span>
                 <span className="ml-auto text-[0.75rem] font-semibold text-muted-foreground">
@@ -2541,12 +2576,12 @@ const StatTable = ({
           )}
         >
           {showSecondarySwells ? (
-            <EyeOff
+            <Eye
               aria-hidden="true"
               className="h-4 w-4 text-muted-foreground"
             />
           ) : (
-            <Eye aria-hidden="true" className="h-4 w-4 text-muted-foreground" />
+            <EyeOff aria-hidden="true" className="h-4 w-4 text-muted-foreground" />
           )}
           <span className="hidden @min-[460px]:inline">Swells</span>
         </button>

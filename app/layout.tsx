@@ -4,8 +4,15 @@ import { buildDefaultMetadata, getSiteUrl } from "@/lib/seo";
 import { AppProviders } from "./providers";
 import { cookies } from "next/headers";
 import { Analytics } from "@vercel/analytics/next";
+import type { Viewport } from "next";
 
 export const metadata = buildDefaultMetadata();
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#0891b2",
+};
 
 export default async function RootLayout({
   children,
@@ -53,10 +60,8 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <meta name="theme-color" content="#0891b2" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <link rel="manifest" href="/manifest.json" />
         <script
           type="application/ld+json"

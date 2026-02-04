@@ -2562,8 +2562,8 @@ const Highlights = ({
                           primary ? "" : "text-muted-foreground",
                           isFull && "@min-6xl:hidden",
                           layout === "carousel"
-                            ? "hidden"
-                            : "hidden @min-sm:block",
+                            ? "inline-block"
+                            : "inline-block",
                         )}
                       >
                         {dir}
