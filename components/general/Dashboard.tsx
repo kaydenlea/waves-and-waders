@@ -962,16 +962,22 @@ export default function Dashboard({
           if (row.items.length === 0) next.splice(existsIdx, 1);
         }
       } else {
-        const span = meta[id]?.span;
-        if (span === "full") next.push({ id: rid(), items: [id] });
-        else {
-          const target = next.find(
-            (r) =>
-              r.items.length < 2 &&
-              (r.items.length === 0 || meta[r.items[0]]?.span === "half"),
-          );
-          if (target) target.items.push(id);
-          else next.push({ id: rid(), items: [id] });
+        // Respect the current 1-up/2-up breakpoint. In 1-column layouts we want
+        // every widget to be its own row (no stacking two widgets in a single row).
+        if (!isTwoColumn) {
+          next.push({ id: rid(), items: [id] });
+        } else {
+          const span = meta[id]?.span;
+          if (span === "full") next.push({ id: rid(), items: [id] });
+          else {
+            const target = next.find(
+              (r) =>
+                r.items.length < 2 &&
+                (r.items.length === 0 || meta[r.items[0]]?.span === "half"),
+            );
+            if (target) target.items.push(id);
+            else next.push({ id: rid(), items: [id] });
+          }
         }
       }
       return finalizeRows(prev, next, meta);
