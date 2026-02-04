@@ -55,7 +55,7 @@ const haversineKm = (a: [number, number], b: [number, number]) => {
 };
 
 const buildFeatureTags = (
-  featureFlags?: Record<string, boolean>
+  featureFlags?: Record<string, boolean>,
 ): UIBeach["features"] => {
   if (!featureFlags) return [];
   const tags = FEATURE_COLUMNS.filter((key) => featureFlags[key])
@@ -75,7 +75,7 @@ const buildFeatureTags = (
 
 const decorateBeachWithStats = (
   beach: UIBeach,
-  snapshot?: BeachStatsSnapshot | null
+  snapshot?: BeachStatsSnapshot | null,
 ): UIBeach => {
   const dailyStats = snapshot ? extractDailySurfWindStats(snapshot) : null;
   const mergedConditions = mergeDailyStatsIntoConditions(
@@ -86,7 +86,7 @@ const decorateBeachWithStats = (
       temp: beach.conditions.temp,
       rating: beach.conditions.rating ?? 0,
     },
-    dailyStats
+    dailyStats,
   );
   return {
     ...beach,
@@ -118,21 +118,21 @@ export default function NearbyBeaches() {
       const day = new Date(
         value.getFullYear(),
         value.getMonth(),
-        value.getDate()
+        value.getDate(),
       );
       return day.toISOString().split("T")[0];
     }
     return "today";
   }, []);
   const statsDateKey = resolveDateKey(
-    effectiveDate instanceof Date ? effectiveDate : null
+    effectiveDate instanceof Date ? effectiveDate : null,
   );
   const statsHourKey =
     typeof effectiveHour === "number"
       ? normalizeHour(effectiveHour)
       : effectiveDate instanceof Date
-      ? "midday"
-      : "now";
+        ? "midday"
+        : "now";
   const filteredRawBeaches = useMemo(
     () =>
       (deferredBeaches || []).filter((beach) => {
@@ -143,7 +143,7 @@ export default function NearbyBeaches() {
         }
         return true;
       }),
-    [deferredBeaches, filters]
+    [deferredBeaches, filters],
   );
 
   const baseUiBeaches: UIBeach[] = useMemo(
@@ -164,14 +164,14 @@ export default function NearbyBeaches() {
         },
         features: buildFeatureTags(beach.features),
       })),
-    [filteredRawBeaches]
+    [filteredRawBeaches],
   );
 
   const hasCommittedBeaches = (deferredBeaches?.length ?? 0) > 0;
 
   const favoriteSet = useMemo(
     () => new Set(Array.from(favoriteIdsSet ?? new Set()).map(String)),
-    [favoriteIdsSet]
+    [favoriteIdsSet],
   );
 
   const [sorted, setSorted] = useState<UIBeach[]>(baseUiBeaches);
@@ -225,7 +225,7 @@ export default function NearbyBeaches() {
           });
         }
       },
-      { enableHighAccuracy: true, timeout: 8000 }
+      { enableHighAccuracy: true, timeout: 8000 },
     );
     return () => {
       cancelled = true;
@@ -271,9 +271,11 @@ export default function NearbyBeaches() {
   const buildPageHref = useCallback(
     (nextPage: number) => {
       const raw =
-        typeof window !== "undefined" ? window.location.search : searchParams?.toString();
+        typeof window !== "undefined"
+          ? window.location.search
+          : searchParams?.toString();
       const params = new URLSearchParams(
-        raw?.startsWith("?") ? raw.slice(1) : raw
+        raw?.startsWith("?") ? raw.slice(1) : raw,
       );
       // Always keep `tab` in the query string so any navigation back to /beaches
       // preserves the current selection (and avoids other URL updates reintroducing a stale tab).
@@ -290,7 +292,7 @@ export default function NearbyBeaches() {
       const qs = params.toString();
       return qs ? `${pathname}?${qs}` : pathname;
     },
-    [pathname, searchParams, selectedTab]
+    [pathname, searchParams, selectedTab],
   );
 
   const updateUrlForPage = useCallback(
@@ -300,7 +302,7 @@ export default function NearbyBeaches() {
         router.replace(href, { scroll: false });
       } catch {}
     },
-    [buildPageHref, router]
+    [buildPageHref, router],
   );
 
   const scrollToResultsStart = useCallback(() => {
@@ -309,11 +311,14 @@ export default function NearbyBeaches() {
         document.getElementById("beaches-header") ??
         document.querySelector("article#content");
       if (!target) return;
-      const stickyHeaderOffset = window.matchMedia("(min-width: 1024px)").matches
+      const stickyHeaderOffset = window.matchMedia("(min-width: 1024px)")
+        .matches
         ? 116
         : 122;
       const top =
-        target.getBoundingClientRect().top + window.scrollY - stickyHeaderOffset;
+        target.getBoundingClientRect().top +
+        window.scrollY -
+        stickyHeaderOffset;
       window.scrollTo({ top: Math.max(0, top), behavior });
     };
 
@@ -331,7 +336,7 @@ export default function NearbyBeaches() {
 
   const totalPages = Math.max(
     1,
-    Math.ceil((visibleList.length || 0) / perPage)
+    Math.ceil((visibleList.length || 0) / perPage),
   );
 
   useEffect(() => {
@@ -406,7 +411,7 @@ export default function NearbyBeaches() {
       const cached = cache[id];
       const snapshotRaw = snapshotMap.get(id);
       const snapshotEffective =
-        snapshotRaw === undefined ? cached?.snapshot ?? null : snapshotRaw;
+        snapshotRaw === undefined ? (cached?.snapshot ?? null) : snapshotRaw;
       if (
         cached &&
         cached.base === beach &&
@@ -438,7 +443,7 @@ export default function NearbyBeaches() {
       console.log(
         `[BeachesPerf] decorate-cards page=${page} count=${
           next.length
-        } duration=${duration.toFixed(1)}ms`
+        } duration=${duration.toFixed(1)}ms`,
       );
     }
 
@@ -506,7 +511,7 @@ export default function NearbyBeaches() {
               "shadow-inner transition-all duration-200",
               "hover:bg-background/60 dark:hover:bg-highlight-5/40",
               "focus:outline-none",
-              "disabled:opacity-60 disabled:cursor-not-allowed"
+              "disabled:opacity-60 disabled:cursor-not-allowed",
             )}
           >
             <span>{perPage}</span>
@@ -530,7 +535,7 @@ export default function NearbyBeaches() {
                 transition={{ duration: 0.12, ease: "easeOut" }}
                 className={cn(
                   "absolute right-0 z-20 mt-2 min-w-[7rem] overflow-hidden",
-                  "rounded-xl border border-border/30 bg-background shadow-lg"
+                  "rounded-xl border border-border/30 bg-background shadow-lg",
                 )}
               >
                 {[10, 20, 50].map((num) => {
@@ -550,7 +555,7 @@ export default function NearbyBeaches() {
                           active
                             ? "bg-highlight-5/60 text-foreground"
                             : "hover:bg-highlight-3/70",
-                          "transition-colors"
+                          "transition-colors",
                         )}
                       >
                         {num}
@@ -578,7 +583,7 @@ export default function NearbyBeaches() {
   const showLoadingState =
     showGlobalLoading || showListLoading || showSortingLoading;
   const showEmptyState = !hasVisibleItems && !showLoadingState;
-  const loadingPlaceholderCount = Math.min(perPage, 6);
+  const loadingPlaceholderCount = 20;
 
   // console.log("FINAL BEACHES", currentItems);
   return (
@@ -623,25 +628,50 @@ export default function NearbyBeaches() {
         <section
           className={cn(
             "grid grid-cols-1 gap-3 @min-4xl/main:gap-4 @min-md/beaches:grid-cols-2 px-0.5 pb-4",
-            "ww-disable-backdrop"
+            "ww-disable-backdrop",
           )}
           aria-live="polite"
           aria-label="Loading beaches"
         >
           {Array.from({ length: loadingPlaceholderCount }).map((_, idx) => (
-            <div
+            <article
               key={`beach-loading-${idx}`}
-              className="rounded-2xl border border-border/40 bg-background/70 p-4 shadow-even animate-pulse"
+              aria-hidden="true"
+              className={cn(
+                "relative block transition-all duration-300 ease-out p-1.5",
+                "group overflow-hidden rounded-3xl border border-border/50 bg-highlight-7/60 shadow-even backdrop-blur",
+                "animate-pulse",
+              )}
             >
-              <div className="h-40 rounded-xl bg-highlight-5/70" />
-              <div className="mt-4 h-4 w-2/3 rounded bg-highlight-5/80" />
-              <div className="mt-2 h-3 w-1/2 rounded bg-highlight-5/70" />
-              <div className="mt-4 grid grid-cols-3 gap-2">
-                <div className="h-8 rounded bg-highlight-5/70" />
-                <div className="h-8 rounded bg-highlight-5/70" />
-                <div className="h-8 rounded bg-highlight-5/70" />
+              <div className="relative z-10 pointer-events-none">
+                <section className="rounded-2xl relative w-full p-3 aspect-auto bg-highlight-5/80">
+                  <div className="rounded-2xl h-35 w-full bg-highlight-5/70" />
+
+                  <header className="flex gap-1 truncate absolute top-0.5 left-1 w-[73%] p-2">
+                    <div className="min-w-1.5 rounded-full bg-highlight-5/80" />
+                    <div className="min-w-0">
+                      <div className="h-4 w-32 rounded bg-highlight-5/80" />
+                      <div className="mt-1 h-3 w-20 rounded bg-highlight-5/70" />
+                    </div>
+                  </header>
+
+                  <div className="flex flex-col gap-1 absolute bottom-2 left-2">
+                    <div className="inline-flex items-center gap-1">
+                      <div className="h-5 w-5 rounded-full bg-highlight-5/70 border border-black/10" />
+                      <div className="h-4 w-20 rounded bg-highlight-5/80" />
+                    </div>
+                    <div className="inline-flex items-center gap-1">
+                      <div className="h-5 w-5 rounded-full bg-highlight-5/70 border border-black/10" />
+                      <div className="h-4 w-24 rounded bg-highlight-5/80" />
+                    </div>
+                  </div>
+
+                  <div className="absolute right-2 top-2 z-10 h-9 w-9 rounded-full border border-border/50 bg-background/70 shadow-sm" />
+                  <div className="absolute bottom-3 right-3 z-10 h-7 w-7 rounded-full bg-black/40" />
+                  <div className="absolute right-11 bottom-[12px] z-10 h-7 w-14 rounded-full bg-slate-900/30" />
+                </section>
               </div>
-            </div>
+            </article>
           ))}
         </section>
       ) : showEmptyState ? (
@@ -669,7 +699,7 @@ export default function NearbyBeaches() {
             "grid grid-cols-1 gap-3 @min-4xl/main:gap-4 @min-md/beaches:grid-cols-2 px-0.5 pb-4",
             // `content-visibility`/aggressive `contain` can cause intermittent
             // paint issues (cards vanishing) while scrolling in some browsers.
-            "ww-disable-backdrop"
+            "ww-disable-backdrop",
           )}
         >
           {renderedItems.map((b, idx) => {
@@ -700,7 +730,7 @@ export default function NearbyBeaches() {
                 aria-disabled={page === 1}
                 tabIndex={page === 1 ? -1 : 0}
                 className={cn(
-                  page === 1 && "pointer-events-none text-muted-foreground"
+                  page === 1 && "pointer-events-none text-muted-foreground",
                 )}
                 onClick={(e) => {
                   e.preventDefault();
@@ -733,7 +763,7 @@ export default function NearbyBeaches() {
                     {p}
                   </PaginationLink>
                 </PaginationItem>
-              )
+              ),
             )}
             <PaginationItem>
               <PaginationNext
@@ -742,7 +772,7 @@ export default function NearbyBeaches() {
                 tabIndex={page === totalPages ? -1 : 0}
                 className={cn(
                   page === totalPages &&
-                    "pointer-events-none text-muted-foreground"
+                    "pointer-events-none text-muted-foreground",
                 )}
                 onClick={(e) => {
                   e.preventDefault();
