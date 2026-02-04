@@ -340,7 +340,7 @@ export const SwellRings: React.FC<{
           const lower = isLowerHalf(direction);
           // Text path follows the arc center (same radius as the stroke centerline)
           // so text naturally centers on the colored band.
-          const textRadius = radius;
+          const textRadius = radius - (lower ? -0.5 : 0.5);
 
           // Text placement & readability:
           // - The label must stay on the same arc segment (never mirrored to the opposite side).
@@ -565,9 +565,7 @@ export const SwellRings: React.FC<{
                     )}%`}
                     alignmentBaseline="middle"
                     textLength={textLength}
-                    lengthAdjust={
-                      textLength ? "spacingAndGlyphs" : undefined
-                    }
+                    lengthAdjust={textLength ? "spacingAndGlyphs" : undefined}
                   >
                     {valueLabel}
                   </textPath>
@@ -736,7 +734,7 @@ export const WindRing: React.FC<{
           (() => {
             // Text path follows the arc center (same radius as the stroke centerline)
             // so text naturally centers on the colored band.
-            const textRadius = radius;
+            const textRadius = radius - (lower ? -0.5 : 0.5);
 
             const textStart = lower ? end + 180 : start;
             const textEnd = lower ? start + 180 : end;
@@ -917,9 +915,7 @@ export const WindRing: React.FC<{
                 )}%`}
                 alignmentBaseline="middle"
                 textLength={windTextLength}
-                lengthAdjust={
-                  windTextLength ? "spacingAndGlyphs" : undefined
-                }
+                lengthAdjust={windTextLength ? "spacingAndGlyphs" : undefined}
               >
                 {label}
               </textPath>

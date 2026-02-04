@@ -1249,7 +1249,7 @@ const SelectedBeachOverlay = React.memo(
       if (minDim < 500) return 0.96;
       return 0.98;
     })();
-    const maxScale = compact ? compactMaxScale * (legendOpen ? 0.96 : 1) : 1;
+    const maxScale = compact ? compactMaxScale : 1;
     const scale = maxSize
       ? Math.min(baseScale, maxScale, maxSize / 160)
       : Math.min(baseScale, maxScale);
