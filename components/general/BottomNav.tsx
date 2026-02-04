@@ -56,6 +56,11 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
   const isEditing = dashboardEditMode?.isEditing ?? false;
   const [showBottomUI, setShowBottomUI] = useState(true);
   const lastScrollYRef = useRef(0);
+  const scrollDirRef = useRef<-1 | 0 | 1>(0);
+  const scrollAccumRef = useRef(0);
+  const lastToggleTsRef = useRef(0);
+  const lastVisualViewportHeightRef = useRef<number | null>(null);
+  const viewportStableFramesRef = useRef(0);
   const [atTop, setAtTop] = useState(true);
   const pathname = usePathname();
   const fullMapPage = !pathname.endsWith("/beaches");
@@ -193,13 +198,45 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
   }, [openPanel, mobile]);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!mobile) return;
     let ticking = false;
+
+    const readVisualViewportHeight = () => {
+      const vv = window.visualViewport;
+      const h = vv?.height ?? null;
+      return typeof h === "number" && Number.isFinite(h) && h > 0 ? h : null;
+    };
+
+    // Consider the viewport "stable" only after the visual viewport has stopped changing
+    // for several consecutive animation frames. This avoids relying on fixed timers and
+    // prevents BottomNav toggles from overlapping with mobile browser chrome animations.
+    const requiredStableFrames = 12;
+    const bumpViewportStability = () => {
+      const h = readVisualViewportHeight();
+      const prev = lastVisualViewportHeightRef.current;
+      if (h == null) {
+        lastVisualViewportHeightRef.current = null;
+        viewportStableFramesRef.current = requiredStableFrames;
+        return;
+      }
+      if (prev == null || Math.abs(h - prev) >= 1) {
+        lastVisualViewportHeightRef.current = h;
+        viewportStableFramesRef.current = 0;
+        return;
+      }
+      viewportStableFramesRef.current = Math.min(
+        requiredStableFrames,
+        viewportStableFramesRef.current + 1,
+      );
+    };
 
     const handleScroll = () => {
       if (!ticking) {
         window.requestAnimationFrame(() => {
           const currentY = window.scrollY;
           const diff = currentY - lastScrollYRef.current;
+          const now = window.performance?.now?.() ?? Date.now();
           const viewportChanging =
             typeof document !== "undefined" &&
             document.documentElement.dataset.wwViewportChanging === "1";
@@ -213,9 +250,48 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
           // (visualViewport height changes). Avoid animating our BottomNav at the same time.
           setShowBottomUI((prev) => {
             if (nextAtTop) return true;
-            if (viewportChanging) return prev;
-            if (diff > 5) return false;
-            if (diff < -5) return true;
+
+            bumpViewportStability();
+
+            // While the browser UI is animating (URL bar / bottom controls), do not toggle.
+            // Also require the visual viewport to have settled for several consecutive frames.
+            if (viewportChanging || viewportStableFramesRef.current < requiredStableFrames) {
+              scrollAccumRef.current = 0;
+              scrollDirRef.current = 0;
+              return prev;
+            }
+
+            // Hysteresis: require sustained scroll distance before toggling.
+            // This keeps BottomNav behavior decoupled from small scroll jitter and mobile
+            // browser chrome hide/show animations.
+            const abs = Math.abs(diff);
+            if (!Number.isFinite(abs) || abs < 2) return prev;
+
+            const dir: -1 | 1 = diff > 0 ? 1 : -1;
+            if (scrollDirRef.current !== dir) {
+              scrollDirRef.current = dir;
+              scrollAccumRef.current = 0;
+            }
+            scrollAccumRef.current += abs;
+
+            // Cooldown between toggles prevents rapid flicker.
+            const canToggle = now - lastToggleTsRef.current > 800;
+            if (!canToggle) return prev;
+
+            // Require more distance to hide than to show (feels better).
+            const HIDE_PX = 96;
+            const SHOW_PX = 52;
+
+            if (dir === 1 && prev && scrollAccumRef.current >= HIDE_PX) {
+              lastToggleTsRef.current = now;
+              scrollAccumRef.current = 0;
+              return false;
+            }
+            if (dir === -1 && !prev && scrollAccumRef.current >= SHOW_PX) {
+              lastToggleTsRef.current = now;
+              scrollAccumRef.current = 0;
+              return true;
+            }
             return prev;
           });
 
@@ -227,8 +303,16 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [landingPage]);
+    // Keep stability tracking updated during browser chrome animations.
+    const vv = window.visualViewport;
+    vv?.addEventListener("resize", bumpViewportStability, { passive: true });
+    vv?.addEventListener("scroll", bumpViewportStability, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      vv?.removeEventListener("resize", bumpViewportStability);
+      vv?.removeEventListener("scroll", bumpViewportStability);
+    };
+  }, [landingPage, mobile]);
 
   const handleToggle = (key: string) =>
     setFilters((prev) => {
