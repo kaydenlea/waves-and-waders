@@ -19,22 +19,25 @@ const ViewportBeachesManager = () => {
     allowViewportCommit,
   } = useMapViewport();
   const {
-    pendingBounds,
     committedBounds,
     searchBounds,
     setStatus: setViewportContextStatus,
     setBeaches: setViewportContextBeaches,
     commitPending,
+    readyToSearch,
   } = useViewportBeachesContext();
   const { selectedTab } = useClientPath();
-  const effectiveBounds =
-    searchBounds ?? committedBounds ?? pendingBounds ?? visibleBounds;
+  // Only fetch when bounds are explicitly "searched"/committed, not on every
+  // transient camera update. This prevents rapid map interactions from
+  // continuously triggering viewport requests and UI churn.
+  const effectiveBounds = readyToSearch
+    ? committedBounds
+    : searchBounds ?? committedBounds;
   const { beaches, status } = useViewportBeaches({
     bounds: effectiveBounds,
     filters: deferredFilters,
     favoriteIds,
     selectedTab,
-    requestId: viewportRequestId,
     limit: MAX_VIEWPORT_BEACHES,
     enabled: allowViewportCommit,
     // Bounds updates are already debounced/throttled at the map level.

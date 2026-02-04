@@ -95,6 +95,8 @@ const decorateBeachWithStats = (
   };
 };
 
+const MIN_RESULTS_SKELETON_MS = 800;
+
 export default function NearbyBeaches() {
   const router = useRouter();
   const pathname = usePathname() ?? "/beaches";
@@ -450,6 +452,51 @@ export default function NearbyBeaches() {
     return next;
   }, [currentItems, snapshotMap]);
 
+  const [minSkeletonActive, setMinSkeletonActive] = useState(false);
+  const minSkeletonTimerRef = useRef<number | null>(null);
+  const minSkeletonCycleRef = useRef(0);
+  const prevViewportStatusRef = useRef<string | null>(null);
+  const startMinSkeleton = useCallback(() => {
+    const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+    const until = now + MIN_RESULTS_SKELETON_MS;
+    minSkeletonCycleRef.current += 1;
+    const cycle = minSkeletonCycleRef.current;
+
+    if (minSkeletonTimerRef.current != null) {
+      window.clearTimeout(minSkeletonTimerRef.current);
+      minSkeletonTimerRef.current = null;
+    }
+
+    setMinSkeletonActive(true);
+    minSkeletonTimerRef.current = window.setTimeout(() => {
+      if (minSkeletonCycleRef.current !== cycle) return;
+      setMinSkeletonActive(false);
+      minSkeletonTimerRef.current = null;
+    }, Math.max(0, Math.ceil(until - now)));
+  }, []);
+
+  useEffect(() => {
+    const prev = prevViewportStatusRef.current;
+    prevViewportStatusRef.current = viewportStatus;
+    const startingLoad = prev !== "loading" && viewportStatus === "loading";
+    if (startingLoad) startMinSkeleton();
+  }, [startMinSkeleton, viewportStatus]);
+
+  useEffect(() => {
+    if (viewportStatus !== "idle") return;
+    if (hasCommittedBeaches) return;
+    startMinSkeleton();
+  }, [hasCommittedBeaches, startMinSkeleton, viewportStatus]);
+
+  useEffect(() => {
+    return () => {
+      if (minSkeletonTimerRef.current != null) {
+        window.clearTimeout(minSkeletonTimerRef.current);
+        minSkeletonTimerRef.current = null;
+      }
+    };
+  }, []);
+
   // Build pagination range with ellipses
   const getPageNumbers = () => {
     const delta = 1;
@@ -572,18 +619,34 @@ export default function NearbyBeaches() {
   };
 
   const viewportBusy =
-    viewportStatus === "idle" ||
     viewportStatus === "loading" ||
-    viewportStatus === "dirty";
+    (viewportStatus === "idle" && !hasCommittedBeaches);
   const hasVisibleItems = visibleList.length > 0;
-  const showGlobalLoading = !hasCommittedBeaches && viewportBusy;
-  const showListLoading =
-    !hasVisibleItems && hasCommittedBeaches && viewportBusy;
-  const showSortingLoading = !hasVisibleItems && isSortingPending;
-  const showLoadingState =
-    showGlobalLoading || showListLoading || showSortingLoading;
-  const showEmptyState = !hasVisibleItems && !showLoadingState;
-  const loadingPlaceholderCount = 20;
+  const allCardStatsReady = useMemo(() => {
+    if (!currentItems.length) return false;
+    return currentItems.every(
+      (beach) => snapshotMap.get(String(beach.id)) !== undefined,
+    );
+  }, [currentItems, snapshotMap]);
+  const showSkeletonState =
+    viewportBusy ||
+    minSkeletonActive ||
+    (!hasVisibleItems && isSortingPending) ||
+    (hasVisibleItems && !allCardStatsReady);
+  const showEmptyState = !hasVisibleItems && !showSkeletonState;
+
+  const lastNonZeroCountRef = useRef(0);
+  useEffect(() => {
+    if (renderedItems.length > 0) {
+      lastNonZeroCountRef.current = renderedItems.length;
+    }
+  }, [renderedItems.length]);
+
+  const loadingPlaceholderCount = useMemo(() => {
+    if (renderedItems.length > 0) return renderedItems.length;
+    if (lastNonZeroCountRef.current > 0) return lastNonZeroCountRef.current;
+    return Math.max(1, perPage);
+  }, [perPage, renderedItems.length]);
 
   // console.log("FINAL BEACHES", currentItems);
   return (
@@ -624,64 +687,62 @@ export default function NearbyBeaches() {
       {/* <PageOptions /> */}
       {/* </div> */}
 
-      {showLoadingState ? (
-        <section
-          className={cn(
-            "grid grid-cols-1 gap-3 @min-4xl/main:gap-4 @min-md/beaches:grid-cols-2 px-0.5 pb-4",
-            "ww-disable-backdrop",
-          )}
-          aria-live="polite"
-          aria-label="Loading beaches"
-        >
-          {Array.from({ length: loadingPlaceholderCount }).map((_, idx) => (
-            <article
-              key={`beach-loading-${idx}`}
-              aria-hidden="true"
-              className={cn(
-                "relative block transition-all duration-300 ease-out p-1.5",
-                "group overflow-hidden rounded-3xl border border-border/50 bg-highlight-7/60 shadow-even backdrop-blur",
-                "animate-pulse",
-              )}
-            >
-              <div className="relative z-10 pointer-events-none">
-                <section className="rounded-2xl relative w-full p-3 aspect-auto bg-highlight-5/80">
-                  <div className="rounded-2xl h-35 w-full bg-highlight-5/70" />
-
-                  <header className="flex gap-1 truncate absolute top-0.5 left-1 w-[73%] p-2">
-                    <div className="min-w-1.5 rounded-full bg-highlight-5/80" />
-                    <div className="min-w-0">
-                      <div className="h-4 w-32 rounded bg-highlight-5/80" />
-                      <div className="mt-1 h-3 w-20 rounded bg-highlight-5/70" />
-                    </div>
-                  </header>
-
-                  <div className="flex flex-col gap-1 absolute bottom-2 left-2">
-                    <div className="inline-flex items-center gap-1">
-                      <div className="h-5 w-5 rounded-full bg-highlight-5/70 border border-black/10" />
-                      <div className="h-4 w-20 rounded bg-highlight-5/80" />
-                    </div>
-                    <div className="inline-flex items-center gap-1">
-                      <div className="h-5 w-5 rounded-full bg-highlight-5/70 border border-black/10" />
-                      <div className="h-4 w-24 rounded bg-highlight-5/80" />
-                    </div>
-                  </div>
-
-                  <div className="absolute right-2 top-2 z-10 h-9 w-9 rounded-full border border-border/50 bg-background/70 shadow-sm" />
-                  <div className="absolute bottom-3 right-3 z-10 h-7 w-7 rounded-full bg-black/40" />
-                  <div className="absolute right-11 bottom-[12px] z-10 h-7 w-14 rounded-full bg-slate-900/30" />
-                </section>
-              </div>
-            </article>
-          ))}
-        </section>
-      ) : showEmptyState ? (
+      <AnimatePresence mode="wait" initial={false}>
+        {showSkeletonState ? (
+          <motion.section
+            key="beaches-skeleton"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.14, ease: "easeOut" }}
+            className={cn(
+              "grid grid-cols-1 gap-3 @min-4xl/main:gap-4 @min-md/beaches:grid-cols-2 px-0.5 pb-4",
+              "ww-disable-backdrop",
+            )}
+            aria-live="polite"
+            aria-label="Loading beaches"
+            aria-busy="true"
+          >
+            {Array.from({ length: loadingPlaceholderCount }).map((_, idx) => (
+              <article
+                key={`beach-loading-${idx}`}
+                aria-hidden="true"
+                className={cn(
+                  "relative block transition-all duration-300 ease-out p-1.5",
+                  "group overflow-hidden rounded-3xl border border-border/50 bg-highlight-7/60 shadow-even",
+                  "animate-pulse",
+                )}
+              >
+                <div className="relative z-10 pointer-events-none">
+                  <section className="rounded-2xl relative w-full p-3 aspect-auto bg-highlight-5/80">
+                    <div className="rounded-2xl h-35 w-full bg-highlight-5/70" />
+                  </section>
+                </div>
+              </article>
+            ))}
+          </motion.section>
+        ) : showEmptyState ? (
         filterCount > 0 ? (
-          <section className="text-center pt-10 pb-100 flex flex-col justify-center items-center gap-3">
+          <motion.section
+            key="beaches-empty-filtered"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.14, ease: "easeOut" }}
+            className="text-center pt-10 pb-100 flex flex-col justify-center items-center gap-3"
+          >
             <SearchX className="w-10 h-10" />
             <span className="text-lg">No beaches found...</span>
-          </section>
+          </motion.section>
         ) : (
-          <section className="text-center pt-10 pb-100 flex flex-col justify-center items-center gap-3">
+          <motion.section
+            key="beaches-empty"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.14, ease: "easeOut" }}
+            className="text-center pt-10 pb-100 flex flex-col justify-center items-center gap-3"
+          >
             <SearchX className="w-10 h-10" />
             <span className="text-lg">
               {selectedTab === "saved"
@@ -691,10 +752,15 @@ export default function NearbyBeaches() {
             <span className="text-sm text-muted-foreground">
               Pan or zoom the map to see beaches here.
             </span>
-          </section>
+          </motion.section>
         )
       ) : (
-        <section
+        <motion.section
+          key="beaches-results"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.14, ease: "easeOut" }}
           className={cn(
             "grid grid-cols-1 gap-3 @min-4xl/main:gap-4 @min-md/beaches:grid-cols-2 px-0.5 pb-4",
             // `content-visibility`/aggressive `contain` can cause intermittent
@@ -704,21 +770,19 @@ export default function NearbyBeaches() {
         >
           {renderedItems.map((b, idx) => {
             const id = String(b.id);
-            const snapshotRaw = snapshotMap.get(id);
-            const loadingStats = snapshotRaw === undefined;
             const priorityImage = page === 1 && idx < 4;
             return (
               <BeachCard
                 key={b.id}
                 b={b}
                 isFav={favoriteSet.has(id)}
-                loadingStats={loadingStats}
                 priorityImage={priorityImage}
               />
             );
           })}
-        </section>
+        </motion.section>
       )}
+      </AnimatePresence>
 
       {/* Pagination */}
       {totalPages > 1 && (

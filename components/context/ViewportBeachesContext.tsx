@@ -51,6 +51,8 @@ const DEFAULT_CAMERA: ViewportCamera = {
   bounds: null,
 };
 
+const VIEWPORT_SEARCH_IDLE_MS = 450;
+
 const ViewportBeachesContext = React.createContext<ContextValue | null>(null);
 
 export const ViewportBeachesProvider = ({
@@ -126,7 +128,7 @@ export const ViewportBeachesProvider = ({
       idleTimeoutRef.current = window.setTimeout(() => {
         idleTimeoutRef.current = null;
         requestSearch();
-      }, 350);
+      }, VIEWPORT_SEARCH_IDLE_MS);
     },
     [clearIdleTimer, requestSearch]
   );
