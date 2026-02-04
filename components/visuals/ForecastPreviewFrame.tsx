@@ -61,7 +61,7 @@ export default function ForecastPreviewFrame({
               <ChevronRight className="h-4 w-4" aria-hidden />
             </button>
           </div>
-          <span className="ml-2 rounded-full border border-border/50 bg-highlight-5/60 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-foreground/80">
+          <span className="ml-2 hidden rounded-full border border-border/50 bg-highlight-5/60 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-foreground/80 sm:inline-flex">
             {badgeLabel}
           </span>
         </div>

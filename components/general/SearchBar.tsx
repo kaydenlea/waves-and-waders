@@ -339,7 +339,7 @@ const SearchBar = ({
       {isOverlay &&
         createPortal(
           <div
-            className="fixed inset-0 z-[70] bg-background/85 dark:bg-background/95 flex flex-col items-center pt-5.5 px-8"
+            className="fixed inset-0 z-[70] bg-background/85 dark:bg-background/95 flex flex-col items-center pt-5.5 px-8 overflow-y-auto"
             onClick={(e) => {
               if (e.target === e.currentTarget)
                 // setQuery("");
@@ -395,8 +395,8 @@ const SearchBar = ({
 
             {/* Search results in overlay */}
             {open && visibleHits.length > 0 && (
-              <div className="mt-4 w-full max-w-2xl bg-background border border-border/30 shadow-even rounded-md">
-                <ul className="rounded-xl overflow-y-auto max-h-[80vh] p-2">
+              <div className="mt-4 w-full max-w-2xl bg-background border border-border/30 shadow-even rounded-md max-h-[calc(100dvh-9rem)] overflow-hidden">
+                <ul className="rounded-xl overflow-y-auto max-h-full p-2">
                   {visibleHits.map((h, idx) => (
                     <SearchResultItem
                       key={`${h.id}`}

@@ -50,6 +50,7 @@ export default function BeachesMapPreview({
 }: Props) {
   const [shouldLoad, setShouldLoad] = React.useState(false);
   const [showGestureHint, setShowGestureHint] = React.useState(true);
+  const [touchCoarse, setTouchCoarse] = React.useState(false);
 
   const requestInteractivePreview = React.useCallback(() => {
     if (shouldLoad) return;
@@ -70,6 +71,26 @@ export default function BeachesMapPreview({
     window.setTimeout(() => setShouldLoad(true), 0);
   }, [shouldLoad]);
 
+  React.useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+      return;
+    }
+    try {
+      const media = window.matchMedia("(pointer: coarse)");
+      const handleChange = (event: MediaQueryListEvent) =>
+        setTouchCoarse(event.matches);
+      setTouchCoarse(media.matches);
+      if (typeof media.addEventListener === "function") {
+        media.addEventListener("change", handleChange);
+        return () => media.removeEventListener("change", handleChange);
+      }
+      media.addListener(handleChange);
+      return () => media.removeListener(handleChange);
+    } catch {
+      // ignore unsupported media queries
+    }
+  }, []);
+
   return (
     <div className={cn("w-full", className)}>
       <div
@@ -81,8 +102,12 @@ export default function BeachesMapPreview({
           frameClassName
         )}
         onClickCapture={() => setShowGestureHint(false)}
+        onPointerDownCapture={(event) => {
+          if (event.pointerType === "touch") setShowGestureHint(false);
+        }}
+        onTouchStartCapture={() => setShowGestureHint(false)}
         onWheelCapture={(event) => {
-          if (event.ctrlKey) setShowGestureHint(false);
+          if (event.ctrlKey || event.metaKey) setShowGestureHint(false);
         }}
       >
         <div className="absolute inset-0">
@@ -136,11 +161,20 @@ export default function BeachesMapPreview({
           <div className="pointer-events-none absolute inset-0 z-[1200] grid place-items-center">
             <div className="absolute inset-0 bg-background/30 backdrop-blur-sm" />
             <div className="relative mx-4 max-w-[34rem] rounded-2xl border border-border/60 bg-background/85 px-4 py-3 text-center text-xs font-medium text-foreground/85 shadow-sm backdrop-blur">
-              <span className="font-semibold">Ctrl</span> + scroll to zoom.
-              <span className="hidden sm:inline">
-                {" "}
-                Pinch to zoom on trackpad.
-              </span>
+              {touchCoarse ? (
+                <>
+                  Use two fingers to pan and pinch to zoom.
+                </>
+              ) : (
+                <>
+                  Hold <span className="font-semibold">Ctrl</span> (or{" "}
+                  <span className="font-semibold">⌘</span>) and scroll to zoom.
+                  <span className="hidden sm:inline">
+                    {" "}
+                    Pinch to zoom on trackpad.
+                  </span>
+                </>
+              )}
             </div>
           </div>
         )}

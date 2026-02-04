@@ -36,7 +36,7 @@ export default function DashboardPersonalizationPreview({
     <div
       className={cn(
         "relative isolate z-0 w-full min-w-0 max-w-full",
-        "aspect-[16/10] min-h-[18rem] sm:min-h-[20rem]",
+        "aspect-[16/10] min-h-[20rem] sm:min-h-[20rem]",
         className
       )}
     >

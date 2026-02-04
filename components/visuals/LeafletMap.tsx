@@ -4265,6 +4265,9 @@ const LeafletMap: React.FC<Props> = ({
         window.clearTimeout(deferredMarkerRebuildTimeoutRef.current);
         deferredMarkerRebuildTimeoutRef.current = null;
       }
+      if (markerBuildJobRef.current) {
+        pendingMarkerRebuildRef.current = true;
+      }
       latestCancelMarkerBuild();
       if (!touchInput) {
         enableInteractionLock();
@@ -4311,6 +4314,9 @@ const LeafletMap: React.FC<Props> = ({
       if (deferredMarkerRebuildTimeoutRef.current != null) {
         window.clearTimeout(deferredMarkerRebuildTimeoutRef.current);
         deferredMarkerRebuildTimeoutRef.current = null;
+      }
+      if (markerBuildJobRef.current) {
+        pendingMarkerRebuildRef.current = true;
       }
       latestCancelMarkerBuild();
       if (!touchInput) {
@@ -4846,9 +4852,11 @@ const LeafletMap: React.FC<Props> = ({
               ) {
                 return;
               }
-              const treatAsTouch = e.originalEvent
-                ? isTouchInteraction(e.originalEvent)
-                : supportsTouchInput();
+              const treatAsTouch = supportsTouchInput()
+                ? true
+                : e.originalEvent
+                  ? isTouchInteraction(e.originalEvent)
+                  : false;
               if (treatAsTouch) {
                 if (e.originalEvent) {
                   e.originalEvent.preventDefault?.();
@@ -5820,6 +5828,9 @@ const LeafletMap: React.FC<Props> = ({
             * {
             touch-action: none;
             overscroll-behavior: contain;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
           }
           .leaflet-popup-content-wrapper,
           .leaflet-popup-tip {
