@@ -38,7 +38,7 @@ export default function PathStyleWrapper({
       <article
         id="content"
         className={cn(
-          "relative isolate overflow-hidden touch-pan-y w-full px-2 @min-4xl:pt-4 bg-background border-t border-x border-border/70 @min-4xl:border-none mx-auto scroll-mt-30",
+          "relative isolate overflow-clip touch-pan-y w-full px-2 @min-4xl:pt-4 bg-background border-t border-x border-border/70 @min-4xl:border-none mx-auto scroll-mt-30",
           // Keep drag overlays / floating edit controls above the footer.
           effectiveEditPage ? "z-auto" : "z-30",
           cls,
