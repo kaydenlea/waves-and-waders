@@ -19,7 +19,40 @@ const MapLoadingShell: React.FC<Pick<Props, "variant" | "ui">> = ({
 }) => {
   const pathName = usePathname() ?? "";
   const embedded = variant === "embed";
+  const [hydrated, setHydrated] = React.useState(false);
+  const [smallScreen, setSmallScreen] = React.useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.innerWidth < 911;
+  });
   if (!embedded && pathName.includes("edit")) return null;
+
+  React.useEffect(() => {
+    setHydrated(true);
+  }, []);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onResize = () => setSmallScreen(window.innerWidth < 911);
+    window.addEventListener("resize", onResize, { passive: true });
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  const mobileViewportHeight =
+    "calc(var(--ww-100vh, 100dvh) - 4.25rem - env(safe-area-inset-bottom, 0px))";
+  const desktopViewportHeight =
+    "calc(var(--ww-100vh, 100dvh) - 8rem - env(safe-area-inset-bottom, 0px))";
+  const wrapperHeight = embedded
+    ? undefined
+    : smallScreen
+      ? {
+          minHeight: mobileViewportHeight,
+          height: mobileViewportHeight,
+        }
+      : {
+          minHeight: `min(28rem, ${desktopViewportHeight})`,
+          height: desktopViewportHeight,
+          maxHeight: desktopViewportHeight,
+        };
 
   return (
     <aside
@@ -30,15 +63,16 @@ const MapLoadingShell: React.FC<Pick<Props, "variant" | "ui">> = ({
           : cn(
               "touch-none overscroll-none fixed w-full mx-auto max-w-screen transition-all duration-300",
               "max-[911px]:min-h-[calc(var(--ww-100vh,100dvh)-4.25rem-env(safe-area-inset-bottom,0px))] max-[911px]:h-[calc(var(--ww-100vh,100dvh)-4.25rem-env(safe-area-inset-bottom,0px))]",
-              "@min-4xl:sticky @min-4xl:top-[7.5rem] @min-4xl:flex-1 @min-4xl:py-3 @min-4xl:pl-5 @min-4xl:pr-3 @min-4xl:h-[calc(100vh-8rem)] flex"
+              "@min-4xl:box-border @min-4xl:sticky @min-4xl:top-[7.5rem] @min-4xl:flex-1 @min-4xl:py-3 @min-4xl:pl-5 @min-4xl:pr-3 @min-4xl:h-[calc(var(--ww-100vh,100dvh)-8rem-env(safe-area-inset-bottom,0px))] flex"
             )
       }
+      style={hydrated ? wrapperHeight : undefined}
     >
       <div
         className={cn(
           "flex w-full h-full items-center justify-center text-sm text-muted-foreground animate-pulse overflow-hidden bg-highlight-5",
           embedded ? "rounded-none" : "rounded-none min-[911px]:rounded-[18px]",
-          "min-h-[28rem]"
+          "min-h-0"
         )}
         style={{
           boxShadow: embedded ? "none" : "0px 0px 5px rgba(0, 0, 0, 0.2)",

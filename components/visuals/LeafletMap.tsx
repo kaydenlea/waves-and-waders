@@ -3926,32 +3926,7 @@ const LeafletMap: React.FC<Props> = ({
       // Avoid missed taps on touch devices when the finger shifts slightly.
       tapTolerance: coarsePointer ? 35 : undefined,
     });
-    if (smallScreen && !embedded && !pathname.endsWith("/beaches")) {
-      try {
-        const size = map.getSize();
-        const offsetY = Math.round(Math.min(Math.max(size.y * 0.1, 50), 100));
-        const anchorLatLng = initialBeach
-          ? L.latLng(
-              Number(initialBeach.latitude),
-              Number(initialBeach.longitude),
-            )
-          : null;
-        if (
-          anchorLatLng &&
-          Number.isFinite(anchorLatLng.lat) &&
-          Number.isFinite(anchorLatLng.lng)
-        ) {
-          const zoom = initialView.zoom;
-          const shiftedCenter = map.unproject(
-            map.project(anchorLatLng, zoom).subtract(L.point(0, offsetY)),
-            zoom,
-          );
-          map.setView(shiftedCenter, zoom, { animate: false });
-        }
-      } catch {
-        // ignore offset failures (e.g., transient size issues)
-      }
-    }
+    // Keep the selected beach marker centered on mobile.
 
     const mapContainer = map.getContainer();
     if (!embeddedPreview) {
@@ -4476,19 +4451,7 @@ const LeafletMap: React.FC<Props> = ({
       const z = Number.isFinite(zoom) ? zoom : (map.getZoom() ?? DEFAULT_ZOOM);
       const anchor = L.latLng(latLng as any);
 
-      let targetCenter: L.LatLngExpression = anchor;
-      if (smallScreen && !embedded && !pathname.endsWith("/beaches")) {
-        try {
-          const size = map.getSize();
-          const offsetY = Math.round(Math.min(Math.max(size.y * 0.1, 50), 100));
-          targetCenter = map.unproject(
-            map.project(anchor, z).subtract(L.point(0, offsetY)),
-            z,
-          );
-        } catch {
-          targetCenter = anchor;
-        }
-      }
+      const targetCenter: L.LatLngExpression = anchor;
 
       if (options.animate) {
         map.flyTo(targetCenter, z, { duration: options.duration ?? 0.6 });
@@ -5227,17 +5190,21 @@ const LeafletMap: React.FC<Props> = ({
     "bg-sky-200/80 border-sky-300/70 text-sky-950",
     "dark:bg-sky-600/40 dark:border-sky-300/35 dark:text-sky-50",
   );
+  const mobileViewportHeight =
+    "calc(var(--ww-100vh, 100dvh) - 4.25rem - env(safe-area-inset-bottom, 0px))";
+  const desktopViewportHeight =
+    "calc(var(--ww-100vh, 100dvh) - 8rem - env(safe-area-inset-bottom, 0px))";
   const wrapperHeight = embedded
     ? null
     : smallScreen
       ? {
-          minHeight:
-            "calc(var(--ww-100vh, 100dvh) - 4.25rem - env(safe-area-inset-bottom, 0px))",
-          height:
-            "calc(var(--ww-100vh, 100dvh) - 4.25rem - env(safe-area-inset-bottom, 0px))",
+          minHeight: mobileViewportHeight,
+          height: mobileViewportHeight,
         }
       : {
-          minHeight: "28rem",
+          minHeight: `min(28rem, ${desktopViewportHeight})`,
+          height: desktopViewportHeight,
+          maxHeight: desktopViewportHeight,
         };
   if (navigationPending) {
     return (
@@ -5248,20 +5215,19 @@ const LeafletMap: React.FC<Props> = ({
             ? previewUi
               ? "touch-pan-y relative flex h-full w-full"
               : "touch-none relative flex h-full w-full"
-            : cn(
-                "touch-none overscroll-none fixed w-full mx-auto max-w-screen transition-all duration-300",
-                "@min-4xl:sticky @min-4xl:top-[7.5rem] @min-4xl:flex-1 @min-4xl:py-3 @min-4xl:pl-5 @min-4xl:pr-3 @min-4xl:h-[calc(100vh-8rem)] flex",
-              )
-        }
+              : cn(
+                  "touch-none overscroll-none fixed w-full mx-auto max-w-screen transition-all duration-300",
+                  "@min-4xl:box-border @min-4xl:sticky @min-4xl:top-[7.5rem] @min-4xl:flex-1 @min-4xl:py-3 @min-4xl:pl-5 @min-4xl:pr-3 @min-4xl:h-[calc(var(--ww-100vh,100dvh)-8rem-env(safe-area-inset-bottom,0px))] flex",
+                )
+          }
         data-ww-embed-preview={embedded && previewUi ? "true" : undefined}
         style={
-          !embedded && smallScreen ? (wrapperHeight ?? undefined) : undefined
+          !embedded ? (wrapperHeight ?? undefined) : undefined
         }
       >
         <div
           className="flex w-full h-full items-center justify-center text-sm text-muted-foreground"
           style={{
-            ...(wrapperHeight ?? {}),
             borderRadius: embedded ? "0px" : isDesktop ? "18px" : "0px",
             boxShadow: embedded ? "none" : "0px 0px 5px rgba(0, 0, 0, 0.2)",
             background: "var(--highlight-5)",
@@ -5286,14 +5252,14 @@ const LeafletMap: React.FC<Props> = ({
           ? previewUi
             ? "touch-pan-y relative flex h-full w-full"
             : "touch-none overscroll-contain relative flex h-full w-full"
-          : cn(
-              "touch-none overscroll-contain fixed w-full mx-auto max-w-screen transition-all duration-300",
-              "@min-4xl:sticky @min-4xl:top-[7.5rem] @min-4xl:flex-1 @min-4xl:py-3 @min-4xl:pl-5 @min-4xl:pr-3 @min-4xl:h-[calc(100vh-8rem)] flex",
-            )
+              : cn(
+                  "touch-none overscroll-contain fixed w-full mx-auto max-w-screen transition-all duration-300",
+                  "@min-4xl:box-border @min-4xl:sticky @min-4xl:top-[7.5rem] @min-4xl:flex-1 @min-4xl:py-3 @min-4xl:pl-5 @min-4xl:pr-3 @min-4xl:h-[calc(var(--ww-100vh,100dvh)-8rem-env(safe-area-inset-bottom,0px))] flex",
+                )
       }
       data-ww-embed-preview={embedded && previewUi ? "true" : undefined}
       style={
-        !embedded && smallScreen ? (wrapperHeight ?? undefined) : undefined
+        !embedded ? (wrapperHeight ?? undefined) : undefined
       }
     >
       <div
@@ -5302,7 +5268,6 @@ const LeafletMap: React.FC<Props> = ({
           !embedded && "@min-4xl:rounded-[18px]",
         )}
         style={{
-          ...(wrapperHeight ?? {}),
           boxShadow: embedded ? "none" : "0px 0px 5px rgba(0, 0, 0, 0.2)",
           overflow: "hidden",
         }}
@@ -5316,8 +5281,7 @@ const LeafletMap: React.FC<Props> = ({
           }
           style={{
             width: "100%",
-            height: wrapperHeight?.height ?? "100%",
-            minHeight: wrapperHeight?.minHeight,
+            height: "100%",
           }}
         />
         {!embedded && !showMap && fullMapPage && isDesktop && (
