@@ -30,7 +30,6 @@ import {
   BEACH_FEATURE_ICONS,
   DEFAULT_FEATURE_ICON,
 } from "@/lib/beachFeatureIcons";
-import { Spinner } from "../ui/spinner";
 import { AnimatePresence, motion } from "motion/react";
 import { useClientPath } from "../context/PathContext";
 import { useViewportBeachesContext } from "../context/ViewportBeachesContext";
@@ -289,7 +288,7 @@ export default function NearbyBeaches() {
         params.set("page", String(nextPage));
       }
       const qs = params.toString();
-      return qs ? `${pathname}?${qs}#content` : `${pathname}#content`;
+      return qs ? `${pathname}?${qs}` : pathname;
     },
     [pathname, searchParams, selectedTab]
   );
@@ -303,6 +302,25 @@ export default function NearbyBeaches() {
     },
     [buildPageHref, router]
   );
+
+  const scrollToResultsStart = useCallback(() => {
+    const run = (behavior: ScrollBehavior) => {
+      const target =
+        document.getElementById("beaches-header") ??
+        document.querySelector("article#content");
+      if (!target) return;
+      const stickyHeaderOffset = window.matchMedia("(min-width: 1024px)").matches
+        ? 116
+        : 122;
+      const top =
+        target.getBoundingClientRect().top + window.scrollY - stickyHeaderOffset;
+      window.scrollTo({ top: Math.max(0, top), behavior });
+    };
+
+    run("smooth");
+    requestAnimationFrame(() => run("auto"));
+    window.setTimeout(() => run("auto"), 120);
+  }, []);
 
   useEffect(() => {
     if (prevSelectedTabRef.current === selectedTab) return;
@@ -560,6 +578,7 @@ export default function NearbyBeaches() {
   const showLoadingState =
     showGlobalLoading || showListLoading || showSortingLoading;
   const showEmptyState = !hasVisibleItems && !showLoadingState;
+  const loadingPlaceholderCount = Math.min(perPage, 6);
 
   // console.log("FINAL BEACHES", currentItems);
   return (
@@ -601,9 +620,29 @@ export default function NearbyBeaches() {
       {/* </div> */}
 
       {showLoadingState ? (
-        <section className="text-center pt-10 pb-100 flex flex-col justify-center items-center gap-3">
-          <span className="text-lg">Loading beaches...</span>
-          <Spinner />
+        <section
+          className={cn(
+            "grid grid-cols-1 gap-3 @min-4xl/main:gap-4 @min-md/beaches:grid-cols-2 px-0.5 pb-4",
+            "ww-disable-backdrop"
+          )}
+          aria-live="polite"
+          aria-label="Loading beaches"
+        >
+          {Array.from({ length: loadingPlaceholderCount }).map((_, idx) => (
+            <div
+              key={`beach-loading-${idx}`}
+              className="rounded-2xl border border-border/40 bg-background/70 p-4 shadow-even animate-pulse"
+            >
+              <div className="h-40 rounded-xl bg-highlight-5/70" />
+              <div className="mt-4 h-4 w-2/3 rounded bg-highlight-5/80" />
+              <div className="mt-2 h-3 w-1/2 rounded bg-highlight-5/70" />
+              <div className="mt-4 grid grid-cols-3 gap-2">
+                <div className="h-8 rounded bg-highlight-5/70" />
+                <div className="h-8 rounded bg-highlight-5/70" />
+                <div className="h-8 rounded bg-highlight-5/70" />
+              </div>
+            </div>
+          ))}
         </section>
       ) : showEmptyState ? (
         filterCount > 0 ? (
@@ -669,9 +708,7 @@ export default function NearbyBeaches() {
                   const nextPage = Math.max(1, page - 1);
                   setPage(nextPage);
                   updateUrlForPage(nextPage);
-                  document
-                    .querySelector("article#content")
-                    ?.scrollIntoView({ behavior: "smooth" });
+                  scrollToResultsStart();
                 }}
               />
             </PaginationItem>
@@ -690,9 +727,7 @@ export default function NearbyBeaches() {
                       const nextPage = p as number;
                       setPage(nextPage);
                       updateUrlForPage(nextPage);
-                      document
-                        .querySelector("article#content")
-                        ?.scrollIntoView({ behavior: "smooth" });
+                      scrollToResultsStart();
                     }}
                   >
                     {p}
@@ -715,9 +750,7 @@ export default function NearbyBeaches() {
                   const nextPage = Math.min(totalPages, page + 1);
                   setPage(nextPage);
                   updateUrlForPage(nextPage);
-                  document
-                    .querySelector("article#content")
-                    ?.scrollIntoView({ behavior: "smooth" });
+                  scrollToResultsStart();
                 }}
               />
             </PaginationItem>

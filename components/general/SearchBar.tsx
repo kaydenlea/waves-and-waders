@@ -85,6 +85,10 @@ const SearchBar = ({
   const [, startTransition] = useTransition();
   const abortRef = useRef<AbortController | null>(null);
   const boxRef = useRef<HTMLFormElement | null>(null);
+  const overlayControlsRef = useRef<HTMLDivElement | null>(null);
+  const [overlayResultsMaxHeight, setOverlayResultsMaxHeight] = useState<
+    number | null
+  >(null);
 
   const searchCtx = useOptionalSearchContext();
   const isOverlay = searchCtx?.isOverlay ?? false;
@@ -247,21 +251,51 @@ const SearchBar = ({
   useEffect(() => {
     const html = document.documentElement;
     const body = document.body;
+    const scrollY = window.scrollY;
 
-    if (isOverlay) html.style.overflow = "hidden";
-    else {
-      // Restore defaults
-      html.style.overflow = "";
-      body.style.overflow = "";
-      html.style.paddingRight = "";
-      body.style.paddingRight = "";
-    }
+    if (isOverlay) {
+      html.style.overflow = "hidden";
+      body.style.overflow = "hidden";
+      body.style.position = "fixed";
+      body.style.top = `-${scrollY}px`;
+      body.style.width = "100%";
+    } else html.style.overflow = "";
+
     return () => {
       // Restore defaults
       html.style.overflow = "";
       body.style.overflow = "";
-      html.style.paddingRight = "";
-      body.style.paddingRight = "";
+      body.style.position = "";
+      body.style.top = "";
+      body.style.width = "";
+      window.scrollTo(0, scrollY);
+    };
+  }, [isOverlay]);
+
+  // Keep results pane visible above mobile keyboards.
+  useEffect(() => {
+    if (!isOverlay) {
+      setOverlayResultsMaxHeight(null);
+      return;
+    }
+
+    const updateMaxHeight = () => {
+      const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+      const controlsBottom =
+        overlayControlsRef.current?.getBoundingClientRect().bottom ?? 120;
+      const available = Math.floor(viewportHeight - controlsBottom - 16);
+      setOverlayResultsMaxHeight(Math.max(140, available));
+    };
+
+    updateMaxHeight();
+    const vv = window.visualViewport;
+    window.addEventListener("resize", updateMaxHeight);
+    vv?.addEventListener("resize", updateMaxHeight);
+    vv?.addEventListener("scroll", updateMaxHeight);
+    return () => {
+      window.removeEventListener("resize", updateMaxHeight);
+      vv?.removeEventListener("resize", updateMaxHeight);
+      vv?.removeEventListener("scroll", updateMaxHeight);
     };
   }, [isOverlay]);
 
@@ -346,7 +380,10 @@ const SearchBar = ({
                 setIsOverlay(false);
             }}
           >
-            <div className="flex gap-2 w-full justify-center max-w-60 @min-md:max-w-full">
+            <div
+              ref={overlayControlsRef}
+              className="flex gap-2 w-full justify-center max-w-60 @min-md:max-w-full"
+            >
               <div className="relative w-full max-w-lg flex items-center bg-highlight-4 rounded-full shadow-lg ring ring-border/70 px-3 py-2 gap-2">
                 <Search
                   strokeWidth={3}
@@ -395,8 +432,15 @@ const SearchBar = ({
 
             {/* Search results in overlay */}
             {open && visibleHits.length > 0 && (
-              <div className="mt-4 w-full max-w-2xl bg-background border border-border/30 shadow-even rounded-md max-h-[calc(100dvh-9rem)] overflow-hidden">
-                <ul className="rounded-xl overflow-y-auto max-h-full p-2">
+              <div
+                className="mt-4 w-full max-w-2xl bg-background border border-border/30 shadow-even rounded-md overflow-hidden"
+                style={
+                  overlayResultsMaxHeight
+                    ? { maxHeight: `${overlayResultsMaxHeight}px` }
+                    : undefined
+                }
+              >
+                <ul className="rounded-xl overflow-y-auto overscroll-contain max-h-full p-2 touch-pan-y">
                   {visibleHits.map((h, idx) => (
                     <SearchResultItem
                       key={`${h.id}`}

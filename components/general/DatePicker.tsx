@@ -784,7 +784,8 @@ DatePickerProps) => {
   return (
     <div
       ref={rootRef}
-      className={cn("relative w-full px-2 py-2 rounded-2xl", className)}
+      className={cn("relative w-full px-2 py-2 rounded-2xl touch-pan-x", className)}
+      style={{ touchAction: "pan-x" }}
     >
       {orderedKeys.length === 0 && (
         <div className="w-full py-7 text-center text-sm text-muted-foreground">
@@ -925,8 +926,9 @@ DatePickerProps) => {
           if (useNativeDragScroll) {
             return (
               <div className="w-full flex items-center gap-1">
-                <div
-                  className="flex-1 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              <div
+                  className="flex-1 overflow-x-auto overscroll-y-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                  style={{ touchAction: "pan-x" }}
                   onPointerDownCapture={() => ensureCarouselInteractionLock()}
                   onPointerUpCapture={() => releaseCarouselInteractionLock()}
                   onPointerCancelCapture={() => releaseCarouselInteractionLock()}
@@ -942,12 +944,13 @@ DatePickerProps) => {
             <Carousel
               opts={{ align: "start", loop: false, dragFree: true }}
               setApi={setApi}
-              className="w-full flex items-center gap-1"
+              className="w-full flex items-center gap-1 touch-pan-x"
+              style={{ touchAction: "pan-x" }}
             >
               {effectiveShowNav ? (
                 <CarouselPrevious onClick={handlePrev} className={navButtonClassName} />
               ) : null}
-              <CarouselContent className="mx-0">{items}</CarouselContent>
+              <CarouselContent className="mx-0 touch-pan-x">{items}</CarouselContent>
               {effectiveShowNav ? (
                 <CarouselNext onClick={handleNext} className={navButtonClassName} />
               ) : null}

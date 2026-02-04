@@ -32,13 +32,13 @@ export default function PathStyleWrapper({
             ? "h-0"
             : // Match the fixed map height on small screens to avoid scroll/viewport jumps
               // that can briefly reveal the map under the content during loading/dragging.
-              "h-[var(--ww-100vh,100dvh)] max-[911px]:h-[calc(var(--ww-100vh,100dvh)-4.25rem-env(safe-area-inset-bottom,0px))] @min-4xl:h-0"
+              "h-[var(--ww-100vh,100dvh)] max-[911px]:h-[calc(var(--ww-100vh,100dvh)+env(safe-area-inset-top,0px)-4.25rem-env(safe-area-inset-bottom,0px))] @min-4xl:h-0"
         }
       />
       <article
         id="content"
         className={cn(
-          "relative touch-pan-y w-full px-2 relative @min-4xl:pt-4 bg-background border-t border-x border-border/70 @min-4xl:border-none mx-auto scroll-mt-30",
+          "relative isolate overflow-hidden touch-pan-y w-full px-2 @min-4xl:pt-4 bg-background border-t border-x border-border/70 @min-4xl:border-none mx-auto scroll-mt-30",
           // Keep drag overlays / floating edit controls above the footer.
           effectiveEditPage ? "z-auto" : "z-30",
           cls,
@@ -48,6 +48,11 @@ export default function PathStyleWrapper({
           overviewPage && "ww-disable-backdrop",
           showMap && "@min-4xl:pr-3"
         )}
+        style={{
+          transform: "translateZ(0)",
+          backfaceVisibility: "hidden",
+          WebkitBackfaceVisibility: "hidden",
+        }}
       >
         {!effectiveEditPage && (
           <div className="block @min-4xl:hidden absolute top-5 left-1/2 transform -translate-x-1/2 h-2 w-20 bg-muted-foreground/50 rounded-full" />

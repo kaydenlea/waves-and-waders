@@ -4468,12 +4468,26 @@ const LeafletMap: React.FC<Props> = ({
     if (!targetId || targetId !== String(selectedBeachId)) return;
     const map = mapRef.current;
     if (!map) return;
-    suppressUserMoveRef.current = true;
     const currentZoom = map.getZoom();
     const targetZoom = Math.max(
       typeof currentZoom === "number" ? currentZoom : AUTO_FOCUS_ZOOM,
       AUTO_FOCUS_ZOOM,
     );
+    const center = map.getCenter();
+    const targetLatLng = L.latLng(
+      Number(selectedBeach.latitude),
+      Number(selectedBeach.longitude),
+    );
+    // If the map already starts on this beach, avoid a redundant recenter pass
+    // that can look like the marker "jumps" while overview widgets finish loading.
+    const alreadyCentered = center.distanceTo(targetLatLng) < 3;
+    const alreadyAtTargetZoom =
+      typeof currentZoom === "number" && currentZoom >= targetZoom;
+    if (alreadyCentered && alreadyAtTargetZoom) {
+      pendingAutoCenterRef.current = null;
+      return;
+    }
+    suppressUserMoveRef.current = true;
     focusMapToLatLng(
       [selectedBeach.latitude, selectedBeach.longitude],
       targetZoom,
@@ -5191,7 +5205,7 @@ const LeafletMap: React.FC<Props> = ({
     "dark:bg-sky-600/40 dark:border-sky-300/35 dark:text-sky-50",
   );
   const mobileViewportHeight =
-    "calc(var(--ww-100vh, 100dvh) - 4.25rem - env(safe-area-inset-bottom, 0px))";
+    "calc(var(--ww-100vh, 100dvh) + env(safe-area-inset-top, 0px) - 4.25rem - env(safe-area-inset-bottom, 0px))";
   const desktopViewportHeight =
     "calc(var(--ww-100vh, 100dvh) - 8rem - env(safe-area-inset-bottom, 0px))";
   const wrapperHeight = embedded
