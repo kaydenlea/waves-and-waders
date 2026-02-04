@@ -96,12 +96,15 @@ export const ViewportBeachesProvider = ({
 
   const requestSearch = React.useCallback(() => {
     if (!pendingBounds) return;
+    // Always clear the "ready" flag once a search is requested. Otherwise, a
+    // no-op request (same bounds) can leave us stuck in a state where other
+    // components assume we're still waiting to search.
+    setReadyToSearch(false);
     setSearchBounds((current) => {
       if (boundsEqual(current, pendingBounds)) {
         return current;
       }
       setStatus("loading");
-      setReadyToSearch(false);
       return pendingBounds;
     });
   }, [boundsEqual, pendingBounds]);

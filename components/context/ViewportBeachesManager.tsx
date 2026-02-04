@@ -24,15 +24,12 @@ const ViewportBeachesManager = () => {
     setStatus: setViewportContextStatus,
     setBeaches: setViewportContextBeaches,
     commitPending,
-    readyToSearch,
   } = useViewportBeachesContext();
   const { selectedTab } = useClientPath();
   // Only fetch when bounds are explicitly "searched"/committed, not on every
   // transient camera update. This prevents rapid map interactions from
   // continuously triggering viewport requests and UI churn.
-  const effectiveBounds = readyToSearch
-    ? committedBounds
-    : searchBounds ?? committedBounds;
+  const effectiveBounds = searchBounds ?? committedBounds;
   const { beaches, status } = useViewportBeaches({
     bounds: effectiveBounds,
     filters: deferredFilters,

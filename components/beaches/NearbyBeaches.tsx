@@ -33,6 +33,7 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import { useClientPath } from "../context/PathContext";
 import { useViewportBeachesContext } from "../context/ViewportBeachesContext";
+import { useMapViewport } from "@/components/context/MapViewportContext";
 import { useBeachStatsCache } from "@/components/context/BeachStatsCacheContext";
 import {
   type BeachStatsSnapshot,
@@ -243,8 +244,10 @@ export default function NearbyBeaches() {
 
   const [page, setPage] = useState(initialPage);
   const [perPage, setPerPage] = useState(20);
-  const { selectedTab } = useClientPath();
+  const { selectedTab, previousPathname } = useClientPath();
   const prevSelectedTabRef = useRef(selectedTab);
+  const { viewportRequestId } = useMapViewport();
+  const mountViewportRequestIdRef = useRef(viewportRequestId);
 
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -621,6 +624,13 @@ export default function NearbyBeaches() {
   const viewportBusy =
     viewportStatus === "loading" ||
     (viewportStatus === "idle" && !hasCommittedBeaches);
+
+  const awaitingFreshViewport =
+    pathname.endsWith("/beaches") &&
+    typeof previousPathname === "string" &&
+    previousPathname.includes("/overview") &&
+    (sharedBeaches?.length ?? 0) > 0 &&
+    viewportRequestId === mountViewportRequestIdRef.current;
   const hasVisibleItems = visibleList.length > 0;
   const allCardStatsReady = useMemo(() => {
     if (!currentItems.length) return false;
@@ -629,6 +639,7 @@ export default function NearbyBeaches() {
     );
   }, [currentItems, snapshotMap]);
   const showSkeletonState =
+    awaitingFreshViewport ||
     viewportBusy ||
     minSkeletonActive ||
     (!hasVisibleItems && isSortingPending) ||
@@ -643,10 +654,11 @@ export default function NearbyBeaches() {
   }, [renderedItems.length]);
 
   const loadingPlaceholderCount = useMemo(() => {
+    if (showSkeletonState) return Math.max(1, perPage);
     if (renderedItems.length > 0) return renderedItems.length;
     if (lastNonZeroCountRef.current > 0) return lastNonZeroCountRef.current;
     return Math.max(1, perPage);
-  }, [perPage, renderedItems.length]);
+  }, [perPage, renderedItems.length, showSkeletonState]);
 
   // console.log("FINAL BEACHES", currentItems);
   return (

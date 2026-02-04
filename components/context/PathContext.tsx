@@ -56,6 +56,7 @@ const setTabCookieForStorageKey = (key: string, tab: string) => {
 
 type Ctx = {
   pathname: string;
+  previousPathname: string;
   selectedTab: string;
   setSelectedTab: React.Dispatch<React.SetStateAction<string>>;
 };
@@ -92,6 +93,8 @@ export function PathProvider({
   const pathnameRaw = usePathname();
   const router = useRouter();
   const pathname = useMemo(() => normalizePathname(pathnameRaw), [pathnameRaw]);
+  const previousPathRef = useRef("");
+  const previousPathname = previousPathRef.current;
   const isDashboardPath = useMemo(() => {
     if (!pathname) return false;
     return pathname.includes("/overview");
@@ -273,11 +276,16 @@ export function PathProvider({
   const value = useMemo(
     () => ({
       pathname,
+      previousPathname,
       selectedTab,
       setSelectedTab,
     }),
-    [selectedTab, pathname]
+    [selectedTab, pathname, previousPathname]
   );
+
+  useEffect(() => {
+    previousPathRef.current = pathname;
+  }, [pathname]);
   return (
     <PathContext.Provider value={value}>
       <Suspense fallback={null}>
