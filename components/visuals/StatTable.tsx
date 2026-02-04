@@ -2562,11 +2562,12 @@ const StatTable = ({
   ) : null;
 
   const shouldReserveFooterSpace = Boolean(footerControlsPill) || loading;
-  // When the table is in its 12h layout (12am / 12pm / 9pm), keep the pager pill
-  // docked at the bottom of the widget (no scroll-follow / reveal behavior needed).
+  // Only dock controls in-flow when there's no pager. If the pager exists, users
+  // expect it to remain accessible while scrolling the table/widget.
+  //
   // Exception: for multi-day forecast tables, keep the scroll-follow behavior.
   const dockPagerInFlow =
-    targetHours.length <= 3 && !(forecastPage && !useSingleDayView);
+    !showPager && targetHours.length <= 3 && !(forecastPage && !useSingleDayView);
   const dockPagerInFlowEffective = isEditing ? true : dockPagerInFlow;
   const pagerStickyRef = React.useRef<HTMLDivElement | null>(null);
   const pagerRevealSentinelRef = React.useRef<HTMLDivElement | null>(null);
