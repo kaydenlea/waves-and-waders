@@ -34,7 +34,14 @@ function useLiteMode() {
     const reduced = Boolean(mqlReduced?.matches);
     const slowUpdate = Boolean(mqlUpdate?.matches);
 
-    setLite(saveData || downlinkSlow || deviceMemoryLow || coresLow || reduced || slowUpdate);
+    setLite(
+      saveData ||
+        downlinkSlow ||
+        deviceMemoryLow ||
+        coresLow ||
+        reduced ||
+        slowUpdate,
+    );
   }, []);
 
   return lite;
@@ -66,28 +73,42 @@ function LiteHeroCard({ previewBeach, previewForecast }: Props) {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Featured break</p>
-              <p className="text-xl font-semibold text-foreground">{previewBeach.name}</p>
-              <p className="text-sm text-muted-foreground">{previewBeach.region}</p>
+              <p className="text-xl font-semibold text-foreground">
+                {previewBeach.name}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {previewBeach.region}
+              </p>
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-3">
             <div className="rounded-2xl border border-border/40 bg-highlight-7/60 p-3 text-center">
-              <Droplets className="mx-auto h-4 w-4 text-cyan-500" aria-hidden="true" />
+              <Droplets
+                className="mx-auto h-4 w-4 text-cyan-500"
+                aria-hidden="true"
+              />
               <p className="mt-1 text-xs text-muted-foreground">Surf</p>
               <p className="text-sm font-semibold text-foreground">
-                {previewForecast.surf.heightMin ?? 0} - {previewForecast.surf.heightMax ?? 0} ft
+                {previewForecast.surf.heightMin ?? 0} -{" "}
+                {previewForecast.surf.heightMax ?? 0} ft
               </p>
             </div>
             <div className="rounded-2xl border border-border/40 bg-highlight-7/60 p-3 text-center">
-              <MapPin className="mx-auto h-4 w-4 text-indigo-500" aria-hidden="true" />
+              <MapPin
+                className="mx-auto h-4 w-4 text-indigo-500"
+                aria-hidden="true"
+              />
               <p className="mt-1 text-xs text-muted-foreground">Wind</p>
               <p className="text-sm font-semibold text-foreground">
                 {previewForecast.conditions.windSpeed ?? 0} mph
               </p>
             </div>
             <div className="rounded-2xl border border-border/40 bg-highlight-7/60 p-3 text-center">
-              <Sparkles className="mx-auto h-4 w-4 text-amber-500" aria-hidden="true" />
+              <Sparkles
+                className="mx-auto h-4 w-4 text-amber-500"
+                aria-hidden="true"
+              />
               <p className="mt-1 text-xs text-muted-foreground">Tide</p>
               <p className="text-sm font-semibold text-foreground">
                 {previewForecast.conditions.tideLevel ?? 0} ft
@@ -102,7 +123,7 @@ function LiteHeroCard({ previewBeach, previewForecast }: Props) {
 
 export default function HeroVisualDeckLazy(props: Props) {
   return (
-    <div className="w-full h-[500px] @min-sm:h-[700px] @min-md:h-[760px]">
+    <div className="w-full h-[450px] @min-[350px]:h-[550px] @min-[400px]:h-[650px] @min-[475px]:h-[700px] @min-lg:h-[760px]">
       <SunDataProvider>
         <HeroVisualDeck {...props} />
       </SunDataProvider>

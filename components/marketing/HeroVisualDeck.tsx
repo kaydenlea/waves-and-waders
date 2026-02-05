@@ -994,7 +994,7 @@ export default function HeroVisualDeck({
   return (
     <div
       ref={deckContainerRef}
-      className="relative w-full h-[500px] @min-sm:h-[700px] @min-md:h-[760px]"
+      className="relative w-full h-[450px] @min-[350px]:h-[550px] @min-[400px]:h-[650px] @min-[475px]:h-[700px] @min-lg:h-[760px]"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onFocusCapture={() => setPaused(true)}

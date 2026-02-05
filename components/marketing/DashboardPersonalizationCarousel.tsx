@@ -29,6 +29,15 @@ const SLIDES: Slide[] = PERSONALIZE_PREVIEW_CARDS.map((card) => ({
   image: card.image,
 }));
 
+function preloadStaticImage(image: SlideImage[keyof SlideImage]) {
+  if (typeof window === "undefined") return;
+  const src = typeof image === "string" ? image : image.src;
+  if (!src) return;
+  const img = new window.Image();
+  img.decoding = "async";
+  img.src = src;
+}
+
 export default function DashboardPersonalizationCarousel() {
   const reducedMotion = useReducedMotion();
   const rootRef = React.useRef<HTMLDivElement | null>(null);
@@ -48,6 +57,44 @@ export default function DashboardPersonalizationCarousel() {
   const resumeTimeoutRef = React.useRef<number | null>(null);
   const lastFrameRef = React.useRef<number | null>(null);
   const elapsedRef = React.useRef(0);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const run = () => {
+      for (const slide of SLIDES) {
+        preloadStaticImage(slide.image.light);
+        preloadStaticImage(slide.image.dark);
+      }
+    };
+
+    const requestIdleCallback = (window as unknown as { requestIdleCallback?: any })
+      .requestIdleCallback;
+    const cancelIdleCallback = (window as unknown as { cancelIdleCallback?: any })
+      .cancelIdleCallback;
+
+    if (requestIdleCallback && cancelIdleCallback) {
+      const id = requestIdleCallback(run, { timeout: 1200 });
+      return () => cancelIdleCallback(id);
+    }
+
+    const id = window.setTimeout(run, 50);
+    return () => window.clearTimeout(id);
+  }, []);
+
+  React.useEffect(() => {
+    // Ensure the next/prev slide images are hot in cache before we animate to them.
+    const next = SLIDES[(activeIndex + 1) % SLIDES.length];
+    const prev = SLIDES[(activeIndex - 1 + SLIDES.length) % SLIDES.length];
+    if (next) {
+      preloadStaticImage(next.image.light);
+      preloadStaticImage(next.image.dark);
+    }
+    if (prev) {
+      preloadStaticImage(prev.image.light);
+      preloadStaticImage(prev.image.dark);
+    }
+  }, [activeIndex]);
 
   const clearInteractionTimeout = React.useCallback(() => {
     if (interactionTimeoutRef.current == null) return;
