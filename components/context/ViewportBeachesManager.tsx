@@ -36,7 +36,11 @@ const ViewportBeachesManager = () => {
     favoriteIds,
     selectedTab,
     limit: MAX_VIEWPORT_BEACHES,
-    enabled: allowViewportCommit,
+    // Always allow the request to run; we gate *committing* results to map state
+    // with `allowViewportCommit` below. Disabling the request entirely can leave
+    // the map stuck showing a previous tab's markers (e.g. Nearby while on Saved).
+    enabled: true,
+    requestId: viewportRequestId,
     // Bounds updates are already debounced/throttled at the map level.
     // Avoid stacking additional client delays before the viewport request starts.
     debounceMs: 0,

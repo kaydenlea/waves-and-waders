@@ -21,7 +21,7 @@ type ToastContextValue = {
       variant?: ToastVariant;
       durationMs?: number;
       icon?: React.ReactNode;
-    }
+    },
   ) => void;
 };
 
@@ -82,14 +82,14 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         timeoutRef.current = null;
       }, durationMs);
     },
-    []
+    [],
   );
 
   return (
     <ToastContext.Provider value={{ toast }}>
       {children}
       <div
-        className="fixed left-1/2 -translate-x-1/2 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-50 flex flex-col items-center gap-2 pointer-events-none"
+        className="fixed left-1/2 -translate-x-1/2 bottom-[calc(1rem+env(safe-area-inset-bottom)+var(--ww-bottom-nav-h,0px))] z-[1000010] flex flex-col items-center gap-2 pointer-events-none"
         role="status"
         aria-live="polite"
         aria-relevant="additions"
@@ -98,7 +98,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           <div
             key={toastItem.id}
             className={cn(
-              "pointer-events-none flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium shadow-lg backdrop-blur bg-background text-foreground border border-2"
+              "pointer-events-none flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-medium shadow-lg backdrop-blur bg-background text-foreground border border-2",
+              "w-[min(20rem,calc(100vw-2rem))]",
               // toastItem.variant === "success"
               //   ? "border-emerald-500/30"
               //   : "border-rose-500/30"

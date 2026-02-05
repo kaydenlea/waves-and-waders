@@ -56,6 +56,7 @@ export function useViewportBeaches({
   const [status, setStatus] = React.useState<Status>("idle");
   const [error, setError] = React.useState<Error | null>(null);
   const latestRequestIdRef = React.useRef(requestId);
+  const prevNonFavoriteSignatureRef = React.useRef<string | null>(null);
   const boundsKey = bounds
     ? `${bounds.south}:${bounds.north}:${bounds.west}:${bounds.east}:${
         bounds.crossesAntimeridian ? 1 : 0
@@ -82,9 +83,16 @@ export function useViewportBeaches({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [filtersKey]
   );
-  const favoritesKey = JSON.stringify(Array.from(favoriteIds ?? []).sort());
+  // Favorites should only influence viewport requests on the Saved tab. If we
+  // include them in the signature for all tabs, toggling a favorite on Nearby
+  // triggers a new request + loading state (skeleton cards) even though bounds
+  // didn't change.
+  const favoritesKey =
+    selectedTab === "saved"
+      ? JSON.stringify(Array.from(favoriteIds ?? []).sort())
+      : "[]";
   const favoriteList = React.useMemo(
-    () => Array.from(favoriteIds ?? []),
+    () => (selectedTab === "saved" ? Array.from(favoriteIds ?? []) : []),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [favoritesKey]
   );
@@ -113,6 +121,34 @@ export function useViewportBeaches({
       return;
     }
 
+    const nonFavoriteSignature = [
+      boundsKey,
+      filtersKey,
+      selectedTab ?? "",
+      String(requestId),
+      includeStats ? "stats=1" : "stats=0",
+      limit != null ? `limit=${String(limit)}` : "limit=",
+      statsLimit != null ? `statsLimit=${String(statsLimit)}` : "statsLimit=",
+      statsDateKey ? `statsDate=${statsDateKey}` : "statsDate=",
+      statsHour != null ? `statsHour=${String(statsHour)}` : "statsHour=",
+    ].join("|");
+    const isSoftRefresh = prevNonFavoriteSignatureRef.current === nonFavoriteSignature;
+    prevNonFavoriteSignatureRef.current = nonFavoriteSignature;
+
+    // Saved tab: if there are no favorites, avoid a viewport request that would
+    // otherwise return *all* beaches (no favoriteId filters) and leave the map
+    // showing Nearby results while the UI says "no saved beaches".
+    if (selectedTab === "saved" && favoriteList.length === 0) {
+      setBeaches([]);
+      setStats(null);
+      setStatus("success");
+      setError((prev) => (prev === null ? prev : null));
+      return;
+    }
+
+    const shouldShowLoading = !isSoftRefresh;
+    const shouldResetToIdleOnCleanup = shouldShowLoading;
+
     const debug =
       process.env.NODE_ENV !== "production" &&
       typeof window !== "undefined" &&
@@ -128,7 +164,9 @@ export function useViewportBeaches({
     let didFinish = false;
     const controller = new AbortController();
 
-    setStatus((prev) => (prev === "loading" ? prev : "loading"));
+    if (shouldShowLoading) {
+      setStatus((prev) => (prev === "loading" ? prev : "loading"));
+    }
     setError((prev) => (prev === null ? prev : null));
     setStats(null);
 
@@ -217,7 +255,7 @@ export function useViewportBeaches({
       if (debug) {
         console.log("[ViewportBeaches] cancel", { requestId, didFinish });
       }
-      if (!didFinish) {
+      if (!didFinish && shouldResetToIdleOnCleanup) {
         setStatus("idle");
       }
     };
@@ -236,6 +274,7 @@ export function useViewportBeaches({
     statsDateKey,
     statsDatePayload,
     statsHour,
+    filtersKey,
   ]);
 
   return { beaches, stats, status, error };

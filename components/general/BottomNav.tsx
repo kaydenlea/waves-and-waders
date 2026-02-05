@@ -101,6 +101,19 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // Expose mobile bottom nav height so global toasts can sit above it.
+  useEffect(() => {
+    const root = document.documentElement;
+    if (!mobile || landingPage) {
+      root.style.removeProperty("--ww-bottom-nav-h");
+      return;
+    }
+    root.style.setProperty("--ww-bottom-nav-h", "4.25rem"); // matches `h-17`
+    return () => {
+      root.style.removeProperty("--ww-bottom-nav-h");
+    };
+  }, [landingPage, mobile]);
+
   // // Mobile map pages: prevent accidental page scroll while the map is in view.
   // // The content drawer should only be revealed via the "View …" button, not by
   // // dragging UI chrome (map controls, bottom nav, etc).

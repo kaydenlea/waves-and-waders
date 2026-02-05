@@ -86,6 +86,7 @@ const SearchBar = ({
   const abortRef = useRef<AbortController | null>(null);
   const boxRef = useRef<HTMLFormElement | null>(null);
   const overlayControlsRef = useRef<HTMLDivElement | null>(null);
+  const overlayRootRef = useRef<HTMLDivElement | null>(null);
   const [overlayResultsMaxHeight, setOverlayResultsMaxHeight] = useState<
     number | null
   >(null);
@@ -272,6 +273,17 @@ const SearchBar = ({
     };
   }, [isOverlay]);
 
+  // Ensure the overlay starts scrolled to the top (some mobile browsers can restore/shift scroll on open).
+  useEffect(() => {
+    if (!isOverlay) return;
+    const node = overlayRootRef.current;
+    if (!node) return;
+    const id = window.requestAnimationFrame(() => {
+      node.scrollTop = 0;
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [isOverlay]);
+
   // Keep results pane visible above mobile keyboards.
   useEffect(() => {
     if (!isOverlay) {
@@ -373,6 +385,7 @@ const SearchBar = ({
       {isOverlay &&
         createPortal(
           <div
+            ref={overlayRootRef}
             className="fixed inset-0 z-[70] bg-background/85 dark:bg-background/95 flex flex-col items-center pt-5.5 px-8 overflow-y-auto"
             onClick={(e) => {
               if (e.target === e.currentTarget)
@@ -453,7 +466,7 @@ const SearchBar = ({
               </div>
             )}
           </div>,
-          document.body
+          document.documentElement
         )}
     </>
   );

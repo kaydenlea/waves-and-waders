@@ -758,11 +758,15 @@ export default function NearbyBeaches() {
             <SearchX className="w-10 h-10" />
             <span className="text-lg">
               {selectedTab === "saved"
-                ? "No saved beaches in the current map view."
+                ? favoriteSet.size === 0
+                  ? "No saved beaches yet."
+                  : "No saved beaches in the current map view."
                 : "No beaches in the current map view."}
             </span>
             <span className="text-sm text-muted-foreground">
-              Pan or zoom the map to see beaches here.
+              {selectedTab === "saved" && favoriteSet.size === 0
+                ? "Save a beach to see it here."
+                : "Pan or zoom the map to see beaches here."}
             </span>
           </motion.section>
         )
