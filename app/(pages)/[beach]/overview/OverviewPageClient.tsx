@@ -156,7 +156,7 @@ export default function OverviewPageClient({
         <OverviewPageBusyProvider>
           <main
             id="main-content"
-            className="touch-pan-y overscroll-y-none bg-background-2 min-h-[calc(var(--ww-100vh,100dvh)+env(safe-area-inset-top,0px)-4rem)] @min-4xl:flex @min-4xl:flex-1 @min-4xl:mt-[5.5rem] @min-4xl:pb-4"
+            className="ww-stable-viewport touch-pan-y overscroll-y-none bg-background-2 min-h-[calc(var(--ww-100vh,100vh)+env(safe-area-inset-top,0px)-4rem)] @min-4xl:flex @min-4xl:flex-1 @min-4xl:mt-[5.5rem] @min-4xl:pb-4"
           >
             <LazyLoadMap
               beachId={beachId}

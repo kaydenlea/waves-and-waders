@@ -36,6 +36,16 @@
 }
 
 @layer utilities {
+  /* Stable viewport height for pages that should not resize while mobile browser UI hides/shows. */
+  .ww-stable-viewport {
+    --ww-100vh: 100vh;
+  }
+  @supports (height: 100svh) {
+    .ww-stable-viewport {
+      --ww-100vh: 100svh;
+    }
+  }
+
   .icon-sm {
     @apply w-4 h-4;
   }
