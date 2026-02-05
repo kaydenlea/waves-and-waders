@@ -53,6 +53,9 @@ export default function PathStyleWrapper({
         id="content"
         className={cn(
           "relative isolate overflow-clip touch-pan-y w-full px-2 @min-4xl:pt-4 bg-background border-t border-x border-border/70 @min-4xl:border-none mx-auto scroll-mt-30",
+          // Preserve mobile rendering/perf behavior but avoid breaking `position: fixed`
+          // descendants (e.g. floating “Show map” tab) on desktop.
+          "transform-gpu @min-4xl:transform-none",
           // Keep drag overlays / floating edit controls above the footer.
           effectiveEditPage ? "z-auto" : "z-30",
           cls,
@@ -63,7 +66,6 @@ export default function PathStyleWrapper({
           showMap && "@min-4xl:pr-3"
         )}
         style={{
-          transform: "translateZ(0)",
           backfaceVisibility: "hidden",
           WebkitBackfaceVisibility: "hidden",
         }}
