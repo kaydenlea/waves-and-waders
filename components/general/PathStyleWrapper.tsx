@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useMapUI } from "../context/MapFilterContext";
 
 export default function PathStyleWrapper({
@@ -16,6 +16,20 @@ export default function PathStyleWrapper({
   const editPage = pathname.endsWith("/edit");
   const overviewPage = pathname.includes("/overview");
   const effectiveEditPage = editPage;
+  const shouldLockOverscroll = beachPage || overviewPage;
+
+  useEffect(() => {
+    if (!shouldLockOverscroll) return;
+    if (typeof document === "undefined") return;
+    const html = document.documentElement;
+    const body = document.body;
+    html.dataset.wwMapOverscrollLock = "1";
+    body.dataset.wwMapOverscrollLock = "1";
+    return () => {
+      delete html.dataset.wwMapOverscrollLock;
+      delete body.dataset.wwMapOverscrollLock;
+    };
+  }, [shouldLockOverscroll]);
 
   const cls = useMemo(() => {
     if (beachPage) {

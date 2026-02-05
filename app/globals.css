@@ -521,6 +521,15 @@ html[data-ww-navigation-pending="1"],
 body[data-ww-navigation-pending="1"] {
   overscroll-behavior-y: none;
 }
+
+/* On map-driven pages, prevent overscroll "rubber band" from pulling the content
+   sheet away and revealing the fixed map underneath on narrow/mobile screens. */
+@media (max-width: 911px) {
+  html[data-ww-map-overscroll-lock="1"],
+  body[data-ww-map-overscroll-lock="1"] {
+    overscroll-behavior: none;
+  }
+}
 /* Prevent long-press selection/callout on touch-driven chart scrubbing. */
 .chart-touch-no-select {
   -webkit-touch-callout: none;
