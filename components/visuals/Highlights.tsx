@@ -2522,7 +2522,7 @@ const Highlights = ({
                           "@min-3xl:grid-cols-[10px_35px] @min-4xl:grid-cols-[10px_35px_20px] @min-6xl:grid-cols-[auto]",
                         layout === "carousel"
                           ? "grid-cols-[auto]"
-                          : "grid-cols-[auto] @min-sm:grid-cols-[10px_30px] @min-md:grid-cols-[10px_35px_20px] @min-3xl:grid-cols-[10px_30px] @min-4xl:grid-cols-[10px_35px_20px]",
+                          : "grid-cols-[auto] @min-[385px]:grid-cols-[10px_30px] @min-md:grid-cols-[10px_35px_20px] @min-3xl:grid-cols-[10px_30px] @min-4xl:grid-cols-[10px_35px_20px]",
                       )}
                     >
                       <svg
@@ -2562,8 +2562,8 @@ const Highlights = ({
                           primary ? "" : "text-muted-foreground",
                           isFull && "@min-6xl:hidden",
                           layout === "carousel"
-                            ? "inline-block"
-                            : "inline-block",
+                            ? "hidden"
+                            : "hidden @min-[385px]:inline-block",
                         )}
                       >
                         {dir}

@@ -10,7 +10,7 @@ import { ChevronDown, MapPinned, Waves } from "lucide-react";
 const fetchAllBeachesCached = unstable_cache(
   () => fetchAllBeaches(),
   ["beaches:all-beaches-page"],
-  { revalidate: 21600 }
+  { revalidate: 21600 },
 );
 
 export const revalidate = 21600;
@@ -41,7 +41,7 @@ export default async function AllBeachesPage() {
     beachesByCounty[key].push(beach);
   }
   const sortedCountyKeys = Object.keys(beachesByCounty).sort((a, b) =>
-    a.localeCompare(b)
+    a.localeCompare(b),
   );
   const toCountyId = (value: string) =>
     `county-${value}`
@@ -101,21 +101,20 @@ export default async function AllBeachesPage() {
               </div>
               <a
                 href="/beaches"
-                className="group rounded-3xl border border-border/40 bg-highlight-7/20 px-4 py-4 text-left shadow-xs transition hover:bg-highlight-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                className="group flex items-center justify-between gap-4 rounded-3xl border border-primary/20 bg-primary px-4 py-4 text-left text-primary-foreground shadow-sm transition hover:bg-primary/90 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 active:translate-y-px"
               >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-xs font-semibold tracking-wide text-muted-foreground">
-                      Prefer the map?
-                    </div>
-                    <div className="mt-2 text-2xl font-semibold tabular-nums tracking-tight">
-                      <MapPinned
-                        className="h-6.5 w-6.5 text-foreground transition"
-                        aria-hidden="true"
-                      />
-                    </div>
+                <div className="min-w-0">
+                  <div className="text-xs font-semibold tracking-wide text-primary-foreground/80">
+                    Map
+                  </div>
+                  <div className="mt-2 text-lg font-semibold tracking-tight">
+                    Open
                   </div>
                 </div>
+                <MapPinned
+                  className="h-6.5 w-6.5 shrink-0 text-primary-foreground/90 transition group-hover:scale-105"
+                  aria-hidden="true"
+                />
               </a>
             </div>
           </header>
@@ -158,7 +157,7 @@ export default async function AllBeachesPage() {
                             className="group/link inline-flex w-full items-center justify-between gap-3 rounded-2xl px-3 py-2 text-sm text-foreground/85 transition hover:bg-highlight-3/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                             href={`${generateBeachUrl(
                               beach.Name,
-                              beach.id
+                              beach.id,
                             )}/overview`}
                           >
                             <span className="truncate">{beach.Name}</span>

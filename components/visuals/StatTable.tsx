@@ -258,7 +258,7 @@ function DirectionBadge({
       className={cn(
         layout === "grid"
           ? "grid grid-cols-[0.9rem_1fr_1.5rem] items-center gap-x-1.5"
-          : "inline-flex items-center gap-1.5",
+          : "inline-flex items-center gap-1",
         "h-[23px] rounded-full border border-border/40 bg-foreground/[0.03] px-1.5 py-0.5",
         widthClassName,
         className,
@@ -277,7 +277,7 @@ function DirectionBadge({
       <span
         className={cn(
           labelVisibilityClassName,
-          "text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground mt-0.5 inline-block",
+          "text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground mt-0.5 inline-block @min-[412px]:hidden @min-lg:inline-block",
           layout === "grid" && "justify-self-center",
           !showMap &&
             variant === "half" &&
@@ -1121,7 +1121,8 @@ const StatTable = ({
   const forecastPage = selectedTab === "forecast";
   const pathname = usePathname();
   const dashboardEditMode = useOptionalDashboardEditMode();
-  const isEditing = (dashboardEditMode?.isEditing ?? false) || pathname.endsWith("/edit");
+  const isEditing =
+    (dashboardEditMode?.isEditing ?? false) || pathname.endsWith("/edit");
   const headerBgClass =
     "bg-[var(--widget-header-surface,var(--widget-surface,var(--highlight-4)))]";
   const { rows: sharedRows } = useForecastData();
@@ -1194,7 +1195,9 @@ const StatTable = ({
         ? new Date(anchorStart.getTime() + daysToFetch * DAY_MS)
         : hasSelectedDays
           ? new Date(
-              normalizedSelectedDays[normalizedSelectedDays.length - 1].getTime() +
+              normalizedSelectedDays[
+                normalizedSelectedDays.length - 1
+              ].getTime() +
                 bufferAfter * DAY_MS,
             )
           : new Date(anchorStart.getTime() + daysToFetch * DAY_MS);
@@ -1293,7 +1296,11 @@ const StatTable = ({
 
         // Empty datasets can occur transiently during UI transitions (e.g. after editing the dashboard).
         // Retry once shortly to avoid rendering a blank table that only resolves on reload.
-        if (weekly.length === 0 && attempts < 1 && typeof window !== "undefined") {
+        if (
+          weekly.length === 0 &&
+          attempts < 1 &&
+          typeof window !== "undefined"
+        ) {
           attempts += 1;
           retryTimer = window.setTimeout(() => {
             if (cancelled) return;
@@ -2034,7 +2041,10 @@ const StatTable = ({
     window.addEventListener("scroll", close, { passive: true });
     window.addEventListener("touchmove", close, { passive: true });
     window.addEventListener("wheel", close, { passive: true });
-    document.addEventListener("scroll", close, { passive: true, capture: true });
+    document.addEventListener("scroll", close, {
+      passive: true,
+      capture: true,
+    });
     document.addEventListener("touchmove", close, {
       passive: true,
       capture: true,
@@ -2055,7 +2065,10 @@ const StatTable = ({
     window.addEventListener("scroll", close, { passive: true });
     window.addEventListener("touchmove", close, { passive: true });
     window.addEventListener("wheel", close, { passive: true });
-    document.addEventListener("scroll", close, { passive: true, capture: true });
+    document.addEventListener("scroll", close, {
+      passive: true,
+      capture: true,
+    });
     document.addEventListener("touchmove", close, {
       passive: true,
       capture: true,
@@ -2576,12 +2589,12 @@ const StatTable = ({
           )}
         >
           {showSecondarySwells ? (
-            <Eye
+            <Eye aria-hidden="true" className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <EyeOff
               aria-hidden="true"
               className="h-4 w-4 text-muted-foreground"
             />
-          ) : (
-            <EyeOff aria-hidden="true" className="h-4 w-4 text-muted-foreground" />
           )}
           <span className="hidden @min-[460px]:inline">Swells</span>
         </button>
@@ -2602,7 +2615,9 @@ const StatTable = ({
   //
   // Exception: for multi-day forecast tables, keep the scroll-follow behavior.
   const dockPagerInFlow =
-    !showPager && targetHours.length <= 3 && !(forecastPage && !useSingleDayView);
+    !showPager &&
+    targetHours.length <= 3 &&
+    !(forecastPage && !useSingleDayView);
   const dockPagerInFlowEffective = isEditing ? true : dockPagerInFlow;
   const pagerStickyRef = React.useRef<HTMLDivElement | null>(null);
   const pagerRevealSentinelRef = React.useRef<HTMLDivElement | null>(null);
@@ -3410,7 +3425,9 @@ const StatTable = ({
           data-ww-stat-table-sticky="pager"
           ref={pagerStickyRef}
           data-ww-visible={
-            dockPagerInFlowEffective || pagerVisibleRef.current ? "true" : "false"
+            dockPagerInFlowEffective || pagerVisibleRef.current
+              ? "true"
+              : "false"
           }
           className={cn(
             dockPagerInFlowEffective
