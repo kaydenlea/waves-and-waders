@@ -1994,24 +1994,62 @@ const StatTable = ({
   }, [data]);
 
   // Swipe and horizontal wheel to change column pages
-  const touchStartX = React.useRef<number | null>(null);
-  const touchDeltaX = React.useRef(0);
+  const touchStartRef = React.useRef<{ x: number; y: number } | null>(null);
+  const touchDeltaRef = React.useRef({ x: 0, y: 0 });
+  const touchModeRef = React.useRef<"unknown" | "horizontal" | "vertical">(
+    "unknown",
+  );
   const onTouchStart = (e: React.TouchEvent) => {
     if (columnPages.length <= 1) return;
-    touchStartX.current = e.touches[0].clientX;
-    touchDeltaX.current = 0;
+    if (e.touches.length !== 1) return;
+    touchStartRef.current = {
+      x: e.touches[0].clientX,
+      y: e.touches[0].clientY,
+    };
+    touchDeltaRef.current = { x: 0, y: 0 };
+    touchModeRef.current = "unknown";
   };
   const onTouchMove = (e: React.TouchEvent) => {
-    if (touchStartX.current == null) return;
-    touchDeltaX.current = e.touches[0].clientX - touchStartX.current;
+    const start = touchStartRef.current;
+    if (!start) return;
+    if (e.touches.length !== 1) return;
+    const dx = e.touches[0].clientX - start.x;
+    const dy = e.touches[0].clientY - start.y;
+    touchDeltaRef.current = { x: dx, y: dy };
+
+    if (touchModeRef.current !== "unknown") {
+      return;
+    }
+
+    const absDx = Math.abs(dx);
+    const absDy = Math.abs(dy);
+    if (Math.hypot(absDx, absDy) < 10) {
+      return;
+    }
+
+    if (absDy > absDx * 1.6) {
+      touchModeRef.current = "vertical";
+      return;
+    }
+    if (absDx > absDy * 1.6) {
+      touchModeRef.current = "horizontal";
+    }
   };
   const onTouchEnd = () => {
-    if (touchStartX.current == null) return;
-    const dx = touchDeltaX.current;
-    touchStartX.current = null;
-    touchDeltaX.current = 0;
-    const threshold = 40;
-    if (Math.abs(dx) < threshold) return;
+    if (!touchStartRef.current) return;
+    const { x: dx, y: dy } = touchDeltaRef.current;
+    touchStartRef.current = null;
+    touchDeltaRef.current = { x: 0, y: 0 };
+    const mode = touchModeRef.current;
+    touchModeRef.current = "unknown";
+
+    if (mode !== "horizontal") return;
+
+    const absDx = Math.abs(dx);
+    const absDy = Math.abs(dy);
+    const threshold = 52;
+    if (absDx < threshold) return;
+    if (absDx <= absDy * 1.2) return;
     if (dx < 0) handleNext();
     else handleBack();
   };
