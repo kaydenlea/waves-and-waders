@@ -3901,6 +3901,13 @@ const LeafletMap: React.FC<Props> = ({
       preferCanvas: false,
       minZoom: 3,
       maxZoom: 18,
+      // Leaflet touch pinch-zoom snaps to integer levels by default (`zoomSnap: 1`),
+      // which can feel "thresholded"/segmented on mobile. Use smaller snap increments
+      // to make pinch gestures land closer to the user's intended zoom.
+      // https://leafletjs.com/reference.html#map-zoomsnap
+      // https://leafletjs.com/reference.html#map-zoomdelta
+      zoomSnap: touchInput ? 0.25 : 1,
+      zoomDelta: touchInput ? 0.25 : 1,
       // On touch devices, Leaflet's double-tap-to-zoom can be mistakenly triggered when users
       // intend to drag, which looks like a disruptive "snap/jump" (selected marker shifts to
       // the finger). Disable it on touch; desktop still has double-click zoom.
@@ -4230,38 +4237,12 @@ const LeafletMap: React.FC<Props> = ({
     latestUpdateZoomButtons();
     latestUpdateRefocusDisabled();
 
-    const handleMoveStart = () => {
-      if (suppressUserMoveRef.current) {
-        suppressUserMoveRef.current = false;
-        return;
-      }
-      isMapInteractingRef.current = true;
-      if (deferredMarkerRebuildTimeoutRef.current != null) {
-        window.clearTimeout(deferredMarkerRebuildTimeoutRef.current);
-        deferredMarkerRebuildTimeoutRef.current = null;
-      }
-      if (markerBuildJobRef.current) {
-        pendingMarkerRebuildRef.current = true;
-      }
-      latestCancelMarkerBuild();
-      if (!touchInput) {
-        enableInteractionLock();
-      }
-      pendingAutoCenterRef.current = null;
-      pendingFocusRef.current = null;
-      latestCancelCommitResume();
-      latestCancelScheduledCameraUpdate();
-      React.startTransition(() => latestSetAllowViewportCommit(false));
-      // Clear hover/popup state when the user starts panning/zooming, including on touch,
-      // so a marker can't look "grabbed" after the gesture ends.
-      latestClearHoverState();
-      cancelPrefetchVisibleMarkerStats();
-    };
     const handleResizeEvent = () => {
       latestScheduleResizeRecompute();
     };
 
     const handleInteractionEnd = () => {
+      clearInteractionEndFallback();
       latestClearHoverState();
       disableInteractionLock();
       isMapInteractingRef.current = false;
@@ -4284,8 +4265,82 @@ const LeafletMap: React.FC<Props> = ({
       latestScheduleMarkerRebuildAfterInteraction();
     };
 
+    function motionTimestamp() {
+      return typeof performance !== "undefined" ? performance.now() : Date.now();
+    }
+
+    let lastMotionTs = motionTimestamp();
+    let interactionEndFallbackTimeout: number | null = null;
+
+    function markMotion() {
+      lastMotionTs = motionTimestamp();
+    }
+
+    function clearInteractionEndFallback() {
+      if (interactionEndFallbackTimeout != null) {
+        window.clearTimeout(interactionEndFallbackTimeout);
+        interactionEndFallbackTimeout = null;
+      }
+    }
+
+    function scheduleInteractionEndFallback() {
+      if (typeof window === "undefined") return;
+      clearInteractionEndFallback();
+
+      const tick = () => {
+        if (!isMapInteractingRef.current) {
+          interactionEndFallbackTimeout = null;
+          return;
+        }
+
+        const now = motionTimestamp();
+        const idleFor = now - lastMotionTs;
+        if (idleFor > 220) {
+          interactionEndFallbackTimeout = null;
+          handleInteractionEnd();
+          return;
+        }
+
+        interactionEndFallbackTimeout = window.setTimeout(tick, 120);
+      };
+
+      interactionEndFallbackTimeout = window.setTimeout(tick, 360);
+    }
+
+    const handleMoveStart = () => {
+      if (suppressUserMoveRef.current) {
+        suppressUserMoveRef.current = false;
+        return;
+      }
+      isMapInteractingRef.current = true;
+      markMotion();
+      scheduleInteractionEndFallback();
+      if (deferredMarkerRebuildTimeoutRef.current != null) {
+        window.clearTimeout(deferredMarkerRebuildTimeoutRef.current);
+        deferredMarkerRebuildTimeoutRef.current = null;
+      }
+      if (markerBuildJobRef.current) {
+        pendingMarkerRebuildRef.current = true;
+      }
+      latestCancelMarkerBuild();
+      if (!touchInput) {
+        enableInteractionLock();
+      }
+      pendingAutoCenterRef.current = null;
+      pendingFocusRef.current = null;
+      latestCancelCommitResume();
+      latestCancelScheduledCameraUpdate();
+      React.startTransition(() => latestSetAllowViewportCommit(false));
+      // Clear hover/popup state when the user starts panning/zooming, including on touch,
+      // so a marker can't look "grabbed" after the gesture ends.
+      latestClearHoverState();
+      cancelPrefetchVisibleMarkerStats();
+    };
+
     const handleZoomStart = () => {
       isMapInteractingRef.current = true;
+      markMotion();
+      scheduleInteractionEndFallback();
       if (deferredMarkerRebuildTimeoutRef.current != null) {
         window.clearTimeout(deferredMarkerRebuildTimeoutRef.current);
         deferredMarkerRebuildTimeoutRef.current = null;
@@ -4307,6 +4362,10 @@ const LeafletMap: React.FC<Props> = ({
     map.on("movestart", handleMoveStart);
     map.on("zoomstart", handleZoomStart);
     map.on("moveend", handleInteractionEnd);
+    map.on("dragend", scheduleInteractionEndFallback);
+    map.on("zoomend", scheduleInteractionEndFallback);
+    map.on("move", markMotion);
+    map.on("zoom", markMotion);
     map.on("resize", handleResizeEvent);
 
     return () => {
@@ -4412,6 +4471,11 @@ const LeafletMap: React.FC<Props> = ({
       map.off("movestart", handleMoveStart);
       map.off("zoomstart", handleZoomStart);
       map.off("moveend", handleInteractionEnd);
+      map.off("dragend", scheduleInteractionEndFallback);
+      map.off("zoomend", scheduleInteractionEndFallback);
+      map.off("move", markMotion);
+      map.off("zoom", markMotion);
+      clearInteractionEndFallback();
       disableInteractionLock();
       isMapInteractingRef.current = false;
       if (deferredMarkerRebuildTimeoutRef.current != null) {
