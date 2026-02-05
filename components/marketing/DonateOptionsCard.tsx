@@ -119,7 +119,7 @@ export default function DonateOptionsCard({
           Donate
         </Link>
         <Link
-          href="/contact?from=donate-section"
+          href="/donate?from=donate-section"
           className={cn(
             "flex-1 inline-flex items-center justify-center gap-2 rounded-full border border-border/50 bg-background/50 px-5 py-3 text-sm font-medium text-foreground shadow-sm",
             "cursor-pointer transition-[background-color,border-color,box-shadow,transform] duration-200 motion-reduce:transition-none",
@@ -128,7 +128,7 @@ export default function DonateOptionsCard({
           )}
         >
           <MessageSquareHeart className="h-4 w-4" aria-hidden="true" />
-          Feedback
+          Learn
         </Link>
       </div>
 
