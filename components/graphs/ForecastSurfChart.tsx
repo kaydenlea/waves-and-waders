@@ -385,8 +385,12 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
   const onPan = useCallback(
     (dx: number) => {
       // Logic for chart panning
-      if (typeof currentTranslateRef.current !== "number") return;
-      const next = clampTranslatePx(currentTranslateRef.current - dx);
+      const base =
+        typeof pendingTranslateRef.current === "number"
+          ? pendingTranslateRef.current
+          : currentTranslateRef.current;
+      if (typeof base !== "number") return;
+      const next = clampTranslatePx(base - dx);
       pendingTranslateRef.current = next;
 
       if (!dragRafRef.current) {

@@ -338,22 +338,29 @@ const ForecastSwellChart: React.FC<Props> = ({ beachId, days }) => {
   );
 
   // Pointer handlers
-  const onPan = useCallback((dx: number) => {
-    // Logic for chart panning
-    if (typeof currentTranslateRef.current !== "number") return;
-    const next = clampTranslatePx(currentTranslateRef.current - dx);
-    pendingTranslateRef.current = next;
+  const onPan = useCallback(
+    (dx: number) => {
+      // Logic for chart panning
+      const base =
+        typeof pendingTranslateRef.current === "number"
+          ? pendingTranslateRef.current
+          : currentTranslateRef.current;
+      if (typeof base !== "number") return;
+      const next = clampTranslatePx(base - dx);
+      pendingTranslateRef.current = next;
 
-    if (!dragRafRef.current) {
-      dragRafRef.current = requestAnimationFrame(() => {
-        dragRafRef.current = null;
-        const pendingPx = pendingTranslateRef.current;
-        if (typeof pendingPx !== "number") return;
-        setInnerTranslatePx(pendingPx, false);
-        setPanFraction(pendingPx / dayPx, myId, "drag");
-      });
-    }
-  }, [clampTranslatePx, dayPx, myId, setInnerTranslatePx, setPanFraction]);
+      if (!dragRafRef.current) {
+        dragRafRef.current = requestAnimationFrame(() => {
+          dragRafRef.current = null;
+          const pendingPx = pendingTranslateRef.current;
+          if (typeof pendingPx !== "number") return;
+          setInnerTranslatePx(pendingPx, false);
+          setPanFraction(pendingPx / dayPx, myId, "drag");
+        });
+      }
+    },
+    [clampTranslatePx, dayPx, myId, setInnerTranslatePx, setPanFraction],
+  );
 
   const onPanEnd = useCallback(() => {
     if (dragRafRef.current) {

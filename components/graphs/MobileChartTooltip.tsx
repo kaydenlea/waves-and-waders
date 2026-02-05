@@ -1017,11 +1017,13 @@ export function useMobileChartTouch({
   const { activate, deactivate, updatePosition } = useMobileTooltip();
 
   const stateRef = React.useRef<
-    "IDLE" | "INSPECTING" | "PANNING" | "SCROLLING"
+    "IDLE" | "PENDING" | "INSPECTING" | "PANNING" | "SCROLLING"
   >("IDLE");
   const startRef = React.useRef({ x: 0, y: 0 });
   const lastRef = React.useRef({ x: 0, y: 0 });
   const lastIndexRef = React.useRef<number | null>(null);
+  const canInspectRef = React.useRef(false);
+  const longPressTimeoutRef = React.useRef<number | null>(null);
   const hoverActiveRef = React.useRef(false);
   const hoverLastIndexRef = React.useRef<number | null>(null);
   const hoverMoveRafRef = React.useRef<number | null>(null);
@@ -1031,6 +1033,8 @@ export function useMobileChartTouch({
   } | null>(null);
 
   const DRAG_THRESHOLD = 14;
+  const LONG_PRESS_MS = 320;
+  const LONG_PRESS_SLOP_PX = 10;
   const DATA_STEP_HOURS = 3;
 
   // Default: assume 3-hour intervals like surf/wind/swell/waveenergy charts
@@ -1077,38 +1081,49 @@ export function useMobileChartTouch({
         return;
       }
 
-      const chartX = getChartX(ev.clientX);
-      const chartY = getChartY(ev.clientY);
-
-      // Check if touch started on a bar - if so, inspect; otherwise, pan
-      const touchedBar = isOnBar ? isOnBar(chartX, chartY) : true;
-
       startRef.current = { x: ev.clientX, y: ev.clientY };
       lastRef.current = { x: ev.clientX, y: ev.clientY };
+      // Long-press to inspect should work anywhere within the chart container
+      // so users don't need to aim precisely at a bar/line.
+      canInspectRef.current = true;
 
-      if (touchedBar) {
-        // Touch started on a bar - enter inspection mode
-        stateRef.current = "INSPECTING";
-
-        const index = Math.max(
-          0,
-          Math.min(dataLength - 1, getIndexFromX(chartX)),
-        );
-        lastIndexRef.current = index;
-
-        const rect = containerRef.current?.getBoundingClientRect() ?? null;
-        if (rect) {
-          const hour = getHour(index);
-          activate(chartId, index, hour, ev.clientX, ev.clientY, rect);
-          // Notify for cross-chart syncing
-          onInspect?.(index, hour);
-        }
-      } else {
-        // Touch started off a bar - enter pan mode
-        stateRef.current = "PANNING";
+      if (longPressTimeoutRef.current != null) {
+        window.clearTimeout(longPressTimeoutRef.current);
+        longPressTimeoutRef.current = null;
       }
 
-      containerRef.current?.setPointerCapture(ev.pointerId);
+      // Touch: start pending. A long-press activates tooltip inspection; a
+      // horizontal drag pans; a vertical drag scrolls the page.
+      stateRef.current = "PENDING";
+      if (canInspectRef.current) {
+        longPressTimeoutRef.current = window.setTimeout(() => {
+          longPressTimeoutRef.current = null;
+          if (stateRef.current !== "PENDING") return;
+
+          const rect = containerRef.current?.getBoundingClientRect() ?? null;
+          if (!rect) return;
+
+          const clientX = lastRef.current.x;
+          const clientY = lastRef.current.y;
+          const nextChartX = getChartX(clientX);
+          const index = Math.max(
+            0,
+            Math.min(dataLength - 1, getIndexFromX(nextChartX)),
+          );
+          lastIndexRef.current = index;
+
+          stateRef.current = "INSPECTING";
+          try {
+            containerRef.current?.setPointerCapture(ev.pointerId);
+          } catch {
+            // ignore capture failures
+          }
+
+          const hour = getHour(index);
+          activate(chartId, index, hour, clientX, clientY, rect);
+          onInspect?.(index, hour);
+        }, LONG_PRESS_MS);
+      }
     },
     [
       enabled,
@@ -1117,9 +1132,7 @@ export function useMobileChartTouch({
       dataLength,
       getIndexFromX,
       getHour,
-      isOnBar,
       getChartX,
-      getChartY,
       activate,
       onInspect,
     ],
@@ -1142,6 +1155,38 @@ export function useMobileChartTouch({
       if (stateRef.current === "PANNING") {
         if (ev.cancelable) ev.preventDefault();
         onPan?.(dx);
+        return;
+      }
+
+      if (stateRef.current === "PENDING") {
+        const totalDx = clientX - startRef.current.x;
+        const totalDy = clientY - startRef.current.y;
+        const absDx = Math.abs(totalDx);
+        const absDy = Math.abs(totalDy);
+
+        if (
+          longPressTimeoutRef.current != null &&
+          Math.hypot(absDx, absDy) > LONG_PRESS_SLOP_PX
+        ) {
+          window.clearTimeout(longPressTimeoutRef.current);
+          longPressTimeoutRef.current = null;
+        }
+
+        if (Math.hypot(absDx, absDy) > DRAG_THRESHOLD) {
+          if (absDy > DRAG_THRESHOLD && absDy > absDx * 2) {
+            stateRef.current = "SCROLLING";
+            return;
+          }
+
+          stateRef.current = "PANNING";
+          try {
+            containerRef.current?.setPointerCapture(ev.pointerId);
+          } catch {
+            // ignore capture failures
+          }
+          if (ev.cancelable) ev.preventDefault();
+          onPan?.(totalDx);
+        }
         return;
       }
 
@@ -1200,7 +1245,15 @@ export function useMobileChartTouch({
 
   const handlePointerUp = React.useCallback(
     (ev: React.PointerEvent) => {
-      containerRef.current?.releasePointerCapture(ev.pointerId);
+      if (longPressTimeoutRef.current != null) {
+        window.clearTimeout(longPressTimeoutRef.current);
+        longPressTimeoutRef.current = null;
+      }
+      try {
+        containerRef.current?.releasePointerCapture(ev.pointerId);
+      } catch {
+        // ignore
+      }
 
       if (stateRef.current === "INSPECTING") {
         deactivate();
@@ -1217,7 +1270,15 @@ export function useMobileChartTouch({
 
   const handlePointerCancel = React.useCallback(
     (ev: React.PointerEvent) => {
-      containerRef.current?.releasePointerCapture(ev.pointerId);
+      if (longPressTimeoutRef.current != null) {
+        window.clearTimeout(longPressTimeoutRef.current);
+        longPressTimeoutRef.current = null;
+      }
+      try {
+        containerRef.current?.releasePointerCapture(ev.pointerId);
+      } catch {
+        // ignore
+      }
 
       if (stateRef.current === "INSPECTING") {
         deactivate();
@@ -1232,6 +1293,15 @@ export function useMobileChartTouch({
     },
     [containerRef, deactivate, onPanEnd, onInspectEnd],
   );
+
+  React.useEffect(() => {
+    return () => {
+      if (longPressTimeoutRef.current != null) {
+        window.clearTimeout(longPressTimeoutRef.current);
+        longPressTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1441,9 +1511,9 @@ export function useMobileChartTouch({
       onPointerCancel: handlePointerCancel,
     },
     styles: {
-      // Use 'none' to take full control of touch - we handle vertical scrolling
-      // by releasing pointer capture when a vertical gesture is detected
-      touchAction: "none",
+      // Allow native vertical scrolling; only preventDefault/capture once the
+      // user commits to a horizontal pan or long-press inspection.
+      touchAction: "pan-y",
       userSelect: "none",
       WebkitUserSelect: "none",
     } as React.CSSProperties,
