@@ -1764,6 +1764,8 @@ const LeafletMap: React.FC<Props> = ({
   const isMapInteractingRef = React.useRef(false);
   const pendingMarkerRebuildRef = React.useRef(false);
   const deferredMarkerRebuildTimeoutRef = React.useRef<number | null>(null);
+  const resumeMarkerRebuildTimeoutRef = React.useRef<number | null>(null);
+  const performMarkerRebuildRef = React.useRef<(() => void) | null>(null);
   type MarkerBuildJob = {
     token: number;
     raf: number | null;
@@ -1778,11 +1780,30 @@ const LeafletMap: React.FC<Props> = ({
   const cancelMarkerBuild = React.useCallback(() => {
     const job = markerBuildJobRef.current;
     if (!job) return;
+    // If we cancel mid-build (common when the user starts panning on mobile),
+    // the diff may have removed old markers but not added new ones yet.
+    // Mark a rebuild as pending so we don't get stuck with an empty map until
+    // the next zoom gesture.
+    pendingMarkerRebuildRef.current = true;
     if (job.raf != null) {
       window.cancelAnimationFrame(job.raf);
     }
     markerBuildJobRef.current = null;
     React.startTransition(() => setMarkersLoading(false));
+
+    if (typeof window !== "undefined") {
+      if (resumeMarkerRebuildTimeoutRef.current != null) {
+        window.clearTimeout(resumeMarkerRebuildTimeoutRef.current);
+      }
+      // Defer so we don't fight the pointer event that triggered the cancel.
+      resumeMarkerRebuildTimeoutRef.current = window.setTimeout(() => {
+        resumeMarkerRebuildTimeoutRef.current = null;
+        if (isMapInteractingRef.current) return;
+        if (!pendingMarkerRebuildRef.current) return;
+        pendingMarkerRebuildRef.current = false;
+        performMarkerRebuildRef.current?.();
+      }, 0);
+    }
   }, [setMarkersLoading]);
   const [selectedBeachId, setSelectedBeachId] = React.useState<
     string | number | null
@@ -2170,6 +2191,10 @@ const LeafletMap: React.FC<Props> = ({
     forceMarkerRevision();
   }, []);
 
+  React.useEffect(() => {
+    performMarkerRebuildRef.current = performMarkerRebuild;
+  }, [performMarkerRebuild]);
+
   const scheduleMarkerRebuildAfterInteraction = React.useCallback(() => {
     if (!pendingMarkerRebuildRef.current) return;
     if (typeof window === "undefined") return;
@@ -2208,6 +2233,17 @@ const LeafletMap: React.FC<Props> = ({
   React.useEffect(() => {
     requestMarkerRebuild();
   }, [filteredBeaches, surfIntensity, favoriteSet, requestMarkerRebuild]);
+
+  React.useEffect(() => {
+    if (!mapReady) return;
+    if (markersLoading) return;
+    if (isMapInteractingRef.current) return;
+    if (filteredBeaches.length === 0) return;
+    // Watchdog: if we ever end up with an empty marker registry while we have
+    // beaches to display (e.g. a build was canceled mid-diff), trigger a rebuild.
+    if (Object.keys(markerRegistryRef.current).length !== 0) return;
+    requestMarkerRebuild();
+  }, [filteredBeaches.length, mapReady, markersLoading, requestMarkerRebuild]);
 
   const interactionsReady = mapReady && filteredBeaches.length > 0;
   React.useEffect(() => {
@@ -2654,6 +2690,15 @@ const LeafletMap: React.FC<Props> = ({
       if (cameraUpdateTimeoutRef.current != null) {
         window.clearTimeout(cameraUpdateTimeoutRef.current);
         cameraUpdateTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
+  React.useEffect(() => {
+    return () => {
+      if (resumeMarkerRebuildTimeoutRef.current != null) {
+        window.clearTimeout(resumeMarkerRebuildTimeoutRef.current);
+        resumeMarkerRebuildTimeoutRef.current = null;
       }
     };
   }, []);
@@ -3901,13 +3946,13 @@ const LeafletMap: React.FC<Props> = ({
       preferCanvas: false,
       minZoom: 3,
       maxZoom: 18,
-      // Leaflet touch pinch-zoom snaps to integer levels by default (`zoomSnap: 1`),
-      // which can feel "thresholded"/segmented on mobile. Use smaller snap increments
-      // to make pinch gestures land closer to the user's intended zoom.
+      // Leaflet pinch-zoom snaps to discrete levels by default (`zoomSnap: 1`),
+      // which feels "thresholded"/segmented on touch devices. Disable snapping so
+      // pinch zoom tracks the user's gesture smoothly (fractional zoom levels).
       // https://leafletjs.com/reference.html#map-zoomsnap
       // https://leafletjs.com/reference.html#map-zoomdelta
-      zoomSnap: touchInput ? 0.25 : 1,
-      zoomDelta: touchInput ? 0.25 : 1,
+      zoomSnap: touchInput ? 0 : 1,
+      zoomDelta: 1,
       // On touch devices, Leaflet's double-tap-to-zoom can be mistakenly triggered when users
       // intend to drag, which looks like a disruptive "snap/jump" (selected marker shifts to
       // the finger). Disable it on touch; desktop still has double-click zoom.
