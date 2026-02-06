@@ -194,12 +194,12 @@ export default async function DonatePage({
                   <HandHeart className="h-4 w-4" aria-hidden="true" />
                   Donate now
                 </a>
-                <Link
+                {/* <Link
                   href="/contact?from=donate"
                   className="text-sm font-medium text-muted-foreground underline underline-offset-4 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                 >
                   Questions or feedback?
-                </Link>
+                </Link> */}
               </div>
             </div>
 
@@ -274,7 +274,7 @@ export default async function DonatePage({
                 <IconRow
                   icon={CreditCard}
                   title="Covers required costs"
-                  description="Hosting and data services add up."
+                  description="Hosting/data services add up."
                 />
                 <IconRow
                   icon={HandHeart}
