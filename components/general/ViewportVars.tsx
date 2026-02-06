@@ -20,12 +20,34 @@ export default function ViewportVars() {
     let rafId: number | null = null;
     let clearChangingTimer: number | null = null;
     let lastHeightPx: number | null = null;
+    let maxBottomUiPx = 0;
+    let lastInnerSize: { w: number; h: number } | null = null;
 
     const apply = () => {
+      const innerW = window.innerWidth;
+      const innerH = window.innerHeight;
+      if (
+        lastInnerSize == null ||
+        Math.abs(innerW - lastInnerSize.w) > 120 ||
+        Math.abs(innerH - lastInnerSize.h) > 120
+      ) {
+        maxBottomUiPx = 0;
+        lastInnerSize = { w: innerW, h: innerH };
+      }
+
       const heightPx = getViewportHeightPx();
       if (!heightPx) return;
       // 1vh equivalent in px based on the *visual* viewport (handles iOS Safari toolbars).
       root.style.setProperty("--ww-vh", `${heightPx * 0.01}px`);
+
+      const vv = window.visualViewport;
+      const vvHeight = vv?.height ?? innerH;
+      const vvTop = vv?.offsetTop ?? 0;
+      const bottomUi = Math.max(0, innerH - (vvHeight + vvTop));
+      if (bottomUi > maxBottomUiPx) {
+        maxBottomUiPx = bottomUi;
+      }
+      root.style.setProperty("--ww-bottom-ui", `${maxBottomUiPx}px`);
 
       // When the browser UI (URL bar / bottom controls) hides/shows, visualViewport.height changes.
       // While that animation is happening, other UI (like our BottomNav auto-hide) should avoid

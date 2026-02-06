@@ -5269,9 +5269,9 @@ const LeafletMap: React.FC<Props> = ({
     "dark:bg-sky-600/40 dark:border-sky-300/35 dark:text-sky-50",
   );
   const mobileViewportHeight =
-    "calc(var(--ww-100vh, 100dvh) + env(safe-area-inset-top, 0px) - 4.25rem - env(safe-area-inset-bottom, 0px))";
+    "calc(var(--ww-100vh, 100dvh) + env(safe-area-inset-top, 0px) - 4.25rem - max(env(safe-area-inset-bottom, 0px), var(--ww-bottom-ui, 0px)))";
   const desktopViewportHeight =
-    "calc(var(--ww-100vh, 100dvh) - 8rem - env(safe-area-inset-bottom, 0px))";
+    "calc(var(--ww-100vh, 100dvh) - 8rem - max(env(safe-area-inset-bottom, 0px), var(--ww-bottom-ui, 0px)))";
   const wrapperHeight = embedded
     ? null
     : smallScreen
@@ -5295,7 +5295,7 @@ const LeafletMap: React.FC<Props> = ({
               : "touch-none relative flex h-full w-full"
               : cn(
                   "touch-none overscroll-none fixed w-full mx-auto max-w-screen transition-all duration-300",
-                  "@min-4xl:box-border @min-4xl:sticky @min-4xl:top-[7.5rem] @min-4xl:flex-1 @min-4xl:py-3 @min-4xl:pl-5 @min-4xl:pr-3 @min-4xl:h-[calc(var(--ww-100vh,100dvh)-8rem-env(safe-area-inset-bottom,0px))] flex",
+                  "@min-4xl:box-border @min-4xl:sticky @min-4xl:top-[7.5rem] @min-4xl:flex-1 @min-4xl:py-3 @min-4xl:pl-5 @min-4xl:pr-3 @min-4xl:h-[calc(var(--ww-100vh,100dvh)-8rem-max(env(safe-area-inset-bottom,0px),var(--ww-bottom-ui,0px)))] flex",
                 )
           }
         data-ww-embed-preview={embedded && previewUi ? "true" : undefined}
@@ -5332,7 +5332,7 @@ const LeafletMap: React.FC<Props> = ({
             : "touch-none overscroll-contain relative flex h-full w-full"
               : cn(
                   "touch-none overscroll-contain fixed w-full mx-auto max-w-screen transition-all duration-300",
-                  "@min-4xl:box-border @min-4xl:sticky @min-4xl:top-[7.5rem] @min-4xl:flex-1 @min-4xl:py-3 @min-4xl:pl-5 @min-4xl:pr-3 @min-4xl:h-[calc(var(--ww-100vh,100dvh)-8rem-env(safe-area-inset-bottom,0px))] flex",
+                  "@min-4xl:box-border @min-4xl:sticky @min-4xl:top-[7.5rem] @min-4xl:flex-1 @min-4xl:py-3 @min-4xl:pl-5 @min-4xl:pr-3 @min-4xl:h-[calc(var(--ww-100vh,100dvh)-8rem-max(env(safe-area-inset-bottom,0px),var(--ww-bottom-ui,0px)))] flex",
                 )
       }
       data-ww-embed-preview={embedded && previewUi ? "true" : undefined}

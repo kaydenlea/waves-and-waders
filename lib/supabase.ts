@@ -555,7 +555,7 @@ const hPaToInHg = (hpa: number | null) => hpa == null ? null : hpa * 0.02953;
 export function transformToComponentFormat(
   data: SupabaseForecastData[]
 ): ForecastData[] {
-  return data.map((row) => {
+  const mapped = data.map((row) => {
     const anyRow = row as unknown as Record<string, unknown>;
     const readNumber = (value: unknown): number | null =>
       typeof value === "number" ? value : null;
@@ -616,7 +616,60 @@ export function transformToComponentFormat(
       },
     };
   });
+  return fillNearestWaterTemps(mapped);
 }
+
+const fillNearestWaterTemps = (rows: ForecastData[]): ForecastData[] => {
+  if (!rows.length) return rows;
+  const points = rows
+    .map((row) => {
+      const value = row?.conditions?.waterTemp;
+      if (typeof value !== "number" || Number.isNaN(value)) return null;
+      const time = new Date(row.timestamp).getTime();
+      if (!Number.isFinite(time)) return null;
+      return { time, value };
+    })
+    .filter(
+      (entry): entry is { time: number; value: number } => entry !== null
+    )
+    .sort((a, b) => a.time - b.time);
+
+  if (points.length === 0) return rows;
+
+  const pickNearest = (time: number) => {
+    let lo = 0;
+    let hi = points.length - 1;
+    while (lo <= hi) {
+      const mid = Math.floor((lo + hi) / 2);
+      const midTime = points[mid].time;
+      if (midTime === time) return points[mid].value;
+      if (midTime < time) lo = mid + 1;
+      else hi = mid - 1;
+    }
+    const after = points[lo];
+    const before = points[lo - 1];
+    if (before && after) {
+      const beforeDiff = Math.abs(time - before.time);
+      const afterDiff = Math.abs(after.time - time);
+      return beforeDiff <= afterDiff ? before.value : after.value;
+    }
+    return before ? before.value : after ? after.value : null;
+  };
+
+  rows.forEach((row) => {
+    if (!row?.conditions) return;
+    const current = row.conditions.waterTemp;
+    if (typeof current === "number" && !Number.isNaN(current)) return;
+    const time = new Date(row.timestamp).getTime();
+    if (!Number.isFinite(time)) return;
+    const nearest = pickNearest(time);
+    if (typeof nearest === "number" && !Number.isNaN(nearest)) {
+      row.conditions.waterTemp = nearest;
+    }
+  });
+
+  return rows;
+};
 // ----------------------------
 // Tide queries (County-based, 15-minute intervals)
 // ----------------------------
