@@ -3,6 +3,7 @@
 import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
+import dayjs from "dayjs";
 import {
   Calendar,
   ChevronLeft,
@@ -14,6 +15,7 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { usePacificTodayMs } from "@/lib/hooks/usePacificTodayMs";
 
 import noaaLogo from "@/public/noaa.png";
 import HourSlider from "@/components/general/HourSlider";
@@ -127,6 +129,37 @@ function SecondaryLink({
 }
 
 function WindowPickerVisual() {
+  const pacificTodayMs = usePacificTodayMs();
+  const [selectedDate, setSelectedDate] = React.useState<Date>(() => {
+    return new Date(pacificTodayMs);
+  });
+  const [selectedHour, setSelectedHour] = React.useState<number>(() => {
+    const min = 0;
+    const max = 21;
+    const step = 3;
+    const currentHour = new Date().getHours();
+    const constrainedHour = Math.max(min, Math.min(max, currentHour));
+    return Math.round(constrainedHour / step) * step;
+  });
+
+  React.useEffect(() => {
+    setSelectedDate((prev) => {
+      const next = new Date(pacificTodayMs);
+      return prev.getTime() === next.getTime() ? prev : next;
+    });
+  }, [pacificTodayMs]);
+
+  const timeLabel = React.useMemo(() => {
+    const hour = selectedHour;
+    const displayValue = hour % 12 === 0 ? 12 : hour % 12;
+    const ampm = hour >= 12 && hour < 24 ? "PM" : "AM";
+    return `${displayValue} ${ampm}`;
+  }, [selectedHour]);
+
+  const dateLabel = React.useMemo(() => {
+    return dayjs(selectedDate).format("M/D");
+  }, [selectedDate]);
+
   const previewGradient =
     "linear-gradient(90deg, var(--ww-surf-intensity-low) 0%, var(--ww-surf-intensity-low) 22%, var(--ww-surf-intensity-mid) 22%, var(--ww-surf-intensity-mid) 58%, var(--ww-surf-intensity-high) 58%, var(--ww-surf-intensity-high) 78%, var(--ww-surf-intensity-mid) 78%, var(--ww-surf-intensity-mid) 100%)";
 
@@ -138,11 +171,11 @@ function WindowPickerVisual() {
         <div className="flex items-center justify-between gap-3">
           <div className="inline-flex items-center gap-1 rounded-full border border-border/50 bg-background/70 px-2.5 py-1.5 text-xs font-semibold text-foreground shadow-sm">
             <TimerReset className="h-4 w-4" aria-hidden="true" />
-            <span className="tabular-nums">3 PM</span>
+            <span className="tabular-nums">{timeLabel}</span>
           </div>
           <div className="inline-flex items-center gap-1.5 rounded-full border border-border/50 bg-background/70 px-2.5 py-1.5 text-xs font-semibold text-foreground shadow-sm">
             <Calendar className="h-4 w-4" aria-hidden="true" />
-            <span className="tabular-nums">1/6</span>
+            <span className="tabular-nums">{dateLabel}</span>
           </div>
         </div>
 
@@ -152,6 +185,9 @@ function WindowPickerVisual() {
         >
           <LazyLoadDatePicker
             beachId={PREVIEW_BEACH_ID}
+            forecast={false}
+            value={selectedDate}
+            onSelect={(next) => setSelectedDate(next)}
             maxDays={3}
             showNav={false}
             itemsPerView={3}
@@ -167,6 +203,9 @@ function WindowPickerVisual() {
           <HourSlider
             className="w-full"
             previewTrackGradient={previewGradient}
+            date={selectedDate}
+            value={selectedHour}
+            onChange={(next) => setSelectedHour(next)}
           />
         </div>
       </div>

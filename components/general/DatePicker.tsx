@@ -139,6 +139,7 @@ const DatePicker = ({
   beachId,
   value,
   onSelect,
+  forecast: forecastOverride,
   maxDays,
   showNav = true,
   itemsPerView,
@@ -157,7 +158,11 @@ DatePickerProps) => {
 
   const { selectedTab } = useClientPath();
   const isHeroDeck = useNativeDragScroll;
-  const forecast = !isHeroDeck && selectedTab === "forecast";
+  const effectiveForecast =
+    typeof forecastOverride === "boolean"
+      ? forecastOverride
+      : !isHeroDeck && selectedTab === "forecast";
+  const forecast = effectiveForecast;
   const [api, setApi] = useState<CarouselApi>();
   const [selectedDate, setSelectedDate] = useState<Dayjs | null>(null);
   const [summaries, setSummaries] = useState<Record<string, DaySummary>>({});
