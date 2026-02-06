@@ -1044,6 +1044,15 @@ export function useMobileChartTouch({
   );
   const getHour = getHourFromIndex ?? defaultGetHourFromIndex;
 
+  const setTouchAction = React.useCallback(
+    (value: "none" | "pan-y") => {
+      const el = containerRef.current;
+      if (!el) return;
+      el.style.touchAction = value;
+    },
+    [containerRef],
+  );
+
   const getChartX = React.useCallback(
     (clientX: number) => {
       if (!containerRef.current) return 0;
@@ -1113,6 +1122,7 @@ export function useMobileChartTouch({
           lastIndexRef.current = index;
 
           stateRef.current = "INSPECTING";
+          setTouchAction("none");
           try {
             containerRef.current?.setPointerCapture(ev.pointerId);
           } catch {
@@ -1135,6 +1145,7 @@ export function useMobileChartTouch({
       getChartX,
       activate,
       onInspect,
+      setTouchAction,
     ],
   );
 
@@ -1153,6 +1164,7 @@ export function useMobileChartTouch({
       }
 
       if (stateRef.current === "PANNING") {
+        setTouchAction("none");
         if (ev.cancelable) ev.preventDefault();
         onPan?.(dx);
         return;
@@ -1175,10 +1187,12 @@ export function useMobileChartTouch({
         if (Math.hypot(absDx, absDy) > DRAG_THRESHOLD) {
           if (absDy > DRAG_THRESHOLD && absDy > absDx * 2) {
             stateRef.current = "SCROLLING";
+            setTouchAction("pan-y");
             return;
           }
 
           stateRef.current = "PANNING";
+          setTouchAction("none");
           try {
             containerRef.current?.setPointerCapture(ev.pointerId);
           } catch {
@@ -1191,25 +1205,9 @@ export function useMobileChartTouch({
       }
 
       if (stateRef.current === "INSPECTING") {
-        const totalDx = clientX - startRef.current.x;
-        const totalDy = clientY - startRef.current.y;
-        const absDx = Math.abs(totalDx);
-        const absDy = Math.abs(totalDy);
-
-        // Check if this is a vertical scroll gesture (scrolling the page)
-        // Only allow vertical scrolling if moving mostly vertically early on
-        if (absDy > DRAG_THRESHOLD && absDy > absDx * 2) {
-          // User is scrolling vertically - allow page scroll
-          deactivate();
-          lastIndexRef.current = null;
-          onInspectEnd?.();
-          stateRef.current = "SCROLLING";
-          containerRef.current?.releasePointerCapture(ev.pointerId);
-          return;
-        }
-
         // Horizontal or diagonal movement - continue scrubbing through data
         // Prevent default to stop page interactions while scrubbing
+        setTouchAction("none");
         if (ev.cancelable) ev.preventDefault();
 
         const chartX = getChartX(clientX);
@@ -1240,6 +1238,7 @@ export function useMobileChartTouch({
       onPan,
       onInspect,
       onInspectEnd,
+      setTouchAction,
     ],
   );
 
@@ -1255,6 +1254,7 @@ export function useMobileChartTouch({
         // ignore
       }
 
+      setTouchAction("pan-y");
       if (stateRef.current === "INSPECTING") {
         deactivate();
         lastIndexRef.current = null;
@@ -1265,7 +1265,7 @@ export function useMobileChartTouch({
 
       stateRef.current = "IDLE";
     },
-    [containerRef, deactivate, onPanEnd, onInspectEnd],
+    [containerRef, deactivate, onPanEnd, onInspectEnd, setTouchAction],
   );
 
   const handlePointerCancel = React.useCallback(
@@ -1280,6 +1280,7 @@ export function useMobileChartTouch({
         // ignore
       }
 
+      setTouchAction("pan-y");
       if (stateRef.current === "INSPECTING") {
         deactivate();
         lastIndexRef.current = null;
@@ -1291,7 +1292,7 @@ export function useMobileChartTouch({
 
       stateRef.current = "IDLE";
     },
-    [containerRef, deactivate, onPanEnd, onInspectEnd],
+    [containerRef, deactivate, onPanEnd, onInspectEnd, setTouchAction],
   );
 
   React.useEffect(() => {
