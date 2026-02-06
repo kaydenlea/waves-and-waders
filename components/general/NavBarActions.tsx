@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { startTransition, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { LazyLoadDatePicker } from "./LazyLoad/LazyLoadDatePicker";
 import SearchBar from "./SearchBar";
@@ -127,7 +127,11 @@ const NavBarActions = () => {
             beachId={effectiveBeachId}
             {...(selectedTab === "forecast" && { forecast: true })}
             value={selected}
-            onSelect={setSelected}
+            onSelect={(next) => {
+              startTransition(() => {
+                setSelected(next);
+              });
+            }}
           />
         ) : (
           <LazyLoadHourSlider

@@ -1,6 +1,7 @@
 "use client";
 
 import React, {
+  startTransition,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -235,6 +236,19 @@ DatePickerProps) => {
     }
   }, []);
 
+  const onSelectRef = useRef<DatePickerProps["onSelect"]>(onSelect);
+  useEffect(() => {
+    onSelectRef.current = onSelect;
+  }, [onSelect]);
+
+  const notifySelect = useCallback((day: Dayjs) => {
+    const handler = onSelectRef.current;
+    if (!handler) return;
+    startTransition(() => {
+      handler(day.toDate());
+    });
+  }, []);
+
   const releaseCarouselInteractionLock = useCallback(() => {
     interactionLockReleaseRef.current?.();
     interactionLockReleaseRef.current = null;
@@ -374,7 +388,7 @@ DatePickerProps) => {
       const firstKey = cachedSessionData.keys[0];
       const first = cachedSessionData.data[firstKey]?.date ?? dayjs(firstKey);
       setSelectedDate(first);
-      onSelect?.(first.toDate());
+      notifySelect(first);
     }
 
     const run = async () => {
@@ -395,7 +409,7 @@ DatePickerProps) => {
         } else if (!selectedDate && cached.keys.length > 0) {
           const first = cached.data[cached.keys[0]].date;
           setSelectedDate(first);
-          onSelect?.(first.toDate());
+          notifySelect(first);
         }
         return;
       }
@@ -568,7 +582,7 @@ DatePickerProps) => {
             const first = limitedGroups[limitedKeys[0]].date;
             setSelectedDate(first);
             // notify parent so external consumers (Summary) can react
-            onSelect?.(first.toDate());
+            notifySelect(first);
           }
         }
       } catch (e) {
@@ -874,7 +888,7 @@ DatePickerProps) => {
                 <button
                   onClick={() => {
                     setSelectedDate(day);
-                    onSelect?.(day.toDate());
+                    notifySelect(day);
                   }}
                   className={cn(
                     "relative mx-1 my-0.5 flex flex-col items-center w-full py-1.5 text-center text-sm font-medium dark:hover:bg-highlight-5/60 hover:bg-highlight-5/60 shadow-even border-1 border-border/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/25 dark:focus-visible:ring-foreground/30 focus-visible:ring-offset-2 focus-visible:ring-offset-background",

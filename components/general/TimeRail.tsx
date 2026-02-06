@@ -238,7 +238,9 @@ const TimeRail: React.FC<Props> = ({
               beachId={beachId}
               value={selected ?? undefined}
               onSelect={(d) => {
-                setSelected(d);
+                startTransition(() => {
+                  setSelected(d);
+                });
               }}
             />
         </Collapsible.Content>
