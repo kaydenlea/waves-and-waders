@@ -259,7 +259,7 @@ function DirectionBadge({
         layout === "grid"
           ? "grid grid-cols-[0.9rem_1fr_1.5rem] items-center gap-x-1.5"
           : "inline-flex items-center gap-1",
-        "h-[23px] rounded-full border border-border/40 bg-foreground/[0.03] px-1.5 py-0.5",
+        "h-[23px] rounded-full border border-border/40 bg-foreground/[0.03] px-1 mb-0.5 @min-sm:mb-0 @min-sm:px-1.5 py-0.5",
         widthClassName,
         className,
       )}
@@ -277,7 +277,7 @@ function DirectionBadge({
       <span
         className={cn(
           labelVisibilityClassName,
-          "text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground mt-0.5 inline-block @min-[412px]:hidden @min-lg:inline-block",
+          "text-[0.55rem] @min-sm:text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground mt-0.5 inline-block @min-[412px]:hidden @min-lg:inline-block",
           layout === "grid" && "justify-self-center",
           !showMap &&
             variant === "half" &&
@@ -510,8 +510,8 @@ const SwellStat = ({
                 className={cn(
                   "tabular-nums leading-none",
                   primary
-                    ? "text-[1rem] font-semibold"
-                    : "text-[1rem] font-semibold",
+                    ? "text-[0.9rem] @min-sm:text-[1rem] font-semibold"
+                    : "text-[0.9rem] @min-sm:text-[1rem] font-semibold",
                 )}
               >
                 {height}

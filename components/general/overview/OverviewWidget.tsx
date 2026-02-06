@@ -59,7 +59,7 @@ export default function OverviewWidget({
 
   const icon = iconMap[lowerCaseLabel] ?? <CircleGauge className="h-4 w-4" />;
   const showInlineUnit = Boolean(
-    unit && (headerContent == null || label === "Daily")
+    unit && (headerContent == null || label === "Daily"),
   );
   const unitIsToggle = Boolean(unit && onUnitClick);
   const unitPrimaryClassName =
@@ -73,7 +73,7 @@ export default function OverviewWidget({
           className={cn(
             "inline-flex items-center rounded-full border border-border/25 bg-foreground/5 px-2.5 py-1",
             "text-xs font-medium text-muted-foreground whitespace-nowrap tabular-nums",
-            className
+            className,
           )}
         >
           {unit}
@@ -87,7 +87,7 @@ export default function OverviewWidget({
           className={cn(
             "inline-flex items-center gap-2 rounded-full border border-border/25 bg-foreground/5 px-3 py-2",
             "text-xs font-medium text-muted-foreground whitespace-nowrap opacity-70",
-            className
+            className,
           )}
         >
           <ClockFading
@@ -110,7 +110,7 @@ export default function OverviewWidget({
           "transition-colors duration-200 motion-reduce:transition-none",
           "hover:bg-foreground/10",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0",
-          className
+          className,
         )}
       >
         <ClockFading
@@ -149,7 +149,7 @@ export default function OverviewWidget({
                     aria-hidden="true"
                     className={cn(
                       "pointer-events-none absolute inset-0 rounded-xl bg-highlight-5/40",
-                      "animate-pulse motion-reduce:animate-none"
+                      "animate-pulse motion-reduce:animate-none",
                     )}
                   />
                 ) : null}
@@ -160,12 +160,12 @@ export default function OverviewWidget({
 
         <div
           className={cn(
-            "px-2.5 @min-md:px-4 touch-pan-y relative",
+            "px-1.5 @min-sm:px-2.5 @min-md:px-4 touch-pan-y relative",
             label !== "Daily"
               ? extraPadding
                 ? "px-2.5 @min-md:px-5 pb-[24px]"
                 : "pb-[22px]"
-              : "pb-[18px]"
+              : "pb-[18px]",
           )}
         >
           <div className="relative">
@@ -178,7 +178,7 @@ export default function OverviewWidget({
               className={cn(
                 effectiveLoading
                   ? "opacity-0 pointer-events-none"
-                  : "opacity-100 transition-opacity duration-200 motion-reduce:transition-none"
+                  : "opacity-100 transition-opacity duration-200 motion-reduce:transition-none",
               )}
             >
               {children}

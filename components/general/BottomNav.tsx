@@ -73,7 +73,13 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
     [searchCtx?.setIsOverlay],
   );
   const [mobile, setIsMobile] = useState(false);
-  const { openPanel, setOpenPanel } = useMapUI();
+  const {
+    openPanel,
+    setOpenPanel,
+    contentCollapsed,
+    setContentCollapsed,
+    setContentRevealRequestId,
+  } = useMapUI();
   const { filters, setFilters } = useMapData();
   const { selectedTab } = useClientPath();
   const forecastPage = selectedTab === "forecast";
@@ -158,24 +164,24 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
   //   };
   // }, [mobile, landingPage, isEditing, atTop, openPanel, pathname]);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (!mobile) return;
-    if (landingPage) return;
-    if (!atTop) return;
-    if (openPanel === "filters") return;
+  // useEffect(() => {
+  //   if (typeof window === "undefined") return;
+  //   if (!mobile) return;
+  //   if (landingPage) return;
+  //   if (!atTop) return;
+  //   if (openPanel === "filters") return;
 
-    const mapContainer = document.getElementById("map-container");
-    if (!mapContainer) return;
+  //   const mapContainer = document.getElementById("map-container");
+  //   if (!mapContainer) return;
 
-    if (window.scrollY !== 0) {
-      try {
-        window.scrollTo({ top: 0 });
-      } catch {
-        window.scrollTo(0, 0);
-      }
-    }
-  }, [atTop, mobile, isEditing, landingPage, openPanel]);
+  //   if (window.scrollY !== 0) {
+  //     try {
+  //       window.scrollTo({ top: 0 });
+  //     } catch {
+  //       window.scrollTo(0, 0);
+  //     }
+  //   }
+  // }, [atTop, mobile, isEditing, landingPage, openPanel]);
 
   // hide main scrollbar when filters panel is open
   useEffect(() => {
@@ -268,7 +274,10 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
 
             // While the browser UI is animating (URL bar / bottom controls), do not toggle.
             // Also require the visual viewport to have settled for several consecutive frames.
-            if (viewportChanging || viewportStableFramesRef.current < requiredStableFrames) {
+            if (
+              viewportChanging ||
+              viewportStableFramesRef.current < requiredStableFrames
+            ) {
               scrollAccumRef.current = 0;
               scrollDirRef.current = 0;
               return prev;
@@ -432,42 +441,55 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
         )}
       >
         {atTop && !landingPage ? (
-          <div className="touch-pan-y block @min-4xl:hidden flex justify-center mt-10 mb-8">
-            <button
-              onClick={() => {
-                const content = document.getElementById("content");
-                if (content) {
-                  const headerOffset = 117;
-                  const rect = content.getBoundingClientRect();
-                  const absoluteTop = rect.top + window.scrollY;
-                  try {
-                    window.scrollTo({
-                      top: Math.max(absoluteTop - headerOffset, 0),
-                      behavior: "smooth",
-                    });
-                  } catch {
-                    content.scrollIntoView({
-                      behavior: "smooth",
-                      block: "start",
-                    });
+          contentCollapsed ? (
+            <div className="touch-pan-y block @min-4xl:hidden flex justify-center mt-10 mb-8">
+              <button
+                onClick={() => {
+                  const runScroll = () => {
+                    const content = document.getElementById("content");
+                    if (!content) return;
+                    try {
+                      content.scrollIntoView({ behavior: "smooth", block: "start" });
+                    } catch {
+                      try {
+                        const rect = content.getBoundingClientRect();
+                        const absoluteTop = rect.top + window.scrollY;
+                        window.scrollTo({
+                          top: Math.max(absoluteTop - 117, 0),
+                          behavior: "smooth",
+                        });
+                      } catch {}
+                    }
+                  };
+
+                  // If the content is currently fully collapsed, expand it first so the
+                  // scroll target is computed against the final layout (avoids a
+                  // secondary "extra scroll" caused by spacer height changes).
+                  if (contentCollapsed) {
+                    setContentRevealRequestId((prev) => prev + 1);
+                    setContentCollapsed(false);
+                    requestAnimationFrame(runScroll);
+                    return;
                   }
-                }
-              }}
-              aria-label="Scroll to content"
-              className="flex items-center gap-1 px-4 py-3 rounded-full bg-background backdrop-blur border border-border shadow-lg text-sm font-medium text-foreground hover:bg-highlight-5 transition-colors touch-none select-none"
-            >
-              <span className="min-w-0 max-w-[min(72vw,18rem)] truncate text-center">
-                {fullMapPage
-                  ? beachName?.trim()
-                    ? beachName.trim()
-                    : forecastPage
-                      ? "Forecast"
-                      : "Overview"
-                  : "Beaches"}
-              </span>
-              <ChevronDown className="w-5 h-5" />
-            </button>
-          </div>
+
+                  runScroll();
+                }}
+                aria-label="Scroll to content"
+                className="flex items-center gap-1 px-4 py-3 rounded-full bg-background backdrop-blur border border-border shadow-lg text-sm font-medium text-foreground hover:bg-highlight-5 transition-colors touch-none select-none"
+              >
+                <span className="min-w-0 max-w-[min(72vw,18rem)] truncate text-center">
+                  {fullMapPage
+                    ? beachName?.trim()
+                      ? beachName.trim()
+                      : forecastPage
+                        ? "Forecast"
+                        : "Overview"
+                    : "Beaches"}
+                </span>
+                <ChevronDown className="w-5 h-5" />
+              </button>
+            </div>
+          ) : null
         ) : landingPage ? (
           atTop ? (
             <></>
@@ -605,176 +627,186 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
             </div>
           ) : (
             <>
-          {(() => {
-            const isBeaches = pathname.endsWith("/beaches");
-            const isNearby = isBeaches && selectedTab === "nearby";
-            const isSaved = isBeaches && selectedTab === "saved";
-            const browseHref = "/beaches?tab=nearby";
-            const savedHref = user
-              ? "/beaches?tab=saved"
-              : `/login?next=${encodeURIComponent("/beaches?tab=saved")}`;
-            const itemClass = (active: boolean) =>
-              cn(
-                "p-2 rounded-2xl flex flex-col items-center gap-1 @min-[350px]:min-w-15 transition-colors",
-                "hover:bg-highlight-5",
-                active ? "text-foreground" : "text-foreground/80",
-              );
-            return (
-              <>
-                <Link
-                  href={browseHref}
-                  aria-current={isNearby ? "page" : undefined}
-                  className={itemClass(isNearby)}
-                  onClick={() => {
-                    try {
-                      if (typeof window !== "undefined") {
-                        window.localStorage.setItem("tab:/beaches", "nearby");
-                      }
-                    } catch {}
-                  }}
-                >
-                  <MapPinned
-                    className={cn(
-                      "w-6 h-6 @min-[350px]:w-5 @min-[350px]:h-5 -mt-0.5",
-                      isNearby
-                        ? "fill-foreground text-background"
-                        : "text-foreground/80",
-                    )}
-                  />
-                  <span
-                    className={cn(
-                      "text-[0.6rem] @min-md:text-xs",
-                      "font-medium leading-none",
-                      isNearby
-                        ? "font-medium text-foreground"
-                        : "text-foreground/80",
-                    )}
-                  >
-                    Browse
-                  </span>
-                </Link>
-                <Link
-                  href={savedHref}
-                  aria-current={isSaved ? "page" : undefined}
-                  className={itemClass(isSaved)}
-                  onClick={() => {
-                    if (!user) return;
-                    try {
-                      if (typeof window !== "undefined") {
-                        window.localStorage.setItem("tab:/beaches", "saved");
-                      }
-                    } catch {}
-                  }}
-                >
-                  <Heart
-                    className={cn(
-                      "w-6 h-6 @min-[350px]:w-5 @min-[350px]:h-5 -mt-0.5",
-                      isSaved
-                        ? "fill-foreground text-background"
-                        : "text-foreground/80",
-                    )}
-                  />
-                  <span
-                    className={cn(
-                      "text-[0.6rem] @min-md:text-xs",
-                      "font-medium leading-none",
-                      isSaved
-                        ? "font-medium text-foreground"
-                        : "text-foreground/80",
-                    )}
-                  >
-                    Saved
-                  </span>
-                </Link>
-              </>
-            );
-          })()}
-          <button
-            type="button"
-            aria-label="search"
-            onClick={() => setIsOverlay(true)}
-            aria-pressed={isOverlay}
-            className={cn(
-              "group/button inline-flex @min-4xl:hidden items-center gap-1 rounded-full bg-gradient-to-br from-cyan-300 to-blue-500 p-3 font-medium text-foreground shadow-lg shadow-cyan-500/30 transition active:scale-[0.98]",
-              isOverlay ? "ring-2 ring-foreground/20" : "hover:scale-[1.05]",
-            )}
-          >
-            <Search
-              className="h-5 w-5 group-hover/button:scale-[1.05]"
-              strokeWidth={3}
-            />
-          </button>
-          {/* <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-cyan-300 to-blue-500 text-foreground shadow-lg shadow-cyan-500/20">
+              {(() => {
+                const isBeaches = pathname.endsWith("/beaches");
+                const isNearby = isBeaches && selectedTab === "nearby";
+                const isSaved = isBeaches && selectedTab === "saved";
+                const browseHref = "/beaches?tab=nearby";
+                const savedHref = user
+                  ? "/beaches?tab=saved"
+                  : `/login?next=${encodeURIComponent("/beaches?tab=saved")}`;
+                const itemClass = (active: boolean) =>
+                  cn(
+                    "p-2 rounded-2xl flex flex-col items-center gap-1 @min-[350px]:min-w-15 transition-colors",
+                    "hover:bg-highlight-5",
+                    active ? "text-foreground" : "text-foreground/80",
+                  );
+                return (
+                  <>
+                    <Link
+                      href={browseHref}
+                      aria-current={isNearby ? "page" : undefined}
+                      className={itemClass(isNearby)}
+                      onClick={() => {
+                        try {
+                          if (typeof window !== "undefined") {
+                            window.localStorage.setItem(
+                              "tab:/beaches",
+                              "nearby",
+                            );
+                          }
+                        } catch {}
+                      }}
+                    >
+                      <MapPinned
+                        className={cn(
+                          "w-6 h-6 @min-[350px]:w-5 @min-[350px]:h-5 -mt-0.5",
+                          isNearby
+                            ? "fill-foreground text-background"
+                            : "text-foreground/80",
+                        )}
+                      />
+                      <span
+                        className={cn(
+                          "text-[0.6rem] @min-md:text-xs",
+                          "font-medium leading-none",
+                          isNearby
+                            ? "font-medium text-foreground"
+                            : "text-foreground/80",
+                        )}
+                      >
+                        Browse
+                      </span>
+                    </Link>
+                    <Link
+                      href={savedHref}
+                      aria-current={isSaved ? "page" : undefined}
+                      className={itemClass(isSaved)}
+                      onClick={() => {
+                        if (!user) return;
+                        try {
+                          if (typeof window !== "undefined") {
+                            window.localStorage.setItem(
+                              "tab:/beaches",
+                              "saved",
+                            );
+                          }
+                        } catch {}
+                      }}
+                    >
+                      <Heart
+                        className={cn(
+                          "w-6 h-6 @min-[350px]:w-5 @min-[350px]:h-5 -mt-0.5",
+                          isSaved
+                            ? "fill-foreground text-background"
+                            : "text-foreground/80",
+                        )}
+                      />
+                      <span
+                        className={cn(
+                          "text-[0.6rem] @min-md:text-xs",
+                          "font-medium leading-none",
+                          isSaved
+                            ? "font-medium text-foreground"
+                            : "text-foreground/80",
+                        )}
+                      >
+                        Saved
+                      </span>
+                    </Link>
+                  </>
+                );
+              })()}
+              <button
+                type="button"
+                aria-label="search"
+                onClick={() => setIsOverlay(true)}
+                aria-pressed={isOverlay}
+                className={cn(
+                  "group/button inline-flex @min-4xl:hidden items-center gap-1 rounded-full bg-gradient-to-br from-cyan-300 to-blue-500 p-3 font-medium text-foreground shadow-lg shadow-cyan-500/30 transition active:scale-[0.98]",
+                  isOverlay
+                    ? "ring-2 ring-foreground/20"
+                    : "hover:scale-[1.05]",
+                )}
+              >
+                <Search
+                  className="h-5 w-5 group-hover/button:scale-[1.05]"
+                  strokeWidth={3}
+                />
+              </button>
+              {/* <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-cyan-300 to-blue-500 text-foreground shadow-lg shadow-cyan-500/20">
           <Waves className="h-6 w-6" aria-hidden />
         </div> */}
-          {user ? (
-            <AppMenu open={profileOpen} onOpenChange={setProfileOpen}>
-              <AppMenuTrigger
-                id="bottom-nav-profile-trigger"
-                className="text-foreground/80 hover:bg-highlight-5 p-2 rounded-2xl flex flex-col items-center gap-1 @min-[350px]:min-w-15"
-              >
-                <User className="w-6 h-6 @min-[350px]:w-5 @min-[350px]:h-5 -mt-0.5" />
-                <span className="font-medium text-[0.6rem] @min-md:text-xs">
-                  Profile
-                </span>
-              </AppMenuTrigger>
-              <AppMenuContent align="end" sideOffset={10} className="w-72">
-                <AppMenuHeader
-                  title="Account"
-                  subtitle={displayEmail}
-                  icon={<User className="h-4 w-4" />}
-                />
-                <AppMenuSeparator />
-                <AppMenuItem
-                  asChild
-                  onSelect={() => {
-                    try {
-                      if (typeof window !== "undefined") {
-                        window.localStorage.setItem("tab:/beaches", "saved");
-                      }
-                    } catch {}
-                    setProfileOpen(false);
-                  }}
+              {user ? (
+                <AppMenu open={profileOpen} onOpenChange={setProfileOpen}>
+                  <AppMenuTrigger
+                    id="bottom-nav-profile-trigger"
+                    className="text-foreground/80 hover:bg-highlight-5 p-2 rounded-2xl flex flex-col items-center gap-1 @min-[350px]:min-w-15"
+                  >
+                    <User className="w-6 h-6 @min-[350px]:w-5 @min-[350px]:h-5 -mt-0.5" />
+                    <span className="font-medium text-[0.6rem] @min-md:text-xs">
+                      Profile
+                    </span>
+                  </AppMenuTrigger>
+                  <AppMenuContent align="end" sideOffset={10} className="w-72">
+                    <AppMenuHeader
+                      title="Account"
+                      subtitle={displayEmail}
+                      icon={<User className="h-4 w-4" />}
+                    />
+                    <AppMenuSeparator />
+                    <AppMenuItem
+                      asChild
+                      onSelect={() => {
+                        try {
+                          if (typeof window !== "undefined") {
+                            window.localStorage.setItem(
+                              "tab:/beaches",
+                              "saved",
+                            );
+                          }
+                        } catch {}
+                        setProfileOpen(false);
+                      }}
+                    >
+                      <Link href="/beaches?tab=saved">
+                        <Heart className="w-5 h-5 -mt-0.5" /> Saved spots
+                      </Link>
+                    </AppMenuItem>
+                    <AppMenuSeparator />
+                    <AppMenuItem
+                      variant="destructive"
+                      onSelect={async () => {
+                        setProfileOpen(false);
+                        await supabase.auth.signOut();
+                        router.refresh();
+                      }}
+                    >
+                      <LogOut className="h-5 w-5" /> Sign out
+                    </AppMenuItem>
+                  </AppMenuContent>
+                </AppMenu>
+              ) : (
+                <button
+                  type="button"
+                  className="text-foreground/80 hover:bg-highlight-5 p-2 rounded-2xl flex flex-col items-center gap-1 @min-[350px]:min-w-15"
+                  onClick={() => router.push("/login")}
                 >
-                  <Link href="/beaches?tab=saved">
-                    <Heart className="w-5 h-5 -mt-0.5" /> Saved spots
-                  </Link>
-                </AppMenuItem>
-                <AppMenuSeparator />
-                <AppMenuItem
-                  variant="destructive"
-                  onSelect={async () => {
-                    setProfileOpen(false);
-                    await supabase.auth.signOut();
-                    router.refresh();
-                  }}
-                >
-                  <LogOut className="h-5 w-5" /> Sign out
-                </AppMenuItem>
-              </AppMenuContent>
-            </AppMenu>
-          ) : (
-            <button
-              type="button"
-              className="text-foreground/80 hover:bg-highlight-5 p-2 rounded-2xl flex flex-col items-center gap-1 @min-[350px]:min-w-15"
-              onClick={() => router.push("/login")}
-            >
-              <User className="w-6 h-6 @min-[350px]:w-5 @min-[350px]:h-5 -mt-0.5" />
-              <span className="font-medium text-[0.6rem] @min-md:text-xs">
-                Profile
-              </span>
-            </button>
-          )}
-          <NavMoreMenu
-            bottomNavMode
-            landingPage={landingPage}
-            links={BOTTOM_NAV_MORE_LINKS}
-          />
+                  <User className="w-6 h-6 @min-[350px]:w-5 @min-[350px]:h-5 -mt-0.5" />
+                  <span className="font-medium text-[0.6rem] @min-md:text-xs">
+                    Profile
+                  </span>
+                </button>
+              )}
+              <NavMoreMenu
+                bottomNavMode
+                landingPage={landingPage}
+                links={BOTTOM_NAV_MORE_LINKS}
+              />
             </>
           )}
         </nav>
       </div>
-
     </>
   );
 }

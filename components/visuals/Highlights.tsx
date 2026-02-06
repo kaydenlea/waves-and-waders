@@ -2522,7 +2522,7 @@ const Highlights = ({
                           "@min-3xl:grid-cols-[10px_35px] @min-4xl:grid-cols-[10px_35px_20px] @min-6xl:grid-cols-[auto]",
                         layout === "carousel"
                           ? "grid-cols-[auto]"
-                          : "grid-cols-[auto] @min-[385px]:grid-cols-[10px_30px] @min-md:grid-cols-[10px_35px_20px] @min-3xl:grid-cols-[10px_30px] @min-4xl:grid-cols-[10px_35px_20px]",
+                          : "grid-cols-[10px_30px] @min-md:grid-cols-[10px_35px_20px] @min-3xl:grid-cols-[10px_30px] @min-4xl:grid-cols-[10px_35px_20px]",
                       )}
                     >
                       <svg
@@ -2558,12 +2558,10 @@ const Highlights = ({
                       </svg>
                       <span
                         className={cn(
-                          "text-[0.55rem] @min-md:text-[0.6rem] mt-0.5 @min-md:mt-0 font-semibold uppercase tracking-wide text-center",
+                          "text-[0.55rem] @min-md:text-[0.6rem] mt-0 @min-sm:mt-0.5 @min-md:mt-0 font-semibold uppercase tracking-wide text-center",
                           primary ? "" : "text-muted-foreground",
                           isFull && "@min-6xl:hidden",
-                          layout === "carousel"
-                            ? "hidden"
-                            : "hidden @min-[385px]:inline-block",
+                          layout === "carousel" ? "hidden" : "inline-block",
                         )}
                       >
                         {dir}
@@ -2596,12 +2594,12 @@ const Highlights = ({
                               "@min-6xl:grid-cols-[0.375rem_2rem_1.5rem_auto]",
                             layout === "carousel"
                               ? "grid-cols-[0.375rem_1.75rem_1.25rem_auto]"
-                              : "grid-cols-[0.375rem_1.75rem_1.25rem_auto] @min-md:grid-cols-[0.375rem_2.3rem_1.8rem_auto]",
+                              : "grid-cols-[1.75rem_1.25rem_auto] @min-sm:grid-cols-[0.375rem_1.75rem_1.25rem_auto] @min-md:grid-cols-[0.375rem_2.3rem_1.8rem_auto]",
                           )}
                         >
                           <span
                             aria-hidden="true"
-                            className="h-1.5 w-1.5 shrink-0 rounded-full"
+                            className="hidden @min-sm:block h-1.5 w-1.5 shrink-0 rounded-full"
                             style={{ background: SWELL_COLORS.primary }}
                           />
                           <span className="inline-flex w-full items-baseline justify-start gap-0.5 whitespace-nowrap tabular-nums">
@@ -2652,12 +2650,12 @@ const Highlights = ({
                                 "@min-6xl:grid-cols-[0.375rem_2rem_1.5rem_auto]",
                               layout === "carousel"
                                 ? "grid-cols-[0.375rem_1.75rem_1.25rem_auto]"
-                                : "grid-cols-[0.375rem_1.75rem_1.25rem_auto] @min-md:grid-cols-[0.375rem_2.3rem_1.8rem_auto]",
+                                : "grid-cols-[1.75rem_1.25rem_auto] @min-sm:grid-cols-[0.375rem_1.75rem_1.25rem_auto] @min-md:grid-cols-[0.375rem_2.3rem_1.8rem_auto]",
                             )}
                           >
                             <span
                               aria-hidden="true"
-                              className="h-1.5 w-1.5 shrink-0 rounded-full"
+                              className="hidden @min-sm:block h-1.5 w-1.5 shrink-0 rounded-full"
                               style={{ background: SWELL_COLORS.secondary }}
                             />
                             <span className="inline-flex w-full items-baseline justify-start gap-0.5 whitespace-nowrap tabular-nums">
@@ -2705,12 +2703,12 @@ const Highlights = ({
                                 "@min-6xl:grid-cols-[0.375rem_2rem_1.5rem_auto]",
                               layout === "carousel"
                                 ? "grid-cols-[0.375rem_1.75rem_1.25rem_auto]"
-                                : "grid-cols-[0.375rem_1.75rem_1.25rem_auto] @min-md:grid-cols-[0.375rem_2.3rem_1.8rem_auto]",
+                                : "grid-cols-[1.75rem_1.25rem_auto] @min-sm:grid-cols-[0.375rem_1.75rem_1.25rem_auto] @min-md:grid-cols-[0.375rem_2.3rem_1.8rem_auto]",
                             )}
                           >
                             <span
                               aria-hidden="true"
-                              className="h-1.5 w-1.5 shrink-0 rounded-full"
+                              className="hidden @min-sm:block h-1.5 w-1.5 shrink-0 rounded-full"
                               style={{ background: SWELL_COLORS.tertiary }}
                             />
                             <span className="inline-flex w-full items-baseline justify-start gap-0.5 whitespace-nowrap tabular-nums">

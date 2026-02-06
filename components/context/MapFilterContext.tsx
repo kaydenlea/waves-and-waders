@@ -23,6 +23,10 @@ type MapUIContextValue = {
   setLegendOpen: React.Dispatch<React.SetStateAction<boolean>>;
   showMap: boolean;
   setShowMap: React.Dispatch<React.SetStateAction<boolean>>;
+  contentCollapsed: boolean;
+  setContentCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
+  contentRevealRequestId: number;
+  setContentRevealRequestId: React.Dispatch<React.SetStateAction<number>>;
 };
 
 type MapDataContextValue = {
@@ -87,6 +91,9 @@ export function MapFilterProvider({ children }: { children: React.ReactNode }) {
     setOpenPanel((prev) => (prev === panel ? null : panel));
   }, []);
   const [showMap, setShowMap] = React.useState(true);
+  const [contentCollapsed, setContentCollapsed] = React.useState(false);
+  const [contentRevealRequestId, setContentRevealRequestId] =
+    React.useState(0);
   const popupId = React.useRef<string | null>(null);
   const popupRef = React.useRef<{
     id: number;
@@ -115,8 +122,19 @@ export function MapFilterProvider({ children }: { children: React.ReactNode }) {
       setLegendOpen,
       showMap,
       setShowMap,
+      contentCollapsed,
+      setContentCollapsed,
+      contentRevealRequestId,
+      setContentRevealRequestId,
     }),
-    [openPanel, togglePanel, legendOpen, showMap]
+    [
+      openPanel,
+      togglePanel,
+      legendOpen,
+      showMap,
+      contentCollapsed,
+      contentRevealRequestId,
+    ]
   );
 
   const popupValue = React.useMemo(

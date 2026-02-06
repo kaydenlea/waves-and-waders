@@ -202,7 +202,7 @@ DatePickerProps) => {
         month: "2-digit",
         day: "2-digit",
       }),
-    []
+    [],
   );
   const pacificNoonFormatter = useMemo(
     () =>
@@ -211,23 +211,23 @@ DatePickerProps) => {
         hour: "2-digit",
         hour12: false,
       }),
-    []
+    [],
   );
   const pacificDayKeyFormatter = useMemo(
     () =>
       new Intl.DateTimeFormat("en-CA", {
         timeZone: "America/Los_Angeles",
       }),
-    []
+    [],
   );
   const pacificTodayKey = useMemo(
     () => pacificDayKeyFormatter.format(new Date(pacificTodayMs)),
-    [pacificDayKeyFormatter, pacificTodayMs]
+    [pacificDayKeyFormatter, pacificTodayMs],
   );
 
   const storageKey = useMemo(
     () => (beachId ? `date-picker-cache:${beachId}` : null),
-    [beachId]
+    [beachId],
   );
 
   const ensureCarouselInteractionLock = useCallback(() => {
@@ -270,7 +270,7 @@ DatePickerProps) => {
     if (!api) return;
     const nextIndex = Math.min(
       api.selectedScrollSnap() + scrollBy,
-      api.scrollSnapList().length - 1
+      api.scrollSnapList().length - 1,
     );
     beginCarouselMotionLock();
     api.scrollTo(nextIndex);
@@ -423,7 +423,7 @@ DatePickerProps) => {
         const data: ForecastData[] = await fetchBeachForecast(
           beachId,
           start,
-          end
+          end,
         );
 
         // Group by local YYYY-MM-DD using a robust timestamp parse
@@ -477,11 +477,11 @@ DatePickerProps) => {
             const noonUTC = Date.UTC(yearNum, monthNum, dayNum, 12, 0, 0, 0);
             const noonDate = new Date(noonUTC);
             const pacificNoonHour = parseInt(
-              pacificNoonFormatter.format(noonDate)
+              pacificNoonFormatter.format(noonDate),
             );
             const offsetHours = pacificNoonHour - 12;
             const midnightUTC = new Date(
-              Date.UTC(yearNum, monthNum, dayNum, -offsetHours, 0, 0, 0)
+              Date.UTC(yearNum, monthNum, dayNum, -offsetHours, 0, 0, 0),
             );
 
             groups[key] = {
@@ -566,7 +566,7 @@ DatePickerProps) => {
                   data: limitedGroups,
                   keys: limitedKeys,
                   pacificTodayKey,
-                })
+                }),
               );
             } catch (err) {
               if (process.env.NODE_ENV !== "production") {
@@ -649,13 +649,13 @@ DatePickerProps) => {
   const rangeStartIdx = Math.max(0, startIdx);
   const rangeEndIdx = Math.min(
     orderedKeys.length - 1,
-    Math.max(endIdx, rangeStartIdx)
+    Math.max(endIdx, rangeStartIdx),
   );
 
   useEffect(() => {
     if (!beachId || orderedKeys.length === 0) return;
     const missing = orderedKeys.filter(
-      (dateKey) => surfIntensityByDate[dateKey] == null
+      (dateKey) => surfIntensityByDate[dateKey] == null,
     );
     if (!missing.length) return;
 
@@ -666,7 +666,7 @@ DatePickerProps) => {
         missing.map(async (dateKey) => {
           try {
             const record = await fetchSurfIntensityAPI(
-              new Date(`${dateKey}T00:00:00Z`)
+              new Date(`${dateKey}T00:00:00Z`),
             );
             const value = record[beachId];
             if (typeof value === "number" && Number.isFinite(value)) {
@@ -676,11 +676,11 @@ DatePickerProps) => {
             if (process.env.NODE_ENV !== "production") {
               console.warn(
                 `Failed to fetch surf intensity for ${dateKey}`,
-                error
+                error,
               );
             }
           }
-        })
+        }),
       );
       if (!cancelled && Object.keys(updates).length) {
         setSurfIntensityByDate((prev) => ({ ...prev, ...updates }));
@@ -701,7 +701,7 @@ DatePickerProps) => {
 
   const { data: selectedIntensityRecord } = useSurfIntensity(
     selectedDateForIntensity,
-    Boolean(beachId && selectedDateForIntensity)
+    Boolean(beachId && selectedDateForIntensity),
   );
 
   useEffect(() => {
@@ -733,15 +733,15 @@ DatePickerProps) => {
       });
       if (forecast && orderedKeys.length > 0) {
         setSelectedDays((prev) =>
-          datesEqual(prev, daysRange) ? prev : daysRange
+          datesEqual(prev, daysRange) ? prev : daysRange,
         );
       }
 
       const targetKey = selectedDate
         ? selectedDate.format("YYYY-MM-DD")
         : value instanceof Date
-        ? dayjs(value).format("YYYY-MM-DD")
-        : null;
+          ? dayjs(value).format("YYYY-MM-DD")
+          : null;
 
       if (targetKey) {
         const summary = summaries[targetKey];
@@ -805,7 +805,10 @@ DatePickerProps) => {
   return (
     <div
       ref={rootRef}
-      className={cn("relative w-full px-2 py-2 rounded-2xl touch-pan-x", className)}
+      className={cn(
+        "relative w-full px-2 py-2 rounded-2xl touch-pan-x",
+        className,
+      )}
       style={{ touchAction: "pan-x" }}
     >
       {orderedKeys.length === 0 && (
@@ -840,7 +843,7 @@ DatePickerProps) => {
             const weather = getWeatherIcon(code);
 
             const intensityColor = getSurfIntensityColorCss(
-              getSurfIntensityBand(surfIntensity)
+              getSurfIntensityBand(surfIntensity),
             );
 
             const rangeClasses = forecast
@@ -853,12 +856,12 @@ DatePickerProps) => {
                     !isRangeEnd && "border-r-0",
                     isRangeStart && isRangeEnd && "rounded-xl mx-1",
                     isRangeStart && !isRangeEnd && "rounded-l-xl ml-1",
-                    isRangeEnd && !isRangeStart && "rounded-r-xl mr-1"
+                    isRangeEnd && !isRangeStart && "rounded-r-xl mr-1",
                   )
                 : cn(
                     "rounded-xl bg-background/70 dark:bg-highlight-4/60",
                     "border-1 border-border/15",
-                    "shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
+                    "shadow-[0_1px_2px_rgba(0,0,0,0.08)]",
                   )
               : "bg-background dark:bg-highlight-4 rounded-xl";
             const buttonRounding = forecast ? "rounded-none" : "rounded-md";
@@ -867,13 +870,13 @@ DatePickerProps) => {
                   "bg-highlight-6 dark:bg-highlight-5/40 hover:bg-highlight-6/95 dark:hover:bg-highlight-5/90",
                   "ring-inset ring-1 ring-foreground/20 dark:ring-foreground/25",
                   "shadow-[0_4px_14px_rgba(0,0,0,0.16)]",
-                  "after:absolute after:inset-x-9 after:bottom-1 after:h-px after:rounded-full after:bg-foreground/25 dark:after:bg-foreground/35 after:content-['']"
+                  "after:absolute after:inset-x-9 after:bottom-1 after:h-px after:rounded-full after:bg-foreground/25 dark:after:bg-foreground/35 after:content-['']",
                 )
               : cn(
                   "bg-highlight-6 dark:bg-highlight-5/85 hover:bg-highlight-6/95 dark:hover:bg-highlight-5/90",
                   "ring-inset ring-2 ring-foreground/20 dark:ring-foreground/25",
                   "shadow-[0_4px_14px_rgba(0,0,0,0.16)]",
-                  "after:absolute after:inset-x-9 after:bottom-1 after:h-px after:rounded-full after:bg-foreground/25 dark:after:bg-foreground/35 after:content-['']"
+                  "after:absolute after:inset-x-9 after:bottom-1 after:h-px after:rounded-full after:bg-foreground/25 dark:after:bg-foreground/35 after:content-['']",
                 );
 
             return (
@@ -882,7 +885,7 @@ DatePickerProps) => {
                 className={cn(
                   itemsPerView === 3
                     ? "basis-1/3 flex justify-center"
-                    : "basis-1/2 @min-[350px]:basis-1/3 @min-md:basis-1/4 @min-xl:basis-1/5 @min-2xl:basis-1/6 @min-3xl:basis-1/7 flex justify-center"
+                    : "basis-1/3 @min-[350px]:basis-1/3 @min-md:basis-1/4 @min-xl:basis-1/5 @min-2xl:basis-1/6 @min-3xl:basis-1/7 flex justify-center",
                 )}
               >
                 <button
@@ -895,7 +898,7 @@ DatePickerProps) => {
                     forecast ? "transition-none" : "transition-colors",
                     buttonRounding,
                     rangeClasses,
-                    isSelected && selectedClasses
+                    isSelected && selectedClasses,
                   )}
                 >
                   <span className="font-semibold text-[0.7rem] @min-sm:text-[0.7rem] whitespace-nowrap">
@@ -904,7 +907,7 @@ DatePickerProps) => {
                     ) : (
                       <>
                         <span className="hidden @min-sm:inline">{`${day.format(
-                          "ddd"
+                          "ddd",
                         )}, `}</span>
                         <span>{`${day.format("M/D")}`}</span>
                       </>
@@ -912,7 +915,7 @@ DatePickerProps) => {
                   </span>
                   <span
                     className={cn(
-                      "inline-block w-12 @min-sm:w-16 h-1 rounded-full"
+                      "inline-block w-12 @min-sm:w-16 h-1 rounded-full",
                     )}
                     style={{ backgroundColor: intensityColor }}
                   />
@@ -957,7 +960,9 @@ DatePickerProps) => {
                   style={{ touchAction: disableDrag ? "pan-y" : "pan-x" }}
                   onPointerDownCapture={() => ensureCarouselInteractionLock()}
                   onPointerUpCapture={() => releaseCarouselInteractionLock()}
-                  onPointerCancelCapture={() => releaseCarouselInteractionLock()}
+                  onPointerCancelCapture={() =>
+                    releaseCarouselInteractionLock()
+                  }
                   onPointerLeave={() => releaseCarouselInteractionLockIfIdle()}
                 >
                   <div className="flex mx-0">{items}</div>
@@ -970,7 +975,12 @@ DatePickerProps) => {
             <Carousel
               opts={
                 disableDrag
-                  ? { align: "start", loop: false, dragFree: false, watchDrag: false }
+                  ? {
+                      align: "start",
+                      loop: false,
+                      dragFree: false,
+                      watchDrag: false,
+                    }
                   : { align: "start", loop: false, dragFree: true }
               }
               setApi={setApi}
@@ -981,13 +991,21 @@ DatePickerProps) => {
               style={{ touchAction: disableDrag ? "pan-y" : "pan-x" }}
             >
               {effectiveShowNav ? (
-                <CarouselPrevious onClick={handlePrev} className={navButtonClassName} />
+                <CarouselPrevious
+                  onClick={handlePrev}
+                  className={navButtonClassName}
+                />
               ) : null}
-              <CarouselContent className={cn("mx-0", !disableDrag && "touch-pan-x")}>
+              <CarouselContent
+                className={cn("mx-0", !disableDrag && "touch-pan-x")}
+              >
                 {items}
               </CarouselContent>
               {effectiveShowNav ? (
-                <CarouselNext onClick={handleNext} className={navButtonClassName} />
+                <CarouselNext
+                  onClick={handleNext}
+                  className={navButtonClassName}
+                />
               ) : null}
             </Carousel>
           );

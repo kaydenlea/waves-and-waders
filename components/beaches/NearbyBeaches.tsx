@@ -327,9 +327,10 @@ export default function NearbyBeaches() {
       window.scrollTo({ top: Math.max(0, top), behavior });
     };
 
-    run("smooth");
-    requestAnimationFrame(() => run("auto"));
-    window.setTimeout(() => run("auto"), 120);
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    run(prefersReducedMotion ? "auto" : "smooth");
   }, []);
 
   useEffect(() => {

@@ -1,6 +1,7 @@
 "use client";
 
 import { MapPin } from "lucide-react";
+import { useMapUI } from "../context/MapFilterContext";
 
 const wideScreenWidth = 911;
 // export const scrollToMap = () => {
@@ -25,11 +26,15 @@ export const scrollToMap = () => {
 };
 
 export default function BackToMapButton() {
+  const { setContentCollapsed } = useMapUI();
   return (
     <div className="touch-pan-y block @min-4xl:hidden flex justify-center mt-10 mb-4">
       <button
         aria-label="back to map"
-        onClick={scrollToMap}
+        onClick={() => {
+          setContentCollapsed(true);
+          scrollToMap();
+        }}
         className="flex items-center gap-1 px-4 py-3 rounded-full bg-background backdrop-blur border border-border shadow-lg text-sm font-medium text-foreground hover:bg-highlight-3 transition-colors"
       >
         <span>Map</span>
