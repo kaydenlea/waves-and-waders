@@ -16,27 +16,33 @@ const Breadcrumbs = ({ items }: BreadcrumbsProps) => {
   return (
     <>
       <nav aria-label="Breadcrumb" className="mb-4">
-        <ol className="flex items-center gap-2 text-sm text-muted-foreground">
+        <ol className="flex items-start gap-2 text-sm text-muted-foreground">
           <li>
             <Link
               href="/"
-              className="flex items-center hover:text-foreground transition-colors"
+              className="flex items-start hover:text-foreground transition-colors"
               aria-label="Home"
             >
-              <Home className="h-4 w-4" />
+              <Home className="h-4 w-4 mt-[0.1rem]" />
             </Link>
           </li>
           {items.map((item, index) => (
-            <li key={item.href} className="flex items-center gap-2">
-              <ChevronRight className="h-4 w-4" aria-hidden="true" />
+            <li key={item.href} className="flex items-start gap-2">
+              <ChevronRight
+                className="h-4 w-4 mt-[0.1rem] shrink-0"
+                aria-hidden="true"
+              />
               {index === items.length - 1 ? (
-                <span className="font-medium text-foreground" aria-current="page">
+                <span
+                  className="font-medium text-foreground leading-snug"
+                  aria-current="page"
+                >
                   {item.label}
                 </span>
               ) : (
                 <Link
                   href={item.href}
-                  className="hover:text-foreground transition-colors"
+                  className="hover:text-foreground transition-colors leading-snug"
                 >
                   {item.label}
                 </Link>
