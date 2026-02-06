@@ -41,7 +41,7 @@ export default function DashboardPersonalizationPreview({
     >
       <div
         aria-hidden
-        className="aspect-[16/10] min-h-[20rem] max-[639px]:min-h-[22rem] w-full"
+        className="aspect-[16/10] min-h-[18rem] sm:min-h-[20rem] w-full"
       />
       <div className="absolute inset-0">
         <DashboardPersonalizationCarousel />

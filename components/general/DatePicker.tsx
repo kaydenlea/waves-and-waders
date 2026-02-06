@@ -49,6 +49,7 @@ type DatePickerProps = {
   maxDays?: number;
   showNav?: boolean;
   itemsPerView?: 2 | 3;
+  disableDrag?: boolean;
 };
 
 type DaySummary = {
@@ -141,6 +142,7 @@ const DatePicker = ({
   maxDays,
   showNav = true,
   itemsPerView,
+  disableDrag = false,
 }: // forecast = false,
 DatePickerProps) => {
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -926,9 +928,14 @@ DatePickerProps) => {
           if (useNativeDragScroll) {
             return (
               <div className="w-full flex items-center gap-1">
-              <div
-                  className="flex-1 overflow-x-auto overscroll-y-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-                  style={{ touchAction: "pan-x" }}
+                <div
+                  className={cn(
+                    "flex-1",
+                    disableDrag
+                      ? "overflow-hidden"
+                      : "overflow-x-auto overscroll-y-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+                  )}
+                  style={{ touchAction: disableDrag ? "pan-y" : "pan-x" }}
                   onPointerDownCapture={() => ensureCarouselInteractionLock()}
                   onPointerUpCapture={() => releaseCarouselInteractionLock()}
                   onPointerCancelCapture={() => releaseCarouselInteractionLock()}
@@ -942,15 +949,24 @@ DatePickerProps) => {
 
           return (
             <Carousel
-              opts={{ align: "start", loop: false, dragFree: true }}
+              opts={
+                disableDrag
+                  ? { align: "start", loop: false, dragFree: false, watchDrag: false }
+                  : { align: "start", loop: false, dragFree: true }
+              }
               setApi={setApi}
-              className="w-full flex items-center gap-1 touch-pan-x"
-              style={{ touchAction: "pan-x" }}
+              className={cn(
+                "w-full flex items-center gap-1",
+                !disableDrag && "touch-pan-x",
+              )}
+              style={{ touchAction: disableDrag ? "pan-y" : "pan-x" }}
             >
               {effectiveShowNav ? (
                 <CarouselPrevious onClick={handlePrev} className={navButtonClassName} />
               ) : null}
-              <CarouselContent className="mx-0 touch-pan-x">{items}</CarouselContent>
+              <CarouselContent className={cn("mx-0", !disableDrag && "touch-pan-x")}>
+                {items}
+              </CarouselContent>
               {effectiveShowNav ? (
                 <CarouselNext onClick={handleNext} className={navButtonClassName} />
               ) : null}

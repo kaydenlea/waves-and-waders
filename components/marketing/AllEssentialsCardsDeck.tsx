@@ -146,17 +146,21 @@ function WindowPickerVisual() {
           </div>
         </div>
 
-        <div className="@min-[350px]:mt-0 w-full">
+        <div
+          className="@min-[350px]:mt-0 w-full"
+          data-ww-essentials-deck-no-swipe="1"
+        >
           <LazyLoadDatePicker
             beachId={PREVIEW_BEACH_ID}
             maxDays={3}
             showNav={false}
             itemsPerView={3}
+            disableDrag
             className="mx-auto max-w-[420px] px-0 py-0"
           />
         </div>
 
-        <div className="w-full px-1">
+        <div className="w-full px-1" data-ww-essentials-deck-no-swipe="1">
           <div className="mb-2 text-xs font-semibold tracking-wide text-foreground/70 dark:text-foreground/85">
             Slide to scan the day
           </div>
@@ -439,6 +443,7 @@ export default function AllEssentialsCardsDeck() {
 
   const touchStartX = React.useRef<number | null>(null);
   const touchDeltaX = React.useRef<number>(0);
+  const touchIgnoreSwipeRef = React.useRef(false);
 
   const total = cards.length;
   const leftIndex = (active - 1 + total) % total;
@@ -461,21 +466,45 @@ export default function AllEssentialsCardsDeck() {
             if (e.key === "ArrowRight") next();
           }}
           onTouchStart={(e) => {
+            const target = e.target as HTMLElement | null;
+            if (
+              target?.closest?.(
+                '[data-ww-essentials-deck-no-swipe="1"]',
+              )
+            ) {
+              touchIgnoreSwipeRef.current = true;
+              touchStartX.current = null;
+              touchDeltaX.current = 0;
+              return;
+            }
+            touchIgnoreSwipeRef.current = false;
             touchStartX.current = e.touches[0]?.clientX ?? null;
             touchDeltaX.current = 0;
           }}
           onTouchMove={(e) => {
+            if (touchIgnoreSwipeRef.current) return;
             if (touchStartX.current == null) return;
             const x = e.touches[0]?.clientX ?? touchStartX.current;
             touchDeltaX.current = x - touchStartX.current;
           }}
           onTouchEnd={() => {
+            if (touchIgnoreSwipeRef.current) {
+              touchIgnoreSwipeRef.current = false;
+              touchStartX.current = null;
+              touchDeltaX.current = 0;
+              return;
+            }
             const dx = touchDeltaX.current;
             touchStartX.current = null;
             touchDeltaX.current = 0;
             if (Math.abs(dx) < 50) return;
             if (dx > 0) prev();
             else next();
+          }}
+          onTouchCancel={() => {
+            touchIgnoreSwipeRef.current = false;
+            touchStartX.current = null;
+            touchDeltaX.current = 0;
           }}
         >
           <div className="relative w-full overflow-hidden py-4">

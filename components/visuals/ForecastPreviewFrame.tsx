@@ -29,6 +29,7 @@ export default function ForecastPreviewFrame({
     <div
       className={cn(
         "relative h-full w-full overflow-hidden rounded-2xl border border-border/60 bg-background shadow-lg shadow-black/10 ring-1 ring-black/5",
+        "flex flex-col",
         "dark:border-border/80 dark:shadow-black/40 dark:ring-white/10",
         className
       )}
@@ -75,7 +76,7 @@ export default function ForecastPreviewFrame({
         </div>
       </div>
 
-      <div className="relative h-[calc(100%-3.25rem)] w-full bg-background">
+      <div className="relative min-h-0 flex-1 w-full bg-background">
         <div className="absolute inset-0 p-3 sm:p-4">
           <div
             className={cn(
