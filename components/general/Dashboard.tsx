@@ -228,14 +228,18 @@ const DraggableCard = React.memo(function DraggableCard({
           type="button"
           aria-label={`Drag ${meta.title}`}
           title="Drag to move"
-          onPointerDownCapture={(e) =>
-            onGrabPointerDownCapture?.(id, e.currentTarget)
-          }
+          onPointerDownCapture={(e) => {
+            if (e.pointerType === "touch" && e.cancelable) {
+              e.preventDefault();
+            }
+            onGrabPointerDownCapture?.(id, e.currentTarget);
+          }}
+          onContextMenu={(e) => e.preventDefault()}
           {...attributes}
           {...listeners}
           ref={setActivatorNodeRef}
           className={cn(
-            "touch-none cursor-grab rounded-full",
+            "touch-none select-none [-webkit-touch-callout:none] cursor-grab rounded-full",
             "grid size-9 place-items-center",
             "border border-border/80 bg-background/85 shadow-lg ring-1 ring-foreground/10",
             "supports-[backdrop-filter]:backdrop-blur-md",
@@ -272,14 +276,18 @@ const DraggableCard = React.memo(function DraggableCard({
             type="button"
             aria-label={`Drag ${meta.title}`}
             title="Drag to move"
-            onPointerDownCapture={(e) =>
-              onGrabPointerDownCapture?.(id, e.currentTarget)
-            }
+            onPointerDownCapture={(e) => {
+              if (e.pointerType === "touch" && e.cancelable) {
+                e.preventDefault();
+              }
+              onGrabPointerDownCapture?.(id, e.currentTarget);
+            }}
+            onContextMenu={(e) => e.preventDefault()}
             {...attributes}
             {...listeners}
             ref={setActivatorNodeRef}
             className={cn(
-              "touch-none cursor-grab rounded-full",
+              "touch-none select-none [-webkit-touch-callout:none] cursor-grab rounded-full",
               "grid size-9 place-items-center",
               "border border-border/80 bg-background/85 shadow-lg ring-1 ring-foreground/10",
               "supports-[backdrop-filter]:backdrop-blur-md",
@@ -355,11 +363,21 @@ const Gap = React.memo(function Gap({
         return;
       }
       const rect = el.getBoundingClientRect();
+      const scrollLeft =
+        window.scrollX ??
+        (typeof document !== "undefined"
+          ? document.documentElement.scrollLeft
+          : 0);
+      const scrollTop =
+        window.scrollY ??
+        (typeof document !== "undefined"
+          ? document.documentElement.scrollTop
+          : 0);
       const next = {
-        left: rect.left,
-        top: rect.top,
-        width: rect.width,
-        height: rect.height,
+        left: Math.round(rect.left + scrollLeft),
+        top: Math.round(rect.top + scrollTop),
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
       };
       setOverlayRect((prev) => {
         if (
@@ -414,7 +432,7 @@ const Gap = React.memo(function Gap({
             <div
               aria-hidden="true"
               style={{
-                position: "fixed",
+                position: "absolute",
                 left: overlayRect.left,
                 top: overlayRect.top,
                 width: overlayRect.width,
@@ -629,7 +647,7 @@ export default function Dashboard({
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 1 } }),
     useSensor(TouchSensor, {
-      activationConstraint: { delay: 100, tolerance: 5 },
+      activationConstraint: { distance: 1 },
     }),
   );
 
@@ -1197,7 +1215,9 @@ export default function Dashboard({
                   />
                 ) : null}
               </DragOverlay>,
-              containerRef.current ?? document.body,
+              isTwoColumn && containerRef.current
+                ? containerRef.current
+                : document.body,
             )
           : null}
         {/* Render rows and gaps. Nothing reflows during drag; only indicators update */}

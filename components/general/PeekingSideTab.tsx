@@ -49,7 +49,7 @@ export default function PeekingSideTab({
   return (
     <div
       className={cn(
-        "pointer-events-none fixed left-0 top-[42%] sm:top-3/4 -translate-y-3/4 z-[60] transition-opacity duration-200 motion-reduce:transition-none",
+        "pointer-events-none fixed left-0 top-[42%] sm:top-3/4 -translate-y-3/4 z-[80] transition-opacity duration-200 motion-reduce:transition-none",
         hidden && "opacity-0",
         className
       )}
