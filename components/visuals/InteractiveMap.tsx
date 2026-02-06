@@ -264,7 +264,15 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
   const [storedSelectionId, setStoredSelectionId] = React.useState<
     string | null
   >(null);
-  const { openPanel, setOpenPanel, togglePanel, showMap, setShowMap } =
+  const {
+    openPanel,
+    setOpenPanel,
+    togglePanel,
+    showMap,
+    setShowMap,
+    legendOpen,
+    setLegendOpen,
+  } =
     useMapUI();
   const {
     popupData,
@@ -1576,8 +1584,8 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
   // Show legend by default on non-/beaches pages (overview/forecast)
   React.useEffect(() => {
     try {
-      if (fullMapPage && !openPanel) {
-        setOpenPanel("legend");
+      if (fullMapPage && !legendOpen) {
+        setLegendOpen(true);
       }
     } catch {}
     // only react to route context changes
@@ -2237,7 +2245,7 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
           selectedPointVisible={selectedPointVisible}
           zoom={zoom}
           overlayLabels={resolvedOverlayLabels}
-          legendOpen={openPanel === "legend"}
+          legendOpen={legendOpen}
           overlaysHidden={overlaysHidden}
         />
 
@@ -2494,7 +2502,7 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
                 onClick={() => togglePanel("legend")}
                 className={cn(
                   "bg-highlight-7/80 backdrop-blur hover:bg-blue-200 dark:hover:bg-blue-400 rounded-full border border-border shadow-lg p-3 text-sm font-medium flex items-center gap-2 active:scale-95 transition",
-                  openPanel === "legend" && "bg-blue-300",
+                  legendOpen && "bg-blue-300",
                   !fullMapPage && "hidden @min-4xl:block"
                 )}
               >
@@ -2527,6 +2535,7 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
             )}
             onClick={() => {
               if (openPanel) setOpenPanel(null);
+              if (legendOpen) setLegendOpen(false);
               setShowMap(!showMap);
             }}
           >
@@ -2540,7 +2549,7 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
 
         {/* LEGEND PANEL (small, upper overlay) */}
         <AnimatePresence>
-          {fullMapPage && openPanel === "legend" && (
+          {fullMapPage && legendOpen && (
             <motion.div
               key="legend"
               initial={{ x: "100%" }}
@@ -2550,7 +2559,7 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
               drag="x"
               dragConstraints={{ left: 0, right: 0 }}
               onDragEnd={(_, info) => {
-                if (info.offset.x > 100) setOpenPanel(null); // swipe right to close
+                if (info.offset.x > 100) setLegendOpen(false); // swipe right to close
               }}
               className="absolute top-0 right-0 h-fit max-h-[60vh] w-[75vw] max-w-sm z-60 flex flex-col"
               style={{ touchAction: "pan-y" }} // keeps map touch panning working

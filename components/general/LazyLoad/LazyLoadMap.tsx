@@ -24,18 +24,22 @@ const MapLoadingShell: React.FC<Pick<Props, "variant" | "ui">> = ({
     if (typeof window === "undefined") return false;
     return window.innerWidth < 911;
   });
-  if (!embedded && pathName.includes("edit")) return null;
+  const hideOnEditPage = !embedded && pathName.includes("edit");
 
   React.useEffect(() => {
+    if (hideOnEditPage) return;
     setHydrated(true);
-  }, []);
+  }, [hideOnEditPage]);
 
   React.useEffect(() => {
+    if (hideOnEditPage) return;
     if (typeof window === "undefined") return;
     const onResize = () => setSmallScreen(window.innerWidth < 911);
     window.addEventListener("resize", onResize, { passive: true });
     return () => window.removeEventListener("resize", onResize);
-  }, []);
+  }, [hideOnEditPage]);
+
+  if (hideOnEditPage) return null;
 
   const mobileViewportHeight =
     "calc(var(--ww-100vh, 100dvh) + env(safe-area-inset-top, 0px) - 4.25rem - max(env(safe-area-inset-bottom, 0px), var(--ww-bottom-ui, 0px)))";
@@ -61,7 +65,7 @@ const MapLoadingShell: React.FC<Pick<Props, "variant" | "ui">> = ({
         embedded
           ? "relative flex h-full w-full"
           : cn(
-              "touch-none overscroll-none fixed w-full mx-auto max-w-screen transition-all duration-300",
+              "touch-none overscroll-none fixed z-0 w-full mx-auto max-w-screen transition-all duration-300",
               "max-[911px]:min-h-[calc(var(--ww-100vh,100dvh)+env(safe-area-inset-top,0px)-4.25rem-max(env(safe-area-inset-bottom,0px),var(--ww-bottom-ui,0px)))] max-[911px]:h-[calc(var(--ww-100vh,100dvh)+env(safe-area-inset-top,0px)-4.25rem-max(env(safe-area-inset-bottom,0px),var(--ww-bottom-ui,0px)))]",
               "@min-4xl:box-border @min-4xl:sticky @min-4xl:top-[7.5rem] @min-4xl:flex-1 @min-4xl:py-3 @min-4xl:pl-5 @min-4xl:pr-3 @min-4xl:h-[calc(var(--ww-100vh,100dvh)-8rem-max(env(safe-area-inset-bottom,0px),var(--ww-bottom-ui,0px)))] flex"
             )

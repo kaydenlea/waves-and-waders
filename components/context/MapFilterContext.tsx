@@ -19,6 +19,8 @@ type MapUIContextValue = {
   openPanel: PanelKey | null;
   setOpenPanel: React.Dispatch<React.SetStateAction<PanelKey | null>>;
   togglePanel: (panel: PanelKey) => void;
+  legendOpen: boolean;
+  setLegendOpen: React.Dispatch<React.SetStateAction<boolean>>;
   showMap: boolean;
   setShowMap: React.Dispatch<React.SetStateAction<boolean>>;
 };
@@ -76,7 +78,12 @@ const MapHoverCardContext = React.createContext<
 
 export function MapFilterProvider({ children }: { children: React.ReactNode }) {
   const [openPanel, setOpenPanel] = React.useState<PanelKey | null>(null);
+  const [legendOpen, setLegendOpen] = React.useState(false);
   const togglePanel = React.useCallback((panel: PanelKey) => {
+    if (panel === "legend") {
+      setLegendOpen((prev) => !prev);
+      return;
+    }
     setOpenPanel((prev) => (prev === panel ? null : panel));
   }, []);
   const [showMap, setShowMap] = React.useState(true);
@@ -104,10 +111,12 @@ export function MapFilterProvider({ children }: { children: React.ReactNode }) {
       openPanel,
       setOpenPanel,
       togglePanel,
+      legendOpen,
+      setLegendOpen,
       showMap,
       setShowMap,
     }),
-    [openPanel, togglePanel, showMap]
+    [openPanel, togglePanel, legendOpen, showMap]
   );
 
   const popupValue = React.useMemo(

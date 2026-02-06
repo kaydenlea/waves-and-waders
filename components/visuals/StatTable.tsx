@@ -2912,17 +2912,19 @@ const StatTable = ({
             </colgroup>
             <thead>
               <tr>
-                <th scope="col" className="sticky left-0 z-10 w-12 pb-0">
-                  <div className="flex flex-col items-center gap-1">
-                    <div className="flex items-center gap-1 text-[0.7rem] font-medium uppercase tracking-wide text-muted-foreground">
-                      <Clock3 className="h-3.5 w-3.5" aria-hidden="true" />
-                      <span>Time</span>
+                <th scope="col" className="w-12 pb-0">
+                  <div className="sticky left-0 z-10 w-12 will-change-transform">
+                    <div className="flex flex-col items-center gap-1">
+                      <div className="flex items-center gap-1 text-[0.7rem] font-medium uppercase tracking-wide text-muted-foreground">
+                        <Clock3 className="h-3.5 w-3.5" aria-hidden="true" />
+                        <span>Time</span>
+                      </div>
+                      <span
+                        aria-hidden="true"
+                        className="h-[2px] w-8 rounded-full bg-foreground/20"
+                      />
+                      <span className="sr-only">Time</span>
                     </div>
-                    <span
-                      aria-hidden="true"
-                      className="h-[2px] w-8 rounded-full bg-foreground/20"
-                    />
-                    <span className="sr-only">Time</span>
                   </div>
                 </th>
                 {visibleColumns.map((col) => {
@@ -3121,11 +3123,10 @@ const StatTable = ({
                     key={`${i}-${entry.index}`}
                     className="transition-colors duration-200 motion-reduce:duration-0"
                   >
-                    <th
-                      scope="row"
-                      className="sticky left-0 z-10 p-0 align-middle bg-transparent"
-                    >
-                      <TimeCell time={entry.time} selected={isSelectedHour} />
+                    <th scope="row" className="p-0 align-middle bg-transparent">
+                      <div className="sticky left-0 z-10 w-12 will-change-transform">
+                        <TimeCell time={entry.time} selected={isSelectedHour} />
+                      </div>
                     </th>
                     {visibleColumns.map((col) => {
                       let content: React.ReactNode = null;

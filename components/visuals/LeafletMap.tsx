@@ -1646,7 +1646,15 @@ const LeafletMap: React.FC<Props> = ({
   const { favoriteIds } = useMapFavoriteIdsData();
   const { hoverCardId } = useMapHoverCardData();
   const deferredFilters = React.useDeferredValue(filters);
-  const { showMap, setShowMap, openPanel, setOpenPanel, togglePanel } =
+  const {
+    showMap,
+    setShowMap,
+    openPanel,
+    setOpenPanel,
+    togglePanel,
+    legendOpen,
+    setLegendOpen,
+  } =
     useMapUI();
 
   // Beaches page should always render with the map visible, even if another page hid it.
@@ -5293,9 +5301,9 @@ const LeafletMap: React.FC<Props> = ({
     if (legendInitializedRef.current) return;
     if (fullMapPage && !previewUi) {
       legendInitializedRef.current = true;
-      setOpenPanel((prev) => prev ?? "legend");
+      setLegendOpen(true);
     }
-  }, [fullMapPage, previewUi, setOpenPanel]);
+  }, [fullMapPage, previewUi, setLegendOpen]);
   const filterCount = filters.size;
 
   const overlayButtonBase = cn(
@@ -5339,7 +5347,7 @@ const LeafletMap: React.FC<Props> = ({
               ? "touch-pan-y relative flex h-full w-full"
               : "touch-none relative flex h-full w-full"
               : cn(
-                  "touch-none overscroll-none fixed w-full mx-auto max-w-screen transition-all duration-300",
+                  "touch-none overscroll-none fixed z-0 w-full mx-auto max-w-screen transition-all duration-300",
                   "@min-4xl:box-border @min-4xl:sticky @min-4xl:top-[7.5rem] @min-4xl:flex-1 @min-4xl:py-3 @min-4xl:pl-5 @min-4xl:pr-3 @min-4xl:h-[calc(var(--ww-100vh,100dvh)-8rem-max(env(safe-area-inset-bottom,0px),var(--ww-bottom-ui,0px)))] flex",
                 )
           }
@@ -5376,7 +5384,7 @@ const LeafletMap: React.FC<Props> = ({
             ? "touch-pan-y relative flex h-full w-full"
             : "touch-none overscroll-contain relative flex h-full w-full"
               : cn(
-                  "touch-none overscroll-contain fixed w-full mx-auto max-w-screen transition-all duration-300",
+                  "touch-none overscroll-contain fixed z-0 w-full mx-auto max-w-screen transition-all duration-300",
                   "@min-4xl:box-border @min-4xl:sticky @min-4xl:top-[7.5rem] @min-4xl:flex-1 @min-4xl:py-3 @min-4xl:pl-5 @min-4xl:pr-3 @min-4xl:h-[calc(var(--ww-100vh,100dvh)-8rem-max(env(safe-area-inset-bottom,0px),var(--ww-bottom-ui,0px)))] flex",
                 )
       }
@@ -5509,7 +5517,7 @@ const LeafletMap: React.FC<Props> = ({
                 className={cn(
                   overlayButtonBase,
                   "text-sm font-medium",
-                  openPanel === "legend" && overlayButtonActive,
+                  legendOpen && overlayButtonActive,
                 )}
               >
                 <Info className="w-5 h-5 mx-auto" />
@@ -5523,6 +5531,7 @@ const LeafletMap: React.FC<Props> = ({
                 className={cn(overlayButtonBase, "text-sm font-medium")}
                 onClick={() => {
                   if (openPanel) setOpenPanel(null);
+                  if (legendOpen) setLegendOpen(false);
                   let target = "/beaches";
                   try {
                     if (typeof window !== "undefined") {
@@ -5616,8 +5625,8 @@ const LeafletMap: React.FC<Props> = ({
             disableBlur={false}
           />
         )}
-        {!previewUi && fullMapPage && openPanel === "legend" && (
-          <LegendPanel onClose={() => setOpenPanel(null)} disableBlur={false} />
+        {!previewUi && fullMapPage && legendOpen && (
+          <LegendPanel onClose={() => setLegendOpen(false)} disableBlur={false} />
         )}
         {!previewUi &&
           mapReady &&
@@ -5632,7 +5641,7 @@ const LeafletMap: React.FC<Props> = ({
               swellDirections={swellDirections}
               windDirection={windDirection}
               overlayLabels={overlayLabels}
-              legendOpen={openPanel === "legend"}
+              legendOpen={legendOpen}
               compact={smallScreen === true}
               mapReady={mapReady}
               overlayPane={OVERLAY_PANE_ID}
