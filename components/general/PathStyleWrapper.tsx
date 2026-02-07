@@ -72,11 +72,38 @@ export default function PathStyleWrapper({
       startY = e.touches[0]?.clientY ?? 0;
     };
 
+    const findNestedScrollableAncestor = (target: EventTarget | null) => {
+      if (!target || !(target instanceof HTMLElement)) return null;
+      let el: HTMLElement | null = target;
+      while (el && el !== document.body && el !== scrollingEl) {
+        const style = window.getComputedStyle(el);
+        const overflowY = style.overflowY;
+        const canScrollY =
+          (overflowY === "auto" || overflowY === "scroll") &&
+          el.scrollHeight - el.clientHeight > 1;
+        if (canScrollY) return el;
+        el = el.parentElement;
+      }
+      return null;
+    };
+
     const onTouchMove = (e: TouchEvent) => {
       if (e.touches.length !== 1) return;
       const y = e.touches[0]?.clientY ?? 0;
       const dy = y - startY;
       if (dy === 0) return;
+
+      const nestedScroller = findNestedScrollableAncestor(e.target);
+      if (nestedScroller) {
+        const atTop = nestedScroller.scrollTop <= 0;
+        const atBottom =
+          nestedScroller.scrollTop + nestedScroller.clientHeight >=
+          nestedScroller.scrollHeight - 1;
+        if ((dy > 0 && atTop) || (dy < 0 && atBottom)) {
+          e.preventDefault();
+        }
+        return;
+      }
 
       const atTop = scrollingEl.scrollTop <= 0;
       const atBottom =
