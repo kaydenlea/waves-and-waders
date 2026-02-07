@@ -3,7 +3,6 @@
 import * as React from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
-import { acquireInteractionLock } from "@/lib/uiInteractionLock";
 
 function parseSvgNumber(value: string | null): number | null {
   if (!value) return null;
@@ -1016,7 +1015,7 @@ export function useMobileChartTouch({
   enabled?: boolean;
 }) {
   const { activate, deactivate, updatePosition } = useMobileTooltip();
-  const interactionLockReleaseRef = React.useRef<null | (() => void)>(null);
+  const scrollLockReleaseRef = React.useRef<null | (() => void)>(null);
 
   const stateRef = React.useRef<
     "IDLE" | "PENDING" | "INSPECTING" | "PANNING" | "SCROLLING"
@@ -1039,14 +1038,28 @@ export function useMobileChartTouch({
   const LONG_PRESS_SLOP_PX = 10;
   const DATA_STEP_HOURS = 3;
 
-  const ensureInteractionLock = React.useCallback(() => {
-    if (interactionLockReleaseRef.current) return;
-    interactionLockReleaseRef.current = acquireInteractionLock();
+  const ensureScrollLock = React.useCallback(() => {
+    if (scrollLockReleaseRef.current) return;
+    if (typeof document === "undefined") return;
+
+    const onTouchMove = (event: TouchEvent) => {
+      if (event.touches && event.touches.length > 1) return;
+      if (event.cancelable) event.preventDefault();
+    };
+
+    document.addEventListener("touchmove", onTouchMove, {
+      passive: false,
+      capture: true,
+    });
+
+    scrollLockReleaseRef.current = () => {
+      document.removeEventListener("touchmove", onTouchMove, true);
+    };
   }, []);
 
-  const releaseInteractionLock = React.useCallback(() => {
-    interactionLockReleaseRef.current?.();
-    interactionLockReleaseRef.current = null;
+  const releaseScrollLock = React.useCallback(() => {
+    scrollLockReleaseRef.current?.();
+    scrollLockReleaseRef.current = null;
   }, []);
 
   // Default: assume 3-hour intervals like surf/wind/swell/waveenergy charts
@@ -1134,7 +1147,7 @@ export function useMobileChartTouch({
           lastIndexRef.current = index;
 
           stateRef.current = "INSPECTING";
-          ensureInteractionLock();
+          ensureScrollLock();
           setTouchAction("none");
           try {
             containerRef.current?.setPointerCapture(ev.pointerId);
@@ -1158,8 +1171,9 @@ export function useMobileChartTouch({
       getChartX,
       activate,
       onInspect,
-      setTouchAction,
-    ],
+        setTouchAction,
+        ensureScrollLock,
+      ],
   );
 
   const handlePointerMove = React.useCallback(
@@ -1201,12 +1215,12 @@ export function useMobileChartTouch({
             if (absDy > DRAG_THRESHOLD && absDy > absDx * 2) {
               stateRef.current = "SCROLLING";
               setTouchAction("pan-y");
-              releaseInteractionLock();
+              releaseScrollLock();
               return;
             }
 
             stateRef.current = "PANNING";
-            ensureInteractionLock();
+            ensureScrollLock();
             setTouchAction("none");
             try {
               containerRef.current?.setPointerCapture(ev.pointerId);
@@ -1222,7 +1236,7 @@ export function useMobileChartTouch({
       if (stateRef.current === "INSPECTING") {
         // Horizontal or diagonal movement - continue scrubbing through data
         // Prevent default to stop page interactions while scrubbing
-        ensureInteractionLock();
+        ensureScrollLock();
         setTouchAction("none");
         if (ev.cancelable) ev.preventDefault();
 
@@ -1249,12 +1263,13 @@ export function useMobileChartTouch({
       getIndexFromX,
       getHour,
       getChartX,
-      deactivate,
       updatePosition,
       onPan,
       onInspect,
       onInspectEnd,
       setTouchAction,
+      ensureScrollLock,
+      releaseScrollLock,
     ],
   );
 
@@ -1271,7 +1286,7 @@ export function useMobileChartTouch({
       }
 
       setTouchAction("pan-y");
-      releaseInteractionLock();
+      releaseScrollLock();
       if (stateRef.current === "INSPECTING") {
         deactivate();
         lastIndexRef.current = null;
@@ -1282,7 +1297,7 @@ export function useMobileChartTouch({
 
       stateRef.current = "IDLE";
     },
-    [containerRef, deactivate, onPanEnd, onInspectEnd, setTouchAction],
+    [containerRef, deactivate, onPanEnd, onInspectEnd, releaseScrollLock, setTouchAction],
   );
 
   const handlePointerCancel = React.useCallback(
@@ -1298,7 +1313,7 @@ export function useMobileChartTouch({
       }
 
       setTouchAction("pan-y");
-      releaseInteractionLock();
+      releaseScrollLock();
       if (stateRef.current === "INSPECTING") {
         deactivate();
         lastIndexRef.current = null;
@@ -1310,7 +1325,7 @@ export function useMobileChartTouch({
 
       stateRef.current = "IDLE";
     },
-    [containerRef, deactivate, onPanEnd, onInspectEnd, setTouchAction],
+    [containerRef, deactivate, onPanEnd, onInspectEnd, releaseScrollLock, setTouchAction],
   );
 
   React.useEffect(() => {
@@ -1319,9 +1334,9 @@ export function useMobileChartTouch({
         window.clearTimeout(longPressTimeoutRef.current);
         longPressTimeoutRef.current = null;
       }
-      releaseInteractionLock();
+      releaseScrollLock();
     };
-  }, [releaseInteractionLock]);
+  }, [releaseScrollLock]);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
