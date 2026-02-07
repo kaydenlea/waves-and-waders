@@ -270,7 +270,7 @@ function ChartsSlide({
     const targetHour = (((Math.round(hour / 3) * 3) % 24) + 24) % 24;
     return (
       forecastRows.find(
-        (r) => new Date(r.timestamp).getHours() === targetHour,
+        (r) => new Date(r.timestamp).getUTCHours() === targetHour,
       ) ??
       forecastRows[0] ??
       null
@@ -279,28 +279,8 @@ function ChartsSlide({
 
   const currentTime = useNowTimeLabel();
 
-  const label = React.useMemo(() => {
-    const now = new Date();
-    const dataHour = Number.isFinite(hour) ? hour : now.getHours();
-    const nearestHour = Math.round(dataHour / 3) * 3;
-
-    const isToday =
-      date &&
-      date.getDate() === now.getDate() &&
-      date.getMonth() === now.getMonth() &&
-      date.getFullYear() === now.getFullYear();
-
-    const selectedDateTime = date ? new Date(date) : new Date(now);
-    selectedDateTime.setHours(nearestHour, 0, 0, 0);
-
-    const currentNearestHour = Math.round(now.getHours() / 3) * 3;
-    const currentDateTime = new Date(now);
-    currentDateTime.setHours(currentNearestHour, 0, 0, 0);
-
-    if (isToday && nearestHour === currentNearestHour) return "Current";
-    if (selectedDateTime < currentDateTime) return "Historical";
-    return "Forecast";
-  }, [date, hour]);
+  // Keep SSR output deterministic (avoid timezone/clock differences between server and client).
+  const label = "Forecast";
 
   const timeDisplay = React.useMemo(() => {
     const nowText = currentTime ?? "--:--";

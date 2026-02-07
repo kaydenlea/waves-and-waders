@@ -431,14 +431,16 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
   return (
     <>
       {/* Floating Map Button */}
-      <div
-        className={cn(
-          "fixed bottom-34 left-1/2 transform -translate-x-1/2 z-40 transition-all duration-300 @min-4xl:hidden flex items-center justify-center h-0",
-          // Hide when filters are active (overlay covers it)
-          showBottomUI && openPanel !== "filters"
-            ? "opacity-100 translate-y-0"
-            : "opacity-0 translate-y-5 pointer-events-none",
-        )}
+        <div
+          className={cn(
+            // Use a full-width fixed container + flex centering to avoid subpixel jitter
+            // when the button label changes during transitions.
+            "fixed bottom-34 inset-x-0 z-40 transition-all duration-300 @min-4xl:hidden flex items-center justify-center h-0",
+            // Hide when filters are active (overlay covers it)
+            showBottomUI && openPanel !== "filters"
+              ? "opacity-100 translate-y-0"
+              : "opacity-0 translate-y-5 pointer-events-none",
+          )}
       >
         {atTop && !landingPage ? (
           contentCollapsed ? (

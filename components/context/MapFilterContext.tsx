@@ -91,7 +91,7 @@ export function MapFilterProvider({ children }: { children: React.ReactNode }) {
     setOpenPanel((prev) => (prev === panel ? null : panel));
   }, []);
   const [showMap, setShowMap] = React.useState(true);
-  const [contentCollapsed, setContentCollapsed] = React.useState(false);
+  const [contentCollapsed, setContentCollapsed] = React.useState(true);
   const [contentRevealRequestId, setContentRevealRequestId] =
     React.useState(0);
   const popupId = React.useRef<string | null>(null);

@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useMapUI } from "../context/MapFilterContext";
+import { acquireInteractionLock } from "@/lib/uiInteractionLock";
 
 export default function PathStyleWrapper({
   children,
@@ -26,14 +27,19 @@ export default function PathStyleWrapper({
   const enforceContentPeek = beachPage || overviewPage;
   const [smallScreen, setSmallScreen] = useState(false);
   const [atTop, setAtTop] = useState(true);
+  const atTopRef = useRef(true);
+  const lastScrollEventAtRef = useRef(0);
+  const lastReachedTopAtRef = useRef(0);
   const [finePointer, setFinePointer] = useState(false);
   const gestureStartYRef = useRef<number | null>(null);
   const gestureStartXRef = useRef<number | null>(null);
   const gestureLockedUntilEndRef = useRef(false);
+  const gestureArmedRef = useRef(false);
   const [pullOffsetPx, setPullOffsetPx] = useState(0);
   const [pulling, setPulling] = useState(false);
   const lastHandledRevealRequestRef = useRef(0);
   const lastInitializedPathRef = useRef<string | null>(null);
+  const mapOnlyScrollLockReleaseRef = useRef<null | (() => void)>(null);
 
   useEffect(() => {
     if (!shouldLockOverscroll) return;
@@ -96,15 +102,29 @@ export default function PathStyleWrapper({
 
     const sync = () => {
       setSmallScreen(window.innerWidth < 911);
-      setAtTop(window.scrollY <= 1);
+      const nextAtTop = window.scrollY <= 1;
+      atTopRef.current = nextAtTop;
+      setAtTop(nextAtTop);
+      const now = window.performance?.now?.() ?? Date.now();
+      if (nextAtTop) lastReachedTopAtRef.current = now;
     };
 
     sync();
-    window.addEventListener("resize", sync, { passive: true });
-    window.addEventListener("scroll", sync, { passive: true });
+    const onResize = () => sync();
+    const onScroll = () => {
+      const now = window.performance?.now?.() ?? Date.now();
+      lastScrollEventAtRef.current = now;
+      const nextAtTop = window.scrollY <= 1;
+      if (nextAtTop && !atTopRef.current) lastReachedTopAtRef.current = now;
+      atTopRef.current = nextAtTop;
+      setAtTop(nextAtTop);
+    };
+
+    window.addEventListener("resize", onResize, { passive: true });
+    window.addEventListener("scroll", onScroll, { passive: true });
     return () => {
-      window.removeEventListener("resize", sync);
-      window.removeEventListener("scroll", sync);
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("scroll", onScroll);
     };
   }, [enforceContentPeek]);
 
@@ -148,7 +168,38 @@ export default function PathStyleWrapper({
     if (lastInitializedPathRef.current === pathname) return;
     lastInitializedPathRef.current = pathname;
     setContentCollapsed(true);
+    try {
+      window.scrollTo(0, 0);
+    } catch {
+      window.scrollTo(0, 0);
+    }
   }, [enforceContentPeek, pathname, setContentCollapsed]);
+
+  useEffect(() => {
+    if (!enforceContentPeek) return;
+    if (!smallScreen) return;
+    if (typeof window === "undefined") return;
+
+    // Lock page scroll only once we're already at the very top (map-only state).
+    // This avoids fighting the "Back to map" smooth scroll-to-top animation and
+    // prevents the double-scroll/jump feeling.
+    if (contentCollapsed && atTop) {
+      if (!mapOnlyScrollLockReleaseRef.current) {
+        mapOnlyScrollLockReleaseRef.current = acquireInteractionLock();
+      }
+      return;
+    }
+
+    mapOnlyScrollLockReleaseRef.current?.();
+    mapOnlyScrollLockReleaseRef.current = null;
+  }, [atTop, contentCollapsed, enforceContentPeek, smallScreen]);
+
+  useEffect(() => {
+    return () => {
+      mapOnlyScrollLockReleaseRef.current?.();
+      mapOnlyScrollLockReleaseRef.current = null;
+    };
+  }, []);
 
   useLayoutEffect(() => {
     if (!enforceContentPeek) return;
@@ -200,6 +251,7 @@ export default function PathStyleWrapper({
 
     const resetGesture = () => {
       gestureLockedUntilEndRef.current = false;
+      gestureArmedRef.current = false;
       gestureStartXRef.current = null;
       gestureStartYRef.current = null;
       setPulling(false);
@@ -210,9 +262,19 @@ export default function PathStyleWrapper({
       if (contentCollapsed) return;
       if (window.scrollY > 1) return;
       if (e.touches.length !== 1) return;
+      if (document.body.dataset.wwScrolling === "1") return;
+
+      const now = window.performance?.now?.() ?? Date.now();
+      const scrollIdleMs = now - (lastScrollEventAtRef.current || 0);
+      const topIdleMs = now - (lastReachedTopAtRef.current || 0);
+
+      // Prevent accidental collapse during aggressive flicks when the user
+      // just arrived at the top; require a short "settle" at the peek.
+      if (scrollIdleMs < 220 || topIdleMs < 220) return;
 
       const t = e.touches[0];
       gestureLockedUntilEndRef.current = false;
+      gestureArmedRef.current = true;
       gestureStartXRef.current = t?.clientX ?? null;
       gestureStartYRef.current = t?.clientY ?? null;
       setPulling(true);
@@ -228,6 +290,7 @@ export default function PathStyleWrapper({
       if (contentCollapsed) return;
       if (window.scrollY > 1) return;
       if (e.touches.length !== 1) return;
+      if (!gestureArmedRef.current) return;
 
       const t = e.touches[0];
       const startX = gestureStartXRef.current;
@@ -254,6 +317,7 @@ export default function PathStyleWrapper({
       if (verticalEnough && dy > thresholdPx) {
         setContentCollapsed(true);
         gestureLockedUntilEndRef.current = true;
+        gestureArmedRef.current = false;
         setPulling(false);
         setPullOffsetPx(0);
         try {
@@ -276,12 +340,8 @@ export default function PathStyleWrapper({
     };
   }, [contentCollapsed, enforceContentPeek, setContentCollapsed, smallScreen]);
 
-  useEffect(() => {
-    if (!enforceContentPeek) return;
-    if (!atTop) {
-      setContentCollapsed(false);
-    }
-  }, [atTop, enforceContentPeek, setContentCollapsed]);
+  // Intentionally do not auto-expand content on scroll position changes.
+  // On map-driven pages the default should remain map-only until the user explicitly reveals content.
 
   const cls = useMemo(() => {
     if (beachPage) {
@@ -304,6 +364,9 @@ export default function PathStyleWrapper({
       : !effectiveEditPage && smallScreen
         ? { height: mobileSpacerBaseHeight }
         : undefined;
+
+  const applyPullTransform =
+    enforceContentPeek && smallScreen && (pulling || pullOffsetPx !== 0);
 
   return (
     <>
@@ -332,22 +395,25 @@ export default function PathStyleWrapper({
           showMap && "@min-4xl:pr-3",
         )}
         style={{
-          backfaceVisibility: "hidden",
-          WebkitBackfaceVisibility: "hidden",
-          ...(enforceContentPeek && smallScreen
+          ...(applyPullTransform
             ? {
                 transform: `translate3d(0, ${pullOffsetPx}px, 0)`,
                 transition: pulling
                   ? "none"
                   : "transform 220ms cubic-bezier(0.22, 1, 0.36, 1)",
-                willChange: pulling ? "transform" : undefined,
+                willChange: "transform",
+                backfaceVisibility: "hidden",
+                WebkitBackfaceVisibility: "hidden",
               }
             : {}),
         }}
       >
         {!effectiveEditPage && (
           <>
-            {enforceContentPeek && smallScreen && finePointer && !contentCollapsed ? (
+            {enforceContentPeek &&
+            smallScreen &&
+            finePointer &&
+            !contentCollapsed ? (
               <button
                 type="button"
                 aria-label="Collapse content"
