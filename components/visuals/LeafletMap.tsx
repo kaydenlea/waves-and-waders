@@ -3926,10 +3926,6 @@ const LeafletMap: React.FC<Props> = ({
       updateRefocusDisabled: latestUpdateRefocusDisabled = () => {},
       primeVisibleMarkerStats: latestPrimeVisibleMarkerStats = () => {},
     } = lifecycle;
-    const browser = L.Browser as LeafletBrowser;
-    if (typeof window !== "undefined" && browser.any3d) {
-      browser.any3d = false;
-    }
     const initialView = resolveInitialView(initialBeach, {
       allowStoredFallback: !embedded && !pathname.endsWith("/beaches"),
     });
@@ -3943,8 +3939,16 @@ const LeafletMap: React.FC<Props> = ({
       Math.max(WEST_LNG_LIMIT, initialView.longitude),
     );
     const embeddedPreview = embedded && previewUi;
+    const browser = L.Browser as LeafletBrowser;
     const coarsePointer = isTouchDevice();
     const touchInput = supportsTouchInput();
+    // Leaflet considers zoom animations available only when `Browser.any3d` is
+    // true. We disable 3D transforms for non-touch to avoid rendering edge-cases
+    // with GL basemap layers, but keep them on for touch so pinch zoom can track
+    // the user's gesture smoothly (fractional zoom + animated scaling).
+    if (typeof window !== "undefined" && browser.any3d && !touchInput) {
+      browser.any3d = false;
+    }
     const map = L.map(containerRef.current, {
       center: [clampedInitialLatitude, clampedInitialLongitude],
       zoom: initialView.zoom,
@@ -3980,9 +3984,11 @@ const LeafletMap: React.FC<Props> = ({
       // inertia: true,
       // inertiaDeceleration: 2500,
       // MapLibre GL Leaflet expects Leaflet's animation proxy to exist when zoomAnimation is on.
-      // Keep zoom animation off; Leaflet panning still uses 3D transforms when supported,
-      // but disabling zoom animation avoids proxy edge-cases with GL basemap layers.
-      zoomAnimation: false,
+      // Keep zoom animation off for non-touch (avoids proxy edge-cases with GL basemap layers),
+      // but enable it on touch so pinch zoom feels continuous instead of step-wise.
+      zoomAnimation: touchInput,
+      // Avoid animating lots of DOM markers during pinch zoom; keeps touch zoom smooth.
+      markerZoomAnimation: touchInput ? false : undefined,
       // Avoid missed taps on touch devices when the finger shifts slightly.
       tapTolerance: coarsePointer ? 35 : undefined,
     });
