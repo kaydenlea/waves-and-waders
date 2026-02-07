@@ -4,7 +4,6 @@ import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useMapUI } from "../context/MapFilterContext";
-import { acquireInteractionLock } from "@/lib/uiInteractionLock";
 
 export default function PathStyleWrapper({
   children,
@@ -25,8 +24,10 @@ export default function PathStyleWrapper({
   const shouldLockOverscroll = beachPage || overviewPage;
   const disableMobileGpuTransform = beachPage || overviewPage;
   const enforceContentPeek = beachPage || overviewPage;
-  const [smallScreen, setSmallScreen] = useState(false);
-  const [atTop, setAtTop] = useState(true);
+  const [smallScreen, setSmallScreen] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.innerWidth < 911;
+  });
   const atTopRef = useRef(true);
   const lastScrollEventAtRef = useRef(0);
   const lastReachedTopAtRef = useRef(0);
@@ -39,7 +40,6 @@ export default function PathStyleWrapper({
   const [pulling, setPulling] = useState(false);
   const lastHandledRevealRequestRef = useRef(0);
   const lastInitializedPathRef = useRef<string | null>(null);
-  const mapOnlyScrollLockReleaseRef = useRef<null | (() => void)>(null);
 
   useEffect(() => {
     if (!shouldLockOverscroll) return;
@@ -104,7 +104,6 @@ export default function PathStyleWrapper({
       setSmallScreen(window.innerWidth < 911);
       const nextAtTop = window.scrollY <= 1;
       atTopRef.current = nextAtTop;
-      setAtTop(nextAtTop);
       const now = window.performance?.now?.() ?? Date.now();
       if (nextAtTop) lastReachedTopAtRef.current = now;
     };
@@ -117,7 +116,6 @@ export default function PathStyleWrapper({
       const nextAtTop = window.scrollY <= 1;
       if (nextAtTop && !atTopRef.current) lastReachedTopAtRef.current = now;
       atTopRef.current = nextAtTop;
-      setAtTop(nextAtTop);
     };
 
     window.addEventListener("resize", onResize, { passive: true });
@@ -174,32 +172,6 @@ export default function PathStyleWrapper({
       window.scrollTo(0, 0);
     }
   }, [enforceContentPeek, pathname, setContentCollapsed]);
-
-  useEffect(() => {
-    if (!enforceContentPeek) return;
-    if (!smallScreen) return;
-    if (typeof window === "undefined") return;
-
-    // Lock page scroll only once we're already at the very top (map-only state).
-    // This avoids fighting the "Back to map" smooth scroll-to-top animation and
-    // prevents the double-scroll/jump feeling.
-    if (contentCollapsed && atTop) {
-      if (!mapOnlyScrollLockReleaseRef.current) {
-        mapOnlyScrollLockReleaseRef.current = acquireInteractionLock();
-      }
-      return;
-    }
-
-    mapOnlyScrollLockReleaseRef.current?.();
-    mapOnlyScrollLockReleaseRef.current = null;
-  }, [atTop, contentCollapsed, enforceContentPeek, smallScreen]);
-
-  useEffect(() => {
-    return () => {
-      mapOnlyScrollLockReleaseRef.current?.();
-      mapOnlyScrollLockReleaseRef.current = null;
-    };
-  }, []);
 
   useLayoutEffect(() => {
     if (!enforceContentPeek) return;
