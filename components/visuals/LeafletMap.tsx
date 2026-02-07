@@ -2249,7 +2249,17 @@ const LeafletMap: React.FC<Props> = ({
     if (filteredBeaches.length === 0) return;
     // Watchdog: if we ever end up with an empty marker registry while we have
     // beaches to display (e.g. a build was canceled mid-diff), trigger a rebuild.
-    if (Object.keys(markerRegistryRef.current).length !== 0) return;
+    const registryCount = Object.keys(markerRegistryRef.current).length;
+    let renderedLayerCount = 0;
+    const group = clusterLayerRef.current;
+    if (group) {
+      try {
+        renderedLayerCount = group.getLayers().length;
+      } catch {
+        renderedLayerCount = 0;
+      }
+    }
+    if (registryCount !== 0 && renderedLayerCount !== 0) return;
     requestMarkerRebuild();
   }, [filteredBeaches.length, mapReady, markersLoading, requestMarkerRebuild]);
 
