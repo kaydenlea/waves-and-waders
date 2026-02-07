@@ -21,7 +21,7 @@ const DARK_THEME_COLOR = "#0b1220";
 function ThemeColorSync() {
   const { resolvedTheme } = useTheme();
 
-  React.useEffect(() => {
+  React.useLayoutEffect(() => {
     if (typeof document === "undefined") return;
 
     const color =
