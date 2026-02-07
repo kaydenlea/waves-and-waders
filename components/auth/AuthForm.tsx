@@ -326,7 +326,7 @@ export const AuthForm = ({
                   value={newPassword}
                   onChange={(event) => setNewPassword(event.target.value)}
                   placeholder="Enter a new password"
-                  className="h-11 w-full rounded-xl border border-border bg-background/75 px-3 pl-10 text-sm outline-none ring-offset-background transition focus:border-foreground/30 focus:ring-2 focus:ring-ring/40 dark:bg-background/35"
+                  className="h-11 w-full rounded-xl border border-border bg-background/75 px-3 pl-10 text-[16px] sm:text-sm outline-none ring-offset-background transition focus:border-foreground/30 focus:ring-2 focus:ring-ring/40 dark:bg-background/35"
                   minLength={6}
                 />
               </div>
@@ -347,7 +347,7 @@ export const AuthForm = ({
                   value={confirmPassword}
                   onChange={(event) => setConfirmPassword(event.target.value)}
                   placeholder="Re-enter your new password"
-                  className="h-11 w-full rounded-xl border border-border bg-background/75 px-3 pl-10 text-sm outline-none ring-offset-background transition focus:border-foreground/30 focus:ring-2 focus:ring-ring/40 dark:bg-background/35"
+                  className="h-11 w-full rounded-xl border border-border bg-background/75 px-3 pl-10 text-[16px] sm:text-sm outline-none ring-offset-background transition focus:border-foreground/30 focus:ring-2 focus:ring-ring/40 dark:bg-background/35"
                   minLength={6}
                 />
               </div>
@@ -374,7 +374,7 @@ export const AuthForm = ({
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   placeholder="you@example.com"
-                  className="h-11 w-full rounded-xl border border-border bg-background/75 px-3 pl-10 text-sm outline-none ring-offset-background transition focus:border-foreground/30 focus:ring-2 focus:ring-ring/40 dark:bg-background/35"
+                  className="h-11 w-full rounded-xl border border-border bg-background/75 px-3 pl-10 text-[16px] sm:text-sm outline-none ring-offset-background transition focus:border-foreground/30 focus:ring-2 focus:ring-ring/40 dark:bg-background/35"
                 />
               </div>
             </label>
@@ -419,7 +419,7 @@ export const AuthForm = ({
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
                     placeholder="••••••••"
-                    className="h-11 w-full rounded-xl border border-border bg-background/75 px-3 pl-10 text-sm outline-none ring-offset-background transition focus:border-foreground/30 focus:ring-2 focus:ring-ring/40 dark:bg-background/35"
+                    className="h-11 w-full rounded-xl border border-border bg-background/75 px-3 pl-10 text-[16px] sm:text-sm outline-none ring-offset-background transition focus:border-foreground/30 focus:ring-2 focus:ring-ring/40 dark:bg-background/35"
                   />
                 </div>
               </div>

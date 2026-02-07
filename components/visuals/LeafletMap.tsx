@@ -1766,6 +1766,8 @@ const LeafletMap: React.FC<Props> = ({
     setShowMap,
   });
   const [mapReady, setMapReady] = React.useState(false);
+  const initRetryCountRef = React.useRef(0);
+  const [initAttemptNonce, setInitAttemptNonce] = React.useState(0);
   const [markersLoading, setMarkersLoading] = React.useState(false);
   const [refocusDisabled, setRefocusDisabled] = React.useState(true);
   const markerBuildTokenRef = React.useRef(0);
@@ -4002,6 +4004,8 @@ const LeafletMap: React.FC<Props> = ({
       // Avoid missed taps on touch devices when the finger shifts slightly.
       tapTolerance: coarsePointer ? 35 : undefined,
     });
+    // Assign immediately so any init errors still allow cleanup/retry logic to remove the map.
+    mapRef.current = map;
     // Keep the selected beach marker centered on mobile.
 
     const mapContainer = map.getContainer();
@@ -4279,7 +4283,6 @@ const LeafletMap: React.FC<Props> = ({
       debugLog("[LeafletMap] WebGL unavailable; using raster OSM tiles");
       addRasterBasemap();
     }
-    mapRef.current = map;
     if (!map.getPane(OVERLAY_PANE_ID)) {
       const pane = map.createPane(OVERLAY_PANE_ID);
       pane.style.zIndex = "750";
@@ -4301,6 +4304,7 @@ const LeafletMap: React.FC<Props> = ({
     clusterLayerRef.current = clusterGroup;
     clusterGroup.addTo(map);
     setMapReady(true);
+    initRetryCountRef.current = 0;
     latestScheduleCameraUpdate(0);
     latestPrimeVisibleMarkerStats();
     latestUpdateZoomButtons();
@@ -4571,7 +4575,44 @@ const LeafletMap: React.FC<Props> = ({
       setMapReady(false);
       latestClearHoverState();
     };
-  }, [effectiveShowMap, resetMarkerRegistry]);
+  }, [effectiveShowMap, resetMarkerRegistry, initAttemptNonce]);
+
+  React.useEffect(() => {
+    if (!effectiveShowMap) return;
+    if (mapReady) return;
+    if (typeof window === "undefined") return;
+    if (initRetryCountRef.current >= 2) return;
+
+    const timeoutId = window.setTimeout(() => {
+      if (!effectiveShowMap) return;
+      if (mapReady) return;
+      if (initRetryCountRef.current >= 2) return;
+
+      initRetryCountRef.current += 1;
+      try {
+        zoomControlRef.current?.remove();
+      } catch {}
+      zoomControlRef.current = null;
+      try {
+        clusterLayerRef.current?.remove();
+      } catch {}
+      clusterLayerRef.current = null;
+      try {
+        basemapLayerRef.current?.remove();
+      } catch {}
+      basemapLayerRef.current = null;
+      try {
+        mapRef.current?.remove();
+      } catch {}
+      mapRef.current = null;
+      resetMarkerRegistry();
+      setMarkersLoading(false);
+      setMapReady(false);
+      setInitAttemptNonce((value) => value + 1);
+    }, 900);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [effectiveShowMap, mapReady, initAttemptNonce, resetMarkerRegistry]);
 
   const focusMapToLatLng = React.useCallback(
     (

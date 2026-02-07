@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useEffect } from "react";
+import { startTransition, useCallback, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { LazyLoadDatePicker } from "./LazyLoad/LazyLoadDatePicker";
 import SearchBar from "./SearchBar";
@@ -58,6 +58,14 @@ const NavBarActions = () => {
 
   const { id, selected, setSelected, hour, setHour, mode, setMode } = dateCtx;
   const effectiveBeachId = beachIdFromPath ?? id.current ?? "";
+  const handleDateSelect = useCallback(
+    (next: Date) => {
+      startTransition(() => {
+        setSelected(next);
+      });
+    },
+    [setSelected],
+  );
 
   // Note: In NavBarActions, we only update the DateContext hour
   // The MapFilterContext syncing happens elsewhere (e.g., DateSummaryBridge)
@@ -127,11 +135,7 @@ const NavBarActions = () => {
             beachId={effectiveBeachId}
             {...(selectedTab === "forecast" && { forecast: true })}
             value={selected}
-            onSelect={(next) => {
-              startTransition(() => {
-                setSelected(next);
-              });
-            }}
+            onSelect={handleDateSelect}
           />
         ) : (
           <LazyLoadHourSlider

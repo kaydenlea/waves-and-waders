@@ -25,6 +25,30 @@ export const scrollToMap = () => {
   window.scrollTo({ top: 0, behavior: "smooth" });
 };
 
+const collapseAfterScrollToTop = (collapse: () => void) => {
+  if (typeof window === "undefined") return;
+  if (window.innerWidth >= wideScreenWidth) {
+    collapse();
+    return;
+  }
+
+  scrollToMap();
+
+  const start = window.performance?.now?.() ?? Date.now();
+  const maxWaitMs = 1200;
+
+  const tick = () => {
+    const now = window.performance?.now?.() ?? Date.now();
+    if (window.scrollY <= 1 || now - start > maxWaitMs) {
+      collapse();
+      return;
+    }
+    window.requestAnimationFrame(tick);
+  };
+
+  window.requestAnimationFrame(tick);
+};
+
 export default function BackToMapButton() {
   const { setContentCollapsed } = useMapUI();
   return (
@@ -32,8 +56,7 @@ export default function BackToMapButton() {
       <button
         aria-label="back to map"
         onClick={() => {
-          setContentCollapsed(true);
-          scrollToMap();
+          collapseAfterScrollToTop(() => setContentCollapsed(true));
         }}
         className="flex items-center gap-1 px-4 py-3 rounded-full bg-background backdrop-blur border border-border shadow-lg text-sm font-medium text-foreground hover:bg-highlight-3 transition-colors"
       >

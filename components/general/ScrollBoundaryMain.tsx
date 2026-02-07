@@ -142,7 +142,7 @@ export function ScrollBoundaryMain({
     <main
       ref={containerRef}
       className={cn(
-        "h-[100svh] overflow-y-auto overflow-x-hidden overscroll-none",
+        "h-[100svh] supports-[height:100dvh]:h-[100dvh] overflow-y-auto overflow-x-hidden overscroll-none",
         className
       )}
       {...props}

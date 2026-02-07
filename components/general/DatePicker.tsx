@@ -600,7 +600,9 @@ DatePickerProps) => {
         }),
       );
       if (!cancelled && Object.keys(updates).length) {
-        setSurfIntensityByDate((prev) => ({ ...prev, ...updates }));
+        startTransition(() => {
+          setSurfIntensityByDate((prev) => ({ ...prev, ...updates }));
+        });
       }
     };
 
@@ -649,9 +651,11 @@ DatePickerProps) => {
         }
       });
       if (forecast && orderedKeys.length > 0) {
-        setSelectedDays((prev) =>
-          datesEqual(prev, daysRange) ? prev : daysRange,
-        );
+        startTransition(() => {
+          setSelectedDays((prev) =>
+            datesEqual(prev, daysRange) ? prev : daysRange,
+          );
+        });
       }
 
       const targetKey = selectedDate
@@ -672,7 +676,12 @@ DatePickerProps) => {
             intensity = fallback;
           }
         }
-        setSurfIntensityForDate(intensity ?? null);
+        startTransition(() => {
+          const nextIntensity = intensity ?? null;
+          setSurfIntensityForDate((prev) =>
+            prev === nextIntensity ? prev : nextIntensity,
+          );
+        });
 
         const max = summary?.max ?? null;
         const minWithFallback =
@@ -688,13 +697,19 @@ DatePickerProps) => {
             minRounded = Math.max(0, maxRounded - 1);
           }
           const nextRange = `${minRounded}-${maxRounded}`;
-          setSurfRange((prev) => (prev === nextRange ? prev : nextRange));
+          startTransition(() => {
+            setSurfRange((prev) => (prev === nextRange ? prev : nextRange));
+          });
         } else {
-          setSurfRange((prev) => (prev === null ? prev : null));
+          startTransition(() => {
+            setSurfRange((prev) => (prev === null ? prev : null));
+          });
         }
       } else {
-        setSurfIntensityForDate(null);
-        setSurfRange(null);
+        startTransition(() => {
+          setSurfIntensityForDate((prev) => (prev === null ? prev : null));
+          setSurfRange((prev) => (prev === null ? prev : null));
+        });
       }
     });
 
@@ -925,4 +940,4 @@ DatePickerProps) => {
   );
 };
 
-export default DatePicker;
+export default React.memo(DatePicker);

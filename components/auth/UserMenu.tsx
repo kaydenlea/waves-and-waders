@@ -105,10 +105,8 @@ export const UserMenu = ({
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
+    router.replace("/login");
     router.refresh();
-    if (typeof window !== "undefined") {
-      window.location.reload();
-    }
   };
 
   const UserMenuPopover = () => {

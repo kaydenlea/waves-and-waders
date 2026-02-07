@@ -6,6 +6,7 @@ import React, {
   useEffect,
   useRef,
   useMemo,
+  useCallback,
 } from "react";
 import * as Collapsible from "@radix-ui/react-collapsible";
 import { Calendar, TimerReset } from "lucide-react";
@@ -144,6 +145,14 @@ const TimeRail: React.FC<Props> = ({
   }, []);
 
   const panelActive = open || closing;
+  const handleDateSelect = useCallback(
+    (d: Date) => {
+      startTransition(() => {
+        setSelected(d);
+      });
+    },
+    [setSelected],
+  );
 
   return (
     <div ref={railRef} className="relative w-full" data-time-rail-root>
@@ -237,11 +246,7 @@ const TimeRail: React.FC<Props> = ({
             <LazyLoadDatePicker
               beachId={beachId}
               value={selected ?? undefined}
-              onSelect={(d) => {
-                startTransition(() => {
-                  setSelected(d);
-                });
-              }}
+              onSelect={handleDateSelect}
             />
         </Collapsible.Content>
       </Collapsible.Root>
