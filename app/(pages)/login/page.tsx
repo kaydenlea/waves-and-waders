@@ -7,6 +7,7 @@ import { getServerSupabase } from "@/lib/supabaseServer";
 import { AuthForm } from "@/components/auth/AuthForm";
 import { buildPageMetadata } from "@/lib/seo";
 import { BrandWordmark } from "@/components/general/BrandWordmark";
+import { ScrollBoundaryMain } from "@/components/general/ScrollBoundaryMain";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = buildPageMetadata({
@@ -41,10 +42,10 @@ export default async function LoginPage() {
   }
 
   return (
-    <main className="relative isolate min-h-[100svh] overflow-hidden">
+    <ScrollBoundaryMain className="relative isolate">
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 [contain:paint]"
+        className="pointer-events-none fixed inset-0 [contain:paint]"
       >
         <div className="absolute inset-0 bg-gradient-to-b from-background via-background-2 to-background" />
         <div className="absolute inset-0 lg:hidden bg-gradient-to-br from-sky-600/20 via-cyan-500/14 to-indigo-600/18 dark:from-sky-500/40 dark:via-cyan-500/30 dark:to-indigo-500/40" />
@@ -63,7 +64,7 @@ export default async function LoginPage() {
         <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-b from-transparent to-background" />
       </div>
 
-      <div className="relative grid min-h-[100svh] grid-rows-[auto,1fr] lg:grid-cols-2 lg:grid-rows-1">
+      <div className="relative grid min-h-full grid-rows-[auto,1fr] lg:grid-cols-2 lg:grid-rows-1">
         <section className="relative flex min-h-[18rem] items-end px-5 pb-10 pt-[calc(2.5rem+env(safe-area-inset-top))] sm:px-8 sm:pb-12 lg:min-h-[100svh] lg:items-center lg:px-14 lg:py-16">
           <div
             aria-hidden
@@ -86,15 +87,17 @@ export default async function LoginPage() {
               href="/"
               className="inline-flex items-center gap-3 rounded-2xl px-2 py-2 text-white/95 transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
             >
-              <span className="relative grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/15 shadow-sm ring-1 ring-white/20 supports-[backdrop-filter]:bg-white/10 supports-[backdrop-filter]:backdrop-blur-md">
-                <Image
-                  src="/logo.png"
-                  alt="Waves and Waders logo"
-                  width={40}
-                  height={40}
-                  className="h-10 w-10 object-contain"
-                  priority
-                />
+              <span className="ww-disable-backdrop">
+                <span className="relative grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/15 shadow-sm ring-1 ring-white/20 supports-[backdrop-filter]:bg-white/10 supports-[backdrop-filter]:backdrop-blur-md">
+                  <Image
+                    src="/logo.png"
+                    alt="Waves and Waders logo"
+                    width={40}
+                    height={40}
+                    className="h-10 w-10 object-contain transform-gpu"
+                    priority
+                  />
+                </span>
               </span>
               <BrandWordmark
                 className="text-base font-semibold tracking-tight"
@@ -141,6 +144,6 @@ export default async function LoginPage() {
           />
         </section>
       </div>
-    </main>
+    </ScrollBoundaryMain>
   );
 }
