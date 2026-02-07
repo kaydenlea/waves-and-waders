@@ -24,10 +24,8 @@ export default function PathStyleWrapper({
   const shouldLockOverscroll = beachPage || overviewPage;
   const disableMobileGpuTransform = beachPage || overviewPage;
   const enforceContentPeek = beachPage || overviewPage;
-  const [smallScreen, setSmallScreen] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return window.innerWidth < 911;
-  });
+  // Keep SSR markup consistent with the first client render to avoid hydration mismatches.
+  const [smallScreen, setSmallScreen] = useState(false);
   const atTopRef = useRef(true);
   const lastScrollEventAtRef = useRef(0);
   const lastReachedTopAtRef = useRef(0);
@@ -151,6 +149,12 @@ export default function PathStyleWrapper({
       window.removeEventListener("resize", onResize);
       window.removeEventListener("scroll", onScroll);
     };
+  }, [enforceContentPeek]);
+
+  useLayoutEffect(() => {
+    if (!enforceContentPeek) return;
+    if (typeof window === "undefined") return;
+    setSmallScreen(window.innerWidth < 911);
   }, [enforceContentPeek]);
 
   useEffect(() => {

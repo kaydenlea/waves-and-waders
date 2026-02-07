@@ -60,6 +60,9 @@ type Props = {
   beachParam?: string;
   isFavorite?: boolean;
   loggedIn?: boolean;
+  initialOverviewTableDensity?: StatTableDensity | null;
+  initialForecastTableDensity?: StatTableDensity | null;
+  initialForecastViewMode?: "all" | "single" | null;
   initialOverviewMeta?: Partial<Record<WidgetId, WidgetMeta>> | null;
   initialOverviewRows?: Row[] | null;
   initialForecastMeta?: Partial<Record<WidgetId, WidgetMeta>> | null;
@@ -225,6 +228,9 @@ const DateSummaryBridge: React.FC<Props> = ({
   beachParam,
   isFavorite = false,
   loggedIn = false,
+  initialOverviewTableDensity = null,
+  initialForecastTableDensity = null,
+  initialForecastViewMode = null,
   initialOverviewMeta = null,
   initialOverviewRows = null,
   initialForecastMeta = null,
@@ -420,9 +426,9 @@ const DateSummaryBridge: React.FC<Props> = ({
   }, [cacheLayout, isEditing, layoutHydrated, layoutMeta, layoutRows]);
   const [, setForecastWindow] = React.useState("Select range");
   const [overviewTableDensity, setOverviewTableDensity] =
-    React.useState<StatTableDensity>("3h");
+    React.useState<StatTableDensity>(initialOverviewTableDensity ?? "3h");
   const [forecastTableDensity, setForecastTableDensity] =
-    React.useState<StatTableDensity>("12h");
+    React.useState<StatTableDensity>(initialForecastTableDensity ?? "12h");
   const skipOverviewTableDensityPersistRef = React.useRef(true);
   const skipForecastTableDensityPersistRef = React.useRef(true);
   const [dailyTableUi, setDailyTableUi] =
@@ -447,7 +453,8 @@ const DateSummaryBridge: React.FC<Props> = ({
     setOverviewTableDensity((prev) => (prev === "3h" ? "12h" : "3h"));
   }, []);
 
-  React.useEffect(() => {
+  React.useLayoutEffect(() => {
+    if (initialOverviewTableDensity) return;
     try {
       const stored = window.localStorage.getItem(
         "waves-and-waders.statTable.density",
@@ -455,9 +462,12 @@ const DateSummaryBridge: React.FC<Props> = ({
       if (stored === "3h" || stored === "12h") {
         skipOverviewTableDensityPersistRef.current = true;
         setOverviewTableDensity(stored);
+        document.cookie = `ww_statTable_density=${encodeURIComponent(
+          stored,
+        )}; Path=/; Max-Age=31536000; SameSite=Lax`;
       }
     } catch {}
-  }, []);
+  }, [initialOverviewTableDensity]);
 
   React.useEffect(() => {
     if (skipOverviewTableDensityPersistRef.current) {
@@ -469,10 +479,14 @@ const DateSummaryBridge: React.FC<Props> = ({
         "waves-and-waders.statTable.density",
         overviewTableDensity,
       );
+      document.cookie = `ww_statTable_density=${encodeURIComponent(
+        overviewTableDensity,
+      )}; Path=/; Max-Age=31536000; SameSite=Lax`;
     } catch {}
   }, [overviewTableDensity]);
 
-  React.useEffect(() => {
+  React.useLayoutEffect(() => {
+    if (initialForecastTableDensity) return;
     try {
       const stored = window.localStorage.getItem(
         "waves-and-waders.forecastTable.density",
@@ -480,9 +494,12 @@ const DateSummaryBridge: React.FC<Props> = ({
       if (stored === "3h" || stored === "12h") {
         skipForecastTableDensityPersistRef.current = true;
         setForecastTableDensity(stored);
+        document.cookie = `ww_forecastTable_density=${encodeURIComponent(
+          stored,
+        )}; Path=/; Max-Age=31536000; SameSite=Lax`;
       }
     } catch {}
-  }, []);
+  }, [initialForecastTableDensity]);
 
   React.useEffect(() => {
     if (skipForecastTableDensityPersistRef.current) {
@@ -494,6 +511,9 @@ const DateSummaryBridge: React.FC<Props> = ({
         "waves-and-waders.forecastTable.density",
         forecastTableDensity,
       );
+      document.cookie = `ww_forecastTable_density=${encodeURIComponent(
+        forecastTableDensity,
+      )}; Path=/; Max-Age=31536000; SameSite=Lax`;
     } catch {}
   }, [forecastTableDensity]);
 
@@ -864,7 +884,7 @@ const DateSummaryBridge: React.FC<Props> = ({
     : false;
   const forecastInitialBusy = forecastInitialBusyRaw;
 
-  const forecastBusyVisible = useStableOverlay(forecastInitialBusy, 250);
+  const forecastBusyVisible = useStableOverlay(forecastInitialBusy, 800);
   const setOverviewPageBusy = useOptionalOverviewPageBusyControls();
   const overviewPageBusy = isOverview ? overlayVisible : forecastBusyVisible;
 
@@ -1510,6 +1530,7 @@ const DateSummaryBridge: React.FC<Props> = ({
                             hideHeader
                             onWindowStringChange={setForecastWindow}
                             onBusyChange={setForecastBridgeBusy}
+                            initialForecastViewMode={initialForecastViewMode}
                             initialMeta={initialForecastMeta ?? undefined}
                             initialRows={initialForecastRows ?? undefined}
                             cardVariant="forecast"

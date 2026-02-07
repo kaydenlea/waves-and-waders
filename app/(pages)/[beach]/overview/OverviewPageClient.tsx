@@ -27,6 +27,9 @@ type Props = {
   beachName: string;
   loggedIn: boolean;
   isFavorite: boolean;
+  initialStatTableDensity?: "3h" | "12h" | null;
+  initialForecastTableDensity?: "3h" | "12h" | null;
+  initialForecastViewMode?: "all" | "single" | null;
   seoSummary?: {
     updatedAt: string | null;
     surfHeight: string | null;
@@ -93,6 +96,9 @@ export default function OverviewPageClient({
   beachName,
   loggedIn,
   isFavorite,
+  initialStatTableDensity = null,
+  initialForecastTableDensity = null,
+  initialForecastViewMode = null,
   seoSummary,
   initialBeach,
   initialOverviewMeta,
@@ -253,6 +259,9 @@ export default function OverviewPageClient({
                       beachParam={beachParam}
                       isFavorite={isFavorite}
                       loggedIn={loggedIn}
+                      initialOverviewTableDensity={initialStatTableDensity}
+                      initialForecastTableDensity={initialForecastTableDensity}
+                      initialForecastViewMode={initialForecastViewMode}
                       initialOverviewMeta={initialOverviewMeta}
                       initialOverviewRows={initialOverviewRows}
                       initialForecastMeta={initialForecastMeta}

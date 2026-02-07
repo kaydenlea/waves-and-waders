@@ -1092,6 +1092,7 @@ const StatTable = ({
   date,
   variant = "full",
   density,
+  initialForecastViewMode = null,
   onToggleDensity,
   onUiStateChange,
 }: {
@@ -1102,6 +1103,7 @@ const StatTable = ({
   date?: Date;
   variant?: StatTableVariant;
   density?: StatTableDensity;
+  initialForecastViewMode?: "all" | "single" | null;
   onToggleDensity?: () => void;
   onUiStateChange?: (state: StatTableUiState) => void;
 }) => {
@@ -1349,11 +1351,11 @@ const StatTable = ({
         let allowedKeys: Set<string> | null = null;
         const dayKeys = entriesByDay.map(([key]) => key);
 
-        // Prioritize date prop over selectedDays
-        if (onlyKeys && onlyKeys.length > 0) {
-          allowedKeys = new Set(onlyKeys);
-        } else if (onlyKey) {
-          if (onlyKey && dayKeys.includes(onlyKey)) {
+        // Prioritize the explicit `date` prop (overview) over `selectedDays` (forecast).
+        // `selectedDays` can remain populated from the forecast tab and would otherwise
+        // filter out the requested overview day, resulting in an empty table until refresh.
+        if (onlyKey) {
+          if (dayKeys.includes(onlyKey)) {
             allowedKeys = new Set([onlyKey]);
           } else if (requestedDate) {
             const prev = getPacificDayKey(
@@ -1365,6 +1367,8 @@ const StatTable = ({
             const cands = [prev, next].filter((k) => dayKeys.includes(k));
             if (cands.length) allowedKeys = new Set([cands[0]]);
           }
+        } else if (forecastPage && onlyKeys && onlyKeys.length > 0) {
+          allowedKeys = new Set(onlyKeys);
         }
 
         for (const [dayKey, rows] of entriesByDay) {
@@ -1593,7 +1597,7 @@ const StatTable = ({
   const skipForecastViewModePersistRef = React.useRef(true);
   const [forecastViewMode, setForecastViewMode] =
     React.useState<ForecastViewMode>(() =>
-      variant === "half" ? "single" : "all",
+      initialForecastViewMode ?? (variant === "half" ? "single" : "all"),
     );
 
   const [columnPages, setColumnPages] = React.useState([TABLE_COLUMNS]);
@@ -1678,12 +1682,6 @@ const StatTable = ({
         prev === widthNow.current ? prev : widthNow.current,
       );
 
-      const nextColumnsVariant = computeColumnsVariant();
-      setEffectiveColumnsVariant((prev) => {
-        if (prev === nextColumnsVariant) return prev;
-        effectiveColumnsVariantRef.current = nextColumnsVariant;
-        return nextColumnsVariant;
-      });
       let newPages: typeof columnPages;
       // Use filtered columns instead of COLUMNS
       const cols = filteredColumns;
@@ -1799,12 +1797,14 @@ const StatTable = ({
     const onWindowResize = () => {
       const w = table.clientWidth;
       if (w > 0) measuredWidthRef.current = w;
+      syncColumnsVariant();
       scheduleAdjust();
     };
     window.addEventListener("resize", onWindowResize);
     window.visualViewport?.addEventListener("resize", onWindowResize);
 
     measuredWidthRef.current = table.clientWidth;
+    syncColumnsVariant();
     adjustData();
 
     return () => {
@@ -1834,9 +1834,8 @@ const StatTable = ({
 
   const isHalfColumns = effectiveColumnsVariant === "half";
   const effectiveDensity: StatTableDensity = React.useMemo(() => {
-    if (isHalfColumns) return "12h";
     return density ?? (numHours <= 3 ? "12h" : "3h");
-  }, [density, isHalfColumns, numHours]);
+  }, [density, numHours]);
   const canToggleDensity = !isHalfColumns;
   const lastUiStateRef = React.useRef<string>("");
   React.useEffect(() => {
@@ -1859,13 +1858,14 @@ const StatTable = ({
     [data, forecastPage],
   );
 
-  const showForecastViewToggle = forecastPage && !isHalfColumns;
+  const showForecastViewToggle = forecastPage && !isHalfWidget;
   const canToggleForecastView = selectorDays.length > 1;
   const resolvedForecastViewMode: ForecastViewMode = showForecastViewToggle
     ? forecastViewMode
     : "single";
 
-  React.useEffect(() => {
+  React.useLayoutEffect(() => {
+    if (initialForecastViewMode) return;
     if (!forecastPage) return;
     try {
       const stored = window.localStorage.getItem(
@@ -1874,9 +1874,12 @@ const StatTable = ({
       if (stored === "all" || stored === "single") {
         skipForecastViewModePersistRef.current = true;
         setForecastViewMode(stored);
+        document.cookie = `ww_statTable_forecastViewMode=${encodeURIComponent(
+          stored,
+        )}; Path=/; Max-Age=31536000; SameSite=Lax`;
       }
     } catch {}
-  }, [forecastPage]);
+  }, [forecastPage, initialForecastViewMode]);
 
   React.useEffect(() => {
     if (!forecastPage) return;
@@ -1889,6 +1892,9 @@ const StatTable = ({
         "waves-and-waders.statTable.forecastViewMode",
         forecastViewMode,
       );
+      document.cookie = `ww_statTable_forecastViewMode=${encodeURIComponent(
+        forecastViewMode,
+      )}; Path=/; Max-Age=31536000; SameSite=Lax`;
     } catch {}
   }, [forecastPage, forecastViewMode]);
 
@@ -1900,11 +1906,11 @@ const StatTable = ({
 
   const useSingleDayView = forecastPage
     ? resolvedForecastViewMode === "single"
-    : isHalfColumns;
+    : Math.max(numDays, 1) <= 1;
 
   const showDayHeaderRow =
     header &&
-    effectiveColumnsVariant === "full" &&
+    !isHalfWidget &&
     !(forecastPage && useSingleDayView);
 
   const [forecastDayKey, setForecastDayKey] = React.useState<string | null>(
@@ -1946,8 +1952,8 @@ const StatTable = ({
   const visibleDays = React.useMemo(() => {
     if (!useSingleDayView) return data.slice(0, maxVisibleDays);
     if (forecastPage) return forecastSelectedDay ? [forecastSelectedDay] : [];
-    return data[0] ? [data[0]] : [];
-  }, [data, forecastPage, forecastSelectedDay, useSingleDayView]);
+    return data.slice(0, Math.max(numDays, 1));
+  }, [data, forecastPage, forecastSelectedDay, numDays, useSingleDayView]);
 
   const footerDateLabel = React.useMemo(() => {
     const preferMs = (() => {
@@ -3288,13 +3294,12 @@ const StatTable = ({
                   {showDayHeaderRow && (
                     <tr key={`${i}-date`}>
                       <td colSpan={visibleColumns.length + 1} className="p-0">
-                        <div
-                          className={cn(
-                            "mx-0 mb-3 mt-3 relative overflow-hidden rounded-2xl border border-border/60 bg-foreground/[0.06] px-4 py-3 shadow-[0_1px_0_rgba(0,0,0,0.04),0_12px_30px_rgba(0,0,0,0.06)] dark:bg-foreground/[0.09] dark:shadow-[0_1px_0_rgba(0,0,0,0.35),0_12px_30px_rgba(0,0,0,0.35)]",
-                            i === 0 && variant !== "half" && "mt-5",
-                            i === 0 && variant === "half" && "mt-0",
-                          )}
-                        >
+                          <div
+                            className={cn(
+                              "mx-0 mb-3 mt-3 relative overflow-hidden rounded-2xl border border-border/60 bg-foreground/[0.06] px-4 py-3 shadow-[0_1px_0_rgba(0,0,0,0.04),0_12px_30px_rgba(0,0,0,0.06)] dark:bg-foreground/[0.09] dark:shadow-[0_1px_0_rgba(0,0,0,0.35),0_12px_30px_rgba(0,0,0,0.35)]",
+                              i === 0 && "mt-5",
+                            )}
+                          >
                           <div className="absolute inset-0 bg-gradient-to-r from-foreground/[0.06] via-transparent to-foreground/[0.02] dark:from-foreground/[0.09] dark:to-foreground/[0.04]" />
                           <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-foreground/20 to-transparent dark:via-foreground/25" />
                           <div className="relative flex items-center gap-3">

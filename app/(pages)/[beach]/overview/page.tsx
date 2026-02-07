@@ -23,6 +23,7 @@ import {
 } from "@/components/general/dashboardLayout";
 import { getSiteUrl, toAbsoluteUrl } from "@/lib/seo";
 import NavBar from "@/components/general/NavBar";
+import { cookies } from "next/headers";
 
 const buildFeatureList = (source: Record<string, unknown> | null) => {
   if (!source) return [];
@@ -131,6 +132,27 @@ const Page = async ({
 }: {
   params: Promise<{ beach: string }>;
 }) => {
+  const cookieStore = await cookies();
+  const statTableDensityCookie = cookieStore.get("ww_statTable_density")?.value;
+  const forecastTableDensityCookie = cookieStore.get(
+    "ww_forecastTable_density",
+  )?.value;
+  const forecastViewModeCookie = cookieStore.get(
+    "ww_statTable_forecastViewMode",
+  )?.value;
+  const initialStatTableDensity =
+    statTableDensityCookie === "3h" || statTableDensityCookie === "12h"
+      ? statTableDensityCookie
+      : null;
+  const initialForecastTableDensity =
+    forecastTableDensityCookie === "3h" || forecastTableDensityCookie === "12h"
+      ? forecastTableDensityCookie
+      : null;
+  const initialForecastViewMode =
+    forecastViewModeCookie === "all" || forecastViewModeCookie === "single"
+      ? forecastViewModeCookie
+      : null;
+
   const { beach } = await params;
   // If user visits /beach/overview (literal "beach"), send them to selector
   if (beach === "beach") {
@@ -222,6 +244,8 @@ const Page = async ({
       .maybeSingle();
     isFav = Boolean(favorite);
   }
+
+  // ...existing server-side data loading continues below...
 
   let initialOverviewMeta: Partial<Record<WidgetId, WidgetMeta>> | null = null;
   let initialOverviewRows: Row[] | null = null;
@@ -358,6 +382,9 @@ const Page = async ({
         beachName={beachName}
         loggedIn={Boolean(user)}
         isFavorite={isFav}
+        initialStatTableDensity={initialStatTableDensity}
+        initialForecastTableDensity={initialForecastTableDensity}
+        initialForecastViewMode={initialForecastViewMode}
         navBar={<NavBar />}
         initialBeach={initialBeach}
         initialOverviewMeta={initialOverviewMeta}

@@ -22,6 +22,7 @@ type Props = {
   date?: Date;
   variant?: StatTableVariant;
   density?: StatTableDensity;
+  initialForecastViewMode?: "all" | "single" | null;
   onToggleDensity?: () => void;
   onUiStateChange?: (state: StatTableUiState) => void;
 };

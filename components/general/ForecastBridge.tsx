@@ -74,6 +74,8 @@ type Props = {
 
   onBusyChange?: (busy: boolean) => void;
 
+  initialForecastViewMode?: "all" | "single" | null;
+
   initialMeta?: Partial<Record<WidgetId, WidgetMeta>> | null;
 
   initialRows?: Row[] | null;
@@ -103,6 +105,8 @@ const ForecastBridge: React.FC<Props> = ({
   onWindowStringChange,
 
   onBusyChange,
+
+  initialForecastViewMode = null,
 
   initialMeta = null,
 
@@ -206,7 +210,7 @@ const ForecastBridge: React.FC<Props> = ({
     setDailyTableDensity(dailyTableDensity === "3h" ? "12h" : "3h");
   }, [dailyTableDensity, setDailyTableDensity]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (isTableDensityControlled) return;
 
     try {
@@ -218,6 +222,9 @@ const ForecastBridge: React.FC<Props> = ({
         skipDailyTableDensityPersistRef.current = true;
 
         setDailyTableDensity(stored);
+        document.cookie = `ww_statTable_density=${encodeURIComponent(
+          stored,
+        )}; Path=/; Max-Age=31536000; SameSite=Lax`;
       }
     } catch {}
   }, [isTableDensityControlled]);
@@ -237,6 +244,9 @@ const ForecastBridge: React.FC<Props> = ({
 
         dailyTableDensity,
       );
+      document.cookie = `ww_statTable_density=${encodeURIComponent(
+        dailyTableDensity,
+      )}; Path=/; Max-Age=31536000; SameSite=Lax`;
     } catch {}
   }, [dailyTableDensity, isTableDensityControlled]);
 
@@ -612,7 +622,9 @@ const ForecastBridge: React.FC<Props> = ({
     layoutOverlayActive ||
     pendingLayoutApplyActive;
 
-  const stableWidgetLoading = useStableOverlay(rawWidgetLoading, 220);
+  // Keep the loading cover stable across short "gaps" between data readiness and
+  // chart readiness, otherwise the overlay can hide and re-appear (double flash).
+  const stableWidgetLoading = useStableOverlay(rawWidgetLoading, 800);
 
   useLayoutEffect(() => {
     onBusyChange?.(stableWidgetLoading);
@@ -738,6 +750,7 @@ const ForecastBridge: React.FC<Props> = ({
               date={selected ?? undefined}
               variant={variant}
               density={dailyTableDensity}
+              initialForecastViewMode={initialForecastViewMode}
               onToggleDensity={toggleDailyTableDensity}
               onUiStateChange={onDailyTableUiStateChange}
             />
