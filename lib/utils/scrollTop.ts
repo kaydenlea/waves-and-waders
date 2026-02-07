@@ -1,20 +1,70 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { clearCachedHourSliderTrackGradient } from "@/lib/ui/hourSliderTrackCache";
+
+function scrollToTopNow() {
+  if (typeof window === "undefined") return;
+  if (typeof document !== "undefined") {
+    document.documentElement?.scrollTo?.({ top: 0, left: 0, behavior: "auto" });
+    if (document.documentElement) document.documentElement.scrollTop = 0;
+    if (document.body) document.body.scrollTop = 0;
+  }
+  try {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  } catch {
+    window.scrollTo(0, 0);
+  }
+}
+
+function forceScrollToTop(frames = 3) {
+  scrollToTopNow();
+  let remaining = Math.max(0, frames - 1);
+  const tick = () => {
+    if (remaining <= 0) return;
+    remaining -= 1;
+    scrollToTopNow();
+    window.requestAnimationFrame(tick);
+  };
+  window.requestAnimationFrame(tick);
+  window.setTimeout(scrollToTopNow, 60);
+}
 
 export function ScrollToTopOnRouteChange() {
   const pathname = usePathname();
   const prev = useRef<string>("");
+
   useEffect(() => {
-    // always scroll to top on route change, unless after editing dashboard
-    if (!prev.current.endsWith("/edit"))
-      window.scrollTo({ top: 0, behavior: "auto" });
+    // Mobile browsers (notably iOS Safari) can aggressively restore scroll position on reload
+    // or BFCache. Opt out so our app's navigation behavior is consistent.
+    try {
+      if ("scrollRestoration" in window.history) {
+        window.history.scrollRestoration = "manual";
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useLayoutEffect(() => {
+    // Always scroll to top on route change, unless after editing dashboard.
+    if (!prev.current.endsWith("/edit")) forceScrollToTop();
     clearCachedHourSliderTrackGradient();
     prev.current = pathname;
   }, [pathname]);
 
   useEffect(() => {
+    // Some mobile browsers restore scroll *after* React effects; reinforce scroll-to-top on load/show.
+    const onLoad = () => {
+      if (!prev.current.endsWith("/edit")) forceScrollToTop(5);
+    };
+    const onPageShow = () => {
+      if (!prev.current.endsWith("/edit")) forceScrollToTop(5);
+    };
+
+    window.addEventListener("load", onLoad);
+    window.addEventListener("pageshow", onPageShow);
+
     const SCROLL_IDLE_MS = 160;
     let timeoutId: number | null = null;
     let rafId: number | null = null;
@@ -54,6 +104,8 @@ export function ScrollToTopOnRouteChange() {
 
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => {
+      window.removeEventListener("load", onLoad);
+      window.removeEventListener("pageshow", onPageShow);
       window.removeEventListener("scroll", onScroll);
       if (timeoutId != null) window.clearTimeout(timeoutId);
       if (rafId != null) window.cancelAnimationFrame(rafId);
