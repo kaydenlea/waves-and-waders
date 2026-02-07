@@ -8,6 +8,7 @@
     @apply border-border outline-ring/50;
   }
   html {
+    @apply bg-background;
     scrollbar-gutter: stable;
     overscroll-behavior-y: none;
   }
