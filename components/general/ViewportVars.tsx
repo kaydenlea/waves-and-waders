@@ -58,6 +58,11 @@ export default function ViewportVars() {
       const keyboardViewportReduced = bottomUi > 160 && vvHeight < innerH - 80;
       const keyboardLikelyOpen = activeIsTextEntry && keyboardViewportReduced;
 
+      root.style.setProperty(
+        "--ww-keyboard-inset",
+        `${keyboardLikelyOpen ? bottomUi : 0}px`,
+      );
+
       if (!keyboardViewportReduced && bottomUi > maxBottomUiPx) {
         maxBottomUiPx = bottomUi;
       }
@@ -126,6 +131,7 @@ export default function ViewportVars() {
       if (clearChangingTimer != null) window.clearTimeout(clearChangingTimer);
       delete root.dataset.wwViewportChanging;
       root.style.removeProperty("--ww-stable-100vh");
+      root.style.removeProperty("--ww-keyboard-inset");
     };
   }, []);
 

@@ -40,6 +40,12 @@ export function ScrollBoundaryMain({
   const containerRef = useRef<HTMLElement | null>(null);
   const touchStartYRef = useRef(0);
   const touchScrollContainerRef = useRef<HTMLElement | null>(null);
+  const keyboardPaddingStyle = useRef<React.CSSProperties>({
+    paddingBottom:
+      "calc(env(safe-area-inset-bottom, 0px) + var(--ww-keyboard-inset, 0px))",
+    scrollPaddingBottom:
+      "calc(env(safe-area-inset-bottom, 0px) + var(--ww-keyboard-inset, 0px))",
+  });
 
   useEffect(() => {
     const el = containerRef.current;
@@ -145,6 +151,7 @@ export function ScrollBoundaryMain({
         "h-[100svh] supports-[height:100dvh]:h-[100dvh] overflow-y-auto overflow-x-hidden overscroll-none",
         className
       )}
+      style={keyboardPaddingStyle.current}
       {...props}
     >
       {children}
