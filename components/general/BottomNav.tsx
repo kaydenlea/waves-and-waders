@@ -583,7 +583,7 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
       {/* Bottom Navigation */}
       <div
         className={cn(
-          "shadow-md @min-4xl:hidden safe-area-inset-bottom bg-highlight-4 backdrop-blur border-t border-border fixed bottom-0 left-0 right-0 transition-all duration-300 touch-none",
+          "shadow-md @min-4xl:hidden safe-area-inset-bottom bg-highlight-4 backdrop-blur border-t border-border fixed bottom-0 left-0 right-0 pr-[var(--ww-scroll-lock-pad-right)] transition-transform duration-300 touch-none",
           isEditing ? "z-[1000003]" : "z-60",
           // Hide when: scrolled away or filters open
           showBottomUI && openPanel !== "filters"

@@ -6,6 +6,7 @@ import React, {
   useCallback,
   useDeferredValue,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -16,6 +17,7 @@ import { Map, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useOptionalSearchContext } from "../context/SearchContext";
 import ToggleFilters from "./ToggleFilters";
+import { acquireScrollLock } from "@/lib/scrollLock";
 
 type BeachHit = {
   id: string | number;
@@ -248,29 +250,11 @@ const SearchBar = ({
   //   return () => window.removeEventListener("resize", handleResize);
   // }, [isOverlay]);
 
-  // Prevent body scroll when overlay active
-  useEffect(() => {
-    const html = document.documentElement;
-    const body = document.body;
-    const scrollY = window.scrollY;
-
-    if (isOverlay) {
-      html.style.overflow = "hidden";
-      body.style.overflow = "hidden";
-      body.style.position = "fixed";
-      body.style.top = `-${scrollY}px`;
-      body.style.width = "100%";
-    } else html.style.overflow = "";
-
-    return () => {
-      // Restore defaults
-      html.style.overflow = "";
-      body.style.overflow = "";
-      body.style.position = "";
-      body.style.top = "";
-      body.style.width = "";
-      window.scrollTo(0, scrollY);
-    };
+  // Prevent document scroll when overlay is active, without causing layout shift when the
+  // scrollbar is removed/restored (common trigger for map reflows on narrow screens).
+  useLayoutEffect(() => {
+    if (!isOverlay) return;
+    return acquireScrollLock();
   }, [isOverlay]);
 
   // Ensure the overlay starts scrolled to the top (some mobile browsers can restore/shift scroll on open).
