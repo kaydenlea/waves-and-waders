@@ -83,6 +83,7 @@ export default function NavMoreMenu({
       <AppMenuContent
         align="end"
         sideOffset={bottomNavMode ? 10 : undefined}
+        data-ww-scroll-lock={bottomNavMode ? "1" : undefined}
         className="w-72"
       >
         {bottomNavMode ? (

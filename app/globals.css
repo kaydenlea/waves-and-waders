@@ -554,14 +554,15 @@ body[data-ww-interaction-lock="1"] [data-slot="chart"] {
    CSS-only scroll lock while app menus are open
    Uses :has(), supported in modern Safari/Chrome/Edge.
 --------------------------------------------------------------------------- */
-html:has(.ww-app-menu-content[data-state="open"]),
-body:has(.ww-app-menu-content[data-state="open"]) {
+html:has(.ww-app-menu-content[data-state="open"][data-ww-scroll-lock="1"]),
+body:has(.ww-app-menu-content[data-state="open"][data-ww-scroll-lock="1"]) {
   overflow: hidden;
   overscroll-behavior: none;
   touch-action: none;
 }
 
-body:has(.ww-app-menu-content[data-state="open"]) #main-content {
+body:has(.ww-app-menu-content[data-state="open"][data-ww-scroll-lock="1"])
+  #main-content {
   overflow: hidden;
 }
 

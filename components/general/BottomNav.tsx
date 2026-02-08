@@ -754,7 +754,12 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
                       Profile
                     </span>
                   </AppMenuTrigger>
-                  <AppMenuContent align="end" sideOffset={10} className="w-72">
+                  <AppMenuContent
+                    data-ww-scroll-lock="1"
+                    align="end"
+                    sideOffset={10}
+                    className="w-72"
+                  >
                     <AppMenuHeader
                       title="Account"
                       subtitle={displayEmail}
