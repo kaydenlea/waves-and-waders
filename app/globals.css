@@ -104,6 +104,23 @@ main[data-ww-page="login"]::-webkit-scrollbar {
   .highlight-card {
     @apply p-3 rounded-2xl bg-highlight-7/50 border border-border/20;
   }
+
+  /* Higher-contrast "card" styling for static/info pages (Terms, Privacy, Contact, etc.). */
+  .ww-static-card {
+    @apply rounded-3xl border border-border/70 bg-foreground/5 ring-1 ring-border/15;
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.22) inset,
+      0 14px 34px rgba(2, 6, 23, 0.08),
+      0 0 0 1px rgba(2, 6, 23, 0.04);
+  }
+}
+
+.dark .ww-static-card {
+  @apply bg-foreground/7 ring-border/25 border-border/60;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.06) inset,
+    0 14px 34px rgba(0, 0, 0, 0.28),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
 }
 
 @layer utilities {

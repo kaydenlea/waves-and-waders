@@ -18,7 +18,7 @@ export default function ContactPage() {
       subtitle="Questions, feedback, or a beach we should add? We'd love to hear it."
     >
       <div className="flex flex-col gap-8">
-        <section className="rounded-3xl border border-border/40 bg-background/40 p-6 shadow-xs sm:p-8">
+        <section className="ww-static-card p-6 sm:p-8">
           <h2 className="mb-5 flex items-center gap-2 text-lg font-semibold tracking-tight text-foreground">
             <Mail className="h-5 w-5 text-foreground/70" aria-hidden="true" />
             Send us a message
@@ -26,7 +26,7 @@ export default function ContactPage() {
           <ContactForm />
         </section>
 
-        <section className="rounded-3xl border border-border/40 bg-background/40 p-6 shadow-xs sm:p-8">
+        <section className="ww-static-card p-6 sm:p-8">
           <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight text-foreground">
             <HandHeart className="h-5 w-5 text-foreground/70" aria-hidden="true" />
             Support the project
@@ -46,7 +46,7 @@ export default function ContactPage() {
           </div>
         </section>
 
-        <section className="rounded-3xl border border-border/40 bg-background/40 p-6 shadow-xs sm:p-8">
+        <section className="ww-static-card p-6 sm:p-8">
           <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight text-foreground">
             <HelpCircle className="h-5 w-5 text-foreground/70" aria-hidden="true" />
             Quick links

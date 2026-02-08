@@ -114,13 +114,13 @@ export default async function LoginPage() {
           </div>
         </section>
 
-        <section className="relative flex flex-1 min-h-0 flex-col items-stretch px-0 pb-0 pt-0 lg:min-h-[100svh] lg:items-center lg:justify-center lg:px-14 lg:py-16">
+        <section className="relative flex flex-none flex-col items-stretch px-4 pb-10 pt-6 sm:px-6 lg:min-h-[100svh] lg:flex-1 lg:min-h-0 lg:items-center lg:justify-center lg:px-14 lg:py-16">
           <div
             aria-hidden
             className="pointer-events-none absolute inset-0 hidden lg:block bg-gradient-to-b from-background/20 via-background to-background"
           />
           <AuthForm
-            className="flex-1 min-h-0 w-full max-w-none mx-0 rounded-t-[2.75rem] rounded-b-none border border-white/12 bg-background/95 shadow-[0_-22px_80px_rgba(2,6,23,0.22)] supports-[backdrop-filter]:bg-background/85 supports-[backdrop-filter]:backdrop-blur-md sm:mx-auto sm:max-w-xl sm:rounded-t-[2.75rem] dark:border-white/10 dark:bg-background/70 lg:flex-none lg:h-auto lg:max-w-md lg:mx-0 lg:rounded-[2rem] lg:border lg:border-border/60 lg:bg-background/90 lg:shadow-[0_24px_70px_rgba(2,6,23,0.12)] lg:supports-[backdrop-filter]:bg-background/70 lg:supports-[backdrop-filter]:backdrop-blur-xl lg:dark:bg-background/40 lg:dark:border-border/60 lg:dark:shadow-[0_24px_70px_rgba(0,0,0,0.35)]"
+            className="flex-none w-full max-w-none mx-0 rounded-[2.75rem] border border-white/12 bg-background/95 shadow-[0_-22px_80px_rgba(2,6,23,0.22)] supports-[backdrop-filter]:bg-background/85 supports-[backdrop-filter]:backdrop-blur-md sm:mx-auto sm:max-w-xl dark:border-white/10 dark:bg-background/70 lg:flex-none lg:h-auto lg:max-w-md lg:mx-0 lg:rounded-[2rem] lg:border lg:border-border/60 lg:bg-background/90 lg:shadow-[0_24px_70px_rgba(2,6,23,0.12)] lg:supports-[backdrop-filter]:bg-background/70 lg:supports-[backdrop-filter]:backdrop-blur-xl lg:dark:bg-background/40 lg:dark:border-border/60 lg:dark:shadow-[0_24px_70px_rgba(0,0,0,0.35)]"
             footer={
               <p className="text-center text-xs text-muted-foreground">
                 By continuing, you agree to our{" "}

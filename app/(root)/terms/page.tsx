@@ -35,7 +35,7 @@ function SectionTitle({
   return (
     <h2
       id={id}
-      className="flex items-start gap-2 text-xl font-semibold tracking-tight text-foreground leading-snug"
+      className="scroll-mt-38 flex items-start gap-2 text-xl font-semibold tracking-tight text-foreground leading-snug"
     >
       <Icon
         className="mt-1 h-5 w-5 shrink-0 text-foreground/70"
@@ -70,14 +70,16 @@ export default function TermsPage() {
       subtitle="Clear expectations for using the site and its forecasts."
     >
       <div className="flex flex-col gap-8">
-        <section className="rounded-3xl border border-border/40 bg-background/40 p-6 shadow-xs sm:p-8">
+        <section className="ww-static-card p-6 sm:p-8">
           <p className="text-sm text-muted-foreground">
             Last updated:{" "}
-            <span className="font-medium text-foreground/80">{LAST_UPDATED}</span>
+            <span className="font-medium text-foreground/80">
+              {LAST_UPDATED}
+            </span>
           </p>
           <p className="mt-4 text-foreground/80 leading-relaxed">
-            By accessing or using Waves and Waders, you agree to these Terms. If you
-            don&apos;t agree, please don&apos;t use the service.
+            By accessing or using Waves and Waders, you agree to these Terms. If
+            you don&apos;t agree, please don&apos;t use the service.
           </p>
           <ul className="mt-5 grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
             <li>
@@ -97,7 +99,7 @@ export default function TermsPage() {
 
         <nav
           aria-label="On this page"
-          className="rounded-3xl border border-border/40 bg-background/40 p-5 shadow-xs"
+          className="ww-static-card p-5"
         >
           <div className="flex flex-wrap items-center justify-center gap-2">
             <TocPill href="#terms-service">The service</TocPill>
@@ -111,21 +113,21 @@ export default function TermsPage() {
         <article className="space-y-6 text-foreground/80 leading-relaxed">
           <section
             aria-labelledby="terms-service"
-            className="scroll-mt-28 rounded-3xl border border-border/40 bg-background/40 p-6 shadow-xs sm:p-8"
+            className="scroll-mt-28 ww-static-card p-6 sm:p-8"
           >
             <SectionTitle id="terms-service" icon={Scale}>
               The service
             </SectionTitle>
             <p className="mt-4">
               Waves and Waders provides surf forecasts, beach information, and
-              planning tools. We may change, improve, or discontinue parts of the
-              service over time.
+              planning tools. We may change, improve, or discontinue parts of
+              the service over time.
             </p>
           </section>
 
           <section
             aria-labelledby="terms-accounts"
-            className="scroll-mt-28 rounded-3xl border border-border/40 bg-background/40 p-6 shadow-xs sm:p-8"
+            className="scroll-mt-28 ww-static-card p-6 sm:p-8"
           >
             <SectionTitle id="terms-accounts" icon={User}>
               Accounts
@@ -145,63 +147,67 @@ export default function TermsPage() {
 
           <section
             aria-labelledby="terms-acceptable"
-            className="scroll-mt-28 rounded-3xl border border-border/40 bg-background/40 p-6 shadow-xs sm:p-8"
+            className="scroll-mt-28 ww-static-card p-6 sm:p-8"
           >
             <SectionTitle id="terms-acceptable" icon={ShieldCheck}>
               Acceptable use
             </SectionTitle>
             <ul className="mt-4 list-disc pl-5 space-y-1">
-              <li>Don&apos;t attempt to break, disrupt, or overload the service.</li>
               <li>
-                Don&apos;t misuse the site for scraping that harms performance or
-                availability.
+                Don&apos;t attempt to break, disrupt, or overload the service.
               </li>
-              <li>Don&apos;t use the service for unlawful or abusive behavior.</li>
+              <li>
+                Don&apos;t misuse the site for scraping that harms performance
+                or availability.
+              </li>
+              <li>
+                Don&apos;t use the service for unlawful or abusive behavior.
+              </li>
             </ul>
           </section>
 
           <section
             aria-labelledby="terms-ip"
-            className="scroll-mt-28 rounded-3xl border border-border/40 bg-background/40 p-6 shadow-xs sm:p-8"
+            className="scroll-mt-28 ww-static-card p-6 sm:p-8"
           >
             <SectionTitle id="terms-ip" icon={FileText}>
               Intellectual property
             </SectionTitle>
             <p className="mt-4">
               The site, design, and content are owned by Waves and Waders or its
-              licensors. You may not copy or redistribute it except as allowed by
-              law.
+              licensors. You may not copy or redistribute it except as allowed
+              by law.
             </p>
           </section>
 
           <section
             aria-labelledby="terms-forecast"
-            className="scroll-mt-28 rounded-3xl border border-border/40 bg-background/40 p-6 shadow-xs sm:p-8"
+            className="scroll-mt-28 ww-static-card p-6 sm:p-8"
           >
             <SectionTitle id="terms-forecast" icon={AlertTriangle}>
               Forecast disclaimer and limitation of liability
             </SectionTitle>
             <p className="mt-4">
               Forecasts are estimates and may be inaccurate or out of date.
-              Conditions can change quickly. You are responsible for your decisions
-              and safety.
+              Conditions can change quickly. You are responsible for your
+              decisions and safety.
             </p>
             <p className="mt-3">
-              To the maximum extent permitted by law, Waves and Waders is not liable
-              for losses or damages arising from your use of the service.
+              To the maximum extent permitted by law, Waves and Waders is not
+              liable for losses or damages arising from your use of the service.
             </p>
           </section>
 
           <section
             aria-labelledby="terms-donations"
-            className="scroll-mt-28 rounded-3xl border border-border/40 bg-background/40 p-6 shadow-xs sm:p-8"
+            className="scroll-mt-28 ww-static-card p-6 sm:p-8"
           >
             <SectionTitle id="terms-donations" icon={HandHeart}>
               Donations
             </SectionTitle>
             <p className="mt-4">
-              Donations are voluntary and not a purchase. Donations are processed by
-              Stripe&apos;s hosted checkout when available.
+              Donations are voluntary and not a purchase. Donations are
+              processed by Stripe&apos;s hosted checkout when available.
             </p>
             <p className="mt-3 text-sm text-muted-foreground">
               Visit{" "}
@@ -217,7 +223,7 @@ export default function TermsPage() {
 
           <section
             aria-labelledby="terms-contact"
-            className="scroll-mt-28 rounded-3xl border border-border/40 bg-background/40 p-6 shadow-xs sm:p-8"
+            className="scroll-mt-28 ww-static-card p-6 sm:p-8"
           >
             <SectionTitle id="terms-contact" icon={Mail}>
               Contact
