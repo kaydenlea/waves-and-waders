@@ -7,10 +7,7 @@ function getViewportHeightPx() {
   const vv = window.visualViewport;
   // Prefer the *visual* viewport height so 100vh-based sections don't end up
   // taller than what's actually visible (e.g. when browser chrome is present).
-  // Clamp to `innerHeight` to avoid runaway values on quirky implementations.
-  const height = vv
-    ? Math.min(window.innerHeight, vv.height + (vv.offsetTop ?? 0))
-    : window.innerHeight;
+  const height = vv?.height ?? window.innerHeight;
   return Number.isFinite(height) && height > 0 ? height : null;
 }
 
