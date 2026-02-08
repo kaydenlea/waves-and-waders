@@ -1,6 +1,11 @@
 "use client";
 
-let activeTokens: Set<symbol> | null = null;
+type InteractionLockToken = {
+  id: symbol;
+  lockScroll: boolean;
+};
+
+let activeTokens: Map<symbol, InteractionLockToken> | null = null;
 let scrollLockSnapshot: {
   scrollY: number;
   htmlOverflow: string;
@@ -62,10 +67,14 @@ function releaseScrollLock() {
 function syncBodyAttribute() {
   if (typeof document === "undefined") return;
   const active = (activeTokens?.size ?? 0) > 0;
+  const shouldLockScroll =
+    active &&
+    Array.from(activeTokens?.values?.() ?? []).some((t) => t.lockScroll);
   if (active) {
     document.body.dataset.wwInteractionLock = "1";
     document.documentElement.dataset.wwInteractionLock = "1";
-    applyScrollLock();
+    if (shouldLockScroll) applyScrollLock();
+    else releaseScrollLock();
   } else {
     delete document.body.dataset.wwInteractionLock;
     delete document.documentElement.dataset.wwInteractionLock;
@@ -73,15 +82,18 @@ function syncBodyAttribute() {
   }
 }
 
-export function acquireInteractionLock(): () => void {
-  if (!activeTokens) activeTokens = new Set();
-  const token = Symbol("ww-interaction-lock");
-  activeTokens.add(token);
+export function acquireInteractionLock(options?: {
+  lockScroll?: boolean;
+}): () => void {
+  const lockScroll = options?.lockScroll !== false;
+  if (!activeTokens) activeTokens = new Map();
+  const id = Symbol("ww-interaction-lock");
+  activeTokens.set(id, { id, lockScroll });
   syncBodyAttribute();
 
   return () => {
     if (!activeTokens) return;
-    activeTokens.delete(token);
+    activeTokens.delete(id);
     syncBodyAttribute();
   };
 }

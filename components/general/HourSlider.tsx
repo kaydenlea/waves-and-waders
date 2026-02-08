@@ -243,7 +243,9 @@ const HourSlider = ({
 
   const acquireLockIfNeeded = () => {
     if (!interactionLockReleaseRef.current) {
-      interactionLockReleaseRef.current = acquireInteractionLock();
+      interactionLockReleaseRef.current = acquireInteractionLock({
+        lockScroll: false,
+      });
     }
     interactionLockedRef.current = true;
   };
