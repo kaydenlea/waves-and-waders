@@ -13,6 +13,9 @@ export default function ViewportVars() {
     let maxBottomUiPx = 0;
     let lastInnerSize: { w: number; h: number } | null = null;
     let stableViewportHeightPx: number | null = null;
+    let lastTextEntryFocusTs = 0;
+    let lastKeyboardOpenTs = 0;
+    let keyboardWasReduced = false;
 
     const apply = () => {
       const innerW = window.innerWidth;
@@ -31,6 +34,7 @@ export default function ViewportVars() {
       const vvHeight = vv?.height ?? innerH;
       const vvTop = vv?.offsetTop ?? 0;
       const bottomUi = Math.max(0, innerH - (vvHeight + vvTop));
+      const now = window.performance?.now?.() ?? Date.now();
 
       const activeEl = document.activeElement as HTMLElement | null;
       const activeIsTextEntry =
@@ -38,10 +42,26 @@ export default function ViewportVars() {
         activeEl?.tagName === "TEXTAREA" ||
         activeEl?.isContentEditable;
 
+      if (activeIsTextEntry) lastTextEntryFocusTs = now;
+      const recentTextEntry = now - lastTextEntryFocusTs < 1500;
+
       // Keyboard heuristic: when the visual viewport is significantly reduced.
       // Avoid treating this transient reduction as "browser chrome" space.
       const keyboardViewportReduced = bottomUi > 160 && vvHeight < innerH - 80;
-      const keyboardLikelyOpen = activeIsTextEntry && keyboardViewportReduced;
+      const keyboardLikelyOpen =
+        keyboardViewportReduced && (activeIsTextEntry || recentTextEntry);
+
+      if (keyboardLikelyOpen) lastKeyboardOpenTs = now;
+
+      // iOS Safari can sometimes leave `visualViewport.height` in a reduced state after the
+      // keyboard dismisses (especially after scrolling). If the viewport still looks reduced
+      // but we haven't had a focused text entry recently, treat it as "stuck" and recover.
+      const keyboardStuckLikely =
+        keyboardViewportReduced &&
+        !keyboardLikelyOpen &&
+        now - lastKeyboardOpenTs > 800;
+      const keyboardReducedEffective =
+        keyboardViewportReduced && !keyboardStuckLikely;
 
       // On iOS Safari, `visualViewport.height` can get "stuck" after the keyboard
       // dismisses (remaining smaller than the actual visible viewport). When the
@@ -49,7 +69,7 @@ export default function ViewportVars() {
       // the larger layout viewport height so the page snaps back correctly.
       const heightPxRaw =
         vv != null
-          ? keyboardLikelyOpen
+          ? keyboardReducedEffective
             ? vvHeight
             : Math.max(innerH, vvHeight)
           : innerH;
@@ -62,7 +82,7 @@ export default function ViewportVars() {
 
       root.style.setProperty(
         "--ww-keyboard-inset",
-        `${keyboardLikelyOpen ? bottomUi : 0}px`,
+        `${keyboardReducedEffective ? bottomUi : 0}px`,
       );
 
       if (!keyboardViewportReduced && bottomUi > maxBottomUiPx) {
@@ -70,10 +90,17 @@ export default function ViewportVars() {
       }
       root.style.setProperty("--ww-bottom-ui", `${maxBottomUiPx}px`);
 
+      if (keyboardReducedEffective) {
+        keyboardWasReduced = true;
+      } else if (keyboardWasReduced) {
+        keyboardWasReduced = false;
+        stableViewportHeightPx = null;
+      }
+
       // `.ww-stable-viewport` uses `100svh` as a fallback, but on some mobile browsers the
       // "small viewport" can get stuck after the on-screen keyboard has been shown.
       // Track a stable viewport height in px that ignores keyboard-induced resizes.
-      if (!keyboardLikelyOpen) {
+      if (!keyboardReducedEffective) {
         stableViewportHeightPx =
           stableViewportHeightPx == null
             ? heightPx
