@@ -573,6 +573,16 @@ body[data-ww-interaction-lock="1"] [data-slot="chart"] {
   }
 }
 
+/* ---------------------------------------------------------------------------
+   Filters sheet scroll lock
+   When the filters sheet is open, prevent the underlying document from scrolling.
+--------------------------------------------------------------------------- */
+html:has(.ww-filters-sheet[data-state="open"]),
+body:has(.ww-filters-sheet[data-state="open"]) {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 /* While switching beaches from the map, block interactions until the new route commits. */
 body[data-ww-navigation-pending="1"] #main-content {
   pointer-events: none;

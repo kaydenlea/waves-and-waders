@@ -536,11 +536,12 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
         <div
           style={{ touchAction: "pan-y" }}
           className={cn(
-            "fixed bottom-0 left-0 right-0 z-70 flex flex-col max-h-[85vh] transition-[transform,opacity] duration-150 will-change-transform translate-y-4 opacity-0 pointer-events-none",
+            "ww-filters-sheet fixed bottom-0 left-0 right-0 z-70 flex flex-col max-h-[85vh] transition-[transform,opacity] duration-150 will-change-transform translate-y-4 opacity-0 pointer-events-none",
             openPanel === "filters" &&
               "translate-y-0 opacity-100 pointer-events-auto",
             "@min-4xl:bottom-auto @min-4xl:left-1/2 @min-4xl:top-1/2 @min-4xl:right-auto @min-4xl:-translate-x-1/2 @min-4xl:-translate-y-1/2 @min-4xl:max-h-[80vh] @min-4xl:w-[800px]",
           )}
+          data-state={openPanel === "filters" ? "open" : "closed"}
         >
           <FiltersPanel
             open={openPanel === "filters"}
@@ -583,7 +584,7 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
       {/* Bottom Navigation */}
       <div
         className={cn(
-          "shadow-md @min-4xl:hidden safe-area-inset-bottom bg-highlight-4 backdrop-blur border-t border-border fixed bottom-0 left-0 right-0 pr-[var(--ww-scroll-lock-pad-right)] transition-transform duration-300 touch-none",
+          "shadow-md @min-4xl:hidden safe-area-inset-bottom bg-highlight-4 backdrop-blur border-t border-border fixed bottom-0 left-0 right-0 max-[911px]:pr-[var(--ww-scroll-lock-pad-right)] transition-transform duration-300 touch-none",
           isEditing ? "z-[1000003]" : "z-60",
           // Hide when: scrolled away or filters open
           showBottomUI && openPanel !== "filters"

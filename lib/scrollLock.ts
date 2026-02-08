@@ -23,7 +23,14 @@ function applyScrollLock() {
   const html = document.documentElement;
   const body = document.body;
   const scrollY = window.scrollY;
-  const scrollbarWidth = Math.max(0, window.innerWidth - html.clientWidth);
+  // We only want to compensate for an actual layout width change caused by locking.
+  // On wide screens with `scrollbar-gutter: stable`, removing the scrollbar does not
+  // change `clientWidth`, so compensation should be 0.
+  const beforeClientWidth = html.clientWidth;
+  const wideLayout =
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(min-width: 912px)").matches;
 
   snapshot = {
     scrollY,
@@ -52,13 +59,17 @@ function applyScrollLock() {
   body.style.right = "0";
   body.style.width = "100%";
 
-  if (scrollbarWidth > 0 && Number.isFinite(computedPaddingRight)) {
-    body.style.paddingRight = `${computedPaddingRight + scrollbarWidth}px`;
+  const afterClientWidth = html.clientWidth;
+  const compensation = wideLayout
+    ? 0
+    : Math.max(0, afterClientWidth - beforeClientWidth);
+
+  if (compensation > 0 && Number.isFinite(computedPaddingRight)) {
+    body.style.paddingRight = `${computedPaddingRight + compensation}px`;
   }
 
-  // Expose the removed scrollbar width for fixed-position UI (map, bottom nav, etc)
-  // so they can opt into the same "no-shift" compensation during scroll lock.
-  html.style.setProperty("--ww-scroll-lock-pad-right", `${scrollbarWidth}px`);
+  // Expose the compensated width for fixed-position UI (map, bottom nav, etc).
+  html.style.setProperty("--ww-scroll-lock-pad-right", `${compensation}px`);
 }
 
 function releaseScrollLock() {
