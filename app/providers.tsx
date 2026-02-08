@@ -12,6 +12,7 @@ import { SearchProvider } from "@/components/context/SearchContext";
 import { PathProvider } from "@/components/context/PathContext";
 import ScrollPerfHandler from "@/components/general/ScrollPerfHandler";
 import ViewportVars from "@/components/general/ViewportVars";
+import GlobalOverscrollLock from "@/components/general/GlobalOverscrollLock";
 
 export function AppProviders({
   initialSession,
@@ -40,6 +41,7 @@ export function AppProviders({
                 <ScrollToTopOnRouteChange />
                 <ScrollPerfHandler />
                 <ViewportVars />
+                <GlobalOverscrollLock />
                 {children}
               </SearchProvider>
             </ToastProvider>
