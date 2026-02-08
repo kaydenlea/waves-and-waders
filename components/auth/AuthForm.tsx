@@ -256,7 +256,7 @@ export const AuthForm = ({
   return (
     <div
       className={cn(
-        "max-w-xl mx-auto ww-hero-reveal motion-reduce:animate-none w-full rounded-[2rem] border border-border/60 bg-background/90 p-6 shadow-[0_24px_70px_rgba(2,6,23,0.12)] supports-[backdrop-filter]:bg-background/70 supports-[backdrop-filter]:backdrop-blur-xl sm:p-8 dark:bg-background/40 dark:shadow-[0_24px_70px_rgba(0,0,0,0.35)]",
+        "max-w-xl mx-auto w-full rounded-[2rem] border border-border/60 bg-background/90 p-6 shadow-[0_24px_70px_rgba(2,6,23,0.12)] supports-[backdrop-filter]:bg-background/70 supports-[backdrop-filter]:backdrop-blur-xl sm:p-8 dark:bg-background/40 dark:shadow-[0_24px_70px_rgba(0,0,0,0.35)]",
         className
       )}
     >

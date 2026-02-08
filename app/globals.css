@@ -9,7 +9,6 @@
   }
   html {
     @apply bg-background;
-    scrollbar-gutter: stable;
     overscroll-behavior-y: none;
   }
   body {
@@ -29,6 +28,33 @@
   /* button {
     @apply focus-visible:outline-none focus-visible:ring focus-visible:ring-foreground;
   } */
+}
+
+/* Reserve scrollbar gutter only on wide/desktop layouts to prevent layout shift.
+   On narrow layouts (including mobile) this can create an empty right-side gutter and
+   make the page look horizontally offset. */
+@media (min-width: 912px) {
+  html {
+    scrollbar-gutter: stable;
+  }
+}
+
+/* Login uses an internal scroll container (`ScrollBoundaryMain`) while the document
+   itself is not scrolling, so `scrollbar-gutter: stable` on `html` can leave an
+   empty reserved gutter on the right. Disable gutter reservation on that route. */
+html:has(main[data-ww-page="login"]) {
+  scrollbar-gutter: auto;
+}
+
+/* Login uses an internal scroll container; hide its scrollbars to avoid a reserved
+   right-side gutter on platforms that auto-hide scrollbars (still scrollable). */
+main[data-ww-page="login"] {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+main[data-ww-page="login"]::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 :root {

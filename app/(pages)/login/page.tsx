@@ -42,7 +42,7 @@ export default async function LoginPage() {
   }
 
   return (
-    <ScrollBoundaryMain className="relative isolate">
+    <ScrollBoundaryMain data-ww-page="login" className="relative isolate">
       <div
         aria-hidden
         className="pointer-events-none fixed inset-0 [contain:paint]"
