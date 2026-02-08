@@ -1,8 +1,11 @@
 "use client";
 
 import * as React from "react";
+import { usePathname } from "next/navigation";
 
 export default function ViewportVars() {
+  const pathname = usePathname();
+
   React.useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -16,6 +19,7 @@ export default function ViewportVars() {
     let lastTextEntryFocusTs = 0;
     let lastKeyboardOpenTs = 0;
     let keyboardWasReduced = false;
+    let baselineVvHeightPx: number | null = null;
 
     const apply = () => {
       const innerW = window.innerWidth;
@@ -27,6 +31,7 @@ export default function ViewportVars() {
       ) {
         maxBottomUiPx = 0;
         stableViewportHeightPx = null;
+        baselineVvHeightPx = null;
         lastInnerSize = { w: innerW, h: innerH };
       }
 
@@ -35,6 +40,10 @@ export default function ViewportVars() {
       const vvTop = vv?.offsetTop ?? 0;
       const bottomUi = Math.max(0, innerH - (vvHeight + vvTop));
       const now = window.performance?.now?.() ?? Date.now();
+
+      // Safety: `--ww-bottom-ui` is intended to represent browser chrome, not the keyboard.
+      // If it ever gets contaminated by keyboard-sized values, immediately drop it.
+      if (maxBottomUiPx > 180) maxBottomUiPx = 0;
 
       const activeEl = document.activeElement as HTMLElement | null;
       const activeIsTextEntry =
@@ -45,21 +54,29 @@ export default function ViewportVars() {
       if (activeIsTextEntry) lastTextEntryFocusTs = now;
       const recentTextEntry = now - lastTextEntryFocusTs < 1500;
 
+      // Establish a baseline visual viewport height from non-keyboard states.
+      // This is more reliable than `document.activeElement` across navigations.
+      const baseline = baselineVvHeightPx ?? vvHeight;
+      baselineVvHeightPx = Math.max(baseline, vvHeight);
+
       // Keyboard heuristic: when the visual viewport is significantly reduced.
-      // Avoid treating this transient reduction as "browser chrome" space.
-      const keyboardViewportReduced = bottomUi > 160 && vvHeight < innerH - 80;
+      // Use a baseline-based threshold so we don't accidentally "lock in" a reduced
+      // viewport as the stable height after keyboard dismiss + scroll + navigation.
+      const keyboardViewportReduced =
+        bottomUi > 160 &&
+        (bottomUi > 240 ||
+          vvHeight < Math.min(innerH, baselineVvHeightPx) - 60 ||
+          vvHeight < innerH - 120);
+
       const keyboardLikelyOpen =
         keyboardViewportReduced && (activeIsTextEntry || recentTextEntry);
-
       if (keyboardLikelyOpen) lastKeyboardOpenTs = now;
 
-      // iOS Safari can sometimes leave `visualViewport.height` in a reduced state after the
-      // keyboard dismisses (especially after scrolling). If the viewport still looks reduced
-      // but we haven't had a focused text entry recently, treat it as "stuck" and recover.
+      // iOS Safari can leave `visualViewport.height` stuck small after dismissal.
+      // If we still look reduced but the keyboard hasn't been likely-open recently,
+      // treat it as "stuck" and recover to the layout height/baseline.
       const keyboardStuckLikely =
-        keyboardViewportReduced &&
-        !keyboardLikelyOpen &&
-        now - lastKeyboardOpenTs > 800;
+        keyboardViewportReduced && now - lastKeyboardOpenTs > 900;
       const keyboardReducedEffective =
         keyboardViewportReduced && !keyboardStuckLikely;
 
@@ -71,7 +88,9 @@ export default function ViewportVars() {
         vv != null
           ? keyboardReducedEffective
             ? vvHeight
-            : Math.max(innerH, vvHeight)
+            : keyboardStuckLikely
+              ? Math.max(innerH, baselineVvHeightPx)
+              : Math.max(innerH, vvHeight)
           : innerH;
       const heightPx =
         Number.isFinite(heightPxRaw) && heightPxRaw > 0 ? heightPxRaw : null;
@@ -85,7 +104,12 @@ export default function ViewportVars() {
         `${keyboardReducedEffective ? bottomUi : 0}px`,
       );
 
-      if (!keyboardViewportReduced && bottomUi > maxBottomUiPx) {
+      // Only track bottom browser chrome sizes (keyboard is much larger).
+      if (
+        !keyboardViewportReduced &&
+        bottomUi <= 160 &&
+        bottomUi > maxBottomUiPx
+      ) {
         maxBottomUiPx = bottomUi;
       }
       root.style.setProperty("--ww-bottom-ui", `${maxBottomUiPx}px`);
@@ -161,8 +185,10 @@ export default function ViewportVars() {
       delete root.dataset.wwViewportChanging;
       root.style.removeProperty("--ww-stable-100vh");
       root.style.removeProperty("--ww-keyboard-inset");
+      root.style.removeProperty("--ww-bottom-ui");
+      root.style.removeProperty("--ww-vh");
     };
-  }, []);
+  }, [pathname]);
 
   return null;
 }
