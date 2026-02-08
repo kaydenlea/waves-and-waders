@@ -7,7 +7,6 @@ import { getServerSupabase } from "@/lib/supabaseServer";
 import { AuthForm } from "@/components/auth/AuthForm";
 import { buildPageMetadata } from "@/lib/seo";
 import { BrandWordmark } from "@/components/general/BrandWordmark";
-import { ScrollBoundaryMain } from "@/components/general/ScrollBoundaryMain";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = buildPageMetadata({
@@ -42,7 +41,7 @@ export default async function LoginPage() {
   }
 
   return (
-    <ScrollBoundaryMain data-ww-page="login" className="relative isolate">
+    <main className="relative isolate min-h-[100svh] supports-[height:100dvh]:min-h-[100dvh] overflow-x-hidden">
       <div
         aria-hidden
         className="pointer-events-none fixed inset-0 [contain:paint]"
@@ -144,6 +143,6 @@ export default async function LoginPage() {
           />
         </section>
       </div>
-    </ScrollBoundaryMain>
+    </main>
   );
 }
