@@ -2,15 +2,6 @@
 
 import * as React from "react";
 
-function getViewportHeightPx() {
-  if (typeof window === "undefined") return null;
-  const vv = window.visualViewport;
-  // Prefer the *visual* viewport height so 100vh-based sections don't end up
-  // taller than what's actually visible (e.g. when browser chrome is present).
-  const height = vv?.height ?? window.innerHeight;
-  return Number.isFinite(height) && height > 0 ? height : null;
-}
-
 export default function ViewportVars() {
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -36,11 +27,6 @@ export default function ViewportVars() {
         lastInnerSize = { w: innerW, h: innerH };
       }
 
-      const heightPx = getViewportHeightPx();
-      if (!heightPx) return;
-      // 1vh equivalent in px based on the *visual* viewport (handles iOS Safari toolbars).
-      root.style.setProperty("--ww-vh", `${heightPx * 0.01}px`);
-
       const vv = window.visualViewport;
       const vvHeight = vv?.height ?? innerH;
       const vvTop = vv?.offsetTop ?? 0;
@@ -56,6 +42,23 @@ export default function ViewportVars() {
       // Avoid treating this transient reduction as "browser chrome" space.
       const keyboardViewportReduced = bottomUi > 160 && vvHeight < innerH - 80;
       const keyboardLikelyOpen = activeIsTextEntry && keyboardViewportReduced;
+
+      // On iOS Safari, `visualViewport.height` can get "stuck" after the keyboard
+      // dismisses (remaining smaller than the actual visible viewport). When the
+      // keyboard is likely open, trust the smaller visual viewport; otherwise use
+      // the larger layout viewport height so the page snaps back correctly.
+      const heightPxRaw =
+        vv != null
+          ? keyboardLikelyOpen
+            ? vvHeight
+            : Math.max(innerH, vvHeight)
+          : innerH;
+      const heightPx =
+        Number.isFinite(heightPxRaw) && heightPxRaw > 0 ? heightPxRaw : null;
+      if (!heightPx) return;
+
+      // 1vh equivalent in px based on the effective viewport height.
+      root.style.setProperty("--ww-vh", `${heightPx * 0.01}px`);
 
       root.style.setProperty(
         "--ww-keyboard-inset",
