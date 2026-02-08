@@ -63,7 +63,7 @@ export default async function LoginPage() {
         <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-b from-transparent to-background" />
       </div>
 
-      <div className="relative grid min-h-full grid-rows-[auto,1fr] lg:grid-cols-2 lg:grid-rows-1">
+      <div className="relative grid min-h-[100svh] supports-[height:100dvh]:min-h-[100dvh] grid-rows-[auto,1fr] lg:grid-cols-2 lg:grid-rows-1">
         <section className="relative flex min-h-[18rem] items-end px-5 pb-10 pt-[calc(2.5rem+env(safe-area-inset-top))] sm:px-8 sm:pb-12 lg:min-h-[100svh] lg:items-center lg:px-14 lg:py-16">
           <div
             aria-hidden
