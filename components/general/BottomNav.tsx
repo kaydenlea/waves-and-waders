@@ -761,7 +761,6 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
                     </span>
                   </AppMenuTrigger>
                   <AppMenuContent
-                    data-ww-scroll-lock="1"
                     align="end"
                     sideOffset={10}
                     className="w-72"
