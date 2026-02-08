@@ -59,7 +59,7 @@ export default function NavMoreMenu({
   }, []);
 
   return (
-    <AppMenu open={open} onOpenChange={setOpen} closeOnScroll={bottomNavMode}>
+    <AppMenu open={open} onOpenChange={setOpen} closeOnScroll>
       <AppMenuTrigger
         id={bottomNavMode ? "nav-more-trigger-bottom" : "nav-more-trigger-top"}
         className={

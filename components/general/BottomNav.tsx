@@ -185,34 +185,40 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
 
   // hide main scrollbar when filters panel is open
   useEffect(() => {
+    if (typeof document === "undefined") return;
+    if (openPanel !== "filters") return;
+
     const html = document.documentElement;
     const body = document.body;
-    if (openPanel === "filters") {
+
+    const prev = {
+      htmlOverflow: html.style.overflow,
+      htmlOverscrollY: html.style.overscrollBehaviorY,
+      bodyOverscrollY: body.style.overscrollBehaviorY,
+      hadDisableBackdrop: body.classList.contains("ww-disable-backdrop"),
+    };
+
+    const isTouchDevice = window.matchMedia?.(
+      "(hover: none) and (pointer: coarse)"
+    )?.matches;
+
+    // On touch devices, lock the document scroll to prevent dragging the sheet/backdrop
+    // from scrolling the underlying page. On desktop, avoid removing the scrollbar.
+    if (mobile && isTouchDevice) {
       html.style.overflow = "hidden";
-      if (mobile) {
-        body.classList.add("ww-disable-backdrop");
-        html.style.overscrollBehaviorY = "contain";
-        body.style.overscrollBehaviorY = "contain";
-      }
-    } else {
-      // Restore defaults
-      html.style.overflow = "";
-      body.style.overflow = "";
-      html.style.overscrollBehaviorY = "";
-      body.style.overscrollBehaviorY = "";
-      body.classList.remove("ww-disable-backdrop");
-      html.style.paddingRight = "";
-      body.style.paddingRight = "";
     }
+
+    if (mobile) {
+      body.classList.add("ww-disable-backdrop");
+      html.style.overscrollBehaviorY = "contain";
+      body.style.overscrollBehaviorY = "contain";
+    }
+
     return () => {
-      // Restore defaults
-      html.style.overflow = "";
-      body.style.overflow = "";
-      html.style.overscrollBehaviorY = "";
-      body.style.overscrollBehaviorY = "";
-      body.classList.remove("ww-disable-backdrop");
-      html.style.paddingRight = "";
-      body.style.paddingRight = "";
+      html.style.overflow = prev.htmlOverflow;
+      html.style.overscrollBehaviorY = prev.htmlOverscrollY;
+      body.style.overscrollBehaviorY = prev.bodyOverscrollY;
+      if (!prev.hadDisableBackdrop) body.classList.remove("ww-disable-backdrop");
     };
   }, [openPanel, mobile]);
 

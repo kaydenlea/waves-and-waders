@@ -551,19 +551,26 @@ body[data-ww-interaction-lock="1"] [data-slot="chart"] {
 }
 
 /* ---------------------------------------------------------------------------
-   CSS-only scroll lock while app menus are open
+   CSS-only scroll lock while app menus are open (touch devices only)
    Uses :has(), supported in modern Safari/Chrome/Edge.
---------------------------------------------------------------------------- */
-html:has(.ww-app-menu-content[data-state="open"][data-ww-scroll-lock="1"]),
-body:has(.ww-app-menu-content[data-state="open"][data-ww-scroll-lock="1"]) {
-  overflow: hidden;
-  overscroll-behavior: none;
-  touch-action: none;
-}
 
-body:has(.ww-app-menu-content[data-state="open"][data-ww-scroll-lock="1"])
-  #main-content {
-  overflow: hidden;
+   This lock exists to prevent swipe/drag gestures on dropdown content from
+   scrolling the underlying page on touch devices. On desktop, locking scroll by
+   forcing `overflow: hidden` removes the page scrollbar entirely, which is
+   undesirable; keep desktop behavior unchanged.
+--------------------------------------------------------------------------- */
+@media (max-width: 911px) and (hover: none) and (pointer: coarse) {
+  html:has(.ww-app-menu-content[data-state="open"][data-ww-scroll-lock="1"]),
+  body:has(.ww-app-menu-content[data-state="open"][data-ww-scroll-lock="1"]) {
+    overflow: hidden;
+    overscroll-behavior: none;
+    touch-action: none;
+  }
+
+  body:has(.ww-app-menu-content[data-state="open"][data-ww-scroll-lock="1"])
+    #main-content {
+    overflow: hidden;
+  }
 }
 
 /* While switching beaches from the map, block interactions until the new route commits. */
