@@ -5,10 +5,12 @@ import * as React from "react";
 function getViewportHeightPx() {
   if (typeof window === "undefined") return null;
   const vv = window.visualViewport;
-  // On iOS, visualViewport can be smaller than the full layout viewport near
-  // the notch/dynamic-island area. Use the larger of the two so sections don't
-  // look clipped at the top edge.
-  const height = Math.max(window.innerHeight, vv?.height ?? 0);
+  // Prefer the *visual* viewport height so 100vh-based sections don't end up
+  // taller than what's actually visible (e.g. when browser chrome is present).
+  // Clamp to `innerHeight` to avoid runaway values on quirky implementations.
+  const height = vv
+    ? Math.min(window.innerHeight, vv.height + (vv.offsetTop ?? 0))
+    : window.innerHeight;
   return Number.isFinite(height) && height > 0 ? height : null;
 }
 
