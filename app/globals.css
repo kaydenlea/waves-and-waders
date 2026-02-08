@@ -39,6 +39,38 @@
   }
 }
 
+/* While filters are open:
+   - Wide/desktop: keep scrollbar gutter (no horizontal shift) but make the scrollbar invisible.
+   - Narrow/mobile: fully disable document scrolling (no scrollbar, no gutter). */
+@media (min-width: 912px) {
+  html[data-ww-filters-open="1"] {
+    scrollbar-color: transparent transparent; /* Firefox */
+  }
+  html[data-ww-filters-open="1"]::-webkit-scrollbar {
+    background: transparent;
+  }
+  html[data-ww-filters-open="1"]::-webkit-scrollbar-thumb {
+    background-color: transparent;
+    border-color: transparent;
+  }
+  html[data-ww-filters-open="1"]::-webkit-scrollbar-thumb:hover {
+    background-color: transparent;
+  }
+  html[data-ww-filters-open="1"]::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+}
+
+@media (max-width: 911px) {
+  html[data-ww-filters-open="1"] {
+    scrollbar-width: none; /* Firefox */
+  }
+  html[data-ww-filters-open="1"]::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+}
+
 /* Login uses an internal scroll container (`ScrollBoundaryMain`) while the document
    itself is not scrolling, so `scrollbar-gutter: stable` on `html` can leave an
    empty reserved gutter on the right. Disable gutter reservation on that route. */
@@ -573,15 +605,12 @@ body[data-ww-interaction-lock="1"] [data-slot="chart"] {
   }
 }
 
-/* ---------------------------------------------------------------------------
-   Filters sheet scroll lock
-   When the filters sheet is open, prevent the underlying document from scrolling.
---------------------------------------------------------------------------- */
-html:has(.ww-filters-sheet[data-state="open"]),
-body:has(.ww-filters-sheet[data-state="open"]) {
-  overflow: hidden;
-  overscroll-behavior: none;
-}
+/* --------------------------------------------------------------------------- 
+   Filters sheet scroll lock 
+   When the filters sheet is open, prevent the underlying document from scrolling. 
+--------------------------------------------------------------------------- */ 
+/* Note: scroll locking for the filters sheet is handled in JS via `acquireScrollLock()`
+   to keep the page visually stationary (avoids layout/position jumps on wide layouts). */
 
 /* While switching beaches from the map, block interactions until the new route commits. */
 body[data-ww-navigation-pending="1"] #main-content {

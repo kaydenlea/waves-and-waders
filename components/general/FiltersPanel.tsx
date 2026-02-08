@@ -31,7 +31,7 @@ type FeatureSection = {
 type Props = {
   open?: boolean;
   appliedFilters: Set<string>;
-  onApply: (next: Set<string>) => void;
+  onApply: (next: Set<string>, options?: { close?: boolean }) => void;
   onClose?: () => void;
   className?: string;
 };
@@ -208,7 +208,10 @@ export default function FiltersPanel({
       </div>
 
       <div
-        className={cn("flex-1 min-h-0 px-4 py-4 space-y-4 overflow-y-auto")}
+        className={cn(
+          "flex-1 min-h-0 px-4 py-4 space-y-4 overflow-y-auto overscroll-contain",
+        )}
+        data-ww-filters-scroll="1"
         style={{
           WebkitOverflowScrolling: "touch",
           scrollbarGutter: "stable both-edges",
@@ -283,7 +286,7 @@ export default function FiltersPanel({
           onClick={() => {
             const cleared = new Set<string>();
             setTempFilters(cleared);
-            onApply(cleared);
+            onApply(cleared, { close: false });
           }}
           disabled={tempFilters.size === 0}
           className={cn(
@@ -300,7 +303,7 @@ export default function FiltersPanel({
         <button
           type="button"
           onClick={() => {
-            onApply(new Set(tempFilters));
+            onApply(new Set(tempFilters), { close: true });
             onClose?.();
           }}
           className={cn(

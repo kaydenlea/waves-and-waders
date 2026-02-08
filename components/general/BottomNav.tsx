@@ -1,12 +1,13 @@
-"use client";
-
-import { useEffect, useMemo, useRef, useState } from "react";
-import { cn } from "@/lib/utils";
-import {
-  User,
-  MapPinned,
-  Heart,
-  Search,
+"use client"; 
+ 
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"; 
+import { cn } from "@/lib/utils"; 
+import { acquireScrollLock } from "@/lib/scrollLock";
+import { 
+  User, 
+  MapPinned, 
+  Heart, 
+  Search, 
   ChevronDown,
   ArrowUp,
   LogOut,
@@ -80,15 +81,15 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
     setContentCollapsed,
     setContentRevealRequestId,
   } = useMapUI();
-  const { filters, setFilters } = useMapData();
-  const { selectedTab } = useClientPath();
-  const forecastPage = selectedTab === "forecast";
-  const [profileOpen, setProfileOpen] = useState(false);
-  useEffect(() => {
-    const onResize = () => setProfileOpen(false);
-    window.addEventListener("resize", onResize, { passive: true });
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
+  const { filters, setFilters } = useMapData(); 
+  const { selectedTab } = useClientPath(); 
+  const forecastPage = selectedTab === "forecast"; 
+  const [profileOpen, setProfileOpen] = useState(false); 
+  useEffect(() => { 
+    const onResize = () => setProfileOpen(false); 
+    window.addEventListener("resize", onResize, { passive: true }); 
+    return () => window.removeEventListener("resize", onResize); 
+  }, []); 
 
   // Detect screen width and reset nav visibility when switching to mobile
   useEffect(() => {
@@ -103,9 +104,9 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
     };
 
     handleResize(); // initialize
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
+    window.addEventListener("resize", handleResize); 
+    return () => window.removeEventListener("resize", handleResize); 
+  }, []); 
 
   // Expose mobile bottom nav height so global toasts can sit above it.
   useEffect(() => {
@@ -183,29 +184,234 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
   //   }
   // }, [atTop, mobile, isEditing, landingPage, openPanel]);
 
-  // hide main scrollbar when filters panel is open
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    if (openPanel !== "filters") return;
+  // Lock page scrolling while the filters sheet is open. 
+  // On wide layouts with a sticky map, avoid `position: fixed` scroll locks because 
+  // they can cause `position: sticky` elements (map) to "unstick" and jump. 
+  useLayoutEffect(() => { 
+    if (typeof window === "undefined" || typeof document === "undefined") return; 
+    if (openPanel !== "filters") return; 
 
-    const html = document.documentElement;
-    const body = document.body;
+    const html = document.documentElement; 
+    const body = document.body; 
+    const sheetSelector = '.ww-filters-sheet[data-state="open"]'; 
+    const wideLayout = window.matchMedia?.("(min-width: 912px)")?.matches; 
+
+    // On narrow/mobile, opening filters should behave like "map-first" mode:
+    // collapse the content sheet and scroll to the top before locking scroll.
+    // Otherwise, collapsing can clamp the scroll position and make content appear
+    // shifted/cut off behind the filters panel.
+    if (mobile && !wideLayout) {
+      if (!contentCollapsed) {
+        setContentCollapsed(true);
+        try {
+          window.scrollTo({ top: 0 });
+        } catch {
+          window.scrollTo(0, 0);
+        }
+        return;
+      }
+
+      if (window.scrollY !== 0) {
+        try {
+          window.scrollTo({ top: 0 });
+        } catch {
+          window.scrollTo(0, 0);
+        }
+        return;
+      }
+    }
 
     const prev = {
-      htmlOverflow: html.style.overflow,
+      htmlFiltersOpen: html.dataset.wwFiltersOpen,
+      bodyFiltersOpen: body.dataset.wwFiltersOpen,
       htmlOverscrollY: html.style.overscrollBehaviorY,
       bodyOverscrollY: body.style.overscrollBehaviorY,
       hadDisableBackdrop: body.classList.contains("ww-disable-backdrop"),
     };
 
-    const isTouchDevice = window.matchMedia?.(
-      "(hover: none) and (pointer: coarse)"
-    )?.matches;
+    html.dataset.wwFiltersOpen = "1";
+    body.dataset.wwFiltersOpen = "1";
 
-    // On touch devices, lock the document scroll to prevent dragging the sheet/backdrop
-    // from scrolling the underlying page. On desktop, avoid removing the scrollbar.
-    if (mobile && isTouchDevice) {
-      html.style.overflow = "hidden";
+    let releaseScrollLock: (() => void) | null = null; 
+    let removeWideHandlers: (() => void) | null = null; 
+
+    if (wideLayout) {
+      const lockedScrollY = window.scrollY;
+      let raf = 0;
+      let restoring = false;
+      const scrollAreaSelector = "[data-ww-filters-scroll=\"1\"]";
+      const touchState = {
+        active: false,
+        lastY: 0,
+        scrollArea: null as HTMLElement | null,
+        startedInScrollArea: false,
+      };
+
+      const isInSheet = (target: EventTarget | null) => {
+        const el = target as Element | null;
+        return Boolean(el?.closest?.(sheetSelector));
+      };
+
+      const getScrollArea = (target: EventTarget | null) => {
+        const el = target as Element | null;
+        const area = el?.closest?.(scrollAreaSelector) as HTMLElement | null;
+        return area ?? (document.querySelector(scrollAreaSelector) as HTMLElement | null);
+      };
+
+      const restoreScroll = () => {
+        if (restoring) return;
+        const y = window.scrollY;
+        if (Math.abs(y - lockedScrollY) < 1) return;
+        restoring = true;
+        try {
+          window.scrollTo(0, lockedScrollY);
+        } finally {
+          restoring = false;
+        }
+      };
+
+      const scheduleRestore = () => {
+        if (raf) return;
+        raf = window.requestAnimationFrame(() => {
+          raf = 0;
+          restoreScroll();
+        });
+      };
+
+      const preventIfBackground = (event: Event) => {
+        if (!event.cancelable) return;
+        if (isInSheet(event.target)) return;
+        event.preventDefault();
+        scheduleRestore();
+      };
+
+      // If a wheel gesture happens anywhere inside the sheet but NOT on the scrollable
+      // content, reroute it to the scroll area so the underlying page never scrolls.
+      const rerouteSheetWheel = (event: WheelEvent) => {
+        if (!event.cancelable) return;
+        if (!isInSheet(event.target)) return;
+
+        const targetEl = event.target as Element | null;
+        const inScrollArea = Boolean(targetEl?.closest?.(scrollAreaSelector));
+        if (inScrollArea) return;
+
+        const area = getScrollArea(event.target);
+        if (!area) {
+          event.preventDefault();
+          scheduleRestore();
+          return;
+        }
+
+        event.preventDefault();
+        area.scrollTop += event.deltaY;
+      };
+
+      const onTouchStartCapture = (event: TouchEvent) => {
+        if (event.touches.length !== 1) return;
+        if (!isInSheet(event.target)) return;
+
+        const targetEl = event.target as Element | null;
+        touchState.startedInScrollArea = Boolean(
+          targetEl?.closest?.(scrollAreaSelector),
+        );
+        touchState.scrollArea = getScrollArea(event.target);
+        touchState.active = true;
+        touchState.lastY = event.touches[0]?.clientY ?? 0;
+      };
+
+      const onTouchMoveCapture = (event: TouchEvent) => {
+        if (!touchState.active) return;
+        if (event.touches.length !== 1) return;
+        if (!isInSheet(event.target)) return;
+        if (!event.cancelable) return;
+
+        const y = event.touches[0]?.clientY ?? 0;
+        const dy = y - touchState.lastY;
+        touchState.lastY = y;
+        if (dy === 0) return;
+
+        const area = touchState.scrollArea ?? getScrollArea(event.target);
+        if (!area) {
+          event.preventDefault();
+          scheduleRestore();
+          return;
+        }
+
+        const atTop = area.scrollTop <= 0;
+        const atBottom = area.scrollTop + area.clientHeight >= area.scrollHeight - 1;
+        const wouldOverscroll = (dy > 0 && atTop) || (dy < 0 && atBottom);
+
+        // If the gesture started outside the scroll area, always reroute scroll into it.
+        // If it started inside, only prevent scroll chaining at the boundaries.
+        if (!touchState.startedInScrollArea || wouldOverscroll) {
+          event.preventDefault();
+          area.scrollTop -= dy;
+        }
+      };
+
+      const onTouchEndCapture = () => {
+        touchState.active = false;
+        touchState.scrollArea = null;
+        touchState.startedInScrollArea = false;
+        touchState.lastY = 0;
+      };
+
+      const preventKeyScroll = (event: KeyboardEvent) => {
+        const key = event.key;
+        const scrollKey =
+          key === "ArrowUp" ||
+          key === "ArrowDown" ||
+          key === "PageUp" ||
+          key === "PageDown" ||
+          key === "Home" ||
+          key === "End" ||
+          key === " " ||
+          key === "Spacebar";
+        if (!scrollKey) return;
+
+        const active = document.activeElement as Element | null;
+        if (active?.closest?.(sheetSelector)) return;
+        if (!event.cancelable) return;
+        event.preventDefault();
+        scheduleRestore();
+      };
+
+      window.addEventListener("wheel", preventIfBackground, { passive: false });
+      window.addEventListener("wheel", rerouteSheetWheel, {
+        passive: false,
+        capture: true,
+      });
+      window.addEventListener("touchstart", onTouchStartCapture, {
+        passive: true,
+        capture: true,
+      });
+      window.addEventListener("touchmove", onTouchMoveCapture, {
+        passive: false,
+        capture: true,
+      });
+      window.addEventListener("touchend", onTouchEndCapture, { capture: true });
+      window.addEventListener("touchcancel", onTouchEndCapture, { capture: true });
+      window.addEventListener("touchmove", preventIfBackground, {
+        passive: false,
+      });
+      window.addEventListener("keydown", preventKeyScroll);
+      window.addEventListener("scroll", scheduleRestore, { passive: true });
+
+      removeWideHandlers = () => {
+        if (raf) window.cancelAnimationFrame(raf);
+        window.removeEventListener("wheel", preventIfBackground);
+        window.removeEventListener("wheel", rerouteSheetWheel, true);
+        window.removeEventListener("touchstart", onTouchStartCapture, true);
+        window.removeEventListener("touchmove", onTouchMoveCapture, true);
+        window.removeEventListener("touchend", onTouchEndCapture, true);
+        window.removeEventListener("touchcancel", onTouchEndCapture, true);
+        window.removeEventListener("touchmove", preventIfBackground);
+        window.removeEventListener("keydown", preventKeyScroll);
+        window.removeEventListener("scroll", scheduleRestore);
+      };
+    } else {
+      // On narrow layouts we want a true scroll lock (prevents iOS overscroll bounce).
+      releaseScrollLock = acquireScrollLock();
     }
 
     if (mobile) {
@@ -214,13 +420,18 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
       body.style.overscrollBehaviorY = "contain";
     }
 
-    return () => {
-      html.style.overflow = prev.htmlOverflow;
+    return () => { 
+      removeWideHandlers?.(); 
+      releaseScrollLock?.(); 
+      if (prev.htmlFiltersOpen) html.dataset.wwFiltersOpen = prev.htmlFiltersOpen;
+      else delete html.dataset.wwFiltersOpen;
+      if (prev.bodyFiltersOpen) body.dataset.wwFiltersOpen = prev.bodyFiltersOpen;
+      else delete body.dataset.wwFiltersOpen;
       html.style.overscrollBehaviorY = prev.htmlOverscrollY;
       body.style.overscrollBehaviorY = prev.bodyOverscrollY;
       if (!prev.hadDisableBackdrop) body.classList.remove("ww-disable-backdrop");
     };
-  }, [openPanel, mobile]);
+  }, [openPanel, mobile, contentCollapsed, setContentCollapsed]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -523,8 +734,11 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
       {/* Filters overlay + sheet (always mounted to avoid flicker) */}
       <>
         <div
+          style={{ width: "100vw", height: "100vh" }}
           className={cn(
-            "fixed inset-0 z-70 bg-black/30 transition-opacity duration-100",
+            // Use 100vw/100vh so the overlay also covers the scrollbar area on platforms
+            // where the scrollbar sits outside the layout viewport (prevents grabbing it).
+            "fixed left-0 top-0 z-70 bg-black/30 transition-opacity duration-100",
             openPanel === "filters"
               ? "opacity-100 pointer-events-auto"
               : "opacity-0 pointer-events-none",
@@ -543,19 +757,19 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
           )}
           data-state={openPanel === "filters" ? "open" : "closed"}
         >
-          <FiltersPanel
-            open={openPanel === "filters"}
-            appliedFilters={filters}
-            onClose={() => setOpenPanel(null)}
-            onApply={(next) => {
-              setFilters(new Set(next));
-              setOpenPanel(null);
-            }}
-            className={cn(
-              "rounded-t-3xl rounded-b-none border-t border-border/30 shadow-[0_-12px_40px_rgba(2,6,23,0.08)]",
-              "@min-4xl:rounded-3xl @min-4xl:border @min-4xl:shadow-2xl",
-            )}
-          />
+          <FiltersPanel 
+            open={openPanel === "filters"} 
+            appliedFilters={filters} 
+            onClose={() => setOpenPanel(null)} 
+            onApply={(next, options) => { 
+              setFilters(new Set(next)); 
+              if (options?.close !== false) setOpenPanel(null); 
+            }} 
+            className={cn( 
+              "rounded-t-3xl rounded-b-none border-t border-border/30 shadow-[0_-12px_40px_rgba(2,6,23,0.08)]", 
+              "@min-4xl:rounded-3xl @min-4xl:border @min-4xl:shadow-2xl", 
+            )} 
+          /> 
         </div>
       </>
 
