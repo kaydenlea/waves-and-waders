@@ -93,7 +93,7 @@ const TimeRail: React.FC<Props> = ({
   const [closing, setClosing] = React.useState(false);
   const hasOpenedRef = React.useRef(false);
   const closeTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(
-    null
+    null,
   );
   const railRef = React.useRef<HTMLDivElement | null>(null);
   const buttonRef = React.useRef<HTMLButtonElement | null>(null);
@@ -155,13 +155,17 @@ const TimeRail: React.FC<Props> = ({
   );
 
   return (
-    <div ref={railRef} className="relative w-full" data-time-rail-root>
+    <div
+      ref={railRef}
+      className="relative w-full touch-none"
+      data-time-rail-root
+    >
       <Collapsible.Root open={open} onOpenChange={setOpen} className="w-full">
         <div
           className={cn(
             "grid grid-cols-[auto_1fr_auto] items-center @min-lg:gap-2 rounded-full bg-background/80 dark:bg-highlight-5/80 @min-4xl:dark:bg-highlight-5/90 @min-4xl:bg-background/80 backdrop-blur shadow-even px-2 @min-md:px-3 transition-[background-color,border-color,box-shadow] duration-300",
             railPad,
-            panelActive ? "rounded-t-[1.75rem] rounded-b-none" : "rounded-full"
+            panelActive ? "rounded-t-[1.75rem] rounded-b-none" : "rounded-full",
           )}
         >
           <div className="flex items-center @min-lg:gap-1 mr-1.5">
@@ -178,7 +182,7 @@ const TimeRail: React.FC<Props> = ({
                   "text-[0.7rem] @min-md:text-xs -mb-[1px] @min-md:mb-0 transition-all duration-300",
                   hourChanged
                     ? "scale-110 text-blue-500 dark:text-blue-400 font-semibold"
-                    : "text-foreground scale-100"
+                    : "text-foreground scale-100",
                 )}
               >
                 {(() => {
@@ -240,14 +244,14 @@ const TimeRail: React.FC<Props> = ({
           id={`time-rail-panel-${beachId}`}
           className={cn(
             "@container absolute left-0 right-0 top-full z-[60] mt-[0.03rem] rounded-b-[1.75rem] shadow-even bg-background/80 dark:bg-highlight-5/80 @min-4xl:dark:bg-highlight-5/90 @min-4xl:bg-background/80 backdrop-blur px-1 py-0.5 overflow-hidden transition-all duration-200",
-            "data-[state=closed]:max-h-0 data-[state=open]:max-h-[520px] data-[state=closed]:pointer-events-none data-[state=closed]:opacity-0 data-[state=open]:opacity-100"
+            "data-[state=closed]:max-h-0 data-[state=open]:max-h-[520px] data-[state=closed]:pointer-events-none data-[state=closed]:opacity-0 data-[state=open]:opacity-100",
           )}
         >
-            <LazyLoadDatePicker
-              beachId={beachId}
-              value={selected ?? undefined}
-              onSelect={handleDateSelect}
-            />
+          <LazyLoadDatePicker
+            beachId={beachId}
+            value={selected ?? undefined}
+            onSelect={handleDateSelect}
+          />
         </Collapsible.Content>
       </Collapsible.Root>
     </div>

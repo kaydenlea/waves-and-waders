@@ -386,7 +386,9 @@ export default function PathStyleWrapper({
           "relative isolate overflow-clip touch-pan-y w-full px-2 @min-4xl:pt-4 bg-background border-t border-x border-border/70 @min-4xl:border-none mx-auto scroll-mt-32",
           // Preserve mobile rendering/perf behavior but avoid breaking `position: fixed`
           // descendants (e.g. floating “Show map” tab) on desktop.
-          disableMobileGpuTransform ? "transform-none" : "transform-gpu",
+          disableMobileGpuTransform
+            ? "transform-none max-[911px]:transform-gpu max-[911px]:will-change-transform"
+            : "transform-gpu",
           "@min-4xl:transform-none",
           // Keep drag overlays / floating edit controls above the footer.
           effectiveEditPage ? "z-auto" : "z-30",
@@ -411,6 +413,15 @@ export default function PathStyleWrapper({
             : {}),
         }}
       >
+        <div
+          aria-hidden="true"
+          className={cn(
+            "pointer-events-none absolute inset-0 -z-10 bg-background transform-gpu",
+            !effectiveEditPage
+              ? "rounded-t-4xl @min-4xl:rounded-t-none"
+              : undefined,
+          )}
+        />
         {!effectiveEditPage && (
           <>
             {enforceContentPeek &&

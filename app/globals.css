@@ -16,6 +16,16 @@
     @apply bg-background text-foreground @container/main;
     overscroll-behavior-y: none;
   }
+  /* Prevent iOS Safari auto-zoom on focus by ensuring text-entry controls are >= 16px on touch devices. */
+  @media (hover: none) and (pointer: coarse) {
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(
+        [type="color"]
+      ):not([type="file"]),
+    textarea,
+    select {
+      font-size: 16px;
+    }
+  }
   /* button {
     @apply focus-visible:outline-none focus-visible:ring focus-visible:ring-foreground;
   } */
@@ -512,6 +522,21 @@
 --------------------------------------------------------------------------- */
 body[data-ww-interaction-lock="1"] [data-slot="chart"] {
   pointer-events: none;
+}
+
+/* ---------------------------------------------------------------------------
+   CSS-only scroll lock while app menus are open
+   Uses :has(), supported in modern Safari/Chrome/Edge.
+--------------------------------------------------------------------------- */
+html:has(.ww-app-menu-content[data-state="open"]),
+body:has(.ww-app-menu-content[data-state="open"]) {
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
+body:has(.ww-app-menu-content[data-state="open"]) #main-content {
+  overflow: hidden;
 }
 
 /* While switching beaches from the map, block interactions until the new route commits. */

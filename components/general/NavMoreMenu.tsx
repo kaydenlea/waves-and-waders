@@ -57,8 +57,9 @@ export default function NavMoreMenu({
     window.addEventListener("resize", onResize, { passive: true });
     return () => window.removeEventListener("resize", onResize);
   }, []);
+
   return (
-    <AppMenu open={open} onOpenChange={setOpen}>
+    <AppMenu open={open} onOpenChange={setOpen} closeOnScroll={bottomNavMode}>
       <AppMenuTrigger
         id={bottomNavMode ? "nav-more-trigger-bottom" : "nav-more-trigger-top"}
         className={

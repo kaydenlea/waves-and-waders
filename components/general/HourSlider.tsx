@@ -49,6 +49,12 @@ const HourSlider = ({
 
   const [isSliding, setIsSliding] = useState(false);
   const interactionLockReleaseRef = useRef<(() => void) | null>(null);
+  const pointerStartRef = useRef<{
+    x: number;
+    y: number;
+    pointerType: string;
+  } | null>(null);
+  const interactionLockedRef = useRef(false);
   const hour = controlled ?? internal;
   const displayValue = hour % 12 === 0 ? 12 : hour % 12;
   const ampm = hour >= 12 && hour < 24 ? "PM" : "AM";
@@ -229,6 +235,19 @@ const HourSlider = ({
     };
   }, []);
 
+  const releaseInteractionLock = () => {
+    interactionLockReleaseRef.current?.();
+    interactionLockReleaseRef.current = null;
+    interactionLockedRef.current = false;
+  };
+
+  const acquireLockIfNeeded = () => {
+    if (!interactionLockReleaseRef.current) {
+      interactionLockReleaseRef.current = acquireInteractionLock();
+    }
+    interactionLockedRef.current = true;
+  };
+
   return (
     <div
       className={cn(
@@ -246,23 +265,53 @@ const HourSlider = ({
         onValueChange={handleChange}
         onValueCommit={(vals) => {
           const v = Math.max(min, Math.min(max, Math.round(vals[0] ?? hour)));
-          onCommit?.(v);
+        onCommit?.(v);
+      }}
+        onPointerDown={(e) => {
+          pointerStartRef.current = {
+            x: e.clientX,
+            y: e.clientY,
+            pointerType: e.pointerType,
+          };
+
+          // Mouse dragging never scrolls the page, so lock immediately for parity
+          // with existing behavior. Touch/pen should only lock once we detect a
+          // horizontal scrub gesture so vertical scrolling still works.
+          if (e.pointerType === "mouse") {
+            setIsSliding(true);
+            acquireLockIfNeeded();
+          } else {
+            setIsSliding(false);
+            releaseInteractionLock();
+          }
         }}
-        onPointerDown={() => {
-          setIsSliding(true);
-          if (!interactionLockReleaseRef.current) {
-            interactionLockReleaseRef.current = acquireInteractionLock();
+        onPointerMove={(e) => {
+          if (interactionLockedRef.current) return;
+          const start = pointerStartRef.current;
+          if (!start) return;
+          if (start.pointerType === "mouse") return;
+
+          const dx = e.clientX - start.x;
+          const dy = e.clientY - start.y;
+          const absDx = Math.abs(dx);
+          const absDy = Math.abs(dy);
+
+          // If the user is scrubbing horizontally, lock interactions so the UI
+          // doesn't scroll underneath the slider.
+          if (absDx >= 8 && absDx > absDy + 2) {
+            setIsSliding(true);
+            acquireLockIfNeeded();
           }
         }}
         onPointerUp={() => {
           setIsSliding(false);
-          interactionLockReleaseRef.current?.();
-          interactionLockReleaseRef.current = null;
+          pointerStartRef.current = null;
+          releaseInteractionLock();
         }}
         onPointerCancel={() => {
           setIsSliding(false);
-          interactionLockReleaseRef.current?.();
-          interactionLockReleaseRef.current = null;
+          pointerStartRef.current = null;
+          releaseInteractionLock();
         }}
         className="z-1"
         trackClassName="h-2 border border-border/50"

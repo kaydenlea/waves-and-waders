@@ -9,11 +9,13 @@ import { cn } from "@/lib/utils";
 // Shared, premium dropdown/menu surface used by top/bottom nav actions.
 // Standardized on Radix DropdownMenu (positioning + keyboard semantics), with `modal={false}` by default to avoid blocking map gestures.
 const APP_MENU_CONTENT_CLASS = cn(
+  "ww-app-menu-content",
   "z-[90] min-w-[14rem] max-w-[min(22rem,calc(100vw-1.25rem))] overflow-hidden",
   "rounded-[16px] border border-border/50",
   "bg-background dark:bg-highlight-4",
   "shadow-[0_18px_55px_rgba(2,6,23,0.14),0_10px_28px_rgba(2,6,23,0.10),0_1px_0_rgba(255,255,255,0.06)]",
   "p-1",
+  "overscroll-contain",
   "origin-(--radix-dropdown-menu-content-transform-origin)",
   "outline-hidden",
   "data-[state=open]:animate-in data-[state=closed]:animate-out",
@@ -44,8 +46,29 @@ const APP_MENU_SEPARATOR_CLASS = cn("my-1 h-px bg-border/25");
 
 function AppMenu({
   modal = false,
+  closeOnScroll = false,
   ...props
-}: React.ComponentProps<typeof DropdownMenuPrimitive.Root>) {
+}: React.ComponentProps<typeof DropdownMenuPrimitive.Root> & {
+  closeOnScroll?: boolean;
+}) {
+  const { open, onOpenChange } = props;
+
+  React.useEffect(() => {
+    if (!closeOnScroll) return;
+    if (open !== true) return;
+    if (typeof onOpenChange !== "function") return;
+
+    const close = () => onOpenChange(false);
+    const main = document.getElementById("main-content");
+
+    window.addEventListener("scroll", close, { passive: true });
+    main?.addEventListener("scroll", close, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", close);
+      main?.removeEventListener("scroll", close);
+    };
+  }, [closeOnScroll, onOpenChange, open]);
+
   return <DropdownMenuPrimitive.Root modal={modal} {...props} />;
 }
 

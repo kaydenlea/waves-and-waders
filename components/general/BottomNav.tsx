@@ -740,7 +740,11 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
           <Waves className="h-6 w-6" aria-hidden />
         </div> */}
               {user ? (
-                <AppMenu open={profileOpen} onOpenChange={setProfileOpen}>
+                <AppMenu
+                  open={profileOpen}
+                  onOpenChange={setProfileOpen}
+                  closeOnScroll
+                >
                   <AppMenuTrigger
                     id="bottom-nav-profile-trigger"
                     className="text-foreground/80 hover:bg-highlight-5 p-2 rounded-2xl flex flex-col items-center gap-1 @min-[350px]:min-w-15"
