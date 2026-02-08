@@ -63,7 +63,7 @@ export default async function LoginPage() {
         <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-b from-transparent to-background" />
       </div>
 
-      <div className="relative grid min-h-[100svh] supports-[height:100dvh]:min-h-[100dvh] grid-rows-[auto,1fr] lg:grid-cols-2 lg:grid-rows-1">
+      <div className="relative flex min-h-[100svh] flex-col supports-[height:100dvh]:min-h-[100dvh] lg:grid lg:grid-cols-2 lg:grid-rows-1">
         <section className="relative flex min-h-[18rem] items-end px-5 pb-10 pt-[calc(2.5rem+env(safe-area-inset-top))] sm:px-8 sm:pb-12 lg:min-h-[100svh] lg:items-center lg:px-14 lg:py-16">
           <div
             aria-hidden
@@ -114,7 +114,7 @@ export default async function LoginPage() {
           </div>
         </section>
 
-        <section className="relative flex min-h-0 items-stretch justify-stretch px-0 pb-0 pt-0 lg:min-h-[100svh] lg:items-center lg:justify-center lg:px-14 lg:py-16">
+        <section className="relative flex flex-1 min-h-0 items-stretch justify-stretch px-0 pb-0 pt-0 lg:min-h-[100svh] lg:items-center lg:justify-center lg:px-14 lg:py-16">
           <div
             aria-hidden
             className="pointer-events-none absolute inset-0 hidden lg:block bg-gradient-to-b from-background/20 via-background to-background"
