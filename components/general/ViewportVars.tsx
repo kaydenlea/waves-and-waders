@@ -46,18 +46,22 @@ export default function ViewportVars() {
       const vvHeight = vv?.height ?? innerH;
       const vvTop = vv?.offsetTop ?? 0;
       const bottomUi = Math.max(0, innerH - (vvHeight + vvTop));
-      if (bottomUi > maxBottomUiPx) {
-        maxBottomUiPx = bottomUi;
-      }
-      root.style.setProperty("--ww-bottom-ui", `${maxBottomUiPx}px`);
 
       const activeEl = document.activeElement as HTMLElement | null;
       const activeIsTextEntry =
         activeEl?.tagName === "INPUT" ||
         activeEl?.tagName === "TEXTAREA" ||
         activeEl?.isContentEditable;
-      const keyboardLikelyOpen =
-        activeIsTextEntry && bottomUi > 160 && vvHeight < innerH - 80;
+
+      // Keyboard heuristic: when the visual viewport is significantly reduced.
+      // Avoid treating this transient reduction as "browser chrome" space.
+      const keyboardViewportReduced = bottomUi > 160 && vvHeight < innerH - 80;
+      const keyboardLikelyOpen = activeIsTextEntry && keyboardViewportReduced;
+
+      if (!keyboardViewportReduced && bottomUi > maxBottomUiPx) {
+        maxBottomUiPx = bottomUi;
+      }
+      root.style.setProperty("--ww-bottom-ui", `${maxBottomUiPx}px`);
 
       // `.ww-stable-viewport` uses `100svh` as a fallback, but on some mobile browsers the
       // "small viewport" can get stuck after the on-screen keyboard has been shown.
@@ -65,8 +69,8 @@ export default function ViewportVars() {
       if (!keyboardLikelyOpen) {
         stableViewportHeightPx =
           stableViewportHeightPx == null
-            ? innerH
-            : Math.min(stableViewportHeightPx, innerH);
+            ? heightPx
+            : Math.min(stableViewportHeightPx, heightPx);
         root.style.setProperty(
           "--ww-stable-100vh",
           `${stableViewportHeightPx}px`,
