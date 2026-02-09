@@ -58,6 +58,15 @@ const MapLoadingShell: React.FC<Pick<Props, "variant" | "ui">> = ({
           maxHeight: desktopViewportHeight,
         };
 
+  const mapStyle = React.useMemo(() => {
+    if (!hydrated) return undefined;
+    if (!wrapperHeight) return undefined;
+    return {
+      ...wrapperHeight,
+      ["--ww-map-h" as any]: wrapperHeight.height,
+    } as React.CSSProperties;
+  }, [hydrated, wrapperHeight]);
+
   return (
     <aside
       id="map-container"
@@ -65,12 +74,14 @@ const MapLoadingShell: React.FC<Pick<Props, "variant" | "ui">> = ({
         embedded
           ? "relative flex h-full w-full"
           : cn(
-              "touch-none overscroll-none fixed z-0 w-full mx-auto max-w-screen max-[911px]:pr-[var(--ww-scroll-lock-pad-right)] transition-[transform,opacity] duration-300",
+              "touch-none overscroll-none z-0 w-full mx-auto max-w-screen transition-[transform,opacity] duration-300",
+              "max-[911px]:sticky max-[911px]:top-0 max-[911px]:mb-[calc(-1*var(--ww-map-h))] max-[911px]:pr-[var(--ww-scroll-lock-pad-right)]",
+              "min-[912px]:fixed",
               "max-[911px]:min-h-[calc(var(--ww-100vh,100dvh)+env(safe-area-inset-top,0px)-4.25rem-max(env(safe-area-inset-bottom,0px),var(--ww-bottom-ui,0px)))] max-[911px]:h-[calc(var(--ww-100vh,100dvh)+env(safe-area-inset-top,0px)-4.25rem-max(env(safe-area-inset-bottom,0px),var(--ww-bottom-ui,0px)))]",
               "@min-4xl:box-border @min-4xl:sticky @min-4xl:top-[7.5rem] @min-4xl:flex-1 @min-4xl:py-3 @min-4xl:pl-5 @min-4xl:pr-3 @min-4xl:h-[calc(var(--ww-100vh,100dvh)-8rem-max(env(safe-area-inset-bottom,0px),var(--ww-bottom-ui,0px)))] flex"
             )
       }
-      style={hydrated ? wrapperHeight : undefined}
+      style={mapStyle}
     >
       <div
         className={cn(

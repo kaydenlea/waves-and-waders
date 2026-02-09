@@ -5408,6 +5408,15 @@ const LeafletMap: React.FC<Props> = ({
           height: desktopViewportHeight,
           maxHeight: desktopViewportHeight,
         };
+
+  const mapStyle = React.useMemo(() => {
+    if (embedded) return undefined;
+    if (!wrapperHeight) return undefined;
+    return {
+      ...wrapperHeight,
+      ["--ww-map-h" as any]: wrapperHeight.height,
+    } as React.CSSProperties;
+  }, [embedded, wrapperHeight]);
   if (navigationPending) {
     return (
       <aside
@@ -5418,14 +5427,14 @@ const LeafletMap: React.FC<Props> = ({
               ? "touch-pan-y relative flex h-full w-full"
               : "touch-none relative flex h-full w-full"
               : cn(
-                  "touch-none overscroll-none fixed z-0 w-full mx-auto max-w-screen max-[911px]:pr-[var(--ww-scroll-lock-pad-right)] transition-[transform,opacity] duration-300",
+                  "touch-none overscroll-none z-0 w-full mx-auto max-w-screen transition-[transform,opacity] duration-300",
+                  "max-[911px]:sticky max-[911px]:top-0 max-[911px]:mb-[calc(-1*var(--ww-map-h))] max-[911px]:pr-[var(--ww-scroll-lock-pad-right)]",
+                  "min-[912px]:fixed",
                   "@min-4xl:box-border @min-4xl:sticky @min-4xl:top-[7.5rem] @min-4xl:flex-1 @min-4xl:py-3 @min-4xl:pl-5 @min-4xl:pr-3 @min-4xl:h-[calc(var(--ww-100vh,100dvh)-8rem-max(env(safe-area-inset-bottom,0px),var(--ww-bottom-ui,0px)))] flex",
                 )
           }
         data-ww-embed-preview={embedded && previewUi ? "true" : undefined}
-        style={
-          !embedded ? (wrapperHeight ?? undefined) : undefined
-        }
+        style={mapStyle}
       >
         <div
           className="flex w-full h-full items-center justify-center text-sm text-muted-foreground"
@@ -5455,14 +5464,14 @@ const LeafletMap: React.FC<Props> = ({
             ? "touch-pan-y relative flex h-full w-full"
             : "touch-none overscroll-contain relative flex h-full w-full"
               : cn(
-                  "touch-none overscroll-contain fixed z-0 w-full mx-auto max-w-screen max-[911px]:pr-[var(--ww-scroll-lock-pad-right)] transition-[transform,opacity] duration-300",
+                  "touch-none overscroll-contain z-0 w-full mx-auto max-w-screen transition-[transform,opacity] duration-300",
+                  "max-[911px]:sticky max-[911px]:top-0 max-[911px]:mb-[calc(-1*var(--ww-map-h))] max-[911px]:pr-[var(--ww-scroll-lock-pad-right)]",
+                  "min-[912px]:fixed",
                   "@min-4xl:box-border @min-4xl:sticky @min-4xl:top-[7.5rem] @min-4xl:flex-1 @min-4xl:py-3 @min-4xl:pl-5 @min-4xl:pr-3 @min-4xl:h-[calc(var(--ww-100vh,100dvh)-8rem-max(env(safe-area-inset-bottom,0px),var(--ww-bottom-ui,0px)))] flex",
                 )
       }
       data-ww-embed-preview={embedded && previewUi ? "true" : undefined}
-      style={
-        !embedded ? (wrapperHeight ?? undefined) : undefined
-      }
+      style={mapStyle}
     >
       <div
         className={cn(
