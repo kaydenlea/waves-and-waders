@@ -370,17 +370,11 @@ export default function PathStyleWrapper({
 
   const applyPullTransform =
     enforceContentPeek && smallScreen && (pulling || pullOffsetPx !== 0);
-  const maskMapUnderContent =
-    enforceContentPeek && smallScreen && !effectiveEditPage && !contentCollapsed;
+  const shouldForceWebkitMask =
+    enforceContentPeek && smallScreen && !effectiveEditPage;
 
   return (
     <>
-      {maskMapUnderContent ? (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none fixed inset-0 z-10 bg-background @min-4xl:hidden"
-        />
-      ) : null}
       <div
         className={cn(
           effectiveEditPage ? "h-0" : "h-[var(--ww-100vh,100dvh)] @min-4xl:h-0",
@@ -406,9 +400,9 @@ export default function PathStyleWrapper({
           showMap && "@min-4xl:pr-3",
         )}
         style={{
-          ...(enforceContentPeek && smallScreen && !effectiveEditPage
+          ...(shouldForceWebkitMask
             ? {
-                WebkitMaskImage: "-webkit-radial-gradient(white, black)",
+                WebkitMaskImage: "-webkit-radial-gradient(white, white)",
               }
             : {}),
           ...(applyPullTransform
