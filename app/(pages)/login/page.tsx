@@ -7,6 +7,7 @@ import { getServerSupabase } from "@/lib/supabaseServer";
 import { AuthForm } from "@/components/auth/AuthForm";
 import { buildPageMetadata } from "@/lib/seo";
 import { BrandWordmark } from "@/components/general/BrandWordmark";
+import { ScrollBoundaryMain } from "@/components/general/ScrollBoundaryMain";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = buildPageMetadata({
@@ -41,10 +42,13 @@ export default async function LoginPage() {
   }
 
   return (
-    <main className="relative isolate min-h-[100svh] supports-[height:100dvh]:min-h-[100dvh] overflow-x-hidden">
+    <ScrollBoundaryMain
+      data-ww-page="login"
+      className="relative isolate bg-gradient-to-b from-background via-background-2 to-background min-h-[100svh] supports-[height:100dvh]:min-h-[100dvh] overflow-x-hidden max-[911px]:ww-disable-backdrop"
+    >
       <div
         aria-hidden
-        className="pointer-events-none fixed inset-0 [contain:paint]"
+        className="pointer-events-none fixed inset-0 z-0 transform-gpu will-change-transform"
       >
         <div className="absolute inset-0 bg-gradient-to-b from-background via-background-2 to-background" />
         <div className="absolute inset-0 lg:hidden bg-gradient-to-br from-sky-600/20 via-cyan-500/14 to-indigo-600/18 dark:from-sky-500/40 dark:via-cyan-500/30 dark:to-indigo-500/40" />
@@ -63,7 +67,7 @@ export default async function LoginPage() {
         <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-b from-transparent to-background" />
       </div>
 
-      <div className="relative flex min-h-[100svh] flex-col supports-[height:100dvh]:min-h-[100dvh] lg:grid lg:grid-cols-2 lg:grid-rows-1">
+      <div className="relative z-10 flex min-h-[100svh] flex-col supports-[height:100dvh]:min-h-[100dvh] lg:grid lg:grid-cols-2 lg:grid-rows-1">
         <section className="relative flex min-h-[18rem] items-end px-5 pb-10 pt-[calc(2.5rem+env(safe-area-inset-top))] sm:px-8 sm:pb-12 lg:min-h-[100svh] lg:items-center lg:px-14 lg:py-16">
           <div
             aria-hidden
@@ -87,13 +91,13 @@ export default async function LoginPage() {
               className="inline-flex items-center gap-3 rounded-2xl px-2 py-2 text-white/95 transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
             >
               <span className="ww-disable-backdrop">
-                <span className="relative grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/15 shadow-sm ring-1 ring-white/20 supports-[backdrop-filter]:bg-white/10 supports-[backdrop-filter]:backdrop-blur-md">
+                <span className="relative grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/15 shadow-sm ring-1 ring-white/20 supports-[backdrop-filter]:bg-white/10 supports-[backdrop-filter]:backdrop-blur-md [backface-visibility:hidden] [transform:translateZ(0)]">
                   <Image
                     src="/logo.png"
                     alt="Waves and Waders logo"
                     width={40}
                     height={40}
-                    className="h-10 w-10 object-contain transform-gpu"
+                    className="h-10 w-10 object-contain"
                     priority
                   />
                 </span>
@@ -120,7 +124,7 @@ export default async function LoginPage() {
             className="pointer-events-none absolute inset-0 hidden lg:block bg-gradient-to-b from-background/20 via-background to-background"
           />
           <AuthForm
-            className="flex-none w-full max-w-none mx-0 rounded-[2.75rem] border border-white/12 bg-background/95 shadow-[0_-22px_80px_rgba(2,6,23,0.22)] supports-[backdrop-filter]:bg-background/85 supports-[backdrop-filter]:backdrop-blur-md sm:mx-auto sm:max-w-xl dark:border-white/10 dark:bg-background/70 lg:flex-none lg:h-auto lg:max-w-md lg:mx-0 lg:rounded-[2rem] lg:border lg:border-border/60 lg:bg-background/90 lg:shadow-[0_24px_70px_rgba(2,6,23,0.12)] lg:supports-[backdrop-filter]:bg-background/70 lg:supports-[backdrop-filter]:backdrop-blur-xl lg:dark:bg-background/40 lg:dark:border-border/60 lg:dark:shadow-[0_24px_70px_rgba(0,0,0,0.35)]"
+            className="transform-gpu will-change-transform [backface-visibility:hidden] flex-none w-full max-w-none mx-0 rounded-[2.75rem] border border-white/12 bg-background/95 shadow-[0_-22px_80px_rgba(2,6,23,0.22)] supports-[backdrop-filter]:bg-background/85 supports-[backdrop-filter]:backdrop-blur-md sm:mx-auto sm:max-w-xl dark:border-white/10 dark:bg-background/70 lg:flex-none lg:h-auto lg:max-w-md lg:mx-0 lg:rounded-[2rem] lg:border lg:border-border/60 lg:bg-background/90 lg:shadow-[0_24px_70px_rgba(2,6,23,0.12)] lg:supports-[backdrop-filter]:bg-background/70 lg:supports-[backdrop-filter]:backdrop-blur-xl lg:dark:bg-background/40 lg:dark:border-border/60 lg:dark:shadow-[0_24px_70px_rgba(0,0,0,0.35)]"
             footer={
               <p className="text-center text-xs text-muted-foreground">
                 By continuing, you agree to our{" "}
@@ -143,6 +147,6 @@ export default async function LoginPage() {
           />
         </section>
       </div>
-    </main>
+    </ScrollBoundaryMain>
   );
 }

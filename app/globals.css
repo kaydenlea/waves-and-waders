@@ -83,6 +83,7 @@ html:has(main[data-ww-page="login"]) {
 main[data-ww-page="login"] {
   scrollbar-width: none;
   -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
 }
 main[data-ww-page="login"]::-webkit-scrollbar {
   width: 0;

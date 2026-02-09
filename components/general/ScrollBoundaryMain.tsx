@@ -8,6 +8,8 @@ type ScrollBoundaryMainProps = ComponentPropsWithoutRef<"main"> & {
   lockBodyScroll?: boolean;
 };
 
+const SCROLL_IDLE_MS = 160;
+
 function isVerticallyScrollable(el: HTMLElement) {
   return el.scrollHeight > el.clientHeight + 1;
 }
@@ -50,6 +52,38 @@ export function ScrollBoundaryMain({
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
+
+    const body = document.body;
+    let scrollTimer: number | null = null;
+    let scrollRaf: number | null = null;
+    let scrollActive = false;
+
+    const setScrolling = () => {
+      if (!body) return;
+
+      if (!scrollActive) {
+        body.setAttribute("data-ww-scrolling", "1");
+        scrollActive = true;
+      }
+
+      if (scrollTimer !== null) {
+        window.clearTimeout(scrollTimer);
+      }
+
+      scrollTimer = window.setTimeout(() => {
+        body.removeAttribute("data-ww-scrolling");
+        scrollActive = false;
+        scrollTimer = null;
+      }, SCROLL_IDLE_MS);
+    };
+
+    const onScroll = () => {
+      if (scrollRaf !== null) return;
+      scrollRaf = window.requestAnimationFrame(() => {
+        scrollRaf = null;
+        setScrolling();
+      });
+    };
 
     const onWheel = (e: WheelEvent) => {
       const target = e.target as HTMLElement | null;
@@ -96,13 +130,27 @@ export function ScrollBoundaryMain({
       }
     };
 
+    el.addEventListener("scroll", onScroll, { passive: true });
     el.addEventListener("wheel", onWheel, { passive: false });
     el.addEventListener("touchstart", onTouchStart, { passive: true });
     el.addEventListener("touchmove", onTouchMove, { passive: false });
     return () => {
+      el.removeEventListener("scroll", onScroll);
       el.removeEventListener("wheel", onWheel);
       el.removeEventListener("touchstart", onTouchStart);
       el.removeEventListener("touchmove", onTouchMove);
+      if (scrollTimer !== null) {
+        window.clearTimeout(scrollTimer);
+        scrollTimer = null;
+      }
+      if (scrollRaf !== null) {
+        window.cancelAnimationFrame(scrollRaf);
+        scrollRaf = null;
+      }
+      if (scrollActive && body) {
+        body.removeAttribute("data-ww-scrolling");
+        scrollActive = false;
+      }
     };
   }, []);
 
