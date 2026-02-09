@@ -162,7 +162,6 @@ export default function OverviewPageClient({
         <OverviewPageBusyProvider>
           <main
             id="main-content"
-            data-ww-scroll-shell="1"
             className="ww-stable-viewport touch-pan-y overscroll-y-none bg-background-2 min-h-[calc(var(--ww-100vh,100vh)+env(safe-area-inset-top,0px)-4rem)] @min-4xl:flex @min-4xl:flex-1 @min-4xl:mt-[5.5rem] @min-4xl:pb-4"
           >
             <LazyLoadMap
@@ -272,15 +271,10 @@ export default function OverviewPageClient({
                 </SunDataProvider>
               </div>
             </PathStyleWrapper>
-            <div className="@min-4xl:hidden">
-              <Footer />
-            </div>
         </main>
       </OverviewPageBusyProvider>
       <BottomNav beachName={beachName} />
-      <div className="hidden @min-4xl:block">
-        <Footer />
-      </div>
+      <Footer />
     </div>
   </>
 );
