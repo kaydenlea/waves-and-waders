@@ -650,6 +650,15 @@ body[data-ww-navigation-pending="1"] {
   }
 }
 
+/* Prevent mobile compositor "tearing"/checkerboarding from revealing the fixed map underlay:
+   avoid `overflow: clip/hidden` on the scrolling sheet (breaks sticky) and instead clip via clip-path. */
+@media (max-width: 911px) and (hover: none) and (pointer: coarse) {
+  html[data-ww-map-overscroll-lock="1"] #content {
+    clip-path: inset(0 round 2rem 2rem 0 0);
+    -webkit-clip-path: inset(0 round 2rem 2rem 0 0);
+  }
+}
+
 /* Prevent long-press selection/callout on touch-driven chart scrubbing. */
 .chart-touch-no-select {
   -webkit-touch-callout: none;
