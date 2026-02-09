@@ -71,6 +71,7 @@
   }
 }
 
+
 /* Login uses an internal scroll container (`ScrollBoundaryMain`) while the document
    itself is not scrolling, so `scrollbar-gutter: stable` on `html` can leave an
    empty reserved gutter on the right. Disable gutter reservation on that route. */
@@ -87,6 +88,29 @@ main[data-ww-page="login"] {
 main[data-ww-page="login"]::-webkit-scrollbar {
   width: 0;
   height: 0;
+}
+
+/* ---------------------------------------------------------------------------
+   Mobile scroll shell (map-backed pages)
+   Use an internal scroll container on touch devices to reduce WebKit/Chrome
+   scroll compositing glitches where fixed underlays can show through.
+--------------------------------------------------------------------------- */
+@media (max-width: 911px) and (hover: none) and (pointer: coarse) {
+  html:has(#main-content[data-ww-scroll-shell="1"]),
+  body:has(#main-content[data-ww-scroll-shell="1"]) {
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  #main-content[data-ww-scroll-shell="1"] {
+    height: var(--ww-100vh, 100svh);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: none;
+    padding-bottom: calc(
+      5rem + max(env(safe-area-inset-bottom, 0px), var(--ww-bottom-ui, 0px))
+    );
+  }
 }
 
 :root {

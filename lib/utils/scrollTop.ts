@@ -2,9 +2,12 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { clearCachedHourSliderTrackGradient } from "@/lib/ui/hourSliderTrackCache";
+import { getAppScrollRoot } from "@/lib/ui/scrollRoot";
 
 function scrollToTopNow() {
   if (typeof window === "undefined") return;
+  const root = getAppScrollRoot();
+  root?.scrollTo?.({ top: 0, left: 0, behavior: "auto" });
   if (typeof document !== "undefined") {
     document.documentElement?.scrollTo?.({ top: 0, left: 0, behavior: "auto" });
     if (document.documentElement) document.documentElement.scrollTop = 0;
@@ -102,11 +105,12 @@ export function ScrollToTopOnRouteChange() {
       }
     };
 
-    window.addEventListener("scroll", onScroll, { passive: true });
+    // Capture scroll events from any scroll container (including internal shells).
+    document.addEventListener("scroll", onScroll, { passive: true, capture: true });
     return () => {
       window.removeEventListener("load", onLoad);
       window.removeEventListener("pageshow", onPageShow);
-      window.removeEventListener("scroll", onScroll);
+      document.removeEventListener("scroll", onScroll, true);
       if (timeoutId != null) window.clearTimeout(timeoutId);
       if (rafId != null) window.cancelAnimationFrame(rafId);
       delete document.body.dataset.wwScrolling;

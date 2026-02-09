@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { getAppScrollRoot, getAppScrollTop } from "@/lib/ui/scrollRoot";
 import { usePathname } from "next/navigation";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useMapUI } from "../context/MapFilterContext";
@@ -39,6 +40,32 @@ export default function PathStyleWrapper({
   const lastHandledRevealRequestRef = useRef(0);
   const lastInitializedPathRef = useRef<string | null>(null);
 
+  const scrollToTop = () => {
+    const root = getAppScrollRoot();
+    if (root) {
+      root.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      return;
+    }
+    try {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    } catch {
+      window.scrollTo(0, 0);
+    }
+  };
+
+  const scrollToY = (top: number) => {
+    const root = getAppScrollRoot();
+    if (root) {
+      root.scrollTo({ top, left: 0, behavior: "auto" });
+      return;
+    }
+    try {
+      window.scrollTo({ top, left: 0, behavior: "auto" });
+    } catch {
+      window.scrollTo(0, top);
+    }
+  };
+
   useEffect(() => {
     if (!shouldLockOverscroll) return;
     if (typeof document === "undefined") return;
@@ -60,7 +87,8 @@ export default function PathStyleWrapper({
     if (typeof document === "undefined") return;
     // if (window.innerWidth >= 911) return;
 
-    const scrollingEl = document.scrollingElement as HTMLElement | null;
+    const scrollingEl =
+      getAppScrollRoot() ?? (document.scrollingElement as HTMLElement | null);
     if (!scrollingEl) return;
 
     let startY = 0;
@@ -127,7 +155,7 @@ export default function PathStyleWrapper({
 
     const sync = () => {
       setSmallScreen(window.innerWidth < 911);
-      const nextAtTop = window.scrollY <= 1;
+      const nextAtTop = getAppScrollTop() <= 1;
       atTopRef.current = nextAtTop;
       const now = window.performance?.now?.() ?? Date.now();
       if (nextAtTop) lastReachedTopAtRef.current = now;
@@ -138,16 +166,17 @@ export default function PathStyleWrapper({
     const onScroll = () => {
       const now = window.performance?.now?.() ?? Date.now();
       lastScrollEventAtRef.current = now;
-      const nextAtTop = window.scrollY <= 1;
+      const nextAtTop = getAppScrollTop() <= 1;
       if (nextAtTop && !atTopRef.current) lastReachedTopAtRef.current = now;
       atTopRef.current = nextAtTop;
     };
 
     window.addEventListener("resize", onResize, { passive: true });
-    window.addEventListener("scroll", onScroll, { passive: true });
+    const scrollTarget: EventTarget = getAppScrollRoot() ?? window;
+    scrollTarget.addEventListener("scroll", onScroll, { passive: true } as any);
     return () => {
       window.removeEventListener("resize", onResize);
-      window.removeEventListener("scroll", onScroll);
+      scrollTarget.removeEventListener("scroll", onScroll as any);
     };
   }, [enforceContentPeek]);
 
@@ -197,11 +226,7 @@ export default function PathStyleWrapper({
     if (lastInitializedPathRef.current === pathname) return;
     lastInitializedPathRef.current = pathname;
     setContentCollapsed(true);
-    try {
-      window.scrollTo(0, 0);
-    } catch {
-      window.scrollTo(0, 0);
-    }
+    scrollToTop();
   }, [enforceContentPeek, pathname, setContentCollapsed]);
 
   useLayoutEffect(() => {
@@ -217,7 +242,7 @@ export default function PathStyleWrapper({
     // When expanding from a fully-collapsed (map-only) state, the spacer height
     // shrinks by the peek amount. Adjust scroll position in a layout effect so
     // the user doesn't see an intermediate "peek" jump before the smooth scroll.
-    if (window.scrollY > 1) return;
+    if (getAppScrollTop() > 1) return;
 
     const rootFontSize = Number.parseFloat(
       window.getComputedStyle(document.documentElement).fontSize || "16",
@@ -228,11 +253,7 @@ export default function PathStyleWrapper({
       Math.round((Number.isFinite(rootFontSize) ? rootFontSize : 16) * peekRem),
     );
     if (peekPx > 0) {
-      try {
-        window.scrollTo(0, peekPx);
-      } catch {
-        window.scrollTo(0, peekPx);
-      }
+      scrollToY(peekPx);
     }
   }, [
     contentCollapsed,
@@ -263,7 +284,7 @@ export default function PathStyleWrapper({
 
     const onTouchStart = (e: TouchEvent) => {
       if (contentCollapsed) return;
-      if (window.scrollY > 1) return;
+      if (getAppScrollTop() > 1) return;
       if (e.touches.length !== 1) return;
       if (document.body.dataset.wwScrolling === "1") return;
 
@@ -291,7 +312,7 @@ export default function PathStyleWrapper({
         return;
       }
       if (contentCollapsed) return;
-      if (window.scrollY > 1) return;
+      if (getAppScrollTop() > 1) return;
       if (e.touches.length !== 1) return;
       if (!gestureArmedRef.current) return;
 
@@ -323,11 +344,7 @@ export default function PathStyleWrapper({
         gestureArmedRef.current = false;
         setPulling(false);
         setPullOffsetPx(0);
-        try {
-          window.scrollTo({ top: 0 });
-        } catch {
-          window.scrollTo(0, 0);
-        }
+        scrollToTop();
       }
     };
 
@@ -370,8 +387,6 @@ export default function PathStyleWrapper({
 
   const applyPullTransform =
     enforceContentPeek && smallScreen && (pulling || pullOffsetPx !== 0);
-  const shouldForceWebkitMask =
-    enforceContentPeek && smallScreen && !effectiveEditPage;
 
   return (
     <>
@@ -400,11 +415,6 @@ export default function PathStyleWrapper({
           showMap && "@min-4xl:pr-3",
         )}
         style={{
-          ...(shouldForceWebkitMask
-            ? {
-                WebkitMaskImage: "-webkit-radial-gradient(white, white)",
-              }
-            : {}),
           ...(applyPullTransform
             ? {
                 transform: `translate3d(0, ${pullOffsetPx}px, 0)`,
@@ -439,11 +449,7 @@ export default function PathStyleWrapper({
                 title="Collapse content"
                 onClick={() => {
                   setContentCollapsed(true);
-                  try {
-                    window.scrollTo({ top: 0 });
-                  } catch {
-                    window.scrollTo(0, 0);
-                  }
+                  scrollToTop();
                 }}
                 className={cn(
                   "block @min-4xl:hidden absolute top-5 left-1/2 -translate-x-1/2",

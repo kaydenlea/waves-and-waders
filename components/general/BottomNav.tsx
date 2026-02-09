@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"; 
 import { cn } from "@/lib/utils"; 
 import { acquireScrollLock } from "@/lib/scrollLock";
+import { appScrollToTop, getAppScrollRoot, getAppScrollTop } from "@/lib/ui/scrollRoot";
 import { 
   User, 
   MapPinned, 
@@ -203,20 +204,12 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
     if (mobile && !wideLayout) {
       if (!contentCollapsed) {
         setContentCollapsed(true);
-        try {
-          window.scrollTo({ top: 0 });
-        } catch {
-          window.scrollTo(0, 0);
-        }
+        appScrollToTop("auto");
         return;
       }
 
-      if (window.scrollY !== 0) {
-        try {
-          window.scrollTo({ top: 0 });
-        } catch {
-          window.scrollTo(0, 0);
-        }
+      if (getAppScrollTop() !== 0) {
+        appScrollToTop("auto");
         return;
       }
     }
@@ -470,7 +463,7 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
     const handleScroll = () => {
       if (!ticking) {
         window.requestAnimationFrame(() => {
-          const currentY = window.scrollY;
+          const currentY = getAppScrollTop();
           const diff = currentY - lastScrollYRef.current;
           const now = window.performance?.now?.() ?? Date.now();
           const viewportChanging =
@@ -541,13 +534,14 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
       }
     };
 
-    window.addEventListener("scroll", handleScroll, { passive: true });
+    const scrollTarget: EventTarget = getAppScrollRoot() ?? window;
+    scrollTarget.addEventListener("scroll", handleScroll, { passive: true } as any);
     // Keep stability tracking updated during browser chrome animations.
     const vv = window.visualViewport;
     vv?.addEventListener("resize", bumpViewportStability, { passive: true });
     vv?.addEventListener("scroll", bumpViewportStability, { passive: true });
     return () => {
-      window.removeEventListener("scroll", handleScroll);
+      scrollTarget.removeEventListener("scroll", handleScroll as any);
       vv?.removeEventListener("resize", bumpViewportStability);
       vv?.removeEventListener("scroll", bumpViewportStability);
     };
@@ -672,11 +666,22 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
                     } catch {
                       try {
                         const rect = content.getBoundingClientRect();
-                        const absoluteTop = rect.top + window.scrollY;
-                        window.scrollTo({
-                          top: Math.max(absoluteTop - 117, 0),
-                          behavior: "smooth",
-                        });
+                        const root = getAppScrollRoot();
+                        if (root) {
+                          const rootRect = root.getBoundingClientRect();
+                          const absoluteTop =
+                            root.scrollTop + (rect.top - rootRect.top);
+                          root.scrollTo({
+                            top: Math.max(absoluteTop - 117, 0),
+                            behavior: "smooth",
+                          });
+                        } else {
+                          const absoluteTop = rect.top + window.scrollY;
+                          window.scrollTo({
+                            top: Math.max(absoluteTop - 117, 0),
+                            behavior: "smooth",
+                          });
+                        }
                       } catch {}
                     }
                   };
@@ -717,7 +722,7 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
               <button
                 aria-label="back to top"
                 onClick={() => {
-                  window.scrollTo({ top: 0, behavior: "smooth" });
+                  appScrollToTop("smooth");
                 }}
                 className="flex items-center gap-1 px-4 py-3 rounded-full bg-background backdrop-blur border border-border shadow-lg text-sm font-medium text-foreground hover:bg-highlight-3 transition-colors"
               >
