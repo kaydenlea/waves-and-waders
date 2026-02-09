@@ -3,10 +3,13 @@
 import { cn } from "@/lib/utils";
 import type { ComponentPropsWithoutRef } from "react";
 import { useEffect, useRef } from "react";
+import { acquireScrollLock } from "@/lib/scrollLock";
 
 type ScrollBoundaryMainProps = ComponentPropsWithoutRef<"main"> & {
   lockBodyScroll?: boolean;
 };
+
+const MOBILE_SCROLL_MEDIA = "(max-width: 911px)";
 
 function isVerticallyScrollable(el: HTMLElement) {
   return el.scrollHeight > el.clientHeight + 1;
@@ -50,6 +53,11 @@ export function ScrollBoundaryMain({
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
+
+    if (typeof window !== "undefined") {
+      const mq = window.matchMedia?.(MOBILE_SCROLL_MEDIA);
+      if (mq && !mq.matches) return;
+    }
 
     const onWheel = (e: WheelEvent) => {
       const target = e.target as HTMLElement | null;
@@ -108,39 +116,28 @@ export function ScrollBoundaryMain({
 
   useEffect(() => {
     if (!lockBodyScroll) return;
-    if (typeof document === "undefined") return;
+    if (typeof window === "undefined") return;
 
-    const html = document.documentElement;
-    const body = document.body;
-    const scrollY = window.scrollY;
+    const mq = window.matchMedia?.(MOBILE_SCROLL_MEDIA);
+    if (!mq) return acquireScrollLock();
 
-    const prev = {
-      htmlOverflow: html.style.overflow,
-      bodyOverflow: body.style.overflow,
-      bodyPosition: body.style.position,
-      bodyTop: body.style.top,
-      bodyLeft: body.style.left,
-      bodyRight: body.style.right,
-      bodyWidth: body.style.width,
+    let release: (() => void) | null = null;
+
+    const sync = () => {
+      if (!mq.matches) {
+        release?.();
+        release = null;
+        return;
+      }
+      if (!release) release = acquireScrollLock();
     };
 
-    body.style.overflow = "hidden";
-    html.style.overflow = "hidden";
-    body.style.position = "fixed";
-    body.style.top = `-${scrollY}px`;
-    body.style.left = "0";
-    body.style.right = "0";
-    body.style.width = "100%";
-
+    sync();
+    mq.addEventListener?.("change", sync);
     return () => {
-      html.style.overflow = prev.htmlOverflow;
-      body.style.overflow = prev.bodyOverflow;
-      body.style.position = prev.bodyPosition;
-      body.style.top = prev.bodyTop;
-      body.style.left = prev.bodyLeft;
-      body.style.right = prev.bodyRight;
-      body.style.width = prev.bodyWidth;
-      window.scrollTo(0, scrollY);
+      mq.removeEventListener?.("change", sync);
+      release?.();
+      release = null;
     };
   }, [lockBodyScroll]);
 
@@ -148,9 +145,12 @@ export function ScrollBoundaryMain({
     <main
       ref={containerRef}
       className={cn(
-        "h-[100svh] supports-[height:100dvh]:h-[100dvh] overflow-y-auto overflow-x-hidden overscroll-none",
+        // Only use an internal scroll container on narrow/mobile.
+        // This prevents iOS overscroll/rubber-band from exposing the fixed map beneath content.
+        "max-[911px]:h-[var(--ww-100vh,100svh)] max-[911px]:overflow-y-auto max-[911px]:overflow-x-hidden max-[911px]:overscroll-none",
         className
       )}
+      data-ww-scroll-container="1"
       style={keyboardPaddingStyle.current}
       {...props}
     >

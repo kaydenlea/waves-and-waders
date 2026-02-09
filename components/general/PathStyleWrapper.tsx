@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { addPageScrollListener, getPageScrollY, pageScrollTo } from "@/lib/pageScroll";
 import { usePathname } from "next/navigation";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useMapUI } from "../context/MapFilterContext";
@@ -127,7 +128,7 @@ export default function PathStyleWrapper({
 
     const sync = () => {
       setSmallScreen(window.innerWidth < 911);
-      const nextAtTop = window.scrollY <= 1;
+      const nextAtTop = getPageScrollY() <= 1;
       atTopRef.current = nextAtTop;
       const now = window.performance?.now?.() ?? Date.now();
       if (nextAtTop) lastReachedTopAtRef.current = now;
@@ -138,16 +139,18 @@ export default function PathStyleWrapper({
     const onScroll = () => {
       const now = window.performance?.now?.() ?? Date.now();
       lastScrollEventAtRef.current = now;
-      const nextAtTop = window.scrollY <= 1;
+      const nextAtTop = getPageScrollY() <= 1;
       if (nextAtTop && !atTopRef.current) lastReachedTopAtRef.current = now;
       atTopRef.current = nextAtTop;
     };
 
     window.addEventListener("resize", onResize, { passive: true });
-    window.addEventListener("scroll", onScroll, { passive: true });
+    const removeScrollListener = addPageScrollListener(onScroll, {
+      passive: true,
+    });
     return () => {
       window.removeEventListener("resize", onResize);
-      window.removeEventListener("scroll", onScroll);
+      removeScrollListener();
     };
   }, [enforceContentPeek]);
 
@@ -198,9 +201,9 @@ export default function PathStyleWrapper({
     lastInitializedPathRef.current = pathname;
     setContentCollapsed(true);
     try {
-      window.scrollTo(0, 0);
+      pageScrollTo({ top: 0, left: 0, behavior: "auto" });
     } catch {
-      window.scrollTo(0, 0);
+      pageScrollTo({ top: 0, left: 0, behavior: "auto" });
     }
   }, [enforceContentPeek, pathname, setContentCollapsed]);
 
@@ -217,7 +220,7 @@ export default function PathStyleWrapper({
     // When expanding from a fully-collapsed (map-only) state, the spacer height
     // shrinks by the peek amount. Adjust scroll position in a layout effect so
     // the user doesn't see an intermediate "peek" jump before the smooth scroll.
-    if (window.scrollY > 1) return;
+    if (getPageScrollY() > 1) return;
 
     const rootFontSize = Number.parseFloat(
       window.getComputedStyle(document.documentElement).fontSize || "16",
@@ -229,9 +232,9 @@ export default function PathStyleWrapper({
     );
     if (peekPx > 0) {
       try {
-        window.scrollTo(0, peekPx);
+        pageScrollTo({ top: peekPx, left: 0, behavior: "auto" });
       } catch {
-        window.scrollTo(0, peekPx);
+        pageScrollTo({ top: peekPx, left: 0, behavior: "auto" });
       }
     }
   }, [
@@ -263,7 +266,7 @@ export default function PathStyleWrapper({
 
     const onTouchStart = (e: TouchEvent) => {
       if (contentCollapsed) return;
-      if (window.scrollY > 1) return;
+      if (getPageScrollY() > 1) return;
       if (e.touches.length !== 1) return;
       if (document.body.dataset.wwScrolling === "1") return;
 
@@ -291,7 +294,7 @@ export default function PathStyleWrapper({
         return;
       }
       if (contentCollapsed) return;
-      if (window.scrollY > 1) return;
+      if (getPageScrollY() > 1) return;
       if (e.touches.length !== 1) return;
       if (!gestureArmedRef.current) return;
 
@@ -324,9 +327,9 @@ export default function PathStyleWrapper({
         setPulling(false);
         setPullOffsetPx(0);
         try {
-          window.scrollTo({ top: 0 });
+          pageScrollTo({ top: 0, left: 0, behavior: "auto" });
         } catch {
-          window.scrollTo(0, 0);
+          pageScrollTo({ top: 0, left: 0, behavior: "auto" });
         }
       }
     };
@@ -440,9 +443,9 @@ export default function PathStyleWrapper({
                 onClick={() => {
                   setContentCollapsed(true);
                   try {
-                    window.scrollTo({ top: 0 });
+                    pageScrollTo({ top: 0, left: 0, behavior: "auto" });
                   } catch {
-                    window.scrollTo(0, 0);
+                    pageScrollTo({ top: 0, left: 0, behavior: "auto" });
                   }
                 }}
                 className={cn(

@@ -8,6 +8,7 @@ import DateSummaryBridge from "@/components/general/DateSummaryBridge";
 import Footer from "@/components/general/Footer";
 import { LazyLoadMap } from "@/components/general/LazyLoad/LazyLoadMap";
 import PathStyleWrapper from "@/components/general/PathStyleWrapper";
+import { ScrollBoundaryMain } from "@/components/general/ScrollBoundaryMain";
 import SaveButton from "@/components/general/SaveButton";
 import Breadcrumbs from "@/components/general/Breadcrumbs";
 import { SunDataProvider } from "@/components/context/SunDataContext";
@@ -160,16 +161,17 @@ export default function OverviewPageClient({
       <div>
         {navBar}
         <OverviewPageBusyProvider>
-          <main
+          <ScrollBoundaryMain
             id="main-content"
-            className="ww-stable-viewport touch-pan-y overscroll-y-none bg-background-2 min-h-[calc(var(--ww-100vh,100vh)+env(safe-area-inset-top,0px)-4rem)] @min-4xl:flex @min-4xl:flex-1 @min-4xl:mt-[5.5rem] @min-4xl:pb-4"
+            className="ww-stable-viewport touch-pan-y overscroll-y-none bg-background-2 min-h-[calc(var(--ww-100vh,100vh)+env(safe-area-inset-top,0px)-4rem)] flex flex-col @min-4xl:mt-[5.5rem]"
           >
-            <LazyLoadMap
-              beachId={beachId}
-              initialBeach={initialBeach ?? undefined}
-            />
-            <PathStyleWrapper>
-              <div className="@container pb-6 @min-4xl:pb-3 pt-2 @min-4xl:pt-8 px-1 @min-md:px-3">
+            <div className="@min-4xl:flex @min-4xl:flex-1 @min-4xl:pb-4">
+              <LazyLoadMap
+                beachId={beachId}
+                initialBeach={initialBeach ?? undefined}
+              />
+              <PathStyleWrapper>
+                <div className="@container pb-6 @min-4xl:pb-3 pt-2 @min-4xl:pt-8 px-1 @min-md:px-3">
                 <header
                   id="overview-header"
                   className="relative w-full flex flex-col gap-5 px-2 pt-3 @min-md:pt-4 pb-0 scroll-mt-30"
@@ -271,10 +273,11 @@ export default function OverviewPageClient({
                 </SunDataProvider>
               </div>
             </PathStyleWrapper>
-        </main>
+            </div>
+            <Footer />
+          </ScrollBoundaryMain>
       </OverviewPageBusyProvider>
       <BottomNav beachName={beachName} />
-      <Footer />
     </div>
   </>
 );

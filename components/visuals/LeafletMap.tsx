@@ -12,6 +12,7 @@ import "@maplibre/maplibre-gl-leaflet";
 import { createPortal } from "react-dom";
 
 import { cn } from "@/lib/utils";
+import { getPageScrollOffsetTop, pageScrollTo } from "@/lib/pageScroll";
 import { acquireInteractionLock } from "@/lib/uiInteractionLock";
 import {
   FEATURE_CATEGORIES,
@@ -4716,14 +4717,10 @@ const LeafletMap: React.FC<Props> = ({
       pendingAutoCenterRef.current = null;
       if (detail.scroll) {
         const container = document.getElementById("map-container");
-        if (container) {
+        if (container && container instanceof HTMLElement) {
           const headerOffset = 100;
-          const rect = container.getBoundingClientRect();
-          const absoluteTop = rect.top + window.scrollY;
-          window.scrollTo({
-            top: Math.max(absoluteTop - headerOffset, 0),
-            behavior: "smooth",
-          });
+          const top = getPageScrollOffsetTop(container, headerOffset);
+          pageScrollTo({ top, left: 0, behavior: "smooth" });
         }
       }
       return true;

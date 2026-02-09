@@ -36,8 +36,11 @@ export default function ScrollPerfHandler() {
       });
     };
 
+    // Listen in capture phase so we also catch internal scroll containers (e.g. mobile map pages).
+    document.addEventListener("scroll", onScroll, { passive: true, capture: true });
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => {
+      document.removeEventListener("scroll", onScroll, { capture: true } as EventListenerOptions);
       window.removeEventListener("scroll", onScroll);
       if (timerRef.current !== null) {
         window.clearTimeout(timerRef.current);

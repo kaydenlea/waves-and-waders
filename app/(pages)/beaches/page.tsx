@@ -7,6 +7,7 @@ import BottomNav from "@/components/general/BottomNav";
 import NavBar from "@/components/general/NavBar";
 import { LazyLoadMap } from "@/components/general/LazyLoad/LazyLoadMap";
 import PathStyleWrapper from "@/components/general/PathStyleWrapper";
+import { ScrollBoundaryMain } from "@/components/general/ScrollBoundaryMain";
 import Footer from "@/components/general/Footer";
 import FavoriteIdsHydrator from "@/components/general/FavoriteIdsHydrator";
 import PersistBeachesReturn from "@/components/general/PersistBeachesReturn";
@@ -110,88 +111,90 @@ export default async function BeachesPage({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListSchema) }}
       />
       <NavBar beachesPage />
-      <main
+      <ScrollBoundaryMain
         id="main-content"
-        className="ww-stable-viewport touch-pan-y overscroll-y-none bg-background-2 min-h-[calc(var(--ww-100vh,100vh)+env(safe-area-inset-top,0px)-4rem)] @min-4xl:flex @min-4xl:flex-1 @min-4xl:mt-[5.5rem] @min-4xl:pb-4 @min-4xl:pr-3"
+        className="ww-stable-viewport touch-pan-y overscroll-y-none bg-background-2 min-h-[calc(var(--ww-100vh,100vh)+env(safe-area-inset-top,0px)-4rem)] flex flex-col @min-4xl:mt-[5.5rem]"
       >
-        <LazyLoadMap loggedIn={Boolean(user)} />
-        <PathStyleWrapper>
-          <div className="@container/beaches pb-4 px-2 pt-0 @min-4xl:pt-8 touch-pan-y">
-            <PersistBeachesReturn />
-            <FavoriteIdsHydrator favoriteIds={favoriteIds} />
-            <div className="relative w-full flex flex-col gap-6">
-              {/* <PageTabs
-                buttons={false}
-                tabs={["nearby", "saved"]}
-                defaultPage="nearby"
-                beachPage
-                loggedIn={Boolean(user)}
-              /> */}
-              <header
-                id="beaches-header"
-                className="ml-2 mb-2 @min-4xl/main:mb-4 scroll-mt-30"
-              >
-                <h1 className="font-semibold text-xl @min-4xl/main:text-3xl tracking-tight -mb-1 @min-4xl/main:mb-0">
-                  Surf spots
-                </h1>
-                <span className="text-xs @min-4xl/main:text-sm text-muted-foreground">
-                  Explore nearby beaches on the map
-                </span>
-                <div className="mt-2">
-                  <Link
-                    href="/beaches/all"
-                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-foreground/75 underline underline-offset-4 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 rounded-sm"
-                  >
-                    <List className="h-4 w-4" aria-hidden="true" />
-                    All spots directory
-                  </Link>
-                </div>
-              </header>
+        <div className="@min-4xl:flex @min-4xl:flex-1 @min-4xl:pb-4 @min-4xl:pr-3">
+          <LazyLoadMap loggedIn={Boolean(user)} />
+          <PathStyleWrapper>
+            <div className="@container/beaches pb-4 px-2 pt-0 @min-4xl:pt-8 touch-pan-y">
+              <PersistBeachesReturn />
+              <FavoriteIdsHydrator favoriteIds={favoriteIds} />
+              <div className="relative w-full flex flex-col gap-6">
+                {/* <PageTabs
+                  buttons={false}
+                  tabs={["nearby", "saved"]}
+                  defaultPage="nearby"
+                  beachPage
+                  loggedIn={Boolean(user)}
+                /> */}
+                <header
+                  id="beaches-header"
+                  className="ml-2 mb-2 @min-4xl/main:mb-4 scroll-mt-30"
+                >
+                  <h1 className="font-semibold text-xl @min-4xl/main:text-3xl tracking-tight -mb-1 @min-4xl/main:mb-0">
+                    Surf spots
+                  </h1>
+                  <span className="text-xs @min-4xl/main:text-sm text-muted-foreground">
+                    Explore nearby beaches on the map
+                  </span>
+                  <div className="mt-2">
+                    <Link
+                      href="/beaches/all"
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-foreground/75 underline underline-offset-4 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 rounded-sm"
+                    >
+                      <List className="h-4 w-4" aria-hidden="true" />
+                      All spots directory
+                    </Link>
+                  </div>
+                </header>
+              </div>
+              <NearbyBeaches />
+
+              <section className="mt-10 px-2">
+                <details className="rounded-2xl border border-border/40 bg-background/40 p-4 text-sm text-muted-foreground shadow-xs">
+                  <summary className="cursor-pointer font-semibold text-foreground/85">
+                    About beach search and filters
+                  </summary>
+                  <div className="mt-3 space-y-3 leading-relaxed">
+                    <p>
+                      Browse beaches across California and filter by amenities
+                      like bathrooms, parking, showers, lifeguards, and more.
+                      Each spot includes surf forecast charts, tides, and a
+                      quick summary to help you plan.
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Tip: Use the map to explore nearby spots, then open a
+                      beach page for a full surf forecast.
+                    </p>
+                  </div>
+                </details>
+              </section>
+
+              <section className="mt-4 px-2">
+                <details className="rounded-2xl border border-border/40 bg-background/40 p-4 text-sm text-muted-foreground shadow-xs">
+                  <summary className="cursor-pointer font-semibold text-foreground/85">
+                    Prefer a simple directory?
+                  </summary>
+                  <p className="mt-3 leading-relaxed">
+                    Use the map for nearby discovery, or browse a full list on{" "}
+                    <a
+                      className="underline underline-offset-4 hover:text-foreground"
+                      href="/beaches/all"
+                    >
+                      All surf spots
+                    </a>
+                    .
+                  </p>
+                </details>
+              </section>
             </div>
-            <NearbyBeaches />
-
-            <section className="mt-10 px-2">
-              <details className="rounded-2xl border border-border/40 bg-background/40 p-4 text-sm text-muted-foreground shadow-xs">
-                <summary className="cursor-pointer font-semibold text-foreground/85">
-                  About beach search and filters
-                </summary>
-                <div className="mt-3 space-y-3 leading-relaxed">
-                  <p>
-                    Browse beaches across California and filter by amenities
-                    like bathrooms, parking, showers, lifeguards, and more. Each
-                    spot includes surf forecast charts, tides, and a quick
-                    summary to help you plan.
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Tip: Use the map to explore nearby spots, then open a beach
-                    page for a full surf forecast.
-                  </p>
-                </div>
-              </details>
-            </section>
-
-            <section className="mt-4 px-2">
-              <details className="rounded-2xl border border-border/40 bg-background/40 p-4 text-sm text-muted-foreground shadow-xs">
-                <summary className="cursor-pointer font-semibold text-foreground/85">
-                  Prefer a simple directory?
-                </summary>
-                <p className="mt-3 leading-relaxed">
-                  Use the map for nearby discovery, or browse a full list on{" "}
-                  <a
-                    className="underline underline-offset-4 hover:text-foreground"
-                    href="/beaches/all"
-                  >
-                    All surf spots
-                  </a>
-                  .
-                </p>
-              </details>
-            </section>
-          </div>
-        </PathStyleWrapper>
-      </main>
+          </PathStyleWrapper>
+        </div>
+        <Footer />
+      </ScrollBoundaryMain>
       <BottomNav />
-      <Footer />
     </>
   );
 }

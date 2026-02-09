@@ -2,9 +2,12 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { clearCachedHourSliderTrackGradient } from "@/lib/ui/hourSliderTrackCache";
+import { pageScrollTo } from "@/lib/pageScroll";
 
 function scrollToTopNow() {
   if (typeof window === "undefined") return;
+  // Handle internal scroll containers (e.g. mobile map pages) first.
+  pageScrollTo({ top: 0, left: 0, behavior: "auto" });
   if (typeof document !== "undefined") {
     document.documentElement?.scrollTo?.({ top: 0, left: 0, behavior: "auto" });
     if (document.documentElement) document.documentElement.scrollTop = 0;
@@ -102,10 +105,13 @@ export function ScrollToTopOnRouteChange() {
       }
     };
 
+    // Capture scroll events from internal scroll containers as well.
+    document.addEventListener("scroll", onScroll, { passive: true, capture: true });
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => {
       window.removeEventListener("load", onLoad);
       window.removeEventListener("pageshow", onPageShow);
+      document.removeEventListener("scroll", onScroll, { capture: true } as EventListenerOptions);
       window.removeEventListener("scroll", onScroll);
       if (timeoutId != null) window.clearTimeout(timeoutId);
       if (rafId != null) window.cancelAnimationFrame(rafId);
