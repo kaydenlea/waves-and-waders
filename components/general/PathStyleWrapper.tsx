@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useMapUI } from "../context/MapFilterContext";
+import { addActiveScrollListener, getActiveScrollTop, scrollActiveToTop } from "@/lib/ui/sheetScroll";
 
 export default function PathStyleWrapper({
   children,
@@ -26,6 +27,10 @@ export default function PathStyleWrapper({
   const enforceContentPeek = beachPage || overviewPage;
   // Keep SSR markup consistent with the first client render to avoid hydration mismatches.
   const [smallScreen, setSmallScreen] = useState(false);
+  const useBottomSheet =
+    enforceContentPeek && smallScreen && !effectiveEditPage;
+  const [sheetExpanded, setSheetExpanded] = useState(false);
+  const sheetScrollRef = useRef<HTMLDivElement | null>(null);
   const atTopRef = useRef(true);
   const lastScrollEventAtRef = useRef(0);
   const lastReachedTopAtRef = useRef(0);
@@ -52,82 +57,13 @@ export default function PathStyleWrapper({
     };
   }, [shouldLockOverscroll]);
 
-  // iOS Safari can still "rubber band" past the scroll bounds during aggressive flicks
-  // even with overscroll-behavior. Prevent it only at the top/bottom edges.
-  useEffect(() => {
-    if (!shouldLockOverscroll) return;
-    if (typeof window === "undefined") return;
-    if (typeof document === "undefined") return;
-    // if (window.innerWidth >= 911) return;
-
-    const scrollingEl = document.scrollingElement as HTMLElement | null;
-    if (!scrollingEl) return;
-
-    let startY = 0;
-
-    const onTouchStart = (e: TouchEvent) => {
-      if (e.touches.length !== 1) return;
-      startY = e.touches[0]?.clientY ?? 0;
-    };
-
-    const findNestedScrollableAncestor = (target: EventTarget | null) => {
-      if (!target || !(target instanceof HTMLElement)) return null;
-      let el: HTMLElement | null = target;
-      while (el && el !== document.body && el !== scrollingEl) {
-        const style = window.getComputedStyle(el);
-        const overflowY = style.overflowY;
-        const canScrollY =
-          (overflowY === "auto" || overflowY === "scroll") &&
-          el.scrollHeight - el.clientHeight > 1;
-        if (canScrollY) return el;
-        el = el.parentElement;
-      }
-      return null;
-    };
-
-    const onTouchMove = (e: TouchEvent) => {
-      if (e.touches.length !== 1) return;
-      const y = e.touches[0]?.clientY ?? 0;
-      const dy = y - startY;
-      if (dy === 0) return;
-
-      const nestedScroller = findNestedScrollableAncestor(e.target);
-      if (nestedScroller) {
-        const atTop = nestedScroller.scrollTop <= 0;
-        const atBottom =
-          nestedScroller.scrollTop + nestedScroller.clientHeight >=
-          nestedScroller.scrollHeight - 1;
-        if ((dy > 0 && atTop) || (dy < 0 && atBottom)) {
-          e.preventDefault();
-        }
-        return;
-      }
-
-      const atTop = scrollingEl.scrollTop <= 0;
-      const atBottom =
-        scrollingEl.scrollTop + scrollingEl.clientHeight >=
-        scrollingEl.scrollHeight - 1;
-
-      if ((dy > 0 && atTop) || (dy < 0 && atBottom)) {
-        e.preventDefault();
-      }
-    };
-
-    document.addEventListener("touchstart", onTouchStart, { passive: true });
-    document.addEventListener("touchmove", onTouchMove, { passive: false });
-    return () => {
-      document.removeEventListener("touchstart", onTouchStart);
-      document.removeEventListener("touchmove", onTouchMove);
-    };
-  }, [shouldLockOverscroll]);
-
   useEffect(() => {
     if (!enforceContentPeek) return;
     if (typeof window === "undefined") return;
 
     const sync = () => {
       setSmallScreen(window.innerWidth < 911);
-      const nextAtTop = window.scrollY <= 1;
+      const nextAtTop = getActiveScrollTop() <= 1;
       atTopRef.current = nextAtTop;
       const now = window.performance?.now?.() ?? Date.now();
       if (nextAtTop) lastReachedTopAtRef.current = now;
@@ -138,16 +74,16 @@ export default function PathStyleWrapper({
     const onScroll = () => {
       const now = window.performance?.now?.() ?? Date.now();
       lastScrollEventAtRef.current = now;
-      const nextAtTop = window.scrollY <= 1;
+      const nextAtTop = getActiveScrollTop() <= 1;
       if (nextAtTop && !atTopRef.current) lastReachedTopAtRef.current = now;
       atTopRef.current = nextAtTop;
     };
 
     window.addEventListener("resize", onResize, { passive: true });
-    window.addEventListener("scroll", onScroll, { passive: true });
+    const removeScroll = addActiveScrollListener(onScroll, { passive: true });
     return () => {
       window.removeEventListener("resize", onResize);
-      window.removeEventListener("scroll", onScroll);
+      removeScroll();
     };
   }, [enforceContentPeek]);
 
@@ -208,6 +144,7 @@ export default function PathStyleWrapper({
     if (!enforceContentPeek) return;
     if (!smallScreen) return;
     if (contentCollapsed) return;
+    if (useBottomSheet) return;
     if (typeof window === "undefined") return;
     if (typeof document === "undefined") return;
     if (contentRevealRequestId <= 0) return;
@@ -239,6 +176,7 @@ export default function PathStyleWrapper({
     contentRevealRequestId,
     enforceContentPeek,
     smallScreen,
+    useBottomSheet,
   ]);
 
   useEffect(() => {
@@ -263,7 +201,10 @@ export default function PathStyleWrapper({
 
     const onTouchStart = (e: TouchEvent) => {
       if (contentCollapsed) return;
-      if (window.scrollY > 1) return;
+      const currentTop = useBottomSheet
+        ? sheetScrollRef.current?.scrollTop ?? 0
+        : window.scrollY;
+      if (currentTop > 1) return;
       if (e.touches.length !== 1) return;
       if (document.body.dataset.wwScrolling === "1") return;
 
@@ -291,7 +232,10 @@ export default function PathStyleWrapper({
         return;
       }
       if (contentCollapsed) return;
-      if (window.scrollY > 1) return;
+      const currentTop = useBottomSheet
+        ? sheetScrollRef.current?.scrollTop ?? 0
+        : window.scrollY;
+      if (currentTop > 1) return;
       if (e.touches.length !== 1) return;
       if (!gestureArmedRef.current) return;
 
@@ -319,14 +263,23 @@ export default function PathStyleWrapper({
       const verticalEnough = Math.abs(dy) > Math.abs(dx) * 1.2;
       if (verticalEnough && dy > thresholdPx) {
         setContentCollapsed(true);
+        setSheetExpanded(false);
         gestureLockedUntilEndRef.current = true;
         gestureArmedRef.current = false;
         setPulling(false);
         setPullOffsetPx(0);
-        try {
-          window.scrollTo({ top: 0 });
-        } catch {
-          window.scrollTo(0, 0);
+        if (useBottomSheet) {
+          const scroller = sheetScrollRef.current;
+          if (scroller) {
+            try {
+              scroller.scrollTo({ top: 0, left: 0, behavior: "auto" });
+            } catch {
+              scroller.scrollTop = 0;
+            }
+          }
+          scrollActiveToTop("auto");
+        } else {
+          scrollActiveToTop("auto");
         }
       }
     };
@@ -342,6 +295,62 @@ export default function PathStyleWrapper({
       el.removeEventListener("touchcancel", resetGesture);
     };
   }, [contentCollapsed, enforceContentPeek, setContentCollapsed, smallScreen]);
+
+  // Mark the user as "scrolling" while the sheet's internal scroller is active so other
+  // gesture handlers (collapse, etc.) can avoid fighting inertial scrolling.
+  useEffect(() => {
+    if (!useBottomSheet) return;
+    if (typeof window === "undefined") return;
+    if (typeof document === "undefined") return;
+
+    const scroller = sheetScrollRef.current;
+    if (!scroller) return;
+
+    const SCROLL_IDLE_MS = 160;
+    let timeoutId: number | null = null;
+    let rafId: number | null = null;
+    let active = false;
+    let lastScrollAt = 0;
+
+    const stop = () => {
+      delete document.body.dataset.wwScrolling;
+      active = false;
+      timeoutId = null;
+    };
+
+    const checkIdle = () => {
+      const elapsed = window.performance.now() - lastScrollAt;
+      if (elapsed < SCROLL_IDLE_MS) {
+        timeoutId = window.setTimeout(checkIdle, SCROLL_IDLE_MS - elapsed);
+        return;
+      }
+      stop();
+    };
+
+    const onScroll = () => {
+      lastScrollAt = window.performance.now();
+      if (rafId == null) {
+        rafId = window.requestAnimationFrame(() => {
+          rafId = null;
+          if (!active) {
+            document.body.dataset.wwScrolling = "1";
+            active = true;
+          }
+          if (timeoutId == null) {
+            timeoutId = window.setTimeout(checkIdle, SCROLL_IDLE_MS);
+          }
+        });
+      }
+    };
+
+    scroller.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      scroller.removeEventListener("scroll", onScroll);
+      if (timeoutId != null) window.clearTimeout(timeoutId);
+      if (rafId != null) window.cancelAnimationFrame(rafId);
+      delete document.body.dataset.wwScrolling;
+    };
+  }, [useBottomSheet]);
 
   // Intentionally do not auto-expand content on scroll position changes.
   // On map-driven pages the default should remain map-only until the user explicitly reveals content.
@@ -373,19 +382,86 @@ export default function PathStyleWrapper({
   const shouldForceWebkitMask =
     enforceContentPeek && smallScreen && !effectiveEditPage;
 
+  useEffect(() => {
+    if (!useBottomSheet) {
+      setSheetExpanded(false);
+      return;
+    }
+    if (contentCollapsed) {
+      setSheetExpanded(false);
+    }
+  }, [contentCollapsed, useBottomSheet]);
+
+  useLayoutEffect(() => {
+    if (!useBottomSheet) return;
+    if (contentCollapsed) return;
+    if (typeof window === "undefined") return;
+    if (typeof document === "undefined") return;
+    if (contentRevealRequestId <= 0) return;
+    if (lastHandledRevealRequestRef.current === contentRevealRequestId) return;
+    lastHandledRevealRequestRef.current = contentRevealRequestId;
+
+    setSheetExpanded(true);
+    const scroller = sheetScrollRef.current;
+    if (scroller) {
+      try {
+        scroller.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      } catch {
+        scroller.scrollTop = 0;
+      }
+    }
+  }, [contentCollapsed, contentRevealRequestId, useBottomSheet]);
+
+  // In bottom-sheet mode, prevent the document from scrolling (the sheet has its own scroller).
+  useEffect(() => {
+    if (!useBottomSheet) return;
+    if (typeof document === "undefined") return;
+
+    const html = document.documentElement;
+    const body = document.body;
+    const prev = {
+      htmlOverflow: html.style.overflow,
+      bodyOverflow: body.style.overflow,
+      htmlOverscrollY: html.style.overscrollBehaviorY,
+      bodyOverscrollY: body.style.overscrollBehaviorY,
+    };
+
+    html.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    html.style.overscrollBehaviorY = "none";
+    body.style.overscrollBehaviorY = "none";
+
+    try {
+      window.scrollTo(0, 0);
+    } catch {}
+
+    return () => {
+      html.style.overflow = prev.htmlOverflow;
+      body.style.overflow = prev.bodyOverflow;
+      html.style.overscrollBehaviorY = prev.htmlOverscrollY;
+      body.style.overscrollBehaviorY = prev.bodyOverscrollY;
+    };
+  }, [useBottomSheet]);
+
   return (
     <>
-      <div
-        className={cn(
-          effectiveEditPage ? "h-0" : "h-[var(--ww-100vh,100dvh)] @min-4xl:h-0",
-          "transition-[height] duration-200 ease-out motion-reduce:transition-none",
-        )}
-        style={spacerHeightStyle}
-      />
+      {!useBottomSheet ? (
+        <div
+          className={cn(
+            effectiveEditPage
+              ? "h-0"
+              : "h-[var(--ww-100vh,100dvh)] @min-4xl:h-0",
+            "transition-[height] duration-200 ease-out motion-reduce:transition-none",
+          )}
+          style={spacerHeightStyle}
+        />
+      ) : null}
       <article
         id="content"
         className={cn(
-          "relative isolate overflow-clip touch-pan-y w-full px-2 @min-4xl:pt-4 bg-background border-t border-x border-border/70 @min-4xl:border-none mx-auto scroll-mt-32",
+          useBottomSheet
+            ? "fixed left-0 right-0 bottom-0 isolate overflow-hidden touch-pan-y w-full px-2 bg-background border-t border-x border-border/70 mx-auto flex flex-col"
+            : "relative isolate overflow-clip touch-pan-y w-full px-2 @min-4xl:pt-4 bg-background border-t border-x border-border/70 @min-4xl:border-none mx-auto scroll-mt-32",
           // Preserve mobile rendering/perf behavior but avoid breaking `position: fixed`
           // descendants (e.g. floating “Show map” tab) on desktop.
           disableMobileGpuTransform ? "transform-none" : "transform-gpu",
@@ -405,17 +481,40 @@ export default function PathStyleWrapper({
                 WebkitMaskImage: "-webkit-radial-gradient(white, white)",
               }
             : {}),
-          ...(applyPullTransform
-            ? {
-                transform: `translate3d(0, ${pullOffsetPx}px, 0)`,
-                transition: pulling
-                  ? "none"
-                  : "transform 220ms cubic-bezier(0.22, 1, 0.36, 1)",
-                willChange: "transform",
-                backfaceVisibility: "hidden",
-                WebkitBackfaceVisibility: "hidden",
-              }
-            : {}),
+          ...(useBottomSheet
+            ? (() => {
+                const base =
+                  contentCollapsed
+                    ? "100%"
+                    : sheetExpanded
+                      ? "0px"
+                      : `calc(100% - ${mobilePeekHeight})`;
+                const y = applyPullTransform
+                  ? `calc(${base} + ${pullOffsetPx}px)`
+                  : base;
+                return {
+                  height: "var(--ww-100vh, 100dvh)",
+                  maxHeight: "var(--ww-100vh, 100dvh)",
+                  transform: `translate3d(0, ${y}, 0)`,
+                  transition: pulling
+                    ? "none"
+                    : "transform 220ms cubic-bezier(0.22, 1, 0.36, 1)",
+                  willChange: "transform",
+                  backfaceVisibility: "hidden",
+                  WebkitBackfaceVisibility: "hidden",
+                } as const;
+              })()
+            : applyPullTransform
+              ? {
+                  transform: `translate3d(0, ${pullOffsetPx}px, 0)`,
+                  transition: pulling
+                    ? "none"
+                    : "transform 220ms cubic-bezier(0.22, 1, 0.36, 1)",
+                  willChange: "transform",
+                  backfaceVisibility: "hidden",
+                  WebkitBackfaceVisibility: "hidden",
+                }
+              : {}),
         }}
       >
         <div
@@ -439,11 +538,8 @@ export default function PathStyleWrapper({
                 title="Collapse content"
                 onClick={() => {
                   setContentCollapsed(true);
-                  try {
-                    window.scrollTo({ top: 0 });
-                  } catch {
-                    window.scrollTo(0, 0);
-                  }
+                  setSheetExpanded(false);
+                  scrollActiveToTop("auto");
                 }}
                 className={cn(
                   "block @min-4xl:hidden absolute top-5 left-1/2 -translate-x-1/2",
@@ -460,18 +556,22 @@ export default function PathStyleWrapper({
             )}
           </>
         )}
-        <div
-          className={cn(
-            // On touch devices, aggressive scroll over a fixed map underlay can trigger
-            // compositor "checkerboarding" where the content briefly fails to paint.
-            // Force the scrolling content onto its own paint/compositing layer.
-            enforceContentPeek && smallScreen && !effectiveEditPage
-              ? "transform-gpu will-change-transform [contain:paint]"
-              : undefined,
-          )}
-        >
-          {children}
-        </div>
+        {useBottomSheet ? (
+          <div
+            ref={sheetScrollRef}
+            id="ww-sheet-scroll"
+            data-ww-sheet-scroll="1"
+            className={cn(
+              "flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden overscroll-contain",
+              // Keep content clear of the fixed BottomNav + safe-area inset.
+              "pb-[calc(env(safe-area-inset-bottom,0px)+var(--ww-bottom-nav-h,0px)+2rem)]",
+            )}
+          >
+            {children}
+          </div>
+        ) : (
+          children
+        )}
       </article>
     </>
   );

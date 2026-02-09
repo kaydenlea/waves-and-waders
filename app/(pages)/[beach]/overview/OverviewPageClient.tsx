@@ -270,11 +270,16 @@ export default function OverviewPageClient({
                   </OverviewChartsLoadingProvider>
                 </SunDataProvider>
               </div>
+
+              {/* Mobile bottom-sheet scroll: keep footer reachable inside the sheet. */}
+              <div className="min-[912px]:hidden mt-10">
+                <Footer />
+              </div>
             </PathStyleWrapper>
         </main>
       </OverviewPageBusyProvider>
       <BottomNav beachName={beachName} />
-      <Footer />
+      <Footer className="max-[911px]:hidden" />
     </div>
   </>
 );

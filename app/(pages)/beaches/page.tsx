@@ -187,11 +187,16 @@ export default async function BeachesPage({
                 </p>
               </details>
             </section>
+
+            {/* Mobile bottom-sheet scroll: keep footer reachable inside the sheet. */}
+            <div className="min-[912px]:hidden mt-10">
+              <Footer />
+            </div>
           </div>
         </PathStyleWrapper>
       </main>
       <BottomNav />
-      <Footer />
+      <Footer className="max-[911px]:hidden" />
     </>
   );
 }

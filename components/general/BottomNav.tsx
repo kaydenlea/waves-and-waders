@@ -3,6 +3,13 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"; 
 import { cn } from "@/lib/utils"; 
 import { acquireScrollLock } from "@/lib/scrollLock";
+import {
+  addActiveScrollListener,
+  getActiveScrollTop,
+  getElementTopInActiveScroller,
+  scrollActiveToTop,
+  scrollActiveToY,
+} from "@/lib/ui/sheetScroll";
 import { 
   User, 
   MapPinned, 
@@ -203,20 +210,12 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
     if (mobile && !wideLayout) {
       if (!contentCollapsed) {
         setContentCollapsed(true);
-        try {
-          window.scrollTo({ top: 0 });
-        } catch {
-          window.scrollTo(0, 0);
-        }
+        scrollActiveToTop("auto");
         return;
       }
 
-      if (window.scrollY !== 0) {
-        try {
-          window.scrollTo({ top: 0 });
-        } catch {
-          window.scrollTo(0, 0);
-        }
+      if (getActiveScrollTop() !== 0) {
+        scrollActiveToTop("auto");
         return;
       }
     }
@@ -470,7 +469,7 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
     const handleScroll = () => {
       if (!ticking) {
         window.requestAnimationFrame(() => {
-          const currentY = window.scrollY;
+          const currentY = getActiveScrollTop();
           const diff = currentY - lastScrollYRef.current;
           const now = window.performance?.now?.() ?? Date.now();
           const viewportChanging =
@@ -541,17 +540,17 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
       }
     };
 
-    window.addEventListener("scroll", handleScroll, { passive: true });
+    const removeScroll = addActiveScrollListener(handleScroll, { passive: true });
     // Keep stability tracking updated during browser chrome animations.
     const vv = window.visualViewport;
     vv?.addEventListener("resize", bumpViewportStability, { passive: true });
     vv?.addEventListener("scroll", bumpViewportStability, { passive: true });
     return () => {
-      window.removeEventListener("scroll", handleScroll);
+      removeScroll();
       vv?.removeEventListener("resize", bumpViewportStability);
       vv?.removeEventListener("scroll", bumpViewportStability);
     };
-  }, [landingPage, mobile]);
+  }, [landingPage, mobile, pathname]);
 
   const handleToggle = (key: string) =>
     setFilters((prev) => {
@@ -667,19 +666,15 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
                   const runScroll = () => {
                     const content = document.getElementById("content");
                     if (!content) return;
-                    try {
-                      content.scrollIntoView({ behavior: "smooth", block: "start" });
-                    } catch {
                       try {
-                        const rect = content.getBoundingClientRect();
-                        const absoluteTop = rect.top + window.scrollY;
-                        window.scrollTo({
-                          top: Math.max(absoluteTop - 117, 0),
-                          behavior: "smooth",
-                        });
-                      } catch {}
-                    }
-                  };
+                        content.scrollIntoView({ behavior: "smooth", block: "start" });
+                      } catch {
+                        try {
+                          const absoluteTop = getElementTopInActiveScroller(content);
+                          scrollActiveToY(Math.max(absoluteTop - 117, 0), "smooth");
+                        } catch {}
+                      }
+                    };
 
                   // If the content is currently fully collapsed, expand it first so the
                   // scroll target is computed against the final layout (avoids a
@@ -717,7 +712,7 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
               <button
                 aria-label="back to top"
                 onClick={() => {
-                  window.scrollTo({ top: 0, behavior: "smooth" });
+                  scrollActiveToTop("smooth");
                 }}
                 className="flex items-center gap-1 px-4 py-3 rounded-full bg-background backdrop-blur border border-border shadow-lg text-sm font-medium text-foreground hover:bg-highlight-3 transition-colors"
               >

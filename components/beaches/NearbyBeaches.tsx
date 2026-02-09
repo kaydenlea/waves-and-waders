@@ -24,6 +24,7 @@ import BeachCard from "@/components/general/BeachCard";
 import type { Beach as UIBeach } from "@/components/general/BeachCard";
 import { cn } from "@/lib/utils";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { getElementTopInActiveScroller, scrollActiveToY } from "@/lib/ui/sheetScroll";
 import { FEATURE_COLUMNS, getFeatureDisplayName } from "@/lib/supabase";
 import { ChevronDown, ChevronUp, SearchX } from "lucide-react";
 import {
@@ -321,10 +322,8 @@ export default function NearbyBeaches() {
         ? 116
         : 122;
       const top =
-        target.getBoundingClientRect().top +
-        window.scrollY -
-        stickyHeaderOffset;
-      window.scrollTo({ top: Math.max(0, top), behavior });
+        getElementTopInActiveScroller(target as HTMLElement) - stickyHeaderOffset;
+      scrollActiveToY(Math.max(0, top), behavior);
     };
 
     const prefersReducedMotion = window.matchMedia(

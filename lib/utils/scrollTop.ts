@@ -2,6 +2,7 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { clearCachedHourSliderTrackGradient } from "@/lib/ui/hourSliderTrackCache";
+import { getSheetScrollElement } from "@/lib/ui/sheetScroll";
 
 function scrollToTopNow() {
   if (typeof window === "undefined") return;
@@ -14,6 +15,16 @@ function scrollToTopNow() {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   } catch {
     window.scrollTo(0, 0);
+  }
+
+  // Map pages can render an internal bottom-sheet scroller; keep it in sync.
+  const sheet = getSheetScrollElement();
+  if (sheet) {
+    try {
+      sheet.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    } catch {
+      sheet.scrollTop = 0;
+    }
   }
 }
 
