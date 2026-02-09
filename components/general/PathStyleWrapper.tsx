@@ -460,7 +460,18 @@ export default function PathStyleWrapper({
             )}
           </>
         )}
-        {children}
+        <div
+          className={cn(
+            // On touch devices, aggressive scroll over a fixed map underlay can trigger
+            // compositor "checkerboarding" where the content briefly fails to paint.
+            // Force the scrolling content onto its own paint/compositing layer.
+            enforceContentPeek && smallScreen && !effectiveEditPage
+              ? "transform-gpu will-change-transform [contain:paint]"
+              : undefined,
+          )}
+        >
+          {children}
+        </div>
       </article>
     </>
   );
