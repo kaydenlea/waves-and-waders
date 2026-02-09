@@ -649,6 +649,7 @@ body[data-ww-navigation-pending="1"] {
     overscroll-behavior: none;
   }
 }
+
 /* Prevent long-press selection/callout on touch-driven chart scrubbing. */
 .chart-touch-no-select {
   -webkit-touch-callout: none;

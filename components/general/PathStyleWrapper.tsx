@@ -52,75 +52,6 @@ export default function PathStyleWrapper({
     };
   }, [shouldLockOverscroll]);
 
-  // iOS Safari can still "rubber band" past the scroll bounds during aggressive flicks
-  // even with overscroll-behavior. Prevent it only at the top/bottom edges.
-  useEffect(() => {
-    if (!shouldLockOverscroll) return;
-    if (typeof window === "undefined") return;
-    if (typeof document === "undefined") return;
-    // if (window.innerWidth >= 911) return;
-
-    const scrollingEl = document.scrollingElement as HTMLElement | null;
-    if (!scrollingEl) return;
-
-    let startY = 0;
-
-    const onTouchStart = (e: TouchEvent) => {
-      if (e.touches.length !== 1) return;
-      startY = e.touches[0]?.clientY ?? 0;
-    };
-
-    const findNestedScrollableAncestor = (target: EventTarget | null) => {
-      if (!target || !(target instanceof HTMLElement)) return null;
-      let el: HTMLElement | null = target;
-      while (el && el !== document.body && el !== scrollingEl) {
-        const style = window.getComputedStyle(el);
-        const overflowY = style.overflowY;
-        const canScrollY =
-          (overflowY === "auto" || overflowY === "scroll") &&
-          el.scrollHeight - el.clientHeight > 1;
-        if (canScrollY) return el;
-        el = el.parentElement;
-      }
-      return null;
-    };
-
-    const onTouchMove = (e: TouchEvent) => {
-      if (e.touches.length !== 1) return;
-      const y = e.touches[0]?.clientY ?? 0;
-      const dy = y - startY;
-      if (dy === 0) return;
-
-      const nestedScroller = findNestedScrollableAncestor(e.target);
-      if (nestedScroller) {
-        const atTop = nestedScroller.scrollTop <= 0;
-        const atBottom =
-          nestedScroller.scrollTop + nestedScroller.clientHeight >=
-          nestedScroller.scrollHeight - 1;
-        if ((dy > 0 && atTop) || (dy < 0 && atBottom)) {
-          e.preventDefault();
-        }
-        return;
-      }
-
-      const atTop = scrollingEl.scrollTop <= 0;
-      const atBottom =
-        scrollingEl.scrollTop + scrollingEl.clientHeight >=
-        scrollingEl.scrollHeight - 1;
-
-      if ((dy > 0 && atTop) || (dy < 0 && atBottom)) {
-        e.preventDefault();
-      }
-    };
-
-    document.addEventListener("touchstart", onTouchStart, { passive: true });
-    document.addEventListener("touchmove", onTouchMove, { passive: false });
-    return () => {
-      document.removeEventListener("touchstart", onTouchStart);
-      document.removeEventListener("touchmove", onTouchMove);
-    };
-  }, [shouldLockOverscroll]);
-
   useEffect(() => {
     if (!enforceContentPeek) return;
     if (typeof window === "undefined") return;
@@ -460,18 +391,7 @@ export default function PathStyleWrapper({
             )}
           </>
         )}
-        <div
-          className={cn(
-            // On touch devices, aggressive scroll over a fixed map underlay can trigger
-            // compositor "checkerboarding" where the content briefly fails to paint.
-            // Force the scrolling content onto its own paint/compositing layer.
-            enforceContentPeek && smallScreen && !effectiveEditPage
-              ? "transform-gpu will-change-transform [contain:paint]"
-              : undefined,
-          )}
-        >
-          {children}
-        </div>
+        {children}
       </article>
     </>
   );

@@ -13,6 +13,17 @@ export default function GlobalOverscrollLock() {
     if (typeof window === "undefined") return;
     if (typeof document === "undefined") return;
 
+    // This issue is specific to touch-driven scrolling (mobile/touch devices).
+    // Avoid changing scroll behavior on desktop trackpads/mice.
+    try {
+      if (typeof window.matchMedia === "function") {
+        const mq = window.matchMedia("(hover: none) and (pointer: coarse)");
+        if (!mq.matches) return;
+      }
+    } catch {
+      // ignore; fall through
+    }
+
     const scrollingEl =
       (document.scrollingElement as HTMLElement | null) ??
       (document.documentElement as HTMLElement | null);
@@ -21,10 +32,33 @@ export default function GlobalOverscrollLock() {
     let startY = 0;
     let startX = 0;
 
+    const NUDGE_PX = 1;
+
+    const nudgeScrollerFromEdges = (el: HTMLElement) => {
+      const maxScrollTop = Math.max(0, el.scrollHeight - el.clientHeight);
+      if (maxScrollTop <= 0) return;
+
+      // iOS Safari can still perform momentum "rubber band" overscroll when a
+      // scroller is exactly at its bounds, even if we preventDefault on touchmove.
+      // Nudge the active scroller slightly off the boundary on touchstart so the
+      // ensuing inertial scroll cannot overscroll past the edge.
+      if (el.scrollTop <= 0) {
+        el.scrollTop = Math.min(NUDGE_PX, maxScrollTop);
+        return;
+      }
+
+      if (el.scrollTop >= maxScrollTop) {
+        el.scrollTop = Math.max(0, maxScrollTop - NUDGE_PX);
+      }
+    };
+
     const onTouchStart = (e: TouchEvent) => {
       if (e.touches.length !== 1) return;
       startY = e.touches[0]?.clientY ?? 0;
       startX = e.touches[0]?.clientX ?? 0;
+
+      const nestedScroller = findNestedScrollableAncestor(e.target);
+      nudgeScrollerFromEdges(nestedScroller ?? scrollingEl);
     };
 
     const findNestedScrollableAncestor = (target: EventTarget | null) => {
@@ -83,4 +117,3 @@ export default function GlobalOverscrollLock() {
 
   return null;
 }
-
