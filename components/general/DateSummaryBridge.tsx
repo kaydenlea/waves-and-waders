@@ -37,7 +37,7 @@ import { useDashboardEditMode } from "@/components/context/DashboardEditModeCont
 import { getTidesCached } from "@/lib/dataCache";
 import { useCachedForecast } from "@/lib/hooks/useCachedForecast";
 import { usePacificTodayMs } from "@/lib/hooks/usePacificTodayMs";
-import { getPacificDayRange, getPacificMidnightUTC } from "@/lib/utils";
+import { getPacificDayRange, getPacificHour, getPacificMidnightUTC } from "@/lib/utils";
 import SurfIntensityMarker from "./SurfIntensityMarker";
 import { ForecastDataProvider } from "../context/ForecastDataContext";
 import { useTideWindowData } from "@/lib/hooks/useTideWindow";
@@ -1087,9 +1087,12 @@ const DateSummaryBridge: React.FC<Props> = ({
     if (!currentTime) return { label: "Stats", timeDisplay: "--" };
 
     const now = new Date();
+    const selectedDate = selected instanceof Date ? selected : now;
+    const HOUR_MS = 60 * 60 * 1000;
 
     // Get the nearest 3-hour interval for the selected hour
-    const dataHour = hour ?? now.getHours();
+    const nowPacificHour = getPacificHour(now);
+    const dataHour = hour ?? nowPacificHour;
     const nearestHour = Math.round(dataHour / 3) * 3;
 
     // Format data hour as 12-hour time
@@ -1097,27 +1100,20 @@ const DateSummaryBridge: React.FC<Props> = ({
     const ampm = nearestHour >= 12 ? "PM" : "AM";
 
     // Check if we're showing current, past, or future data
-    const currentNearestHour = Math.round(now.getHours() / 3) * 3;
+    const currentNearestHour = Math.round(nowPacificHour / 3) * 3;
 
-    // Check if selected date is today
-    const isToday =
-      selected &&
-      selected.getDate() === now.getDate() &&
-      selected.getMonth() === now.getMonth() &&
-      selected.getFullYear() === now.getFullYear();
+    const selectedPacificDayMs = getPacificMidnightUTC(selectedDate).getTime();
+    const currentPacificDayMs = getPacificMidnightUTC(now).getTime();
+    const isToday = selectedPacificDayMs === currentPacificDayMs;
 
-    // Create date objects for comparison
-    const selectedDateTime = selected ? new Date(selected) : now;
-    selectedDateTime.setHours(nearestHour, 0, 0, 0);
-
-    const currentDateTime = new Date(now);
-    currentDateTime.setHours(currentNearestHour, 0, 0, 0);
+    const selectedDateTimeMs = selectedPacificDayMs + nearestHour * HOUR_MS;
+    const currentDateTimeMs = currentPacificDayMs + currentNearestHour * HOUR_MS;
 
     // Determine label based on time relationship
     let labelText = "Stats";
     if (isToday && nearestHour === currentNearestHour) {
       labelText = "Current";
-    } else if (selectedDateTime < currentDateTime) {
+    } else if (selectedDateTimeMs < currentDateTimeMs) {
       labelText = "Historical";
     } else {
       labelText = "Forecast";

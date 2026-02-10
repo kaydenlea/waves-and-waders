@@ -2,6 +2,7 @@
 
 import React from "react";
 import { usePacificTodayMs } from "@/lib/hooks/usePacificTodayMs";
+import { getPacificHour } from "@/lib/utils";
 
 type Ctx = {
   id: React.RefObject<string>;
@@ -36,19 +37,21 @@ export function DateProvider({
     typeof initialSelectedMs === "number" && Number.isFinite(initialSelectedMs)
       ? initialSelectedMs
       : null;
+  const pacificTodayMs = usePacificTodayMs();
   const [showSecondarySwells, setShowSecondarySwells] = React.useState(false);
   const skipSecondarySwellsPersistRef = React.useRef(true);
   const id = React.useRef<string>("");
   const [mode, setMode] = React.useState<string>("date");
   const [selected, setSelected] = React.useState<Date | null>(() =>
-    initialSelectedMsSafe != null ? new Date(initialSelectedMsSafe) : null
+    new Date(initialSelectedMsSafe ?? pacificTodayMs)
   );
-  const pacificTodayMs = usePacificTodayMs();
   const lastPacificTodayMsRef = React.useRef<number | null>(
     initialSelectedMsSafe
   );
-  // Hydration-safe default; adjust to local time after mount
-  const [hour, setHour] = React.useState<number>(12);
+  const [hour, setHour] = React.useState<number>(() => {
+    const nowHour = getPacificHour(new Date());
+    return Math.round(Math.max(0, Math.min(21, nowHour)) / 3) * 3;
+  });
   const [selectedDays, setSelectedDays] = React.useState<Date[] | null>([]);
   const [surfRange, setSurfRange] = React.useState<string | null>(null);
 
@@ -93,9 +96,9 @@ export function DateProvider({
     // This prevents unnecessary re-renders in consuming components
     [mode, selected, hour, selectedDays, surfRange, showSecondarySwells]
   );
-  // After mount, set hour to nearest 3-hour bucket to avoid SSR/CSR mismatch
+  // Keep the selected hour aligned to the current (Pacific) 3-hour bucket on mount.
   React.useEffect(() => {
-    const currentHour = new Date().getHours();
+    const currentHour = getPacificHour(new Date());
     const rounded = Math.round(Math.max(0, Math.min(21, currentHour)) / 3) * 3;
     setHour(rounded);
   }, []);
