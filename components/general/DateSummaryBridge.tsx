@@ -54,6 +54,10 @@ import {
   useOptionalOverviewChartsLoadingControls,
   useOptionalOverviewChartsLoadingState,
 } from "../context/OverviewChartsLoadingContext";
+import {
+  useSessionContext,
+  useSupabaseClient,
+} from "@supabase/auth-helpers-react";
 
 type Props = {
   beachId: string;
@@ -431,6 +435,8 @@ const DateSummaryBridge: React.FC<Props> = ({
     React.useState<StatTableDensity>(initialForecastTableDensity ?? "12h");
   const skipOverviewTableDensityPersistRef = React.useRef(true);
   const skipForecastTableDensityPersistRef = React.useRef(true);
+  const supabase = useSupabaseClient();
+  const { session, isLoading: sessionLoading } = useSessionContext();
   const [dailyTableUi, setDailyTableUi] =
     React.useState<StatTableUiState | null>(null);
   const onDailyTableUiStateChange = React.useCallback(
@@ -454,7 +460,9 @@ const DateSummaryBridge: React.FC<Props> = ({
   }, []);
 
   React.useLayoutEffect(() => {
+    if (sessionLoading) return;
     if (initialOverviewTableDensity) return;
+    if (session) return;
     try {
       const stored = window.localStorage.getItem(
         "waves-and-waders.statTable.density",
@@ -467,11 +475,51 @@ const DateSummaryBridge: React.FC<Props> = ({
         )}; Path=/; Max-Age=31536000; SameSite=Lax`;
       }
     } catch {}
-  }, [initialOverviewTableDensity]);
+  }, [initialOverviewTableDensity, session, sessionLoading]);
+
+  React.useEffect(() => {
+    if (sessionLoading) return;
+    if (!session) return;
+    if (initialOverviewTableDensity) return;
+    let cancelled = false;
+    const loadOverviewDensity = async () => {
+      const { data, error } = await supabase
+        .from("user_dashboard_settings")
+        .select("overview_table_density")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+      if (cancelled || error || !data) return;
+      const stored = (data as { overview_table_density?: unknown })
+        .overview_table_density;
+      if (stored === "3h" || stored === "12h") {
+        skipOverviewTableDensityPersistRef.current = true;
+        setOverviewTableDensity(stored);
+      }
+    };
+    void loadOverviewDensity();
+    return () => {
+      cancelled = true;
+    };
+  }, [initialOverviewTableDensity, session, sessionLoading, supabase]);
 
   React.useEffect(() => {
     if (skipOverviewTableDensityPersistRef.current) {
       skipOverviewTableDensityPersistRef.current = false;
+      return;
+    }
+    if (sessionLoading) return;
+    if (session) {
+      const persist = async () => {
+        await supabase.from("user_dashboard_settings").upsert(
+          {
+            user_id: session.user.id,
+            overview_table_density: overviewTableDensity,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "user_id" },
+        );
+      };
+      void persist();
       return;
     }
     try {
@@ -483,10 +531,12 @@ const DateSummaryBridge: React.FC<Props> = ({
         overviewTableDensity,
       )}; Path=/; Max-Age=31536000; SameSite=Lax`;
     } catch {}
-  }, [overviewTableDensity]);
+  }, [overviewTableDensity, session, sessionLoading, supabase]);
 
   React.useLayoutEffect(() => {
+    if (sessionLoading) return;
     if (initialForecastTableDensity) return;
+    if (session) return;
     try {
       const stored = window.localStorage.getItem(
         "waves-and-waders.forecastTable.density",
@@ -499,11 +549,51 @@ const DateSummaryBridge: React.FC<Props> = ({
         )}; Path=/; Max-Age=31536000; SameSite=Lax`;
       }
     } catch {}
-  }, [initialForecastTableDensity]);
+  }, [initialForecastTableDensity, session, sessionLoading]);
+
+  React.useEffect(() => {
+    if (sessionLoading) return;
+    if (!session) return;
+    if (initialForecastTableDensity) return;
+    let cancelled = false;
+    const loadForecastDensity = async () => {
+      const { data, error } = await supabase
+        .from("user_dashboard_settings")
+        .select("forecast_table_density")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+      if (cancelled || error || !data) return;
+      const stored = (data as { forecast_table_density?: unknown })
+        .forecast_table_density;
+      if (stored === "3h" || stored === "12h") {
+        skipForecastTableDensityPersistRef.current = true;
+        setForecastTableDensity(stored);
+      }
+    };
+    void loadForecastDensity();
+    return () => {
+      cancelled = true;
+    };
+  }, [initialForecastTableDensity, session, sessionLoading, supabase]);
 
   React.useEffect(() => {
     if (skipForecastTableDensityPersistRef.current) {
       skipForecastTableDensityPersistRef.current = false;
+      return;
+    }
+    if (sessionLoading) return;
+    if (session) {
+      const persist = async () => {
+        await supabase.from("user_dashboard_settings").upsert(
+          {
+            user_id: session.user.id,
+            forecast_table_density: forecastTableDensity,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "user_id" },
+        );
+      };
+      void persist();
       return;
     }
     try {
@@ -515,7 +605,7 @@ const DateSummaryBridge: React.FC<Props> = ({
         forecastTableDensity,
       )}; Path=/; Max-Age=31536000; SameSite=Lax`;
     } catch {}
-  }, [forecastTableDensity]);
+  }, [forecastTableDensity, session, sessionLoading, supabase]);
 
   const pacificTodayMs = usePacificTodayMs();
   const defaultSelectedMs = pacificTodayMs;
