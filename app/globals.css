@@ -616,6 +616,17 @@ body[data-ww-interaction-lock="1"] [data-slot="chart"] {
     overscroll-behavior-y: none;
     background: var(--background-2);
   }
+
+  /* During very fast momentum scroll, iOS Safari/WebKit can intermittently drop
+     the overlay sheet's paint, briefly revealing the fixed map underneath.
+     Reduce GPU pressure by temporarily hiding the map layer while flinging. */
+  body[data-ww-fast-scroll="1"] #map-container:not([data-ww-embed-preview="true"]) {
+    opacity: 0;
+    pointer-events: none;
+  }
+  body[data-ww-fast-scroll="1"] #map-container:not([data-ww-embed-preview="true"]) .leaflet-container {
+    opacity: 0;
+  }
 }
 
 /* ---------------------------------------------------------------------------

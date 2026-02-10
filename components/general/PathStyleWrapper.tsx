@@ -388,10 +388,7 @@ export default function PathStyleWrapper({
       <article
         id="content"
         className={cn(
-          "relative isolate touch-pan-y w-full px-2 @min-4xl:pt-4 bg-background border-t border-x border-border/70 @min-4xl:border-none mx-auto scroll-mt-32",
-          // `overflow: clip` + a fixed map underlay can trigger transient
-          // transparency on iOS during fast momentum scroll. Prefer `hidden` on touch.
-          isTouchSmallScreen ? "overflow-hidden" : "overflow-clip",
+          "relative isolate overflow-clip touch-pan-y w-full px-2 @min-4xl:pt-4 bg-background border-t border-x border-border/70 @min-4xl:border-none mx-auto scroll-mt-32",
           // Preserve mobile rendering/perf behavior but avoid breaking `position: fixed`
           // descendants (e.g. floating “Show map” tab) on desktop.
           disableMobileGpuTransform ? "transform-none" : "transform-gpu",
@@ -471,12 +468,9 @@ export default function PathStyleWrapper({
         )}
         <div
           className={cn(
-            // On touch devices, aggressive scroll over a fixed map underlay can trigger
-            // compositor "checkerboarding" where the content briefly fails to paint.
-            // Force the scrolling content onto its own paint/compositing layer.
-            enforceContentPeek && smallScreen && !effectiveEditPage
-              ? "transform-gpu will-change-transform [contain:paint]"
-              : undefined,
+            // Avoid always-on paint containment/layer promotion here; on iOS it can
+            // actually worsen transient "blank" frames during fast momentum scroll.
+            applyPullTransform ? "will-change-transform" : undefined,
           )}
         >
           {children}
