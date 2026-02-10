@@ -56,6 +56,10 @@ import {
 } from "../context/ForecastChartsLoadingContext";
 import { useOptionalOverviewChartLoading } from "../context/OverviewChartsLoadingContext";
 import { useMapUI } from "../context/MapFilterContext";
+import {
+  useSessionContext,
+  useSupabaseClient,
+} from "@supabase/auth-helpers-react";
 
 type MetricGroup =
   | "hour"
@@ -1595,6 +1599,8 @@ const StatTable = ({
   const isHalfWidget = variant === "half";
   type ForecastViewMode = "all" | "single";
   const skipForecastViewModePersistRef = React.useRef(true);
+  const supabase = useSupabaseClient();
+  const { session, isLoading: sessionLoading } = useSessionContext();
   const [forecastViewMode, setForecastViewMode] =
     React.useState<ForecastViewMode>(() =>
       initialForecastViewMode ?? (variant === "half" ? "single" : "all"),
@@ -1865,8 +1871,10 @@ const StatTable = ({
     : "single";
 
   React.useLayoutEffect(() => {
+    if (sessionLoading) return;
     if (initialForecastViewMode) return;
     if (!forecastPage) return;
+    if (session) return;
     try {
       const stored = window.localStorage.getItem(
         "waves-and-waders.statTable.forecastViewMode",
@@ -1879,12 +1887,59 @@ const StatTable = ({
         )}; Path=/; Max-Age=31536000; SameSite=Lax`;
       }
     } catch {}
-  }, [forecastPage, initialForecastViewMode]);
+  }, [forecastPage, initialForecastViewMode, session, sessionLoading]);
+
+  React.useEffect(() => {
+    if (sessionLoading) return;
+    if (!session) return;
+    if (initialForecastViewMode) return;
+    if (!forecastPage) return;
+    let cancelled = false;
+    const loadForecastViewMode = async () => {
+      const { data, error } = await supabase
+        .from("user_dashboard_settings")
+        .select("forecast_table_view_mode")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+      if (cancelled || error || !data) return;
+      const stored = (data as { forecast_table_view_mode?: unknown })
+        .forecast_table_view_mode;
+      if (stored === "all" || stored === "single") {
+        skipForecastViewModePersistRef.current = true;
+        setForecastViewMode(stored);
+      }
+    };
+    void loadForecastViewMode();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    forecastPage,
+    initialForecastViewMode,
+    session,
+    sessionLoading,
+    supabase,
+  ]);
 
   React.useEffect(() => {
     if (!forecastPage) return;
+    if (sessionLoading) return;
     if (skipForecastViewModePersistRef.current) {
       skipForecastViewModePersistRef.current = false;
+      return;
+    }
+    if (session) {
+      const persist = async () => {
+        await supabase.from("user_dashboard_settings").upsert(
+          {
+            user_id: session.user.id,
+            forecast_table_view_mode: forecastViewMode,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "user_id" },
+        );
+      };
+      void persist();
       return;
     }
     try {
@@ -1896,7 +1951,13 @@ const StatTable = ({
         forecastViewMode,
       )}; Path=/; Max-Age=31536000; SameSite=Lax`;
     } catch {}
-  }, [forecastPage, forecastViewMode]);
+  }, [
+    forecastPage,
+    forecastViewMode,
+    session,
+    sessionLoading,
+    supabase,
+  ]);
 
   const preferredForecastDayKey = React.useMemo(() => {
     if (!forecastPage) return null;

@@ -62,6 +62,10 @@ import {
 } from "../context/ForecastChartsLoadingContext";
 
 import { useStableOverlay } from "../hooks/useStableOverlay";
+import {
+  useSessionContext,
+  useSupabaseClient,
+} from "@supabase/auth-helpers-react";
 
 // ------------------------------------------------------
 
@@ -169,6 +173,8 @@ const ForecastBridge: React.FC<Props> = ({
     useState<StatTableDensity>("12h");
 
   const skipDailyTableDensityPersistRef = useRef(true);
+  const supabase = useSupabaseClient();
+  const { session, isLoading: sessionLoading } = useSessionContext();
 
   const dailyTableDensity =
     controlledTableDensity ?? uncontrolledDailyTableDensity;
@@ -212,6 +218,8 @@ const ForecastBridge: React.FC<Props> = ({
 
   useLayoutEffect(() => {
     if (isTableDensityControlled) return;
+    if (sessionLoading) return;
+    if (session) return;
 
     try {
       const stored = window.localStorage.getItem(
@@ -227,14 +235,61 @@ const ForecastBridge: React.FC<Props> = ({
         )}; Path=/; Max-Age=31536000; SameSite=Lax`;
       }
     } catch {}
-  }, [isTableDensityControlled]);
+  }, [isTableDensityControlled, session, sessionLoading]);
 
   useEffect(() => {
     if (isTableDensityControlled) return;
+    if (sessionLoading) return;
+    if (!session) return;
+    let cancelled = false;
+    const loadDensity = async () => {
+      const { data, error } = await supabase
+        .from("user_dashboard_settings")
+        .select("overview_table_density")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+      if (cancelled || error || !data) return;
+      const stored = (data as { overview_table_density?: unknown })
+        .overview_table_density;
+      if (stored === "3h" || stored === "12h") {
+        skipDailyTableDensityPersistRef.current = true;
+        setDailyTableDensity(stored);
+      }
+    };
+    void loadDensity();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    isTableDensityControlled,
+    session,
+    sessionLoading,
+    setDailyTableDensity,
+    supabase,
+  ]);
+
+  useEffect(() => {
+    if (isTableDensityControlled) return;
+    if (sessionLoading) return;
 
     if (skipDailyTableDensityPersistRef.current) {
       skipDailyTableDensityPersistRef.current = false;
 
+      return;
+    }
+
+    if (session) {
+      const persist = async () => {
+        await supabase.from("user_dashboard_settings").upsert(
+          {
+            user_id: session.user.id,
+            overview_table_density: dailyTableDensity,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "user_id" },
+        );
+      };
+      void persist();
       return;
     }
 
@@ -248,7 +303,13 @@ const ForecastBridge: React.FC<Props> = ({
         dailyTableDensity,
       )}; Path=/; Max-Age=31536000; SameSite=Lax`;
     } catch {}
-  }, [dailyTableDensity, isTableDensityControlled]);
+  }, [
+    dailyTableDensity,
+    isTableDensityControlled,
+    session,
+    sessionLoading,
+    supabase,
+  ]);
 
   // local selected date (kept for the DatePicker's controlled value)
 

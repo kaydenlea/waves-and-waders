@@ -230,7 +230,11 @@ export function useDashboardLayout({
               error
             );
           }
-          loadFromLocalStorage({ onlyIfPresent: hasInitialLayout });
+          if (hasInitialLayout) {
+            safeApply(initialMetaNormalized, initialRowsNormalized);
+            return;
+          }
+          safeApply(defaults.meta, defaults.rows);
           return;
         }
 
@@ -257,7 +261,11 @@ export function useDashboardLayout({
         if (process.env.NODE_ENV !== "production") {
           console.warn("Unexpected error loading layout", error);
         }
-        loadFromLocalStorage({ onlyIfPresent: hasInitialLayout });
+        if (hasInitialLayout) {
+          safeApply(initialMetaNormalized, initialRowsNormalized);
+          return;
+        }
+        safeApply(defaults.meta, defaults.rows);
       }
     };
 

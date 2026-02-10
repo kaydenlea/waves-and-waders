@@ -140,18 +140,24 @@ const Page = async ({
   const forecastViewModeCookie = cookieStore.get(
     "ww_statTable_forecastViewMode",
   )?.value;
-  const initialStatTableDensity =
+  const cookieInitialStatTableDensity =
     statTableDensityCookie === "3h" || statTableDensityCookie === "12h"
       ? statTableDensityCookie
       : null;
-  const initialForecastTableDensity =
+  const cookieInitialForecastTableDensity =
     forecastTableDensityCookie === "3h" || forecastTableDensityCookie === "12h"
       ? forecastTableDensityCookie
       : null;
-  const initialForecastViewMode =
+  const cookieInitialForecastViewMode =
     forecastViewModeCookie === "all" || forecastViewModeCookie === "single"
       ? forecastViewModeCookie
       : null;
+  let initialStatTableDensity: "3h" | "12h" | null =
+    cookieInitialStatTableDensity;
+  let initialForecastTableDensity: "3h" | "12h" | null =
+    cookieInitialForecastTableDensity;
+  let initialForecastViewMode: "all" | "single" | null =
+    cookieInitialForecastViewMode;
 
   const { beach } = await params;
   // If user visits /beach/overview (literal "beach"), send them to selector
@@ -256,11 +262,32 @@ const Page = async ({
     try {
       const { data: settings, error: settingsError } = await supabase
         .from("user_dashboard_settings")
-        .select("overview_meta, overview_rows, forecast_meta, forecast_rows")
+        .select(
+          "overview_meta, overview_rows, forecast_meta, forecast_rows, overview_table_density, forecast_table_density, forecast_table_view_mode"
+        )
         .eq("user_id", user.id)
         .maybeSingle();
 
       if (!settingsError && settings) {
+        const overviewDensity =
+          settings.overview_table_density === "3h" ||
+          settings.overview_table_density === "12h"
+            ? settings.overview_table_density
+            : null;
+        const forecastDensity =
+          settings.forecast_table_density === "3h" ||
+          settings.forecast_table_density === "12h"
+            ? settings.forecast_table_density
+            : null;
+        const forecastViewMode =
+          settings.forecast_table_view_mode === "all" ||
+          settings.forecast_table_view_mode === "single"
+            ? settings.forecast_table_view_mode
+            : null;
+        initialStatTableDensity = overviewDensity;
+        initialForecastTableDensity = forecastDensity;
+        initialForecastViewMode = forecastViewMode;
+
         const overviewMeta = normalizeMeta("overview", settings.overview_meta);
         const overviewRows = normalizeRows(
           "overview",
