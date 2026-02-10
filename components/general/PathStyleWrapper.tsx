@@ -385,7 +385,7 @@ export default function PathStyleWrapper({
       {enforceContentPeek && smallScreen && !effectiveEditPage && !contentCollapsed ? (
         <div
           aria-hidden="true"
-          className="pointer-events-none relative z-[1] bg-background rounded-t-4xl border-t border-x border-border/70 @min-4xl:hidden"
+          className="pointer-events-none sticky top-0 z-[1] bg-background rounded-t-4xl border-t border-x border-border/70 @min-4xl:hidden"
           style={{
             height: "var(--ww-100vh, 100dvh)",
             marginBottom: "calc(-1 * var(--ww-100vh, 100dvh))",
