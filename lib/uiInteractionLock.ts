@@ -1,5 +1,7 @@
 "use client";
 
+import { getActiveScrollContainer } from "@/lib/utils/activeScroll";
+
 type InteractionLockToken = {
   id: symbol;
   lockScroll: boolean;
@@ -8,6 +10,9 @@ type InteractionLockToken = {
 let activeTokens: Map<symbol, InteractionLockToken> | null = null;
 let scrollLockSnapshot: {
   scrollY: number;
+  usedContainer: boolean;
+  containerOverflow: string;
+  containerId: string | null;
   htmlOverflow: string;
   bodyOverflow: string;
   bodyPosition: string;
@@ -21,16 +26,25 @@ function applyScrollLock() {
   if (typeof document === "undefined") return;
   if (scrollLockSnapshot) return;
 
+  const activeContainer = getActiveScrollContainer();
+  const usesContainer = activeContainer !== window;
+  const container = usesContainer ? (activeContainer as HTMLElement) : null;
+
   const html = document.documentElement;
   const body = document.body;
   const scroller = document.scrollingElement as HTMLElement | null;
   const maxScrollY = scroller
     ? Math.max(0, scroller.scrollHeight - scroller.clientHeight)
     : 0;
-  const scrollY = Math.max(0, Math.min(window.scrollY, maxScrollY));
+  const scrollY = usesContainer
+    ? Math.max(0, container?.scrollTop ?? 0)
+    : Math.max(0, Math.min(window.scrollY, maxScrollY));
 
   scrollLockSnapshot = {
     scrollY,
+    usedContainer: usesContainer,
+    containerOverflow: container?.style.overflow ?? "",
+    containerId: container?.id ?? null,
     htmlOverflow: html.style.overflow,
     bodyOverflow: body.style.overflow,
     bodyPosition: body.style.position,
@@ -40,13 +54,17 @@ function applyScrollLock() {
     bodyWidth: body.style.width,
   };
 
-  html.style.overflow = "hidden";
-  body.style.overflow = "hidden";
-  body.style.position = "fixed";
-  body.style.top = `-${scrollY}px`;
-  body.style.left = "0";
-  body.style.right = "0";
-  body.style.width = "100%";
+  if (usesContainer && container) {
+    container.style.overflow = "hidden";
+  } else {
+    html.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    body.style.position = "fixed";
+    body.style.top = `-${scrollY}px`;
+    body.style.left = "0";
+    body.style.right = "0";
+    body.style.width = "100%";
+  }
 }
 
 function releaseScrollLock() {
@@ -58,14 +76,24 @@ function releaseScrollLock() {
   const snapshot = scrollLockSnapshot;
   scrollLockSnapshot = null;
 
-  html.style.overflow = snapshot.htmlOverflow;
-  body.style.overflow = snapshot.bodyOverflow;
-  body.style.position = snapshot.bodyPosition;
-  body.style.top = snapshot.bodyTop;
-  body.style.left = snapshot.bodyLeft;
-  body.style.right = snapshot.bodyRight;
-  body.style.width = snapshot.bodyWidth;
-  window.scrollTo(0, snapshot.scrollY);
+  const container =
+    snapshot.usedContainer && snapshot.containerId
+      ? (document.getElementById(snapshot.containerId) as HTMLElement | null)
+      : null;
+
+  if (container) {
+    container.style.overflow = snapshot.containerOverflow;
+    container.scrollTop = snapshot.scrollY;
+  } else {
+    html.style.overflow = snapshot.htmlOverflow;
+    body.style.overflow = snapshot.bodyOverflow;
+    body.style.position = snapshot.bodyPosition;
+    body.style.top = snapshot.bodyTop;
+    body.style.left = snapshot.bodyLeft;
+    body.style.right = snapshot.bodyRight;
+    body.style.width = snapshot.bodyWidth;
+    window.scrollTo(0, snapshot.scrollY);
+  }
 }
 
 function syncBodyAttribute() {

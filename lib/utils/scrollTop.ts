@@ -2,19 +2,17 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { clearCachedHourSliderTrackGradient } from "@/lib/ui/hourSliderTrackCache";
+import {
+  addScrollListener,
+  getActiveScrollContainer,
+  notifyScrollOwnerChanged,
+  scrollToTop,
+} from "@/lib/utils/activeScroll";
 
 function scrollToTopNow() {
   if (typeof window === "undefined") return;
-  if (typeof document !== "undefined") {
-    document.documentElement?.scrollTo?.({ top: 0, left: 0, behavior: "auto" });
-    if (document.documentElement) document.documentElement.scrollTop = 0;
-    if (document.body) document.body.scrollTop = 0;
-  }
-  try {
-    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
-  } catch {
-    window.scrollTo(0, 0);
-  }
+  const container = getActiveScrollContainer();
+  scrollToTop(container);
 }
 
 function forceScrollToTop(frames = 3) {
@@ -51,6 +49,8 @@ export function ScrollToTopOnRouteChange() {
     if (!prev.current.endsWith("/edit")) forceScrollToTop();
     clearCachedHourSliderTrackGradient();
     prev.current = pathname;
+    // The active scroller can change across routes (e.g. map pages on mobile).
+    notifyScrollOwnerChanged();
   }, [pathname]);
 
   useEffect(() => {
@@ -70,6 +70,7 @@ export function ScrollToTopOnRouteChange() {
     let rafId: number | null = null;
     let active = false;
     let lastScrollAt = 0;
+    let removeScrollListener: (() => void) | null = null;
 
     const stopScrolling = () => {
       delete document.body.dataset.wwScrolling;
@@ -102,11 +103,20 @@ export function ScrollToTopOnRouteChange() {
       }
     };
 
-    window.addEventListener("scroll", onScroll, { passive: true });
+    const bind = () => {
+      removeScrollListener?.();
+      removeScrollListener = addScrollListener(getActiveScrollContainer(), onScroll, {
+        passive: true,
+      });
+    };
+
+    bind();
+    window.addEventListener("ww-scroll-owner-changed", bind);
     return () => {
       window.removeEventListener("load", onLoad);
       window.removeEventListener("pageshow", onPageShow);
-      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("ww-scroll-owner-changed", bind);
+      removeScrollListener?.();
       if (timeoutId != null) window.clearTimeout(timeoutId);
       if (rafId != null) window.cancelAnimationFrame(rafId);
       delete document.body.dataset.wwScrolling;

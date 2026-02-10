@@ -4,6 +4,13 @@ import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useMapUI } from "../context/MapFilterContext";
+import {
+  addScrollListener,
+  notifyScrollOwnerChanged,
+  scrollToTop,
+  scrollToY,
+  SHEET_SCROLL_CONTAINER_ID,
+} from "@/lib/utils/activeScroll";
 
 export default function PathStyleWrapper({
   children,
@@ -30,6 +37,7 @@ export default function PathStyleWrapper({
   const lastScrollEventAtRef = useRef(0);
   const lastReachedTopAtRef = useRef(0);
   const [finePointer, setFinePointer] = useState(false);
+  const sheetScrollRef = useRef<HTMLDivElement | null>(null);
   const gestureStartYRef = useRef<number | null>(null);
   const gestureStartXRef = useRef<number | null>(null);
   const gestureLockedUntilEndRef = useRef(false);
@@ -38,6 +46,12 @@ export default function PathStyleWrapper({
   const [pulling, setPulling] = useState(false);
   const lastHandledRevealRequestRef = useRef(0);
   const lastInitializedPathRef = useRef<string | null>(null);
+  const prevHtmlOverflowRef = useRef<string | null>(null);
+  const prevBodyOverflowRef = useRef<string | null>(null);
+  const prevBodyOverscrollRef = useRef<string | null>(null);
+
+  const useSheetScroller =
+    enforceContentPeek && smallScreen && !finePointer && !effectiveEditPage;
 
   useEffect(() => {
     if (!shouldLockOverscroll) return;
@@ -127,29 +141,36 @@ export default function PathStyleWrapper({
 
     const sync = () => {
       setSmallScreen(window.innerWidth < 911);
-      const nextAtTop = window.scrollY <= 1;
-      atTopRef.current = nextAtTop;
-      const now = window.performance?.now?.() ?? Date.now();
-      if (nextAtTop) lastReachedTopAtRef.current = now;
     };
 
     sync();
-    const onResize = () => sync();
+    window.addEventListener("resize", sync, { passive: true });
+    return () => {
+      window.removeEventListener("resize", sync);
+    };
+  }, [enforceContentPeek]);
+
+  useEffect(() => {
+    if (!enforceContentPeek) return;
+    if (typeof window === "undefined") return;
+
+    const container = useSheetScroller
+      ? (sheetScrollRef.current ?? window)
+      : window;
+
+    const getY = () => (container === window ? window.scrollY : container.scrollTop);
+
     const onScroll = () => {
       const now = window.performance?.now?.() ?? Date.now();
       lastScrollEventAtRef.current = now;
-      const nextAtTop = window.scrollY <= 1;
+      const nextAtTop = getY() <= 1;
       if (nextAtTop && !atTopRef.current) lastReachedTopAtRef.current = now;
       atTopRef.current = nextAtTop;
     };
 
-    window.addEventListener("resize", onResize, { passive: true });
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => {
-      window.removeEventListener("resize", onResize);
-      window.removeEventListener("scroll", onScroll);
-    };
-  }, [enforceContentPeek]);
+    onScroll();
+    return addScrollListener(container, onScroll, { passive: true });
+  }, [enforceContentPeek, useSheetScroller]);
 
   useLayoutEffect(() => {
     if (!enforceContentPeek) return;
@@ -168,6 +189,42 @@ export default function PathStyleWrapper({
     mq.addEventListener?.("change", sync);
     return () => mq.removeEventListener?.("change", sync);
   }, [enforceContentPeek]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const html = document.documentElement;
+    const body = document.body;
+    if (!html || !body) return;
+
+    if (!useSheetScroller) {
+      delete html.dataset.wwSheetScroll;
+      delete body.dataset.wwSheetScroll;
+      notifyScrollOwnerChanged();
+      return;
+    }
+
+    prevHtmlOverflowRef.current = html.style.overflow ?? "";
+    prevBodyOverflowRef.current = body.style.overflow ?? "";
+    prevBodyOverscrollRef.current = body.style.overscrollBehavior ?? "";
+    html.dataset.wwSheetScroll = "1";
+    body.dataset.wwSheetScroll = "1";
+    html.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    body.style.overscrollBehavior = "none";
+    notifyScrollOwnerChanged();
+
+    return () => {
+      delete html.dataset.wwSheetScroll;
+      delete body.dataset.wwSheetScroll;
+      html.style.overflow = prevHtmlOverflowRef.current ?? "";
+      body.style.overflow = prevBodyOverflowRef.current ?? "";
+      body.style.overscrollBehavior = prevBodyOverscrollRef.current ?? "";
+      prevHtmlOverflowRef.current = null;
+      prevBodyOverflowRef.current = null;
+      prevBodyOverscrollRef.current = null;
+      notifyScrollOwnerChanged();
+    };
+  }, [useSheetScroller]);
 
   useEffect(() => {
     if (!enforceContentPeek) {
@@ -197,12 +254,15 @@ export default function PathStyleWrapper({
     if (lastInitializedPathRef.current === pathname) return;
     lastInitializedPathRef.current = pathname;
     setContentCollapsed(true);
+    const container = useSheetScroller
+      ? (sheetScrollRef.current ?? window)
+      : window;
     try {
-      window.scrollTo(0, 0);
+      scrollToTop(container);
     } catch {
-      window.scrollTo(0, 0);
+      scrollToTop(container);
     }
-  }, [enforceContentPeek, pathname, setContentCollapsed]);
+  }, [enforceContentPeek, pathname, setContentCollapsed, useSheetScroller]);
 
   useLayoutEffect(() => {
     if (!enforceContentPeek) return;
@@ -217,7 +277,11 @@ export default function PathStyleWrapper({
     // When expanding from a fully-collapsed (map-only) state, the spacer height
     // shrinks by the peek amount. Adjust scroll position in a layout effect so
     // the user doesn't see an intermediate "peek" jump before the smooth scroll.
-    if (window.scrollY > 1) return;
+    const container = useSheetScroller
+      ? (sheetScrollRef.current ?? window)
+      : window;
+    const currentY = container === window ? window.scrollY : container.scrollTop;
+    if (currentY > 1) return;
 
     const rootFontSize = Number.parseFloat(
       window.getComputedStyle(document.documentElement).fontSize || "16",
@@ -229,9 +293,9 @@ export default function PathStyleWrapper({
     );
     if (peekPx > 0) {
       try {
-        window.scrollTo(0, peekPx);
+        scrollToY(container, peekPx);
       } catch {
-        window.scrollTo(0, peekPx);
+        scrollToY(container, peekPx);
       }
     }
   }, [
@@ -239,6 +303,7 @@ export default function PathStyleWrapper({
     contentRevealRequestId,
     enforceContentPeek,
     smallScreen,
+    useSheetScroller,
   ]);
 
   useEffect(() => {
@@ -249,6 +314,9 @@ export default function PathStyleWrapper({
 
     const el = document.getElementById("content");
     if (!el) return;
+
+    const getScrollContainer = () =>
+      useSheetScroller ? (sheetScrollRef.current ?? window) : window;
 
     const thresholdPx = 70;
 
@@ -263,7 +331,9 @@ export default function PathStyleWrapper({
 
     const onTouchStart = (e: TouchEvent) => {
       if (contentCollapsed) return;
-      if (window.scrollY > 1) return;
+      const container = getScrollContainer();
+      const y = container === window ? window.scrollY : container.scrollTop;
+      if (y > 1) return;
       if (e.touches.length !== 1) return;
       if (document.body.dataset.wwScrolling === "1") return;
 
@@ -291,7 +361,9 @@ export default function PathStyleWrapper({
         return;
       }
       if (contentCollapsed) return;
-      if (window.scrollY > 1) return;
+      const container = getScrollContainer();
+      const y = container === window ? window.scrollY : container.scrollTop;
+      if (y > 1) return;
       if (e.touches.length !== 1) return;
       if (!gestureArmedRef.current) return;
 
@@ -324,9 +396,9 @@ export default function PathStyleWrapper({
         setPulling(false);
         setPullOffsetPx(0);
         try {
-          window.scrollTo({ top: 0 });
+          scrollToTop(getScrollContainer());
         } catch {
-          window.scrollTo(0, 0);
+          scrollToTop(getScrollContainer());
         }
       }
     };
@@ -341,7 +413,13 @@ export default function PathStyleWrapper({
       el.removeEventListener("touchend", resetGesture);
       el.removeEventListener("touchcancel", resetGesture);
     };
-  }, [contentCollapsed, enforceContentPeek, setContentCollapsed, smallScreen]);
+  }, [
+    contentCollapsed,
+    enforceContentPeek,
+    setContentCollapsed,
+    smallScreen,
+    useSheetScroller,
+  ]);
 
   // Intentionally do not auto-expand content on scroll position changes.
   // On map-driven pages the default should remain map-only until the user explicitly reveals content.
@@ -371,10 +449,26 @@ export default function PathStyleWrapper({
   const applyPullTransform =
     enforceContentPeek && smallScreen && (pulling || pullOffsetPx !== 0);
   const shouldForceWebkitMask =
-    enforceContentPeek && smallScreen && !effectiveEditPage;
+    enforceContentPeek && smallScreen && !effectiveEditPage && !useSheetScroller;
 
   return (
-    <>
+    <div
+      id={SHEET_SCROLL_CONTAINER_ID}
+      ref={sheetScrollRef}
+      className={cn(
+        useSheetScroller
+          ? "relative z-30 w-full overflow-y-auto overscroll-contain touch-pan-y"
+          : "contents",
+      )}
+      style={
+        useSheetScroller
+          ? ({
+              height: mobileSpacerBaseHeight,
+              WebkitOverflowScrolling: "touch",
+            } as any)
+          : undefined
+      }
+    >
       <div
         className={cn(
           effectiveEditPage ? "h-0" : "h-[var(--ww-100vh,100dvh)] @min-4xl:h-0",
@@ -439,11 +533,11 @@ export default function PathStyleWrapper({
                 title="Collapse content"
                 onClick={() => {
                   setContentCollapsed(true);
-                  try {
-                    window.scrollTo({ top: 0 });
-                  } catch {
-                    window.scrollTo(0, 0);
-                  }
+                  scrollToTop(
+                    useSheetScroller
+                      ? (sheetScrollRef.current ?? window)
+                      : window,
+                  );
                 }}
                 className={cn(
                   "block @min-4xl:hidden absolute top-5 left-1/2 -translate-x-1/2",
@@ -465,7 +559,7 @@ export default function PathStyleWrapper({
             // On touch devices, aggressive scroll over a fixed map underlay can trigger
             // compositor "checkerboarding" where the content briefly fails to paint.
             // Force the scrolling content onto its own paint/compositing layer.
-            enforceContentPeek && smallScreen && !effectiveEditPage
+            !useSheetScroller && enforceContentPeek && smallScreen && !effectiveEditPage
               ? "transform-gpu will-change-transform [contain:paint]"
               : undefined,
           )}
@@ -473,6 +567,6 @@ export default function PathStyleWrapper({
           {children}
         </div>
       </article>
-    </>
+    </div>
   );
 }

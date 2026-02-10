@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Image from "next/image";
+import { getActiveScrollContainer, getScrollTop } from "@/lib/utils/activeScroll";
 import {
   AttributionControl,
   Map,
@@ -1458,13 +1459,13 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
         if (mapContainer) {
           const headerOffset = 100;
           const rect = mapContainer.getBoundingClientRect();
-          const absoluteTop = rect.top + window.scrollY;
+          const scroller = getActiveScrollContainer();
+          const absoluteTop = rect.top + getScrollTop(scroller);
           const targetTop = Math.max(absoluteTop - headerOffset, 0);
-          try {
+          if (scroller === window) {
             window.scrollTo({ top: targetTop, behavior: "smooth" });
-          } catch {
-            mapContainer.scrollIntoView({ behavior: "smooth", block: "start" });
-            window.scrollBy({ top: -headerOffset, behavior: "smooth" });
+          } else {
+            scroller.scrollTo({ top: targetTop, behavior: "smooth" });
           }
         }
       }

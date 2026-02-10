@@ -2,6 +2,7 @@
 
 import { MapPin } from "lucide-react";
 import { useMapUI } from "../context/MapFilterContext";
+import { getActiveScrollContainer, getScrollTop } from "@/lib/utils/activeScroll";
 
 const wideScreenWidth = 911;
 // export const scrollToMap = () => {
@@ -22,7 +23,12 @@ const wideScreenWidth = 911;
 // };
 export const scrollToMap = () => {
   if (window.innerWidth >= wideScreenWidth) return;
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  const container = getActiveScrollContainer();
+  if (container === window) {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  } else {
+    container.scrollTo({ top: 0, behavior: "smooth" });
+  }
 };
 
 const collapseAfterScrollToTop = (collapse: () => void) => {
@@ -34,12 +40,13 @@ const collapseAfterScrollToTop = (collapse: () => void) => {
 
   scrollToMap();
 
+  const container = getActiveScrollContainer();
   const start = window.performance?.now?.() ?? Date.now();
   const maxWaitMs = 1200;
 
   const tick = () => {
     const now = window.performance?.now?.() ?? Date.now();
-    if (window.scrollY <= 1 || now - start > maxWaitMs) {
+    if (getScrollTop(container) <= 1 || now - start > maxWaitMs) {
       collapse();
       return;
     }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { addScrollListener, getActiveScrollContainer } from "@/lib/utils/activeScroll";
 
 const SCROLL_IDLE_MS = 160;
 
@@ -12,6 +13,8 @@ export default function ScrollPerfHandler() {
   useEffect(() => {
     const body = document.body;
     if (!body) return;
+
+    let removeScrollListener: (() => void) | null = null;
 
     const setScrolling = () => {
       if (!activeRef.current) {
@@ -36,9 +39,18 @@ export default function ScrollPerfHandler() {
       });
     };
 
-    window.addEventListener("scroll", onScroll, { passive: true });
+    const bind = () => {
+      removeScrollListener?.();
+      removeScrollListener = addScrollListener(getActiveScrollContainer(), onScroll, {
+        passive: true,
+      });
+    };
+
+    bind();
+    window.addEventListener("ww-scroll-owner-changed", bind);
     return () => {
-      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("ww-scroll-owner-changed", bind);
+      removeScrollListener?.();
       if (timerRef.current !== null) {
         window.clearTimeout(timerRef.current);
         timerRef.current = null;

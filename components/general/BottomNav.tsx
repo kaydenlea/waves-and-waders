@@ -3,6 +3,13 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"; 
 import { cn } from "@/lib/utils"; 
 import { acquireScrollLock } from "@/lib/scrollLock";
+import {
+  addScrollListener,
+  getActiveScrollContainer,
+  getScrollTop,
+  scrollToTop,
+  scrollToY,
+} from "@/lib/utils/activeScroll";
 import { 
   User, 
   MapPinned, 
@@ -190,7 +197,8 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
   useLayoutEffect(() => { 
     if (typeof window === "undefined" || typeof document === "undefined") return; 
     if (openPanel !== "filters") return; 
-
+    const scrollContainer = getActiveScrollContainer();
+ 
     const html = document.documentElement; 
     const body = document.body; 
     const sheetSelector = '.ww-filters-sheet[data-state="open"]'; 
@@ -203,20 +211,12 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
     if (mobile && !wideLayout) {
       if (!contentCollapsed) {
         setContentCollapsed(true);
-        try {
-          window.scrollTo({ top: 0 });
-        } catch {
-          window.scrollTo(0, 0);
-        }
+        scrollToTop(scrollContainer);
         return;
       }
-
-      if (window.scrollY !== 0) {
-        try {
-          window.scrollTo({ top: 0 });
-        } catch {
-          window.scrollTo(0, 0);
-        }
+ 
+      if (getScrollTop(scrollContainer) !== 0) {
+        scrollToTop(scrollContainer);
         return;
       }
     }
@@ -236,7 +236,7 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
     let removeWideHandlers: (() => void) | null = null; 
 
     if (wideLayout) {
-      const lockedScrollY = window.scrollY;
+      const lockedScrollY = getScrollTop(scrollContainer);
       let raf = 0;
       let restoring = false;
       const scrollAreaSelector = "[data-ww-filters-scroll=\"1\"]";
@@ -260,11 +260,11 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
 
       const restoreScroll = () => {
         if (restoring) return;
-        const y = window.scrollY;
+        const y = getScrollTop(scrollContainer);
         if (Math.abs(y - lockedScrollY) < 1) return;
         restoring = true;
         try {
-          window.scrollTo(0, lockedScrollY);
+          scrollToY(scrollContainer, lockedScrollY);
         } finally {
           restoring = false;
         }
@@ -395,8 +395,12 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
         passive: false,
       });
       window.addEventListener("keydown", preventKeyScroll);
-      window.addEventListener("scroll", scheduleRestore, { passive: true });
-
+      const removeRestoreScrollListener = addScrollListener(
+        scrollContainer,
+        scheduleRestore,
+        { passive: true },
+      );
+ 
       removeWideHandlers = () => {
         if (raf) window.cancelAnimationFrame(raf);
         window.removeEventListener("wheel", preventIfBackground);
@@ -407,7 +411,7 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
         window.removeEventListener("touchcancel", onTouchEndCapture, true);
         window.removeEventListener("touchmove", preventIfBackground);
         window.removeEventListener("keydown", preventKeyScroll);
-        window.removeEventListener("scroll", scheduleRestore);
+        removeRestoreScrollListener();
       };
     } else {
       // On narrow layouts we want a true scroll lock (prevents iOS overscroll bounce).
@@ -437,6 +441,7 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
     if (typeof window === "undefined") return;
     if (!mobile) return;
     let ticking = false;
+    let scrollContainer: ReturnType<typeof getActiveScrollContainer> = window;
 
     const readVisualViewportHeight = () => {
       const vv = window.visualViewport;
@@ -467,10 +472,12 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
       );
     };
 
+    const readScrollTop = () => getScrollTop(scrollContainer);
+
     const handleScroll = () => {
       if (!ticking) {
         window.requestAnimationFrame(() => {
-          const currentY = window.scrollY;
+          const currentY = readScrollTop();
           const diff = currentY - lastScrollYRef.current;
           const now = window.performance?.now?.() ?? Date.now();
           const viewportChanging =
@@ -541,13 +548,25 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
       }
     };
 
-    window.addEventListener("scroll", handleScroll, { passive: true });
+    let removeScrollListener: (() => void) | null = null;
+    const bindScroll = () => {
+      removeScrollListener?.();
+      scrollContainer = getActiveScrollContainer();
+      lastScrollYRef.current = readScrollTop();
+      removeScrollListener = addScrollListener(scrollContainer, handleScroll, {
+        passive: true,
+      });
+    };
+
+    bindScroll();
+    window.addEventListener("ww-scroll-owner-changed", bindScroll);
     // Keep stability tracking updated during browser chrome animations.
     const vv = window.visualViewport;
     vv?.addEventListener("resize", bumpViewportStability, { passive: true });
     vv?.addEventListener("scroll", bumpViewportStability, { passive: true });
     return () => {
-      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("ww-scroll-owner-changed", bindScroll);
+      removeScrollListener?.();
       vv?.removeEventListener("resize", bumpViewportStability);
       vv?.removeEventListener("scroll", bumpViewportStability);
     };
@@ -669,17 +688,25 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
                     if (!content) return;
                     try {
                       content.scrollIntoView({ behavior: "smooth", block: "start" });
-                    } catch {
-                      try {
-                        const rect = content.getBoundingClientRect();
-                        const absoluteTop = rect.top + window.scrollY;
-                        window.scrollTo({
-                          top: Math.max(absoluteTop - 117, 0),
-                          behavior: "smooth",
-                        });
-                      } catch {}
-                    }
-                  };
+                     } catch {
+                       try {
+                         const rect = content.getBoundingClientRect();
+                         const container = getActiveScrollContainer();
+                         const absoluteTop = rect.top + getScrollTop(container);
+                         if (container === window) {
+                           window.scrollTo({
+                             top: Math.max(absoluteTop - 117, 0),
+                             behavior: "smooth",
+                           });
+                         } else {
+                           container.scrollTo({
+                             top: Math.max(absoluteTop - 117, 0),
+                             behavior: "smooth",
+                           });
+                         }
+                       } catch {}
+                     }
+                   };
 
                   // If the content is currently fully collapsed, expand it first so the
                   // scroll target is computed against the final layout (avoids a
@@ -714,13 +741,18 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
             <></>
           ) : (
             <div className="touch-pan-y block @min-4xl:hidden flex justify-center mt-10 mb-4">
-              <button
-                aria-label="back to top"
-                onClick={() => {
-                  window.scrollTo({ top: 0, behavior: "smooth" });
-                }}
-                className="flex items-center gap-1 px-4 py-3 rounded-full bg-background backdrop-blur border border-border shadow-lg text-sm font-medium text-foreground hover:bg-highlight-3 transition-colors"
-              >
+                <button
+                  aria-label="back to top"
+                  onClick={() => {
+                  const container = getActiveScrollContainer();
+                  if (container === window) {
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  } else {
+                    container.scrollTo({ top: 0, behavior: "smooth" });
+                  }
+                  }}
+                  className="flex items-center gap-1 px-4 py-3 rounded-full bg-background backdrop-blur border border-border shadow-lg text-sm font-medium text-foreground hover:bg-highlight-3 transition-colors"
+                >
                 <span>Top</span>
                 <ArrowUp className="w-5 h-5" />
               </button>

@@ -13,6 +13,7 @@ import { createPortal } from "react-dom";
 
 import { cn } from "@/lib/utils";
 import { acquireInteractionLock } from "@/lib/uiInteractionLock";
+import { getActiveScrollContainer, getScrollTop } from "@/lib/utils/activeScroll";
 import {
   FEATURE_CATEGORIES,
   getFeatureDisplayName,
@@ -4714,18 +4715,26 @@ const LeafletMap: React.FC<Props> = ({
       });
       setSelectedBeachId(match.id);
       pendingAutoCenterRef.current = null;
-      if (detail.scroll) {
-        const container = document.getElementById("map-container");
-        if (container) {
-          const headerOffset = 100;
-          const rect = container.getBoundingClientRect();
-          const absoluteTop = rect.top + window.scrollY;
-          window.scrollTo({
-            top: Math.max(absoluteTop - headerOffset, 0),
-            behavior: "smooth",
-          });
+        if (detail.scroll) {
+          const container = document.getElementById("map-container");
+          if (container) {
+            const headerOffset = 100;
+            const rect = container.getBoundingClientRect();
+            const scroller = getActiveScrollContainer();
+            const absoluteTop = rect.top + getScrollTop(scroller);
+            if (scroller === window) {
+              window.scrollTo({
+                top: Math.max(absoluteTop - headerOffset, 0),
+                behavior: "smooth",
+              });
+            } else {
+              scroller.scrollTo({
+                top: Math.max(absoluteTop - headerOffset, 0),
+                behavior: "smooth",
+              });
+            }
+          }
         }
-      }
       return true;
     },
     [focusMapToLatLng],
