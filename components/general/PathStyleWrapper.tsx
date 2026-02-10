@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useMapUI } from "../context/MapFilterContext";
 
+const PEEK_REM = 10;
+
 export default function PathStyleWrapper({
   children,
 }: {
@@ -36,8 +38,10 @@ export default function PathStyleWrapper({
   const gestureArmedRef = useRef(false);
   const [pullOffsetPx, setPullOffsetPx] = useState(0);
   const [pulling, setPulling] = useState(false);
+  const [peekPx, setPeekPx] = useState(0);
   const lastHandledRevealRequestRef = useRef(0);
   const lastInitializedPathRef = useRef<string | null>(null);
+  const clampingScrollRef = useRef(false);
 
   useEffect(() => {
     if (!shouldLockOverscroll) return;
@@ -169,6 +173,53 @@ export default function PathStyleWrapper({
     return () => mq.removeEventListener?.("change", sync);
   }, [enforceContentPeek]);
 
+  useLayoutEffect(() => {
+    if (!enforceContentPeek || !smallScreen) {
+      setPeekPx(0);
+      return;
+    }
+    if (typeof window === "undefined") return;
+    if (typeof document === "undefined") return;
+    const rootFontSize = Number.parseFloat(
+      window.getComputedStyle(document.documentElement).fontSize || "16",
+    );
+    const px = Math.max(
+      0,
+      Math.round((Number.isFinite(rootFontSize) ? rootFontSize : 16) * PEEK_REM),
+    );
+    setPeekPx(px);
+  }, [enforceContentPeek, smallScreen]);
+
+  useEffect(() => {
+    if (!enforceContentPeek) return;
+    if (!smallScreen) return;
+    if (contentCollapsed) return;
+    if (peekPx <= 0) return;
+    if (typeof window === "undefined") return;
+
+    // When content is expanded on mobile, keep the document scroll position at/above
+    // the "peek" offset. Fast flicks can otherwise overshoot to scrollY=0 and briefly
+    // expose the fixed map underlay.
+    const clamp = () => {
+      if (clampingScrollRef.current) return;
+      const y = window.scrollY ?? 0;
+      if (y >= peekPx - 1) return;
+      clampingScrollRef.current = true;
+      try {
+        window.scrollTo({ top: peekPx, behavior: "auto" });
+      } catch {
+        window.scrollTo(0, peekPx);
+      }
+      window.requestAnimationFrame(() => {
+        clampingScrollRef.current = false;
+      });
+    };
+
+    clamp();
+    window.addEventListener("scroll", clamp, { passive: true });
+    return () => window.removeEventListener("scroll", clamp);
+  }, [contentCollapsed, enforceContentPeek, peekPx, smallScreen]);
+
   useEffect(() => {
     if (!enforceContentPeek) {
       lastInitializedPathRef.current = null;
@@ -217,27 +268,27 @@ export default function PathStyleWrapper({
     // When expanding from a fully-collapsed (map-only) state, the spacer height
     // shrinks by the peek amount. Adjust scroll position in a layout effect so
     // the user doesn't see an intermediate "peek" jump before the smooth scroll.
-    if (window.scrollY > 1) return;
+    if (window.scrollY > Math.max(1, peekPx + 1)) return;
 
     const rootFontSize = Number.parseFloat(
       window.getComputedStyle(document.documentElement).fontSize || "16",
     );
-    const peekRem = 10;
-    const peekPx = Math.max(
+    const peekPxLocal = Math.max(
       0,
-      Math.round((Number.isFinite(rootFontSize) ? rootFontSize : 16) * peekRem),
+      Math.round((Number.isFinite(rootFontSize) ? rootFontSize : 16) * PEEK_REM),
     );
-    if (peekPx > 0) {
+    if (peekPxLocal > 0) {
       try {
-        window.scrollTo(0, peekPx);
+        window.scrollTo(0, peekPxLocal);
       } catch {
-        window.scrollTo(0, peekPx);
+        window.scrollTo(0, peekPxLocal);
       }
     }
   }, [
     contentCollapsed,
     contentRevealRequestId,
     enforceContentPeek,
+    peekPx,
     smallScreen,
   ]);
 
@@ -263,7 +314,7 @@ export default function PathStyleWrapper({
 
     const onTouchStart = (e: TouchEvent) => {
       if (contentCollapsed) return;
-      if (window.scrollY > 1) return;
+      if (window.scrollY > Math.max(1, peekPx + 1)) return;
       if (e.touches.length !== 1) return;
       if (document.body.dataset.wwScrolling === "1") return;
 
@@ -291,7 +342,7 @@ export default function PathStyleWrapper({
         return;
       }
       if (contentCollapsed) return;
-      if (window.scrollY > 1) return;
+      if (window.scrollY > Math.max(1, peekPx + 1)) return;
       if (e.touches.length !== 1) return;
       if (!gestureArmedRef.current) return;
 
@@ -341,7 +392,13 @@ export default function PathStyleWrapper({
       el.removeEventListener("touchend", resetGesture);
       el.removeEventListener("touchcancel", resetGesture);
     };
-  }, [contentCollapsed, enforceContentPeek, setContentCollapsed, smallScreen]);
+  }, [
+    contentCollapsed,
+    enforceContentPeek,
+    peekPx,
+    setContentCollapsed,
+    smallScreen,
+  ]);
 
   // Intentionally do not auto-expand content on scroll position changes.
   // On map-driven pages the default should remain map-only until the user explicitly reveals content.
