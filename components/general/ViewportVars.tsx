@@ -22,6 +22,17 @@ export default function ViewportVars() {
     let baselineVvHeightPx: number | null = null;
 
     const apply = () => {
+      // While the search overlay is open, keep the underlying page layout stable.
+      // The overlay measures `visualViewport` directly, but the background pages
+      // (especially map views) should not resize/shift with the on-screen keyboard.
+      if (
+        root.dataset.wwSearchOverlay === "1" ||
+        root.dataset.wwSearchOverlayClosing === "1"
+      ) {
+        root.style.setProperty("--ww-keyboard-inset", "0px");
+        return;
+      }
+
       const innerW = window.innerWidth;
       const innerH = window.innerHeight;
       if (
@@ -112,7 +123,13 @@ export default function ViewportVars() {
       ) {
         maxBottomUiPx = bottomUi;
       }
-      root.style.setProperty("--ww-bottom-ui", `${maxBottomUiPx}px`);
+      // While the keyboard is open, mobile browsers typically hide the bottom UI.
+      // If we keep reserving `--ww-bottom-ui` during that state, pages that size
+      // themselves using this var can end up with a visible empty gap.
+      root.style.setProperty(
+        "--ww-bottom-ui",
+        `${keyboardReducedEffective ? 0 : maxBottomUiPx}px`,
+      );
 
       if (keyboardReducedEffective) {
         keyboardWasReduced = true;

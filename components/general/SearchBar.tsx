@@ -92,6 +92,7 @@ const SearchBar = ({
   const [overlayResultsMaxHeight, setOverlayResultsMaxHeight] = useState<
     number | null
   >(null);
+  const overlayOpenScrollYRef = useRef(0);
 
   const searchCtx = useOptionalSearchContext();
   const isOverlay = searchCtx?.isOverlay ?? false;
@@ -254,7 +255,37 @@ const SearchBar = ({
   // scrollbar is removed/restored (common trigger for map reflows on narrow screens).
   useLayoutEffect(() => {
     if (!isOverlay) return;
-    return acquireScrollLock();
+
+    const lockedY =
+      typeof window !== "undefined" ? window.scrollY : overlayOpenScrollYRef.current;
+    overlayOpenScrollYRef.current = lockedY;
+    if (typeof window !== "undefined") {
+      try {
+        window.scrollTo(0, lockedY);
+      } catch {
+        window.scrollTo(0, lockedY);
+      }
+    }
+
+    const release = acquireScrollLock();
+
+    // iOS Safari can still attempt to scroll the underlying page when focusing inputs
+    // inside fixed overlays (keyboard open/close). Keep the background position stable.
+    const restore = () => {
+      const y = window.scrollY;
+      if (Math.abs(y - lockedY) < 1) return;
+      try {
+        window.scrollTo(0, lockedY);
+      } catch {
+        window.scrollTo(0, lockedY);
+      }
+    };
+
+    window.addEventListener("scroll", restore, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", restore);
+      release();
+    };
   }, [isOverlay]);
 
   // Ensure the overlay starts scrolled to the top (some mobile browsers can restore/shift scroll on open).
@@ -370,7 +401,7 @@ const SearchBar = ({
         createPortal(
           <div
             ref={overlayRootRef}
-            className="fixed inset-0 z-[70] bg-background/85 dark:bg-background/95 flex flex-col items-center pt-5.5 px-8 overflow-y-auto"
+            className="fixed inset-0 z-[70] bg-background/85 dark:bg-background/95 flex flex-col items-center pt-5.5 px-8 overflow-hidden"
             onClick={(e) => {
               if (e.target === e.currentTarget)
                 // setQuery("");

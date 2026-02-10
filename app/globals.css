@@ -127,11 +127,15 @@ main[data-ww-page="login"]::-webkit-scrollbar {
 @layer utilities {
   /* Stable viewport height for pages that should not resize while mobile browser UI hides/shows. */
   .ww-stable-viewport {
-    --ww-100vh: var(--ww-stable-100vh, 100vh);
+    --ww-100vh: calc(
+      var(--ww-stable-100vh, 100vh) - var(--ww-keyboard-inset, 0px)
+    );
   }
   @supports (height: 100svh) {
     .ww-stable-viewport {
-      --ww-100vh: var(--ww-stable-100vh, 100svh);
+      --ww-100vh: calc(
+        var(--ww-stable-100vh, 100svh) - var(--ww-keyboard-inset, 0px)
+      );
     }
   }
 
