@@ -5,6 +5,7 @@ import { AppProviders } from "./providers";
 import { cookies } from "next/headers";
 import { Analytics } from "@vercel/analytics/next";
 import type { Viewport } from "next";
+import DonateStickyPill from "@/components/marketing/DonateStickyPill";
 
 export const metadata = buildDefaultMetadata();
 export const viewport: Viewport = {
@@ -90,6 +91,7 @@ export default async function RootLayout({
           initialTabPreferences={initialTabPreferences}
         >
           {children}
+          <DonateStickyPill />
           <Analytics />
         </AppProviders>
       </body>

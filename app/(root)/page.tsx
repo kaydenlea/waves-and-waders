@@ -14,7 +14,6 @@ import PersonalizeForecastsSection from "@/components/marketing/PersonalizeForec
 import AllEssentialsCardsSection from "@/components/marketing/AllEssentialsCardsSection";
 import DonateInlineCallout from "@/components/marketing/DonateInlineCallout";
 import DonateSection from "@/components/marketing/DonateSection";
-import DonateStickyPill from "@/components/marketing/DonateStickyPill";
 import InViewOnce from "@/components/marketing/InViewOnce";
 
 export const metadata: Metadata = {
@@ -77,7 +76,6 @@ const Home = () => {
   return (
     <div className="touch-pan-y">
       <main className="ww-disable-backdrop relative min-h-screen bg-background text-foreground selection:bg-cyan-300/40">
-        <DonateStickyPill />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{

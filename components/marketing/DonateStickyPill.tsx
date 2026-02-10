@@ -6,6 +6,9 @@ import { usePathname } from "next/navigation";
 import { HandHeart, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+const DONATE_PILL_DISMISS_KEY = "ww:donate-pill:v1:dismissedAt";
+const DONATE_PILL_DISMISS_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
+
 function usePrefersReducedMotion() {
   const [reduced, setReduced] = React.useState(false);
 
@@ -32,13 +35,51 @@ export default function DonateStickyPill({
   const [eligibleByScroll, setEligibleByScroll] = React.useState(false);
   const eligibleByScrollRef = React.useRef(false);
 
-  React.useEffect(() => {
-    if (pathname === "/donate") {
-      setDismissed(true);
-      return;
+  const readDismissedPreference = React.useCallback(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      const raw = window.localStorage.getItem(DONATE_PILL_DISMISS_KEY);
+      if (!raw) return false;
+      const ts = Number.parseInt(raw, 10);
+      if (!Number.isFinite(ts) || ts <= 0) return true;
+      if (Date.now() - ts <= DONATE_PILL_DISMISS_TTL_MS) return true;
+      window.localStorage.removeItem(DONATE_PILL_DISMISS_KEY);
+      return false;
+    } catch {
+      return false;
     }
-    setDismissed(false);
-  }, [pathname]);
+  }, []);
+
+  const writeDismissedPreference = React.useCallback(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(DONATE_PILL_DISMISS_KEY, String(Date.now()));
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  React.useLayoutEffect(() => {
+    if (typeof window === "undefined") return;
+
+    // On route changes, reset eligibility immediately to avoid briefly showing the pill
+    // using stale `eligibleByScroll` from the previous page.
+    const nextDismissed = pathname === "/donate" || readDismissedPreference();
+    setDismissed(nextDismissed);
+    eligibleByScrollRef.current = false;
+    setEligibleByScroll(false);
+
+    if (nextDismissed) return;
+
+    const threshold = () => Math.round(window.innerHeight * 0.42);
+    const raf = window.requestAnimationFrame(() => {
+      const nextEligible = window.scrollY > threshold();
+      eligibleByScrollRef.current = nextEligible;
+      setEligibleByScroll(nextEligible);
+    });
+
+    return () => window.cancelAnimationFrame(raf);
+  }, [pathname, readDismissedPreference]);
 
   React.useEffect(() => {
     if (dismissed) return;
@@ -70,7 +111,10 @@ export default function DonateStickyPill({
 
   const visible = !dismissed && eligibleByScroll;
 
-  const dismiss = () => setDismissed(true);
+  const dismiss = () => {
+    writeDismissedPreference();
+    setDismissed(true);
+  };
 
   return (
     <div
@@ -81,7 +125,7 @@ export default function DonateStickyPill({
         visible
           ? "opacity-100 translate-y-0 pointer-events-auto"
           : "opacity-0 translate-y-2 pointer-events-none",
-        className
+        className,
       )}
       aria-hidden={!visible}
     >
