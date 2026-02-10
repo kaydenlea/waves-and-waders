@@ -438,7 +438,7 @@ const SearchBar = ({
           >
             <div
               ref={overlayControlsRef}
-              className="z-[80] mx-auto flex max-w-lg gap-2"
+              className="z-[80] mx-auto flex w-full max-w-2xl min-w-0 gap-2"
               style={{
                 position: "fixed",
                 top: 12,
@@ -447,7 +447,7 @@ const SearchBar = ({
                 width: "calc(100% - 32px)",
               }}
             >
-              <div className="relative w-full max-w-lg flex items-center bg-highlight-4 rounded-full shadow-lg ring ring-border/70 px-3 py-2 gap-2">
+              <div className="relative flex-1 min-w-0 flex items-center bg-highlight-4 rounded-full shadow-lg ring ring-border/70 px-3 py-2 gap-2">
                 <Search
                   strokeWidth={3}
                   className="w-5 h-5 text-muted-foreground"
@@ -485,7 +485,7 @@ const SearchBar = ({
               <button
                 type="button"
                 aria-label="open map"
-                className="icon-button p-3.5 hover:bg-highlight-5"
+                className="icon-button shrink-0 p-3.5 hover:bg-highlight-5"
                 onClick={() => {
                   setQuery("");
                   setIsOverlay(false);
