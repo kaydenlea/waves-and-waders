@@ -38,8 +38,6 @@ export default function PathStyleWrapper({
   const [pulling, setPulling] = useState(false);
   const lastHandledRevealRequestRef = useRef(0);
   const lastInitializedPathRef = useRef<string | null>(null);
-  const contentRef = useRef<HTMLElement | null>(null);
-  const contentShieldRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!shouldLockOverscroll) return;
@@ -375,40 +373,6 @@ export default function PathStyleWrapper({
   const shouldForceWebkitMask =
     enforceContentPeek && smallScreen && !effectiveEditPage && finePointer;
 
-  useEffect(() => {
-    if (!enforceContentPeek) return;
-    if (!smallScreen) return;
-    if (effectiveEditPage) return;
-    if (contentCollapsed) return;
-    if (typeof window === "undefined") return;
-
-    const contentEl = contentRef.current;
-    const shieldEl = contentShieldRef.current;
-    if (!contentEl || !shieldEl) return;
-
-    let rafId: number | null = null;
-
-    const update = () => {
-      rafId = null;
-      const nextTop = Math.max(0, contentEl.getBoundingClientRect().top);
-      shieldEl.style.top = `${Math.round(nextTop)}px`;
-    };
-
-    const schedule = () => {
-      if (rafId != null) return;
-      rafId = window.requestAnimationFrame(update);
-    };
-
-    update();
-    window.addEventListener("scroll", schedule, { passive: true });
-    window.addEventListener("resize", schedule, { passive: true });
-    return () => {
-      if (rafId != null) window.cancelAnimationFrame(rafId);
-      window.removeEventListener("scroll", schedule);
-      window.removeEventListener("resize", schedule);
-    };
-  }, [contentCollapsed, effectiveEditPage, enforceContentPeek, smallScreen]);
-
   return (
     <>
       <div
@@ -420,16 +384,26 @@ export default function PathStyleWrapper({
       />
       {enforceContentPeek && smallScreen && !effectiveEditPage && !contentCollapsed ? (
         <div
-          ref={contentShieldRef}
           aria-hidden="true"
-          className="pointer-events-none fixed inset-x-0 bottom-0 z-[1] bg-background rounded-t-4xl border-t border-x border-border/70 @min-4xl:hidden"
+          className="pointer-events-none relative z-[1] bg-background rounded-t-4xl border-t border-x border-border/70 @min-4xl:hidden"
           style={{
-            top: `calc(${mobileSpacerBaseHeight} - ${mobilePeekHeight})`,
+            height: "var(--ww-100vh, 100dvh)",
+            marginBottom: "calc(-1 * var(--ww-100vh, 100dvh))",
+            ...(applyPullTransform
+              ? {
+                  transform: `translate3d(0, ${pullOffsetPx}px, 0)`,
+                  transition: pulling
+                    ? "none"
+                    : "transform 220ms cubic-bezier(0.22, 1, 0.36, 1)",
+                  willChange: "transform",
+                  backfaceVisibility: "hidden",
+                  WebkitBackfaceVisibility: "hidden",
+                }
+              : {}),
           }}
         />
       ) : null}
       <article
-        ref={contentRef}
         id="content"
         className={cn(
           "relative isolate overflow-clip touch-pan-y w-full px-2 @min-4xl:pt-4 bg-background border-t border-x border-border/70 @min-4xl:border-none mx-auto scroll-mt-32",
