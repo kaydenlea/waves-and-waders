@@ -102,13 +102,6 @@ const SearchBar = ({
     [searchCtx?.setIsOverlay]
   );
 
-  const openOverlay = useCallback(() => {
-    if (typeof window !== "undefined") {
-      overlayOpenScrollYRef.current = window.scrollY;
-    }
-    setIsOverlay(true);
-  }, [setIsOverlay]);
-
   // Deferred query for smoother typing - input stays responsive
   const deferredQuery = useDeferredValue(query);
   const visibleHits = open ? hits : [];
@@ -263,7 +256,9 @@ const SearchBar = ({
   useLayoutEffect(() => {
     if (!isOverlay) return;
 
-    const lockedY = overlayOpenScrollYRef.current;
+    const lockedY =
+      typeof window !== "undefined" ? window.scrollY : overlayOpenScrollYRef.current;
+    overlayOpenScrollYRef.current = lockedY;
     if (typeof window !== "undefined") {
       try {
         window.scrollTo(0, lockedY);
@@ -347,7 +342,7 @@ const SearchBar = ({
           <button
             type="button"
             aria-label="search"
-            onClick={openOverlay}
+            onClick={() => setIsOverlay(true)}
             className="group/button hover:scale-[1.05] items-center gap-1 inline-flex @min-4xl:hidden rounded-full bg-gradient-to-br from-cyan-300 to-blue-500 p-3 font-medium text-foreground shadow-lg shadow-cyan-500/30 transition active:scale-[0.98]"
           >
             <Search
@@ -361,7 +356,7 @@ const SearchBar = ({
         <button
           type="button"
           aria-label="search"
-          onClick={openOverlay}
+          onClick={() => setIsOverlay(true)}
           className={cn(
             "hover:bg-highlight-3 dark:hover:bg-highlight-3 duration-200 transition transition-all transform hover:translate-y-[1px] pl-1.5 py-2 items-center rounded-full h-full shadow-lg ring ring-border/70 gap-2 dark:bg-highlight-5 w-full",
             beachesPage
