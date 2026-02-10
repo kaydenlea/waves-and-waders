@@ -370,7 +370,7 @@ const SearchBar = ({
         createPortal(
           <div
             ref={overlayRootRef}
-            className="fixed inset-0 z-[70] bg-background/85 dark:bg-background/95 flex flex-col items-center pt-5.5 px-8 overflow-y-auto"
+            className="fixed inset-0 z-[70] bg-background/85 dark:bg-background/95 flex flex-col items-center pt-5.5 px-8 overflow-hidden"
             onClick={(e) => {
               if (e.target === e.currentTarget)
                 // setQuery("");

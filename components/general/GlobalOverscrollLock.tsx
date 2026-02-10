@@ -33,6 +33,17 @@ export default function GlobalOverscrollLock() {
       snapRaf = window.requestAnimationFrame(() => {
         snapRaf = null;
 
+        const html = document.documentElement;
+        const body = document.body;
+        if (!body) return;
+
+        // If the app has explicitly locked document scrolling (modals, search overlay,
+        // sheets, etc.), don't attempt to "snap back" — it can fight the lock and
+        // cause visible jumps when the lock is released.
+        if (html.style.overflow === "hidden" || body.style.position === "fixed") {
+          return;
+        }
+
         const maxScrollY = Math.max(
           0,
           (scrollingEl.scrollHeight || 0) - (scrollingEl.clientHeight || 0),
@@ -41,8 +52,6 @@ export default function GlobalOverscrollLock() {
 
         // iOS can leave the document visually offset even when `scrollTop` is 0/max.
         // Use body bounds as the signal for visible blank space.
-        const body = document.body;
-        if (!body) return;
         const rect = body.getBoundingClientRect();
         const topGap = rect.top;
         const bottomGap = window.innerHeight - rect.bottom;

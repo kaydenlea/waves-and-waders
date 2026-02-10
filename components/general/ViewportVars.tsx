@@ -112,7 +112,13 @@ export default function ViewportVars() {
       ) {
         maxBottomUiPx = bottomUi;
       }
-      root.style.setProperty("--ww-bottom-ui", `${maxBottomUiPx}px`);
+      // While the keyboard is open, mobile browsers typically hide the bottom UI.
+      // If we keep reserving `--ww-bottom-ui` during that state, pages that size
+      // themselves using this var can end up with a visible empty gap.
+      root.style.setProperty(
+        "--ww-bottom-ui",
+        `${keyboardReducedEffective ? 0 : maxBottomUiPx}px`,
+      );
 
       if (keyboardReducedEffective) {
         keyboardWasReduced = true;
