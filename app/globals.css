@@ -605,6 +605,20 @@ body[data-ww-interaction-lock="1"] [data-slot="chart"] {
 }
 
 /* ---------------------------------------------------------------------------
+   Map overlay scroll stability (mobile/touch)
+   Best-effort: reduce scroll chaining/rubber-banding that can briefly expose
+   the fixed map underlay during aggressive flicks.
+--------------------------------------------------------------------------- */
+@media (max-width: 911px) and (hover: none) and (pointer: coarse) {
+  html[data-ww-map-overscroll-lock="1"],
+  body[data-ww-map-overscroll-lock="1"] {
+    overscroll-behavior: none;
+    overscroll-behavior-y: none;
+    background: var(--background-2);
+  }
+}
+
+/* ---------------------------------------------------------------------------
    CSS-only scroll lock while app menus are open (touch devices only)
    Uses :has(), supported in modern Safari/Chrome/Edge.
 

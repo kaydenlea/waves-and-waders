@@ -370,8 +370,9 @@ export default function PathStyleWrapper({
 
   const applyPullTransform =
     enforceContentPeek && smallScreen && (pulling || pullOffsetPx !== 0);
+  const isTouchSmallScreen = enforceContentPeek && smallScreen && !finePointer;
   const shouldForceWebkitMask =
-    enforceContentPeek && smallScreen && !effectiveEditPage;
+    enforceContentPeek && smallScreen && !effectiveEditPage && !isTouchSmallScreen;
   const disableBackdropBlurForMapScroll =
     enforceContentPeek && smallScreen && !finePointer;
 
@@ -387,7 +388,10 @@ export default function PathStyleWrapper({
       <article
         id="content"
         className={cn(
-          "relative isolate overflow-clip touch-pan-y w-full px-2 @min-4xl:pt-4 bg-background border-t border-x border-border/70 @min-4xl:border-none mx-auto scroll-mt-32",
+          "relative isolate touch-pan-y w-full px-2 @min-4xl:pt-4 bg-background border-t border-x border-border/70 @min-4xl:border-none mx-auto scroll-mt-32",
+          // `overflow: clip` + a fixed map underlay can trigger transient
+          // transparency on iOS during fast momentum scroll. Prefer `hidden` on touch.
+          isTouchSmallScreen ? "overflow-hidden" : "overflow-clip",
           // Preserve mobile rendering/perf behavior but avoid breaking `position: fixed`
           // descendants (e.g. floating “Show map” tab) on desktop.
           disableMobileGpuTransform ? "transform-none" : "transform-gpu",
