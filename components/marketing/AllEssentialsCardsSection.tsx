@@ -1,7 +1,14 @@
 import InViewOnce from "@/components/marketing/InViewOnce";
 import AllEssentialsCardsDeck from "@/components/marketing/AllEssentialsCardsDeck";
+import { getPacificHour, getPacificMidnightUTC } from "@/lib/utils";
 
 export default function AllEssentialsCardsSection() {
+  const now = new Date();
+  const initialSelectedMs = getPacificMidnightUTC(now).getTime();
+  const pacificHour = getPacificHour(now);
+  const initialHour =
+    Math.round(Math.max(0, Math.min(21, pacificHour)) / 3) * 3;
+
   return (
     <section
       id="why"
@@ -28,7 +35,10 @@ export default function AllEssentialsCardsSection() {
         </p>
       </header>
 
-      <AllEssentialsCardsDeck />
+      <AllEssentialsCardsDeck
+        initialSelectedMs={initialSelectedMs}
+        initialHour={initialHour}
+      />
     </section>
   );
 }

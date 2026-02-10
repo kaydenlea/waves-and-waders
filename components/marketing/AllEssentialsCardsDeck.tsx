@@ -3,7 +3,6 @@
 import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
-import dayjs from "dayjs";
 import {
   Calendar,
   ChevronLeft,
@@ -15,12 +14,14 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { usePacificTodayMs } from "@/lib/hooks/usePacificTodayMs";
 
 import noaaLogo from "@/public/noaa.png";
 import HourSlider from "@/components/general/HourSlider";
 import { LazyLoadDatePicker } from "@/components/general/LazyLoad/LazyLoadDatePicker";
 import { SwellRings, WindRing } from "@/components/visuals/DirectionRings";
+
+const FALLBACK_SELECTED_MS = Date.UTC(2024, 5, 15, 12, 0, 0, 0);
+const FALLBACK_HOUR = 12;
 
 type CardProps = {
   icon: React.ReactNode;
@@ -128,26 +129,18 @@ function SecondaryLink({
   );
 }
 
-function WindowPickerVisual() {
-  const pacificTodayMs = usePacificTodayMs();
+function WindowPickerVisual({
+  initialSelectedMs,
+  initialHour,
+}: {
+  initialSelectedMs: number;
+  initialHour: number;
+}) {
   const [selectedDate, setSelectedDate] = React.useState<Date>(() => {
-    return new Date(pacificTodayMs);
+    return new Date(initialSelectedMs);
   });
-  const [selectedHour, setSelectedHour] = React.useState<number>(() => {
-    const min = 0;
-    const max = 21;
-    const step = 3;
-    const currentHour = new Date().getHours();
-    const constrainedHour = Math.max(min, Math.min(max, currentHour));
-    return Math.round(constrainedHour / step) * step;
-  });
-
-  React.useEffect(() => {
-    setSelectedDate((prev) => {
-      const next = new Date(pacificTodayMs);
-      return prev.getTime() === next.getTime() ? prev : next;
-    });
-  }, [pacificTodayMs]);
+  const [selectedHour, setSelectedHour] =
+    React.useState<number>(initialHour);
 
   const timeLabel = React.useMemo(() => {
     const hour = selectedHour;
@@ -157,7 +150,11 @@ function WindowPickerVisual() {
   }, [selectedHour]);
 
   const dateLabel = React.useMemo(() => {
-    return dayjs(selectedDate).format("M/D");
+    return new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/Los_Angeles",
+      month: "numeric",
+      day: "numeric",
+    }).format(selectedDate);
   }, [selectedDate]);
 
   const previewGradient =
@@ -421,7 +418,13 @@ function useCarousel(total: number, initial = 0) {
   return { active, goTo, next, prev } as const;
 }
 
-export default function AllEssentialsCardsDeck() {
+export default function AllEssentialsCardsDeck({
+  initialSelectedMs = FALLBACK_SELECTED_MS,
+  initialHour = FALLBACK_HOUR,
+}: {
+  initialSelectedMs?: number;
+  initialHour?: number;
+}) {
   const rootRef = React.useRef<HTMLDivElement | null>(null);
 
   const cards = React.useMemo(
@@ -440,7 +443,10 @@ export default function AllEssentialsCardsDeck() {
                 </SecondaryLink>
               }
             >
-              <WindowPickerVisual />
+              <WindowPickerVisual
+                initialSelectedMs={initialSelectedMs}
+                initialHour={initialHour}
+              />
             </EssentialsCard>
           ),
         },
@@ -475,7 +481,7 @@ export default function AllEssentialsCardsDeck() {
           ),
         },
       ] as const,
-    []
+    [initialHour, initialSelectedMs]
   );
 
   const { active, goTo, next, prev } = useCarousel(cards.length, 1);

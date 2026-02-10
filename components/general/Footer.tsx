@@ -24,7 +24,7 @@ const Footer = ({ className }: { className?: string }) => {
                   alt="Waves and Waders"
                   width={40}
                   height={40}
-                  className="h-10 w-10 object-contain"
+                  className="object-contain"
                 />
               </span>
               <BrandWordmark className="font-semibold tracking-tight text-foreground" />

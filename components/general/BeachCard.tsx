@@ -243,25 +243,24 @@ const BeachCard = React.memo(
           className="absolute inset-0 z-0 rounded-3xl focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-400"
         />
         <div className="relative z-10 pointer-events-none">
-          <section className="rounded-2xl relative w-full p-3 aspect-auto bg-gradient-to-br from-blue-50 to-blue-100">
-            <div className="rounded-2xl h-35 w-full">
-              <Image
-                src={`/beach_pictures/${b.id}.png`}
-                alt={`Map view of ${b.name}`}
-                fill
-                className="object-cover rounded-2xl"
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                placeholder="blur"
-                blurDataURL={IMAGE_PLACEHOLDER}
-                priority={priorityImage}
-                loading={priorityImage ? "eager" : undefined}
-                onLoadingComplete={() => setImageLoaded(true)}
-                onError={(e) => {
-                  e.currentTarget.style.display = "none";
-                  setImageLoaded(true);
-                }}
-              />
-            </div>
+          <section className="relative rounded-2xl relative w-full p-3 aspect-auto bg-gradient-to-br from-blue-50 to-blue-100">
+            <div className="rounded-2xl h-35 w-full" aria-hidden="true" />
+            <Image
+              src={`/beach_pictures/${b.id}.png`}
+              alt={`Map view of ${b.name}`}
+              fill
+              className="object-cover rounded-2xl"
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              placeholder="blur"
+              blurDataURL={IMAGE_PLACEHOLDER}
+              priority={priorityImage}
+              loading={priorityImage ? "eager" : undefined}
+              onLoad={() => setImageLoaded(true)}
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+                setImageLoaded(true);
+              }}
+            />
             {!imageLoaded && (
               <div className="pointer-events-none absolute inset-0 rounded-2xl bg-background/40 backdrop-blur-sm transition-opacity duration-200" />
             )}
