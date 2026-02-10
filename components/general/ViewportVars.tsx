@@ -22,6 +22,17 @@ export default function ViewportVars() {
     let baselineVvHeightPx: number | null = null;
 
     const apply = () => {
+      // While the search overlay is open, keep the underlying page layout stable.
+      // The overlay measures `visualViewport` directly, but the background pages
+      // (especially map views) should not resize/shift with the on-screen keyboard.
+      if (
+        root.dataset.wwSearchOverlay === "1" ||
+        root.dataset.wwSearchOverlayClosing === "1"
+      ) {
+        root.style.setProperty("--ww-keyboard-inset", "0px");
+        return;
+      }
+
       const innerW = window.innerWidth;
       const innerH = window.innerHeight;
       if (
