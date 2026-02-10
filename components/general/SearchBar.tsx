@@ -15,6 +15,7 @@ import React, {
 import { useRouter } from "next/navigation";
 import { Map, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { acquireScrollLock } from "@/lib/scrollLock";
 import { useOptionalSearchContext } from "../context/SearchContext";
 import ToggleFilters from "./ToggleFilters";
 
