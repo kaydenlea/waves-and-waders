@@ -372,6 +372,8 @@ export default function PathStyleWrapper({
     enforceContentPeek && smallScreen && (pulling || pullOffsetPx !== 0);
   const shouldForceWebkitMask =
     enforceContentPeek && smallScreen && !effectiveEditPage;
+  const disableBackdropBlurForMapScroll =
+    enforceContentPeek && smallScreen && !finePointer;
 
   return (
     <>
@@ -396,7 +398,10 @@ export default function PathStyleWrapper({
           !effectiveEditPage
             ? "rounded-t-4xl @min-4xl:rounded-t-none pt-10"
             : "pt-10",
-          overviewPage && "ww-disable-backdrop",
+          // iOS Safari can intermittently fail to repaint `backdrop-filter` while
+          // scrolling a content overlay over a fixed map, making parts of the UI
+          // appear to "disappear" and briefly exposing the map.
+          disableBackdropBlurForMapScroll && "ww-disable-backdrop",
           showMap && "@min-4xl:pr-3",
         )}
         style={{
