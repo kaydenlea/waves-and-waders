@@ -38,6 +38,8 @@ export default function PathStyleWrapper({
   const [pulling, setPulling] = useState(false);
   const lastHandledRevealRequestRef = useRef(0);
   const lastInitializedPathRef = useRef<string | null>(null);
+  const spacerRef = useRef<HTMLDivElement | null>(null);
+  const contentShieldRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!shouldLockOverscroll) return;
@@ -373,15 +375,61 @@ export default function PathStyleWrapper({
   const shouldForceWebkitMask =
     enforceContentPeek && smallScreen && !effectiveEditPage;
 
+  useEffect(() => {
+    if (!enforceContentPeek) return;
+    if (!smallScreen) return;
+    if (effectiveEditPage) return;
+    if (contentCollapsed) return;
+    if (typeof window === "undefined") return;
+
+    const spacerEl = spacerRef.current;
+    const shieldEl = contentShieldRef.current;
+    if (!spacerEl || !shieldEl) return;
+
+    let rafId: number | null = null;
+
+    const update = () => {
+      rafId = null;
+      const spacerHeight = spacerEl.getBoundingClientRect().height;
+      const nextTop = Math.max(0, spacerHeight - window.scrollY);
+      shieldEl.style.top = `${Math.round(nextTop)}px`;
+    };
+
+    const schedule = () => {
+      if (rafId != null) return;
+      rafId = window.requestAnimationFrame(update);
+    };
+
+    update();
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule, { passive: true });
+    return () => {
+      if (rafId != null) window.cancelAnimationFrame(rafId);
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+    };
+  }, [contentCollapsed, effectiveEditPage, enforceContentPeek, smallScreen]);
+
   return (
     <>
       <div
+        ref={spacerRef}
         className={cn(
           effectiveEditPage ? "h-0" : "h-[var(--ww-100vh,100dvh)] @min-4xl:h-0",
           "transition-[height] duration-200 ease-out motion-reduce:transition-none",
         )}
         style={spacerHeightStyle}
       />
+      {enforceContentPeek && smallScreen && !effectiveEditPage && !contentCollapsed ? (
+        <div
+          ref={contentShieldRef}
+          aria-hidden="true"
+          className="pointer-events-none fixed inset-x-0 bottom-0 z-[1] bg-background @min-4xl:hidden"
+          style={{
+            top: `calc(${mobileSpacerBaseHeight} - ${mobilePeekHeight})`,
+          }}
+        />
+      ) : null}
       <article
         id="content"
         className={cn(
