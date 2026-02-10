@@ -17,7 +17,6 @@ import { Map, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useOptionalSearchContext } from "../context/SearchContext";
 import ToggleFilters from "./ToggleFilters";
-import { acquireScrollLock } from "@/lib/scrollLock";
 
 type BeachHit = {
   id: string | number;
@@ -87,12 +86,12 @@ const SearchBar = ({
   const [, startTransition] = useTransition();
   const abortRef = useRef<AbortController | null>(null);
   const boxRef = useRef<HTMLFormElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const overlayControlsRef = useRef<HTMLDivElement | null>(null);
   const overlayRootRef = useRef<HTMLDivElement | null>(null);
   const [overlayResultsMaxHeight, setOverlayResultsMaxHeight] = useState<
     number | null
   >(null);
-  const overlayOpenScrollYRef = useRef(0);
 
   const searchCtx = useOptionalSearchContext();
   const isOverlay = searchCtx?.isOverlay ?? false;
@@ -251,40 +250,71 @@ const SearchBar = ({
   //   return () => window.removeEventListener("resize", handleResize);
   // }, [isOverlay]);
 
-  // Prevent document scroll when overlay is active, without causing layout shift when the
-  // scrollbar is removed/restored (common trigger for map reflows on narrow screens).
+  // Track scroll position for reference
+  const scrollYRef = useRef(0);
+
+  // Block scroll events when overlay is open
   useLayoutEffect(() => {
     if (!isOverlay) return;
+    if (typeof document === "undefined") return;
 
-    const lockedY =
-      typeof window !== "undefined" ? window.scrollY : overlayOpenScrollYRef.current;
-    overlayOpenScrollYRef.current = lockedY;
-    if (typeof window !== "undefined") {
-      try {
-        window.scrollTo(0, lockedY);
-      } catch {
-        window.scrollTo(0, lockedY);
-      }
-    }
+    // Capture scroll position for reference
+    scrollYRef.current = window.scrollY;
 
     // Use an overflow-only scroll lock so `window.scrollY` stays stable while the
     // overlay is open. Several pages use scroll position for layout/peek behavior;
     // a body-fixed lock can temporarily set `scrollY` to 0 and cause visible jumps.
     const release = acquireScrollLock({ mode: "overflow" });
+
+    // Also block wheel and touch scroll on document, but allow inside search results
+    const blockScroll = (e: Event) => {
+      const target = e.target as HTMLElement | null;
+      // Allow scroll inside the search results container or its children
+      if (target?.closest("[data-search-results]")) return;
+      e.preventDefault();
+    };
+
+    // Block keyboard scroll
+    const blockKeyScroll = (e: KeyboardEvent) => {
+      const scrollKeys = ["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "];
+      if (scrollKeys.includes(e.key)) {
+        const target = e.target as HTMLElement | null;
+        // Allow inside input
+        if (target?.tagName === "INPUT") return;
+        e.preventDefault();
+      }
+    };
+
+    document.addEventListener("wheel", blockScroll, { passive: false });
+    document.addEventListener("touchmove", blockScroll, { passive: false });
+    document.addEventListener("keydown", blockKeyScroll);
+
     return () => {
       release();
+      document.removeEventListener("wheel", blockScroll);
+      document.removeEventListener("touchmove", blockScroll);
+      document.removeEventListener("keydown", blockKeyScroll);
     };
   }, [isOverlay]);
 
-  // Ensure the overlay starts scrolled to the top (some mobile browsers can restore/shift scroll on open).
+  // Focus the input when overlay opens
   useEffect(() => {
     if (!isOverlay) return;
-    const node = overlayRootRef.current;
-    if (!node) return;
-    const id = window.requestAnimationFrame(() => {
-      node.scrollTop = 0;
+    
+    const id1 = window.requestAnimationFrame(() => {
+      inputRef.current?.focus({ preventScroll: true });
     });
-    return () => window.cancelAnimationFrame(id);
+    const id2 = window.setTimeout(() => {
+      inputRef.current?.focus({ preventScroll: true });
+    }, 60);
+    const id3 = window.setTimeout(() => {
+      inputRef.current?.focus({ preventScroll: true });
+    }, 180);
+    return () => {
+      window.cancelAnimationFrame(id1);
+      window.clearTimeout(id2);
+      window.clearTimeout(id3);
+    };
   }, [isOverlay]);
 
   // Keep results pane visible above mobile keyboards.
@@ -389,16 +419,32 @@ const SearchBar = ({
         createPortal(
           <div
             ref={overlayRootRef}
-            className="fixed inset-0 z-[70] bg-background/85 dark:bg-background/95 flex flex-col items-center pt-5.5 px-8 overflow-hidden"
+            className="z-[70] bg-background/90 dark:bg-background/95 supports-[backdrop-filter]:bg-background/80 supports-[backdrop-filter]:backdrop-blur-md"
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              width: "100vw",
+              height: "100vh",
+              overflow: "hidden",
+            }}
             onClick={(e) => {
               if (e.target === e.currentTarget)
-                // setQuery("");
                 setIsOverlay(false);
             }}
           >
             <div
               ref={overlayControlsRef}
-              className="flex gap-2 w-full justify-center max-w-60 @min-md:max-w-full"
+              className="z-[80] mx-auto flex max-w-lg gap-2"
+              style={{
+                position: "fixed",
+                top: 12,
+                left: 16,
+                right: 16,
+                width: "calc(100% - 32px)",
+              }}
             >
               <div className="relative w-full max-w-lg flex items-center bg-highlight-4 rounded-full shadow-lg ring ring-border/70 px-3 py-2 gap-2">
                 <Search
@@ -409,13 +455,16 @@ const SearchBar = ({
                   Search beaches
                 </label>
                 <input
+                  ref={inputRef}
                   autoFocus
                   id="overlay-query"
                   name="overlay-query"
                   type="text"
                   value={query}
                   onChange={handleInputChange}
-                  onFocus={() => hits.length > 0 && setOpen(true)}
+                  onFocus={() => {
+                    if (hits.length > 0) setOpen(true);
+                  }}
                   onKeyDown={onKeyDown}
                   placeholder="Search beaches..."
                   className="placeholder:text-sm focus:outline-none bg-transparent flex-1 min-w-0 text-base"
@@ -449,14 +498,20 @@ const SearchBar = ({
             {/* Search results in overlay */}
             {open && visibleHits.length > 0 && (
               <div
-                className="mt-4 w-full max-w-2xl bg-background border border-border/30 shadow-even rounded-md overflow-hidden"
-                style={
-                  overlayResultsMaxHeight
-                    ? { maxHeight: `${overlayResultsMaxHeight}px` }
-                    : undefined
-                }
+                data-search-results
+                className="z-[80] mx-auto max-w-2xl bg-background border border-border/30 shadow-even rounded-md overflow-y-auto overscroll-contain touch-pan-y"
+                style={{
+                  position: "fixed",
+                  top: 68, // Below the search controls (12px + ~56px control height)
+                  left: 16,
+                  right: 16,
+                  maxHeight: overlayResultsMaxHeight
+                    ? `${overlayResultsMaxHeight}px`
+                    : "calc(100vh - 80px)",
+                  WebkitOverflowScrolling: "touch",
+                }}
               >
-                <ul className="rounded-xl overflow-y-auto overscroll-contain max-h-full p-2 touch-pan-y">
+                <ul className="rounded-xl p-2">
                   {visibleHits.map((h, idx) => (
                     <SearchResultItem
                       key={`${h.id}`}
@@ -469,7 +524,7 @@ const SearchBar = ({
               </div>
             )}
           </div>,
-          document.documentElement
+          document.body
         )}
     </>
   );

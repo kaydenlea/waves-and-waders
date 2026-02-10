@@ -2729,7 +2729,6 @@ const StatTable = ({
   const pagerBottomSentinelRef = React.useRef<HTMLDivElement | null>(null);
   const pagerRevealPastRef = React.useRef(false);
   const pagerBottomReachedRef = React.useRef(false);
-  const pagerPillFullyVisibleRef = React.useRef(false);
   const pagerVisibleRef = React.useRef(isEditing);
 
   React.useEffect(() => {
@@ -2775,10 +2774,7 @@ const StatTable = ({
     }
 
     const recompute = () => {
-      setVisible(
-        (pagerRevealPastRef.current || pagerBottomReachedRef.current) &&
-          pagerPillFullyVisibleRef.current,
-      );
+      setVisible(pagerRevealPastRef.current || pagerBottomReachedRef.current);
     };
 
     // Show slightly after entering the StatTable (prevents appearing immediately at the top).
@@ -2789,10 +2785,8 @@ const StatTable = ({
     const bootstrapFromLayout = () => {
       try {
         const vh = window.innerHeight || document.documentElement.clientHeight;
-        const vw = window.innerWidth || document.documentElement.clientWidth;
         const sentinelRect = sentinel.getBoundingClientRect();
         const bottomRect = bottomSentinel.getBoundingClientRect();
-        const pillRect = el.getBoundingClientRect();
 
         const rootTop = revealOffsetPx;
         const rootBottom = vh;
@@ -2801,16 +2795,7 @@ const StatTable = ({
         pagerRevealPastRef.current = !sentinelIntersecting;
         pagerBottomReachedRef.current =
           bottomRect.bottom >= 0 && bottomRect.top <= vh;
-        pagerPillFullyVisibleRef.current =
-          pillRect.width > 0 &&
-          pillRect.height > 0 &&
-          pillRect.top >= -1 &&
-          pillRect.left >= -1 &&
-          pillRect.bottom <= vh + 1 &&
-          pillRect.right <= vw + 1;
-      } catch {
-        pagerPillFullyVisibleRef.current = true;
-      }
+      } catch {}
       recompute();
     };
     const revealObserver = new IntersectionObserver(
@@ -2835,22 +2820,8 @@ const StatTable = ({
       { root: null, threshold: 0 },
     );
 
-    // Only show once the pill is fully visible so it can't be "partially revealed".
-    const pillObserver = new IntersectionObserver(
-      ([entry]) => {
-        const targetRect = entry.boundingClientRect;
-        const intersection = entry.intersectionRect;
-        pagerPillFullyVisibleRef.current =
-          intersection.height >= Math.max(0, targetRect.height - 2) &&
-          intersection.width >= Math.max(0, targetRect.width - 2);
-        recompute();
-      },
-      { root: null, threshold: [0, 1] },
-    );
-
     revealObserver.observe(sentinel);
     bottomObserver.observe(bottomSentinel);
-    pillObserver.observe(el);
     if (typeof window !== "undefined") {
       window.requestAnimationFrame(bootstrapFromLayout);
     } else {
@@ -2859,7 +2830,6 @@ const StatTable = ({
     return () => {
       revealObserver.disconnect();
       bottomObserver.disconnect();
-      pillObserver.disconnect();
     };
   }, [
     dockPagerInFlowEffective,
