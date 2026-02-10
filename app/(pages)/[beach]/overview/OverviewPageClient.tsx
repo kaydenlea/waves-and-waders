@@ -119,7 +119,12 @@ export default function OverviewPageClient({
     if (typeof window === "undefined") return;
     try {
       const stored = window.sessionStorage.getItem("ww:beaches:return");
-      if (stored && (stored === "/beaches" || stored.startsWith("/beaches?") || stored === "/beaches/all")) {
+      if (
+        stored &&
+        (stored === "/beaches" ||
+          stored.startsWith("/beaches?") ||
+          stored === "/beaches/all")
+      ) {
         setBeachesHref(stored);
         return;
       }
@@ -164,10 +169,10 @@ export default function OverviewPageClient({
             id="main-content"
             className="ww-stable-viewport touch-pan-y overscroll-y-none bg-background-2 min-h-[calc(var(--ww-100vh,100vh)+env(safe-area-inset-top,0px)-4rem)] @min-4xl:flex @min-4xl:flex-1 @min-4xl:mt-[5.5rem] @min-4xl:pb-4"
           >
-            <LazyLoadMap
+            {/* <LazyLoadMap
               beachId={beachId}
               initialBeach={initialBeach ?? undefined}
-            />
+            /> */}
             <PathStyleWrapper>
               <div className="@container pb-6 @min-4xl:pb-3 pt-2 @min-4xl:pt-8 px-1 @min-md:px-3">
                 <header
@@ -271,11 +276,11 @@ export default function OverviewPageClient({
                 </SunDataProvider>
               </div>
             </PathStyleWrapper>
-        </main>
-      </OverviewPageBusyProvider>
-      <BottomNav beachName={beachName} />
-      <Footer />
-    </div>
-  </>
-);
+          </main>
+        </OverviewPageBusyProvider>
+        <BottomNav beachName={beachName} />
+        <Footer />
+      </div>
+    </>
+  );
 }
