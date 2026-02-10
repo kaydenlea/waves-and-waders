@@ -2,6 +2,7 @@
 
 type ScrollLockSnapshot = {
   scrollY: number;
+  mode: "fixed" | "overflow";
   htmlOverflow: string;
   bodyOverflow: string;
   bodyPosition: string;
@@ -16,9 +17,23 @@ type ScrollLockSnapshot = {
 let lockCount = 0;
 let snapshot: ScrollLockSnapshot | null = null;
 
-function applyScrollLock() {
+type ScrollLockMode = "fixed" | "overflow";
+
+function applyScrollLock(mode: ScrollLockMode) {
   if (typeof document === "undefined") return;
-  if (snapshot) return;
+  if (snapshot) {
+    // If a weaker lock was applied first, allow upgrading to the stronger lock.
+    if (snapshot.mode === "overflow" && mode === "fixed") {
+      const body = document.body;
+      body.style.position = "fixed";
+      body.style.top = `-${snapshot.scrollY}px`;
+      body.style.left = "0";
+      body.style.right = "0";
+      body.style.width = "100%";
+      snapshot.mode = "fixed";
+    }
+    return;
+  }
 
   const html = document.documentElement;
   const body = document.body;
@@ -38,6 +53,7 @@ function applyScrollLock() {
 
   snapshot = {
     scrollY,
+    mode,
     htmlOverflow: html.style.overflow,
     bodyOverflow: body.style.overflow,
     bodyPosition: body.style.position,
@@ -57,11 +73,14 @@ function applyScrollLock() {
 
   html.style.overflow = "hidden";
   body.style.overflow = "hidden";
-  body.style.position = "fixed";
-  body.style.top = `-${scrollY}px`;
-  body.style.left = "0";
-  body.style.right = "0";
-  body.style.width = "100%";
+
+  if (mode === "fixed") {
+    body.style.position = "fixed";
+    body.style.top = `-${scrollY}px`;
+    body.style.left = "0";
+    body.style.right = "0";
+    body.style.width = "100%";
+  }
 
   const afterClientWidth = html.clientWidth;
   const compensation = wideLayout
@@ -97,9 +116,10 @@ function releaseScrollLock() {
   window.scrollTo(0, prev.scrollY);
 }
 
-export function acquireScrollLock(): () => void {
+export function acquireScrollLock(options?: { mode?: ScrollLockMode }): () => void {
   lockCount += 1;
-  if (lockCount === 1) applyScrollLock();
+  if (lockCount === 1) applyScrollLock(options?.mode ?? "fixed");
+  else if (options?.mode === "fixed") applyScrollLock("fixed");
 
   let released = false;
   return () => {

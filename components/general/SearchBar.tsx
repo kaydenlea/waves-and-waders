@@ -267,23 +267,11 @@ const SearchBar = ({
       }
     }
 
-    const release = acquireScrollLock();
-
-    // iOS Safari can still attempt to scroll the underlying page when focusing inputs
-    // inside fixed overlays (keyboard open/close). Keep the background position stable.
-    const restore = () => {
-      const y = window.scrollY;
-      if (Math.abs(y - lockedY) < 1) return;
-      try {
-        window.scrollTo(0, lockedY);
-      } catch {
-        window.scrollTo(0, lockedY);
-      }
-    };
-
-    window.addEventListener("scroll", restore, { passive: true });
+    // Use an overflow-only scroll lock so `window.scrollY` stays stable while the
+    // overlay is open. Several pages use scroll position for layout/peek behavior;
+    // a body-fixed lock can temporarily set `scrollY` to 0 and cause visible jumps.
+    const release = acquireScrollLock({ mode: "overflow" });
     return () => {
-      window.removeEventListener("scroll", restore);
       release();
     };
   }, [isOverlay]);
