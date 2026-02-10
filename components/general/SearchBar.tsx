@@ -485,7 +485,7 @@ const SearchBar = ({
               <button
                 type="button"
                 aria-label="open map"
-                className="icon-button shrink-0 p-3.5 hover:bg-highlight-5"
+                className="icon-button shrink-0 p-3.5 hover:bg-highlight-5 hidden @min-sm:inline-flex"
                 onClick={() => {
                   setQuery("");
                   setIsOverlay(false);
