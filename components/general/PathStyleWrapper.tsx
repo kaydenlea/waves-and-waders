@@ -38,7 +38,7 @@ export default function PathStyleWrapper({
   const [pulling, setPulling] = useState(false);
   const lastHandledRevealRequestRef = useRef(0);
   const lastInitializedPathRef = useRef<string | null>(null);
-  const spacerRef = useRef<HTMLDivElement | null>(null);
+  const contentRef = useRef<HTMLElement | null>(null);
   const contentShieldRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -373,7 +373,7 @@ export default function PathStyleWrapper({
   const applyPullTransform =
     enforceContentPeek && smallScreen && (pulling || pullOffsetPx !== 0);
   const shouldForceWebkitMask =
-    enforceContentPeek && smallScreen && !effectiveEditPage;
+    enforceContentPeek && smallScreen && !effectiveEditPage && finePointer;
 
   useEffect(() => {
     if (!enforceContentPeek) return;
@@ -382,16 +382,15 @@ export default function PathStyleWrapper({
     if (contentCollapsed) return;
     if (typeof window === "undefined") return;
 
-    const spacerEl = spacerRef.current;
+    const contentEl = contentRef.current;
     const shieldEl = contentShieldRef.current;
-    if (!spacerEl || !shieldEl) return;
+    if (!contentEl || !shieldEl) return;
 
     let rafId: number | null = null;
 
     const update = () => {
       rafId = null;
-      const spacerHeight = spacerEl.getBoundingClientRect().height;
-      const nextTop = Math.max(0, spacerHeight - window.scrollY);
+      const nextTop = Math.max(0, contentEl.getBoundingClientRect().top);
       shieldEl.style.top = `${Math.round(nextTop)}px`;
     };
 
@@ -413,7 +412,6 @@ export default function PathStyleWrapper({
   return (
     <>
       <div
-        ref={spacerRef}
         className={cn(
           effectiveEditPage ? "h-0" : "h-[var(--ww-100vh,100dvh)] @min-4xl:h-0",
           "transition-[height] duration-200 ease-out motion-reduce:transition-none",
@@ -424,13 +422,14 @@ export default function PathStyleWrapper({
         <div
           ref={contentShieldRef}
           aria-hidden="true"
-          className="pointer-events-none fixed inset-x-0 bottom-0 z-[1] bg-background @min-4xl:hidden"
+          className="pointer-events-none fixed inset-x-0 bottom-0 z-[1] bg-background rounded-t-4xl border-t border-x border-border/70 @min-4xl:hidden"
           style={{
             top: `calc(${mobileSpacerBaseHeight} - ${mobilePeekHeight})`,
           }}
         />
       ) : null}
       <article
+        ref={contentRef}
         id="content"
         className={cn(
           "relative isolate overflow-clip touch-pan-y w-full px-2 @min-4xl:pt-4 bg-background border-t border-x border-border/70 @min-4xl:border-none mx-auto scroll-mt-32",
@@ -510,11 +509,10 @@ export default function PathStyleWrapper({
         )}
         <div
           className={cn(
-            // On touch devices, aggressive scroll over a fixed map underlay can trigger
-            // compositor "checkerboarding" where the content briefly fails to paint.
-            // Force the scrolling content onto its own paint/compositing layer.
-            enforceContentPeek && smallScreen && !effectiveEditPage
-              ? "transform-gpu will-change-transform [contain:paint]"
+            // Avoid forcing a permanent extra compositing layer on iOS; only hint during
+            // the explicit pull-to-collapse transform interaction.
+            applyPullTransform && !effectiveEditPage
+              ? "transform-gpu will-change-transform"
               : undefined,
           )}
         >
