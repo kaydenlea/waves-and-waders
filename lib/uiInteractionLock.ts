@@ -23,7 +23,11 @@ function applyScrollLock() {
 
   const html = document.documentElement;
   const body = document.body;
-  const scrollY = window.scrollY;
+  const scroller = document.scrollingElement as HTMLElement | null;
+  const maxScrollY = scroller
+    ? Math.max(0, scroller.scrollHeight - scroller.clientHeight)
+    : 0;
+  const scrollY = Math.max(0, Math.min(window.scrollY, maxScrollY));
 
   scrollLockSnapshot = {
     scrollY,
