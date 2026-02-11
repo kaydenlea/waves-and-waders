@@ -80,7 +80,7 @@ export default function DonateCheckoutPanel({
             placeholder="Enter amount"
             value={amountInput}
             onChange={(event) => setAmountInput(event.target.value)}
-            className="w-full rounded-xl border border-border/50 bg-background/60 px-3 py-2 text-sm text-foreground shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            className="w-full rounded-xl border border-border/50 bg-background/60 px-3 py-2 text-base text-foreground shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
           />
         </div>
         {!amountValid ? (
