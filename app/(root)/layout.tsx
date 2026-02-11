@@ -22,7 +22,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
               <BeachStatsCacheProvider>
                 <DashboardEditModeProvider>
                   <ViewportBeachesManager />
-                  <div className="min-h-screen bg-background overscroll-y-none">
+                  <div className="min-h-screen bg-background">
                     <div
                       aria-hidden
                       className="fixed inset-0 -z-50 bg-background"
