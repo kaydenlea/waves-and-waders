@@ -375,6 +375,7 @@ export default function PathStyleWrapper({
 
   return (
     <>
+      {/* Spacer to push content below the fixed map on mobile */}
       <div
         className={cn(
           effectiveEditPage ? "h-0" : "h-[var(--ww-100vh,100dvh)] @min-4xl:h-0",
@@ -382,10 +383,21 @@ export default function PathStyleWrapper({
         )}
         style={spacerHeightStyle}
       />
+      {/* Safe background layer to prevent map bleed-through during fast scrolling on mobile */}
+      {enforceContentPeek && smallScreen && !effectiveEditPage && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none sticky top-0 z-[1] bg-background @min-4xl:hidden"
+          style={{
+            height: "100vh",
+            marginBottom: "-100vh",
+          }}
+        />
+      )}
       {enforceContentPeek && smallScreen && !effectiveEditPage && !contentCollapsed ? (
         <div
           aria-hidden="true"
-          className="pointer-events-none sticky top-0 z-[1] bg-background rounded-t-4xl border-t border-x border-border/70 @min-4xl:hidden"
+          className="pointer-events-none sticky top-0 z-[2] bg-background rounded-t-4xl border-t border-x border-border/70 @min-4xl:hidden"
           style={{
             height: "var(--ww-100vh, 100dvh)",
             marginBottom: "calc(-1 * var(--ww-100vh, 100dvh))",
