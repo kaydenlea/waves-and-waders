@@ -583,6 +583,19 @@ const boundsWithinThreshold = (
   );
 };
 
+const isLocationWithinBounds = (
+  location: LatLngLiteral,
+  bounds: VisibleMapBounds | null,
+) => {
+  if (!bounds) return false;
+  const latOk = location.lat >= bounds.south && location.lat <= bounds.north;
+  if (!latOk) return false;
+  if (!bounds.crossesAntimeridian) {
+    return location.lng >= bounds.west && location.lng <= bounds.east;
+  }
+  return location.lng >= bounds.west || location.lng <= bounds.east;
+};
+
 const wrapLongitude = (value: number) => {
   let lon = value;
   while (lon < -180) lon += 360;
@@ -1664,6 +1677,7 @@ const LeafletMap: React.FC<Props> = ({
     }
   }, [pathname, showMap, setShowMap]);
   const {
+    visibleBounds,
     setVisibleBounds,
     setViewportRequestId,
     setAllowViewportCommit,
@@ -1836,6 +1850,7 @@ const LeafletMap: React.FC<Props> = ({
     null,
   );
   const geoFocusDoneRef = React.useRef(false);
+  const geoCenteredOnUserRef = React.useRef(false);
   const geoRequestedRef = React.useRef(false);
   const geoRequestInFlightRef =
     React.useRef<Promise<LatLngLiteral | null> | null>(null);
@@ -1853,31 +1868,60 @@ const LeafletMap: React.FC<Props> = ({
       }
       geoRequestedRef.current = true;
       debugLog("[LeafletGeo] Requesting user position", source);
-      geoRequestInFlightRef.current = new Promise((resolve) => {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            const next = {
-              lat: position.coords.latitude,
-              lng: position.coords.longitude,
-            };
-            debugLog("[LeafletGeo] Position received", next);
-            debugLog("[LeafletGeo] Setting user location state");
-            setUserLocation(next);
-            debugLog("[LeafletGeo] Forcing marker revision");
-            // Force component update to ensure button appears
-            forceMarkerRevision();
-            debugLog("[LeafletGeo] Location update complete");
-            geoRequestInFlightRef.current = null;
-            resolve(next);
-          },
-          (error) => {
-            debugLog("[LeafletGeo] Error", error.message);
-            geoRequestInFlightRef.current = null;
-            geoRequestedRef.current = false;
-            resolve(null);
-          },
-          { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 },
+      const requestOnce = (
+        options: PositionOptions,
+        label: "high" | "fallback",
+      ) =>
+        new Promise<GeolocationPosition | null>((resolve) => {
+          navigator.geolocation.getCurrentPosition(
+            (position) => resolve(position),
+            (error) => {
+              debugLog("[LeafletGeo] Position request failed", {
+                source,
+                label,
+                message: error.message,
+              });
+              resolve(null);
+            },
+            options,
+          );
+        });
+
+      geoRequestInFlightRef.current = (async () => {
+        let position = await requestOnce(
+          { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },
+          "high",
         );
+
+        if (!position) {
+          position = await requestOnce(
+            { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 },
+            "fallback",
+          );
+        }
+
+        if (!position) {
+          geoRequestedRef.current = false;
+          return null;
+        }
+
+        const next = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        };
+        debugLog("[LeafletGeo] Position received", {
+          source,
+          accuracyM: position.coords.accuracy,
+          ...next,
+        });
+        geoCenteredOnUserRef.current = false;
+        geoFocusDoneRef.current = false;
+        setUserLocation(next);
+        // Force component update to ensure nearby controls update immediately.
+        forceMarkerRevision();
+        return next;
+      })().finally(() => {
+        geoRequestInFlightRef.current = null;
       });
       return geoRequestInFlightRef.current;
     },
@@ -1969,8 +2013,8 @@ const LeafletMap: React.FC<Props> = ({
       debugLog("[LeafletGeo] Early exit - conditions not met");
       return;
     }
-    if (geoFocusDoneRef.current || selectedBeachId) {
-      debugLog("[LeafletGeo] Early exit - already focused or beach selected");
+    if (selectedBeachId) {
+      debugLog("[LeafletGeo] Early exit - beach selected");
       return;
     }
     const map = mapRef.current;
@@ -1978,6 +2022,32 @@ const LeafletMap: React.FC<Props> = ({
       debugLog("[LeafletGeo] Map not ready for focus");
       return;
     }
+
+    if (!geoCenteredOnUserRef.current) {
+      debugLog("[LeafletGeo] Centering map to user location first");
+      suppressUserMoveRef.current = true;
+      map.flyTo([userLocation.lat, userLocation.lng], 10, { duration: 0.5 });
+      geoCenteredOnUserRef.current = true;
+      return;
+    }
+
+    if (geoFocusDoneRef.current) {
+      debugLog("[LeafletGeo] Early exit - nearby focus already completed");
+      return;
+    }
+
+    if (!isLocationWithinBounds(userLocation, visibleBounds)) {
+      debugLog("[LeafletGeo] Waiting for map bounds to include user location");
+      return;
+    }
+
+    if (viewportStatus !== "success") {
+      debugLog("[LeafletGeo] Waiting for fresh nearby beaches fetch", {
+        viewportStatus,
+      });
+      return;
+    }
+
     const list = filteredBeaches.length ? filteredBeaches : combinedBeaches;
 
     // Wait for beaches to load before attempting to zoom
@@ -2011,6 +2081,8 @@ const LeafletMap: React.FC<Props> = ({
     selectedBeachId,
     filteredBeaches,
     combinedBeaches,
+    visibleBounds,
+    viewportStatus,
     debugLog,
   ]);
 
