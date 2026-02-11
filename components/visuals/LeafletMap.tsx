@@ -583,6 +583,19 @@ const boundsWithinThreshold = (
   );
 };
 
+const isLocationWithinBounds = (
+  location: LatLngLiteral,
+  bounds: VisibleMapBounds | null,
+) => {
+  if (!bounds) return false;
+  const latOk = location.lat >= bounds.south && location.lat <= bounds.north;
+  if (!latOk) return false;
+  if (!bounds.crossesAntimeridian) {
+    return location.lng >= bounds.west && location.lng <= bounds.east;
+  }
+  return location.lng >= bounds.west || location.lng <= bounds.east;
+};
+
 const wrapLongitude = (value: number) => {
   let lon = value;
   while (lon < -180) lon += 360;
@@ -1664,6 +1677,7 @@ const LeafletMap: React.FC<Props> = ({
     }
   }, [pathname, showMap, setShowMap]);
   const {
+    visibleBounds,
     setVisibleBounds,
     setViewportRequestId,
     setAllowViewportCommit,
@@ -2022,6 +2036,18 @@ const LeafletMap: React.FC<Props> = ({
       return;
     }
 
+    if (!isLocationWithinBounds(userLocation, visibleBounds)) {
+      debugLog("[LeafletGeo] Waiting for map bounds to include user location");
+      return;
+    }
+
+    if (viewportStatus !== "success") {
+      debugLog("[LeafletGeo] Waiting for fresh nearby beaches fetch", {
+        viewportStatus,
+      });
+      return;
+    }
+
     const list = filteredBeaches.length ? filteredBeaches : combinedBeaches;
 
     // Wait for beaches to load before attempting to zoom
@@ -2055,6 +2081,8 @@ const LeafletMap: React.FC<Props> = ({
     selectedBeachId,
     filteredBeaches,
     combinedBeaches,
+    visibleBounds,
+    viewportStatus,
     debugLog,
   ]);
 
