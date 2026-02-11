@@ -593,6 +593,17 @@ main[data-ww-page="login"]::-webkit-scrollbar {
   backdrop-filter: none !important;
 }
 
+/* On touch devices, some browsers intermittently fail to repaint elements with
+   `backdrop-filter` during active scroll, causing content to appear to disappear.
+   Disable blur only while scrolling to keep the UI stable without changing the
+   resting appearance. */
+@media (hover: none) and (pointer: coarse) {
+  body[data-ww-scrolling="1"] #content [class*="backdrop-blur"] {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
+
 /* ---------------------------------------------------------------------------
    Interaction lock
    While dragging the map / rails, disable chart hover tooltips to prevent
