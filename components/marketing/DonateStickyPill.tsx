@@ -119,7 +119,7 @@ export default function DonateStickyPill({
   return (
     <div
       className={cn(
-        "fixed z-[60] right-4 bottom-4 sm:right-6 sm:bottom-6",
+        "fixed z-50 right-4 bottom-4 sm:right-6 sm:bottom-6",
         "pb-[env(safe-area-inset-bottom)]",
         reducedMotion ? "" : "transition-all duration-300 ease-out",
         visible
