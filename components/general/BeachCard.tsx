@@ -230,6 +230,7 @@ const BeachCard = React.memo(
 
     return (
       <article
+        data-ww-beach-card=""
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         id={`beach-${b.id}`}

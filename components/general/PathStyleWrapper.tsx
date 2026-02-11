@@ -30,6 +30,7 @@ export default function PathStyleWrapper({
   const lastScrollEventAtRef = useRef(0);
   const lastReachedTopAtRef = useRef(0);
   const [finePointer, setFinePointer] = useState(false);
+  const [coarsePointer, setCoarsePointer] = useState(false);
   const gestureStartYRef = useRef<number | null>(null);
   const gestureStartXRef = useRef<number | null>(null);
   const gestureLockedUntilEndRef = useRef(false);
@@ -164,6 +165,18 @@ export default function PathStyleWrapper({
 
     const mq = window.matchMedia("(hover: hover) and (pointer: fine)");
     const sync = () => setFinePointer(Boolean(mq.matches));
+    sync();
+    mq.addEventListener?.("change", sync);
+    return () => mq.removeEventListener?.("change", sync);
+  }, [enforceContentPeek]);
+
+  useEffect(() => {
+    if (!enforceContentPeek) return;
+    if (typeof window === "undefined") return;
+    if (typeof window.matchMedia !== "function") return;
+
+    const mq = window.matchMedia("(hover: none) and (pointer: coarse)");
+    const sync = () => setCoarsePointer(Boolean(mq.matches));
     sync();
     mq.addEventListener?.("change", sync);
     return () => mq.removeEventListener?.("change", sync);
@@ -371,7 +384,10 @@ export default function PathStyleWrapper({
   const applyPullTransform =
     enforceContentPeek && smallScreen && (pulling || pullOffsetPx !== 0);
   const shouldForceWebkitMask =
-    enforceContentPeek && smallScreen && !effectiveEditPage && finePointer;
+    enforceContentPeek &&
+    smallScreen &&
+    !effectiveEditPage &&
+    (finePointer || coarsePointer);
 
   return (
     <>
@@ -384,16 +400,16 @@ export default function PathStyleWrapper({
         style={spacerHeightStyle}
       />
       {/* Safe background layer to prevent map bleed-through during fast scrolling on mobile */}
-      {enforceContentPeek && smallScreen && !effectiveEditPage && (
+      {/* {enforceContentPeek && smallScreen && !effectiveEditPage && (
         <div
           aria-hidden="true"
-          className="pointer-events-none sticky top-0 z-[1] rounded-t-4xl bg-background @min-4xl:hidden"
+          className="pointer-events-none sticky top-0 z-[1] bg-background @min-4xl:hidden"
           style={{
             height: "100vh",
             marginBottom: "-100vh",
           }}
         />
-      )}
+      )} */}
       {enforceContentPeek &&
       smallScreen &&
       !effectiveEditPage &&
