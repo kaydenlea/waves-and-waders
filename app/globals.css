@@ -9,11 +9,9 @@
   }
   html {
     @apply bg-background;
-    overscroll-behavior-y: none;
   }
   body {
     @apply bg-background text-foreground @container/main;
-    overscroll-behavior-y: none;
   }
   /* Prevent iOS Safari auto-zoom on focus by ensuring text-entry controls are >= 16px on touch devices. */
   @media (hover: none) and (pointer: coarse) {
