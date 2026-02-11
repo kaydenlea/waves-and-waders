@@ -602,17 +602,6 @@ main[data-ww-page="login"]::-webkit-scrollbar {
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
   }
-
-  /* iOS/Safari paint stability: keep large cards/tables on their own compositing layers
-     while scrolling to avoid intermittent blanking. */
-  body[data-ww-scrolling="1"] #content [data-ww-overview-card],
-  body[data-ww-scrolling="1"] #content [data-ww-stat-table],
-  body[data-ww-scrolling="1"] #content [data-ww-beach-card] {
-    -webkit-transform: translateZ(0);
-    transform: translateZ(0);
-    -webkit-backface-visibility: hidden;
-    backface-visibility: hidden;
-  }
 }
 
 /* ---------------------------------------------------------------------------
@@ -650,7 +639,7 @@ body[data-ww-interaction-lock="1"] [data-slot="chart"] {
 /* --------------------------------------------------------------------------- 
    Filters sheet scroll lock 
    When the filters sheet is open, prevent the underlying document from scrolling. 
---------------------------------------------------------------------------- */ 
+--------------------------------------------------------------------------- */
 /* Note: scroll locking for the filters sheet is handled in JS via `acquireScrollLock()`
    to keep the page visually stationary (avoids layout/position jumps on wide layouts). */
 
