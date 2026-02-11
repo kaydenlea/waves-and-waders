@@ -87,7 +87,7 @@ export default function ContactForm() {
             name="name"
             required
             disabled={status === "submitting"}
-            className="w-full rounded-lg border border-border/50 bg-background/50 px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-border focus:outline-hidden focus:ring-2 focus:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full rounded-lg border border-border/50 bg-background/50 px-4 py-2.5 text-base text-foreground placeholder:text-muted-foreground focus:border-border focus:outline-hidden focus:ring-2 focus:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
             placeholder="Your name"
           />
         </div>
@@ -105,7 +105,7 @@ export default function ContactForm() {
             name="email"
             required
             disabled={status === "submitting"}
-            className="w-full rounded-lg border border-border/50 bg-background/50 px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-border focus:outline-hidden focus:ring-2 focus:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full rounded-lg border border-border/50 bg-background/50 px-4 py-2.5 text-base text-foreground placeholder:text-muted-foreground focus:border-border focus:outline-hidden focus:ring-2 focus:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
             placeholder="your.email@example.com"
           />
         </div>
@@ -127,7 +127,7 @@ export default function ContactForm() {
             required
             disabled={status === "submitting"}
             className={cn(
-              "w-full appearance-none rounded-lg border border-border/50 bg-background/50 pl-4 pr-11 py-2.5 text-sm text-foreground shadow-xs",
+              "w-full appearance-none rounded-lg border border-border/50 bg-background/50 pl-4 pr-11 py-2.5 text-base text-foreground shadow-xs",
               "focus:border-border focus:outline-hidden focus:ring-2 focus:ring-ring/50",
               "disabled:cursor-not-allowed disabled:opacity-50"
             )}
@@ -166,7 +166,7 @@ export default function ContactForm() {
             name="customSubject"
             required
             disabled={status === "submitting"}
-            className="w-full rounded-lg border border-border/50 bg-background/50 px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-border focus:outline-hidden focus:ring-2 focus:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full rounded-lg border border-border/50 bg-background/50 px-4 py-2.5 text-base text-foreground placeholder:text-muted-foreground focus:border-border focus:outline-hidden focus:ring-2 focus:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
             placeholder="What's this about?"
           />
         </div>
@@ -185,7 +185,7 @@ export default function ContactForm() {
           required
           rows={6}
           disabled={status === "submitting"}
-          className="w-full rounded-lg border border-border/50 bg-background/50 px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-border focus:outline-hidden focus:ring-2 focus:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
+          className="w-full rounded-lg border border-border/50 bg-background/50 px-4 py-2.5 text-base text-foreground placeholder:text-muted-foreground focus:border-border focus:outline-hidden focus:ring-2 focus:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
           placeholder="Tell us what's on your mind..."
         />
       </div>

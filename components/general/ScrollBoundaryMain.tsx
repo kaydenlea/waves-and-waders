@@ -200,7 +200,9 @@ export function ScrollBoundaryMain({
     <main
       ref={containerRef}
       className={cn(
-        "h-[100svh] supports-[height:100dvh]:h-[100dvh] overflow-y-auto overflow-x-hidden overscroll-none",
+        // Use the app's effective viewport var so keyboard + mobile browser UI
+        // changes don't leave content unreachable within this internal scroller.
+        "h-[var(--ww-100vh,100svh)] overflow-y-auto overflow-x-hidden overscroll-none",
         className
       )}
       style={keyboardPaddingStyle.current}
