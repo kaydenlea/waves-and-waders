@@ -37,12 +37,9 @@ export default function DonateStripeButton({
 
       const data = (await res.json()) as { url?: string | null };
       if (!data?.url) throw new Error("Checkout session URL missing.");
-      const opened = window.open(data.url, "_blank", "noopener,noreferrer");
-      if (!opened) {
-        throw new Error(
-          "Popup blocked. Allow popups for this site to open Stripe Checkout."
-        );
-      }
+      
+      // Redirect in same window to avoid popup blockers
+      window.location.href = data.url;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Checkout failed.");
       setLoading(false);

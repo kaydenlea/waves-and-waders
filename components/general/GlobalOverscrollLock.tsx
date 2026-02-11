@@ -37,6 +37,9 @@ export default function GlobalOverscrollLock() {
         const body = document.body;
         if (!body) return;
 
+        // Only run snap-back on pages that explicitly request overscroll lock.
+        if (html.dataset.wwMapOverscrollLock !== "1") return;
+
         // If the app has explicitly locked document scrolling (modals, search overlay,
         // sheets, etc.), don't attempt to "snap back" — it can fight the lock and
         // cause visible jumps when the lock is released.
@@ -99,6 +102,12 @@ export default function GlobalOverscrollLock() {
     const onTouchMove = (e: TouchEvent) => {
       if (e.touches.length !== 1) return;
       if (!e.cancelable) return;
+
+      // Only block overscroll on pages that explicitly request it via
+      // the data-ww-map-overscroll-lock attribute (beaches/overview with map).
+      // This allows pull-to-refresh on other pages like the landing page.
+      const html = document.documentElement;
+      if (html.dataset.wwMapOverscrollLock !== "1") return;
 
       const x = e.touches[0]?.clientX ?? 0;
       const y = e.touches[0]?.clientY ?? 0;
