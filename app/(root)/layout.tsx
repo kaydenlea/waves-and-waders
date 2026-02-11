@@ -22,7 +22,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
               <BeachStatsCacheProvider>
                 <DashboardEditModeProvider>
                   <ViewportBeachesManager />
-                  <div className="min-h-[var(--ww-100vh)] bg-background">
+                  <div className="ww-stable-viewport min-h-[var(--ww-100vh)] bg-background">
                     <div
                       aria-hidden
                       className="fixed inset-0 -z-50 bg-background"
