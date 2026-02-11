@@ -199,37 +199,57 @@ export default function NearbyBeaches() {
       });
       return;
     }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        if (cancelled) return;
-        const origin: [number, number] = [
-          pos.coords.latitude,
-          pos.coords.longitude,
-        ];
-        const ordered = [...baseUiBeaches]
-          .map((beach) => ({
-            beach,
-            distanceKm: haversineKm(origin, [beach.coords[0], beach.coords[1]]),
-          }))
-          .sort((a, b) => {
-            const aDist = a.distanceKm ?? Number.POSITIVE_INFINITY;
-            const bDist = b.distanceKm ?? Number.POSITIVE_INFINITY;
-            return aDist - bDist;
-          })
-          .map((entry) => entry.beach);
-        startSortingTransition(() => {
-          setSorted(ordered);
+    const requestOnce = (options: PositionOptions) =>
+      new Promise<GeolocationPosition | null>((resolve) => {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => resolve(pos),
+          () => resolve(null),
+          options,
+        );
+      });
+
+    void (async () => {
+      let pos = await requestOnce({
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      });
+      if (!pos) {
+        pos = await requestOnce({
+          enableHighAccuracy: false,
+          timeout: 8000,
+          maximumAge: 60000,
         });
-      },
-      () => {
+      }
+      if (!pos || cancelled) {
         if (!cancelled) {
           startSortingTransition(() => {
             setSorted(baseUiBeaches);
           });
         }
-      },
-      { enableHighAccuracy: true, timeout: 8000 },
-    );
+        return;
+      }
+
+      const origin: [number, number] = [
+        pos.coords.latitude,
+        pos.coords.longitude,
+      ];
+      const ordered = [...baseUiBeaches]
+        .map((beach) => ({
+          beach,
+          distanceKm: haversineKm(origin, [beach.coords[0], beach.coords[1]]),
+        }))
+        .sort((a, b) => {
+          const aDist = a.distanceKm ?? Number.POSITIVE_INFINITY;
+          const bDist = b.distanceKm ?? Number.POSITIVE_INFINITY;
+          return aDist - bDist;
+        })
+        .map((entry) => entry.beach);
+      startSortingTransition(() => {
+        setSorted(ordered);
+      });
+    })();
+
     return () => {
       cancelled = true;
     };
