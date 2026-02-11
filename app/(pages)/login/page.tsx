@@ -44,11 +44,13 @@ export default async function LoginPage() {
   return (
     <ScrollBoundaryMain
       data-ww-page="login"
-      className="relative isolate bg-gradient-to-b from-background via-background-2 to-background min-h-[100svh] supports-[height:100dvh]:min-h-[100dvh] overflow-x-hidden max-[911px]:ww-disable-backdrop"
+      className="relative isolate bg-background bg-gradient-to-b from-background via-background-2 to-background overflow-x-hidden max-[911px]:ww-disable-backdrop"
     >
       <div
         aria-hidden
-        className="pointer-events-none fixed inset-0 z-0 transform-gpu will-change-transform"
+        // Avoid `position: fixed` inside the login internal scroller (iOS can delay paints
+        // during navigation when `-webkit-overflow-scrolling: touch` is in play).
+        className="pointer-events-none sticky top-0 z-0 bg-background h-[var(--ww-100vh,100svh)] mb-[calc(-1*var(--ww-100vh,100svh))]"
       >
         <div className="absolute inset-0 bg-gradient-to-b from-background via-background-2 to-background" />
         <div className="absolute inset-0 lg:hidden bg-gradient-to-br from-sky-600/20 via-cyan-500/14 to-indigo-600/18 dark:from-sky-500/40 dark:via-cyan-500/30 dark:to-indigo-500/40" />
@@ -67,7 +69,7 @@ export default async function LoginPage() {
         <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-b from-transparent to-background" />
       </div>
 
-      <div className="relative z-10 flex min-h-[100svh] flex-col supports-[height:100dvh]:min-h-[100dvh] lg:grid lg:grid-cols-2 lg:grid-rows-1">
+      <div className="relative z-10 flex min-h-[var(--ww-100vh,100svh)] flex-col lg:grid lg:grid-cols-2 lg:grid-rows-1">
         <section className="relative flex min-h-[18rem] items-end px-5 pb-10 pt-[calc(2.5rem+env(safe-area-inset-top))] sm:px-8 sm:pb-12 lg:min-h-[100svh] lg:items-center lg:px-14 lg:py-16">
           <div
             aria-hidden

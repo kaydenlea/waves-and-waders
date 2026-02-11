@@ -73,11 +73,14 @@ export default function ViewportVars() {
       // Keyboard heuristic: when the visual viewport is significantly reduced.
       // Use a baseline-based threshold so we don't accidentally "lock in" a reduced
       // viewport as the stable height after keyboard dismiss + scroll + navigation.
+      // Keyboard heuristic: in some cases (small screens, split keyboards, etc.)
+      // the inset can be < 160px; rely on active text-entry focus to avoid
+      // misclassifying normal browser chrome changes as the keyboard.
       const keyboardViewportReduced =
-        bottomUi > 160 &&
-        (bottomUi > 240 ||
-          vvHeight < Math.min(innerH, baselineVvHeightPx) - 60 ||
-          vvHeight < innerH - 120);
+        bottomUi > 96 &&
+        (bottomUi > 180 ||
+          vvHeight < Math.min(innerH, baselineVvHeightPx) - 40 ||
+          vvHeight < innerH - 80);
 
       const keyboardLikelyOpen =
         keyboardViewportReduced && (activeIsTextEntry || recentTextEntry);
