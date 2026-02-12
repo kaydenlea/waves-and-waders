@@ -22,13 +22,13 @@ const Layout = ({ children }: { children: ReactNode }) => {
               <BeachStatsCacheProvider>
                 <DashboardEditModeProvider>
                   <ViewportBeachesManager />
-                  <div className="ww-stable-viewport min-h-[var(--ww-100vh)] bg-background">
+                  <div className="flex flex-col bg-background">
                     <div
                       aria-hidden
                       className="fixed inset-0 -z-50 bg-background"
                     />
                     <NavBar landingPage variant="marketing" />
-                    {children}
+                    <div className="flex-1">{children}</div>
                     <Footer className="rounded-t-xl" />
                   </div>
                 </DashboardEditModeProvider>

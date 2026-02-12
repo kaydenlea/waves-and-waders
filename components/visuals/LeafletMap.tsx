@@ -1849,12 +1849,50 @@ const LeafletMap: React.FC<Props> = ({
   const [userLocation, setUserLocation] = React.useState<LatLngLiteral | null>(
     null,
   );
+  const [nearbyBeachesFromApi, setNearbyBeachesFromApi] = React.useState<BeachPoint[] | null>(null);
+  const [nearbyBoundsFromApi, setNearbyBoundsFromApi] = React.useState<{
+    south: number;
+    north: number;
+    west: number;
+    east: number;
+  } | null>(null);
   const geoFocusDoneRef = React.useRef(false);
   const geoCenteredOnUserRef = React.useRef(false);
+  const geoAwaitingFreshBeachesRef = React.useRef(false);
   const geoRequestedRef = React.useRef(false);
   const geoRequestInFlightRef =
     React.useRef<Promise<LatLngLiteral | null> | null>(null);
   const pendingZoomToNearbyRef = React.useRef(false);
+
+  // Fetch nearby beaches from DB when user location changes
+  React.useEffect(() => {
+    if (!userLocation) return;
+    const controller = new AbortController();
+
+    const fetchNearby = async () => {
+      try {
+        debugLog("[LeafletGeo] Fetching nearby beaches from API", userLocation);
+        const res = await fetch(
+          `/api/beaches/nearby?lat=${userLocation.lat}&lng=${userLocation.lng}&limit=30`,
+          { signal: controller.signal }
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.success && data.beaches) {
+          debugLog("[LeafletGeo] Received nearby beaches from API", data.beaches.length);
+          setNearbyBeachesFromApi(data.beaches);
+          setNearbyBoundsFromApi(data.bounds);
+        }
+      } catch (err) {
+        if ((err as Error).name !== "AbortError") {
+          debugLog("[LeafletGeo] Failed to fetch nearby beaches", err);
+        }
+      }
+    };
+
+    void fetchNearby();
+    return () => controller.abort();
+  }, [userLocation, debugLog]);
 
   const requestUserLocation = React.useCallback(
     (source: "auto" | "button") => {
@@ -1868,37 +1906,70 @@ const LeafletMap: React.FC<Props> = ({
       }
       geoRequestedRef.current = true;
       debugLog("[LeafletGeo] Requesting user position", source);
-      const requestOnce = (
-        options: PositionOptions,
-        label: "high" | "fallback",
+
+      // Use watchPosition to get progressively more accurate fixes, then stop
+      // when accuracy is good enough or timeout is reached
+      const watchForAccuratePosition = (
+        accuracyThresholdM: number,
+        timeoutMs: number,
       ) =>
         new Promise<GeolocationPosition | null>((resolve) => {
-          navigator.geolocation.getCurrentPosition(
-            (position) => resolve(position),
-            (error) => {
-              debugLog("[LeafletGeo] Position request failed", {
+          let bestPosition: GeolocationPosition | null = null;
+          let watchId: number | null = null;
+          let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+          const cleanup = () => {
+            if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+            if (timeoutId !== null) clearTimeout(timeoutId);
+          };
+
+          const finish = (position: GeolocationPosition | null) => {
+            cleanup();
+            resolve(position);
+          };
+
+          timeoutId = setTimeout(() => {
+            debugLog("[LeafletGeo] Watch timeout, using best position", {
+              source,
+              accuracyM: bestPosition?.coords.accuracy,
+            });
+            finish(bestPosition);
+          }, timeoutMs);
+
+          watchId = navigator.geolocation.watchPosition(
+            (position) => {
+              const accuracy = position.coords.accuracy;
+              debugLog("[LeafletGeo] Watch position update", {
                 source,
-                label,
+                accuracyM: accuracy,
+              });
+
+              // Keep track of best position (lowest accuracy value = most accurate)
+              if (!bestPosition || accuracy < bestPosition.coords.accuracy) {
+                bestPosition = position;
+              }
+
+              // If accuracy is good enough, stop watching
+              if (accuracy <= accuracyThresholdM) {
+                debugLog("[LeafletGeo] Accuracy threshold met", { accuracyM: accuracy });
+                finish(position);
+              }
+            },
+            (error) => {
+              debugLog("[LeafletGeo] Watch position error", {
+                source,
                 message: error.message,
               });
-              resolve(null);
+              // On error, resolve with best position we have (or null)
+              finish(bestPosition);
             },
-            options,
+            { enableHighAccuracy: true, timeout: timeoutMs, maximumAge: 0 },
           );
         });
 
       geoRequestInFlightRef.current = (async () => {
-        let position = await requestOnce(
-          { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },
-          "high",
-        );
-
-        if (!position) {
-          position = await requestOnce(
-            { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 },
-            "fallback",
-          );
-        }
+        // Watch for position with accuracy within 500m, timeout after 10 seconds
+        const position = await watchForAccuratePosition(500, 10000);
 
         if (!position) {
           geoRequestedRef.current = false;
@@ -1916,6 +1987,7 @@ const LeafletMap: React.FC<Props> = ({
         });
         geoCenteredOnUserRef.current = false;
         geoFocusDoneRef.current = false;
+        geoAwaitingFreshBeachesRef.current = false;
         setUserLocation(next);
         // Force component update to ensure nearby controls update immediately.
         forceMarkerRevision();
@@ -2004,9 +2076,8 @@ const LeafletMap: React.FC<Props> = ({
       beachesPage,
       mapReady,
       hasLocation: !!userLocation,
+      hasNearbyFromApi: !!nearbyBeachesFromApi,
       selectedBeachId,
-      filteredCount: filteredBeaches.length,
-      combinedCount: combinedBeaches.length,
       geoFocusDone: geoFocusDoneRef.current,
     });
     if (!beachesPage || !mapReady || !userLocation) {
@@ -2023,66 +2094,50 @@ const LeafletMap: React.FC<Props> = ({
       return;
     }
 
-    if (!geoCenteredOnUserRef.current) {
-      debugLog("[LeafletGeo] Centering map to user location first");
-      suppressUserMoveRef.current = true;
-      map.flyTo([userLocation.lat, userLocation.lng], 10, { duration: 0.5 });
-      geoCenteredOnUserRef.current = true;
-      return;
-    }
-
     if (geoFocusDoneRef.current) {
       debugLog("[LeafletGeo] Early exit - nearby focus already completed");
       return;
     }
 
-    if (!isLocationWithinBounds(userLocation, visibleBounds)) {
-      debugLog("[LeafletGeo] Waiting for map bounds to include user location");
+    // Use nearby beaches from API if available (fastest path)
+    if (nearbyBeachesFromApi && nearbyBeachesFromApi.length > 0 && nearbyBoundsFromApi) {
+      debugLog("[LeafletGeo] Using nearby beaches from API", nearbyBeachesFromApi.length);
+      suppressUserMoveRef.current = true;
+      map.fitBounds(
+        [
+          [nearbyBoundsFromApi.south, nearbyBoundsFromApi.west],
+          [nearbyBoundsFromApi.north, nearbyBoundsFromApi.east],
+        ],
+        {
+          padding: [80, 80],
+          maxZoom: 12,
+          animate: true,
+          duration: 0.6,
+        }
+      );
+      geoFocusDoneRef.current = true;
+      debugLog("[LeafletGeo] Zoom complete using API beaches");
       return;
     }
 
-    if (viewportStatus !== "success") {
-      debugLog("[LeafletGeo] Waiting for fresh nearby beaches fetch", {
-        viewportStatus,
-      });
+    // Fallback: wait for viewport beaches if API didn't return results
+    if (!nearbyBeachesFromApi) {
+      debugLog("[LeafletGeo] Waiting for nearby beaches from API");
       return;
     }
 
-    const list = filteredBeaches.length ? filteredBeaches : combinedBeaches;
-
-    // Wait for beaches to load before attempting to zoom
-    if (!list.length) {
-      debugLog("[LeafletGeo] Waiting for beaches to load");
-      return;
-    }
-
-    debugLog("[LeafletGeo] All conditions met, zooming to nearby beaches");
+    // If API returned empty, center on user location as fallback
+    debugLog("[LeafletGeo] No nearby beaches from API, centering on user");
     suppressUserMoveRef.current = true;
-    const nearest = getNearestBeaches(userLocation, list, 20);
-    const bounds = getBoundsForBeaches(nearest);
-    if (bounds) {
-      debugLog("[LeafletGeo] Fitting nearest beaches", nearest.length);
-      map.fitBounds(bounds, {
-        padding: [80, 80],
-        maxZoom: 12,
-        animate: true,
-        duration: 0.6,
-      });
-    } else {
-      debugLog("[LeafletGeo] Fallback zoom (no bounds)");
-      map.flyTo([userLocation.lat, userLocation.lng], 10, { duration: 0.6 });
-    }
+    map.flyTo([userLocation.lat, userLocation.lng], 10, { duration: 0.6 });
     geoFocusDoneRef.current = true;
-    debugLog("[LeafletGeo] Zoom complete, geoFocusDone set to true");
   }, [
     beachesPage,
     mapReady,
     userLocation,
+    nearbyBeachesFromApi,
+    nearbyBoundsFromApi,
     selectedBeachId,
-    filteredBeaches,
-    combinedBeaches,
-    visibleBounds,
-    viewportStatus,
     debugLog,
   ]);
 
@@ -2093,12 +2148,33 @@ const LeafletMap: React.FC<Props> = ({
         debugLog("[LeafletGeo] zoomToNearby - no map");
         return;
       }
+
+      // Use API bounds if available
+      if (nearbyBoundsFromApi) {
+        debugLog("[LeafletGeo] zoomToNearby - using API bounds");
+        map.fitBounds(
+          [
+            [nearbyBoundsFromApi.south, nearbyBoundsFromApi.west],
+            [nearbyBoundsFromApi.north, nearbyBoundsFromApi.east],
+          ],
+          {
+            padding: [80, 80],
+            maxZoom: 12,
+            animate: true,
+            duration: 0.6,
+          }
+        );
+        return;
+      }
+
+      // Fallback to viewport beaches
       const list = filteredBeaches.length ? filteredBeaches : combinedBeaches;
       if (!list.length) {
         debugLog("[LeafletGeo] zoomToNearby - no beaches available");
+        map.flyTo([location.lat, location.lng], 10, { duration: 0.6 });
         return;
       }
-      debugLog("[LeafletGeo] zoomToNearby - zooming to nearby beaches");
+      debugLog("[LeafletGeo] zoomToNearby - using viewport beaches");
       const nearest = getNearestBeaches(location, list, 20);
       const bounds = getBoundsForBeaches(nearest);
 
@@ -2113,7 +2189,7 @@ const LeafletMap: React.FC<Props> = ({
         map.flyTo([location.lat, location.lng], 10, { duration: 0.6 });
       }
     },
-    [filteredBeaches, combinedBeaches, debugLog],
+    [filteredBeaches, combinedBeaches, nearbyBoundsFromApi, debugLog],
   );
 
   const handleZoomToNearby = React.useCallback(() => {
