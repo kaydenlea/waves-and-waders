@@ -115,7 +115,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Sort by distance and take the closest ones
-    const beachesWithDistance = (data as BeachRow[])
+    const beachesWithDistance = (data as unknown as BeachRow[])
       .map((row) => ({
         row,
         dist: distanceSquared(lat, lng, row.LATITUDE, row.LONGITUDE),
