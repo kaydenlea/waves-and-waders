@@ -372,6 +372,17 @@ export default function PathStyleWrapper({
     enforceContentPeek && smallScreen && (pulling || pullOffsetPx !== 0);
   const shouldForceWebkitMask =
     enforceContentPeek && smallScreen && !effectiveEditPage && finePointer;
+  const pullTransformStyle = applyPullTransform
+    ? {
+        transform: `translate3d(0, ${pullOffsetPx}px, 0)`,
+        transition: pulling
+          ? "none"
+          : "transform 220ms cubic-bezier(0.22, 1, 0.36, 1)",
+        willChange: "transform",
+        backfaceVisibility: "hidden" as const,
+        WebkitBackfaceVisibility: "hidden" as const,
+      }
+    : undefined;
 
   return (
     <>
@@ -384,37 +395,16 @@ export default function PathStyleWrapper({
         style={spacerHeightStyle}
       />
       {/* Safe background layer to prevent map bleed-through during fast scrolling on mobile */}
-      {enforceContentPeek && smallScreen && !effectiveEditPage && (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none sticky top-0 z-[1] bg-background @min-4xl:hidden"
-          style={{
-            height: "100vh",
-            marginBottom: "-100vh",
-          }}
-        />
-      )}
       {enforceContentPeek &&
       smallScreen &&
-      !effectiveEditPage &&
-      !contentCollapsed ? (
+      !effectiveEditPage ? (
         <div
           aria-hidden="true"
           className="pointer-events-none sticky top-0 z-[2] bg-background rounded-t-4xl border-t border-x border-border/70 @min-4xl:hidden"
           style={{
             height: "var(--ww-100vh, 100dvh)",
             marginBottom: "calc(-1 * var(--ww-100vh, 100dvh))",
-            ...(applyPullTransform
-              ? {
-                  transform: `translate3d(0, ${pullOffsetPx}px, 0)`,
-                  transition: pulling
-                    ? "none"
-                    : "transform 220ms cubic-bezier(0.22, 1, 0.36, 1)",
-                  willChange: "transform",
-                  backfaceVisibility: "hidden",
-                  WebkitBackfaceVisibility: "hidden",
-                }
-              : {}),
+            ...(pullTransformStyle ?? {}),
           }}
         />
       ) : null}
@@ -441,17 +431,7 @@ export default function PathStyleWrapper({
                 WebkitMaskImage: "-webkit-radial-gradient(white, white)",
               }
             : {}),
-          ...(applyPullTransform
-            ? {
-                transform: `translate3d(0, ${pullOffsetPx}px, 0)`,
-                transition: pulling
-                  ? "none"
-                  : "transform 220ms cubic-bezier(0.22, 1, 0.36, 1)",
-                willChange: "transform",
-                backfaceVisibility: "hidden",
-                WebkitBackfaceVisibility: "hidden",
-              }
-            : {}),
+          ...(pullTransformStyle ?? {}),
         }}
       >
         <div
