@@ -378,9 +378,6 @@ export default function PathStyleWrapper({
         transition: pulling
           ? "none"
           : "transform 220ms cubic-bezier(0.22, 1, 0.36, 1)",
-        willChange: "transform",
-        backfaceVisibility: "hidden" as const,
-        WebkitBackfaceVisibility: "hidden" as const,
       }
     : undefined;
 
@@ -422,7 +419,7 @@ export default function PathStyleWrapper({
           !effectiveEditPage
             ? "rounded-t-4xl @min-4xl:rounded-t-none pt-10"
             : "pt-10",
-          overviewPage && "ww-disable-backdrop",
+          enforceContentPeek && "ww-disable-backdrop",
           showMap && "@min-4xl:pr-3",
         )}
         style={{
@@ -476,17 +473,7 @@ export default function PathStyleWrapper({
             )}
           </>
         )}
-        <div
-          className={cn(
-            // Avoid forcing a permanent extra compositing layer on iOS; only hint during
-            // the explicit pull-to-collapse transform interaction.
-            applyPullTransform && !effectiveEditPage
-              ? "transform-gpu will-change-transform"
-              : undefined,
-          )}
-        >
-          {children}
-        </div>
+        <div>{children}</div>
       </article>
     </>
   );
