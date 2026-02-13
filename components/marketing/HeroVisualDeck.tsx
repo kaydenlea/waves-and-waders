@@ -33,6 +33,21 @@ import { cn, getPacificMidnightUTC } from "@/lib/utils";
 
 const HOUR_MS = 60 * 60 * 1000;
 const PREVIEW_HOURS = 24;
+const HERO_BEACH_IMAGE_PLACEHOLDER =
+  "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4IiBoZWlnaHQ9IjgiPjxyZWN0IHdpZHRoPSI4IiBoZWlnaHQ9IjgiIGZpbGw9IiNkYmVhZmUiLz48L3N2Zz4=";
+const HERO_PREVIEW_BEACH_IDS = [
+  "000b44bb-e4b7-452b-b28b-dd596d202cdf",
+  "003bd538-eb66-457b-912a-57a2d3336b67",
+  "0073154c-5806-4419-9f5a-86b7aeb284b1",
+  "00a0797c-3a06-4aff-8eb4-f0866c95ae7e",
+] as const;
+
+function preloadStaticImage(src: string) {
+  if (typeof window === "undefined" || !src) return;
+  const img = new window.Image();
+  img.decoding = "async";
+  img.src = src;
+}
 
 function usePrefersReducedMotion() {
   const [reduced, setReduced] = React.useState(false);
@@ -385,6 +400,9 @@ function BeachPreviewSlide({
 }) {
   const [legendOpen, setLegendOpen] = React.useState(true);
   const [activeBeachIndex, setActiveBeachIndex] = React.useState(0);
+  const [loadedBeachImages, setLoadedBeachImages] = React.useState<
+    Record<string, boolean>
+  >({});
 
   const beachVariants = React.useMemo(
     () =>
@@ -424,6 +442,8 @@ function BeachPreviewSlide({
 
   const activeBeach = previewBeaches[activeBeachIndex] ?? previewBeaches[0];
   const beachCount = previewBeaches.length;
+  const activeImageSrc = `/beach_pictures/${activeBeach.id}.png`;
+  const activeImageLoaded = Boolean(loadedBeachImages[activeImageSrc]);
 
   const goPrevBeach = React.useCallback(() => {
     setActiveBeachIndex((idx) =>
@@ -434,6 +454,12 @@ function BeachPreviewSlide({
   const goNextBeach = React.useCallback(() => {
     setActiveBeachIndex((idx) => (beachCount ? (idx + 1) % beachCount : 0));
   }, [beachCount]);
+
+  React.useEffect(() => {
+    for (const variant of previewBeaches) {
+      preloadStaticImage(`/beach_pictures/${variant.id}.png`);
+    }
+  }, [previewBeaches]);
 
   const ringScale = 1.05;
   const ringSize = 160 * ringScale;
@@ -513,14 +539,33 @@ function BeachPreviewSlide({
         <div className="w-full flex-1 min-h-0 p-4 pb-2">
           <div className="relative h-full overflow-hidden rounded-3xl border border-border/35 bg-gradient-to-br from-sky-100 to-blue-200 dark:from-slate-900 dark:to-slate-950">
             <Image
-              src={`/beach_pictures/${activeBeach.id}.png`}
+              src={activeImageSrc}
               alt={`Map view of ${activeBeach.name}`}
               fill
               sizes="540px"
               quality={95}
               className="object-cover"
+              placeholder="blur"
+              blurDataURL={HERO_BEACH_IMAGE_PLACEHOLDER}
               priority={false}
+              onLoad={() =>
+                setLoadedBeachImages((prev) =>
+                  prev[activeImageSrc]
+                    ? prev
+                    : { ...prev, [activeImageSrc]: true },
+                )
+              }
+              onError={() =>
+                setLoadedBeachImages((prev) =>
+                  prev[activeImageSrc]
+                    ? prev
+                    : { ...prev, [activeImageSrc]: true },
+                )
+              }
             />
+            {!activeImageLoaded ? (
+              <div className="pointer-events-none absolute inset-0 bg-background/40 backdrop-blur-sm transition-opacity duration-200" />
+            ) : null}
             <div
               className="absolute inset-0 bg-gradient-to-b from-background/5 via-transparent to-background/20"
               aria-hidden="true"
@@ -795,6 +840,32 @@ export default function HeroVisualDeck({
       window.clearTimeout(id);
     };
   }, [prefersReducedMotion]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const run = () => {
+      for (const id of HERO_PREVIEW_BEACH_IDS) {
+        preloadStaticImage(`/beach_pictures/${id}.png`);
+      }
+    };
+
+    const w = window as unknown as {
+      requestIdleCallback?: (
+        callback: () => void,
+        opts?: { timeout: number },
+      ) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+
+    if (typeof w.requestIdleCallback === "function") {
+      const id = w.requestIdleCallback(run, { timeout: 1200 });
+      return () => w.cancelIdleCallback?.(id);
+    }
+
+    const id = window.setTimeout(run, 80);
+    return () => window.clearTimeout(id);
+  }, []);
 
   const basisDate = React.useMemo(() => {
     return selected instanceof Date && !Number.isNaN(selected.getTime())

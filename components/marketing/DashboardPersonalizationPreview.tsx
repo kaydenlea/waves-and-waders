@@ -1,17 +1,12 @@
 "use client";
 
+import * as React from "react";
 import dynamic from "next/dynamic";
 
 import { cn } from "@/lib/utils";
 
 const loadDashboardPersonalizationCarousel = () =>
   import("@/components/marketing/DashboardPersonalizationCarousel");
-
-// Start fetching the chunk as soon as this component's module is evaluated so the
-// section can reveal real content (no visible skeleton swap) even on fast scroll.
-if (typeof window !== "undefined") {
-  void loadDashboardPersonalizationCarousel();
-}
 
 const DashboardPersonalizationCarousel = dynamic(
   loadDashboardPersonalizationCarousel,
@@ -32,8 +27,34 @@ export default function DashboardPersonalizationPreview({
 }: {
   className?: string;
 }) {
+  const rootRef = React.useRef<HTMLDivElement | null>(null);
+  const [shouldRender, setShouldRender] = React.useState(false);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const node = rootRef.current;
+    if (!node) return;
+    if (!("IntersectionObserver" in window)) {
+      setShouldRender(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0]?.isIntersecting) return;
+        setShouldRender(true);
+        observer.disconnect();
+      },
+      { root: null, rootMargin: "280px 0px", threshold: 0.01 }
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <div
+      ref={rootRef}
       className={cn(
         "relative isolate z-0 w-full min-w-0 max-w-full",
         className
@@ -44,7 +65,7 @@ export default function DashboardPersonalizationPreview({
         className="aspect-[16/10] min-h-[18rem] sm:min-h-[20rem] w-full"
       />
       <div className="absolute inset-0">
-        <DashboardPersonalizationCarousel />
+        {shouldRender ? <DashboardPersonalizationCarousel /> : <Skeleton />}
       </div>
     </div>
   );

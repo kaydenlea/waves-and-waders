@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import { cn } from "@/lib/utils";
 
 import {
@@ -44,11 +44,10 @@ export default function DashboardPersonalizationCarousel() {
 
   const [activeIndex, setActiveIndex] = React.useState(0);
   const [direction, setDirection] = React.useState<1 | -1>(1);
-  const active = SLIDES[activeIndex] ?? SLIDES[0]!;
 
   const [isHovered, setIsHovered] = React.useState(false);
   const [isInteracting, setIsInteracting] = React.useState(false);
-  const [inView, setInView] = React.useState(true);
+  const [inView, setInView] = React.useState(false);
   const [isPageVisible, setIsPageVisible] = React.useState(true);
 
   const autoRotateMs = 6500;
@@ -59,7 +58,7 @@ export default function DashboardPersonalizationCarousel() {
   const elapsedRef = React.useRef(0);
 
   React.useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || !inView) return;
 
     const run = () => {
       for (const slide of SLIDES) {
@@ -80,9 +79,10 @@ export default function DashboardPersonalizationCarousel() {
 
     const id = window.setTimeout(run, 50);
     return () => window.clearTimeout(id);
-  }, []);
+  }, [inView]);
 
   React.useEffect(() => {
+    if (!inView) return;
     // Ensure the next/prev slide images are hot in cache before we animate to them.
     const next = SLIDES[(activeIndex + 1) % SLIDES.length];
     const prev = SLIDES[(activeIndex - 1 + SLIDES.length) % SLIDES.length];
@@ -94,7 +94,7 @@ export default function DashboardPersonalizationCarousel() {
       preloadStaticImage(prev.image.light);
       preloadStaticImage(prev.image.dark);
     }
-  }, [activeIndex]);
+  }, [activeIndex, inView]);
 
   const clearInteractionTimeout = React.useCallback(() => {
     if (interactionTimeoutRef.current == null) return;
@@ -141,14 +141,17 @@ export default function DashboardPersonalizationCarousel() {
     if (typeof window === "undefined") return;
     const node = rootRef.current;
     if (!node) return;
-    if (!("IntersectionObserver" in window)) return;
+    if (!("IntersectionObserver" in window)) {
+      setInView(true);
+      return;
+    }
 
     const observer = new IntersectionObserver(
       (entries) => {
         const entry = entries[0];
         setInView(Boolean(entry?.isIntersecting));
       },
-      { root: null, rootMargin: "0px", threshold: 0.2 }
+      { root: null, rootMargin: "240px 0px", threshold: 0.01 }
     );
 
     observer.observe(node);
@@ -291,59 +294,57 @@ export default function DashboardPersonalizationCarousel() {
         resetCycle();
       }}
     >
-      <AnimatePresence mode="wait" initial={false}>
-        <motion.div
-          key={active.key}
-          className="absolute inset-0"
-          custom={direction}
-          variants={{
-            enter: (dir: number) => ({
-              opacity: 0,
-              x: dir > 0 ? 24 : -24,
-            }),
-            center: { opacity: 1, x: 0 },
-            exit: (dir: number) => ({
-              opacity: 0,
-              x: dir > 0 ? -24 : 24,
-            }),
-          }}
-          initial={reducedMotion ? "center" : "enter"}
-          animate="center"
-          exit={reducedMotion ? "center" : "exit"}
-          transition={
-            reducedMotion
-              ? { duration: 0 }
-              : { duration: 0.32, ease: [0.16, 1, 0.3, 1] }
-          }
-        >
-          <div
-            className="h-full w-full"
-            onPointerDownCapture={() => {
-              setInteractingFor(2200);
-              resetCycle();
+      {SLIDES.map((slide, idx) => {
+        const isActive = idx === activeIndex;
+        return (
+          <motion.div
+            key={slide.key}
+            className="absolute inset-0"
+            initial={false}
+            animate={{
+              opacity: isActive ? 1 : 0,
+              x: reducedMotion ? 0 : isActive ? 0 : direction > 0 ? -24 : 24,
             }}
-            onTouchStartCapture={() => {
-              setInteractingFor(2200);
-              resetCycle();
+            transition={
+              reducedMotion
+                ? { duration: 0 }
+                : { duration: 0.32, ease: [0.16, 1, 0.3, 1] }
+            }
+            style={{
+              pointerEvents: isActive ? "auto" : "none",
             }}
+            aria-hidden={!isActive}
+            {...((!isActive ? ({ inert: true } as any) : {}) as any)}
           >
-            <ForecastPreviewFrame
-              title={active.title}
-              description={active.helper ?? ""}
-              image={active.image}
-              sizes="(max-width: 640px) 92vw, (max-width: 1280px) 60vw, 48vw"
-              onPrev={() => {
-                goWithReset(activeIndex - 1, -1);
+            <div
+              className="h-full w-full"
+              onPointerDownCapture={() => {
+                setInteractingFor(2200);
                 resetCycle();
               }}
-              onNext={() => {
-                goWithReset(activeIndex + 1, 1);
+              onTouchStartCapture={() => {
+                setInteractingFor(2200);
                 resetCycle();
               }}
-            />
-          </div>
-        </motion.div>
-      </AnimatePresence>
+            >
+              <ForecastPreviewFrame
+                title={slide.title}
+                description={slide.helper ?? ""}
+                image={slide.image}
+                sizes="(max-width: 640px) 92vw, (max-width: 1280px) 60vw, 48vw"
+                onPrev={() => {
+                  goWithReset(activeIndex - 1, -1);
+                  resetCycle();
+                }}
+                onNext={() => {
+                  goWithReset(activeIndex + 1, 1);
+                  resetCycle();
+                }}
+              />
+            </div>
+          </motion.div>
+        );
+      })}
     </div>
   );
 }
