@@ -64,7 +64,7 @@ export default function DonateStickyPill({
 
     // On route changes, reset eligibility immediately to avoid briefly showing the pill
     // using stale `eligibleByScroll` from the previous page.
-    const nextDismissed = pathname === "/donate" || readDismissedPreference();
+    const nextDismissed = pathname === "/donate" || pathname === "/login" || readDismissedPreference();
     setDismissed(nextDismissed);
     eligibleByScrollRef.current = false;
     setEligibleByScroll(false);
@@ -149,3 +149,4 @@ export default function DonateStickyPill({
     </div>
   );
 }
+
