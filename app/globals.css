@@ -93,6 +93,14 @@ main[data-ww-page="login"]::-webkit-scrollbar {
      JS updates --ww-vh based on window.visualViewport.height when available. */
   --ww-vh: 1vh;
   --ww-100vh: calc(var(--ww-vh, 1vh) * 100);
+  /* Safe area insets (iOS home indicator, etc.). Can be overridden at runtime. */
+  --ww-safe-area-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* When the on-screen keyboard is visible, avoid adding extra bottom padding that can
+   appear as blank space below content on scrollable pages. */
+html[data-ww-keyboard-open="1"] {
+  --ww-safe-area-bottom: 0px;
 }
 
 @layer components {

@@ -34,6 +34,14 @@ export default function DonateStickyPill({
   const [dismissed, setDismissed] = React.useState(false);
   const [eligibleByScroll, setEligibleByScroll] = React.useState(false);
   const eligibleByScrollRef = React.useRef(false);
+  const [textEntryFocused, setTextEntryFocused] = React.useState(false);
+  const [bottomNavVisible, setBottomNavVisible] = React.useState(false);
+
+  const isTextEntry = (el: unknown) => {
+    if (!el || !(el instanceof HTMLElement)) return false;
+    const tag = el.tagName;
+    return tag === "INPUT" || tag === "TEXTAREA" || el.isContentEditable;
+  };
 
   const readDismissedPreference = React.useCallback(() => {
     if (typeof window === "undefined") return false;
@@ -109,7 +117,51 @@ export default function DonateStickyPill({
     };
   }, [dismissed]);
 
-  const visible = !dismissed && eligibleByScroll;
+  React.useEffect(() => {
+    if (typeof document === "undefined") return;
+
+    const update = () => {
+      const active = document.activeElement;
+      setTextEntryFocused(isTextEntry(active));
+    };
+
+    update();
+
+    const onFocusIn = (e: FocusEvent) => {
+      setTextEntryFocused(isTextEntry(e.target) || isTextEntry(document.activeElement));
+    };
+
+    const onFocusOut = () => {
+      // Allow focus to move before re-checking (e.g. input -> button within the form).
+      window.requestAnimationFrame(update);
+    };
+
+    document.addEventListener("focusin", onFocusIn, { passive: true });
+    document.addEventListener("focusout", onFocusOut, { passive: true });
+    return () => {
+      document.removeEventListener("focusin", onFocusIn);
+      document.removeEventListener("focusout", onFocusOut);
+    };
+  }, [pathname]);
+
+  React.useEffect(() => {
+    if (typeof document === "undefined") return;
+
+    const root = document.documentElement;
+    const read = () => root.dataset.wwBottomNavVisible === "1";
+    setBottomNavVisible(read());
+
+    const obs = new MutationObserver(() => {
+      setBottomNavVisible(read());
+    });
+    obs.observe(root, {
+      attributes: true,
+      attributeFilter: ["data-ww-bottom-nav-visible"],
+    });
+    return () => obs.disconnect();
+  }, []);
+
+  const visible = !dismissed && eligibleByScroll && !textEntryFocused && !bottomNavVisible;
 
   const dismiss = () => {
     writeDismissedPreference();

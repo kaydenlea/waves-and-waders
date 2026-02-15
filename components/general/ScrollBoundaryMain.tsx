@@ -45,8 +45,13 @@ export function ScrollBoundaryMain({
   // Only use safe-area-inset for padding. The keyboard inset is already handled
   // by --ww-100vh shrinking the container height, so adding it here would double-count.
   const keyboardPaddingStyle = useRef<React.CSSProperties>({
-    paddingBottom: "env(safe-area-inset-bottom, 0px)",
-    scrollPaddingBottom: "env(safe-area-inset-bottom, 0px)",
+    paddingBottom: "var(--ww-safe-area-bottom, env(safe-area-inset-bottom, 0px))",
+    scrollPaddingBottom:
+      "var(--ww-safe-area-bottom, env(safe-area-inset-bottom, 0px))",
+    // Use our visualViewport-aware height (see `ViewportVars`) so this scroll boundary
+    // remains fully scrollable when the on-screen keyboard is visible.
+    height: "var(--ww-100vh, 100dvh)",
+    maxHeight: "var(--ww-100vh, 100dvh)",
   });
 
   useEffect(() => {
@@ -200,8 +205,7 @@ export function ScrollBoundaryMain({
     <main
       ref={containerRef}
       className={cn(
-        // Use 100dvh (dynamic viewport) so container resizes with keyboard on iOS.
-        "h-dvh overflow-y-auto overflow-x-hidden overscroll-none",
+        "overflow-y-auto overflow-x-hidden overscroll-none",
         className
       )}
       style={keyboardPaddingStyle.current}
