@@ -18,6 +18,8 @@ import { cn, getPacificMidnightUTC } from "@/lib/utils";
 import VisualWrapper from "@/components/general/VisualWrapper";
 
 import OverviewWidget from "@/components/general/overview/OverviewWidget";
+import { ChartLegendPopover } from "@/components/graphs/ChartLegendPopover";
+import { getChartLegend } from "@/components/graphs/chartLegends";
 
 import { LazyLoadForecastTide } from "@/components/general/LazyLoad/LazyLoadForecastTide";
 
@@ -518,6 +520,15 @@ const ForecastBridge: React.FC<Props> = ({
 
   const { rows: forecastRows, loading: forecastLoading } = useForecastData();
 
+  const waveEnergyRange = useMemo(() => {
+    if (!Array.isArray(forecastRows) || forecastRows.length === 0) return null;
+    const values = forecastRows
+      .map((row) => row?.surf?.waveEnergy)
+      .filter((v): v is number => typeof v === "number" && Number.isFinite(v));
+    if (!values.length) return null;
+    return { min: Math.min(...values), max: Math.max(...values) };
+  }, [forecastRows]);
+
   const chartsLoading = useForecastChartsLoadingState();
 
   const { setExpectedCharts } = useForecastChartsLoadingControls();
@@ -727,6 +738,12 @@ const ForecastBridge: React.FC<Props> = ({
               label="Tide"
               extraPadding={isForecastCards}
               unit="ft"
+              headerActions={
+                <ChartLegendPopover
+                  title={getChartLegend("tide").title}
+                  items={getChartLegend("tide").items}
+                />
+              }
               loading={stableWidgetLoading}
             >
               <LazyLoadForecastTide
@@ -744,6 +761,12 @@ const ForecastBridge: React.FC<Props> = ({
               extraPadding={isForecastCards}
               label="Surf"
               unit="ft"
+              headerActions={
+                <ChartLegendPopover
+                  title={getChartLegend("surf").title}
+                  items={getChartLegend("surf").items}
+                />
+              }
               loading={stableWidgetLoading}
             >
               <LazyLoadForecastSurf beachId={beachId} days={effectiveDays} />
@@ -756,6 +779,12 @@ const ForecastBridge: React.FC<Props> = ({
               extraPadding={isForecastCards}
               label="Wind"
               unit="mph"
+              headerActions={
+                <ChartLegendPopover
+                  title={getChartLegend("wind").title}
+                  items={getChartLegend("wind").items}
+                />
+              }
               loading={stableWidgetLoading}
             >
               <LazyLoadForecastWind beachId={beachId} days={effectiveDays} />
@@ -771,22 +800,52 @@ const ForecastBridge: React.FC<Props> = ({
                 isOverviewCards ? "gap-4" : "gap-6",
               )}
             >
-              <Wrapper label="Wind" unit="mph" loading={stableWidgetLoading}>
+              <Wrapper
+                label="Wind"
+                unit="mph"
+                headerActions={
+                  <ChartLegendPopover
+                    title={getChartLegend("wind").title}
+                    items={getChartLegend("wind").items}
+                  />
+                }
+                loading={stableWidgetLoading}
+              >
                 <LazyLoadForecastWind beachId={beachId} days={effectiveDays} />
               </Wrapper>
 
-              <Wrapper label="Surf" unit="ft" loading={stableWidgetLoading}>
+              <Wrapper
+                label="Surf"
+                unit="ft"
+                headerActions={
+                  <ChartLegendPopover
+                    title={getChartLegend("surf").title}
+                    items={getChartLegend("surf").items}
+                  />
+                }
+                loading={stableWidgetLoading}
+              >
                 <LazyLoadForecastSurf beachId={beachId} days={effectiveDays} />
               </Wrapper>
             </div>
           );
 
         case "energy":
-          return (
+          return (() => {
+            const energyLegend = getChartLegend("energy", {
+              energyRange: waveEnergyRange ?? undefined,
+            });
+            return (
             <Wrapper
               extraPadding={isForecastCards}
               label="Energy"
               unit="kJ"
+              headerActions={
+                <ChartLegendPopover
+                  title={energyLegend.title}
+                  items={energyLegend.items}
+                />
+              }
               loading={stableWidgetLoading}
             >
               <LazyLoadForecastWaveEnergy
@@ -794,7 +853,8 @@ const ForecastBridge: React.FC<Props> = ({
                 days={effectiveDays}
               />
             </Wrapper>
-          );
+            );
+          })();
 
         case "table": {
           const tableUnit =
@@ -843,6 +903,12 @@ const ForecastBridge: React.FC<Props> = ({
               extraPadding={isForecastCards}
               label="Swell"
               unit="ft"
+              headerActions={
+                <ChartLegendPopover
+                  title={getChartLegend("swell").title}
+                  items={getChartLegend("swell").items}
+                />
+              }
               loading={stableWidgetLoading}
             >
               <LazyLoadForecastSwell beachId={beachId} days={effectiveDays} />

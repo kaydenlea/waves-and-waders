@@ -34,6 +34,8 @@ import Link from "next/link";
 import { createPortal } from "react-dom";
 import { ArrowDown, ArrowUp, CircleCheck, Pencil, X } from "lucide-react";
 import { useDashboardEditMode } from "@/components/context/DashboardEditModeContext";
+import { ChartLegendPopover } from "@/components/graphs/ChartLegendPopover";
+import { getChartLegend } from "@/components/graphs/chartLegends";
 import { getTidesCached } from "@/lib/dataCache";
 import { useCachedForecast } from "@/lib/hooks/useCachedForecast";
 import { usePacificTodayMs } from "@/lib/hooks/usePacificTodayMs";
@@ -96,7 +98,7 @@ const HeaderVisual = ({
         </span>
         <span className="text-foreground normal-case font-semibold tabular-nums whitespace-nowrap">
           {min ?? "--"}
-          <span className="ml-0.5 inline-block">{unit}</span>
+          <span className="ml-0.5 hidden @min-xs:inline-block">{unit}</span>
         </span>
       </div>
       <div className="flex items-center gap-1.5">
@@ -106,7 +108,7 @@ const HeaderVisual = ({
         </span>
         <span className="text-foreground normal-case font-semibold tabular-nums whitespace-nowrap">
           {max ?? "--"}
-          <span className="ml-0.5 inline-block">{unit}</span>
+          <span className="ml-0.5 hidden @min-xs:inline-block">{unit}</span>
         </span>
       </div>
     </div>
@@ -1174,6 +1176,12 @@ const DateSummaryBridge: React.FC<Props> = ({
               headerContent={
                 <TideStatsHeader beachId={beachId} date={selectedDateForData} />
               }
+              headerActions={
+                <ChartLegendPopover
+                  title={getChartLegend("tide").title}
+                  items={getChartLegend("tide").items}
+                />
+              }
             >
               <LazyLoadTide
                 beachId={beachId}
@@ -1190,6 +1198,12 @@ const DateSummaryBridge: React.FC<Props> = ({
               unit="mph"
               loading={overlayVisible}
               headerContent={<WindStatsHeader stats={windStats} />}
+              headerActions={
+                <ChartLegendPopover
+                  title={getChartLegend("wind").title}
+                  items={getChartLegend("wind").items}
+                />
+              }
             >
               <LazyLoadWind
                 beachId={beachId}
@@ -1206,6 +1220,12 @@ const DateSummaryBridge: React.FC<Props> = ({
               unit="ft"
               loading={overlayVisible}
               headerContent={<SwellStatsHeader stats={swellStats} />}
+              headerActions={
+                <ChartLegendPopover
+                  title={getChartLegend("swell").title}
+                  items={getChartLegend("swell").items}
+                />
+              }
             >
               <LazyLoadSwell
                 beachId={beachId}
@@ -1222,6 +1242,12 @@ const DateSummaryBridge: React.FC<Props> = ({
               unit="ft"
               loading={overlayVisible}
               headerContent={<SurfStatsHeader stats={surfStats} />}
+              headerActions={
+                <ChartLegendPopover
+                  title={getChartLegend("surf").title}
+                  items={getChartLegend("surf").items}
+                />
+              }
             >
               <LazyLoadSurf
                 beachId={beachId}
@@ -1231,13 +1257,25 @@ const DateSummaryBridge: React.FC<Props> = ({
               />
             </OverviewWidget>
           );
-        case "energy":
+        case "energy": {
+          const energyLegend = getChartLegend("energy", {
+            energyRange: {
+              min: Number(energyStats.min),
+              max: Number(energyStats.max),
+            },
+          });
           return (
             <OverviewWidget
               label="Energy"
               unit="kJ"
               loading={overlayVisible}
               headerContent={<WaveEnergyStatsHeader stats={energyStats} />}
+              headerActions={
+                <ChartLegendPopover
+                  title={energyLegend.title}
+                  items={energyLegend.items}
+                />
+              }
             >
               <LazyLoadEnergy
                 beachId={beachId}
@@ -1247,6 +1285,7 @@ const DateSummaryBridge: React.FC<Props> = ({
               />
             </OverviewWidget>
           );
+        }
         case "table": {
           const tableUnit =
             (dailyTableUi?.effectiveDensity ?? overviewTableDensity) === "12h"

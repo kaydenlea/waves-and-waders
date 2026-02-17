@@ -40,6 +40,7 @@ type Props = {
   unitDisabled?: boolean;
   extraPadding?: boolean;
   headerContent?: React.ReactNode;
+  headerActions?: React.ReactNode;
   loading?: boolean;
 };
 
@@ -52,6 +53,7 @@ export default function OverviewWidget({
   unitDisabled,
   extraPadding,
   headerContent,
+  headerActions,
   loading,
 }: Props) {
   const effectiveLoading = Boolean(loading);
@@ -129,7 +131,7 @@ export default function OverviewWidget({
           title={label}
           icon={icon}
           right={
-            unit || headerContent ? (
+            unit || headerContent || headerActions ? (
               <div className="relative">
                 <div className={cn(effectiveLoading && "opacity-0")}>
                   <div className="flex items-center gap-2">
@@ -142,6 +144,7 @@ export default function OverviewWidget({
                     label !== "Daily" ? (
                       <UnitPill className="@min-xs:hidden" />
                     ) : null}
+                    {headerActions}
                   </div>
                 </div>
                 {effectiveLoading ? (

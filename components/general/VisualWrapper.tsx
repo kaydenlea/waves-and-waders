@@ -64,6 +64,7 @@ const VisualWrapper = ({
   unit,
   extraPadding,
   headerContent,
+  headerActions,
   loading,
 }: {
   children: React.ReactNode;
@@ -71,6 +72,7 @@ const VisualWrapper = ({
   unit?: string;
   extraPadding?: boolean;
   headerContent?: React.ReactNode;
+  headerActions?: React.ReactNode;
   loading?: boolean;
 }) => {
   const lowerCaseLabel = label.toLowerCase();
@@ -108,6 +110,7 @@ const VisualWrapper = ({
                       {unit}
                     </span>
                   ) : null)}
+                {headerActions}
               </div>
             </header>
           </div>
