@@ -141,6 +141,19 @@ html[data-ww-keyboard-open="1"] {
       --ww-100vh: var(--ww-stable-100vh, 100svh);
     }
   }
+  /* Map pages use `.ww-stable-viewport` to avoid mobile UI jank, but on desktop the
+     viewport height should respond to browser chrome changes (e.g. toggling the
+     bookmarks bar) to prevent empty gaps under fixed/sticky map panes. */
+  @media (pointer: fine) {
+    html:has(#map-container) .ww-stable-viewport {
+      --ww-100vh: 100dvh;
+    }
+    @supports not (height: 100dvh) {
+      html:has(#map-container) .ww-stable-viewport {
+        --ww-100vh: calc(var(--ww-vh, 1vh) * 100);
+      }
+    }
+  }
 
   .icon-sm {
     @apply w-4 h-4;
