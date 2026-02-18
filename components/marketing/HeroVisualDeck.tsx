@@ -107,6 +107,20 @@ const buildPreviewForecastRows = (
       (base.surf.heightMax ?? 6) + Math.sin(phase * 0.8) * 1.1,
     );
     const surfMin = Math.max(0.0, surfMax - 2.2);
+    const baseEnergy = base.surf.waveEnergy ?? 62;
+    const waveEnergy = Math.max(
+      8,
+      Math.min(
+        125,
+        Math.round(
+          baseEnergy +
+            (surfMax - (base.surf.heightMax ?? 6)) * 12 +
+            (swellPrimary - (base.swell.primary.height ?? 4.5)) * 10 +
+            Math.sin(phase * 0.9) * 14 +
+            Math.cos(phase * 1.4) * 8,
+        ),
+      ),
+    );
 
     rows.push({
       timestamp: t.toISOString(),
@@ -130,7 +144,7 @@ const buildPreviewForecastRows = (
       surf: {
         heightMin: Number(surfMin.toFixed(1)),
         heightMax: Number(surfMax.toFixed(1)),
-        waveEnergy: base.surf.waveEnergy ?? 62,
+        waveEnergy,
       },
       conditions: {
         waterTemp: base.conditions.waterTemp ?? 58,
