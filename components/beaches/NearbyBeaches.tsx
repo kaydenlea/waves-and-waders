@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/pagination";
 import BeachCard from "@/components/general/BeachCard";
 import type { Beach as UIBeach } from "@/components/general/BeachCard";
-import { cn } from "@/lib/utils";
+import { cn, getPacificMidnightUTC } from "@/lib/utils";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { FEATURE_COLUMNS, getFeatureDisplayName } from "@/lib/supabase";
 import { ChevronDown, ChevronUp, SearchX } from "lucide-react";
@@ -112,18 +112,13 @@ export default function NearbyBeaches() {
   const { selected: selectedDate, hour } = useDateContext();
   const filterCount = filters?.size ?? 0;
   const effectiveDate = useMemo(() => {
-    if (selectedDate instanceof Date) return selectedDate;
+    if (selectedDate instanceof Date) return getPacificMidnightUTC(selectedDate);
     return null;
   }, [selectedDate]);
   const effectiveHour = Number.isFinite(hour) ? hour : null;
   const resolveDateKey = useCallback((value: Date | null) => {
     if (value instanceof Date && !Number.isNaN(value.getTime())) {
-      const day = new Date(
-        value.getFullYear(),
-        value.getMonth(),
-        value.getDate(),
-      );
-      return day.toISOString().split("T")[0];
+      return value.toISOString().split("T")[0];
     }
     return "today";
   }, []);

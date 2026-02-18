@@ -9,6 +9,7 @@ import {
   type TidePoint,
   type DailyConditions,
 } from "./supabase";
+import { computeRepresentativeSurfFt } from "./forecast/surfIntensity";
 import { getPacificDayRange } from "./utils";
 import {
   type BeachStatsSnapshot,
@@ -22,6 +23,7 @@ type TidePointValue = { x: number; tide: number };
 const SURF_HEIGHT_CAP = 12;
 const WIND_SPEED_CAP = 40;
 const TEMP_CAP = 100;
+const STATS_CACHE_VERSION = 2;
 
 const statsCache = new Map<string, Promise<BeachStatsSnapshot | null>>();
 type CacheEntry<T> = { promise: Promise<T>; expiresAt: number };
@@ -147,7 +149,7 @@ const getCacheKey = (
       : targetDate instanceof Date
       ? "midday"
       : "now";
-  return `${beachId}:${dateKey}:${hourKey}`;
+  return `v${STATS_CACHE_VERSION}:${beachId}:${dateKey}:${hourKey}`;
 };
 
 export async function computeBeachStatsSnapshot(
@@ -187,12 +189,27 @@ export async function computeBeachStatsSnapshot(
       : targetDate instanceof Date
       ? 12
       : normalizeHour(new Date().getHours());
+  const pacificHourFormatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Los_Angeles",
+    hour: "2-digit",
+    hour12: false,
+  });
 
   const baseRow =
     forecast.length > 0
       ? forecast.reduce((best, row) => {
-          const rowHour = normalizeHour(new Date(row.timestamp).getHours());
-          const bestHour = normalizeHour(new Date(best.timestamp).getHours());
+          const rowHour = normalizeHour(
+            Number.parseInt(
+              pacificHourFormatter.format(new Date(row.timestamp)),
+              10
+            )
+          );
+          const bestHour = normalizeHour(
+            Number.parseInt(
+              pacificHourFormatter.format(new Date(best.timestamp)),
+              10
+            )
+          );
           const diff = Math.abs(rowHour - targetHourNormalized);
           const bestDiff = Math.abs(bestHour - targetHourNormalized);
           const wrappedDiff = diff > 12 ? 24 - diff : diff;
@@ -224,35 +241,40 @@ export async function computeBeachStatsSnapshot(
     );
 
   const avgPeriod = average(periods);
-
-  const minSurf =
-    heightMins.length > 0
-      ? Math.min(...heightMins)
-      : heightMaxes.length > 0
-        ? Math.min(...heightMaxes)
-        : null;
-  const maxSurf =
-    heightMaxes.length > 0
-      ? Math.max(...heightMaxes)
-      : heightMins.length > 0
-        ? Math.max(...heightMins)
-        : null;
-  const hasRange = minSurf != null && maxSurf != null;
-
+  const representativeSurf =
+    renderData != null ? computeRepresentativeSurfFt(renderData) : null;
   let surfHeightLabel: string | null = null;
-  if (hasRange) {
-    surfHeightLabel = `${minSurf!.toFixed(1)}-${maxSurf!.toFixed(1)}`;
+  if (representativeSurf != null && representativeSurf > 0) {
+    const low = Math.max(0, Math.floor(representativeSurf));
+    const high = Math.max(low + 1, Math.ceil(representativeSurf));
+    surfHeightLabel = `${low}-${high}`;
   }
-  const surfPeriod = avgPeriod != null ? Math.round(avgPeriod) : null;
+  const surfPeriodRaw = renderData?.swell?.primary?.period;
+  const surfPeriod =
+    typeof surfPeriodRaw === "number" && Number.isFinite(surfPeriodRaw)
+      ? Math.round(surfPeriodRaw)
+      : avgPeriod != null
+        ? Math.round(avgPeriod)
+        : null;
 
-  if ((surfHeightLabel || hasRange) && surfPeriod != null) {
-    const surfIntensity = clampIntensity(maxSurf ?? minSurf ?? 0, SURF_HEIGHT_CAP);
+  if (surfHeightLabel && surfPeriod != null) {
+    const fallbackSurf =
+      representativeSurf ??
+      (heightMaxes.length > 0
+        ? Math.max(...heightMaxes)
+        : heightMins.length > 0
+          ? Math.max(...heightMins)
+          : 0);
+    const surfIntensity = clampIntensity(
+      fallbackSurf,
+      SURF_HEIGHT_CAP
+    );
     stats.push({
       type: "surf",
       surf: {
-        height: surfHeightLabel ?? "-",
+        height: surfHeightLabel,
         period: surfPeriod,
-        intensity: maxSurf ?? 0,
+        intensity: surfIntensity,
       },
     });
   }

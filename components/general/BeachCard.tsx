@@ -13,6 +13,11 @@ import { cn } from "@/lib/utils";
 import SaveButton from "./SaveButton";
 import { SwellRings, WindRing } from "../visuals/DirectionRings";
 import { useMapData } from "../context/MapFilterContext";
+import {
+  computeRepresentativeSurfFt,
+  getSurfIntensityBand,
+  getSurfIntensityColorCss,
+} from "@/lib/forecast/surfIntensity";
 
 export type Beach = {
   id: string;
@@ -55,24 +60,26 @@ const normalizeSurfLabel = (value: string | null | undefined) => {
   return value;
 };
 
-const formatSurfRange = (
-  minValue: number | null | undefined,
-  maxValue: number | null | undefined,
-) => {
-  const hasMin = typeof minValue === "number" && Number.isFinite(minValue);
-  const hasMax = typeof maxValue === "number" && Number.isFinite(maxValue);
-  if (!hasMin && !hasMax) return null;
-  const minRounded = hasMin ? Math.round(minValue as number) : null;
-  const maxRounded = hasMax ? Math.round(maxValue as number) : null;
-  if (minRounded != null && maxRounded != null) {
-    const low = Math.min(minRounded, maxRounded);
-    const high = Math.max(minRounded, maxRounded);
-    if (low === high && low === 1) return "0-1";
-    return low === high ? String(low) : `${low}-${high}`;
+const representativeSurfRangeFromCurrent = (current?: ForecastData | null) => {
+  if (!current) return null;
+  const representative = computeRepresentativeSurfFt(current);
+  if (!(typeof representative === "number") || !Number.isFinite(representative)) {
+    return null;
   }
-  const value = minRounded ?? maxRounded ?? null;
-  if (value === 1) return "0-1";
-  return value != null ? String(value) : null;
+  if (representative <= 0) return null;
+  const low = Math.max(0, Math.floor(representative));
+  const high = Math.max(low + 1, Math.ceil(representative));
+  return `${low}-${high}`;
+};
+
+const parseSurfRepresentativeFt = (value: string | null | undefined) => {
+  if (typeof value !== "string") return null;
+  const match = value.match(/(\d+(?:\.\d+)?)(?:-(\d+(?:\.\d+)?))?/);
+  if (!match) return null;
+  const low = Number(match[1]);
+  const high = Number(match[2] ?? match[1]);
+  if (!Number.isFinite(low) || !Number.isFinite(high)) return null;
+  return (low + high) / 2;
 };
 
 const BeachCard = React.memo(
@@ -123,25 +130,15 @@ const BeachCard = React.memo(
           ? b.distanceKm * 0.621371
           : b.distanceKm
         : null;
-    const maxRounded =
-      b.conditions.rating != null ? Math.round(b.conditions.rating) : null;
-    const color = !b.conditions.rating
-      ? "bg-highlight-3"
-      : maxRounded! >= 6
-        ? "bg-red-400"
-        : maxRounded! >= 3
-          ? "bg-orange-300"
-          : "bg-green-300";
-    const currentSurf = formatSurfRange(
-      b.current?.surf?.heightMin,
-      b.current?.surf?.heightMax,
-    );
+    const currentSurf = representativeSurfRangeFromCurrent(b.current);
     const currentWindSpeed =
       typeof b.current?.conditions?.windSpeed === "number" &&
       Number.isFinite(b.current.conditions.windSpeed)
         ? String(Math.round(b.current.conditions.windSpeed))
         : null;
-    const resolvedSurf = normalizeSurfLabel(currentSurf ?? b.conditions.surf);
+    const resolvedSurf = normalizeSurfLabel(b.conditions.surf ?? currentSurf);
+    const surfRepresentative = parseSurfRepresentativeFt(resolvedSurf);
+    const color = getSurfIntensityColorCss(getSurfIntensityBand(surfRepresentative));
     const resolvedWind = currentWindSpeed ?? b.conditions.wind;
     const resolvedWindDir =
       typeof b.current?.conditions?.windDirection === "number" &&
@@ -265,7 +262,10 @@ const BeachCard = React.memo(
               <div className="pointer-events-none absolute inset-0 rounded-2xl bg-background/40 backdrop-blur-sm transition-opacity duration-200" />
             )}
             <header className="flex gap-1 truncate absolute top-0.5 left-1 w-[73%] bg-slate-900/0 p-2 text-black backdrop-blur-none transition rounded-4xl">
-              <div className={cn("min-w-1.5 rounded-full", color)} />
+              <div
+                className="min-w-1.5 rounded-full"
+                style={{ backgroundColor: color }}
+              />
               <div className="min-w-0">
                 <h2 className="truncate text-md font-semibold leading-tight -mb-0.5">
                   {b.name}

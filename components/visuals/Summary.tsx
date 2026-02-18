@@ -390,7 +390,7 @@ const clamp01 = (value: number): number => {
 
 const parseSurfMaxFt = (range: string): number | null => {
   if (!range || range === "-") return null;
-  const match = range.match(/(\d+)-?(\d+)?/);
+  const match = range.match(/(\d+(?:\.\d+)?)(?:-(\d+(?:\.\d+)?))?/);
   if (!match) return null;
   const maxStr = match[2] ?? match[1];
   const max = Number(maxStr);
@@ -883,56 +883,76 @@ const Summary = ({
 
     const nextStats: SummaryStat[] = [];
 
-    const heightMins = forecast
-      .map((row) => row?.surf?.heightMin)
+    const representativeRows = forecast
+      .map((row) => {
+        const h1 = row?.swell?.primary?.height ?? 0;
+        const p1 = row?.swell?.primary?.period ?? 10;
+        const h2 = row?.swell?.secondary?.height ?? 0;
+        const p2 = row?.swell?.secondary?.period ?? 10;
+        const h3 = row?.swell?.tertiary?.height ?? 0;
+        const p3 = row?.swell?.tertiary?.period ?? 10;
+        const s1 = h1 * Math.sqrt(Math.max(0, p1) / 10);
+        const s2 = h2 * Math.sqrt(Math.max(0, p2) / 10);
+        const s3 = h3 * Math.sqrt(Math.max(0, p3) / 10);
+        const combined = Math.sqrt(
+          Math.pow(1.0 * s1, 2) +
+            Math.pow(0.6 * s2, 2) +
+            Math.pow(0.3 * s3, 2),
+        );
+        const wind = row?.conditions?.windSpeed ?? 0;
+        const windPenalty = Math.min(0.5, Math.max(0, (wind - 5) / 35));
+        const effective = Math.max(0, combined * (1 - windPenalty));
+        const minH = row?.surf?.heightMin;
+        const maxH = row?.surf?.heightMax;
+        const estimate =
+          minH != null && maxH != null
+            ? (minH + maxH) / 2
+            : maxH != null
+              ? maxH
+              : minH != null
+                ? minH
+                : 0;
+        const representative =
+          effective > 0 && estimate > 0
+            ? effective * 0.7 + estimate * 0.3
+            : effective > 0
+              ? effective
+              : estimate;
+        if (!Number.isFinite(representative)) return null;
+        const period = row?.swell?.primary?.period;
+        return {
+          representative: Math.max(0, representative),
+          period:
+            typeof period === "number" && !Number.isNaN(period) ? period : null,
+        };
+      })
       .filter(
-        (value): value is number =>
-          typeof value === "number" && !Number.isNaN(value),
-      );
-    const heightMaxes = forecast
-      .map((row) => row?.surf?.heightMax)
-      .filter(
-        (value): value is number =>
-          typeof value === "number" && !Number.isNaN(value),
-      );
-    const periods = forecast
-      .map((row) => row?.swell?.primary?.period)
-      .filter(
-        (value): value is number =>
-          typeof value === "number" && !Number.isNaN(value),
+        (
+          value,
+        ): value is { representative: number; period: number | null } =>
+          value != null,
       );
 
-    const avgPeriod = average(periods);
-
-    const minSurf =
-      heightMins.length > 0
-        ? Math.min(...heightMins)
-        : heightMaxes.length > 0
-          ? Math.min(...heightMaxes)
-          : null;
-    const maxSurf =
-      heightMaxes.length > 0
-        ? Math.max(...heightMaxes)
-        : heightMins.length > 0
-          ? Math.max(...heightMins)
-          : null;
-    const hasRange = minSurf != null && maxSurf != null;
+    const avgRep = average(representativeRows.map((row) => row.representative));
+    const periodValues = representativeRows
+      .map((row) => row.period)
+      .filter((v): v is number => v != null);
+    const avgPeriod = average(periodValues);
 
     let surfHeightLabel: string | null = null;
-    if (hasRange) {
-      surfHeightLabel = `${minSurf!.toFixed(1)}-${maxSurf!.toFixed(1)}`;
+    if (avgRep != null) {
+      const low = Math.max(0, Math.floor(avgRep));
+      const high = Math.max(low + 1, Math.ceil(avgRep));
+      surfHeightLabel = `${low}-${high}`;
     }
     const surfPeriod = avgPeriod != null ? Math.round(avgPeriod) : null;
 
-    if ((surfHeightLabel || hasRange) && surfPeriod != null) {
-      const surfIntensity = clampIntensity(
-        maxSurf ?? minSurf ?? 0,
-        SURF_HEIGHT_CAP,
-      );
+    if (surfHeightLabel && surfPeriod != null) {
+      const surfIntensity = clampIntensity(avgRep ?? 0, SURF_HEIGHT_CAP);
       nextStats.push({
         type: "surf",
         surf: {
-          height: surfHeightLabel ?? "-",
+          height: surfHeightLabel,
           period: surfPeriod,
           intensity: surfIntensity,
         },

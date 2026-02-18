@@ -116,7 +116,7 @@ function getMetricGroupForColumnId(columnId: string): MetricGroup {
 
 function parseSurfMaxFt(range: string): number | null {
   if (!range || range === "-") return null;
-  const match = range.match(/(\d+)-?(\d+)?/);
+  const match = range.match(/(\d+(?:\.\d+)?)(?:-(\d+(?:\.\d+)?))?/);
   if (!match) return null;
   const maxStr = match[2] ?? match[1];
   const max = Number(maxStr);
@@ -1399,16 +1399,48 @@ const StatTable = ({
             const windSpeed = Math.round(r.conditions.windSpeed ?? 0);
             const windGust = Math.round(r.conditions.windGust ?? windSpeed);
 
-            const min = r.surf.heightMin ?? 0;
-            const max = r.surf.heightMax ?? 0;
-            const minR = Math.round(min);
-            const maxR = Math.round(max);
-            const surfHeight =
-              minR === 0 && maxR === 0
-                ? "-"
-                : minR === maxR
-                  ? `${maxR}`
-                  : `${minR}-${maxR}`;
+            // Match SurfChart representative surf calculation exactly so table and chart align.
+            const h1 = r.swell.primary.height ?? 0;
+            const p1 = r.swell.primary.period ?? 10;
+            const h2 = r.swell.secondary.height ?? 0;
+            const p2 = r.swell.secondary.period ?? 10;
+            const h3 = r.swell.tertiary?.height ?? 0;
+            const p3 = r.swell.tertiary?.period ?? 10;
+            const s1 = h1 * Math.sqrt(Math.max(0, p1) / 10);
+            const s2 = h2 * Math.sqrt(Math.max(0, p2) / 10);
+            const s3 = h3 * Math.sqrt(Math.max(0, p3) / 10);
+            const w1 = 1.0;
+            const w2 = 0.6;
+            const w3 = 0.3;
+            const combined = Math.sqrt(
+              Math.pow(w1 * s1, 2) + Math.pow(w2 * s2, 2) + Math.pow(w3 * s3, 2),
+            );
+            const wind = r.conditions.windSpeed ?? 0;
+            const windPenalty = Math.min(0.5, Math.max(0, (wind - 5) / 35));
+            const effective = Math.max(0, combined * (1 - windPenalty));
+
+            const min = r.surf.heightMin;
+            const max = r.surf.heightMax;
+            const estimate =
+              min != null && max != null
+                ? (min + max) / 2
+                : max != null
+                  ? max
+                  : min != null
+                    ? min
+                    : 0;
+            const representative =
+              effective > 0 && estimate > 0
+                ? effective * 0.7 + estimate * 0.3
+                : effective > 0
+                  ? effective
+                  : estimate;
+            const surfHeight = (() => {
+              if (!(representative > 0)) return "-";
+              const low = Math.max(0, Math.floor(representative));
+              const high = Math.max(low + 1, Math.ceil(representative));
+              return `${low}-${high} ft`;
+            })();
 
             const priH =
               r.swell.primary.height != null

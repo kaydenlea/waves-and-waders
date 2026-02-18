@@ -12,6 +12,7 @@ import "@maplibre/maplibre-gl-leaflet";
 import { createPortal } from "react-dom";
 
 import { cn } from "@/lib/utils";
+import { getPacificMidnightUTC } from "@/lib/utils";
 import { acquireInteractionLock } from "@/lib/uiInteractionLock";
 import {
   FEATURE_CATEGORIES,
@@ -19,6 +20,7 @@ import {
   generateBeachSlug,
   generateBeachUrl,
   extractBeachId,
+  type ForecastData,
 } from "@/lib/supabase";
 import type { BeachPoint } from "@/components/context/MapFilterContext";
 import {
@@ -62,6 +64,11 @@ import {
   extractDailySurfWindStats,
   normalizeHour,
 } from "@/lib/beachStatsShared";
+import {
+  getSurfIntensityBand,
+  getSurfIntensityColorCss,
+  computeRepresentativeSurfFt,
+} from "@/lib/forecast/surfIntensity";
 import {
   setMapInteractionCamera,
   setMapInteractionHover,
@@ -232,10 +239,7 @@ type SwellDirectionSet = {
 };
 
 const getIntensityColor = (value: number) => {
-  if (value >= 6) return "#f87171";
-  if (value >= 3) return "#fb923c";
-  if (value >= 0.1) return "#4ade80";
-  return "#e5e7eb";
+  return getSurfIntensityColorCss(getSurfIntensityBand(value));
 };
 
 const hexToRgb = (hex: string) => {
@@ -843,6 +847,27 @@ const normalizeSurfLabel = (
   if (/^1(?:\.0+)?$/.test(trimmed)) return "0-1";
   if (/^1(?:\.0+)?-1(?:\.0+)?$/.test(trimmed)) return "0-1";
   return value;
+};
+
+const representativeSurfRangeLabel = (row: ForecastData | null): string | null => {
+  if (!row) return null;
+  const rep = computeRepresentativeSurfFt(row);
+  if (rep == null || !Number.isFinite(rep)) return null;
+  const low = Math.max(0, Math.floor(rep));
+  const high = Math.max(low + 1, Math.ceil(rep));
+  return `${low}-${high}`;
+};
+
+const parseSurfRepresentativeFt = (
+  value: string | null | undefined,
+): number | null => {
+  if (typeof value !== "string") return null;
+  const match = value.match(/(\d+(?:\.\d+)?)(?:-(\d+(?:\.\d+)?))?/);
+  if (!match) return null;
+  const low = Number(match[1]);
+  const high = Number(match[2] ?? match[1]);
+  if (!Number.isFinite(low) || !Number.isFinite(high)) return null;
+  return (low + high) / 2;
 };
 
 const buildPopupHtml = (
@@ -2250,20 +2275,15 @@ const LeafletMap: React.FC<Props> = ({
     });
   }, []);
 
-  const surfIntensity = useSurfIntensityData(selectedDate);
   const effectiveStatsDate = React.useMemo(
-    () => (selectedDate instanceof Date ? selectedDate : null),
+    () =>
+      selectedDate instanceof Date ? getPacificMidnightUTC(selectedDate) : null,
     [selectedDate],
   );
+  const surfIntensity = useSurfIntensityData(effectiveStatsDate);
   const statsDateKey = React.useMemo(() => {
-    if (effectiveStatsDate instanceof Date) {
-      const day = new Date(
-        effectiveStatsDate.getFullYear(),
-        effectiveStatsDate.getMonth(),
-        effectiveStatsDate.getDate(),
-      );
-      return day.toISOString().split("T")[0];
-    }
+    if (effectiveStatsDate instanceof Date)
+      return effectiveStatsDate.toISOString().split("T")[0];
     return "today";
   }, [effectiveStatsDate]);
   const statsHourKey = React.useMemo(() => {
@@ -3657,10 +3677,7 @@ const LeafletMap: React.FC<Props> = ({
       ) ?? null;
     const dailyStats = extractDailySurfWindStats(snapshot);
     const current = snapshot?.current ?? null;
-    const currentSurfLabel = formatSurfRange(
-      current?.surf?.heightMin,
-      current?.surf?.heightMax,
-    );
+    const currentSurfLabel = representativeSurfRangeLabel(current);
     const currentWindSpeed =
       typeof current?.conditions?.windSpeed === "number" &&
       Number.isFinite(current.conditions.windSpeed)
@@ -3671,14 +3688,12 @@ const LeafletMap: React.FC<Props> = ({
       Number.isFinite(current.conditions.windDirection)
         ? current.conditions.windDirection
         : null;
-    const statsIntensity =
-      typeof dailyStats.surfIntensity === "number"
-        ? dailyStats.surfIntensity
-        : null;
+    const resolvedSurfLabel = normalizeSurfLabel(dailyStats.surfHeight ?? currentSurfLabel);
+    const statsIntensity = parseSurfRepresentativeFt(resolvedSurfLabel);
     const gridIntensity = resolveSurfIntensity(ctx.surfIntensity, beach);
-    const intensity = gridIntensity != null ? gridIntensity : statsIntensity;
+    const intensity = statsIntensity != null ? statsIntensity : gridIntensity;
     return buildPopupHtml(beach, {
-      surfHeight: normalizeSurfLabel(currentSurfLabel ?? dailyStats.surfHeight),
+      surfHeight: resolvedSurfLabel,
       surfIntensity: intensity,
       windSpeed: currentWindSpeed ?? dailyStats.windSpeed,
       windDirection: currentWindDirection ?? dailyStats.windDirection,
@@ -5080,12 +5095,6 @@ const LeafletMap: React.FC<Props> = ({
           const id = String(beach.id);
           const gridIntensity = resolveSurfIntensity(surfIntensity, beach);
           const iconIntensity = (() => {
-            if (gridIntensity != null) {
-              return Number.isFinite(gridIntensity as number)
-                ? (gridIntensity as number)
-                : 0;
-            }
-            active.nextStatsFallbackIds.add(id);
             const ctx = statsContextRef.current;
             const snapshot =
               ctx.getStatsSnapshot(
@@ -5094,10 +5103,15 @@ const LeafletMap: React.FC<Props> = ({
                 ctx.statsHourKey,
               ) ?? null;
             const dailyStats = extractDailySurfWindStats(snapshot);
-            return typeof dailyStats.surfIntensity === "number" &&
-              Number.isFinite(dailyStats.surfIntensity)
-              ? dailyStats.surfIntensity
-              : 0;
+            const surfRepFt = parseSurfRepresentativeFt(
+              dailyStats.surfHeight ?? representativeSurfRangeLabel(snapshot?.current ?? null),
+            );
+            if (surfRepFt != null) return surfRepFt;
+            if (gridIntensity != null && Number.isFinite(gridIntensity as number)) {
+              return gridIntensity as number;
+            }
+            active.nextStatsFallbackIds.add(id);
+            return 0;
           })();
 
           const favorite = favoriteSet.has(id);
@@ -5357,9 +5371,6 @@ const LeafletMap: React.FC<Props> = ({
         ctx.surfIntensity,
         entry.beach,
       );
-      if (gridIntensity != null) {
-        return;
-      }
       const snapshot =
         ctx.getStatsSnapshot(
           String(entry.beach.id),
@@ -5367,11 +5378,15 @@ const LeafletMap: React.FC<Props> = ({
           ctx.statsHourKey,
         ) ?? null;
       const dailyStats = extractDailySurfWindStats(snapshot);
+      const surfRepFt = parseSurfRepresentativeFt(
+        dailyStats.surfHeight ?? representativeSurfRangeLabel(snapshot?.current ?? null),
+      );
       const iconIntensity =
-        typeof dailyStats.surfIntensity === "number" &&
-        Number.isFinite(dailyStats.surfIntensity)
-          ? dailyStats.surfIntensity
-          : 0;
+        surfRepFt != null
+          ? surfRepFt
+          : gridIntensity != null
+            ? (gridIntensity as number)
+            : 0;
       if (entry.intensity === iconIntensity) {
         if (hoveredId === id) {
           ensureMarkerPopup(entry);

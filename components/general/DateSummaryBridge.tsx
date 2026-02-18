@@ -677,6 +677,15 @@ const DateSummaryBridge: React.FC<Props> = ({
       end: forecastTabRange.end,
       enabled: Boolean(beachId && isForecastTab),
     });
+  const pacificHourFormatter = React.useMemo(
+    () =>
+      new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/Los_Angeles",
+        hour: "2-digit",
+        hour12: false,
+      }),
+    [],
+  );
 
   const forecastWindowFallback = React.useMemo(() => {
     const HOURS_PER_DAY = 24;
@@ -1007,6 +1016,12 @@ const DateSummaryBridge: React.FC<Props> = ({
           max: max.toFixed(fractionDigits),
         };
       };
+      const toBandRange = (value: number): RangeStats => {
+        if (!Number.isFinite(value)) return makeEmptyRange();
+        const low = Math.max(0, Math.floor(value));
+        const high = Math.max(low + 1, Math.ceil(value));
+        return { min: String(low), max: String(high) };
+      };
       const isValidNumber = (value: unknown): value is number =>
         typeof value === "number" && Number.isFinite(value);
 
@@ -1066,22 +1081,83 @@ const DateSummaryBridge: React.FC<Props> = ({
           return Math.max(0, representative);
         })
         .filter(isValidNumber);
+      const representativeByHour: Record<number, number[]> = {};
+      for (const row of forecastRows) {
+        const h1 = row.swell.primary.height ?? 0;
+        const p1 = row.swell.primary.period ?? 10;
+        const h2 = row.swell.secondary.height ?? 0;
+        const p2 = row.swell.secondary.period ?? 10;
+        const h3 = row.swell.tertiary?.height ?? 0;
+        const p3 = row.swell.tertiary?.period ?? 10;
+        const s1 = h1 * Math.sqrt(Math.max(0, p1) / 10);
+        const s2 = h2 * Math.sqrt(Math.max(0, p2) / 10);
+        const s3 = h3 * Math.sqrt(Math.max(0, p3) / 10);
+        const combined = Math.sqrt(
+          Math.pow(1.0 * s1, 2) + Math.pow(0.6 * s2, 2) + Math.pow(0.3 * s3, 2),
+        );
+        const wind = row.conditions.windSpeed ?? 0;
+        const windPenalty = Math.min(0.5, Math.max(0, (wind - 5) / 35));
+        const effective = Math.max(0, combined * (1 - windPenalty));
+        const min = row.surf.heightMin ?? 0;
+        const max = row.surf.heightMax ?? 0;
+        const estimate = min > 0 && max > 0 ? (min + max) / 2 : max;
+        const representative =
+          effective > 0 && estimate > 0
+            ? effective * 0.7 + estimate * 0.3
+            : effective > 0
+              ? effective
+              : estimate;
+        if (!Number.isFinite(representative)) continue;
+        const timestamp = new Date(row.timestamp);
+        const localHour = Number.parseInt(pacificHourFormatter.format(timestamp), 10);
+        if (!Number.isFinite(localHour)) continue;
+        const bucketHour = ((Math.round(localHour / 3) * 3) % 24 + 24) % 24;
+        if (!representativeByHour[bucketHour]) representativeByHour[bucketHour] = [];
+        representativeByHour[bucketHour].push(Math.max(0, representative));
+      }
 
-      const surfStats =
-        surfMinValues.length > 0 || surfMaxValues.length > 0
-          ? {
-              min: (
-                surfMinValues.length > 0
-                  ? Math.min(...surfMinValues)
-                  : Math.min(...surfMaxValues)
-              ).toFixed(1),
-              max: (
-                surfMaxValues.length > 0
-                  ? Math.max(...surfMaxValues)
-                  : Math.max(...surfMinValues)
-              ).toFixed(1),
-            }
-          : toRange(surfEstimateValues, 1);
+      const bucketHours = Object.keys(representativeByHour)
+        .map((value) => Number(value))
+        .filter((value) => Number.isFinite(value));
+      const wrappedDiff = (a: number, b: number) => {
+        const d = Math.abs(a - b);
+        return d > 12 ? 24 - d : d;
+      };
+      const selectedBucket =
+        bucketHours.length > 0
+          ? bucketHours.reduce((best, candidate) =>
+              wrappedDiff(candidate, hour) < wrappedDiff(best, hour)
+                ? candidate
+                : best,
+            )
+          : null;
+      const selectedBucketValues =
+        selectedBucket != null ? representativeByHour[selectedBucket] ?? [] : [];
+      const selectedBucketAverage =
+        selectedBucketValues.length > 0
+          ? selectedBucketValues.reduce((sum, value) => sum + value, 0) /
+            selectedBucketValues.length
+          : null;
+
+      let surfStats: RangeStats = makeEmptyRange();
+      if (selectedBucketAverage != null) {
+        surfStats = toBandRange(selectedBucketAverage);
+      } else if (surfEstimateValues.length > 0) {
+        const fallbackAverage =
+          surfEstimateValues.reduce((sum, value) => sum + value, 0) /
+          surfEstimateValues.length;
+        surfStats = toBandRange(fallbackAverage);
+      } else if (surfMinValues.length > 0 || surfMaxValues.length > 0) {
+        const fallbackMin =
+          surfMinValues.length > 0
+            ? Math.min(...surfMinValues)
+            : Math.min(...surfMaxValues);
+        const fallbackMax =
+          surfMaxValues.length > 0
+            ? Math.max(...surfMaxValues)
+            : Math.max(...surfMinValues);
+        surfStats = toBandRange((fallbackMin + fallbackMax) / 2);
+      }
 
       return {
         windStats: toRange(windValues, 0),
@@ -1089,7 +1165,7 @@ const DateSummaryBridge: React.FC<Props> = ({
         swellStats: toRange(swellValues, 1),
         energyStats: toRange(energyValues, 0),
       };
-    }, [forecastRows]);
+    }, [forecastRows, hour, pacificHourFormatter]);
 
   // Set mounted and initialize time on client
   React.useEffect(() => {

@@ -44,6 +44,46 @@ export function getSurfIntensityColorCss(band: SurfIntensityBand): string {
 
 const HOUR_MS = 60 * 60 * 1000;
 
+export function computeRepresentativeSurfFt(row: ForecastData): number | null {
+  if (!row) return null;
+
+  const h1 = row.swell?.primary?.height ?? 0;
+  const p1 = row.swell?.primary?.period ?? 10;
+  const h2 = row.swell?.secondary?.height ?? 0;
+  const p2 = row.swell?.secondary?.period ?? 10;
+  const h3 = row.swell?.tertiary?.height ?? 0;
+  const p3 = row.swell?.tertiary?.period ?? 10;
+  const s1 = h1 * Math.sqrt(Math.max(0, p1) / 10);
+  const s2 = h2 * Math.sqrt(Math.max(0, p2) / 10);
+  const s3 = h3 * Math.sqrt(Math.max(0, p3) / 10);
+  const combined = Math.sqrt(
+    Math.pow(1.0 * s1, 2) + Math.pow(0.6 * s2, 2) + Math.pow(0.3 * s3, 2),
+  );
+  const wind = row.conditions?.windSpeed ?? 0;
+  const windPenalty = Math.min(0.5, Math.max(0, (wind - 5) / 35));
+  const effective = Math.max(0, combined * (1 - windPenalty));
+
+  const minH = row.surf?.heightMin;
+  const maxH = row.surf?.heightMax;
+  const estimate =
+    minH != null && maxH != null
+      ? (minH + maxH) / 2
+      : maxH != null
+        ? maxH
+        : minH != null
+          ? minH
+          : 0;
+
+  const representative =
+    effective > 0 && estimate > 0
+      ? effective * 0.7 + estimate * 0.3
+      : effective > 0
+        ? effective
+        : estimate;
+
+  return Number.isFinite(representative) ? Math.max(0, representative) : null;
+}
+
 export function summarizeForecastSurfMaxFtInHourRange(
   rows: ForecastData[],
   windowStart: Date,
@@ -66,7 +106,7 @@ export function summarizeForecastSurfMaxFtInHourRange(
     if (tsMs < startMs) continue;
     if (includeEnd ? tsMs > endMs : tsMs >= endMs) continue;
 
-    const v = row.surf?.heightMax;
+    const v = computeRepresentativeSurfFt(row);
     if (typeof v !== "number" || !Number.isFinite(v)) continue;
     sum += v;
     count += 1;

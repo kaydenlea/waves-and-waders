@@ -183,7 +183,7 @@ DatePickerProps) => {
   // rAF handle for batching date selection propagation
   const dateSelectionFrameRef = useRef<number | null>(null);
 
-  const { setSelectedDays, setSurfRange } = useDateContext();
+  const { hour, setSelectedDays, setSurfRange } = useDateContext();
   const { setSurfIntensityForDate } = useMapData();
 
   const scrollBy = 3;
@@ -200,6 +200,15 @@ DatePickerProps) => {
     [],
   );
   const pacificNoonFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/Los_Angeles",
+        hour: "2-digit",
+        hour12: false,
+      }),
+    [],
+  );
+  const pacificHourFormatter = useMemo(
     () =>
       new Intl.DateTimeFormat("en-US", {
         timeZone: "America/Los_Angeles",
@@ -366,9 +375,9 @@ DatePickerProps) => {
           return s;
         };
 
-        // Track all min and max values per day for averaging
-        const minValues: Record<string, number[]> = {};
-        const maxValues: Record<string, number[]> = {};
+        // Track representative surf values per day/hour bucket (match chart/stat-table logic).
+        const representativeByHour: Record<string, Record<number, number[]>> =
+          {};
 
         for (const row of data) {
           // Normalize timestamp string to ISO-8601 so Date/Dayjs can parse reliably
@@ -383,6 +392,37 @@ DatePickerProps) => {
           const key = `${year}-${month}-${day}`;
           const minH = row.surf.heightMin;
           const maxH = row.surf.heightMax;
+          const h1 = row.swell.primary.height ?? 0;
+          const p1 = row.swell.primary.period ?? 10;
+          const h2 = row.swell.secondary.height ?? 0;
+          const p2 = row.swell.secondary.period ?? 10;
+          const h3 = row.swell.tertiary?.height ?? 0;
+          const p3 = row.swell.tertiary?.period ?? 10;
+          const s1 = h1 * Math.sqrt(Math.max(0, p1) / 10);
+          const s2 = h2 * Math.sqrt(Math.max(0, p2) / 10);
+          const s3 = h3 * Math.sqrt(Math.max(0, p3) / 10);
+          const combined = Math.sqrt(
+            Math.pow(1.0 * s1, 2) +
+              Math.pow(0.6 * s2, 2) +
+              Math.pow(0.3 * s3, 2),
+          );
+          const wind = row.conditions.windSpeed ?? 0;
+          const windPenalty = Math.min(0.5, Math.max(0, (wind - 5) / 35));
+          const effective = Math.max(0, combined * (1 - windPenalty));
+          const estimate =
+            minH != null && maxH != null
+              ? (minH + maxH) / 2
+              : maxH != null
+                ? maxH
+                : minH != null
+                  ? minH
+                  : 0;
+          const representative =
+            effective > 0 && estimate > 0
+              ? effective * 0.7 + estimate * 0.3
+              : effective > 0
+                ? effective
+                : estimate;
           const code = row.conditions.weather ?? null;
           if (!groups[key]) {
             // Create a dayjs date from the Pacific timezone date components
@@ -408,35 +448,53 @@ DatePickerProps) => {
               code: null,
             };
             codeCounts[key] = {};
-            minValues[key] = [];
-            maxValues[key] = [];
+            representativeByHour[key] = {};
           }
-          if (typeof minH === "number" && !Number.isNaN(minH)) {
-            minValues[key].push(minH);
-          }
-          if (typeof maxH === "number" && !Number.isNaN(maxH)) {
-            maxValues[key].push(maxH);
+          if (
+            typeof representative === "number" &&
+            Number.isFinite(representative)
+          ) {
+            const localHour = parseInt(pacificHourFormatter.format(d), 10);
+            const bucketHour = ((Math.round(localHour / 3) * 3) % 24 + 24) % 24;
+            const byHour = representativeByHour[key];
+            if (!byHour[bucketHour]) byHour[bucketHour] = [];
+            byHour[bucketHour].push(representative);
           }
           if (code != null) {
             codeCounts[key][code] = (codeCounts[key][code] ?? 0) + 1;
           }
         }
 
-        // Calculate average min and max for each day
+        // Calculate min/max representative surf for each day.
         for (const key of Object.keys(groups)) {
-          const mins = minValues[key] || [];
-          const maxs = maxValues[key] || [];
+          const byHour = representativeByHour[key] || {};
+          const bucketHours = Object.keys(byHour)
+            .map((h) => Number(h))
+            .filter((h) => Number.isFinite(h));
 
-          if (mins.length > 0) {
-            const avgMin =
-              mins.reduce((sum, val) => sum + val, 0) / mins.length;
-            groups[key].min = avgMin;
+          const wrappedDiff = (a: number, b: number) => {
+            const d = Math.abs(a - b);
+            return d > 12 ? 24 - d : d;
+          };
+
+          let selectedBucket: number | null = null;
+          if (bucketHours.length > 0) {
+            selectedBucket = bucketHours.reduce((best, candidate) =>
+              wrappedDiff(candidate, hour) < wrappedDiff(best, hour)
+                ? candidate
+                : best,
+            );
           }
 
-          if (maxs.length > 0) {
-            const avgMax =
-              maxs.reduce((sum, val) => sum + val, 0) / maxs.length;
-            groups[key].max = avgMax;
+          const reps =
+            selectedBucket != null
+              ? byHour[selectedBucket] || []
+              : Object.values(byHour).flat();
+
+          if (reps.length > 0) {
+            const avg = reps.reduce((sum, val) => sum + val, 0) / reps.length;
+            groups[key].min = avg;
+            groups[key].max = avg;
           }
         }
         // Determine dominant code per day
@@ -520,7 +578,9 @@ DatePickerProps) => {
     };
   }, [
     beachId,
+    hour,
     pacificFormatter,
+    pacificHourFormatter,
     pacificNoonFormatter,
     storageKey,
     pacificTodayKey,
@@ -666,9 +726,21 @@ DatePickerProps) => {
 
       if (targetKey) {
         const summary = summaries[targetKey];
+        const max = summary?.max ?? null;
+        const minWithFallback =
+          summary?.min ?? (max != null && max <= 1 ? 0 : null);
         let intensity: number | null = null;
+        const summaryRepresentative =
+          minWithFallback != null && max != null
+            ? (minWithFallback + max) / 2
+            : null;
         const mapValue = surfIntensityByDate[targetKey];
-        if (typeof mapValue === "number" && Number.isFinite(mapValue)) {
+        if (
+          typeof summaryRepresentative === "number" &&
+          Number.isFinite(summaryRepresentative)
+        ) {
+          intensity = summaryRepresentative;
+        } else if (typeof mapValue === "number" && Number.isFinite(mapValue)) {
           intensity = mapValue;
         } else if (selectedIntensityRecord && beachId) {
           const fallback = selectedIntensityRecord[beachId];
@@ -683,18 +755,11 @@ DatePickerProps) => {
           );
         });
 
-        const max = summary?.max ?? null;
-        const minWithFallback =
-          summary?.min ?? (max != null && max <= 1 ? 0 : null);
-
         if (minWithFallback != null && max != null) {
-          let minRounded = Math.round(minWithFallback);
-          let maxRounded = Math.round(max);
+          let minRounded = Math.max(0, Math.floor(minWithFallback));
+          let maxRounded = Math.max(minRounded + 1, Math.ceil(max));
           if (minRounded > maxRounded) {
             [minRounded, maxRounded] = [maxRounded, minRounded];
-          }
-          if (minRounded === maxRounded) {
-            minRounded = Math.max(0, maxRounded - 1);
           }
           const nextRange = `${minRounded}-${maxRounded}`;
           startTransition(() => {
@@ -729,6 +794,7 @@ DatePickerProps) => {
     orderedKeys,
     rangeStartIdx,
     rangeEndIdx,
+    hour,
   ]);
 
   const effectiveShowNav = showNav && !useNativeDragScroll;
@@ -774,10 +840,18 @@ DatePickerProps) => {
             const code = summary?.code ?? null;
             const weather = getWeatherIcon(code);
 
-            // Use grid-based intensity if available, otherwise fallback to
-            // the beach's own forecast max to ensure color matches displayed range
+            // Match tile color to the same value driving the displayed surf range.
+            // Prefer the summary-derived representative surf for this day.
+            const summaryRepresentative =
+              hasRange && minWithFallback != null && max != null
+                ? (minWithFallback + max) / 2
+                : null;
             const effectiveIntensity =
-              surfIntensity != null ? surfIntensity : max;
+              summaryRepresentative != null
+                ? summaryRepresentative
+                : surfIntensity != null
+                  ? surfIntensity
+                  : max;
             const intensityColor = getSurfIntensityColorCss(
               getSurfIntensityBand(effectiveIntensity),
             );
@@ -860,13 +934,13 @@ DatePickerProps) => {
                     {hasRange ? (
                       <>
                         {(() => {
-                          let minRounded = Math.round(minWithFallback!);
-                          let maxRounded = Math.round(max!);
+                          let minRounded = Math.max(
+                            0,
+                            Math.floor(minWithFallback!),
+                          );
+                          let maxRounded = Math.max(minRounded + 1, Math.ceil(max!));
                           if (minRounded > maxRounded) {
                             [minRounded, maxRounded] = [maxRounded, minRounded];
-                          }
-                          if (minRounded === maxRounded) {
-                            minRounded = Math.max(0, maxRounded - 1);
                           }
                           return `${minRounded}-${maxRounded}`;
                         })()}
