@@ -774,8 +774,12 @@ DatePickerProps) => {
             const code = summary?.code ?? null;
             const weather = getWeatherIcon(code);
 
+            // Use grid-based intensity if available, otherwise fallback to
+            // the beach's own forecast max to ensure color matches displayed range
+            const effectiveIntensity =
+              surfIntensity != null ? surfIntensity : max;
             const intensityColor = getSurfIntensityColorCss(
-              getSurfIntensityBand(surfIntensity),
+              getSurfIntensityBand(effectiveIntensity),
             );
 
             const rangeClasses = forecast

@@ -1028,7 +1028,13 @@ const DateSummaryBridge: React.FC<Props> = ({
       const swellValues = forecastRows
         .map((row) => row.swell.primary.height)
         .filter(isValidNumber);
-      const surfValues = forecastRows
+      const surfMinValues = forecastRows
+        .map((row) => row.surf.heightMin)
+        .filter(isValidNumber);
+      const surfMaxValues = forecastRows
+        .map((row) => row.surf.heightMax)
+        .filter(isValidNumber);
+      const surfEstimateValues = forecastRows
         .map((row) => {
           const h1 = row.swell.primary.height ?? 0;
           const p1 = row.swell.primary.period ?? 10;
@@ -1061,9 +1067,25 @@ const DateSummaryBridge: React.FC<Props> = ({
         })
         .filter(isValidNumber);
 
+      const surfStats =
+        surfMinValues.length > 0 || surfMaxValues.length > 0
+          ? {
+              min: (
+                surfMinValues.length > 0
+                  ? Math.min(...surfMinValues)
+                  : Math.min(...surfMaxValues)
+              ).toFixed(1),
+              max: (
+                surfMaxValues.length > 0
+                  ? Math.max(...surfMaxValues)
+                  : Math.max(...surfMinValues)
+              ).toFixed(1),
+            }
+          : toRange(surfEstimateValues, 1);
+
       return {
         windStats: toRange(windValues, 0),
-        surfStats: toRange(surfValues, 1),
+        surfStats,
         swellStats: toRange(swellValues, 1),
         energyStats: toRange(energyValues, 0),
       };

@@ -902,32 +902,31 @@ const Summary = ({
           typeof value === "number" && !Number.isNaN(value),
       );
 
-    const avgHeightMin = average(heightMins);
-    const avgHeightMax = average(heightMaxes);
     const avgPeriod = average(periods);
 
-    const max = avgHeightMax != null ? avgHeightMax : null;
-    const minWithFallback =
-      avgHeightMin != null ? avgHeightMin : max != null && max <= 1 ? 0 : null;
-    const hasRange = minWithFallback != null && max != null;
+    const minSurf =
+      heightMins.length > 0
+        ? Math.min(...heightMins)
+        : heightMaxes.length > 0
+          ? Math.min(...heightMaxes)
+          : null;
+    const maxSurf =
+      heightMaxes.length > 0
+        ? Math.max(...heightMaxes)
+        : heightMins.length > 0
+          ? Math.max(...heightMins)
+          : null;
+    const hasRange = minSurf != null && maxSurf != null;
 
     let surfHeightLabel: string | null = null;
     if (hasRange) {
-      let minRounded = Math.round(minWithFallback!);
-      let maxRounded = Math.round(max!);
-      if (minRounded > maxRounded) {
-        [minRounded, maxRounded] = [maxRounded, minRounded];
-      }
-      if (minRounded === maxRounded) {
-        minRounded = Math.max(0, maxRounded - 1);
-      }
-      surfHeightLabel = `${minRounded}-${maxRounded}`;
+      surfHeightLabel = `${minSurf!.toFixed(1)}-${maxSurf!.toFixed(1)}`;
     }
     const surfPeriod = avgPeriod != null ? Math.round(avgPeriod) : null;
 
     if ((surfHeightLabel || hasRange) && surfPeriod != null) {
       const surfIntensity = clampIntensity(
-        max ?? minWithFallback ?? 0,
+        maxSurf ?? minSurf ?? 0,
         SURF_HEIGHT_CAP,
       );
       nextStats.push({
