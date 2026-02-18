@@ -7,7 +7,6 @@ import { getServerSupabase } from "@/lib/supabaseServer";
 import { AuthForm } from "@/components/auth/AuthForm";
 import { buildPageMetadata } from "@/lib/seo";
 import { BrandWordmark } from "@/components/general/BrandWordmark";
-import { ScrollBoundaryMain } from "@/components/general/ScrollBoundaryMain";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = buildPageMetadata({
@@ -42,7 +41,7 @@ export default async function LoginPage() {
   }
 
   return (
-    <ScrollBoundaryMain
+    <main
       data-ww-page="login"
       className="relative isolate bg-gradient-to-b from-background via-background-2 to-background overflow-x-hidden max-[911px]:ww-disable-backdrop"
     >
@@ -67,7 +66,7 @@ export default async function LoginPage() {
         <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-b from-transparent to-background" />
       </div>
 
-      <div className="relative z-10 flex min-h-full flex-col lg:grid lg:grid-cols-2 lg:grid-rows-1">
+      <div className="relative z-10 flex min-h-[var(--ww-100vh,100dvh)] flex-col lg:grid lg:grid-cols-2 lg:grid-rows-1">
         <section className="relative flex min-h-[18rem] items-end px-5 pb-10 pt-[calc(2.5rem+env(safe-area-inset-top))] sm:px-8 sm:pb-12 lg:min-h-full lg:items-center lg:px-14 lg:py-16">
           <div
             aria-hidden
@@ -147,6 +146,6 @@ export default async function LoginPage() {
           />
         </section>
       </div>
-    </ScrollBoundaryMain>
+    </main>
   );
 }
