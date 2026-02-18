@@ -91,6 +91,8 @@ export default function ViewportVars() {
       const keyboardReducedEffective =
         keyboardViewportReduced && !keyboardStuckLikely;
 
+      root.dataset.wwKeyboardOpen = keyboardReducedEffective ? "1" : "0";
+
       // On iOS Safari, `visualViewport.height` can get "stuck" after the keyboard
       // dismisses (remaining smaller than the actual visible viewport). When the
       // keyboard is likely open, trust the smaller visual viewport; otherwise use
@@ -200,6 +202,7 @@ export default function ViewportVars() {
       if (rafId != null) window.cancelAnimationFrame(rafId);
       if (clearChangingTimer != null) window.clearTimeout(clearChangingTimer);
       delete root.dataset.wwViewportChanging;
+      delete root.dataset.wwKeyboardOpen;
       root.style.removeProperty("--ww-stable-100vh");
       root.style.removeProperty("--ww-keyboard-inset");
       root.style.removeProperty("--ww-bottom-ui");

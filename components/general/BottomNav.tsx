@@ -121,6 +121,22 @@ export default function BottomNav({ beachName }: { beachName?: string }) {
     };
   }, [landingPage, mobile]);
 
+  // Expose whether the bottom nav is currently visible so other floating UI (e.g. DonateStickyPill)
+  // can avoid overlapping/competing with it on mobile.
+  useEffect(() => {
+    const root = document.documentElement;
+    if (!mobile || landingPage) {
+      delete root.dataset.wwBottomNavVisible;
+      return;
+    }
+
+    const visible = showBottomUI && openPanel !== "filters";
+    root.dataset.wwBottomNavVisible = visible ? "1" : "0";
+    return () => {
+      delete root.dataset.wwBottomNavVisible;
+    };
+  }, [landingPage, mobile, openPanel, showBottomUI]);
+
   // // Mobile map pages: prevent accidental page scroll while the map is in view.
   // // The content drawer should only be revealed via the "View …" button, not by
   // // dragging UI chrome (map controls, bottom nav, etc).

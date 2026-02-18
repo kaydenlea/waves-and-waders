@@ -23,9 +23,9 @@ import {
   Sunrise,
   Sunset,
   Timer,
-  Thermometer,
   Waves,
   Wind,
+  Zap,
 } from "lucide-react";
 import {
   BEACH_FEATURE_ICONS,
@@ -645,6 +645,14 @@ const describeWind = (speed?: number) => {
   if (speed >= 15) return "moderate";
   if (speed >= 8) return "gentle";
   return "light";
+};
+
+const describeEnergy = (energyKj?: number | null) => {
+  if (energyKj == null || !Number.isFinite(energyKj)) return null;
+  if (energyKj >= 70) return "very high";
+  if (energyKj >= 40) return "high";
+  if (energyKj >= 20) return "moderate";
+  return "low";
 };
 
 const SURF_HEIGHT_CAP = 12;
@@ -1271,13 +1279,51 @@ const Summary = ({
       stat.type === "temperature",
   );
 
+  const energyDay = useMemo(() => {
+    const startMs = timeWindow.dayStart.getTime();
+    const endMs = timeWindow.dayEnd.getTime();
+    const values = renderForecast
+      .map((row) => {
+        const energy = row?.surf?.waveEnergy;
+        if (typeof energy !== "number" || Number.isNaN(energy)) return null;
+        const tMs = new Date(row.timestamp).getTime();
+        if (!Number.isFinite(tMs)) return null;
+        if (tMs < startMs || tMs > endMs) return null;
+        return energy;
+      })
+      .filter((v): v is number => v != null);
+
+    if (!values.length) {
+      return {
+        avg: null as number | null,
+        min: null as number | null,
+        max: null as number | null,
+        intensity: null as string | null,
+      };
+    }
+
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const avg = average(values);
+
+    const minRounded = Number.isFinite(min) ? Math.round(min) : null;
+    const maxRounded = Number.isFinite(max) ? Math.round(max) : null;
+    const avgRounded = avg != null && Number.isFinite(avg) ? Math.round(avg) : null;
+    const intensity = describeEnergy(avgRounded ?? maxRounded);
+
+    return {
+      avg: avgRounded,
+      min: minRounded,
+      max: maxRounded,
+      intensity,
+    };
+  }, [renderForecast, timeWindow.dayEnd.getTime(), timeWindow.dayStart.getTime()]);
+
   const computedOverviewText = useMemo(() => {
     if (!overviewStatsReady) return null;
 
     const surfHeight = surfStat?.surf?.height || "N/A";
     const windSpeed = windStat?.wind?.speed;
-    const airTempHigh = tempStat?.airTempHigh;
-    const airTempLow = tempStat?.airTempLow;
 
     const surfCondition = describeSurf(surfStat?.surf?.intensity);
 
@@ -1302,11 +1348,18 @@ const Summary = ({
       sentence += ` Wind conditions unavailable.`;
     }
 
-    // Add temperature information
-    if (airTempHigh != null && airTempLow != null) {
-      sentence += ` Temperatures will range from ${airTempLow}${DEGREE} to ${airTempHigh}${DEGREE}.`;
-    } else if (airTempHigh != null) {
-      sentence += ` Expect highs around ${airTempHigh}${DEGREE}.`;
+    // Add wave energy information (replaces the temperature sentence)
+    if (
+      energyDay.avg != null &&
+      energyDay.min != null &&
+      energyDay.max != null &&
+      energyDay.intensity
+    ) {
+      sentence += ` Wave energy is ${energyDay.intensity}, averaging ${energyDay.avg} kJ (${energyDay.min}\u2013${energyDay.max} kJ).`;
+    } else if (energyDay.min != null && energyDay.max != null && energyDay.intensity) {
+      sentence += ` Wave energy is ${energyDay.intensity} (${energyDay.min}\u2013${energyDay.max} kJ).`;
+    } else {
+      sentence += ` Wave energy unavailable.`;
     }
 
     return sentence;
@@ -1315,8 +1368,10 @@ const Summary = ({
     surfStat?.surf?.height,
     surfStat?.surf?.intensity,
     windStat?.wind?.speed,
-    tempStat?.airTempHigh,
-    tempStat?.airTempLow,
+    energyDay.avg,
+    energyDay.intensity,
+    energyDay.max,
+    energyDay.min,
   ]);
 
   const gapPx = 12;
@@ -1654,10 +1709,12 @@ const Summary = ({
       : null;
   const windSpeedToken =
     windStat?.wind?.speed != null ? `${windStat.wind.speed} mph` : null;
-  const tempLowToken =
-    tempStat?.airTempLow != null ? `${tempStat.airTempLow}${DEGREE}` : null;
-  const tempHighToken =
-    tempStat?.airTempHigh != null ? `${tempStat.airTempHigh}${DEGREE}` : null;
+  const energyIntensityToken = energyDay.intensity;
+  const energyAvgToken = energyDay.avg != null ? `${energyDay.avg} kJ` : null;
+  const energyRangeToken =
+    energyDay.min != null && energyDay.max != null
+      ? `${energyDay.min}\u2013${energyDay.max} kJ`
+      : null;
 
   const surfMaxFt = parseSurfMaxFt(surfStat?.surf?.height ?? "");
 
@@ -1731,7 +1788,7 @@ const Summary = ({
               <ul className="space-y-1">
                 {outlookSentences.map((line, idx) => {
                   const Icon =
-                    idx === 0 ? Waves : idx === 1 ? Wind : Thermometer;
+                    idx === 0 ? Waves : idx === 1 ? Wind : Zap;
 
                   const tokens: HighlightToken[] = [
                     ...(idx === 0 && surfNarrativeToken
@@ -1758,18 +1815,26 @@ const Summary = ({
                           },
                         ]
                       : []),
-                    ...(idx === 2 && tempLowToken
+                    ...(idx === 2 && energyIntensityToken
                       ? [
                           {
-                            text: tempLowToken,
+                            text: energyIntensityToken,
                             className: "font-semibold text-foreground",
                           },
                         ]
                       : []),
-                    ...(idx === 2 && tempHighToken
+                    ...(idx === 2 && energyAvgToken
                       ? [
                           {
-                            text: tempHighToken,
+                            text: energyAvgToken,
+                            className: "font-semibold text-foreground",
+                          },
+                        ]
+                      : []),
+                    ...(idx === 2 && energyRangeToken
+                      ? [
+                          {
+                            text: energyRangeToken,
                             className: "font-semibold text-foreground",
                           },
                         ]
