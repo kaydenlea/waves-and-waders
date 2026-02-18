@@ -763,12 +763,18 @@ const SurfStat = ({
   maxFt: number | null;
   scaleMax: number;
 }) => {
+  const rangeLabel = React.useMemo(() => {
+    const raw = (range ?? "").trim();
+    if (!raw || raw === "-" || raw === "—") return raw;
+    return raw.replace(/\s*ft\.?\s*$/i, "").trim();
+  }, [range]);
+
   return (
     <CellSurface className="px-2">
       <div className="w-full h-full flex flex-col justify-end gap-3 -mt-[3px]">
         <div className="flex items-baseline justify-start gap-1 whitespace-nowrap">
           <span className="text-[1.05rem] font-semibold tabular-nums leading-none">
-            {range}
+            {rangeLabel}
           </span>
           <span className="text-[0.65rem] text-muted-foreground">ft</span>
         </div>
@@ -3546,6 +3552,8 @@ const StatTable = ({
             "shrink-0 flex min-h-10 items-center justify-center px-1 pt-1",
             !dockPagerInFlowEffective &&
               "invisible opacity-0 pointer-events-none transition-opacity duration-150 motion-reduce:transition-none data-[ww-visible=true]:visible data-[ww-visible=true]:opacity-100 data-[ww-visible=true]:pointer-events-auto",
+            // Reduce iOS scroll jitter by forcing compositing; keeps original sticky behavior.
+            !dockPagerInFlowEffective && "transform-gpu will-change-transform",
           )}
           aria-hidden={!(dockPagerInFlowEffective || pagerVisibleRef.current)}
         >
