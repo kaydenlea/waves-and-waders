@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React from "react";
 import { flushSync } from "react-dom";
@@ -59,7 +59,7 @@ import { useMapUI } from "../context/MapFilterContext";
 import {
   useSessionContext,
   useSupabaseClient,
-} from "@supabase/auth-helpers-react";
+} from "@/lib/supabaseAuth";
 
 type MetricGroup =
   | "hour"
@@ -765,7 +765,7 @@ const SurfStat = ({
 }) => {
   const rangeLabel = React.useMemo(() => {
     const raw = (range ?? "").trim();
-    if (!raw || raw === "-" || raw === "—") return raw;
+    if (!raw || raw === "-" || raw === "-") return raw;
     return raw.replace(/\s*ft\.?\s*$/i, "").trim();
   }, [range]);
 
@@ -1031,7 +1031,7 @@ function buildMissingEntry(hour24: number): TableEntry {
     time: formatHourLabel(hour24),
     missing: true,
     wind: { label: "wind", dir: "-", speed: 0, max: 0, deg: 0 },
-    surf: { label: "surf", height: "—" },
+    surf: { label: "surf", height: "-" },
     swell: {
       label: "swell",
       primary: { height: 0, period: 0, dir: "-", deg: 0 },
@@ -2065,7 +2065,7 @@ const StatTable = ({
     const date = new Date(preferMs);
     const weekday = PACIFIC_PILL_WEEKDAY_FORMATTER.format(date);
     const monthDay = PACIFIC_PILL_MONTHDAY_FORMATTER.format(date);
-    return `${weekday} · ${monthDay}`;
+    return `${weekday}  ${monthDay}`;
   }, [forecastPage, forecastSelectedDay?.dateMs, selected, visibleDays]);
 
   const barScales = React.useMemo(() => {
@@ -2676,7 +2676,7 @@ const StatTable = ({
               className="h-4 w-4 text-muted-foreground"
             />
             <span className="max-w-[10rem] truncate">
-              {footerDateLabel ?? "—"}
+              {footerDateLabel ?? "-"}
             </span>
           </div>
         )
@@ -3209,7 +3209,7 @@ const StatTable = ({
                         content = (
                           <CellSurface>
                             <span className="text-sm font-semibold text-muted-foreground">
-                              —
+                              -
                             </span>
                           </CellSurface>
                         );
@@ -3462,7 +3462,7 @@ const StatTable = ({
                           const weekday = (weekdayRaw ?? label).trim();
                           const rest = (restRaw ?? "").trim();
                           const compactLabel =
-                            rest.length > 0 ? `${weekday} · ${rest}` : label;
+                            rest.length > 0 ? `${weekday}  ${rest}` : label;
                           return (
                             <DropdownMenuRadioItem
                               key={day.key}
@@ -3494,7 +3494,7 @@ const StatTable = ({
                     className="h-4 w-4 text-muted-foreground"
                   />
                   <span className="max-w-[9rem] truncate">
-                    {halfFooterDateLabel ?? "—"}
+                    {halfFooterDateLabel ?? "-"}
                   </span>
                 </div>
               )}

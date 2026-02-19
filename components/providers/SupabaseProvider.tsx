@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { SessionContextProvider } from "@supabase/auth-helpers-react";
+import { SessionContextProvider } from "@/lib/supabaseAuth";
 import type { Session } from "@supabase/supabase-js";
 
 import { createSupabaseBrowserClient } from "@/lib/supabaseClient";

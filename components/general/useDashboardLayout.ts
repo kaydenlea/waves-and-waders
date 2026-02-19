@@ -4,7 +4,7 @@ import * as React from "react";
 import {
   useSessionContext,
   useSupabaseClient,
-} from "@supabase/auth-helpers-react";
+} from "@/lib/supabaseAuth";
 
 import {
   getDashboardStorageKey,

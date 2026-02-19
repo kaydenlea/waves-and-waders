@@ -3690,11 +3690,9 @@ const LeafletMap: React.FC<Props> = ({
         : null;
     const resolvedSurfLabel = normalizeSurfLabel(dailyStats.surfHeight ?? currentSurfLabel);
     const statsIntensity = parseSurfRepresentativeFt(resolvedSurfLabel);
-    const gridIntensity = resolveSurfIntensity(ctx.surfIntensity, beach);
-    const intensity = statsIntensity != null ? statsIntensity : gridIntensity;
     return buildPopupHtml(beach, {
       surfHeight: resolvedSurfLabel,
-      surfIntensity: intensity,
+      surfIntensity: statsIntensity,
       windSpeed: currentWindSpeed ?? dailyStats.windSpeed,
       windDirection: currentWindDirection ?? dailyStats.windDirection,
     });
@@ -5093,30 +5091,26 @@ const LeafletMap: React.FC<Props> = ({
           active.index += 1;
 
           const id = String(beach.id);
-          const gridIntensity = resolveSurfIntensity(surfIntensity, beach);
-          const iconIntensity = (() => {
-            const ctx = statsContextRef.current;
-            const snapshot =
-              ctx.getStatsSnapshot(
-                String(beach.id),
-                ctx.statsDateKey,
-                ctx.statsHourKey,
-              ) ?? null;
-            const dailyStats = extractDailySurfWindStats(snapshot);
-            const surfRepFt = parseSurfRepresentativeFt(
-              dailyStats.surfHeight ?? representativeSurfRangeLabel(snapshot?.current ?? null),
-            );
-            if (surfRepFt != null) return surfRepFt;
-            if (gridIntensity != null && Number.isFinite(gridIntensity as number)) {
-              return gridIntensity as number;
-            }
-            active.nextStatsFallbackIds.add(id);
-            return 0;
-          })();
+          const ctx = statsContextRef.current;
+          const snapshot =
+            ctx.getStatsSnapshot(
+              String(beach.id),
+              ctx.statsDateKey,
+              ctx.statsHourKey,
+            ) ?? null;
+          const dailyStats = extractDailySurfWindStats(snapshot);
+          const surfRepFt = parseSurfRepresentativeFt(
+            dailyStats.surfHeight ?? representativeSurfRangeLabel(snapshot?.current ?? null),
+          );
 
           const favorite = favoriteSet.has(id);
           const existing = registry[id];
           if (existing) {
+            const iconIntensity =
+              surfRepFt != null ? surfRepFt : existing.intensity;
+            if (surfRepFt == null) {
+              active.nextStatsFallbackIds.add(id);
+            }
             let changed = false;
             if (existing.intensity !== iconIntensity) {
               existing.intensity = iconIntensity;
@@ -5144,6 +5138,10 @@ const LeafletMap: React.FC<Props> = ({
               markersToAdd.push(existing.marker);
             }
           } else {
+            const iconIntensity = surfRepFt != null ? surfRepFt : 0;
+            if (surfRepFt == null) {
+              active.nextStatsFallbackIds.add(id);
+            }
             const marker = L.marker(
               [Number(beach.latitude), Number(beach.longitude)],
               {
@@ -5342,6 +5340,18 @@ const LeafletMap: React.FC<Props> = ({
 
   React.useEffect(() => {
     if (!mapReady) return;
+    requestMarkerRebuild();
+    schedulePrefetchVisibleMarkerStats();
+  }, [
+    mapReady,
+    statsDateKey,
+    statsHourKey,
+    requestMarkerRebuild,
+    schedulePrefetchVisibleMarkerStats,
+  ]);
+
+  React.useEffect(() => {
+    if (!mapReady) return;
     const hoveredId = appliedHoverIdRef.current;
     if (!hoveredId) return;
     const entry = markerRegistryRef.current[hoveredId];
@@ -5367,10 +5377,6 @@ const LeafletMap: React.FC<Props> = ({
     fallbackIds.forEach((id) => {
       const entry = markerRegistryRef.current[id];
       if (!entry) return;
-      const gridIntensity = resolveSurfIntensity(
-        ctx.surfIntensity,
-        entry.beach,
-      );
       const snapshot =
         ctx.getStatsSnapshot(
           String(entry.beach.id),
@@ -5381,12 +5387,7 @@ const LeafletMap: React.FC<Props> = ({
       const surfRepFt = parseSurfRepresentativeFt(
         dailyStats.surfHeight ?? representativeSurfRangeLabel(snapshot?.current ?? null),
       );
-      const iconIntensity =
-        surfRepFt != null
-          ? surfRepFt
-          : gridIntensity != null
-            ? (gridIntensity as number)
-            : 0;
+      const iconIntensity = surfRepFt != null ? surfRepFt : entry.intensity;
       if (entry.intensity === iconIntensity) {
         if (hoveredId === id) {
           ensureMarkerPopup(entry);

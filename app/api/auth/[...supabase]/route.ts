@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { createServerClient } from "@supabase/ssr";
+import { publicEnv } from "@/lib/env/public";
 
 export const dynamic = "force-dynamic";
 
@@ -15,9 +16,22 @@ export async function GET(request: Request) {
 
   if (code) {
     const cookieStore = await cookies();
-    const supabase = createRouteHandlerClient({
-      cookies: (() => cookieStore) as any,
-    });
+    const supabase = createServerClient(
+      publicEnv.NEXT_PUBLIC_SUPABASE_URL,
+      publicEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, options);
+            });
+          },
+        },
+      },
+    );
     try {
       const { error } = await supabase.auth.exchangeCodeForSession(code);
       if (error) {
@@ -39,9 +53,22 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const cookieStore = await cookies();
-  const supabase = createRouteHandlerClient({
-    cookies: (() => cookieStore) as any,
-  });
+  const supabase = createServerClient(
+    publicEnv.NEXT_PUBLIC_SUPABASE_URL,
+    publicEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            cookieStore.set(name, value, options);
+          });
+        },
+      },
+    },
+  );
   const formData = await request.formData();
   const event = formData.get("event");
 

@@ -3,7 +3,7 @@
 import React, { useMemo, useState } from "react";
 import { createPortal, flushSync } from "react-dom";
 import Link from "next/link";
-import { useSessionContext } from "@supabase/auth-helpers-react";
+import { useSessionContext } from "@/lib/supabaseAuth";
 import {
   DndContext,
   DragOverlay,

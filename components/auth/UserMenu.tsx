@@ -6,7 +6,7 @@ import {
   useSessionContext,
   useSupabaseClient,
   useUser,
-} from "@supabase/auth-helpers-react";
+} from "@/lib/supabaseAuth";
 import { LogIn, LogOut, User, UserCircle2, Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import React from "react";

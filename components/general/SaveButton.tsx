@@ -5,7 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   useSessionContext,
   useSupabaseClient,
-} from "@supabase/auth-helpers-react";
+} from "@/lib/supabaseAuth";
 import { Heart } from "lucide-react";
 
 import { cn } from "@/lib/utils";

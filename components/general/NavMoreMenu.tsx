@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import ThemeToggle from "./ThemeToggle";
 import { cn } from "@/lib/utils";
-import { useUser } from "@supabase/auth-helpers-react";
+import { useUser } from "@/lib/supabaseAuth";
 import {
   AppMenu,
   AppMenuContent,

@@ -13,7 +13,11 @@ import {
   NavigationControl,
 } from "react-map-gl/maplibre";
 import type { MapGeoJSONFeature, MapRef } from "react-map-gl/maplibre";
-import type { MapLayerMouseEvent, MapMouseEvent } from "maplibre-gl";
+import type {
+  LayerSpecification,
+  MapLayerMouseEvent,
+  MapMouseEvent,
+} from "maplibre-gl";
 import type { FeatureCollection, Geometry, Position } from "geojson";
 import "maplibre-gl/dist/maplibre-gl.css";
 import {
@@ -158,13 +162,6 @@ type GeoJsonSourceLike = {
     clusterId: number,
     callback: (error: Error | null, zoom: number) => void
   ) => void;
-};
-
-type MapStyleLayer = {
-  id?: string;
-  source?: string;
-  type?: string;
-  layout?: { visibility?: string };
 };
 
 type IdleCallbackWindow = Window & {
@@ -342,10 +339,11 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
     []
   );
   const shouldTrackDetailLayer = React.useCallback(
-    (layer: MapStyleLayer) => {
+    (layer: LayerSpecification) => {
       if (!layer || typeof layer.id !== "string") return false;
       if (overlayLayerIds.has(layer.id)) return false;
-      if (layer.source === "beaches") return false;
+      const source = "source" in layer ? layer.source : undefined;
+      if (source === "beaches") return false;
       const layerId = layer.id.toLowerCase();
       if (
         DETAIL_LAYER_ALWAYS_VISIBLE.some((keyword) => layerId.includes(keyword))
@@ -367,7 +365,7 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
         const layers = style?.layers;
         if (!Array.isArray(layers)) return;
         const next = new globalThis.Map<string, string>();
-        layers.forEach((layer: MapStyleLayer) => {
+        layers.forEach((layer: LayerSpecification) => {
           if (!shouldTrackDetailLayer(layer)) return;
           const layerId = layer.id;
           if (typeof layerId !== "string") return;

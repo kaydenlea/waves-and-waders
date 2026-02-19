@@ -67,7 +67,7 @@ import { useStableOverlay } from "../hooks/useStableOverlay";
 import {
   useSessionContext,
   useSupabaseClient,
-} from "@supabase/auth-helpers-react";
+} from "@/lib/supabaseAuth";
 
 // ------------------------------------------------------
 

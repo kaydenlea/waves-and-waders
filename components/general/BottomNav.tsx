@@ -22,7 +22,7 @@ import {
 import BackToMapButton from "./BackToMapButton";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useUser, useSupabaseClient } from "@supabase/auth-helpers-react";
+import { useUser, useSupabaseClient } from "@/lib/supabaseAuth";
 import { useOptionalSearchContext } from "../context/SearchContext";
 import { usePathname } from "next/navigation";
 import { useDateContext } from "../context/DateContext";

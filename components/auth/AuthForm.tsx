@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useSupabaseClient } from "@supabase/auth-helpers-react";
+import { useSupabaseClient } from "@/lib/supabaseAuth";
 import type { Provider } from "@supabase/supabase-js";
 import {
   AlertTriangle,
