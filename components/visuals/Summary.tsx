@@ -1873,10 +1873,10 @@ const Summary = ({
                   return (
                     <li
                       key={`${idx}-${line}`}
-                      className="flex items-center gap-2"
+                      className="flex items-start gap-2"
                     >
                       <span
-                        className="shrink-0 grid place-items-center size-6 rounded-full bg-foreground/5 text-foreground/70"
+                        className="-mt-0.5 shrink-0 grid place-items-center size-6 rounded-full bg-foreground/5 text-foreground/70"
                         aria-hidden="true"
                       >
                         <Icon className="h-3.5 w-3.5" />
@@ -1891,8 +1891,8 @@ const Summary = ({
             ) : (
               <ul className="space-y-1" aria-hidden="true">
                 {Array.from({ length: 3 }).map((_, idx) => (
-                  <li key={idx} className="flex items-center gap-2">
-                    <span className="shrink-0 grid place-items-center size-6 rounded-full bg-foreground/5" />
+                  <li key={idx} className="flex items-start gap-2">
+                    <span className="-mt-0.5 shrink-0 grid place-items-center size-6 rounded-full bg-foreground/5" />
                     <span className="h-5 w-2/5 rounded-md bg-foreground/8 animate-pulse motion-reduce:animate-none" />
                   </li>
                 ))}
