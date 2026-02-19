@@ -747,6 +747,8 @@ const Summary = ({
   const isOverviewVariant = variant === "overview";
   type CommittedSummary = {
     key: string;
+    dayStartMs: number;
+    dayEndMs: number;
     stats: SummaryStat[];
     tags: FeatureTag[];
     forecast: ForecastData[];
@@ -1250,6 +1252,8 @@ const Summary = ({
     if (nextStats.length > 0 && pendingKey) {
       const nextCommitted: CommittedSummary = {
         key: pendingKey,
+        dayStartMs: timeWindow.dayStart.getTime(),
+        dayEndMs: timeWindow.dayEnd.getTime(),
         stats: nextStats,
         tags: featureTags,
         forecast,
@@ -1299,8 +1303,8 @@ const Summary = ({
   );
 
   const energyDay = useMemo(() => {
-    const startMs = timeWindow.dayStart.getTime();
-    const endMs = timeWindow.dayEnd.getTime();
+    const startMs = committedValue?.dayStartMs ?? timeWindow.dayStart.getTime();
+    const endMs = committedValue?.dayEndMs ?? timeWindow.dayEnd.getTime();
     const values = renderForecast
       .map((row) => {
         const energy = row?.surf?.waveEnergy;
@@ -1336,7 +1340,13 @@ const Summary = ({
       max: maxRounded,
       intensity,
     };
-  }, [renderForecast, timeWindow.dayEnd.getTime(), timeWindow.dayStart.getTime()]);
+  }, [
+    committedValue?.dayEndMs,
+    committedValue?.dayStartMs,
+    renderForecast,
+    timeWindow.dayEnd.getTime(),
+    timeWindow.dayStart.getTime(),
+  ]);
 
   const computedOverviewText = useMemo(() => {
     if (!overviewStatsReady) return null;
