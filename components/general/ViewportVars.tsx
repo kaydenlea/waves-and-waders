@@ -144,14 +144,16 @@ export default function ViewportVars() {
       // "small viewport" can get stuck after the on-screen keyboard has been shown.
       // Track a stable viewport height in px that ignores keyboard-induced resizes.
       if (!keyboardReducedEffective) {
-        stableViewportHeightPx =
-          stableViewportHeightPx == null
-            ? heightPx
-            : Math.min(stableViewportHeightPx, heightPx);
-        root.style.setProperty(
-          "--ww-stable-100vh",
-          `${stableViewportHeightPx}px`,
-        );
+        // Treat this value as stable: set once per "session" (and reset on major
+        // viewport changes / keyboard transitions). Continuously updating it during
+        // browser-chrome animations can cause sticky UI to jitter.
+        if (stableViewportHeightPx == null) {
+          stableViewportHeightPx = heightPx;
+          root.style.setProperty(
+            "--ww-stable-100vh",
+            `${stableViewportHeightPx}px`,
+          );
+        }
       }
 
       // When the browser UI (URL bar / bottom controls) hides/shows, visualViewport.height changes.
@@ -185,10 +187,6 @@ export default function ViewportVars() {
     window.visualViewport?.addEventListener("resize", schedule, {
       passive: true,
     });
-    // iOS Safari can change visualViewport.height during scroll as the URL bar hides/shows.
-    window.visualViewport?.addEventListener("scroll", schedule, {
-      passive: true,
-    });
     window.addEventListener("focusin", schedule, { passive: true });
     window.addEventListener("focusout", schedule, { passive: true });
 
@@ -196,7 +194,6 @@ export default function ViewportVars() {
       window.removeEventListener("resize", schedule);
       window.removeEventListener("orientationchange", schedule);
       window.visualViewport?.removeEventListener("resize", schedule);
-      window.visualViewport?.removeEventListener("scroll", schedule);
       window.removeEventListener("focusin", schedule);
       window.removeEventListener("focusout", schedule);
       if (rafId != null) window.cancelAnimationFrame(rafId);
