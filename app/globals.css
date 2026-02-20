@@ -627,6 +627,20 @@ html[data-ww-keyboard-open="1"] {
   }
 }
 
+/* -----------------------------------------------------------------------------
+   Sticky jitter workaround (touch devices)
+   iOS Safari can jitter/bounce `position: sticky` elements that are forced into
+   their own compositor layers (e.g. `transform-gpu` / `will-change: transform`).
+   Keep desktop perf hints, but neutralize them on touch devices for stability.
+----------------------------------------------------------------------------- */
+@media (hover: none) and (pointer: coarse) {
+  [data-ww-stat-table-sticky="pager"],
+  [data-ww-stat-table-sticky="header"] .will-change-transform {
+    will-change: auto !important;
+    transform: none !important;
+  }
+}
+
 /* On touch devices, some browsers intermittently fail to repaint elements with
    `backdrop-filter` during active scroll, causing content to appear to disappear.
    Disable blur only while scrolling to keep the UI stable without changing the
