@@ -616,9 +616,15 @@ html[data-ww-keyboard-open="1"] {
    Disable blur only while scrolling to keep the UI stable without changing the
    resting appearance. */
 @media (hover: none) and (pointer: coarse) {
-  body[data-ww-scrolling="1"] #content [class*="backdrop-blur"] {
+  body[data-ww-scrolling="1"] [class*="backdrop-blur"] {
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
+  }
+  /* Heavy `filter: blur(...)` layers can also flicker/blank during scroll on some
+     mobile browsers (notably iOS Safari). Disabling them only while scrolling
+     keeps content stable while preserving the resting look. */
+  body[data-ww-scrolling="1"] [class*="blur-"] {
+    filter: none !important;
   }
 }
 

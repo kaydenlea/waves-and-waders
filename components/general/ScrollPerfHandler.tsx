@@ -36,8 +36,16 @@ export default function ScrollPerfHandler() {
       });
     };
 
+    // Listen in capture phase so scroll events from nested scroll containers
+    // (which do not bubble) still mark the app as "scrolling". This helps us
+    // temporarily disable expensive blur effects during scroll on touch devices.
+    document.addEventListener("scroll", onScroll, {
+      passive: true,
+      capture: true,
+    });
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => {
+      document.removeEventListener("scroll", onScroll, true);
       window.removeEventListener("scroll", onScroll);
       if (timerRef.current !== null) {
         window.clearTimeout(timerRef.current);
