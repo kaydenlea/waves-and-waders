@@ -999,7 +999,7 @@ const DateSummaryBridge: React.FC<Props> = ({
     return () => setOverviewPageBusy(false);
   }, [setOverviewPageBusy]);
 
-  const { windStats, surfStats, swellStats, energyStats } =
+  const { windStats, surfStats, surfIntensityFt, swellStats, energyStats } =
     React.useMemo(() => {
       const makeEmptyRange = () => ({ min: null, max: null });
       const toRange = (
@@ -1029,6 +1029,7 @@ const DateSummaryBridge: React.FC<Props> = ({
         return {
           windStats: makeEmptyRange(),
           surfStats: makeEmptyRange(),
+          surfIntensityFt: null,
           swellStats: makeEmptyRange(),
           energyStats: makeEmptyRange(),
         };
@@ -1140,13 +1141,16 @@ const DateSummaryBridge: React.FC<Props> = ({
           : null;
 
       let surfStats: RangeStats = makeEmptyRange();
+      let surfIntensityFt: number | null = null;
       if (selectedBucketAverage != null) {
         surfStats = toBandRange(selectedBucketAverage);
+        surfIntensityFt = selectedBucketAverage;
       } else if (surfEstimateValues.length > 0) {
         const fallbackAverage =
           surfEstimateValues.reduce((sum, value) => sum + value, 0) /
           surfEstimateValues.length;
         surfStats = toBandRange(fallbackAverage);
+        surfIntensityFt = fallbackAverage;
       } else if (surfMinValues.length > 0 || surfMaxValues.length > 0) {
         const fallbackMin =
           surfMinValues.length > 0
@@ -1156,12 +1160,15 @@ const DateSummaryBridge: React.FC<Props> = ({
           surfMaxValues.length > 0
             ? Math.max(...surfMaxValues)
             : Math.max(...surfMinValues);
-        surfStats = toBandRange((fallbackMin + fallbackMax) / 2);
+        const fallbackMid = (fallbackMin + fallbackMax) / 2;
+        surfStats = toBandRange(fallbackMid);
+        surfIntensityFt = fallbackMid;
       }
 
       return {
         windStats: toRange(windValues, 0),
         surfStats,
+        surfIntensityFt,
         swellStats: toRange(swellValues, 1),
         energyStats: toRange(energyValues, 0),
       };
@@ -1462,10 +1469,10 @@ const DateSummaryBridge: React.FC<Props> = ({
     >
       <TideDataProvider value={tideWindow}>
         <>
-          {/* Summary header */}
-          <section className="mb-10">
-            <header className="px-3 mb-4 mt-1 flex items-center gap-2">
-              <SurfIntensityMarker />
+           {/* Summary header */}
+           <section className="mb-10">
+             <header className="px-3 mb-4 mt-1 flex items-center gap-2">
+              <SurfIntensityMarker intensityFt={surfIntensityFt} />
               <h2 className="font-medium text-muted-foreground leading-none truncate">
                 {selected
                   ? selected.toLocaleDateString("en-US", {
