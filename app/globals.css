@@ -611,6 +611,22 @@ html[data-ww-keyboard-open="1"] {
   backdrop-filter: none !important;
 }
 
+/* -----------------------------------------------------------------------------
+   Login scroll repaint workaround (touch devices)
+   Some mobile browsers intermittently fail to repaint composited layers during
+   scroll (seen as brief "disappear/reappear" of shadows/text). Avoid forcing GPU
+   layers on the login hero background and auth card on touch devices.
+----------------------------------------------------------------------------- */
+@media (hover: none) and (pointer: coarse) {
+  main[data-ww-page="login"] .ww-login-bg,
+  main[data-ww-page="login"] .ww-login-card {
+    will-change: auto !important;
+    transform: none !important;
+    -webkit-backface-visibility: visible !important;
+    backface-visibility: visible !important;
+  }
+}
+
 /* On touch devices, some browsers intermittently fail to repaint elements with
    `backdrop-filter` during active scroll, causing content to appear to disappear.
    Disable blur only while scrolling to keep the UI stable without changing the

@@ -47,7 +47,7 @@ export default async function LoginPage() {
     >
       <div
         aria-hidden
-        className="pointer-events-none fixed inset-0 z-0 transform-gpu will-change-transform"
+        className="ww-login-bg pointer-events-none fixed inset-0 z-0"
       >
         <div className="absolute inset-0 bg-gradient-to-b from-background via-background-2 to-background" />
         <div className="absolute inset-0 lg:hidden bg-gradient-to-br from-sky-600/20 via-cyan-500/14 to-indigo-600/18 dark:from-sky-500/40 dark:via-cyan-500/30 dark:to-indigo-500/40" />
@@ -90,7 +90,7 @@ export default async function LoginPage() {
               className="inline-flex items-center gap-3 rounded-2xl px-2 py-2 text-white/95 transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
             >
               <span className="ww-disable-backdrop">
-                <span className="relative grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/15 shadow-sm ring-1 ring-white/20 supports-[backdrop-filter]:bg-white/10 supports-[backdrop-filter]:backdrop-blur-md [backface-visibility:hidden] [transform:translateZ(0)]">
+                <span className="relative grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/15 shadow-sm ring-1 ring-white/20 supports-[backdrop-filter]:bg-white/10 supports-[backdrop-filter]:backdrop-blur-md">
                   <Image
                     src="/logo.png"
                     alt="Waves and Waders logo"
@@ -123,7 +123,7 @@ export default async function LoginPage() {
             className="pointer-events-none absolute inset-0 hidden lg:block bg-gradient-to-b from-background/20 via-background to-background"
           />
           <AuthForm
-            className="transform-gpu will-change-transform [backface-visibility:hidden] flex-none w-full max-w-none mx-0 rounded-[2.75rem] border border-white/12 bg-background/95 shadow-[0_-22px_80px_rgba(2,6,23,0.22)] supports-[backdrop-filter]:bg-background/85 supports-[backdrop-filter]:backdrop-blur-md sm:mx-auto sm:max-w-xl dark:border-white/10 dark:bg-background/70 lg:flex-none lg:h-auto lg:max-w-md lg:mx-0 lg:rounded-[2rem] lg:border lg:border-border/60 lg:bg-background/90 lg:shadow-[0_24px_70px_rgba(2,6,23,0.12)] lg:supports-[backdrop-filter]:bg-background/70 lg:supports-[backdrop-filter]:backdrop-blur-xl lg:dark:bg-background/40 lg:dark:border-border/60 lg:dark:shadow-[0_24px_70px_rgba(0,0,0,0.35)]"
+            className="ww-login-card flex-none w-full max-w-none mx-0 rounded-[2.75rem] border border-white/12 bg-background/95 shadow-[0_-22px_80px_rgba(2,6,23,0.22)] supports-[backdrop-filter]:bg-background/85 supports-[backdrop-filter]:backdrop-blur-md sm:mx-auto sm:max-w-xl dark:border-white/10 dark:bg-background/70 lg:flex-none lg:h-auto lg:max-w-md lg:mx-0 lg:rounded-[2rem] lg:border lg:border-border/60 lg:bg-background/90 lg:shadow-[0_24px_70px_rgba(2,6,23,0.12)] lg:supports-[backdrop-filter]:bg-background/70 lg:supports-[backdrop-filter]:backdrop-blur-xl lg:dark:bg-background/40 lg:dark:border-border/60 lg:dark:shadow-[0_24px_70px_rgba(0,0,0,0.35)]"
             footer={
               <p className="text-center text-xs text-muted-foreground">
                 By continuing, you agree to our{" "}
