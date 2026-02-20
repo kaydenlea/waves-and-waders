@@ -241,6 +241,19 @@ export function useMapFiltersData(): Pick<
   return ctx;
 }
 
+export function useMapSurfIntensityData(): Pick<
+  MapDataContextValue,
+  "surfIntensityForDate" | "setSurfIntensityForDate"
+> {
+  const ctx = React.useContext(MapSurfIntensityContext);
+  if (!ctx) {
+    throw new Error(
+      "useMapSurfIntensityData must be used within MapFilterProvider",
+    );
+  }
+  return ctx;
+}
+
 export function useMapFavoriteIdsData(): Pick<
   MapDataContextValue,
   "favoriteIds" | "setFavoriteIds"

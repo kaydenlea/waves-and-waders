@@ -15,6 +15,7 @@ import { useOptionalDashboardEditMode } from "@/components/context/DashboardEdit
 import { OverviewPageBusyProvider } from "@/components/context/OverviewPageBusyContext";
 import { OverviewChartsLoadingProvider } from "@/components/context/OverviewChartsLoadingContext";
 import type { BeachPoint } from "@/components/context/MapFilterContext";
+import { useMapSurfIntensityData } from "@/components/context/MapFilterContext";
 import type {
   Row,
   WidgetId,
@@ -112,8 +113,15 @@ export default function OverviewPageClient({
   const isEditing = dashboardEdit?.isEditing ?? false;
   const pendingScrollToId = dashboardEdit?.pendingScrollToId ?? null;
   const clearPendingScrollTo = dashboardEdit?.clearPendingScrollTo ?? noop;
+  const { setSurfIntensityForDate } = useMapSurfIntensityData();
 
   const [beachesHref, setBeachesHref] = React.useState("/beaches");
+
+  // Prevent the header intensity marker from flashing a stale color while
+  // the new beach/day summaries load after navigation.
+  React.useLayoutEffect(() => {
+    setSurfIntensityForDate(null);
+  }, [beachId, setSurfIntensityForDate]);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;

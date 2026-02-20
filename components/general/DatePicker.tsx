@@ -30,14 +30,13 @@ import {
 import MixedCloudSunIcon from "@/components/icons/MixedCloudSunIcon";
 import { fetchBeachForecast, type ForecastData } from "@/lib/supabase";
 import { fetchSurfIntensityAPI } from "@/lib/api";
-import { useSurfIntensity } from "@/lib/hooks/useSurfIntensity";
 import { usePacificTodayMs } from "@/lib/hooks/usePacificTodayMs";
 import {
   getSurfIntensityBand,
   getSurfIntensityColorCss,
 } from "@/lib/forecast/surfIntensity";
 import { useDateContext } from "../context/DateContext";
-import { useMapData } from "../context/MapFilterContext";
+import { useMapSurfIntensityData } from "../context/MapFilterContext";
 import { useClientPath } from "../context/PathContext";
 
 type DatePickerProps = {
@@ -184,7 +183,7 @@ DatePickerProps) => {
   const dateSelectionFrameRef = useRef<number | null>(null);
 
   const { hour, setSelectedDays, setSurfRange } = useDateContext();
-  const { setSurfIntensityForDate } = useMapData();
+  const { setSurfIntensityForDate } = useMapSurfIntensityData();
 
   const scrollBy = 3;
 
@@ -673,16 +672,6 @@ DatePickerProps) => {
     };
   }, [orderedKeys, beachId, surfIntensityByDate]);
 
-  const selectedDateForIntensity = useMemo(() => {
-    if (selectedDate) return selectedDate.toDate();
-    return value instanceof Date ? value : null;
-  }, [selectedDate, value]);
-
-  const { data: selectedIntensityRecord } = useSurfIntensity(
-    selectedDateForIntensity,
-    Boolean(beachId && selectedDateForIntensity),
-  );
-
   useEffect(() => {
     // Batch context updates to the next frame so the 4-day range changes feel instantaneous.
     if (dateSelectionFrameRef.current != null) {
@@ -729,25 +718,15 @@ DatePickerProps) => {
         const max = summary?.max ?? null;
         const minWithFallback =
           summary?.min ?? (max != null && max <= 1 ? 0 : null);
-        let intensity: number | null = null;
         const summaryRepresentative =
           minWithFallback != null && max != null
             ? (minWithFallback + max) / 2
             : null;
-        const mapValue = surfIntensityByDate[targetKey];
-        if (
+        const intensity =
           typeof summaryRepresentative === "number" &&
           Number.isFinite(summaryRepresentative)
-        ) {
-          intensity = summaryRepresentative;
-        } else if (typeof mapValue === "number" && Number.isFinite(mapValue)) {
-          intensity = mapValue;
-        } else if (selectedIntensityRecord && beachId) {
-          const fallback = selectedIntensityRecord[beachId];
-          if (typeof fallback === "number" && Number.isFinite(fallback)) {
-            intensity = fallback;
-          }
-        }
+            ? summaryRepresentative
+            : null;
         startTransition(() => {
           const nextIntensity = intensity ?? null;
           setSurfIntensityForDate((prev) =>
@@ -788,9 +767,6 @@ DatePickerProps) => {
     value,
     selectedDate,
     summaries,
-    surfIntensityByDate,
-    selectedIntensityRecord,
-    beachId,
     orderedKeys,
     rangeStartIdx,
     rangeEndIdx,
