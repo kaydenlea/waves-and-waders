@@ -3826,21 +3826,25 @@ const LeafletMap: React.FC<Props> = ({
     const bounds = map.getBounds();
     if (!bounds) return;
     const ctx = statsContextRef.current;
+    const shouldUseSurfIntensity =
+      ctx.effectiveStatsDate instanceof Date &&
+      !Number.isNaN(ctx.effectiveStatsDate.getTime()) &&
+      (typeof ctx.selectedHour !== "number" || !Number.isFinite(ctx.selectedHour));
+    if (shouldUseSurfIntensity) {
+      // Marker/cluster colors come from the bulk `/api/surf-intensity` dataset in
+      // this mode; avoid background beach-stats prefetch to keep updates snappy.
+      return;
+    }
     const pending: Array<string | number> = [];
     // Keep background stats prefetch bounded to avoid overloading the API on large viewports.
-    const MAX_PREFETCH = 200;
+    // ViewportBeachesManager caps to 1500 beaches; match that so colors don't
+    // require a zoom gesture to populate.
+    const MAX_PREFETCH = 1500;
     for (const entry of Object.values(markerRegistryRef.current)) {
       if (pending.length >= MAX_PREFETCH) break;
       if (!entry?.marker) continue;
       const latLng = entry.marker.getLatLng?.();
       if (!latLng || !bounds.contains(latLng)) {
-        continue;
-      }
-      const parent =
-        typeof group.getVisibleParent === "function"
-          ? group.getVisibleParent(entry.marker)
-          : null;
-      if (parent && parent !== entry.marker) {
         continue;
       }
       const beachId = entry.beach?.id;
@@ -3899,6 +3903,14 @@ const LeafletMap: React.FC<Props> = ({
       cancelPrefetchVisibleMarkerStats();
     };
   }, [cancelPrefetchVisibleMarkerStats]);
+
+  React.useEffect(() => {
+    if (!mapReady) return;
+    if (markersLoading) return;
+    // Ensure we prefetch after a marker rebuild finishes; otherwise only the first
+    // chunk of markers may get stats until the user interacts (zoom/pan).
+    schedulePrefetchVisibleMarkerStats();
+  }, [mapReady, markersLoading, schedulePrefetchVisibleMarkerStats]);
 
   const hoverOpsRef = React.useRef({
     refreshMarkerIcon,
@@ -5092,23 +5104,44 @@ const LeafletMap: React.FC<Props> = ({
 
           const id = String(beach.id);
           const ctx = statsContextRef.current;
+          const shouldUseSurfIntensity =
+            typeof ctx.selectedHour !== "number" ||
+            !Number.isFinite(ctx.selectedHour);
+          const apiIntensityRaw = ctx.surfIntensity?.[id];
+          const apiIntensity =
+            shouldUseSurfIntensity &&
+            typeof apiIntensityRaw === "number" &&
+            Number.isFinite(apiIntensityRaw)
+              ? apiIntensityRaw
+              : null;
           const snapshot =
-            ctx.getStatsSnapshot(
-              String(beach.id),
-              ctx.statsDateKey,
-              ctx.statsHourKey,
-            ) ?? null;
-          const dailyStats = extractDailySurfWindStats(snapshot);
-          const surfRepFt = parseSurfRepresentativeFt(
-            dailyStats.surfHeight ?? representativeSurfRangeLabel(snapshot?.current ?? null),
-          );
+            apiIntensity == null
+              ? (ctx.getStatsSnapshot(
+                  String(beach.id),
+                  ctx.statsDateKey,
+                  ctx.statsHourKey,
+                ) ?? null)
+              : null;
+          const dailyStats =
+            snapshot != null ? extractDailySurfWindStats(snapshot) : null;
+          const surfRepFt =
+            dailyStats != null
+              ? parseSurfRepresentativeFt(
+                  dailyStats.surfHeight ??
+                    representativeSurfRangeLabel(snapshot?.current ?? null),
+                )
+              : null;
 
           const favorite = favoriteSet.has(id);
           const existing = registry[id];
           if (existing) {
             const iconIntensity =
-              surfRepFt != null ? surfRepFt : existing.intensity;
-            if (surfRepFt == null) {
+              apiIntensity != null
+                ? apiIntensity
+                : surfRepFt != null
+                  ? surfRepFt
+                  : existing.intensity;
+            if (apiIntensity == null && surfRepFt == null) {
               active.nextStatsFallbackIds.add(id);
             }
             let changed = false;
@@ -5138,8 +5171,13 @@ const LeafletMap: React.FC<Props> = ({
               markersToAdd.push(existing.marker);
             }
           } else {
-            const iconIntensity = surfRepFt != null ? surfRepFt : 0;
-            if (surfRepFt == null) {
+            const iconIntensity =
+              apiIntensity != null
+                ? apiIntensity
+                : surfRepFt != null
+                  ? surfRepFt
+                  : 0;
+            if (apiIntensity == null && surfRepFt == null) {
               active.nextStatsFallbackIds.add(id);
             }
             const marker = L.marker(
@@ -5372,11 +5410,20 @@ const LeafletMap: React.FC<Props> = ({
     if (!fallbackIds.size) return;
     const group = clusterLayerRef.current;
     const ctx = statsContextRef.current;
+    const shouldUseSurfIntensity =
+      typeof ctx.selectedHour !== "number" || !Number.isFinite(ctx.selectedHour);
     const hoveredId = appliedHoverIdRef.current;
     let didUpdate = false;
     fallbackIds.forEach((id) => {
       const entry = markerRegistryRef.current[id];
       if (!entry) return;
+      const apiIntensityRaw = shouldUseSurfIntensity
+        ? ctx.surfIntensity?.[String(entry.beach.id)]
+        : null;
+      const apiIntensity =
+        typeof apiIntensityRaw === "number" && Number.isFinite(apiIntensityRaw)
+          ? apiIntensityRaw
+          : null;
       const snapshot =
         ctx.getStatsSnapshot(
           String(entry.beach.id),
@@ -5387,7 +5434,12 @@ const LeafletMap: React.FC<Props> = ({
       const surfRepFt = parseSurfRepresentativeFt(
         dailyStats.surfHeight ?? representativeSurfRangeLabel(snapshot?.current ?? null),
       );
-      const iconIntensity = surfRepFt != null ? surfRepFt : entry.intensity;
+      const iconIntensity =
+        apiIntensity != null
+          ? apiIntensity
+          : surfRepFt != null
+            ? surfRepFt
+            : entry.intensity;
       if (entry.intensity === iconIntensity) {
         if (hoveredId === id) {
           ensureMarkerPopup(entry);
