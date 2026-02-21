@@ -34,6 +34,31 @@ type BeachGridRow = {
   grid_id: number | null;
 };
 
+function isNullableNumber(value: unknown): value is number | null {
+  return value === null || (typeof value === "number" && Number.isFinite(value));
+}
+
+function isRepresentativeForecastRow(
+  value: unknown,
+): value is RepresentativeForecastRow {
+  if (!value || typeof value !== "object") return false;
+  const row = value as Record<string, unknown>;
+  return (
+    typeof row.grid_id === "number" &&
+    Number.isFinite(row.grid_id) &&
+    typeof row.timestamp === "string" &&
+    isNullableNumber(row.primary_swell_height_ft) &&
+    isNullableNumber(row.primary_swell_period_s) &&
+    isNullableNumber(row.secondary_swell_height_ft) &&
+    isNullableNumber(row.secondary_swell_period_s) &&
+    isNullableNumber(row.tertiary_swell_height_ft) &&
+    isNullableNumber(row.tertiary_swell_period_s) &&
+    isNullableNumber(row.wind_speed_mph) &&
+    isNullableNumber(row.surf_height_min_ft) &&
+    isNullableNumber(row.surf_height_max_ft)
+  );
+}
+
 const debug = (...args: unknown[]) => {
   if (process.env.NODE_ENV !== "production") {
     console.log(...args);
@@ -280,7 +305,8 @@ async function fetchRepresentativeForecastRows(startIso: string, endIso: string)
     return [];
   }
 
-  return data as RepresentativeForecastRow[];
+  const rows = Array.isArray(data) ? (data as unknown[]) : [];
+  return rows.filter(isRepresentativeForecastRow);
 }
 
 function aggregateForecastRows(rows: GridForecastRow[]): GridIntensityRow[] {
