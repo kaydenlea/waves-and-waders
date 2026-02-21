@@ -267,7 +267,7 @@ async function fetchGridForecastRows(startIso: string, endIso: string) {
 
 async function fetchRepresentativeForecastRows(startIso: string, endIso: string) {
   const PAGE_SIZE = 5000;
-  const baseColumns = [
+  const columns = [
     "grid_id",
     "timestamp",
     "primary_swell_height_ft",
@@ -277,30 +277,14 @@ async function fetchRepresentativeForecastRows(startIso: string, endIso: string)
     "tertiary_swell_height_ft",
     "tertiary_swell_period_s",
     "wind_speed_mph",
-    "surf_height_min_ft",
-    "surf_height_max_ft",
-  ];
-  const columnsWithKph = [
-    "grid_id",
-    "timestamp",
-    "primary_swell_height_ft",
-    "primary_swell_period_s",
-    "secondary_swell_height_ft",
-    "secondary_swell_period_s",
-    "tertiary_swell_height_ft",
-    "tertiary_swell_period_s",
-    "wind_speed_mph",
-    "wind_speed_kph",
     "surf_height_min_ft",
     "surf_height_max_ft",
   ];
 
   const result: RepresentativeForecastRow[] = [];
   let offset = 0;
-  let includeWindKph = true;
 
   while (true) {
-    const columns = includeWindKph ? columnsWithKph : baseColumns;
     const { data, error } = await supabase
       .from("grid_forecast_data")
       .select(columns.join(", "))
@@ -311,16 +295,13 @@ async function fetchRepresentativeForecastRows(startIso: string, endIso: string)
       .range(offset, offset + PAGE_SIZE - 1);
 
     if (error) {
-      const message = String((error as { message?: unknown })?.message ?? error);
-      if (includeWindKph && /wind_speed_kph/i.test(message)) {
-        includeWindKph = false;
-        continue;
-      }
       console.error("Failed to fetch representative grid forecast rows:", error);
       break;
     }
 
-    const page = Array.isArray(data) ? (data as RepresentativeForecastRow[]) : [];
+    const page = Array.isArray(data)
+      ? (data as unknown as RepresentativeForecastRow[])
+      : [];
     if (page.length === 0) break;
     result.push(...page);
     if (page.length < PAGE_SIZE) break;
