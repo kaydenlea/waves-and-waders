@@ -63,7 +63,6 @@ export default async function LoginPage() {
         <div className="absolute -bottom-72 -right-52 h-[820px] w-[820px] rounded-full bg-sky-500/12 blur-3xl" />
         <div className="absolute inset-0 bg-[radial-gradient(900px_circle_at_50%_0%,rgba(34,211,238,0.16),transparent_70%)]" />
         <div className="absolute inset-0 bg-[radial-gradient(720px_circle_at_10%_20%,rgba(99,102,241,0.12),transparent_60%)]" />
-        <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-b from-transparent to-background" />
       </div>
 
       <div className="relative z-10 flex min-h-[var(--ww-100vh,100dvh)] flex-col lg:grid lg:grid-cols-2 lg:grid-rows-1">
