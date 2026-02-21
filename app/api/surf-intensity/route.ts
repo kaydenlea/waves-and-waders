@@ -25,6 +25,7 @@ type RepresentativeForecastRow = {
   tertiary_swell_height_ft: number | null;
   tertiary_swell_period_s: number | null;
   wind_speed_mph: number | null;
+  wind_speed_kph?: number | null;
   surf_height_min_ft: number | null;
   surf_height_max_ft: number | null;
 };
@@ -50,6 +51,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const dateParam = searchParams.get("date");
     const mode = searchParams.get("mode") ?? "daily";
+    const hourParam = searchParams.get("hour");
 
     if (!dateParam) {
       return NextResponse.json(
@@ -73,6 +75,13 @@ export async function GET(request: NextRequest) {
       // Anchor at noon UTC so Pacific date extraction stays on the intended day.
       const anchor = new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
       const { start: dayStart, end: dayEnd } = getPacificDayRange(anchor);
+      const targetHour = (() => {
+        if (typeof hourParam !== "string" || hourParam.trim() === "") return 12;
+        const parsed = Number(hourParam);
+        if (!Number.isFinite(parsed)) return 12;
+        const normalized = ((Math.round(parsed) % 24) + 24) % 24;
+        return normalized;
+      })();
 
       const forecastRows = await fetchRepresentativeForecastRows(
         dayStart.toISOString(),
@@ -82,7 +91,10 @@ export async function GET(request: NextRequest) {
         rows: forecastRows.length,
       });
 
-      const representativeRows = pickRepresentativeGridIntensity(forecastRows);
+      const representativeRows = pickRepresentativeGridIntensity(
+        forecastRows,
+        targetHour,
+      );
       debug("Surf intensity representative rows computed", {
         gridPoints: representativeRows.length,
       });
@@ -254,33 +266,70 @@ async function fetchGridForecastRows(startIso: string, endIso: string) {
 }
 
 async function fetchRepresentativeForecastRows(startIso: string, endIso: string) {
-  const { data, error } = await supabase
-    .from("grid_forecast_data")
-    .select(
-      [
-        "grid_id",
-        "timestamp",
-        "primary_swell_height_ft",
-        "primary_swell_period_s",
-        "secondary_swell_height_ft",
-        "secondary_swell_period_s",
-        "tertiary_swell_height_ft",
-        "tertiary_swell_period_s",
-        "wind_speed_mph",
-        "surf_height_min_ft",
-        "surf_height_max_ft",
-      ].join(", "),
-    )
-    .gte("timestamp", startIso)
-    .lt("timestamp", endIso)
-    .order("timestamp", { ascending: true });
+  const PAGE_SIZE = 5000;
+  const baseColumns = [
+    "grid_id",
+    "timestamp",
+    "primary_swell_height_ft",
+    "primary_swell_period_s",
+    "secondary_swell_height_ft",
+    "secondary_swell_period_s",
+    "tertiary_swell_height_ft",
+    "tertiary_swell_period_s",
+    "wind_speed_mph",
+    "surf_height_min_ft",
+    "surf_height_max_ft",
+  ];
+  const columnsWithKph = [
+    "grid_id",
+    "timestamp",
+    "primary_swell_height_ft",
+    "primary_swell_period_s",
+    "secondary_swell_height_ft",
+    "secondary_swell_period_s",
+    "tertiary_swell_height_ft",
+    "tertiary_swell_period_s",
+    "wind_speed_mph",
+    "wind_speed_kph",
+    "surf_height_min_ft",
+    "surf_height_max_ft",
+  ];
 
-  if (error) {
-    console.error("Failed to fetch representative grid forecast rows:", error);
-    return [];
+  const result: RepresentativeForecastRow[] = [];
+  let offset = 0;
+  let includeWindKph = true;
+
+  while (true) {
+    const columns = includeWindKph ? columnsWithKph : baseColumns;
+    const { data, error } = await supabase
+      .from("grid_forecast_data")
+      .select(columns.join(", "))
+      .gte("timestamp", startIso)
+      .lte("timestamp", endIso)
+      .order("timestamp", { ascending: true })
+      .order("grid_id", { ascending: true })
+      .range(offset, offset + PAGE_SIZE - 1);
+
+    if (error) {
+      const message = String((error as { message?: unknown })?.message ?? error);
+      if (includeWindKph && /wind_speed_kph/i.test(message)) {
+        includeWindKph = false;
+        continue;
+      }
+      console.error("Failed to fetch representative grid forecast rows:", error);
+      break;
+    }
+
+    const page = Array.isArray(data) ? (data as RepresentativeForecastRow[]) : [];
+    if (page.length === 0) break;
+    result.push(...page);
+    if (page.length < PAGE_SIZE) break;
+
+    offset += PAGE_SIZE;
+    if (offset > 300_000) break;
   }
 
-  return data as RepresentativeForecastRow[];
+  return result;
 }
 
 function aggregateForecastRows(rows: GridForecastRow[]): GridIntensityRow[] {
@@ -308,8 +357,8 @@ function aggregateForecastRows(rows: GridForecastRow[]): GridIntensityRow[] {
 
 function pickRepresentativeGridIntensity(
   rows: RepresentativeForecastRow[],
+  targetHour: number,
 ): GridIntensityRow[] {
-  const targetHour = 12;
   const pacificHourFormatter = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/Los_Angeles",
     hour: "2-digit",
@@ -336,7 +385,14 @@ function pickRepresentativeGridIntensity(
   const result: GridIntensityRow[] = [];
   for (const [grid_id, entry] of best.entries()) {
     const row = entry.row;
-    const intensity =
+    const windSpeedMph =
+      typeof row.wind_speed_mph === "number" && Number.isFinite(row.wind_speed_mph)
+        ? row.wind_speed_mph
+        : typeof row.wind_speed_kph === "number" &&
+            Number.isFinite(row.wind_speed_kph)
+          ? row.wind_speed_kph * 0.621371
+          : null;
+    const representative =
       computeRepresentativeSurfFt({
         timestamp: row.timestamp,
         swell: {
@@ -364,7 +420,7 @@ function pickRepresentativeGridIntensity(
         conditions: {
           waterTemp: null,
           tideLevel: null,
-          windSpeed: row.wind_speed_mph,
+          windSpeed: windSpeedMph,
           windGust: null,
           windDirection: null,
           airTemp: null,
@@ -372,6 +428,22 @@ function pickRepresentativeGridIntensity(
           weather: null,
         },
       }) ?? null;
+
+    // Match the exact value used by the client once stats are available:
+    // beach stats render an integer surf range label (low-high) and the map
+    // parses that back to a representative ft via midpoint. Doing the same
+    // here prevents visible band flips on zoom.
+    const intensity =
+      typeof representative === "number" &&
+      Number.isFinite(representative) &&
+      representative > 0
+        ? (() => {
+            const low = Math.max(0, Math.floor(representative));
+            const high = Math.max(low + 1, Math.ceil(representative));
+            return (low + high) / 2;
+          })()
+        : null;
+
     result.push({ grid_id, avg_surf_max_ft: intensity });
   }
   return result;

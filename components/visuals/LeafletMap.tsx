@@ -1102,9 +1102,15 @@ const useFilteredBeaches = (
   return filtered;
 };
 
-const useSurfIntensityData = (selectedDate: Date | null) => {
+const useSurfIntensityData = (
+  selectedDate: Date | null,
+  selectedHour: number | null,
+) => {
   const cacheRef = React.useRef<
     Record<string, Record<string | number, number>>
+  >({});
+  const inflightRef = React.useRef<
+    Record<string, Promise<Record<string | number, number>> | undefined>
   >({});
   const [data, setData] = React.useState<Record<string | number, number>>({});
 
@@ -1115,40 +1121,47 @@ const useSurfIntensityData = (selectedDate: Date | null) => {
     }
     let cancelled = false;
     const fetchForDate = async (date: Date) => {
-      const key = date.toISOString().split("T")[0];
+      const hourKey =
+        typeof selectedHour === "number" && Number.isFinite(selectedHour)
+          ? normalizeHour(selectedHour)
+          : 12;
+      const key = `${date.toISOString().split("T")[0]}:${hourKey}`;
       if (cacheRef.current[key]) {
         return cacheRef.current[key];
       }
-      try {
-        const record = await fetchSurfIntensityAPI(date, {
-          mode: "representative",
-        });
-        const normalized = record ?? {};
-        cacheRef.current[key] = normalized;
-        return normalized;
-      } catch {
-        return {};
+      const inflight = inflightRef.current[key];
+      if (inflight) {
+        return inflight;
       }
+      const request = (async () => {
+        try {
+          const record = await fetchSurfIntensityAPI(date, {
+            mode: "representative",
+            hour: hourKey,
+          });
+          const normalized = record ?? {};
+          cacheRef.current[key] = normalized;
+          return normalized;
+        } catch {
+          return {};
+        } finally {
+          delete inflightRef.current[key];
+        }
+      })();
+      inflightRef.current[key] = request;
+      return request;
     };
     const run = async () => {
       const current = await fetchForDate(selectedDate);
       if (!cancelled) {
         setData(current);
       }
-      const preload: Promise<unknown>[] = [];
-      for (let i = -3; i <= 3; i++) {
-        if (i === 0) continue;
-        const copy = new Date(selectedDate);
-        copy.setDate(copy.getDate() + i);
-        preload.push(fetchForDate(copy));
-      }
-      Promise.all(preload).catch(() => {});
     };
     run();
     return () => {
       cancelled = true;
     };
-  }, [selectedDate]);
+  }, [selectedDate, selectedHour]);
 
   return data;
 };
@@ -2282,7 +2295,7 @@ const LeafletMap: React.FC<Props> = ({
       selectedDate instanceof Date ? getPacificMidnightUTC(selectedDate) : null,
     [selectedDate],
   );
-  const surfIntensity = useSurfIntensityData(effectiveStatsDate);
+  const surfIntensity = useSurfIntensityData(effectiveStatsDate, selectedHour);
   const statsDateKey = React.useMemo(() => {
     if (effectiveStatsDate instanceof Date)
       return effectiveStatsDate.toISOString().split("T")[0];
@@ -5096,25 +5109,13 @@ const LeafletMap: React.FC<Props> = ({
 
           const id = String(beach.id);
           const gridIntensity = resolveSurfIntensity(surfIntensity, beach);
-          const iconIntensity = (() => {
-            const ctx = statsContextRef.current;
-            const snapshot =
-              ctx.getStatsSnapshot(
-                String(beach.id),
-                ctx.statsDateKey,
-                ctx.statsHourKey,
-              ) ?? null;
-            const dailyStats = extractDailySurfWindStats(snapshot);
-            const surfRepFt = parseSurfRepresentativeFt(
-              dailyStats.surfHeight ?? representativeSurfRangeLabel(snapshot?.current ?? null),
-            );
-            if (surfRepFt != null) return surfRepFt;
-            if (gridIntensity != null && Number.isFinite(gridIntensity as number)) {
-              return gridIntensity as number;
-            }
-            active.nextStatsFallbackIds.add(id);
-            return 0;
-          })();
+          const iconIntensity =
+            gridIntensity != null && Number.isFinite(gridIntensity as number)
+              ? (gridIntensity as number)
+              : (() => {
+                  active.nextStatsFallbackIds.add(id);
+                  return 0;
+                })();
 
           const favorite = favoriteSet.has(id);
           const existing = registry[id];
@@ -5373,22 +5374,10 @@ const LeafletMap: React.FC<Props> = ({
         ctx.surfIntensity,
         entry.beach,
       );
-      const snapshot =
-        ctx.getStatsSnapshot(
-          String(entry.beach.id),
-          ctx.statsDateKey,
-          ctx.statsHourKey,
-        ) ?? null;
-      const dailyStats = extractDailySurfWindStats(snapshot);
-      const surfRepFt = parseSurfRepresentativeFt(
-        dailyStats.surfHeight ?? representativeSurfRangeLabel(snapshot?.current ?? null),
-      );
       const iconIntensity =
-        surfRepFt != null
-          ? surfRepFt
-          : gridIntensity != null
-            ? (gridIntensity as number)
-            : 0;
+        gridIntensity != null && Number.isFinite(gridIntensity as number)
+          ? (gridIntensity as number)
+          : 0;
       if (entry.intensity === iconIntensity) {
         if (hoveredId === id) {
           ensureMarkerPopup(entry);

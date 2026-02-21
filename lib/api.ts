@@ -177,12 +177,15 @@ export async function fetchDailyConditionsAPI(
  */
 export async function fetchSurfIntensityAPI(
   date: Date,
-  options?: { mode?: "daily" | "representative" }
+  options?: { mode?: "daily" | "representative"; hour?: number | null }
 ): Promise<Record<string, number>> {
   const dateStr = date.toISOString().split("T")[0];
   const params = new URLSearchParams({ date: dateStr });
   if (options?.mode === "representative") {
     params.set("mode", "representative");
+    if (typeof options.hour === "number" && Number.isFinite(options.hour)) {
+      params.set("hour", String(options.hour));
+    }
   }
   const res = await fetch(resolveApiUrl(`/api/surf-intensity?${params.toString()}`));
 
