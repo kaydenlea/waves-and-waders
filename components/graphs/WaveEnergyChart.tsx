@@ -33,6 +33,7 @@ import { buildSunSegments } from "@/components/graphs/sunSegments";
 import { syncToNearestThirdHour } from "@/components/graphs/chartSync";
 import { useForecastWindowData } from "@/lib/hooks/useForecastWindow";
 import { useChartTheme } from "@/components/graphs/useChartTheme";
+import { getEnergyIntensityInfo } from "@/components/graphs/chartLegends";
 import type { SharedSunSegments } from "./sharedSunSegments";
 import { buildYAxisTicks } from "@/components/graphs/yAxisTicks";
 import { useOptionalOverviewChartLoading } from "@/components/context/OverviewChartsLoadingContext";
@@ -269,6 +270,18 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments, parentLoading
     return mapped;
   }, [beachId, forecastRows, hours, windowStartMs, placeholderSeries]);
 
+  const energyIntensityRange = useMemo(() => {
+    let min = Number.POSITIVE_INFINITY;
+    let max = Number.NEGATIVE_INFINITY;
+    for (const p of series) {
+      if (!Number.isFinite(p.energy)) continue;
+      min = Math.min(min, p.energy);
+      max = Math.max(max, p.energy);
+    }
+    if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) return null;
+    return { min, max };
+  }, [series]);
+
   const lastEnergySegmentRef = React.useRef<{
     prev: { cx: number; cy: number } | null;
     curr: { cx: number; cy: number } | null;
@@ -341,7 +354,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments, parentLoading
         />
       );
     },
-    [series],
+    [energyIntensityRange, series],
   );
 
   const showEnergyActiveDot = isTouchOnlyDevice
@@ -419,7 +432,7 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments, parentLoading
         4,
         0.25,
       ),
-    [series],
+    [energyIntensityRange, series],
   );
   const yAxisTick = React.useCallback(
     (props: YAxisTickProps) => {
@@ -713,10 +726,13 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments, parentLoading
         : next
           ? next.energy >= point.energy
           : true;
-      const trendLabel = increasing ? "Rising" : "Dropping";
       const trendColor = increasing
         ? "var(--energy-fill-inc)"
         : "var(--energy-fill-dec)";
+      const intensity = getEnergyIntensityInfo(
+        point.energy,
+        energyIntensityRange ?? undefined,
+      );
       const formattedValue = (
         <div className="mx-auto w-fit max-w-full text-center flex flex-col items-center gap-1">
           <div className="inline-flex items-baseline justify-center gap-1 whitespace-nowrap">
@@ -730,10 +746,10 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments, parentLoading
           <div className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-[0.62rem] leading-none text-muted-foreground">
             <span
               aria-hidden="true"
-              className="h-1.5 w-1.5 rounded-full"
+              className="relative top-[0.5px] h-1.5 w-1.5 rounded-full"
               style={{ backgroundColor: trendColor }}
             />
-            <span>{trendLabel}</span>
+            <span>{intensity.label}</span>
           </div>
         </div>
       );
@@ -764,10 +780,13 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments, parentLoading
         : next
           ? next.energy >= point.energy
           : true;
-      const trendLabel = increasing ? "Rising" : "Dropping";
       const trendColor = increasing
         ? "var(--energy-fill-inc)"
         : "var(--energy-fill-dec)";
+      const intensity = getEnergyIntensityInfo(
+        point.energy,
+        energyIntensityRange ?? undefined,
+      );
       const formattedValue = (
         <div className="mx-auto w-fit max-w-full text-center flex flex-col items-center gap-1">
           <div className="inline-flex items-baseline justify-center gap-1 whitespace-nowrap">
@@ -781,10 +800,10 @@ const WaveEnergyChart = ({ beachId, hours = 24, date, sunSegments, parentLoading
           <div className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-[0.62rem] leading-none text-muted-foreground">
             <span
               aria-hidden="true"
-              className="h-1.5 w-1.5 rounded-full"
+              className="relative top-[0.5px] h-1.5 w-1.5 rounded-full"
               style={{ backgroundColor: trendColor }}
             />
-            <span>{trendLabel}</span>
+            <span>{intensity.label}</span>
           </div>
         </div>
       );

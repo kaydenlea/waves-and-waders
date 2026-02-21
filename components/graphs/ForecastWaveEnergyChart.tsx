@@ -64,6 +64,7 @@ import {
   buildYAxisTicks,
   limitYAxisTicks,
 } from "@/components/graphs/yAxisTicks";
+import { getEnergyIntensityInfo } from "@/components/graphs/chartLegends";
 import type { ForecastData } from "@/lib/supabase";
 
 const EnergyTooltipIcon = () => <Atom className="h-3 w-3" />;
@@ -123,7 +124,7 @@ const Y_AXIS_TICK = {
 function buildTrendStops(
   series: WavePoint[],
   incColor: string,
-  decColor: string
+  decColor: string,
 ) {
   if (series.length < 2) {
     return [
@@ -160,11 +161,11 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
   const myId = React.useId();
   const fillGradientId = useMemo(
     () => `energySplitColor-${myId.replace(/:/g, "")}`,
-    [myId]
+    [myId],
   );
   const strokeGradientId = useMemo(
     () => `energySplitColorStroke-${myId.replace(/:/g, "")}`,
-    [myId]
+    [myId],
   );
   const {
     hour: selectedHour,
@@ -186,6 +187,19 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
     lastEnergySegmentRef.current = { prev: null, curr: null };
   }, [energyData]);
 
+  const energyIntensityRange = useMemo(() => {
+    let min = Number.POSITIVE_INFINITY;
+    let max = Number.NEGATIVE_INFINITY;
+    for (const p of energyData) {
+      if (!Number.isFinite(p.energy)) continue;
+      min = Math.min(min, p.energy);
+      max = Math.max(max, p.energy);
+    }
+    if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min)
+      return null;
+    return { min, max };
+  }, [energyData]);
+
   const trackEnergyDot = useCallback(
     (props: { cx?: number | string; cy?: number | string; index?: number }) => {
       const idx = typeof props.index === "number" ? props.index : -1;
@@ -203,7 +217,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
       }
       return <g key={key} />;
     },
-    [energyData.length]
+    [energyData.length],
   );
   const energyActiveDot = useCallback(
     (props: { cx?: number | string; cy?: number | string; index?: number }) => {
@@ -218,8 +232,8 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
       const inc = prev
         ? curr.energy >= prev.energy
         : next
-        ? next.energy >= curr.energy
-        : true;
+          ? next.energy >= curr.energy
+          : true;
       const color = inc ? "var(--energy-fill-inc)" : "var(--energy-fill-dec)";
       const isLastPoint = idx === energyData.length - 1;
       const dx = isLastPoint ? -HOVER_LINE_END_INSET_PX : 0;
@@ -249,16 +263,16 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
         />
       );
     },
-    [energyData]
+    [energyIntensityRange, energyData],
   );
   const [baseStartMs, setBaseStartMs] = useState<number | null>(null);
   const [dayAreas, setDayAreas] = useState<{ x1: number; x2: number }[]>([]);
   const [nightAreas, setNightAreas] = useState<{ x1: number; x2?: number }[]>(
-    []
+    [],
   );
 
   const [stableSelectedHour, setStableSelectedHour] = useState<number | null>(
-    null
+    null,
   );
   const { setReady } = useForecastChartLoading("forecast-energy");
   const daysReady = Array.isArray(days) && days.length > 0;
@@ -268,7 +282,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
       beachId,
       ...days
         .filter(
-          (d): d is Date => d instanceof Date && !Number.isNaN(d.getTime())
+          (d): d is Date => d instanceof Date && !Number.isNaN(d.getTime()),
         )
         .map((d) => d.getTime())
         .sort((a, b) => a - b)
@@ -304,19 +318,23 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
   const isTouchOnlyDevice = useIsTouchOnlyDevice();
   const [isChartInteracting, setIsChartInteracting] = React.useState(false);
   const mobileChartId = React.useId();
-  
+
   // Touch inspect timer for long-press detection (legacy - keeping for compatibility)
-  const touchInspectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const touchInspectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const clearTouchInspectTimer = useCallback(() => {
     if (touchInspectTimerRef.current) {
       clearTimeout(touchInspectTimerRef.current);
       touchInspectTimerRef.current = null;
     }
   }, []);
-  
+
   // Legacy touch inspection state (used by the old pointer handlers)
   const [isTouchInspecting, setIsTouchInspecting] = useState(false);
-  const [touchDefaultIndex, setTouchDefaultIndex] = useState<number | null>(null);
+  const [touchDefaultIndex, setTouchDefaultIndex] = useState<number | null>(
+    null,
+  );
   const touchInspectStartRef = useRef<{
     startChartX: number;
     chartX: number;
@@ -363,12 +381,12 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
 
   const chartInnerWidth = useMemo(
     () => totalFetchedDays * dayPx,
-    [totalFetchedDays, dayPx]
+    [totalFetchedDays, dayPx],
   );
 
   const viewportWidth = useMemo(
     () => Math.min(containerWidth || 0, dayPx * VISIBLE_DAYS),
-    [containerWidth, dayPx]
+    [containerWidth, dayPx],
   );
   const isScrollable = chartInnerWidth > viewportWidth + 1;
 
@@ -387,14 +405,14 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
       if (!Number.isFinite(chartX) || !dataAreaWidth) return null;
       const plotX = Math.max(
         0,
-        Math.min(chartX - dayLabelLeftOffset, dataAreaWidth)
+        Math.min(chartX - dayLabelLeftOffset, dataAreaWidth),
       );
       const t = dataAreaWidth > 0 ? plotX / dataAreaWidth : 0;
       const hour = domainMin + t * (domainMax - domainMin);
       const roundedHour = Math.round(hour / DATA_STEP_HOURS) * DATA_STEP_HOURS;
       const clampedHour = Math.max(
         0,
-        Math.min(roundedHour, totalFetchedDays * HOURS_PER_DAY)
+        Math.min(roundedHour, totalFetchedDays * HOURS_PER_DAY),
       );
       const defaultIndex = Math.round(clampedHour / DATA_STEP_HOURS);
       const maxIndex = energyData.length - 1;
@@ -414,7 +432,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
       domainMax,
       totalFetchedDays,
       energyData.length,
-    ]
+    ],
   );
   const dayHeaderLayout = useMemo(
     () =>
@@ -426,7 +444,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
         domainMaxHours: domainMax,
         hoursPerDay: HOURS_PER_DAY,
       }),
-    [dayLabelLeftOffset, dataAreaWidth, totalFetchedDays, domainMax]
+    [dayLabelLeftOffset, dataAreaWidth, totalFetchedDays, domainMax],
   );
 
   const shadingBackground = useMemo(
@@ -455,7 +473,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
       chartTheme.dayShading,
       chartTheme.nightShading,
       chartTheme.shadingOpacity,
-    ]
+    ],
   );
 
   // helpers: clamp translate (px)
@@ -464,7 +482,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
       const maxTranslate = Math.max(0, chartInnerWidth - viewportWidth);
       return Math.max(0, Math.min(px, maxTranslate));
     },
-    [chartInnerWidth, viewportWidth]
+    [chartInnerWidth, viewportWidth],
   );
 
   // set transform imperatively
@@ -482,7 +500,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
       node.style.transform = `translate3d(-${px}px,0,0)`;
       currentTranslateRef.current = px;
     },
-    []
+    [],
   );
 
   // animate to target px
@@ -518,7 +536,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
 
       rafRef.current = requestAnimationFrame(step);
     },
-    [clampTranslatePx, setInnerTranslatePx]
+    [clampTranslatePx, setInnerTranslatePx],
   );
 
   // Pointer handlers
@@ -570,7 +588,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
         const activation = getTouchActivationFromChartX(start.chartX);
         if (!activation) return;
         setTouchDefaultIndex((prev) =>
-          prev === activation.defaultIndex ? prev : activation.defaultIndex
+          prev === activation.defaultIndex ? prev : activation.defaultIndex,
         );
         if (hoveredHourRef.current !== activation.hour) {
           setHoveredHour(activation.hour);
@@ -588,7 +606,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
               cancelable: true,
               clientX: start.clientX,
               clientY: start.clientY,
-            })
+            }),
           );
         });
       }, TOUCH_INSPECT_LONG_PRESS_MS);
@@ -616,7 +634,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
               cancelable: true,
               clientX: ev.clientX,
               clientY: ev.clientY,
-            })
+            }),
           );
         }
         return;
@@ -646,7 +664,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
     }
     if (!pointerStateRef.current?.dragging) return;
     const next = clampTranslatePx(
-      pointerStateRef.current.startTranslate - deltaX
+      pointerStateRef.current.startTranslate - deltaX,
     );
     pendingTranslateRef.current = next;
     if (!dragRafRef.current) {
@@ -703,7 +721,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
       setInnerTranslatePx(next, false);
       setPanFraction(next / dayPx, myId, "drag");
     },
-    [clampTranslatePx, setInnerTranslatePx, setPanFraction, dayPx, myId]
+    [clampTranslatePx, setInnerTranslatePx, setPanFraction, dayPx, myId],
   );
 
   const onPanEnd = useCallback(() => {
@@ -714,19 +732,33 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
     setPanFraction(fractionalDayOffset, myId, "animate");
     const maxTranslate = Math.max(0, chartInnerWidth - viewportWidth);
     setIsAtRightEdge(finalPx >= maxTranslate - 1);
-  }, [clampTranslatePx, dayPx, myId, setInnerTranslatePx, setPanFraction, chartInnerWidth, viewportWidth]);
+  }, [
+    clampTranslatePx,
+    dayPx,
+    myId,
+    setInnerTranslatePx,
+    setPanFraction,
+    chartInnerWidth,
+    viewportWidth,
+  ]);
 
   const getIndexFromChartX = useCallback(
     (chartX: number): number => {
       if (!Number.isFinite(chartX) || !dataAreaWidth) return 0;
-      const plotX = Math.max(0, Math.min(chartX - dayLabelLeftOffset, dataAreaWidth));
+      const plotX = Math.max(
+        0,
+        Math.min(chartX - dayLabelLeftOffset, dataAreaWidth),
+      );
       const t = dataAreaWidth > 0 ? plotX / dataAreaWidth : 0;
       const hour = domainMin + t * (domainMax - domainMin);
       const roundedHour = Math.round(hour / DATA_STEP_HOURS) * DATA_STEP_HOURS;
-      const clampedHour = Math.max(0, Math.min(roundedHour, totalFetchedDays * HOURS_PER_DAY));
+      const clampedHour = Math.max(
+        0,
+        Math.min(roundedHour, totalFetchedDays * HOURS_PER_DAY),
+      );
       return Math.round(clampedHour / DATA_STEP_HOURS);
     },
-    [dataAreaWidth, dayLabelLeftOffset, domainMin, domainMax, totalFetchedDays]
+    [dataAreaWidth, dayLabelLeftOffset, domainMin, domainMax, totalFetchedDays],
   );
 
   const getMobileTooltipDataPoint = useCallback(
@@ -744,10 +776,13 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
         : next
           ? next.energy >= point.energy
           : true;
-      const trendLabel = increasing ? "Rising" : "Dropping";
       const trendColor = increasing
         ? "var(--energy-fill-inc)"
         : "var(--energy-fill-dec)";
+      const intensity = getEnergyIntensityInfo(
+        point.energy,
+        energyIntensityRange ?? undefined,
+      );
       const formattedValue = (
         <div className="mx-auto w-fit max-w-full text-center flex flex-col items-center gap-1">
           <div className="inline-flex items-baseline justify-center gap-1 whitespace-nowrap">
@@ -761,14 +796,14 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
           <div className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-[0.62rem] leading-none text-muted-foreground">
             <span
               aria-hidden="true"
-              className="h-1.5 w-1.5 rounded-full"
+              className="relative top-[0.5px] h-1.5 w-1.5 rounded-full"
               style={{ backgroundColor: trendColor }}
             />
-            <span>{trendLabel}</span>
+            <span>{intensity.label}</span>
           </div>
         </div>
       );
-      
+
       return {
         hour: point.hour,
         label: `${displayHour} ${ampm}`,
@@ -778,7 +813,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
         icon: <Atom className="h-3.5 w-3.5" />,
       };
     },
-    [energyData]
+    [energyIntensityRange, energyData],
   );
 
   // Get data point for a given hour (for synced tooltip display on this chart)
@@ -798,10 +833,13 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
         : next
           ? next.energy >= point.energy
           : true;
-      const trendLabel = increasing ? "Rising" : "Dropping";
       const trendColor = increasing
         ? "var(--energy-fill-inc)"
         : "var(--energy-fill-dec)";
+      const intensity = getEnergyIntensityInfo(
+        point.energy,
+        energyIntensityRange ?? undefined,
+      );
       const formattedValue = (
         <div className="mx-auto w-fit max-w-full text-center flex flex-col items-center gap-1">
           <div className="inline-flex items-baseline justify-center gap-1 whitespace-nowrap">
@@ -815,14 +853,14 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
           <div className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-[0.62rem] leading-none text-muted-foreground">
             <span
               aria-hidden="true"
-              className="h-1.5 w-1.5 rounded-full"
+              className="relative top-[0.5px] h-1.5 w-1.5 rounded-full"
               style={{ backgroundColor: trendColor }}
             />
-            <span>{trendLabel}</span>
+            <span>{intensity.label}</span>
           </div>
         </div>
       );
-      
+
       return {
         hour: point.hour,
         label: `${displayHour} ${ampm}`,
@@ -832,7 +870,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
         icon: <Atom className="h-3.5 w-3.5" />,
       };
     },
-    [energyData]
+    [energyIntensityRange, energyData],
   );
 
   // Get X position for a given hour (for synced tooltip positioning)
@@ -845,14 +883,14 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
       if (t < 0 || t > 1) return null;
       return dayLabelLeftOffset + t * dataAreaWidth;
     },
-    [dataAreaWidth, dayLabelLeftOffset, domainMin, domainMax]
+    [dataAreaWidth, dayLabelLeftOffset, domainMin, domainMax],
   );
 
   const handleMobileInspect = useCallback(
     (_index: number, hour: number) => {
       setHoveredHour(hour);
     },
-    [setHoveredHour]
+    [setHoveredHour],
   );
 
   const handleMobileInspectEnd = useCallback(() => {
@@ -901,7 +939,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
           setInnerTranslatePx(px, false);
         }
       },
-      { immediate: true }
+      { immediate: true },
     );
     return () => unsub();
   }, [
@@ -1031,7 +1069,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
             : new Date();
         const start = getPacificMidnightUTC(baseDateValue);
         const end = new Date(
-          start.getTime() + numDaysToFetch * 24 * 60 * 60 * 1000
+          start.getTime() + numDaysToFetch * 24 * 60 * 60 * 1000,
         );
         const startMs = start.getTime();
         const endMs = end.getTime();
@@ -1050,14 +1088,14 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
               .sort(
                 (a, b) =>
                   new Date(a.timestamp).getTime() -
-                  new Date(b.timestamp).getTime()
+                  new Date(b.timestamp).getTime(),
               ) ?? [];
           if (!filtered.length) {
             return [];
           }
           const firstTs = new Date(filtered[0].timestamp).getTime();
           const lastTs = new Date(
-            filtered[filtered.length - 1].timestamp
+            filtered[filtered.length - 1].timestamp,
           ).getTime();
           const coversStart = firstTs <= startMs + coverageToleranceMs;
           const coversEnd = lastTs >= endMs - coverageToleranceMs;
@@ -1082,7 +1120,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
 
         rows.sort(
           (a, b) =>
-            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
         );
 
         const shadingBaseDate = baseDateValue;
@@ -1095,12 +1133,12 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
         });
         const dateParts = dateFormatter.formatToParts(shadingBaseDate);
         const year = parseInt(
-          dateParts.find((p) => p.type === "year")?.value || "0"
+          dateParts.find((p) => p.type === "year")?.value || "0",
         );
         const month =
           parseInt(dateParts.find((p) => p.type === "month")?.value || "1") - 1;
         const day = parseInt(
-          dateParts.find((p) => p.type === "day")?.value || "1"
+          dateParts.find((p) => p.type === "day")?.value || "1",
         );
 
         const noonUTC = Date.UTC(year, month, day, 12, 0, 0, 0);
@@ -1167,7 +1205,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
             month: "short",
             day: "numeric",
             timeZone: "America/Los_Angeles",
-          })
+          }),
         )
       : null;
 
@@ -1187,16 +1225,16 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
           energyData
             .map((row) => row.energy)
             .filter(
-              (v): v is number => typeof v === "number" && Number.isFinite(v)
+              (v): v is number => typeof v === "number" && Number.isFinite(v),
             ),
           0,
           4,
           0.25,
-          8
+          8,
         ),
-        4
+        4,
       ),
-    [energyData]
+    [energyData],
   );
 
   // Y-axis domain for line proximity detection
@@ -1207,50 +1245,62 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
   const isOnLine = useCallback(
     (chartX: number, chartY: number): boolean => {
       if (!dataAreaWidth || dataAreaWidth <= 0) return false;
-      
+
       const plotX = chartX - dayLabelLeftOffset;
       if (plotX < 0 || plotX > dataAreaWidth) return false;
-      
+
       // Chart dimensions
       const chartHeight = 250;
       const bottomAxisHeight = 25;
       const lineAreaHeight = chartHeight - bottomAxisHeight;
       const lineAreaBottom = chartHeight - bottomAxisHeight;
-      
+
       if (chartY > lineAreaBottom || chartY < 0) return false;
-      
+
       // Find which data point this X corresponds to
       const t = plotX / dataAreaWidth;
       const hour = domainMin + t * (domainMax - domainMin);
       const nearestIndex = Math.round(hour / DATA_STEP_HOURS);
-      const clampedIndex = Math.max(0, Math.min(nearestIndex, energyData.length - 1));
+      const clampedIndex = Math.max(
+        0,
+        Math.min(nearestIndex, energyData.length - 1),
+      );
       const point = energyData[clampedIndex];
       if (!point || typeof point.energy !== "number") return false;
-      
+
       // Convert touch Y to data value
-      const touchValueRatio = 1 - (chartY / lineAreaHeight);
+      const touchValueRatio = 1 - chartY / lineAreaHeight;
       const touchValue = yMin + touchValueRatio * (yMax - yMin);
-      
+
       // Check if touch is within tolerance of the line value
       const toleranceInDataUnits = (yMax - yMin) * 0.15; // 15% of Y range
-      
+
       return Math.abs(touchValue - point.energy) <= toleranceInDataUnits;
     },
-    [dataAreaWidth, dayLabelLeftOffset, domainMin, domainMax, energyData, yMin, yMax]
+    [
+      dataAreaWidth,
+      dayLabelLeftOffset,
+      domainMin,
+      domainMax,
+      energyData,
+      yMin,
+      yMax,
+    ],
   );
 
-  const { handlers: mobileHandlers, styles: mobileStyles } = useMobileChartTouch({
-    chartId: mobileChartId,
-    containerRef: innerRef,
-    dataLength: energyData.length,
-    getIndexFromX: getIndexFromChartX,
-    isOnBar: isOnLine,
-    onPan,
-    onPanEnd,
-    onInspect: handleMobileInspect,
-    onInspectEnd: handleMobileInspectEnd,
-    enabled: isTouchOnlyDevice,
-  });
+  const { handlers: mobileHandlers, styles: mobileStyles } =
+    useMobileChartTouch({
+      chartId: mobileChartId,
+      containerRef: innerRef,
+      dataLength: energyData.length,
+      getIndexFromX: getIndexFromChartX,
+      isOnBar: isOnLine,
+      onPan,
+      onPanEnd,
+      onInspect: handleMobileInspect,
+      onInspectEnd: handleMobileInspectEnd,
+      enabled: isTouchOnlyDevice,
+    });
 
   const yAxisTick = useCallback(
     (props: YAxisTickProps) => {
@@ -1291,7 +1341,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
         </text>
       );
     },
-    [energyTicks]
+    [energyTicks],
   );
   const formatHourLabel = useCallback(
     (label: unknown, payload: TooltipPayload) => {
@@ -1308,7 +1358,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
         ? `${displayHour}:${minutes.toString().padStart(2, "0")} ${ampm}`
         : `${displayHour} ${ampm}`;
     },
-    []
+    [],
   );
   const tooltipViewport = useMemo(
     () => ({
@@ -1317,13 +1367,13 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
       width: viewportWidth,
       height: Math.max(0, 250 - X_AXIS_SHADE_EXCLUDE_PX),
     }),
-    [clampTranslatePx, dayOffset, dayPx, viewportWidth]
+    [clampTranslatePx, dayOffset, dayPx, viewportWidth],
   );
 
   const plotClipIdRaw = React.useId();
   const plotClipId = useMemo(
     () => `forecast-wave-energy-plot-clip-${plotClipIdRaw.replace(/:/g, "")}`,
-    [plotClipIdRaw]
+    [plotClipIdRaw],
   );
 
   // Calculate high/low energy per day
@@ -1338,7 +1388,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
       const dayEndHour = dayStartHour + hoursPerDay;
 
       const dayData = energyData.filter(
-        (point) => point.hour >= dayStartHour && point.hour < dayEndHour
+        (point) => point.hour >= dayStartHour && point.hour < dayEndHour,
       );
 
       if (dayData.length > 0) {
@@ -1359,18 +1409,18 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
       buildTrendStops(
         energyData,
         "var(--energy-fill-inc)",
-        "var(--energy-fill-dec)"
+        "var(--energy-fill-dec)",
       ),
-    [energyData]
+    [energyData],
   );
   const strokeStops = React.useMemo(
     () =>
       buildTrendStops(
         energyData,
         "var(--energy-stroke-inc)",
-        "var(--energy-stroke-dec)"
+        "var(--energy-stroke-dec)",
       ),
-    [energyData]
+    [energyData],
   );
 
   // Hover sync handlers
@@ -1396,7 +1446,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
         }
       }
     },
-    [loading, isTouchOnlyDevice, isChartInteracting, setHoveredHour]
+    [loading, isTouchOnlyDevice, isChartInteracting, setHoveredHour],
   );
 
   const handleMouseLeave = React.useCallback(() => {
@@ -1425,7 +1475,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
           onClick={handleBack}
           className={cn(
             "absolute left-1 top-[55%] -translate-y-1/2 z-50 rounded-full bg-highlight-7/90 p-1 shadow border border-border/30 shadow-even backdrop-blur-xl",
-            (!isScrollable || dayOffset === 0) && "hidden"
+            (!isScrollable || dayOffset === 0) && "hidden",
           )}
         >
           <ChevronLeft className="w-5 h-5" />
@@ -1435,7 +1485,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
           onClick={handleNext}
           className={cn(
             "absolute right-1 top-[55%] -translate-y-1/2 z-50 rounded-full bg-highlight-7/90 p-1 shadow border border-border/30 shadow-even backdrop-blur-xl",
-            (!isScrollable || isAtRightEdge) && "hidden"
+            (!isScrollable || isAtRightEdge) && "hidden",
           )}
         >
           <ChevronRight className="w-5 h-5" />
@@ -1808,8 +1858,8 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
                     {(() => {
                       try {
                         const effectiveHour = dashboardBusy
-                          ? stableSelectedHour ?? selectedHour ?? null
-                          : selectedHour ?? null;
+                          ? (stableSelectedHour ?? selectedHour ?? null)
+                          : (selectedHour ?? null);
                         const base =
                           displayDays && displayDays.length > 0
                             ? displayDays[0]
@@ -1819,15 +1869,15 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
                         const baseMid = new Date(
                           base.getFullYear(),
                           base.getMonth(),
-                          base.getDate()
+                          base.getDate(),
                         ).getTime();
                         const selMid = new Date(
                           selectedDate.getFullYear(),
                           selectedDate.getMonth(),
-                          selectedDate.getDate()
+                          selectedDate.getDate(),
                         ).getTime();
                         const dayDelta = Math.floor(
-                          (selMid - baseMid) / (24 * 3600 * 1000)
+                          (selMid - baseMid) / (24 * 3600 * 1000),
                         );
                         const x = dayDelta * 24 + effectiveHour;
                         if (x < 0 || x > totalFetchedDays * 24) return null;

@@ -26,13 +26,45 @@ function formatRange(value: number) {
   return rounded % 1 === 0 ? String(Math.round(rounded)) : rounded.toFixed(1);
 }
 
-function buildEnergyIntensityItems(range?: { min: number; max: number }): ChartLegendItem[] {
+function getEnergyRangeStops(range?: { min: number; max: number }) {
   if (
     !range ||
     !Number.isFinite(range.min) ||
     !Number.isFinite(range.max) ||
     range.max <= range.min
   ) {
+    return null;
+  }
+
+  const min = Math.max(0, range.min);
+  const max = Math.max(min, range.max);
+  const span = Math.max(0.001, max - min);
+  const a = min;
+  const b = min + span / 3;
+  const c = min + (2 * span) / 3;
+  const d = max;
+  return { a, b, c, d };
+}
+
+export function getEnergyIntensityInfo(
+  value: number,
+  range?: { min: number; max: number },
+): { label: "Low" | "Moderate" | "High" | "Relative"; markerClass: string } {
+  const stops = getEnergyRangeStops(range);
+  if (!stops || !Number.isFinite(value)) {
+    return { label: "Relative", markerClass: "bg-foreground/15" };
+  }
+
+  if (value < stops.b) return { label: "Low", markerClass: "bg-foreground/10" };
+  if (value < stops.c) {
+    return { label: "Moderate", markerClass: "bg-foreground/20" };
+  }
+  return { label: "High", markerClass: "bg-foreground/30" };
+}
+
+function buildEnergyIntensityItems(range?: { min: number; max: number }): ChartLegendItem[] {
+  const stops = getEnergyRangeStops(range);
+  if (!stops) {
     return [
       {
         label: "Intensity (relative)",
@@ -47,13 +79,7 @@ function buildEnergyIntensityItems(range?: { min: number; max: number }): ChartL
     ];
   }
 
-  const min = Math.max(0, range.min);
-  const max = Math.max(min, range.max);
-  const span = Math.max(0.001, max - min);
-  const a = min;
-  const b = min + span / 3;
-  const c = min + (2 * span) / 3;
-  const d = max;
+  const { a, b, c, d } = stops;
 
   const marker = (shade: string) => (
     <span aria-hidden="true" className={cn("h-2.5 w-2.5 rounded-[3px]", shade)} />

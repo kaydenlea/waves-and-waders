@@ -1209,7 +1209,7 @@ const TideChart: React.FC<TideChartProps> = ({
           <div className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-[0.62rem] leading-none text-muted-foreground">
             <span
               aria-hidden="true"
-              className="h-1.5 w-1.5 rounded-full"
+              className="relative top-[0.5px] h-1.5 w-1.5 rounded-full"
               style={{ backgroundColor: trendColor }}
             />
             <span>{trendLabel}</span>
@@ -1287,7 +1287,7 @@ const TideChart: React.FC<TideChartProps> = ({
           <div className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-[0.62rem] leading-none text-muted-foreground">
             <span
               aria-hidden="true"
-              className="h-1.5 w-1.5 rounded-full"
+              className="relative top-[0.5px] h-1.5 w-1.5 rounded-full"
               style={{ backgroundColor: trendColor }}
             />
             <span>{trendLabel}</span>

@@ -11,7 +11,7 @@ import Footer from "@/components/general/Footer";
 import FavoriteIdsHydrator from "@/components/general/FavoriteIdsHydrator";
 import PersistBeachesReturn from "@/components/general/PersistBeachesReturn";
 import { buildPageMetadata, getSiteUrl } from "@/lib/seo";
-import { List } from "lucide-react";
+import { ChevronDown, List } from "lucide-react";
 
 const beachesTitle = "Find surf spots and beaches near you";
 const beachesDescription =
@@ -151,9 +151,15 @@ export default async function BeachesPage({
             <NearbyBeaches />
 
             <section className="mt-10 px-2">
-              <details className="rounded-2xl border border-border/40 bg-background/40 p-4 text-sm text-muted-foreground shadow-xs">
-                <summary className="cursor-pointer font-semibold text-foreground/85">
-                  About beach search and filters
+              <details className="group rounded-2xl border border-border/40 bg-background/40 p-4 text-sm text-muted-foreground shadow-xs">
+                <summary className="cursor-pointer font-semibold text-foreground/85 list-none [&::-webkit-details-marker]:hidden">
+                  <span className="flex items-center justify-between gap-3">
+                    <span>About beach search and filters</span>
+                    <ChevronDown
+                      aria-hidden="true"
+                      className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180"
+                    />
+                  </span>
                 </summary>
                 <div className="mt-3 space-y-3 leading-relaxed">
                   <p>
@@ -171,9 +177,15 @@ export default async function BeachesPage({
             </section>
 
             <section className="mt-4 px-2">
-              <details className="rounded-2xl border border-border/40 bg-background/40 p-4 text-sm text-muted-foreground shadow-xs">
-                <summary className="cursor-pointer font-semibold text-foreground/85">
-                  Prefer a simple directory?
+              <details className="group rounded-2xl border border-border/40 bg-background/40 p-4 text-sm text-muted-foreground shadow-xs">
+                <summary className="cursor-pointer font-semibold text-foreground/85 list-none [&::-webkit-details-marker]:hidden">
+                  <span className="flex items-center justify-between gap-3">
+                    <span>Prefer a simple directory?</span>
+                    <ChevronDown
+                      aria-hidden="true"
+                      className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180"
+                    />
+                  </span>
                 </summary>
                 <p className="mt-3 leading-relaxed">
                   Use the map for nearby discovery, or browse a full list on{" "}

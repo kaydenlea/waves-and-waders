@@ -54,7 +54,7 @@ export default function DonateOptionsCard({
           Suggested
         </div>
         <ul
-          className="mt-2 flex flex-wrap gap-2"
+          className="mt-2 flex flex-wrap justify-center gap-2"
           aria-label="Suggested donation amounts"
         >
           {AMOUNTS.map((value) => {
