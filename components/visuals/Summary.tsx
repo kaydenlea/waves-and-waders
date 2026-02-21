@@ -897,9 +897,7 @@ const Summary = ({
         const s2 = h2 * Math.sqrt(Math.max(0, p2) / 10);
         const s3 = h3 * Math.sqrt(Math.max(0, p3) / 10);
         const combined = Math.sqrt(
-          Math.pow(1.0 * s1, 2) +
-            Math.pow(0.6 * s2, 2) +
-            Math.pow(0.3 * s3, 2),
+          Math.pow(1.0 * s1, 2) + Math.pow(0.6 * s2, 2) + Math.pow(0.3 * s3, 2),
         );
         const wind = row?.conditions?.windSpeed ?? 0;
         const windPenalty = Math.min(0.5, Math.max(0, (wind - 5) / 35));
@@ -929,9 +927,7 @@ const Summary = ({
         };
       })
       .filter(
-        (
-          value,
-        ): value is { representative: number; period: number | null } =>
+        (value): value is { representative: number; period: number | null } =>
           value != null,
       );
 
@@ -1331,7 +1327,8 @@ const Summary = ({
 
     const minRounded = Number.isFinite(min) ? Math.round(min) : null;
     const maxRounded = Number.isFinite(max) ? Math.round(max) : null;
-    const avgRounded = avg != null && Number.isFinite(avg) ? Math.round(avg) : null;
+    const avgRounded =
+      avg != null && Number.isFinite(avg) ? Math.round(avg) : null;
     const intensity = describeEnergy(avgRounded ?? maxRounded);
 
     return {
@@ -1341,8 +1338,8 @@ const Summary = ({
       intensity,
     };
   }, [
-    committedValue?.dayEndMs,
     committedValue?.dayStartMs,
+    committedValue?.dayEndMs,
     renderForecast,
     timeWindow.dayEnd.getTime(),
     timeWindow.dayStart.getTime(),
@@ -1385,7 +1382,11 @@ const Summary = ({
       energyDay.intensity
     ) {
       sentence += ` Wave energy is ${energyDay.intensity}, averaging ${energyDay.avg} kJ (${energyDay.min}\u2013${energyDay.max} kJ).`;
-    } else if (energyDay.min != null && energyDay.max != null && energyDay.intensity) {
+    } else if (
+      energyDay.min != null &&
+      energyDay.max != null &&
+      energyDay.intensity
+    ) {
       sentence += ` Wave energy is ${energyDay.intensity} (${energyDay.min}\u2013${energyDay.max} kJ).`;
     } else {
       sentence += ` Wave energy unavailable.`;
@@ -1816,8 +1817,7 @@ const Summary = ({
             {!showSkeletons && outlookSentences ? (
               <ul className="space-y-1">
                 {outlookSentences.map((line, idx) => {
-                  const Icon =
-                    idx === 0 ? Waves : idx === 1 ? Wind : Zap;
+                  const Icon = idx === 0 ? Waves : idx === 1 ? Wind : Zap;
 
                   const tokens: HighlightToken[] = [
                     ...(idx === 0 && surfNarrativeToken

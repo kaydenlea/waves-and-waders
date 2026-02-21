@@ -1,35 +1,41 @@
 "use client";
 
-import { useMapSurfIntensityData } from "../context/MapFilterContext";
+import * as React from "react";
 import {
   getSurfIntensityBand,
   getSurfIntensityColorCss,
 } from "@/lib/forecast/surfIntensity";
 
-const SurfIntensityMarker = () => {
-  const { surfIntensityForDate } = useMapSurfIntensityData();
-  const surfIntensity = surfIntensityForDate;
-  const ready =
-    typeof surfIntensity === "number" && Number.isFinite(surfIntensity);
-  const color = getSurfIntensityColorCss(getSurfIntensityBand(surfIntensity));
+const SurfIntensityMarker = ({
+  intensityFt,
+}: {
+  intensityFt: number | null | undefined;
+}) => {
+  const surfIntensity =
+    typeof intensityFt === "number" && Number.isFinite(intensityFt)
+      ? intensityFt
+      : null;
+  const color = React.useMemo(
+    () => getSurfIntensityColorCss(getSurfIntensityBand(surfIntensity)),
+    [surfIntensity],
+  );
 
-  if (!ready) {
+  if (surfIntensity == null) {
     return (
-      <div
-        className="relative h-4 w-4 shrink-0"
-        role="status"
+      <span
         aria-label="Loading surf intensity"
+        className="relative inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-muted/30 ring-1 ring-border/60"
       >
-        <div className="absolute inset-0 rounded-full bg-background/40 dark:bg-background/20" />
-        <div className="absolute inset-0 rounded-full border-2 border-border/70 border-t-foreground/80 dark:border-border/80 dark:border-t-foreground/90 motion-safe:animate-spin motion-reduce:animate-none" />
-        <span className="sr-only">Loading surf intensity</span>
-      </div>
+        <span
+          aria-hidden="true"
+          className="absolute -inset-0.5 rounded-full border-2 border-muted-foreground/30 border-t-transparent animate-spin"
+        />
+      </span>
     );
   }
-
   return (
-    <div
-      className="h-4 w-4 rounded-full shrink-0 transition-colors duration-200 motion-reduce:transition-none"
+    <span
+      className="inline-block h-4 w-4 shrink-0 rounded-full shadow-sm"
       style={{ backgroundColor: color }}
       aria-hidden="true"
     />
