@@ -176,10 +176,15 @@ export async function fetchDailyConditionsAPI(
  * Replaces direct Supabase queries for daily_grid_surf_intensity
  */
 export async function fetchSurfIntensityAPI(
-  date: Date
+  date: Date,
+  options?: { mode?: "daily" | "representative" }
 ): Promise<Record<string, number>> {
   const dateStr = date.toISOString().split("T")[0];
-  const res = await fetch(resolveApiUrl(`/api/surf-intensity?date=${dateStr}`));
+  const params = new URLSearchParams({ date: dateStr });
+  if (options?.mode === "representative") {
+    params.set("mode", "representative");
+  }
+  const res = await fetch(resolveApiUrl(`/api/surf-intensity?${params.toString()}`));
 
   if (!res.ok) {
     throw new Error(`Failed to fetch surf intensity: ${res.status}`);

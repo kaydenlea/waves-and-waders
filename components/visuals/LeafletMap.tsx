@@ -1120,7 +1120,9 @@ const useSurfIntensityData = (selectedDate: Date | null) => {
         return cacheRef.current[key];
       }
       try {
-        const record = await fetchSurfIntensityAPI(date);
+        const record = await fetchSurfIntensityAPI(date, {
+          mode: "representative",
+        });
         const normalized = record ?? {};
         cacheRef.current[key] = normalized;
         return normalized;
