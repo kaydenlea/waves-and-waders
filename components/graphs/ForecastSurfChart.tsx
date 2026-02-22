@@ -1338,13 +1338,12 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
     <div className="w-full">
       <div
         ref={containerRef}
+        data-ww-chart-surface
         className="relative w-full"
         style={{
           height: 300,
           overflow: "hidden",
           background: "transparent",
-          contain: "layout style paint",
-          willChange: "transform",
         }}
       >
         {/* prev/next buttons */}
@@ -1382,7 +1381,6 @@ const ForecastSurfChart: React.FC<Props> = ({ beachId, days }) => {
             width: chartInnerWidth,
             height: 250,
             display: "block",
-            willChange: "transform",
             ...mobileStyles,
           }}
         >

@@ -637,6 +637,13 @@ html[data-ww-keyboard-open="1"] {
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
   }
+  /* iOS Safari can blank/repaint chart canvases during fast flings when nearby elements
+     use `backdrop-filter`. Keep chart UI stable by disabling blur within chart surfaces
+     on touch devices (resting appearance stays consistent; avoids scroll-time toggles). */
+  [data-ww-chart-surface] [class*="backdrop-blur"] {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
 
   /* Some mobile browsers intermittently fail to repaint large `filter: blur(...)` layers
      during active scroll (seen as brief disappear/reappear). Prefer hiding these purely

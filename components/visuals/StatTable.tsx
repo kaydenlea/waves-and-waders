@@ -3163,7 +3163,7 @@ const StatTable = ({
               <thead>
                 <tr>
                   <th scope="col" className="w-12 pb-0">
-                    <div className="sticky left-0 z-10 w-12 will-change-transform">
+                    <div className="sticky left-0 z-10 w-12">
                       <div className="flex flex-col items-center gap-1">
                         <div className="flex items-center gap-1 text-[0.7rem] font-medium uppercase tracking-wide text-muted-foreground">
                           <Clock3 className="h-3.5 w-3.5" aria-hidden="true" />
@@ -3377,7 +3377,7 @@ const StatTable = ({
                     className="transition-colors duration-200 motion-reduce:duration-0"
                   >
                     <th scope="row" className="p-0 align-middle bg-transparent">
-                      <div className="sticky left-0 z-10 w-12 will-change-transform">
+                      <div className="sticky left-0 z-10 w-12">
                         <TimeCell time={entry.time} selected={isSelectedHour} />
                       </div>
                     </th>
@@ -3730,8 +3730,8 @@ const StatTable = ({
               "shrink-0 flex min-h-10 items-center justify-center px-1 pt-1",
               !dockPagerInFlowEffective &&
                 "invisible opacity-0 pointer-events-none transition-opacity duration-150 motion-reduce:transition-none data-[ww-visible=true]:visible data-[ww-visible=true]:opacity-100 data-[ww-visible=true]:pointer-events-auto",
-              // Reduce iOS scroll jitter by forcing compositing; keeps original sticky behavior.
-              !dockPagerInFlowEffective && "transform-gpu will-change-transform",
+              // Keep native sticky styles lightweight; iOS stabilization is handled by the
+              // coarse-touch fixed-promotion effect above.
             )}
             aria-hidden={!(dockPagerInFlowEffective || pagerVisibleRef.current)}
           >
