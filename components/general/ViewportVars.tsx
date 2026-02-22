@@ -10,9 +10,6 @@ export default function ViewportVars() {
     if (typeof window === "undefined") return;
 
     const root = document.documentElement;
-    const isCoarseTouch =
-      typeof window.matchMedia === "function" &&
-      window.matchMedia("(hover: none) and (pointer: coarse)").matches;
     let rafId: number | null = null;
     let clearChangingTimer: number | null = null;
     let lastHeightPx: number | null = null;
@@ -185,33 +182,11 @@ export default function ViewportVars() {
 
     window.addEventListener("resize", schedule, { passive: true });
     window.addEventListener("orientationchange", schedule, { passive: true });
-
-    // On iOS Safari, `visualViewport.resize` fires during scroll while the URL bar animates
-    // (height changes only). Updating layout vars on every tick can cause sticky UI to
-    // jitter during touch dragging. Only react to visualViewport changes that are likely
-    // to be "real" layout-affecting changes (width changes, or keyboard open/close).
-    let lastVvWidth: number | null = window.visualViewport?.width ?? null;
-    const onVisualViewportResize = () => {
-      const cur = window.visualViewport;
-      if (!cur) return;
-      if (!isCoarseTouch) {
-        schedule();
-        return;
-      }
-
-      const innerH = window.innerHeight;
-      const bottomUi = Math.max(0, innerH - (cur.height + cur.offsetTop));
-      const keyboardish = bottomUi > 160;
-      const widthChanged =
-        lastVvWidth == null || Math.abs(cur.width - lastVvWidth) > 0.5;
-
-      lastVvWidth = cur.width;
-
-      if (widthChanged || keyboardish) {
-        schedule();
-      }
-    };
-    window.visualViewport?.addEventListener("resize", onVisualViewportResize, {
+    window.visualViewport?.addEventListener("resize", schedule, {
+      passive: true,
+    });
+    // iOS Safari can change visualViewport.height during scroll as the URL bar hides/shows.
+    window.visualViewport?.addEventListener("scroll", schedule, {
       passive: true,
     });
     window.addEventListener("focusin", schedule, { passive: true });
@@ -220,7 +195,8 @@ export default function ViewportVars() {
     return () => {
       window.removeEventListener("resize", schedule);
       window.removeEventListener("orientationchange", schedule);
-      window.visualViewport?.removeEventListener("resize", onVisualViewportResize);
+      window.visualViewport?.removeEventListener("resize", schedule);
+      window.visualViewport?.removeEventListener("scroll", schedule);
       window.removeEventListener("focusin", schedule);
       window.removeEventListener("focusout", schedule);
       if (rafId != null) window.cancelAnimationFrame(rafId);
