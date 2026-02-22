@@ -651,7 +651,7 @@ export default React.memo(function ForecastTideChart({
       const start = currentTranslateRef.current;
       const delta = targetPx - start;
       if (Math.abs(delta) < 1) {
-        setInnerTranslatePx(targetPx, true);
+        setInnerTranslatePx(targetPx, false);
         onEnd?.();
         return;
       }
@@ -668,7 +668,7 @@ export default React.memo(function ForecastTideChart({
           rafRef.current = requestAnimationFrame(step);
         } else {
           // final snap with transition for crispness
-          setInnerTranslatePx(clampTranslatePx(targetPx), true);
+          setInnerTranslatePx(clampTranslatePx(targetPx), false);
           rafRef.current = null;
           onEnd?.();
         }
@@ -1270,7 +1270,7 @@ export default React.memo(function ForecastTideChart({
     if (pointerStateRef.current?.dragging) return;
     const px = clampTranslatePx(dayOffset * dayPx);
     // animate to logical position for programmatic changes
-    setInnerTranslatePx(px, true);
+    setInnerTranslatePx(px, false);
 
     // update right-edge flag once (low frequency)
     // const maxTranslate = Math.max(0, chartInnerWidth - viewportWidth);

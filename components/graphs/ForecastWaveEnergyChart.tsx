@@ -513,7 +513,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
       const start = currentTranslateRef.current;
       const delta = targetPx - start;
       if (Math.abs(delta) < 1) {
-        setInnerTranslatePx(targetPx, true);
+        setInnerTranslatePx(targetPx, false);
         onEnd?.();
         return;
       }
@@ -528,7 +528,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
         if (p < 1) {
           rafRef.current = requestAnimationFrame(step);
         } else {
-          setInnerTranslatePx(clampTranslatePx(targetPx), true);
+          setInnerTranslatePx(clampTranslatePx(targetPx), false);
           rafRef.current = null;
           onEnd?.();
         }
@@ -955,7 +955,7 @@ const ForecastWaveEnergyChart: React.FC<Props> = ({ beachId, days }) => {
   useEffect(() => {
     if (pointerStateRef.current?.dragging) return;
     const px = clampTranslatePx(dayOffset * dayPx);
-    setInnerTranslatePx(px, true);
+    setInnerTranslatePx(px, false);
   }, [dayOffset, dayPx, clampTranslatePx, setInnerTranslatePx]);
 
   // ResizeObserver for container width
