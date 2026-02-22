@@ -142,20 +142,6 @@ html[data-ww-keyboard-open="1"] {
     }
   }
 
-  /* On coarse touch devices, iOS Safari can briefly oscillate visualViewport height while
-     the browser chrome animates in/out. During that window we mark
-     `data-ww-viewport-changing="1"` (set by `ViewportVars`). Freezing `--ww-100vh` to the
-     CSS-native small viewport unit avoids layout churn that makes sticky UI jitter. */
-  @media (hover: none) and (pointer: coarse) {
-    html[data-ww-viewport-changing="1"] .ww-stable-viewport {
-      --ww-100vh: 100svh;
-    }
-    @supports not (height: 100svh) {
-      html[data-ww-viewport-changing="1"] .ww-stable-viewport {
-        --ww-100vh: 100vh;
-      }
-    }
-  }
   /* Map pages use `.ww-stable-viewport` to avoid mobile UI jank, but on desktop the
      viewport height should respond to browser chrome changes (e.g. toggling the
      bookmarks bar) to prevent empty gaps under fixed/sticky map panes. */

@@ -1656,6 +1656,10 @@ const StatTable = ({
     tableRef.current = node;
   }, []);
 
+  const headerWrapRef = React.useRef<HTMLDivElement | null>(null);
+  const headerStickyRef = React.useRef<HTMLDivElement | null>(null);
+  const pagerWrapRef = React.useRef<HTMLDivElement | null>(null);
+
   const resizeRafRef = React.useRef<number | null>(null);
   const measuredWidthRef = React.useRef<number>(0);
   const TABLE_BREAKPOINT_SM = 400;
@@ -2769,6 +2773,175 @@ const StatTable = ({
   const pagerBottomReachedRef = React.useRef(false);
   const pagerVisibleRef = React.useRef(isEditing);
 
+  // iOS Safari can jitter `position: sticky` during active touch-drag scrolling (browser chrome /
+  // overscroll). For coarse touch pointers, stabilize the sticky header/pager by promoting them
+  // to `position: fixed` only while they're logically "stuck", while keeping layout space reserved.
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const table = tableRef.current;
+    const headerWrap = headerWrapRef.current;
+    const headerEl = headerStickyRef.current;
+    const pagerWrap = pagerWrapRef.current;
+    const pagerEl = pagerStickyRef.current;
+    if (!table || !headerWrap || !headerEl) return;
+
+    const coarseTouch =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(hover: none) and (pointer: coarse)").matches;
+    if (!coarseTouch) return;
+
+    let rafId: number | null = null;
+    let lastFixedHeader = false;
+    let headerHeightPx = 0;
+    let headerTopPx = 0;
+
+    const measureHeader = () => {
+      try {
+        headerHeightPx = headerEl.getBoundingClientRect().height;
+        const topRaw = window.getComputedStyle(headerEl).top;
+        const parsed = Number.parseFloat(topRaw);
+        headerTopPx = Number.isFinite(parsed) ? parsed : 0;
+      } catch {}
+    };
+
+    const ensurePagerWrapHeight = () => {
+      if (!pagerWrap || !pagerEl) return;
+      if (dockPagerInFlowEffective) {
+        pagerWrap.style.height = "";
+        pagerEl.style.position = "";
+        pagerEl.style.left = "";
+        pagerEl.style.width = "";
+        return;
+      }
+      try {
+        const h = pagerEl.getBoundingClientRect().height;
+        if (Number.isFinite(h) && h > 0) {
+          pagerWrap.style.height = `${h}px`;
+        }
+      } catch {}
+    };
+
+    const resetHeaderStyles = () => {
+      headerWrap.style.height = "";
+      headerEl.style.position = "";
+      headerEl.style.left = "";
+      headerEl.style.width = "";
+    };
+
+    const resetPagerStyles = () => {
+      if (!pagerEl) return;
+      pagerEl.style.position = "";
+      pagerEl.style.left = "";
+      pagerEl.style.width = "";
+    };
+
+    const update = () => {
+      rafId = null;
+
+      measureHeader();
+      ensurePagerWrapHeight();
+
+      // Fixed pager: stable on coarse touch only while it's logically "stuck" within the table.
+      // When the table's bottom edge approaches, return to native sticky so it can dock and
+      // scroll away with the widget.
+      if (
+        pagerWrap &&
+        pagerEl &&
+        shouldReserveFooterSpace &&
+        !dockPagerInFlowEffective &&
+        pagerVisibleRef.current
+      ) {
+        try {
+          const tableRect = table.getBoundingClientRect();
+          const vh = window.visualViewport?.height ?? window.innerHeight;
+          const bottomRaw = window.getComputedStyle(pagerEl).bottom;
+          const bottomParsed = Number.parseFloat(bottomRaw);
+          const bottomOffsetPx = Number.isFinite(bottomParsed) ? bottomParsed : 0;
+          const pagerHeightPx = pagerEl.getBoundingClientRect().height;
+
+          const tableIntersects = tableRect.bottom > 0 && tableRect.top < vh;
+          const viewportBottomForPagerPx = vh - bottomOffsetPx;
+          const canStickToViewportBottom =
+            pagerHeightPx > 0 && tableRect.bottom >= viewportBottomForPagerPx - 1;
+
+          if (tableIntersects && canStickToViewportBottom) {
+            pagerEl.style.position = "fixed";
+            pagerEl.style.left = `${tableRect.left}px`;
+            pagerEl.style.width = `${tableRect.width}px`;
+          } else {
+            resetPagerStyles();
+          }
+        } catch {
+          resetPagerStyles();
+        }
+      } else {
+        resetPagerStyles();
+      }
+
+      // Fixed header: only while the header is logically "stuck".
+      let shouldFixHeader = false;
+      try {
+        const tableRect = table.getBoundingClientRect();
+        if (headerHeightPx > 0) {
+          shouldFixHeader =
+            tableRect.top <= headerTopPx &&
+            tableRect.bottom >= headerTopPx + headerHeightPx + 1;
+        }
+      } catch {}
+
+      if (!shouldFixHeader) {
+        if (lastFixedHeader) {
+          lastFixedHeader = false;
+          resetHeaderStyles();
+        }
+        return;
+      }
+
+      lastFixedHeader = true;
+      try {
+        const r = headerWrap.getBoundingClientRect();
+        if (headerHeightPx > 0) headerWrap.style.height = `${headerHeightPx}px`;
+        headerEl.style.position = "fixed";
+        headerEl.style.left = `${r.left}px`;
+        headerEl.style.width = `${r.width}px`;
+      } catch {}
+    };
+
+    const schedule = () => {
+      if (rafId != null) return;
+      rafId = window.requestAnimationFrame(update);
+    };
+
+    schedule();
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule, { passive: true });
+    window.addEventListener("orientationchange", schedule, { passive: true });
+    window.visualViewport?.addEventListener("resize", schedule, { passive: true });
+
+    return () => {
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+      window.removeEventListener("orientationchange", schedule);
+      window.visualViewport?.removeEventListener("resize", schedule);
+      if (rafId != null) window.cancelAnimationFrame(rafId);
+      resetHeaderStyles();
+      if (pagerWrap) pagerWrap.style.height = "";
+      if (pagerEl) {
+        pagerEl.style.position = "";
+        pagerEl.style.left = "";
+        pagerEl.style.width = "";
+      }
+    };
+  }, [
+    dockPagerInFlowEffective,
+    shouldReserveFooterSpace,
+    showPager,
+    isEditing,
+    effectiveDensity,
+    tableWidthPx,
+  ]);
+
   React.useEffect(() => {
     const el = pagerStickyRef.current;
     const sentinel = pagerRevealSentinelRef.current;
@@ -2929,114 +3102,119 @@ const StatTable = ({
           )}
         </Button>
       </div> */}
-        <div
-          data-ww-stat-table-sticky="header"
-          className={cn(
-            "sticky top-15.5 @min-4xl/main:top-27.5 z-40 @min-md:mx-0 rounded-b-[10px] px-0.5 py-0.5",
-            headerBgClass,
-          )}
-        >
-          <table className="w-full table-fixed border-separate border-spacing-x-2 border-spacing-y-0 text-sm">
-            <colgroup>
-              <col className="w-12" />
-              {visibleColumns.map((col) => (
-                <col
-                  key={col.id}
-                  className={cn(
-                    col.id === "surf"
-                      ? widthNow.current >= 750 &&
-                        widthNow.current < TABLE_BREAKPOINT_LG
-                        ? ""
-                        : "w-[clamp(5.25rem,10vw,5.75rem)]"
-                      : "",
-                    col.id === "wind" &&
-                      showSecondarySwells &&
-                      widthNow.current >= TABLE_BREAKPOINT_LG &&
-                      "w-[11rem]",
-                    col.id === "weather" || col.id === "water"
-                      ? showSecondarySwells && variant === "full"
-                        ? widthNow.current >= TABLE_BREAKPOINT_LG &&
-                          widthNow.current < TABLE_BREAKPOINT_XL
+        <div ref={headerWrapRef}>
+          <div
+            ref={headerStickyRef}
+            data-ww-stat-table-sticky="header"
+            className={cn(
+              "sticky top-15.5 @min-4xl/main:top-27.5 z-40 @min-md:mx-0 rounded-b-[10px] px-0.5 py-0.5",
+              headerBgClass,
+            )}
+          >
+            <table className="w-full table-fixed border-separate border-spacing-x-2 border-spacing-y-0 text-sm">
+              <colgroup>
+                <col className="w-12" />
+                {visibleColumns.map((col) => (
+                  <col
+                    key={col.id}
+                    className={cn(
+                      col.id === "surf"
+                        ? widthNow.current >= 750 &&
+                          widthNow.current < TABLE_BREAKPOINT_LG
                           ? ""
-                          : "@min-[1175px]:w-[clamp(4.5rem,9vw,5.5rem)]"
-                        : widthNow.current >= TABLE_BREAKPOINT_LG &&
-                          "w-[clamp(4.5rem,9vw,5.5rem)]"
-                      : "",
-                    col.id === "energy"
-                      ? showSecondarySwells && variant === "full"
-                        ? widthNow.current >= TABLE_BREAKPOINT_LG &&
-                          widthNow.current < TABLE_BREAKPOINT_XL
-                          ? ""
-                          : "@min-[1175px]:w-[clamp(4.75rem,9vw,5.5rem)]"
-                        : widthNow.current >= TABLE_BREAKPOINT_LG &&
-                          "w-[clamp(4.75rem,9vw,5.5rem)]"
-                      : "",
-                    col.id === "pressure"
-                      ? showSecondarySwells && variant === "full"
-                        ? widthNow.current >= TABLE_BREAKPOINT_LG &&
-                          widthNow.current < TABLE_BREAKPOINT_XL
-                          ? ""
-                          : "@min-[1175px]:w-[clamp(5.25rem,10vw,6.75rem)]"
-                        : widthNow.current >= TABLE_BREAKPOINT_LG &&
-                          "w-[clamp(5.25rem,10vw,6.75rem)]"
-                      : "",
-                    col.id === "__spacer" && "w-[10rem]",
-                  )}
-                />
-              ))}
-            </colgroup>
-            <thead>
-              <tr>
-                <th scope="col" className="w-12 pb-0">
-                  <div className="sticky left-0 z-10 w-12 will-change-transform">
-                    <div className="flex flex-col items-center gap-1">
-                      <div className="flex items-center gap-1 text-[0.7rem] font-medium uppercase tracking-wide text-muted-foreground">
-                        <Clock3 className="h-3.5 w-3.5" aria-hidden="true" />
-                        <span>Time</span>
-                      </div>
-                      <span
-                        aria-hidden="true"
-                        className="h-[2px] w-8 rounded-full bg-foreground/20"
-                      />
-                      <span className="sr-only">Time</span>
-                    </div>
-                  </div>
-                </th>
-                {visibleColumns.map((col) => {
-                  const group = getMetricGroupForColumnId(col.id);
-                  return (
-                    <th
-                      key={col.id}
-                      scope="col"
-                      className={cn(
-                        "pb-0 text-center text-[0.7rem] font-medium uppercase tracking-wide text-muted-foreground sm:text-xs",
-                      )}
-                    >
+                          : "w-[clamp(5.25rem,10vw,5.75rem)]"
+                        : "",
+                      col.id === "wind" &&
+                        showSecondarySwells &&
+                        widthNow.current >= TABLE_BREAKPOINT_LG &&
+                        "w-[11rem]",
+                      col.id === "weather" || col.id === "water"
+                        ? showSecondarySwells && variant === "full"
+                          ? widthNow.current >= TABLE_BREAKPOINT_LG &&
+                            widthNow.current < TABLE_BREAKPOINT_XL
+                            ? ""
+                            : "@min-[1175px]:w-[clamp(4.5rem,9vw,5.5rem)]"
+                          : widthNow.current >= TABLE_BREAKPOINT_LG &&
+                            "w-[clamp(4.5rem,9vw,5.5rem)]"
+                        : "",
+                      col.id === "energy"
+                        ? showSecondarySwells && variant === "full"
+                          ? widthNow.current >= TABLE_BREAKPOINT_LG &&
+                            widthNow.current < TABLE_BREAKPOINT_XL
+                            ? ""
+                            : "@min-[1175px]:w-[clamp(4.75rem,9vw,5.5rem)]"
+                          : widthNow.current >= TABLE_BREAKPOINT_LG &&
+                            "w-[clamp(4.75rem,9vw,5.5rem)]"
+                        : "",
+                      col.id === "pressure"
+                        ? showSecondarySwells && variant === "full"
+                          ? widthNow.current >= TABLE_BREAKPOINT_LG &&
+                            widthNow.current < TABLE_BREAKPOINT_XL
+                            ? ""
+                            : "@min-[1175px]:w-[clamp(5.25rem,10vw,6.75rem)]"
+                          : widthNow.current >= TABLE_BREAKPOINT_LG &&
+                            "w-[clamp(5.25rem,10vw,6.75rem)]"
+                        : "",
+                      col.id === "__spacer" && "w-[10rem]",
+                    )}
+                  />
+                ))}
+              </colgroup>
+              <thead>
+                <tr>
+                  <th scope="col" className="w-12 pb-0">
+                    <div className="sticky left-0 z-10 w-12 will-change-transform">
                       <div className="flex flex-col items-center gap-1">
-                        <span
-                          className={
-                            col.label
-                              ? "block max-w-full truncate whitespace-nowrap"
-                              : "sr-only"
-                          }
-                        >
-                          {col.label || "Spacer"}
-                        </span>
+                        <div className="flex items-center gap-1 text-[0.7rem] font-medium uppercase tracking-wide text-muted-foreground">
+                          <Clock3 className="h-3.5 w-3.5" aria-hidden="true" />
+                          <span>Time</span>
+                        </div>
                         <span
                           aria-hidden="true"
-                          className={cn(
-                            "h-[2px] w-10 rounded-full",
-                            groupAccentFillClass[group],
-                            col.id === "__spacer" ? "opacity-0" : "opacity-60",
-                          )}
+                          className="h-[2px] w-8 rounded-full bg-foreground/20"
                         />
+                        <span className="sr-only">Time</span>
                       </div>
-                    </th>
-                  );
-                })}
-              </tr>
-            </thead>
-          </table>
+                    </div>
+                  </th>
+                  {visibleColumns.map((col) => {
+                    const group = getMetricGroupForColumnId(col.id);
+                    return (
+                      <th
+                        key={col.id}
+                        scope="col"
+                        className={cn(
+                          "pb-0 text-center text-[0.7rem] font-medium uppercase tracking-wide text-muted-foreground sm:text-xs",
+                        )}
+                      >
+                        <div className="flex flex-col items-center gap-1">
+                          <span
+                            className={
+                              col.label
+                                ? "block max-w-full truncate whitespace-nowrap"
+                                : "sr-only"
+                            }
+                          >
+                            {col.label || "Spacer"}
+                          </span>
+                          <span
+                            aria-hidden="true"
+                            className={cn(
+                              "h-[2px] w-10 rounded-full",
+                              groupAccentFillClass[group],
+                              col.id === "__spacer"
+                                ? "opacity-0"
+                                : "opacity-60",
+                            )}
+                          />
+                        </div>
+                      </th>
+                    );
+                  })}
+                </tr>
+              </thead>
+            </table>
+          </div>
         </div>
 
         <table
@@ -3534,42 +3712,43 @@ const StatTable = ({
       ) : null}
 
       {shouldReserveFooterSpace ? (
-        <div
-          data-ww-stat-table-sticky="pager"
-          ref={pagerStickyRef}
-          data-ww-visible={
-            dockPagerInFlowEffective || pagerVisibleRef.current
-              ? "true"
-              : "false"
-          }
-          className={cn(
-            dockPagerInFlowEffective
-              ? "relative z-50"
-              : // Keep the pager attached to the bottom edge of the widget while the
-                // page scrolls; within-table scrolling is handled by the flex layout above.
-                "sticky z-50 bottom-[calc(0.75rem+env(safe-area-inset-bottom))]",
-            "mt-2",
-            "shrink-0 flex min-h-10 items-center justify-center px-1 pt-1",
-            !dockPagerInFlowEffective &&
-              "invisible opacity-0 pointer-events-none transition-opacity duration-150 motion-reduce:transition-none data-[ww-visible=true]:visible data-[ww-visible=true]:opacity-100 data-[ww-visible=true]:pointer-events-auto",
-            // Reduce iOS scroll jitter by forcing compositing; keeps original sticky behavior.
-            !dockPagerInFlowEffective && "transform-gpu will-change-transform",
-          )}
-          aria-hidden={!(dockPagerInFlowEffective || pagerVisibleRef.current)}
-        >
-          <div data-ww-stat-table-pager-ui>
-            {footerControlsPill ? (
-              footerControlsPill
-            ) : (
-              <div
-                aria-hidden="true"
-                className={cn(
-                  "pointer-events-none h-10 w-[min(22rem,100%)] rounded-full",
-                  "border border-border/30 bg-foreground/10",
-                  "animate-pulse motion-reduce:animate-none",
-                )}
-              />
+        <div ref={pagerWrapRef} className="mt-2">
+          <div
+            data-ww-stat-table-sticky="pager"
+            ref={pagerStickyRef}
+            data-ww-visible={
+              dockPagerInFlowEffective || pagerVisibleRef.current
+                ? "true"
+                : "false"
+            }
+            className={cn(
+              dockPagerInFlowEffective
+                ? "relative z-50"
+                : // Keep the pager attached to the bottom edge of the widget while the
+                  // page scrolls; within-table scrolling is handled by the flex layout above.
+                  "sticky z-50 bottom-[calc(0.75rem+env(safe-area-inset-bottom))]",
+              "shrink-0 flex min-h-10 items-center justify-center px-1 pt-1",
+              !dockPagerInFlowEffective &&
+                "invisible opacity-0 pointer-events-none transition-opacity duration-150 motion-reduce:transition-none data-[ww-visible=true]:visible data-[ww-visible=true]:opacity-100 data-[ww-visible=true]:pointer-events-auto",
+              // Reduce iOS scroll jitter by forcing compositing; keeps original sticky behavior.
+              !dockPagerInFlowEffective && "transform-gpu will-change-transform",
             )}
+            aria-hidden={!(dockPagerInFlowEffective || pagerVisibleRef.current)}
+          >
+            <div data-ww-stat-table-pager-ui>
+              {footerControlsPill ? (
+                footerControlsPill
+              ) : (
+                <div
+                  aria-hidden="true"
+                  className={cn(
+                    "pointer-events-none h-10 w-[min(22rem,100%)] rounded-full",
+                    "border border-border/30 bg-foreground/10",
+                    "animate-pulse motion-reduce:animate-none",
+                  )}
+                />
+              )}
+            </div>
           </div>
         </div>
       ) : null}
