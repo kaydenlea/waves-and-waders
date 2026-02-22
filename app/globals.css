@@ -637,6 +637,14 @@ html[data-ww-keyboard-open="1"] {
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
   }
+
+  /* Some mobile browsers intermittently fail to repaint large `filter: blur(...)` layers
+     during active scroll (seen as brief disappear/reappear). Prefer hiding these purely
+     decorative blobs while scrolling to keep content stable. */
+  body[data-ww-scrolling="1"] .ww-scroll-hide-blur {
+    filter: none !important;
+    opacity: 0 !important;
+  }
 }
 
 /* ---------------------------------------------------------------------------

@@ -64,8 +64,8 @@ export default async function AllBeachesPage() {
           <div className="absolute inset-0 bg-gradient-to-b from-background via-background to-background" />
           <div className="absolute inset-0 bg-[radial-gradient(900px_circle_at_15%_0%,rgba(34,211,238,0.16),transparent_65%)]" />
           <div className="absolute inset-0 bg-[radial-gradient(900px_circle_at_85%_0%,rgba(99,102,241,0.14),transparent_65%)]" />
-          <div className="absolute -top-36 left-1/2 h-[520px] w-[1080px] -translate-x-1/2 rounded-full bg-cyan-500/10 blur-3xl" />
-          <div className="absolute -bottom-64 -right-36 h-[620px] w-[620px] rounded-full bg-indigo-500/10 blur-3xl" />
+          <div className="ww-scroll-hide-blur absolute -top-36 left-1/2 h-[520px] w-[1080px] -translate-x-1/2 rounded-full bg-cyan-500/10 blur-3xl" />
+          <div className="ww-scroll-hide-blur absolute -bottom-64 -right-36 h-[620px] w-[620px] rounded-full bg-indigo-500/10 blur-3xl" />
         </div>
 
         <div className="mx-auto w-full max-w-6xl px-4 sm:px-10">
