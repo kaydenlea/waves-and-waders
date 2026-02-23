@@ -43,7 +43,7 @@ export default async function LoginPage() {
   return (
     <main
       data-ww-page="login"
-      className="relative isolate bg-gradient-to-b from-background via-background-2 to-background overflow-x-hidden max-[911px]:ww-disable-backdrop"
+      className="relative isolate bg-gradient-to-b from-background via-background-2 to-background max-[911px]:ww-disable-backdrop"
     >
       <div
         aria-hidden
