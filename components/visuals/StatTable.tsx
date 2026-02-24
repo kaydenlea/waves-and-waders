@@ -2769,15 +2769,12 @@ const StatTable = ({
   const dockPagerInFlowEffective = isEditing ? true : dockPagerInFlow;
   const pagerStickyRef = React.useRef<HTMLDivElement | null>(null);
   const pagerRevealSentinelRef = React.useRef<HTMLDivElement | null>(null);
-  const pagerBottomSentinelRef = React.useRef<HTMLDivElement | null>(null);
   const pagerRevealPastRef = React.useRef(false);
-  const pagerBottomReachedRef = React.useRef(false);
   const pagerVisibleRef = React.useRef(isEditing);
 
   React.useEffect(() => {
     const el = pagerStickyRef.current;
     const sentinel = pagerRevealSentinelRef.current;
-    const bottomSentinel = pagerBottomSentinelRef.current;
     if (!shouldReserveFooterSpace || !el) return;
     if (isEditing || dockPagerInFlowEffective) {
       pagerVisibleRef.current = true;
@@ -2809,15 +2806,14 @@ const StatTable = ({
 
     if (
       typeof IntersectionObserver === "undefined" ||
-      !sentinel ||
-      !bottomSentinel
+      !sentinel
     ) {
       setVisible(true);
       return;
     }
 
     const recompute = () => {
-      setVisible(pagerRevealPastRef.current || pagerBottomReachedRef.current);
+      setVisible(pagerRevealPastRef.current);
     };
 
     // Show slightly after entering the StatTable (prevents appearing immediately at the top).
@@ -2829,15 +2825,12 @@ const StatTable = ({
       try {
         const vh = window.innerHeight || document.documentElement.clientHeight;
         const sentinelRect = sentinel.getBoundingClientRect();
-        const bottomRect = bottomSentinel.getBoundingClientRect();
 
         const rootTop = revealOffsetPx;
         const rootBottom = vh;
         const sentinelIntersecting =
           sentinelRect.bottom >= rootTop && sentinelRect.top <= rootBottom;
         pagerRevealPastRef.current = !sentinelIntersecting;
-        pagerBottomReachedRef.current =
-          bottomRect.bottom >= 0 && bottomRect.top <= vh;
       } catch {}
       recompute();
     };
@@ -2853,18 +2846,7 @@ const StatTable = ({
       },
     );
 
-    // Safety net: if the user reaches/passes the bottom of the widget, ensure the pill
-    // becomes eligible to show (prevents "never appears even past the widget").
-    const bottomObserver = new IntersectionObserver(
-      ([entry]) => {
-        pagerBottomReachedRef.current = entry.isIntersecting;
-        recompute();
-      },
-      { root: null, threshold: 0 },
-    );
-
     revealObserver.observe(sentinel);
-    bottomObserver.observe(bottomSentinel);
     if (typeof window !== "undefined") {
       window.requestAnimationFrame(bootstrapFromLayout);
     } else {
@@ -2872,7 +2854,6 @@ const StatTable = ({
     }
     return () => {
       revealObserver.disconnect();
-      bottomObserver.disconnect();
     };
   }, [
     dockPagerInFlowEffective,
@@ -2891,13 +2872,22 @@ const StatTable = ({
   // touch scroll. Keep the DOM/CSS sticky markup, but when the table enters the
   // sticky range we switch the header + pager to `position: fixed`.
   //
-  // Key detail: avoid per-scroll layout reads (`getBoundingClientRect`) and avoid
-  // rewriting styles every frame. We precompute table + control geometry and then
-  // toggle fixed positioning using scrollY thresholds.
+  // Key detail: on iOS Safari/WKWebView we prefer correctness over cleverness.
+  // Measure layout in a single rAF during scroll and toggle fixed positioning based
+  // on the table's live viewport rect. This stays stable across browser-chrome
+  // animations (visualViewport) and "rubber band" scrolling.
   React.useEffect(() => {
     if (typeof window === "undefined") return;
     if (typeof document === "undefined") return;
     if (isEditing) return;
+
+    let mq: MediaQueryList | null = null;
+    try {
+      mq = window.matchMedia?.("(hover: none) and (pointer: coarse)") ?? null;
+    } catch {
+      mq = null;
+    }
+    if (!mq?.matches) return;
 
     const tableEl = tableRef.current;
     const headerEl = stickyHeaderRef.current;
@@ -2907,40 +2897,13 @@ const StatTable = ({
     if (!tableEl || !headerEl || !headerPh) return;
 
     const state = { headerFixed: false, pagerFixed: false };
-    const metrics = {
-      tableTopY: 0,
-      tableBottomY: 0,
-      leftPx: 0,
-      widthPx: 0,
-      headerTopPx: 0,
-      headerHPx: 0,
-      headerSpaceHPx: 0,
-      headerStartY: 0,
-      headerEndY: 0,
-      pagerBottomPx: 0,
-      pagerHPx: 0,
-      pagerMarginTopPx: 0,
-      pagerSpaceHPx: 0,
-      pagerStartY: Number.POSITIVE_INFINITY,
-      pagerEndY: Number.NEGATIVE_INFINITY,
-      viewportHPx: 0,
-    };
 
     const readPx = (raw: string) => {
       const n = Number.parseFloat(raw);
       return Number.isFinite(n) ? n : 0;
     };
 
-    const flowPagerMarginTopPxRef = { current: 0 };
-    if (pagerEl) {
-      try {
-        flowPagerMarginTopPxRef.current = readPx(
-          window.getComputedStyle(pagerEl).marginTop,
-        );
-      } catch {
-        flowPagerMarginTopPxRef.current = 0;
-      }
-    }
+    let flowPagerMarginTopPx = 0;
 
     const resetHeader = () => {
       if (!state.headerFixed) return;
@@ -2955,12 +2918,17 @@ const StatTable = ({
       headerEl.style.backfaceVisibility = "";
     };
 
-    const applyHeaderFixed = () => {
-      headerPh.style.height = `${metrics.headerSpaceHPx}px`;
+    const applyHeaderFixed = (args: {
+      topPx: number;
+      leftPx: number;
+      widthPx: number;
+      spaceHPx: number;
+    }) => {
+      headerPh.style.height = `${args.spaceHPx}px`;
       headerEl.style.position = "fixed";
-      headerEl.style.top = `${metrics.headerTopPx}px`;
-      headerEl.style.left = `${metrics.leftPx}px`;
-      headerEl.style.width = `${metrics.widthPx}px`;
+      headerEl.style.top = `${args.topPx}px`;
+      headerEl.style.left = `${args.leftPx}px`;
+      headerEl.style.width = `${args.widthPx}px`;
       headerEl.style.zIndex = "60";
       headerEl.style.webkitBackfaceVisibility = "hidden";
       headerEl.style.backfaceVisibility = "hidden";
@@ -2981,73 +2949,18 @@ const StatTable = ({
       pagerEl.style.backfaceVisibility = "";
     };
 
-    const applyPagerFixed = () => {
+    const applyPagerFixed = (args: { leftPx: number; widthPx: number; spaceHPx: number }) => {
       if (!pagerEl || !pagerPh) return;
-      pagerPh.style.height = `${metrics.pagerSpaceHPx}px`;
+      pagerPh.style.height = `${args.spaceHPx}px`;
       pagerEl.style.position = "fixed";
       // Pager has `mt-2` in flow; fixed elements shouldn't keep flow margins.
       pagerEl.style.marginTop = "0px";
-      pagerEl.style.left = `${metrics.leftPx}px`;
-      pagerEl.style.width = `${metrics.widthPx}px`;
+      pagerEl.style.left = `${args.leftPx}px`;
+      pagerEl.style.width = `${args.widthPx}px`;
       pagerEl.style.zIndex = "60";
       pagerEl.style.webkitBackfaceVisibility = "hidden";
       pagerEl.style.backfaceVisibility = "hidden";
       state.pagerFixed = true;
-    };
-
-    const inViewportRef = { current: true };
-
-    let forceStyleSync = false;
-    const recompute = () => {
-      const scrollY = window.scrollY || 0;
-      const rect = tableEl.getBoundingClientRect();
-      metrics.tableTopY = rect.top + scrollY;
-      metrics.tableBottomY = rect.bottom + scrollY;
-      metrics.leftPx = Math.round(rect.left);
-      metrics.widthPx = Math.round(rect.width);
-
-      const headerStyle = window.getComputedStyle(headerEl);
-      metrics.headerTopPx = Math.round(readPx(headerStyle.top));
-      metrics.headerHPx = Math.ceil(headerEl.getBoundingClientRect().height || 0);
-      const headerMarginTop = readPx(headerStyle.marginTop);
-      const headerMarginBottom = readPx(headerStyle.marginBottom);
-      metrics.headerSpaceHPx = Math.ceil(
-        metrics.headerHPx + headerMarginTop + headerMarginBottom,
-      );
-      metrics.headerStartY = metrics.tableTopY - metrics.headerTopPx;
-      metrics.headerEndY =
-        metrics.tableBottomY - metrics.headerTopPx - metrics.headerSpaceHPx - 1;
-
-      if (
-        shouldReserveFooterSpace &&
-        !dockPagerInFlowEffective &&
-        pagerEl &&
-        pagerPh
-      ) {
-        const pagerStyle = window.getComputedStyle(pagerEl);
-        metrics.pagerBottomPx = Math.round(readPx(pagerStyle.bottom));
-        metrics.pagerHPx = Math.ceil(pagerEl.getBoundingClientRect().height || 0);
-        if (!state.pagerFixed) {
-          flowPagerMarginTopPxRef.current = readPx(pagerStyle.marginTop);
-        }
-        metrics.pagerMarginTopPx = flowPagerMarginTopPxRef.current;
-        metrics.pagerSpaceHPx = Math.ceil(metrics.pagerHPx + metrics.pagerMarginTopPx);
-        metrics.viewportHPx =
-          window.innerHeight || document.documentElement.clientHeight || 0;
-        const stickyLine =
-          metrics.viewportHPx - metrics.pagerBottomPx - metrics.pagerHPx;
-        metrics.pagerStartY = metrics.tableTopY - stickyLine;
-        metrics.pagerEndY = metrics.tableBottomY - stickyLine;
-      } else {
-        metrics.pagerBottomPx = 0;
-        metrics.pagerHPx = 0;
-        metrics.pagerMarginTopPx = 0;
-        metrics.pagerSpaceHPx = 0;
-        metrics.pagerStartY = Number.POSITIVE_INFINITY;
-        metrics.pagerEndY = Number.NEGATIVE_INFINITY;
-      }
-
-      forceStyleSync = true;
     };
 
     let applyRaf: number | null = null;
@@ -3055,109 +2968,88 @@ const StatTable = ({
       if (applyRaf != null) return;
       applyRaf = window.requestAnimationFrame(() => {
         applyRaf = null;
-        const scrollY = window.scrollY || 0;
 
-        if (inViewportRef.current === false) {
-          resetHeader();
-          resetPager();
-          forceStyleSync = false;
-          return;
-        }
+        const tableRect = tableEl.getBoundingClientRect();
+        const leftPx = Math.round(tableRect.left);
+        const widthPx = Math.round(tableRect.width);
 
-        // Hysteresis prevents rapid flip/flop near the boundaries due to tiny scroll jitter.
-        const ENTER_PX = 4;
-        const EXIT_PX = 16;
+        // Hysteresis prevents rapid flip/flop near boundaries due to tiny scroll jitter.
+        const ENTER_PX = 2;
+        const EXIT_PX = 10;
+
+        const headerStyle = window.getComputedStyle(headerEl);
+        const headerTopPx = Math.round(readPx(headerStyle.top));
+        const headerHPx = Math.ceil(headerEl.getBoundingClientRect().height || 0);
+        const headerSpaceHPx = Math.ceil(
+          headerHPx + readPx(headerStyle.marginTop) + readPx(headerStyle.marginBottom),
+        );
 
         const shouldFixHeader = state.headerFixed
-          ? scrollY > metrics.headerStartY - EXIT_PX &&
-            scrollY < metrics.headerEndY + EXIT_PX
-          : scrollY > metrics.headerStartY + ENTER_PX &&
-            scrollY < metrics.headerEndY - ENTER_PX;
+          ? tableRect.top < headerTopPx + EXIT_PX &&
+            tableRect.bottom > headerTopPx + headerSpaceHPx - EXIT_PX
+          : tableRect.top < headerTopPx - ENTER_PX &&
+            tableRect.bottom > headerTopPx + headerSpaceHPx + ENTER_PX;
+
         if (shouldFixHeader) {
-          if (!state.headerFixed || forceStyleSync) applyHeaderFixed();
+          // Keep styles in sync during rubber-band / browser UI animations.
+          applyHeaderFixed({
+            topPx: headerTopPx,
+            leftPx,
+            widthPx,
+            spaceHPx: headerSpaceHPx,
+          });
         } else {
           resetHeader();
         }
 
-        const shouldFixPager =
+        const vv = window.visualViewport;
+        const viewportH = vv?.height ?? window.innerHeight;
+
+        const canFixPager =
           shouldReserveFooterSpace &&
           !dockPagerInFlowEffective &&
           pagerEl &&
           pagerPh &&
-          pagerVisibleRef.current &&
-          (state.pagerFixed
-            ? scrollY > metrics.pagerStartY - EXIT_PX &&
-              scrollY < metrics.pagerEndY + EXIT_PX
-            : scrollY > metrics.pagerStartY + ENTER_PX &&
-              scrollY < metrics.pagerEndY - ENTER_PX);
-        if (shouldFixPager) {
-          if (!state.pagerFixed || forceStyleSync) applyPagerFixed();
+          pagerVisibleRef.current;
+
+        if (canFixPager) {
+          const pagerStyle = window.getComputedStyle(pagerEl);
+          const bottomPx = Math.round(readPx(pagerStyle.bottom));
+          const pagerHPx = Math.ceil(pagerEl.getBoundingClientRect().height || 0);
+          if (!state.pagerFixed) {
+            flowPagerMarginTopPx = readPx(pagerStyle.marginTop);
+          }
+          const pagerSpaceHPx = Math.ceil(pagerHPx + flowPagerMarginTopPx);
+          const pagerTopY = viewportH - bottomPx - pagerHPx;
+
+          const shouldFixPager = state.pagerFixed
+            ? tableRect.top < pagerTopY + EXIT_PX &&
+              tableRect.bottom > pagerTopY + pagerHPx - EXIT_PX
+            : tableRect.top < pagerTopY - ENTER_PX &&
+              tableRect.bottom > pagerTopY + pagerHPx + ENTER_PX;
+
+          if (shouldFixPager) {
+            applyPagerFixed({ leftPx, widthPx, spaceHPx: pagerSpaceHPx });
+          } else {
+            resetPager();
+          }
         } else {
           resetPager();
         }
-
-        forceStyleSync = false;
       });
     };
 
-    let recomputeRaf: number | null = null;
-    const scheduleRecompute = () => {
-      if (recomputeRaf != null) return;
-      recomputeRaf = window.requestAnimationFrame(() => {
-        recomputeRaf = null;
-        recompute();
-        apply();
-      });
-    };
-
-    const lastObservedWidthRef = { current: 0 };
-    const ro = new ResizeObserver(() => {
-      const w = Math.round(tableEl.clientWidth || 0);
-      if (w <= 0 || w === lastObservedWidthRef.current) return;
-      lastObservedWidthRef.current = w;
-      scheduleRecompute();
-    });
-    lastObservedWidthRef.current = Math.round(tableEl.clientWidth || 0);
-    ro.observe(tableEl);
-
-    const io =
-      typeof IntersectionObserver !== "undefined"
-        ? new IntersectionObserver(
-            ([entry]) => {
-              if (entry?.isIntersecting) scheduleRecompute();
-            },
-            // Recompute once as the table approaches the viewport. This makes our
-            // precomputed scrollY thresholds resilient to layout shifts above the table
-            // (e.g. widgets finishing async loads) without doing layout reads on scroll.
-            { root: null, threshold: 0, rootMargin: "800px 0px 800px 0px" },
-          )
-        : null;
-    io?.observe(tableEl);
-
-    const inViewIo =
-      typeof IntersectionObserver !== "undefined"
-        ? new IntersectionObserver(
-            ([entry]) => {
-              inViewportRef.current = Boolean(entry?.isIntersecting);
-              if (!inViewportRef.current) {
-                // Hard stop: never allow fixed "sticky" UI to linger outside the widget.
-                resetHeader();
-                resetPager();
-              }
-            },
-            { root: null, threshold: 0, rootMargin: "0px" },
-          )
-        : null;
-    inViewIo?.observe(tableEl);
+    const vv = window.visualViewport ?? null;
+    const schedule = () => apply();
+    schedule();
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule, { passive: true });
+    vv?.addEventListener("resize", schedule, { passive: true });
+    vv?.addEventListener("scroll", schedule, { passive: true });
 
     const mo =
       typeof MutationObserver !== "undefined" && pagerEl
-        ? new MutationObserver(() => {
-            // Pager visibility toggles are driven by an IntersectionObserver in a
-            // separate effect; keep our fixed/sticky emulation in sync even when
-            // there are no scroll events (e.g. after scroll settles).
-            apply();
-          })
+        ? new MutationObserver(() => schedule())
         : null;
     if (mo && pagerEl) {
       mo.observe(pagerEl, {
@@ -3166,26 +3058,13 @@ const StatTable = ({
       });
     }
 
-    scheduleRecompute();
-    window.addEventListener("scroll", apply, { passive: true });
-    let lastWindowW = window.innerWidth || 0;
-    const onWindowResize = () => {
-      const w = window.innerWidth || 0;
-      if (w <= 0 || w === lastWindowW) return;
-      lastWindowW = w;
-      scheduleRecompute();
-    };
-    window.addEventListener("resize", onWindowResize, { passive: true });
-
     return () => {
-      ro.disconnect();
-      io?.disconnect();
-      inViewIo?.disconnect();
       mo?.disconnect();
-      window.removeEventListener("scroll", apply);
-      window.removeEventListener("resize", onWindowResize);
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+      vv?.removeEventListener("resize", schedule);
+      vv?.removeEventListener("scroll", schedule);
       if (applyRaf != null) window.cancelAnimationFrame(applyRaf);
-      if (recomputeRaf != null) window.cancelAnimationFrame(recomputeRaf);
       resetHeader();
       resetPager();
     };
@@ -3838,14 +3717,6 @@ const StatTable = ({
           aria-hidden="true"
           ref={pagerRevealSentinelRef}
           className="absolute left-0 top-0 h-px w-px"
-        />
-      ) : null}
-
-      {shouldReserveFooterSpace && !dockPagerInFlowEffective ? (
-        <div
-          aria-hidden="true"
-          ref={pagerBottomSentinelRef}
-          className="absolute left-0 bottom-0 h-px w-px"
         />
       ) : null}
 
