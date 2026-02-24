@@ -1,0 +1,25 @@
+{
+  "name": "waves-and-waders-mobile",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "cap:add:ios": "cap add ios",
+    "cap:add:android": "cap add android",
+    "cap:sync": "cap sync",
+    "cap:open:ios": "cap open ios",
+    "cap:open:android": "cap open android",
+    "cap:run:ios": "cap run ios",
+    "cap:run:android": "cap run android"
+  },
+  "dependencies": {
+    "@capacitor/core": "^6.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^6.0.0",
+    "@capacitor/cli": "^6.0.0",
+    "@capacitor/ios": "^6.0.0",
+    "dotenv": "^16.6.1",
+    "typescript": "^5.9.3"
+  }
+}
+
