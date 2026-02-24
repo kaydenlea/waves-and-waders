@@ -2982,7 +2982,7 @@ const StatTable = ({
             <thead>
               <tr>
                 <th scope="col" className="w-12 pb-0">
-                  <div className="sticky left-0 z-10 w-12 will-change-transform">
+                  <div className="relative z-10 w-12">
                     <div className="flex flex-col items-center gap-1">
                       <div className="flex items-center gap-1 text-[0.7rem] font-medium uppercase tracking-wide text-muted-foreground">
                         <Clock3 className="h-3.5 w-3.5" aria-hidden="true" />
@@ -3193,7 +3193,7 @@ const StatTable = ({
                     className="transition-colors duration-200 motion-reduce:duration-0"
                   >
                     <th scope="row" className="p-0 align-middle bg-transparent">
-                      <div className="sticky left-0 z-10 w-12">
+                      <div className="relative z-10 w-12">
                         <TimeCell time={entry.time} selected={isSelectedHour} />
                       </div>
                     </th>
