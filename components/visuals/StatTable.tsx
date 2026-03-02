@@ -1665,6 +1665,9 @@ const StatTable = ({
   const TABLE_BREAKPOINT_LG = 900;
   const TABLE_BREAKPOINT_XL = 1150;
   const widthNow = React.useRef<number>(0);
+  const stickyHeaderRef = React.useRef<HTMLDivElement | null>(null);
+  const stickyHeaderPlaceholderRef = React.useRef<HTMLDivElement | null>(null);
+  const stickyPagerPlaceholderRef = React.useRef<HTMLDivElement | null>(null);
 
   React.useLayoutEffect(() => {
     const table = tableRef.current;
@@ -1834,7 +1837,10 @@ const StatTable = ({
 
     const observer = new ResizeObserver(() => {
       const w = table.clientWidth;
-      if (w > 0) measuredWidthRef.current = w;
+      // ResizeObserver can fire when only the height changes (e.g. layout shifts, sticky
+      // UI reflow). Only recompute column paging when the width actually changes.
+      if (w <= 0 || w === measuredWidthRef.current) return;
+      measuredWidthRef.current = w;
       syncColumnsVariant();
       scheduleAdjust();
     });
@@ -1842,12 +1848,17 @@ const StatTable = ({
 
     const onWindowResize = () => {
       const w = table.clientWidth;
-      if (w > 0) measuredWidthRef.current = w;
+      // On iOS Safari/WKWebView, the visual viewport height can change continuously while
+      // scrolling (URL bar / bottom controls animating). That can fire resize events even
+      // when our table's width is unchanged. Avoid doing any work unless the width changed;
+      // otherwise we end up scheduling layout work during scroll which can make sticky UI
+      // appear to jitter.
+      if (w <= 0 || w === measuredWidthRef.current) return;
+      measuredWidthRef.current = w;
       syncColumnsVariant();
       scheduleAdjust();
     };
     window.addEventListener("resize", onWindowResize);
-    window.visualViewport?.addEventListener("resize", onWindowResize);
 
     measuredWidthRef.current = table.clientWidth;
     syncColumnsVariant();
@@ -1856,7 +1867,6 @@ const StatTable = ({
     return () => {
       observer.disconnect();
       window.removeEventListener("resize", onWindowResize);
-      window.visualViewport?.removeEventListener("resize", onWindowResize);
       if (resizeRafRef.current != null) {
         window.cancelAnimationFrame(resizeRafRef.current);
         resizeRafRef.current = null;
@@ -2343,7 +2353,8 @@ const StatTable = ({
       className={cn(
         "pointer-events-auto inline-flex h-10 max-w-full items-center rounded-full",
         loading && "pointer-events-none opacity-70",
-        "bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/90",
+        // Sticky stability: keep the pill fully opaque to avoid scroll-time blending/compositing jitter.
+        "bg-background",
         "border border-border/40 shadow-xs",
       )}
     >
@@ -2758,15 +2769,12 @@ const StatTable = ({
   const dockPagerInFlowEffective = isEditing ? true : dockPagerInFlow;
   const pagerStickyRef = React.useRef<HTMLDivElement | null>(null);
   const pagerRevealSentinelRef = React.useRef<HTMLDivElement | null>(null);
-  const pagerBottomSentinelRef = React.useRef<HTMLDivElement | null>(null);
   const pagerRevealPastRef = React.useRef(false);
-  const pagerBottomReachedRef = React.useRef(false);
   const pagerVisibleRef = React.useRef(isEditing);
 
   React.useEffect(() => {
     const el = pagerStickyRef.current;
     const sentinel = pagerRevealSentinelRef.current;
-    const bottomSentinel = pagerBottomSentinelRef.current;
     if (!shouldReserveFooterSpace || !el) return;
     if (isEditing || dockPagerInFlowEffective) {
       pagerVisibleRef.current = true;
@@ -2798,15 +2806,14 @@ const StatTable = ({
 
     if (
       typeof IntersectionObserver === "undefined" ||
-      !sentinel ||
-      !bottomSentinel
+      !sentinel
     ) {
       setVisible(true);
       return;
     }
 
     const recompute = () => {
-      setVisible(pagerRevealPastRef.current || pagerBottomReachedRef.current);
+      setVisible(pagerRevealPastRef.current);
     };
 
     // Show slightly after entering the StatTable (prevents appearing immediately at the top).
@@ -2818,15 +2825,12 @@ const StatTable = ({
       try {
         const vh = window.innerHeight || document.documentElement.clientHeight;
         const sentinelRect = sentinel.getBoundingClientRect();
-        const bottomRect = bottomSentinel.getBoundingClientRect();
 
         const rootTop = revealOffsetPx;
         const rootBottom = vh;
         const sentinelIntersecting =
           sentinelRect.bottom >= rootTop && sentinelRect.top <= rootBottom;
         pagerRevealPastRef.current = !sentinelIntersecting;
-        pagerBottomReachedRef.current =
-          bottomRect.bottom >= 0 && bottomRect.top <= vh;
       } catch {}
       recompute();
     };
@@ -2842,18 +2846,7 @@ const StatTable = ({
       },
     );
 
-    // Safety net: if the user reaches/passes the bottom of the widget, ensure the pill
-    // becomes eligible to show (prevents "never appears even past the widget").
-    const bottomObserver = new IntersectionObserver(
-      ([entry]) => {
-        pagerBottomReachedRef.current = entry.isIntersecting;
-        recompute();
-      },
-      { root: null, threshold: 0 },
-    );
-
     revealObserver.observe(sentinel);
-    bottomObserver.observe(bottomSentinel);
     if (typeof window !== "undefined") {
       window.requestAnimationFrame(bootstrapFromLayout);
     } else {
@@ -2861,7 +2854,6 @@ const StatTable = ({
     }
     return () => {
       revealObserver.disconnect();
-      bottomObserver.disconnect();
     };
   }, [
     dockPagerInFlowEffective,
@@ -2874,6 +2866,209 @@ const StatTable = ({
     showSecondarySwells,
     tableWidthPx,
   ]);
+
+  // Sticky stability:
+  // Mobile Safari/WKWebView can visibly jitter `position: sticky` elements during
+  // touch scroll. Keep the DOM/CSS sticky markup, but when the table enters the
+  // sticky range we switch the header + pager to `position: fixed`.
+  //
+  // Key detail: on iOS Safari/WKWebView we prefer correctness over cleverness.
+  // Measure layout in a single rAF during scroll and toggle fixed positioning based
+  // on the table's live viewport rect. This stays stable across browser-chrome
+  // animations (visualViewport) and "rubber band" scrolling.
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (typeof document === "undefined") return;
+    if (isEditing) return;
+
+    let mq: MediaQueryList | null = null;
+    try {
+      mq = window.matchMedia?.("(hover: none) and (pointer: coarse)") ?? null;
+    } catch {
+      mq = null;
+    }
+    if (!mq?.matches) return;
+
+    const tableEl = tableRef.current;
+    const headerEl = stickyHeaderRef.current;
+    const headerPh = stickyHeaderPlaceholderRef.current;
+    const pagerEl = pagerStickyRef.current;
+    const pagerPh = stickyPagerPlaceholderRef.current;
+    if (!tableEl || !headerEl || !headerPh) return;
+
+    const state = { headerFixed: false, pagerFixed: false };
+
+    const readPx = (raw: string) => {
+      const n = Number.parseFloat(raw);
+      return Number.isFinite(n) ? n : 0;
+    };
+
+    let flowPagerMarginTopPx = 0;
+
+    const resetHeader = () => {
+      if (!state.headerFixed) return;
+      state.headerFixed = false;
+      headerPh.style.height = "0px";
+      headerEl.style.position = "";
+      headerEl.style.top = "";
+      headerEl.style.left = "";
+      headerEl.style.width = "";
+      headerEl.style.zIndex = "";
+      headerEl.style.webkitBackfaceVisibility = "";
+      headerEl.style.backfaceVisibility = "";
+    };
+
+    const applyHeaderFixed = (args: {
+      topPx: number;
+      leftPx: number;
+      widthPx: number;
+      spaceHPx: number;
+    }) => {
+      headerPh.style.height = `${args.spaceHPx}px`;
+      headerEl.style.position = "fixed";
+      headerEl.style.top = `${args.topPx}px`;
+      headerEl.style.left = `${args.leftPx}px`;
+      headerEl.style.width = `${args.widthPx}px`;
+      headerEl.style.zIndex = "60";
+      headerEl.style.webkitBackfaceVisibility = "hidden";
+      headerEl.style.backfaceVisibility = "hidden";
+      state.headerFixed = true;
+    };
+
+    const resetPager = () => {
+      if (!state.pagerFixed) return;
+      state.pagerFixed = false;
+      if (pagerPh) pagerPh.style.height = "0px";
+      if (!pagerEl) return;
+      pagerEl.style.position = "";
+      pagerEl.style.marginTop = "";
+      pagerEl.style.left = "";
+      pagerEl.style.width = "";
+      pagerEl.style.zIndex = "";
+      pagerEl.style.webkitBackfaceVisibility = "";
+      pagerEl.style.backfaceVisibility = "";
+    };
+
+    const applyPagerFixed = (args: { leftPx: number; widthPx: number; spaceHPx: number }) => {
+      if (!pagerEl || !pagerPh) return;
+      pagerPh.style.height = `${args.spaceHPx}px`;
+      pagerEl.style.position = "fixed";
+      // Pager has `mt-2` in flow; fixed elements shouldn't keep flow margins.
+      pagerEl.style.marginTop = "0px";
+      pagerEl.style.left = `${args.leftPx}px`;
+      pagerEl.style.width = `${args.widthPx}px`;
+      pagerEl.style.zIndex = "60";
+      pagerEl.style.webkitBackfaceVisibility = "hidden";
+      pagerEl.style.backfaceVisibility = "hidden";
+      state.pagerFixed = true;
+    };
+
+    let applyRaf: number | null = null;
+    const apply = () => {
+      if (applyRaf != null) return;
+      applyRaf = window.requestAnimationFrame(() => {
+        applyRaf = null;
+
+        const tableRect = tableEl.getBoundingClientRect();
+        const leftPx = Math.round(tableRect.left);
+        const widthPx = Math.round(tableRect.width);
+
+        // Hysteresis prevents rapid flip/flop near boundaries due to tiny scroll jitter.
+        const ENTER_PX = 2;
+        const EXIT_PX = 10;
+
+        const headerStyle = window.getComputedStyle(headerEl);
+        const headerTopPx = Math.round(readPx(headerStyle.top));
+        const headerHPx = Math.ceil(headerEl.getBoundingClientRect().height || 0);
+        const headerSpaceHPx = Math.ceil(
+          headerHPx + readPx(headerStyle.marginTop) + readPx(headerStyle.marginBottom),
+        );
+
+        const shouldFixHeader = state.headerFixed
+          ? tableRect.top < headerTopPx + EXIT_PX &&
+            tableRect.bottom > headerTopPx + headerSpaceHPx - EXIT_PX
+          : tableRect.top < headerTopPx - ENTER_PX &&
+            tableRect.bottom > headerTopPx + headerSpaceHPx + ENTER_PX;
+
+        if (shouldFixHeader) {
+          // Keep styles in sync during rubber-band / browser UI animations.
+          applyHeaderFixed({
+            topPx: headerTopPx,
+            leftPx,
+            widthPx,
+            spaceHPx: headerSpaceHPx,
+          });
+        } else {
+          resetHeader();
+        }
+
+        const vv = window.visualViewport;
+        const viewportH = vv?.height ?? window.innerHeight;
+
+        const canFixPager =
+          shouldReserveFooterSpace &&
+          !dockPagerInFlowEffective &&
+          pagerEl &&
+          pagerPh &&
+          pagerVisibleRef.current;
+
+        if (canFixPager) {
+          const pagerStyle = window.getComputedStyle(pagerEl);
+          const bottomPx = Math.round(readPx(pagerStyle.bottom));
+          const pagerHPx = Math.ceil(pagerEl.getBoundingClientRect().height || 0);
+          if (!state.pagerFixed) {
+            flowPagerMarginTopPx = readPx(pagerStyle.marginTop);
+          }
+          const pagerSpaceHPx = Math.ceil(pagerHPx + flowPagerMarginTopPx);
+          const pagerTopY = viewportH - bottomPx - pagerHPx;
+
+          const shouldFixPager = state.pagerFixed
+            ? tableRect.top < pagerTopY + EXIT_PX &&
+              tableRect.bottom > pagerTopY + pagerHPx - EXIT_PX
+            : tableRect.top < pagerTopY - ENTER_PX &&
+              tableRect.bottom > pagerTopY + pagerHPx + ENTER_PX;
+
+          if (shouldFixPager) {
+            applyPagerFixed({ leftPx, widthPx, spaceHPx: pagerSpaceHPx });
+          } else {
+            resetPager();
+          }
+        } else {
+          resetPager();
+        }
+      });
+    };
+
+    const vv = window.visualViewport ?? null;
+    const schedule = () => apply();
+    schedule();
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule, { passive: true });
+    vv?.addEventListener("resize", schedule, { passive: true });
+    vv?.addEventListener("scroll", schedule, { passive: true });
+
+    const mo =
+      typeof MutationObserver !== "undefined" && pagerEl
+        ? new MutationObserver(() => schedule())
+        : null;
+    if (mo && pagerEl) {
+      mo.observe(pagerEl, {
+        attributes: true,
+        attributeFilter: ["data-ww-visible", "aria-hidden"],
+      });
+    }
+
+    return () => {
+      mo?.disconnect();
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+      vv?.removeEventListener("resize", schedule);
+      vv?.removeEventListener("scroll", schedule);
+      if (applyRaf != null) window.cancelAnimationFrame(applyRaf);
+      resetHeader();
+      resetPager();
+    };
+  }, [dockPagerInFlowEffective, isEditing, shouldReserveFooterSpace]);
 
   return (
     <div
@@ -2902,6 +3097,11 @@ const StatTable = ({
       }}
     >
       <div>
+        <div
+          aria-hidden="true"
+          ref={stickyHeaderPlaceholderRef}
+          className="h-0"
+        />
         {/* Toggle button for secondary/tertiary swells */}
         {/* <div className="flex justify-end mb-2">
         <Button
@@ -2925,6 +3125,7 @@ const StatTable = ({
       </div> */}
         <div
           data-ww-stat-table-sticky="header"
+          ref={stickyHeaderRef}
           className={cn(
             "sticky top-15.5 @min-4xl/main:top-27.5 z-40 @min-md:mx-0 rounded-b-[10px] px-0.5 py-0.5",
             headerBgClass,
@@ -2982,7 +3183,7 @@ const StatTable = ({
             <thead>
               <tr>
                 <th scope="col" className="w-12 pb-0">
-                  <div className="sticky left-0 z-10 w-12 will-change-transform">
+                  <div className="relative z-10 w-12">
                     <div className="flex flex-col items-center gap-1">
                       <div className="flex items-center gap-1 text-[0.7rem] font-medium uppercase tracking-wide text-muted-foreground">
                         <Clock3 className="h-3.5 w-3.5" aria-hidden="true" />
@@ -3193,7 +3394,7 @@ const StatTable = ({
                     className="transition-colors duration-200 motion-reduce:duration-0"
                   >
                     <th scope="row" className="p-0 align-middle bg-transparent">
-                      <div className="sticky left-0 z-10 w-12">
+                      <div className="relative z-10 w-12">
                         <TimeCell time={entry.time} selected={isSelectedHour} />
                       </div>
                     </th>
@@ -3519,53 +3720,58 @@ const StatTable = ({
         />
       ) : null}
 
-      {shouldReserveFooterSpace && !dockPagerInFlowEffective ? (
-        <div
-          aria-hidden="true"
-          ref={pagerBottomSentinelRef}
-          className="absolute left-0 bottom-0 h-px w-px"
-        />
-      ) : null}
-
       {shouldReserveFooterSpace ? (
-        <div
-          data-ww-stat-table-sticky="pager"
-          ref={pagerStickyRef}
-          data-ww-visible={
-            dockPagerInFlowEffective || pagerVisibleRef.current
-              ? "true"
-              : "false"
-          }
-          className={cn(
+        <>
+          <div
+            aria-hidden="true"
+            ref={stickyPagerPlaceholderRef}
+            className="h-0"
+          />
+          <div
+            data-ww-stat-table-sticky="pager"
+            ref={pagerStickyRef}
+            data-ww-visible={
+              dockPagerInFlowEffective || pagerVisibleRef.current
+                ? "true"
+                : "false"
+            }
+          style={
             dockPagerInFlowEffective
-              ? "relative z-50"
-              : // Keep the pager attached to the bottom edge of the widget while the
-                // page scrolls; within-table scrolling is handled by the flex layout above.
-                "sticky z-50 bottom-[calc(0.75rem+env(safe-area-inset-bottom))]",
-            "mt-2",
-            "shrink-0 flex min-h-10 items-center justify-center px-1 pt-1",
-            !dockPagerInFlowEffective &&
-              "invisible opacity-0 pointer-events-none transition-opacity duration-150 motion-reduce:transition-none data-[ww-visible=true]:visible data-[ww-visible=true]:opacity-100 data-[ww-visible=true]:pointer-events-auto",
-            // Reduce iOS scroll jitter by forcing compositing; keeps original sticky behavior.
-            !dockPagerInFlowEffective && "transform-gpu will-change-transform",
-          )}
-          aria-hidden={!(dockPagerInFlowEffective || pagerVisibleRef.current)}
-        >
-          <div data-ww-stat-table-pager-ui>
-            {footerControlsPill ? (
-              footerControlsPill
-            ) : (
-              <div
-                aria-hidden="true"
-                className={cn(
-                  "pointer-events-none h-10 w-[min(22rem,100%)] rounded-full",
-                  "border border-border/30 bg-foreground/10",
-                  "animate-pulse motion-reduce:animate-none",
-                )}
-              />
+              ? undefined
+              : {
+                  bottom:
+                    "calc(0.75rem + max(var(--ww-safe-area-bottom, env(safe-area-inset-bottom, 0px)), var(--ww-bottom-ui, 0px)))",
+                }
+          }
+            className={cn(
+              dockPagerInFlowEffective
+                ? "relative z-50"
+                : // Keep the pager attached to the bottom edge of the widget while the
+                  // page scrolls; within-table scrolling is handled by the flex layout above.
+                  "sticky z-50",
+              "mt-2",
+              "shrink-0 flex min-h-10 items-center justify-center px-1 pt-1",
+              !dockPagerInFlowEffective &&
+                "invisible opacity-0 pointer-events-none transition-opacity duration-150 motion-reduce:transition-none data-[ww-visible=true]:visible data-[ww-visible=true]:opacity-100 data-[ww-visible=true]:pointer-events-auto",
             )}
+            aria-hidden={!(dockPagerInFlowEffective || pagerVisibleRef.current)}
+          >
+            <div data-ww-stat-table-pager-ui>
+              {footerControlsPill ? (
+                footerControlsPill
+              ) : (
+                <div
+                  aria-hidden="true"
+                  className={cn(
+                    "pointer-events-none h-10 w-[min(22rem,100%)] rounded-full",
+                    "border border-border/30 bg-foreground/10",
+                    "animate-pulse motion-reduce:animate-none",
+                  )}
+                />
+              )}
+            </div>
           </div>
-        </div>
+        </>
       ) : null}
     </div>
   );
