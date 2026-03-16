@@ -1,0 +1,21 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "noEmit": false,
+    "outDir": ".tmp/community-tests",
+    "rootDir": ".",
+    "incremental": false
+  },
+  "include": [
+    "scripts/run-community-tests.ts",
+    "lib/community/constants.ts",
+    "lib/community/fishingIntelligenceMock.ts",
+    "lib/community/fishingReportComposer.ts",
+    "lib/community/policies.ts",
+    "lib/community/schemas.ts",
+    "lib/community/types.ts",
+    "lib/community/uploadRules.ts"
+  ]
+}

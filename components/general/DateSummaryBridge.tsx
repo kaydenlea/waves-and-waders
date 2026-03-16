@@ -29,17 +29,34 @@ import { ForecastChartProvider } from "../context/ForecastChartContext";
 import { SunDataProvider, useSunData } from "../context/SunDataContext";
 import ForecastBridge from "./ForecastBridge";
 import PageTabs from "./PageTabs";
+import PeekingSideTab from "./PeekingSideTab";
+import SaveButton from "./SaveButton";
 import DashboardEditorPanel from "./DashboardEditorPanel";
 import Link from "next/link";
 import { createPortal } from "react-dom";
-import { ArrowDown, ArrowUp, CircleCheck, Pencil, X } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  CircleCheck,
+  Fish,
+  LayoutDashboard,
+  MapPinned,
+  Pencil,
+  SlidersHorizontal,
+  X,
+} from "lucide-react";
 import { useDashboardEditMode } from "@/components/context/DashboardEditModeContext";
+import { useMapUI } from "../context/MapFilterContext";
 import { ChartLegendPopover } from "@/components/graphs/ChartLegendPopover";
 import { getChartLegend } from "@/components/graphs/chartLegends";
 import { getTidesCached } from "@/lib/dataCache";
 import { useCachedForecast } from "@/lib/hooks/useCachedForecast";
 import { usePacificTodayMs } from "@/lib/hooks/usePacificTodayMs";
-import { getPacificDayRange, getPacificHour, getPacificMidnightUTC } from "@/lib/utils";
+import {
+  getPacificDayRange,
+  getPacificHour,
+  getPacificMidnightUTC,
+} from "@/lib/utils";
 import SurfIntensityMarker from "./SurfIntensityMarker";
 import { ForecastDataProvider } from "../context/ForecastDataContext";
 import { useTideWindowData } from "@/lib/hooks/useTideWindow";
@@ -60,10 +77,34 @@ import {
   useSessionContext,
   useSupabaseClient,
 } from "@supabase/auth-helpers-react";
+import {
+  type FeedFilters,
+  FishingIntelligenceDashboard,
+  type FishingIntelligenceSectionTab,
+  FishingIntelligenceSummary,
+} from "@/components/community/FishingIntelligenceOverview";
+import { FishingReportComposer } from "@/components/community/FishingReportComposer";
+import {
+  FISHING_METHOD_LABELS,
+  FISHING_SPECIES_LABELS,
+  FISHING_SPECIES_ORDER,
+  useFishingIntelligenceData,
+  type FishingFeedItem,
+} from "@/lib/community/fishingIntelligence";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 type Props = {
   beachId: string;
   beachParam?: string;
+  beachName?: string;
+  overviewSurfaceTab?: "overview" | "fishing";
+  onOverviewSurfaceTabChange?: (tab: "overview" | "fishing") => void;
+  fishingComposerOpen?: boolean;
+  onFishingComposerOpenChange?: (open: boolean) => void;
   isFavorite?: boolean;
   loggedIn?: boolean;
   initialOverviewTableDensity?: StatTableDensity | null;
@@ -232,6 +273,11 @@ const SwellStatsHeader = ({ stats }: { stats: RangeStats }) => {
 const DateSummaryBridge: React.FC<Props> = ({
   beachId,
   beachParam,
+  beachName,
+  overviewSurfaceTab: controlledOverviewSurfaceTab,
+  onOverviewSurfaceTabChange,
+  fishingComposerOpen: controlledFishingComposerOpen,
+  onFishingComposerOpenChange,
   isFavorite = false,
   loggedIn = false,
   initialOverviewTableDensity = null,
@@ -244,7 +290,8 @@ const DateSummaryBridge: React.FC<Props> = ({
 }) => {
   const { id, selected, hour, selectedDays } = useDateContext();
   id.current = beachId;
-  const { selectedTab } = useClientPath();
+  const { selectedTab, setSelectedTab } = useClientPath();
+  const { showMap, setShowMap } = useMapUI();
   const prevSelectedTabRef = React.useRef<string | null>(null);
   const tabJustSwitched =
     prevSelectedTabRef.current != null &&
@@ -257,6 +304,86 @@ const DateSummaryBridge: React.FC<Props> = ({
   }, [selectedTab]);
   const isOverview = selectedTab === "overview";
   const isForecastTab = selectedTab === "forecast";
+  const [uncontrolledOverviewSurfaceTab, setUncontrolledOverviewSurfaceTab] =
+    React.useState<
+    "overview" | "fishing"
+  >("overview");
+  const overviewSurfaceTab =
+    controlledOverviewSurfaceTab ?? uncontrolledOverviewSurfaceTab;
+  const setOverviewSurfaceTab = React.useCallback(
+    (tab: "overview" | "fishing") => {
+      if (controlledOverviewSurfaceTab == null) {
+        setUncontrolledOverviewSurfaceTab(tab);
+      }
+      onOverviewSurfaceTabChange?.(tab);
+    },
+    [controlledOverviewSurfaceTab, onOverviewSurfaceTabChange],
+  );
+  const [fishingFeedFilters, setFishingFeedFilters] =
+    React.useState<FeedFilters>({
+      species: "all",
+      method: "all",
+      region: "all",
+    });
+  const [fishingSectionTab, setFishingSectionTab] =
+    React.useState<FishingIntelligenceSectionTab>("analytics");
+  const [fishingFiltersOpen, setFishingFiltersOpen] = React.useState(false);
+  const [uncontrolledFishingComposerOpen, setUncontrolledFishingComposerOpen] =
+    React.useState(false);
+  const fishingComposerOpen =
+    controlledFishingComposerOpen ?? uncontrolledFishingComposerOpen;
+  const setFishingComposerOpen = React.useCallback(
+    (open: boolean) => {
+      if (controlledFishingComposerOpen == null) {
+        setUncontrolledFishingComposerOpen(open);
+      }
+      onFishingComposerOpenChange?.(open);
+    },
+    [controlledFishingComposerOpen, onFishingComposerOpenChange],
+  );
+  const [createdFishingFeed, setCreatedFishingFeed] = React.useState<
+    FishingFeedItem[]
+  >([]);
+  const createdFishingMediaUrlsRef = React.useRef<string[]>([]);
+  const { data: fishingFixture } = useFishingIntelligenceData(beachName);
+  const activeFishingFilterCount =
+    (fishingFeedFilters.species !== "all" ? 1 : 0) +
+    (fishingFeedFilters.method !== "all" ? 1 : 0) +
+    (fishingFeedFilters.region !== "all" ? 1 : 0);
+
+  React.useEffect(() => {
+    if (!fishingFiltersOpen) return;
+    const close = () => setFishingFiltersOpen(false);
+    if (typeof window !== "undefined") {
+      window.addEventListener("resize", close, { passive: true });
+      window.addEventListener("scroll", close, { passive: true });
+      return () => {
+        window.removeEventListener("resize", close);
+        window.removeEventListener("scroll", close);
+      };
+    }
+  }, [fishingFiltersOpen]);
+
+  React.useEffect(() => {
+    if (overviewSurfaceTab !== "fishing") {
+      setFishingFiltersOpen(false);
+      setFishingComposerOpen(false);
+    }
+  }, [overviewSurfaceTab]);
+
+  React.useEffect(() => {
+    if (fishingComposerOpen) {
+      setFishingFiltersOpen(false);
+    }
+  }, [fishingComposerOpen]);
+
+  React.useEffect(() => {
+    return () => {
+      createdFishingMediaUrlsRef.current.forEach((url) => {
+        URL.revokeObjectURL(url);
+      });
+    };
+  }, []);
 
   const dashboardContainerProbeRef = React.useRef<HTMLDivElement | null>(null);
   const dashboardTwoColumnSentinelRef = React.useRef<HTMLDivElement | null>(
@@ -295,6 +422,12 @@ const DateSummaryBridge: React.FC<Props> = ({
     cancel,
     confirm,
   } = useDashboardEditMode();
+
+  React.useEffect(() => {
+    if (!isOverview || isEditing) {
+      setOverviewSurfaceTab("overview");
+    }
+  }, [isEditing, isOverview]);
   const floatingConfirmTopSentinelRef = React.useRef<HTMLDivElement | null>(
     null,
   );
@@ -987,7 +1120,10 @@ const DateSummaryBridge: React.FC<Props> = ({
 
   const forecastBusyVisible = useStableOverlay(forecastInitialBusy, 800);
   const setOverviewPageBusy = useOptionalOverviewPageBusyControls();
-  const overviewPageBusy = isOverview ? overlayVisible : forecastBusyVisible;
+  const overviewPageBusy =
+    isOverview && overviewSurfaceTab !== "fishing"
+      ? overlayVisible
+      : forecastBusyVisible;
 
   React.useLayoutEffect(() => {
     if (!setOverviewPageBusy) return;
@@ -1110,10 +1246,14 @@ const DateSummaryBridge: React.FC<Props> = ({
               : estimate;
         if (!Number.isFinite(representative)) continue;
         const timestamp = new Date(row.timestamp);
-        const localHour = Number.parseInt(pacificHourFormatter.format(timestamp), 10);
+        const localHour = Number.parseInt(
+          pacificHourFormatter.format(timestamp),
+          10,
+        );
         if (!Number.isFinite(localHour)) continue;
-        const bucketHour = ((Math.round(localHour / 3) * 3) % 24 + 24) % 24;
-        if (!representativeByHour[bucketHour]) representativeByHour[bucketHour] = [];
+        const bucketHour = (((Math.round(localHour / 3) * 3) % 24) + 24) % 24;
+        if (!representativeByHour[bucketHour])
+          representativeByHour[bucketHour] = [];
         representativeByHour[bucketHour].push(Math.max(0, representative));
       }
 
@@ -1133,7 +1273,9 @@ const DateSummaryBridge: React.FC<Props> = ({
             )
           : null;
       const selectedBucketValues =
-        selectedBucket != null ? representativeByHour[selectedBucket] ?? [] : [];
+        selectedBucket != null
+          ? (representativeByHour[selectedBucket] ?? [])
+          : [];
       const selectedBucketAverage =
         selectedBucketValues.length > 0
           ? selectedBucketValues.reduce((sum, value) => sum + value, 0) /
@@ -1214,7 +1356,8 @@ const DateSummaryBridge: React.FC<Props> = ({
     const isToday = selectedPacificDayMs === currentPacificDayMs;
 
     const selectedDateTimeMs = selectedPacificDayMs + nearestHour * HOUR_MS;
-    const currentDateTimeMs = currentPacificDayMs + currentNearestHour * HOUR_MS;
+    const currentDateTimeMs =
+      currentPacificDayMs + currentNearestHour * HOUR_MS;
 
     // Determine label based on time relationship
     let labelText = "Stats";
@@ -1457,6 +1600,235 @@ const DateSummaryBridge: React.FC<Props> = ({
   const loggedOutEditHref = `/login?next=${encodeURIComponent(
     loggedOutEditTarget,
   )}`;
+  const surfaceTabs = (
+    <div className="relative inline-flex h-[46px] w-[9.75rem] shrink-0 items-center rounded-full border border-border/25 bg-highlight-7/70 p-1 shadow-even @min-sm:w-[10.25rem] supports-[backdrop-filter]:bg-highlight-7/40 supports-[backdrop-filter]:backdrop-blur-md">
+      <div
+        aria-hidden="true"
+        className="absolute inset-y-1 left-1 z-0 rounded-full bg-highlight-3/50 dark:bg-highlight-5/80 shadow-sm transition-transform duration-200 ease-out motion-reduce:transition-none"
+        style={{
+          width: "calc((100% - 0.5rem) / 2)",
+          transform: `translateX(${(overviewSurfaceTab === "fishing" ? 1 : 0) * 100}%)`,
+        }}
+      />
+      <button
+        type="button"
+        onClick={() => {
+          setOverviewSurfaceTab("overview");
+          if (selectedTab === "forecast") {
+            setSelectedTab("overview");
+          }
+        }}
+        className={cn(
+          "relative z-10 inline-flex h-[38px] min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full px-2.5 transition-colors duration-300",
+          overviewSurfaceTab === "overview"
+            ? "text-foreground"
+            : "text-foreground/80 hover:text-foreground",
+        )}
+        aria-pressed={overviewSurfaceTab === "overview"}
+        aria-label="Overview surface"
+        title="Overview"
+      >
+        <LayoutDashboard className="h-4.5 w-4.5 shrink-0" />
+        <span className="whitespace-nowrap text-[12px] font-semibold leading-none @min-sm:text-[13px]">
+          Surf
+        </span>
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          setOverviewSurfaceTab("fishing");
+          if (selectedTab === "forecast") {
+            setSelectedTab("overview");
+          }
+        }}
+        disabled={isEditing}
+        className={cn(
+          "relative z-10 inline-flex h-[38px] min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full px-2.5 transition-colors duration-300",
+          overviewSurfaceTab === "fishing"
+            ? "text-foreground"
+            : "text-foreground/80 hover:text-foreground",
+          isEditing && "cursor-not-allowed opacity-50",
+        )}
+        aria-pressed={overviewSurfaceTab === "fishing"}
+        aria-label="Fishing surface"
+        title="Fishing"
+      >
+        <Fish className="h-4.5 w-4.5 shrink-0" />
+        <span className="whitespace-nowrap text-[12px] font-semibold leading-none @min-sm:text-[13px]">
+          Fish
+        </span>
+      </button>
+    </div>
+  );
+  const fishingSurfaceControl = (
+    <>
+      {!showMap ? (
+        <button
+          type="button"
+          onClick={() => setShowMap(true)}
+          className={cn(
+            "hidden h-[46px] @min-4xl:inline-flex items-center rounded-full px-4 gap-1.5 shrink-0",
+            "border border-border/25 bg-highlight-7/50 hover:bg-highlight-6/60 shadow-even",
+            "transition-colors duration-200 motion-reduce:transition-none",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0",
+          )}
+          aria-label="Show map"
+          title="Show map"
+        >
+          <MapPinned className="stroke-[2.5px] block w-4.5 h-4.5" />
+          <span className="font-medium text-[15px] leading-none">Map</span>
+        </button>
+      ) : null}
+      {surfaceTabs}
+    </>
+  );
+  const fishingFeedActions = null;
+  const fishingFilterControl = (
+    <div className="mx-2 flex w-full flex-wrap items-center justify-between gap-2">
+      <button
+        type="button"
+        onClick={() => setFishingComposerOpen(true)}
+        className={cn(
+          "inline-flex items-center rounded-full px-3 py-2 gap-1.5 shrink-0",
+          "border border-sky-500/20 bg-sky-500/10 text-sky-700 shadow-even",
+          "transition-colors duration-200 motion-reduce:transition-none",
+          "hover:bg-sky-500/15 dark:text-sky-300",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/25 focus-visible:ring-offset-0",
+        )}
+        aria-label="Create a fishing report"
+      >
+        <Fish className="h-4 w-4" />
+        <span className="font-medium text-[13px] leading-none">New report</span>
+      </button>
+      <Popover open={fishingFiltersOpen} onOpenChange={setFishingFiltersOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className={cn(
+              "inline-flex items-center rounded-full px-3 py-2 gap-1.5 shrink-0",
+              "border border-border/25 bg-highlight-7/50 hover:bg-highlight-6/60 shadow-even",
+              "transition-colors duration-200 motion-reduce:transition-none",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0",
+            )}
+            aria-label="Open fishing feed filters"
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            <span className="font-medium text-[13px] leading-none">
+              Filters
+            </span>
+            {activeFishingFilterCount > 0 ? (
+              <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-foreground/10 px-1.5 py-0.5 text-[11px] font-semibold text-foreground">
+                {activeFishingFilterCount}
+              </span>
+            ) : null}
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
+          align="end"
+          className="w-[min(24rem,calc(100vw-2rem))] rounded-[20px] border-border/25 bg-highlight-4/95 p-4 shadow-xl supports-[backdrop-filter]:backdrop-blur-md"
+        >
+          <div className="space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-foreground">
+                  Feed filters
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Narrow the regional catch feed.
+                </p>
+              </div>
+              {activeFishingFilterCount > 0 ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFishingFeedFilters({
+                      species: "all",
+                      method: "all",
+                      region: "all",
+                    })
+                  }
+                  className="text-xs font-medium text-muted-foreground hover:text-foreground"
+                >
+                  Clear all
+                </button>
+              ) : null}
+            </div>
+
+            <div className="grid gap-3">
+              <label className="space-y-1 text-sm">
+                <span className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                  Species
+                </span>
+                <select
+                  value={fishingFeedFilters.species}
+                  onChange={(event) =>
+                    setFishingFeedFilters((current) => ({
+                      ...current,
+                      species: event.target.value as FeedFilters["species"],
+                    }))
+                  }
+                  className="h-11 w-full rounded-xl border border-border/25 bg-foreground/[0.04] px-3 text-sm text-foreground outline-none focus:border-foreground/20"
+                >
+                  <option value="all">All species</option>
+                  {FISHING_SPECIES_ORDER.map((species) => (
+                    <option key={species} value={species}>
+                      {FISHING_SPECIES_LABELS[species]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="space-y-1 text-sm">
+                <span className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                  Method
+                </span>
+                <select
+                  value={fishingFeedFilters.method}
+                  onChange={(event) =>
+                    setFishingFeedFilters((current) => ({
+                      ...current,
+                      method: event.target.value as FeedFilters["method"],
+                    }))
+                  }
+                  className="h-11 w-full rounded-xl border border-border/25 bg-foreground/[0.04] px-3 text-sm text-foreground outline-none focus:border-foreground/20"
+                >
+                  <option value="all">All methods</option>
+                  {Object.entries(FISHING_METHOD_LABELS).map(([key, label]) => (
+                    <option key={key} value={key}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="space-y-1 text-sm">
+                <span className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                  Region
+                </span>
+                <select
+                  value={fishingFeedFilters.region}
+                  onChange={(event) =>
+                    setFishingFeedFilters((current) => ({
+                      ...current,
+                      region: event.target.value,
+                    }))
+                  }
+                  className="h-11 w-full rounded-xl border border-border/25 bg-foreground/[0.04] px-3 text-sm text-foreground outline-none focus:border-foreground/20"
+                >
+                  <option value="all">All regions</option>
+                  {fishingFixture.regionalSignals.map((region) => (
+                    <option key={region.region} value={region.region}>
+                      {region.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
 
   return (
     <ForecastDataProvider
@@ -1469,30 +1841,39 @@ const DateSummaryBridge: React.FC<Props> = ({
     >
       <TideDataProvider value={tideWindow}>
         <>
-           {/* Summary header */}
-           <section className="mb-10">
-             <header className="px-3 mb-4 mt-1 flex items-center gap-2">
-              <SurfIntensityMarker intensityFt={surfIntensityFt} />
-              <h2 className="font-medium text-muted-foreground leading-none truncate">
-                {selected
-                  ? selected.toLocaleDateString("en-US", {
-                      weekday: "long",
-                      month: "long",
-                      day: "numeric",
-                      timeZone: "America/Los_Angeles",
-                    })
-                  : "Select a day"}
-              </h2>
-            </header>
-            <Summary
-              beachId={beachId}
-              date={selectedDateForData}
-              forecastRows={forecastRows}
-              forecastLoading={forecastLoading}
-              variant="overview"
+          {isOverview && overviewSurfaceTab === "fishing" && !showMap ? (
+            <PeekingSideTab
+              onClick={() => setShowMap(true)}
+              hideNearFooter
+              className="hidden @min-4xl:block"
             />
-            {/* <LazyLoadSummary beachId={beachId} date={selected ?? undefined} /> */}
-          </section>
+          ) : null}
+          <div className="px-0 pt-1">
+            <section className="mb-10">
+              <header className="mb-4 mt-0.5 flex flex-col gap-3 px-2 @min-xl:flex-row @min-xl:items-center @min-xl:justify-between">
+                <div className="flex min-w-0 items-center gap-2">
+                  <SurfIntensityMarker intensityFt={surfIntensityFt} />
+                  <h2 className="truncate font-medium leading-none text-muted-foreground">
+                    {selected
+                      ? selected.toLocaleDateString("en-US", {
+                          weekday: "long",
+                          month: "long",
+                          day: "numeric",
+                          timeZone: "America/Los_Angeles",
+                        })
+                      : "Select a day"}
+                  </h2>
+                </div>
+              </header>
+              <Summary
+                beachId={beachId}
+                date={selectedDateForData}
+                forecastRows={forecastRows}
+                forecastLoading={forecastLoading}
+                variant="overview"
+              />
+            </section>
+          </div>
 
           <section
             id={sectionId}
@@ -1504,46 +1885,76 @@ const DateSummaryBridge: React.FC<Props> = ({
               aria-hidden="true"
               className="sr-only flex flex-col @min-4xl:flex-row"
             />
-            <header className="mx-2 flex flex-col gap-3 @min-xl:flex-row @min-xl:items-start @min-xl:justify-between">
-              <div className="flex items-start justify-between gap-2 w-full">
-                <div className="space-y-0 min-w-0">
-                  <h2 className="text-2xl @min-md:text-3xl font-semibold tracking-tight truncate">
-                    {headerTitle}
-                  </h2>
-                  <p className="text-sm @min-md:text-base text-muted-foreground truncate">
-                    {headerSubtitle}
-                  </p>
-                </div>
-                {/* Mobile edit button (hidden on wide screens). Signed-out users go to login with return URL. */}
-                {loggedIn ? (
-                  isEditing ? (
-                    <button
-                      type="button"
-                      onClick={confirm}
-                      className={cn(
-                        "@min-xl:hidden inline-flex items-center rounded-full px-4 py-2.5 gap-1.5 shrink-0",
-                        "border border-border/25 bg-highlight-7/50 hover:bg-highlight-6/60 shadow-even",
-                        "transition-colors duration-200 motion-reduce:transition-none",
-                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0",
-                      )}
-                      aria-label="Done editing dashboard"
-                      title="Done editing dashboard"
-                    >
-                      <CircleCheck className="stroke-[2.5px] w-4.5 h-4.5 @min-sm:mb-0.5" />
-                      <span className="font-medium hidden @min-sm:inline-block text-[15px]">
-                        Done
-                      </span>
-                    </button>
+            {!(isOverview && overviewSurfaceTab === "fishing" && !isEditing) ? (
+              <header className="mx-0 flex flex-col gap-3 @min-3xl:flex-row @min-3xl:items-start @min-3xl:justify-between">
+                <div className="flex items-start justify-between gap-2 w-full">
+                  <div className="space-y-1 min-w-0">
+                    <h2 className="text-2xl @min-md:text-3xl font-semibold tracking-tight truncate">
+                      {isOverview && overviewSurfaceTab === "fishing"
+                        ? "Activity Feed"
+                        : headerTitle}
+                    </h2>
+                    <p className="text-sm @min-md:text-base text-muted-foreground truncate">
+                      {isOverview && overviewSurfaceTab === "fishing"
+                        ? "Signal, patterns, and recent catches"
+                        : headerSubtitle}
+                    </p>
+                  </div>
+                  {/* Mobile edit button (hidden on wide screens). Signed-out users go to login with return URL. */}
+                  {isOverview &&
+                  overviewSurfaceTab === "fishing" ? null : loggedIn ? (
+                    isEditing ? (
+                      <button
+                        type="button"
+                        onClick={confirm}
+                        className={cn(
+                          "@min-3xl:hidden inline-flex items-center rounded-full px-4 py-2.5 gap-1.5 shrink-0",
+                          "border border-border/25 bg-highlight-7/50 hover:bg-highlight-6/60 shadow-even",
+                          "transition-colors duration-200 motion-reduce:transition-none",
+                          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0",
+                        )}
+                        aria-label="Done editing dashboard"
+                        title="Done editing dashboard"
+                      >
+                        <CircleCheck className="stroke-[2.5px] w-4.5 h-4.5 @min-sm:mb-0.5" />
+                        <span className="font-medium hidden @min-sm:inline-block text-[15px]">
+                          Done
+                        </span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          enterEdit(
+                            selectedTab === "forecast"
+                              ? "forecast"
+                              : "overview",
+                          )
+                        }
+                        className={cn(
+                          "@min-3xl:hidden inline-flex items-center rounded-full px-4 py-2.5 gap-1.5 shrink-0",
+                          "border border-border/25 bg-highlight-7/50 hover:bg-highlight-6/60 shadow-even",
+                          "transition-colors duration-200 motion-reduce:transition-none",
+                          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0",
+                        )}
+                        aria-label={`Edit ${
+                          selectedTab === "forecast" ? "forecast" : "overview"
+                        } dashboard`}
+                        title={`Edit ${
+                          selectedTab === "forecast" ? "forecast" : "overview"
+                        } dashboard`}
+                      >
+                        <Pencil className="stroke-[2.5px] w-4.5 h-4.5 @min-sm:mb-0.5" />
+                        <span className="font-medium hidden @min-sm:inline-block text-[15px]">
+                          Edit
+                        </span>
+                      </button>
+                    )
                   ) : (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        enterEdit(
-                          selectedTab === "forecast" ? "forecast" : "overview",
-                        )
-                      }
+                    <Link
+                      href={loggedOutEditHref}
                       className={cn(
-                        "@min-xl:hidden inline-flex items-center rounded-full px-4 py-2.5 gap-1.5 shrink-0",
+                        "@min-3xl:hidden inline-flex items-center rounded-full px-4 py-2.5 gap-1.5 shrink-0",
                         "border border-border/25 bg-highlight-7/50 hover:bg-highlight-6/60 shadow-even",
                         "transition-colors duration-200 motion-reduce:transition-none",
                         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0",
@@ -1551,57 +1962,183 @@ const DateSummaryBridge: React.FC<Props> = ({
                       aria-label={`Edit ${
                         selectedTab === "forecast" ? "forecast" : "overview"
                       } dashboard`}
-                      title={`Edit ${
-                        selectedTab === "forecast" ? "forecast" : "overview"
-                      } dashboard`}
                     >
                       <Pencil className="stroke-[2.5px] w-4.5 h-4.5 @min-sm:mb-0.5" />
                       <span className="font-medium hidden @min-sm:inline-block text-[15px]">
                         Edit
                       </span>
-                    </button>
-                  )
-                ) : (
-                  <Link
-                    href={loggedOutEditHref}
-                    className={cn(
-                      "@min-xl:hidden inline-flex items-center rounded-full px-4 py-2.5 gap-1.5 shrink-0",
-                      "border border-border/25 bg-highlight-7/50 hover:bg-highlight-6/60 shadow-even",
-                      "transition-colors duration-200 motion-reduce:transition-none",
-                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0",
-                    )}
-                    aria-label={`Edit ${
-                      selectedTab === "forecast" ? "forecast" : "overview"
-                    } dashboard`}
-                  >
-                    <Pencil className="stroke-[2.5px] w-4.5 h-4.5 @min-sm:mb-0.5" />
-                    <span className="font-medium hidden @min-sm:inline-block text-[15px]">
-                      Edit
-                    </span>
-                  </Link>
-                )}
-              </div>
-              <div className="shrink-0 @min-xl:ml-auto w-full @min-xl:w-auto">
-                <PageTabs
-                  beach={beachParam}
-                  beachId={beachId}
-                  tabs={["overview", "forecast"]}
-                  isFavorite={isFavorite}
-                  loggedIn={loggedIn}
-                  overviewPage
-                  forecastPage={selectedTab === "forecast"}
-                  placement="inline"
-                  buttons
-                  responsiveFull
-                />
-              </div>
-            </header>
+                    </Link>
+                  )}
+                </div>
+                <div className="w-full shrink-0 @min-3xl:ml-auto @min-3xl:w-auto">
+                  <div className="flex w-full items-center justify-between gap-2 @min-3xl:justify-end">
+                    {!(isOverview && overviewSurfaceTab === "fishing") &&
+                    !showMap ? (
+                      <button
+                        type="button"
+                        onClick={() => setShowMap(true)}
+                        className={cn(
+                          "hidden h-[46px] @min-3xl:inline-flex items-center rounded-full px-4 gap-1.5 shrink-0",
+                          "border border-border/25 bg-highlight-7/50 hover:bg-highlight-6/60 shadow-even",
+                          "transition-colors duration-200 motion-reduce:transition-none",
+                          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0",
+                        )}
+                        aria-label="Show map"
+                        title="Show map"
+                      >
+                        <MapPinned className="stroke-[2.5px] block w-4.5 h-4.5" />
+                        <span className="font-medium text-[15px] leading-none">
+                          Map
+                        </span>
+                      </button>
+                    ) : null}
+                    {!(isOverview && overviewSurfaceTab === "fishing") ? (
+                      loggedIn ? (
+                        isEditing ? (
+                          <button
+                            type="button"
+                            onClick={confirm}
+                            className={cn(
+                              "hidden h-[46px] @min-3xl:inline-flex items-center rounded-full px-4 gap-1.5 shrink-0",
+                              "border border-border/25 bg-highlight-7/50 hover:bg-highlight-6/60 shadow-even",
+                              "transition-colors duration-200 motion-reduce:transition-none",
+                              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0",
+                            )}
+                            aria-label="Done editing dashboard"
+                            title="Done editing dashboard"
+                          >
+                            <CircleCheck className="stroke-[2.5px] block w-4.5 h-4.5" />
+                            <span className="font-medium text-[15px] leading-none">
+                              Done
+                            </span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              enterEdit(
+                                selectedTab === "forecast"
+                                  ? "forecast"
+                                  : "overview",
+                              )
+                            }
+                            className={cn(
+                              "hidden h-[46px] @min-3xl:inline-flex items-center rounded-full px-4 gap-1.5 shrink-0",
+                              "border border-border/25 bg-highlight-7/50 hover:bg-highlight-6/60 shadow-even",
+                              "transition-colors duration-200 motion-reduce:transition-none",
+                              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0",
+                            )}
+                            aria-label={`Edit ${
+                              selectedTab === "forecast"
+                                ? "forecast"
+                                : "overview"
+                            } dashboard`}
+                            title={`Edit ${
+                              selectedTab === "forecast"
+                                ? "forecast"
+                                : "overview"
+                            } dashboard`}
+                          >
+                            <Pencil className="stroke-[2.5px] block w-4.5 h-4.5" />
+                            <span className="font-medium text-[15px] leading-none">
+                              Edit
+                            </span>
+                          </button>
+                        )
+                      ) : (
+                        <Link
+                          href={loggedOutEditHref}
+                          className={cn(
+                            "hidden h-[46px] @min-3xl:inline-flex items-center rounded-full px-4 gap-1.5 shrink-0",
+                            "border border-border/25 bg-highlight-7/50 hover:bg-highlight-6/60 shadow-even",
+                            "transition-colors duration-200 motion-reduce:transition-none",
+                            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-0",
+                          )}
+                          aria-label={`Edit ${
+                            selectedTab === "forecast" ? "forecast" : "overview"
+                          } dashboard`}
+                          title={`Edit ${
+                            selectedTab === "forecast" ? "forecast" : "overview"
+                          } dashboard`}
+                        >
+                          <Pencil className="stroke-[2.5px] block w-4.5 h-4.5" />
+                          <span className="font-medium text-[15px] leading-none">
+                            Edit
+                          </span>
+                        </Link>
+                      )
+                    ) : null}
+                    {surfaceTabs}
+                    {!(isOverview && overviewSurfaceTab === "fishing") ? (
+                      <PageTabs
+                        beach={beachParam}
+                        beachId={beachId}
+                        tabs={["overview", "forecast"]}
+                        isFavorite={isFavorite}
+                        loggedIn={loggedIn}
+                        overviewPage
+                        forecastPage={selectedTab === "forecast"}
+                        placement="inline"
+                        buttons
+                        compactDayTabs
+                        showOverviewEditButton={false}
+                        showOverviewMapButton={false}
+                        className="!w-auto @min-3xl:ml-0"
+                      />
+                    ) : null}
+                  </div>
+                </div>
+              </header>
+            ) : null}
             {/* Tabs now live inside header for all breakpoints */}
 
             {/* Overview content - hidden when forecast is active */}
             <div className={cn(isOverview ? "" : "hidden")}>
-              <div className="relative min-h-[640px]">
-                {isEditing ? (
+              <div
+                className={cn(
+                  "relative",
+                  !(overviewSurfaceTab === "fishing" && !isEditing) &&
+                    "min-h-[640px]",
+                )}
+              >
+                <FishingReportComposer
+                  open={
+                    isOverview &&
+                    overviewSurfaceTab === "fishing" &&
+                    fishingComposerOpen
+                  }
+                  onOpenChange={setFishingComposerOpen}
+                  beachId={beachId}
+                  beachName={beachName}
+                  regionalSignals={fishingFixture.regionalSignals}
+                  onPublicCreated={(item) => {
+                    if (item.media?.src.startsWith("blob:")) {
+                      createdFishingMediaUrlsRef.current.push(item.media.src);
+                    }
+                    setCreatedFishingFeed((current) => [item, ...current]);
+                  }}
+                />
+                {overviewSurfaceTab === "fishing" && !isEditing ? (
+                  <FishingIntelligenceSummary
+                    beachName={beachName}
+                    sectionTab={fishingSectionTab}
+                    onSectionTabChange={setFishingSectionTab}
+                    surfaceControl={fishingSurfaceControl}
+                    feedActions={fishingFeedActions}
+                    mapVisible={showMap}
+                    feedContent={
+                      fishingSectionTab === "feed" ? (
+                        <FishingIntelligenceDashboard
+                          beachName={beachName}
+                          filters={fishingFeedFilters}
+                          createdFeed={createdFishingFeed}
+                          compactTopSpacing
+                          feedToolbar={fishingFilterControl}
+                        />
+                      ) : undefined
+                    }
+                  />
+                ) : isEditing ? (
                   (() => {
                     if (!isOverview) return null;
                     const cachedLayout = getCachedLayout("overview");

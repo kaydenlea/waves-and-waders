@@ -14,6 +14,7 @@ import { SunDataProvider } from "@/components/context/SunDataContext";
 import { useOptionalDashboardEditMode } from "@/components/context/DashboardEditModeContext";
 import { OverviewPageBusyProvider } from "@/components/context/OverviewPageBusyContext";
 import { OverviewChartsLoadingProvider } from "@/components/context/OverviewChartsLoadingContext";
+import { OverviewSurfaceProvider } from "@/components/context/OverviewSurfaceContext";
 import type { BeachPoint } from "@/components/context/MapFilterContext";
 import type {
   Row,
@@ -46,6 +47,8 @@ type Props = {
   initialForecastRows: Row[];
   navBar?: React.ReactNode;
 };
+
+type OverviewSurfaceTab = "overview" | "fishing";
 
 const getWindDirectionLabel = (degrees: number | null) => {
   if (degrees == null || !Number.isFinite(degrees)) return null;
@@ -107,6 +110,9 @@ export default function OverviewPageClient({
   initialForecastRows,
   navBar,
 }: Props) {
+  const [overviewSurfaceTab, setOverviewSurfaceTab] =
+    React.useState<OverviewSurfaceTab>("overview");
+  const [fishingComposerOpen, setFishingComposerOpen] = React.useState(false);
   const dashboardEdit = useOptionalDashboardEditMode();
   const noop = React.useCallback(() => {}, []);
   const isEditing = dashboardEdit?.isEditing ?? false;
@@ -163,15 +169,25 @@ export default function OverviewPageClient({
   return (
     <>
       <div>
-        {navBar}
-        <OverviewPageBusyProvider>
-          <main
+        <OverviewSurfaceProvider
+          value={{
+            overviewSurfaceTab,
+            setOverviewSurfaceTab,
+            openFishingComposer: () => setFishingComposerOpen(true),
+          }}
+        >
+          {navBar}
+          <OverviewPageBusyProvider>
+            <main
             id="main-content"
             className="ww-stable-viewport touch-pan-y overscroll-y-none bg-background-2 min-h-[calc(var(--ww-100vh,100vh)+env(safe-area-inset-top,0px)-4rem)] @min-4xl:flex @min-4xl:flex-1 @min-4xl:mt-[5.5rem] @min-4xl:pb-4"
           >
             <LazyLoadMap
               beachId={beachId}
               initialBeach={initialBeach ?? undefined}
+              surfaceMode={
+                overviewSurfaceTab === "fishing" ? "fishing" : "surf"
+              }
             />
             <PathStyleWrapper>
               <div className="@container pb-6 @min-4xl:pb-3 pt-2 @min-4xl:pt-8 px-1 @min-md:px-3">
@@ -262,6 +278,11 @@ export default function OverviewPageClient({
                     <DateSummaryBridge
                       beachId={beachId}
                       beachParam={beachParam}
+                      beachName={beachName}
+                      overviewSurfaceTab={overviewSurfaceTab}
+                      onOverviewSurfaceTabChange={setOverviewSurfaceTab}
+                      fishingComposerOpen={fishingComposerOpen}
+                      onFishingComposerOpenChange={setFishingComposerOpen}
                       isFavorite={isFavorite}
                       loggedIn={loggedIn}
                       initialOverviewTableDensity={initialStatTableDensity}
@@ -276,8 +297,9 @@ export default function OverviewPageClient({
                 </SunDataProvider>
               </div>
             </PathStyleWrapper>
-          </main>
-        </OverviewPageBusyProvider>
+            </main>
+          </OverviewPageBusyProvider>
+        </OverviewSurfaceProvider>
         <BottomNav beachName={beachName} />
         <Footer />
       </div>

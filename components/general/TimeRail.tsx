@@ -9,7 +9,16 @@ import React, {
   useCallback,
 } from "react";
 import * as Collapsible from "@radix-ui/react-collapsible";
-import { Calendar, TimerReset } from "lucide-react";
+import {
+  Calendar,
+  Clock3,
+  Fish,
+  MoveRight,
+  TimerReset,
+  TrendingDown,
+  TrendingUp,
+  Users,
+} from "lucide-react";
 import { useDateContext } from "../context/DateContext";
 import { LazyLoadDatePicker } from "./LazyLoad/LazyLoadDatePicker";
 import { LazyLoadHourSlider } from "./LazyLoad/LazyLoadHourSlider";
@@ -18,13 +27,26 @@ import { cn, getPacificHour, getPacificMidnightUTC } from "@/lib/utils";
 type Props = {
   beachId: string;
   size?: "md" | "lg";
+  leadingActions?: React.ReactNode;
   trailingActions?: React.ReactNode;
+  surfaceMode?: "surf" | "fishing";
+  fishingSummary?: {
+    activityCount: number;
+    activityValue: string;
+    speciesValue: string;
+    windowValue: string;
+    speciesTrend: "rising" | "steady" | "cooling" | null;
+    hasAccessWatch: boolean;
+  } | null;
 };
 
 const TimeRail: React.FC<Props> = ({
   beachId,
   size = "md",
+  leadingActions,
   trailingActions,
+  surfaceMode = "surf",
+  fishingSummary = null,
 }) => {
   const { selected, setSelected, hour, setHour } = useDateContext();
   const [hourChanged, setHourChanged] = useState(false);
@@ -153,6 +175,93 @@ const TimeRail: React.FC<Props> = ({
     },
     [setSelected],
   );
+
+  if (surfaceMode === "fishing" && fishingSummary) {
+    const SpeciesTrendIcon =
+      fishingSummary.speciesTrend === "rising"
+        ? TrendingUp
+        : fishingSummary.speciesTrend === "cooling"
+          ? TrendingDown
+          : MoveRight;
+
+    return (
+      <div className="relative w-full touch-none" data-time-rail-root>
+        <div
+          className={cn(
+            "grid grid-cols-[auto_1fr_auto] items-center gap-2 rounded-full bg-background/80 dark:bg-highlight-5/80 @min-4xl:dark:bg-highlight-5/90 @min-4xl:bg-background/80 backdrop-blur shadow-even px-2 @min-md:px-3",
+            railPad,
+          )}
+        >
+          <div className="mr-1 flex shrink-0 items-center">
+            {leadingActions}
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <div className="grid w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)] gap-1.5 @min-lg:grid-cols-3">
+              <div
+                title={`Recent activity: ${fishingSummary.activityValue}`}
+                className="flex h-9 min-w-0 items-center rounded-full border border-cyan-500/15 bg-cyan-500/[0.08] px-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] dark:border-cyan-400/15 dark:bg-cyan-400/[0.09] @min-lg:w-full"
+              >
+                <div className="flex min-w-0 w-full items-center justify-center gap-1.5 whitespace-nowrap">
+                  <Users className="h-3.5 w-3.5 shrink-0 text-cyan-500/90" />
+                  <span
+                    aria-label={fishingSummary.activityValue}
+                    className="min-w-0 text-[11px] font-semibold tracking-tight text-foreground @min-md:text-[12px]"
+                  >
+                    <span className="@min-lg:hidden">
+                      {fishingSummary.activityCount}
+                    </span>
+                    <span className="hidden @min-lg:inline">
+                      {fishingSummary.activityValue}
+                    </span>
+                  </span>
+                </div>
+              </div>
+              <div
+                title={`Top species: ${fishingSummary.speciesValue}`}
+                className="flex h-9 min-w-0 items-center rounded-full border border-blue-500/15 bg-blue-500/[0.08] px-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] dark:border-blue-400/15 dark:bg-blue-400/[0.09]"
+              >
+                <div className="flex min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap">
+                  <Fish className="h-3.5 w-3.5 shrink-0 text-blue-500/90" />
+                  <span className="min-w-0 truncate text-[11px] font-semibold tracking-tight text-foreground @min-md:text-[12px]">
+                    {fishingSummary.speciesValue}
+                  </span>
+                  <SpeciesTrendIcon
+                    className={cn(
+                      "h-3.5 w-3.5 shrink-0",
+                      fishingSummary.speciesTrend === "rising"
+                        ? "text-emerald-500"
+                        : fishingSummary.speciesTrend === "cooling"
+                          ? "text-rose-500"
+                          : "text-muted-foreground",
+                    )}
+                  />
+                </div>
+              </div>
+              <div
+                title={`Best window: ${fishingSummary.windowValue}`}
+                className="flex h-9 min-w-0 items-center rounded-full border border-violet-500/15 bg-violet-500/[0.08] px-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] dark:border-violet-400/15 dark:bg-violet-400/[0.09]"
+              >
+                <div className="flex min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap">
+                  <Clock3 className="h-3.5 w-3.5 shrink-0 text-violet-500/90" />
+                  <span className="min-w-0 truncate text-[11px] font-semibold tracking-tight text-foreground @min-md:text-[12px]">
+                    {fishingSummary.windowValue}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {trailingActions ? (
+            <div className="ml-1 hidden shrink-0 items-center gap-1.5 @min-4xl:flex">
+              <span className="h-7 w-px bg-border/80" />
+              {trailingActions}
+            </div>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

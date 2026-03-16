@@ -51,6 +51,8 @@ import {
   Locate,
   ZoomOut,
   Construction,
+  AlertTriangle,
+  Radar,
 } from "lucide-react";
 import PageTabs from "../general/PageTabs";
 import { SwellRings, WindRing } from "./DirectionRings";
@@ -74,6 +76,16 @@ import {
   setMapInteractionHover,
   setMapInteractionSelection,
 } from "@/lib/mapInteractionStore";
+import {
+  buildFishingBeachSummary,
+  useFishingMapAggregates,
+  type FishingMapAccessAlert,
+  type FishingMapBeachRef,
+  type FishingMapLayerMode,
+  type FishingMapRegionSignal,
+  type FishingMapSelectedBeachSummary,
+  type FishingMapSurfaceMode,
+} from "@/lib/community/fishingMap";
 
 type Props = {
   beachId?: string | number;
@@ -81,11 +93,13 @@ type Props = {
   initialBeach?: BeachPoint | null;
   variant?: "page" | "embed";
   ui?: "full" | "preview";
+  surfaceMode?: FishingMapSurfaceMode;
 };
 
 type MarkerOptionsWithMeta = L.MarkerOptions & {
   wwIntensity?: number;
   wwBeachId?: string | number;
+  wwReportCount?: number;
 };
 
 type MarkerDomGuardsState = {
@@ -155,6 +169,7 @@ const MARKER_BUILD_MIN_BATCH = 60;
 const MIN_OVERLAY_ZOOM = 15;
 const AUTO_FOCUS_ZOOM = 17;
 const OVERLAY_PANE_ID = "ww-overlay-pane";
+const FISHING_ACCESS_PANE_ID = "ww-fishing-access-pane";
 // Web Mercator (EPSG:3857) valid latitude range.
 // Using solid Leaflet bounds prevents users from panning into areas where tiles don't exist (grey/empty).
 const WEB_MERCATOR_MAX_LATITUDE = 85.0511287798066;
@@ -220,6 +235,7 @@ type MarkerEntry = {
   marker: L.Marker;
   beach: BeachPoint;
   intensity: number;
+  reportCount: number;
   favorite: boolean;
 };
 
@@ -240,6 +256,48 @@ type SwellDirectionSet = {
 
 const getIntensityColor = (value: number) => {
   return getSurfIntensityColorCss(getSurfIntensityBand(value));
+};
+
+const getFishingMarkerTone = (value: number) => {
+  if (value >= 7) {
+    return {
+      fill: "#059669",
+      border: "#6ee7b7",
+      glow: "0 0 0 5px rgba(16,185,129,0.18)",
+    };
+  }
+  if (value >= 4) {
+    return {
+      fill: "#0284c7",
+      border: "#7dd3fc",
+      glow: "0 0 0 5px rgba(14,165,233,0.16)",
+    };
+  }
+  if (value >= 1.5) {
+    return {
+      fill: "#d97706",
+      border: "#fcd34d",
+      glow: "0 0 0 5px rgba(245,158,11,0.14)",
+    };
+  }
+  return {
+    fill: "#475569",
+    border: "#cbd5e1",
+    glow: "0 0 0 4px rgba(148,163,184,0.12)",
+  };
+};
+
+const getFishingMarkerSize = (value: number) => {
+  const base =
+    value >= 7 ? 46 : value >= 4 ? 36 : value >= 1.5 ? 28 : 20;
+  return base;
+};
+
+const formatFishingMapCount = (count: number) => {
+  if (!Number.isFinite(count) || count <= 0) return "0";
+  if (count >= 1000) return "999+";
+  if (count >= 100) return "99+";
+  return String(Math.round(count));
 };
 
 const hexToRgb = (hex: string) => {
@@ -267,39 +325,88 @@ const mixHexColors = (colorA: string, colorB: string, weight = 0.5) => {
 
 const createMarkerIcon = ({
   intensity,
+  reportCount = 0,
   favorite,
   selected,
   hovered = false,
+  mode = "surf",
 }: {
   intensity: number;
+  reportCount?: number;
   favorite: boolean;
   selected: boolean;
   hovered?: boolean;
+  mode?: FishingMapSurfaceMode;
 }) => {
   // Selected marker: keep a clean circle so it works well
   // with the direction rings overlay on the overview page.
-  const size = hovered ? 28 : 24;
+  const size =
+    mode === "fishing" ? getFishingMarkerSize(intensity) : hovered ? 28 : 24;
   const hitSize = size;
-  const border = favorite || hovered ? 3 : 2;
-  const borderColor = favorite ? "#facc15" : "#ffffff";
-  const color = getIntensityColor(intensity);
+  const border =
+    mode === "fishing"
+      ? favorite || selected
+        ? 3
+        : 2
+      : favorite || hovered
+        ? 3
+        : 2;
+  const fishingTone = getFishingMarkerTone(intensity);
+  const borderColor =
+    mode === "fishing"
+      ? favorite
+        ? "#facc15"
+        : selected
+          ? "#f8fafc"
+          : fishingTone.border
+      : favorite
+        ? "#facc15"
+        : "#ffffff";
+  const color = mode === "fishing" ? fishingTone.fill : getIntensityColor(intensity);
+  const shadow =
+    mode === "fishing"
+      ? `${fishingTone.glow}, 0 1px 4px rgba(15,23,42,0.35)`
+      : hovered
+        ? "0 0 12px rgba(37,99,235,0.6)"
+        : "0 1px 4px rgba(15,23,42,0.35)";
+  const displayCount = formatFishingMapCount(reportCount);
   const html = `
       <div style="width:${hitSize}px;height:${hitSize}px;display:flex;align-items:center;justify-content:center;">
-        <div
-          class="ww-marker-circle"
-          style="
-            width:${size}px;
-            height:${size}px;
-            border-radius:999px;
-            border:${border}px solid ${borderColor};
-            background:${color};
-            box-shadow:${
-              hovered
-                ? "0 0 12px rgba(37,99,235,0.6)"
-                : "0 1px 4px rgba(15,23,42,0.35)"
-            };
-          "
-        ></div>
+        ${
+          mode === "fishing"
+            ? `<div
+                class="ww-marker-circle ww-fishing-marker-shell${selected ? " is-selected" : ""}${hovered ? " is-hovered" : ""}"
+                data-size="${size >= 36 ? "lg" : size >= 24 ? "md" : "sm"}"
+                data-digits="${displayCount.length}"
+                aria-label="${reportCount} fishing report${reportCount === 1 ? "" : "s"}"
+                style="
+                  width:${size}px;
+                  height:${size}px;
+                  border:${border}px solid ${borderColor};
+                  background:${color};
+                  box-shadow:${shadow};
+                "
+              >
+                <span class="ww-fishing-marker-iconmark" aria-hidden="true">
+                  <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M2.5 8c1.9-2.2 4.1-3.3 6.7-3.3 1.2 0 2.3.2 3.3.6l1.5-1.3v2.4c0 1.2-.4 2.3-1.1 3.2.7.9 1.1 2 1.1 3.2v2.4l-1.5-1.3c-1 .4-2.1.6-3.3.6-2.6 0-4.8-1.1-6.7-3.3l-1.1-1.2 1.1-1z" fill="currentColor"/>
+                    <circle cx="9.9" cy="7" r=".9" fill="rgba(15,23,42,.4)"/>
+                  </svg>
+                </span>
+                <span class="ww-fishing-marker-count">${displayCount}</span>
+              </div>`
+            : `<div
+                class="ww-marker-circle"
+                style="
+                  width:${size}px;
+                  height:${size}px;
+                  border-radius:999px;
+                  border:${border}px solid ${borderColor};
+                  background:${color};
+                  box-shadow:${shadow};
+                "
+              ></div>`
+        }
       </div>
     `;
   return L.divIcon({
@@ -362,7 +469,10 @@ const createMarkerIcon = ({
   // });
 };
 
-const createClusterIcon = (cluster: L.MarkerCluster) => {
+const createClusterIcon = (
+  cluster: L.MarkerCluster,
+  mode: FishingMapSurfaceMode = "surf",
+) => {
   const safeCall = <T,>(fn: () => T, fallback: T): T => {
     try {
       return fn();
@@ -378,6 +488,76 @@ const createClusterIcon = (cluster: L.MarkerCluster) => {
   } else if (count >= 50) {
     size = 46;
   }
+
+  if (mode === "fishing") {
+    const markers: L.Marker[] =
+      typeof cluster?.getAllChildMarkers === "function"
+        ? safeCall<L.Marker[]>(() => cluster.getAllChildMarkers(), [])
+        : [];
+    const reportTotal = markers.reduce((sum, marker) => {
+      const next = (marker as MarkerWithMeta).options.wwReportCount;
+      return sum + (typeof next === "number" && Number.isFinite(next) ? next : 0);
+    }, 0);
+    const activityCount = reportTotal > 0 ? reportTotal : count;
+    const displayCount = formatFishingMapCount(activityCount);
+    const intensities = markers
+      .map((marker) => (marker as MarkerWithMeta).options.wwIntensity)
+      .filter(
+        (value): value is number =>
+          typeof value === "number" && Number.isFinite(value),
+      );
+    const maxIntensity = intensities.reduce((max, value) => Math.max(max, value), 0);
+    const tone = getFishingMarkerTone(maxIntensity);
+    size =
+      maxIntensity >= 7
+        ? activityCount >= 24
+          ? 72
+          : 66
+        : maxIntensity >= 4
+          ? activityCount >= 24
+            ? 60
+            : 54
+          : maxIntensity >= 1.5
+            ? activityCount >= 24
+              ? 46
+              : 40
+            : activityCount >= 24
+              ? 34
+              : 28;
+    const html = `
+      <div
+        class="ww-fishing-cluster"
+        style="
+          width:${size}px;
+          height:${size}px;
+          border:3px solid ${tone.border};
+          background:${tone.fill};
+          box-shadow:${tone.glow}, 0 8px 24px rgba(2,6,23,0.24);
+        "
+      >
+        <div class="ww-fishing-cluster-count" data-size="${
+          size >= 60 ? "lg" : size >= 48 ? "md" : "sm"
+        }">
+          <span class="ww-fishing-cluster-iconmark" aria-hidden="true">
+            <svg viewBox="0 0 20 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M1.2 10c1.4-1.6 3-2.4 5-2.4.9 0 1.7.1 2.5.5l1.1-.9v1.8c0 .9-.3 1.7-.9 2.4.6.6.9 1.4.9 2.4v1.8l-1.1-.9c-.8.3-1.6.5-2.5.5-2 0-3.6-.8-5-2.4L.4 11.2l.8-1.2z" fill="currentColor"/>
+              <path d="M8.3 6.4C9.9 4.6 11.8 3.7 14 3.7c1 0 1.9.2 2.8.5L18 3.1v2c0 1-.3 1.9-1 2.7.7.8 1 1.7 1 2.7v2l-1.2-1c-.9.4-1.8.5-2.8.5-2.2 0-4.1-.9-5.7-2.7l-.9-1 .9-1.4z" fill="currentColor" opacity=".9"/>
+              <circle cx="6.7" cy="9.2" r=".8" fill="rgba(15,23,42,.4)"/>
+              <circle cx="14.3" cy="5.9" r=".8" fill="rgba(15,23,42,.4)"/>
+            </svg>
+          </span>
+          <span>${displayCount}</span>
+        </div>
+      </div>
+    `;
+    return L.divIcon({
+      className: "ww-leaflet-cluster-icon",
+      html,
+      iconSize: [size, size],
+      iconAnchor: [size / 2, size / 2],
+    });
+  }
+
   const coreInset = Math.max(3, Math.round(size * 0.075));
 
   const markers: L.Marker[] =
@@ -1541,49 +1721,414 @@ const FilterPanel: React.FC<{
   );
 };
 
-const LegendPanel: React.FC<{ onClose: () => void; disableBlur: boolean }> = ({
-  onClose,
-  disableBlur,
-}) => (
-  <div className="absolute right-3 top-21 @min-4xl:top-3 z-[1010] max-w-xs pointer-events-none">
-    <div
-      className={cn(
-        "rounded-lg border border-border/60 bg-highlight-7/80 px-3 py-2 shadow pointer-events-auto",
-        disableBlur ? "" : "backdrop-blur",
-      )}
-    >
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-[11px] font-semibold uppercase text-foreground">
-          Direction Rings
-        </span>
-        {/* <button
-          className="text-xs font-semibold text-muted-foreground hover:text-foreground"
-          onClick={onClose}
-        >
-          Close
-        </button> */}
+const getFishingSignalTone = (signalState: FishingMapRegionSignal["signalState"]) => {
+  switch (signalState) {
+    case "strong_signal":
+      return {
+        fill: "#059669",
+        ring: "rgba(16, 185, 129, 0.2)",
+        stroke: "#6ee7b7",
+        pillBg: "rgba(5,150,105,0.16)",
+        pillText: "#ecfdf5",
+        text: "Strong",
+      };
+    case "moderate_signal":
+      return {
+        fill: "#0284c7",
+        ring: "rgba(14, 165, 233, 0.18)",
+        stroke: "#7dd3fc",
+        pillBg: "rgba(2,132,199,0.14)",
+        pillText: "#eff6ff",
+        text: "Moderate",
+      };
+    case "weak_signal":
+      return {
+        fill: "#d97706",
+        ring: "rgba(245, 158, 11, 0.18)",
+        stroke: "#fcd34d",
+        pillBg: "rgba(217,119,6,0.14)",
+        pillText: "#fffbeb",
+        text: "Weak",
+      };
+    case "insufficient_data":
+    default:
+      return {
+        fill: "#475569",
+        ring: "rgba(148, 163, 184, 0.12)",
+        stroke: "#cbd5e1",
+        pillBg: "rgba(71,85,105,0.14)",
+        pillText: "#f8fafc",
+        text: "Thin",
+      };
+  }
+};
+
+const getFishingMarkerIntensity = (
+  summary: FishingMapSelectedBeachSummary | null,
+) => {
+  if (!summary) return 0.5;
+  switch (summary.signalState) {
+    case "strong_signal":
+      return 8;
+    case "moderate_signal":
+      return 5;
+    case "weak_signal":
+      return 2.5;
+    case "insufficient_data":
+    default:
+      return 0.5;
+  }
+};
+
+const createFishingAccessIcon = (alert: FishingMapAccessAlert) => {
+  const bg =
+    alert.severity === "warning" ? "rgba(249,115,22,0.96)" : "rgba(245,158,11,0.94)";
+  const html = `
+    <div style="width:34px;height:34px;display:flex;align-items:center;justify-content:center;">
+      <div
+        style="
+          width:34px;
+          height:34px;
+          border-radius:12px;
+          background:${bg};
+          color:white;
+          box-shadow:0 8px 24px rgba(120,53,15,0.24);
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          font-size:14px;
+          font-weight:800;
+        "
+      >!</div>
+    </div>
+  `;
+  return L.divIcon({
+    className: "ww-fishing-access-icon",
+    html,
+    iconSize: [34, 34],
+    iconAnchor: [17, 17],
+  });
+};
+
+const buildFishingAccessPopupHtml = (alert: FishingMapAccessAlert) => {
+  return `
+    <div class="ww-fishing-popup">
+      <header class="ww-fishing-popup__header">
+        <span class="ww-fishing-popup__dot" style="background:${
+          alert.severity === "warning" ? "#f97316" : "#f59e0b"
+        }"></span>
+        <div class="ww-fishing-popup__titles">
+          <strong>${escapeHtml(alert.label)}</strong>
+          <span>${escapeHtml(alert.recencyLabel)}</span>
+        </div>
+      </header>
+      <p class="ww-fishing-popup__summary">${escapeHtml(alert.detail)}</p>
+      <div class="ww-fishing-popup__chips">
+        <span class="ww-fishing-popup__chip">Access watch</span>
+        <span class="ww-fishing-popup__chip">${alert.reportCount} report${
+          alert.reportCount === 1 ? "" : "s"
+        }</span>
       </div>
-      <div className="mt-1.5 flex flex-col gap-1 text-[11px] text-foreground/90">
-        <div className="flex items-center gap-2">
-          <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#1d4ed8]" />
-          <span>Primary swell</span>
+    </div>
+  `;
+};
+
+const buildFishingBeachPopupHtml = (
+  beach: BeachPoint,
+  summary: FishingMapSelectedBeachSummary | null,
+) => {
+  const safeName = escapeHtml(beach.name ?? "Unnamed beach");
+  const safeCounty = escapeHtml(beach.county ?? "");
+  const tone = summary ? getFishingSignalTone(summary.signalState) : null;
+  return `
+    <div class="ww-fishing-popup">
+      <header class="ww-fishing-popup__header">
+        <span class="ww-fishing-popup__dot" style="background:${tone?.fill ?? "#475569"}"></span>
+        <div class="ww-fishing-popup__titles">
+          <strong title="${safeName}">${safeName}</strong>
+          <span title="${safeCounty}">${
+            summary
+              ? `${safeCounty ? `${safeCounty} · ` : ""}${escapeHtml(tone?.text ?? "Thin")} signal`
+              : safeCounty
+          }</span>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#0ea5e9]" />
-          <span>Secondary swell</span>
+      </header>
+      ${
+        summary
+          ? `<div class="ww-fishing-popup__metrics">
+              <div class="ww-fishing-popup__metric">
+                <span>Reports</span>
+                <strong>${summary.reportCount}</strong>
+              </div>
+              <div class="ww-fishing-popup__metric">
+                <span>Trust</span>
+                <strong>${escapeHtml(summary.confidenceLabel)}</strong>
+              </div>
+            </div>`
+          : `<div class="ww-fishing-popup__empty">
+              <strong>Thin public signal</strong>
+              <span>Not enough recent public fishing data for this beach area.</span>
+            </div>
+            <p class="ww-fishing-popup__detail">Coarse public fishing signal only. No exact catch spots.</p>`
+      }
+    </div>
+  `;
+};
+
+const FishingFilterPanel: React.FC<{
+  layerMode: FishingMapLayerMode;
+  onSelectLayerMode: (next: FishingMapLayerMode) => void;
+  onClose: () => void;
+  disableBlur: boolean;
+}> = ({ layerMode, onSelectLayerMode, onClose, disableBlur }) => {
+  const options: Array<{
+    value: FishingMapLayerMode;
+    label: string;
+    detail: string;
+    icon: React.ReactNode;
+  }> = [
+    {
+      value: "signals",
+      label: "Signals",
+      detail: "Beach activity",
+      icon: <Radar className="h-4 w-4" />,
+    },
+    {
+      value: "access",
+      label: "Access",
+      detail: "Closures and watches",
+      icon: <AlertTriangle className="h-4 w-4" />,
+    },
+  ];
+
+  return (
+    <div className="absolute right-3 top-24 z-[1010] w-52 pointer-events-none">
+      <div
+        className={cn(
+          "overflow-hidden rounded-xl border border-border/70 bg-background/95 shadow-lg pointer-events-auto",
+          disableBlur ? "" : "backdrop-blur",
+        )}
+      >
+        <div className="flex items-center justify-between border-b border-border/70 px-3 py-2">
+          <span className="text-sm font-semibold tracking-wide">Filters</span>
+          <button
+            type="button"
+            className="text-xs font-semibold text-muted-foreground hover:text-foreground"
+            onClick={onClose}
+            title="Close filters"
+          >
+            Close
+          </button>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#22d3ee]" />
-          <span>Tertiary swell</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#a855f7]" />
-          <span>Wind direction</span>
+        <div className="space-y-2 px-3 py-3">
+          {options.map((option) => {
+            const active = layerMode === option.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => onSelectLayerMode(option.value)}
+                className={cn(
+                  "flex w-full items-center gap-2 rounded-xl border px-3 py-2 text-left transition-colors",
+                  active
+                    ? "border-sky-300/70 bg-sky-200/75 text-sky-950 dark:border-sky-300/35 dark:bg-sky-600/35 dark:text-sky-50"
+                    : "border-border/60 bg-foreground/[0.03] text-foreground hover:bg-highlight-3 dark:hover:bg-highlight-2",
+                )}
+              >
+                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-current/15 bg-background/70">
+                  {option.icon}
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold leading-tight">
+                    {option.label}
+                  </span>
+                  <span className="block text-[11px] leading-tight text-muted-foreground">
+                    {option.detail}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>
+  );
+};
+
+const LegendPanel: React.FC<{
+  disableBlur: boolean;
+  mode: FishingMapSurfaceMode;
+  layerMode?: FishingMapLayerMode;
+}> = ({ disableBlur, mode, layerMode = "signals" }) => (
+  <div
+    className={cn(
+      "absolute right-3 top-21 @min-4xl:top-3 z-[1010] pointer-events-none",
+      "w-38",
+    )}
+  >
+    <div
+      className={cn(
+        "rounded-lg border border-border/60 bg-highlight-7/80 shadow pointer-events-auto",
+        mode === "fishing" ? "px-2.5 py-2" : "px-2.5 py-2",
+        disableBlur ? "" : "backdrop-blur",
+      )}
+    >
+      {mode === "fishing" ? (
+        <>
+          <div className="mb-1.5 flex items-center justify-between">
+            <span className="text-[11px] font-semibold uppercase text-foreground">
+              Fish legend
+            </span>
+          </div>
+          <div className="mt-1 flex flex-col gap-0.5 text-[10px] text-foreground/90">
+            <div className="flex items-center gap-1.5">
+              <span className="inline-flex w-5 justify-center">
+                <span className="inline-flex h-4.5 w-4.5 rounded-full border-2 border-[#6ee7b7] bg-[#059669]" />
+              </span>
+              <span>Strong activity</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="inline-flex w-5 justify-center">
+                <span className="inline-flex h-3.5 w-3.5 rounded-full border-2 border-[#7dd3fc] bg-[#0284c7]" />
+              </span>
+              <span>Moderate activity</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="inline-flex w-5 justify-center">
+                <span className="inline-flex h-2.5 w-2.5 rounded-full border-2 border-[#fcd34d] bg-[#d97706]" />
+              </span>
+              <span>Weak activity</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="inline-flex w-5 justify-center">
+                <span className="inline-flex h-2 w-2 rounded-full border border-[#cbd5e1] bg-[#475569]" />
+              </span>
+              <span>Thin signal</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="inline-flex w-5 justify-center">
+                <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-md bg-[#f59e0b] text-[9px] font-black text-slate-900">
+                  !
+                </span>
+              </span>
+              <span>Access watch</span>
+            </div>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="mb-1.5 flex items-center justify-between">
+            <span className="text-[11px] font-semibold uppercase text-foreground">
+              Surf legend
+            </span>
+          </div>
+          <div className="mt-1 flex flex-col gap-0.5 text-[10px] text-foreground/90">
+            <div className="flex items-center gap-1.5">
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#1d4ed8]" />
+              <span>Primary swell</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#0ea5e9]" />
+              <span>Secondary swell</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#22d3ee]" />
+              <span>Tertiary swell</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#a855f7]" />
+              <span>Wind direction</span>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
   </div>
 );
+
+const FishingSelectedBeachPanel = ({
+  summary,
+}: {
+  summary: FishingMapSelectedBeachSummary;
+}) => {
+  const tone = getFishingSignalTone(summary.signalState);
+  const contextLabel = summary.regionLabel
+    ? `${summary.sourceLabel} · ${summary.regionLabel}`
+    : summary.sourceLabel;
+  const signalTags = [
+    summary.topSpecies,
+    summary.topMethod,
+    summary.topCondition,
+  ].filter((value): value is string => Boolean(value)).slice(0, 2);
+  return (
+    <div className="pointer-events-none absolute bottom-3 left-3 right-3 z-[1000] @min-4xl:left-18">
+      <div className="pointer-events-auto rounded-[18px] border border-border/60 bg-background/88 px-3 py-2.5 shadow-xl supports-[backdrop-filter]:backdrop-blur-md">
+        <div className="flex flex-col gap-2.5 @min-4xl:flex-row @min-4xl:items-center @min-4xl:justify-between">
+          <div className="min-w-0 flex items-center gap-3">
+            <div
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border"
+              style={{
+                borderColor: tone.ring,
+                background: tone.ring,
+                color: tone.fill,
+              }}
+            >
+              <MapPin className="h-4.5 w-4.5" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="truncate text-sm font-semibold text-foreground @min-4xl:text-[15px]">
+                  {summary.beachName}
+                </p>
+                <span
+                  className="inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em]"
+                  style={{
+                    borderColor: tone.ring,
+                    background: tone.pillBg,
+                    color: tone.fill,
+                  }}
+                >
+                  {tone.text}
+                </span>
+              </div>
+              <p className="truncate text-[11px] text-muted-foreground @min-4xl:text-xs">
+                {contextLabel}
+              </p>
+            </div>
+          </div>
+          <div className="flex min-w-0 flex-wrap items-center gap-1.5 @min-4xl:justify-end">
+            <span className="inline-flex items-center rounded-full border border-border/35 bg-foreground/[0.04] px-2.5 py-1 text-[11px] font-medium text-foreground">
+              {summary.reportCount} {summary.reportCount === 1 ? "report" : "reports"}
+            </span>
+            <span className="inline-flex items-center rounded-full border border-border/35 bg-foreground/[0.04] px-2.5 py-1 text-[11px] font-medium text-foreground">
+              {summary.confidenceLabel}
+            </span>
+            {signalTags.map((tag) => (
+              <span
+                key={tag}
+                className="inline-flex items-center rounded-full border border-border/35 bg-foreground/[0.04] px-2.5 py-1 text-[11px] font-medium text-muted-foreground"
+              >
+                {tag}
+              </span>
+            ))}
+            {summary.accessLabel ? (
+              <span
+                className={cn(
+                  "inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-medium",
+                  summary.accessSeverity === "warning"
+                    ? "border-orange-500/25 bg-orange-500/12 text-orange-800 dark:text-orange-300"
+                    : "border-amber-500/25 bg-amber-500/12 text-amber-800 dark:text-amber-300",
+                )}
+              >
+                {summary.accessLabel}
+              </span>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 const MapDateOverlay: React.FC<{
   onClose: () => void;
   disableBlur: boolean;
@@ -1680,6 +2225,7 @@ const LeafletMap: React.FC<Props> = ({
   initialBeach,
   variant = "page",
   ui = "full",
+  surfaceMode = "surf",
 }) => {
   const router = useRouter();
   const pathname = usePathname() ?? "";
@@ -1826,6 +2372,8 @@ const LeafletMap: React.FC<Props> = ({
   const initRetryCountRef = React.useRef(0);
   const [initAttemptNonce, setInitAttemptNonce] = React.useState(0);
   const [markersLoading, setMarkersLoading] = React.useState(false);
+  const [fishingLayerMode, setFishingLayerMode] =
+    React.useState<FishingMapLayerMode>("signals");
   const [refocusDisabled, setRefocusDisabled] = React.useState(true);
   const markerBuildTokenRef = React.useRef(0);
   const isMapInteractingRef = React.useRef(false);
@@ -1886,6 +2434,8 @@ const LeafletMap: React.FC<Props> = ({
     (value) => value + 1,
     0,
   );
+  const clusterRenderModeRef = React.useRef<FishingMapSurfaceMode>(surfaceMode);
+  const fishingAccessLayerRef = React.useRef<L.LayerGroup | null>(null);
   const [userLocation, setUserLocation] = React.useState<LatLngLiteral | null>(
     null,
   );
@@ -2056,6 +2606,7 @@ const LeafletMap: React.FC<Props> = ({
   const layoutVersion = smallScreen ? 1 : 2;
   const overviewPageBusy = useOptionalOverviewPageBusy();
   const effectiveShowMap = embedded || showMap || smallScreen === true;
+  const fishingMode = surfaceMode === "fishing" && fullMapPage;
   const canRequestLocation =
     typeof window !== "undefined" && !!navigator?.geolocation;
 
@@ -2099,6 +2650,55 @@ const LeafletMap: React.FC<Props> = ({
       null
     );
   }, [filteredBeaches, combinedBeaches, selectedBeachId]);
+  const selectedBeachRef = React.useMemo<FishingMapBeachRef | null>(() => {
+    if (!selectedBeach) return null;
+    return {
+      id: selectedBeach.id,
+      name: selectedBeach.name,
+      county: selectedBeach.county,
+      latitude: Number(selectedBeach.latitude),
+      longitude: Number(selectedBeach.longitude),
+    };
+  }, [selectedBeach]);
+  const {
+    data: fishingMapData,
+    isLoading: fishingMapLoading,
+  } = useFishingMapAggregates({
+    enabled: fishingMode && effectiveShowMap,
+    selectedBeach: selectedBeachRef,
+    beachName: selectedBeach?.name ?? initialBeach?.name,
+  });
+  const fishingBeachSummaryById = React.useMemo(() => {
+    if (!fishingMode) return new Map<string, FishingMapSelectedBeachSummary>();
+    const next = new Map<string, FishingMapSelectedBeachSummary>();
+    combinedBeaches.forEach((beach) => {
+      next.set(
+        String(beach.id),
+        buildFishingBeachSummary(
+          {
+            id: beach.id,
+            name: beach.name,
+            county: beach.county,
+            latitude: Number(beach.latitude),
+            longitude: Number(beach.longitude),
+          },
+          fishingMapData,
+        ),
+      );
+    });
+    return next;
+  }, [combinedBeaches, fishingMapData, fishingMode]);
+  React.useEffect(() => {
+    clusterRenderModeRef.current = fishingMode ? "fishing" : "surf";
+  }, [fishingMode]);
+  React.useEffect(() => {
+    if (!fishingMode) {
+      setFishingLayerMode("signals");
+      if (openPanel === "filters") {
+        setOpenPanel(null);
+      }
+    }
+  }, [fishingMode, openPanel, setOpenPanel]);
   const selectedBeachLatLngRef = React.useRef<LatLngLiteral | null>(null);
   React.useEffect(() => {
     if (!selectedBeach) {
@@ -2429,6 +3029,14 @@ const LeafletMap: React.FC<Props> = ({
   React.useEffect(() => {
     requestMarkerRebuild();
   }, [filteredBeaches, surfIntensity, favoriteSet, requestMarkerRebuild]);
+  React.useEffect(() => {
+    requestMarkerRebuild();
+    try {
+      clusterLayerRef.current?.refreshClusters();
+    } catch {
+      // ignore refresh errors
+    }
+  }, [fishingMode, requestMarkerRebuild]);
 
   React.useEffect(() => {
     if (!mapReady) return;
@@ -2461,7 +3069,10 @@ const LeafletMap: React.FC<Props> = ({
   const showLoadingPill =
     mapReady &&
     mapViewportStatus !== "error" &&
-    (markersLoading || mapViewportStatus === "loading" || overviewPageBusy);
+    (markersLoading ||
+      mapViewportStatus === "loading" ||
+      overviewPageBusy ||
+      (fishingMode && fishingMapLoading));
   const [showLoadingPillStable, setShowLoadingPillStable] =
     React.useState(false);
   const loadingPillHideTimeoutRef = React.useRef<number | null>(null);
@@ -3462,18 +4073,20 @@ const LeafletMap: React.FC<Props> = ({
       entry.marker.setIcon(
         createMarkerIcon({
           intensity: entry.intensity,
+          reportCount: entry.reportCount,
           favorite: entry.favorite,
           selected:
             selectedBeachId != null &&
             String(entry.beach.id) === String(selectedBeachId),
           hovered,
+          mode: fishingMode ? "fishing" : "surf",
         }),
       );
       // Leaflet can start map-dragging from marker elements if the pointerdown bubbles up.
       // Add DOM-level guards on the current icon element so clicking a marker never "grabs" it.
       ensureMarkerDomGuards(entry.marker);
     },
-    [selectedBeachId, ensureMarkerDomGuards],
+    [selectedBeachId, ensureMarkerDomGuards, fishingMode],
   );
 
   const enableInteractionLock = React.useCallback(() => {
@@ -3683,6 +4296,11 @@ const LeafletMap: React.FC<Props> = ({
   );
 
   const buildPopupHtmlForBeach = React.useCallback((beach: BeachPoint) => {
+    if (fishingMode) {
+      const summary = fishingBeachSummaryById.get(String(beach.id)) ?? null;
+      return buildFishingBeachPopupHtml(beach, summary);
+    }
+
     const ctx = statsContextRef.current;
     const snapshot =
       ctx.getStatsSnapshot(
@@ -3713,7 +4331,7 @@ const LeafletMap: React.FC<Props> = ({
       windSpeed: currentWindSpeed ?? dailyStats.windSpeed,
       windDirection: currentWindDirection ?? dailyStats.windDirection,
     });
-  }, []);
+  }, [fishingBeachSummaryById, fishingMode]);
 
   const getDesktopPopupContent = buildPopupHtmlForBeach;
 
@@ -4480,6 +5098,10 @@ const LeafletMap: React.FC<Props> = ({
       pane.style.zIndex = "750";
       pane.style.pointerEvents = "none";
     }
+    if (!map.getPane(FISHING_ACCESS_PANE_ID)) {
+      const pane = map.createPane(FISHING_ACCESS_PANE_ID);
+      pane.style.zIndex = "645";
+    }
     latestRefreshZoomControl();
     const clusterGroup = L.markerClusterGroup({
       disableClusteringAtZoom: 18,
@@ -4491,7 +5113,7 @@ const LeafletMap: React.FC<Props> = ({
       animateAddingMarkers: false,
       chunkedLoading: false,
       iconCreateFunction: (cluster: L.MarkerCluster) =>
-        createClusterIcon(cluster),
+        createClusterIcon(cluster, clusterRenderModeRef.current),
     });
     clusterLayerRef.current = clusterGroup;
     clusterGroup.addTo(map);
@@ -5108,14 +5730,21 @@ const LeafletMap: React.FC<Props> = ({
           active.index += 1;
 
           const id = String(beach.id);
-          const gridIntensity = resolveSurfIntensity(surfIntensity, beach);
-          const iconIntensity =
-            gridIntensity != null && Number.isFinite(gridIntensity as number)
+          const fishingSummary = fishingMode
+            ? (fishingBeachSummaryById.get(id) ?? null)
+            : null;
+          const gridIntensity = fishingMode
+            ? null
+            : resolveSurfIntensity(surfIntensity, beach);
+          const iconIntensity = fishingMode
+            ? getFishingMarkerIntensity(fishingSummary)
+            : gridIntensity != null && Number.isFinite(gridIntensity as number)
               ? (gridIntensity as number)
               : (() => {
                   active.nextStatsFallbackIds.add(id);
                   return 0;
                 })();
+          const markerReportCount = fishingMode ? (fishingSummary?.reportCount ?? 0) : 0;
 
           const favorite = favoriteSet.has(id);
           const existing = registry[id];
@@ -5129,9 +5758,14 @@ const LeafletMap: React.FC<Props> = ({
               existing.favorite = favorite;
               changed = true;
             }
+            if (existing.reportCount !== markerReportCount) {
+              existing.reportCount = markerReportCount;
+              changed = true;
+            }
             if (changed) {
               const markerWithMeta = existing.marker as MarkerWithMeta;
               markerWithMeta.options.wwIntensity = iconIntensity;
+              markerWithMeta.options.wwReportCount = markerReportCount;
               const hoveredId = appliedHoverIdRef.current;
               refreshMarkerIcon(existing, hoveredId === id);
               active.updatedCount += 1;
@@ -5149,17 +5783,20 @@ const LeafletMap: React.FC<Props> = ({
           } else {
             const marker = L.marker(
               [Number(beach.latitude), Number(beach.longitude)],
-              {
-                icon: createMarkerIcon({
-                  intensity: iconIntensity,
-                  favorite,
-                  selected:
-                    selectedBeachId != null &&
-                    String(selectedBeachId) === String(beach.id),
-                }),
+                {
+                  icon: createMarkerIcon({
+                    intensity: iconIntensity,
+                    reportCount: markerReportCount,
+                    favorite,
+                    selected:
+                      selectedBeachId != null &&
+                      String(selectedBeachId) === String(beach.id),
+                    mode: fishingMode ? "fishing" : "surf",
+                  }),
                 keyboard: false,
                 bubblingMouseEvents: false,
                 wwIntensity: iconIntensity,
+                wwReportCount: markerReportCount,
                 wwBeachId: id,
               } as MarkerOptionsWithMeta,
             );
@@ -5168,6 +5805,7 @@ const LeafletMap: React.FC<Props> = ({
               marker,
               beach,
               intensity: iconIntensity,
+              reportCount: markerReportCount,
               favorite,
             };
             registry[id] = entry;
@@ -5309,11 +5947,13 @@ const LeafletMap: React.FC<Props> = ({
     [
       cancelMarkerBuild,
       ensureMarkerDomGuards,
-      favoriteSet,
-      filteredBeaches,
+        favoriteSet,
+        fishingBeachSummaryById,
+        filteredBeaches,
       refreshMarkerIcon,
       router,
       smallScreen,
+      fishingMode,
       selectedBeachId,
       setMarkersLoading,
       setHoveredMarkerSource,
@@ -5344,6 +5984,7 @@ const LeafletMap: React.FC<Props> = ({
   }, [mapReady, markerRevision, schedulePrefetchVisibleMarkerStats]);
 
   React.useEffect(() => {
+    if (fishingMode) return;
     if (!mapReady) return;
     const hoveredId = appliedHoverIdRef.current;
     if (!hoveredId) return;
@@ -5351,6 +5992,7 @@ const LeafletMap: React.FC<Props> = ({
     if (!entry) return;
     ensureMarkerPopup(entry);
   }, [
+    fishingMode,
     mapReady,
     statsVersion,
     statsDateKey,
@@ -5360,6 +6002,7 @@ const LeafletMap: React.FC<Props> = ({
   ]);
 
   React.useEffect(() => {
+    if (fishingMode) return;
     if (!mapReady) return;
     const fallbackIds = statsFallbackIdsRef.current;
     if (!fallbackIds.size) return;
@@ -5401,6 +6044,7 @@ const LeafletMap: React.FC<Props> = ({
       }
     }
   }, [
+    fishingMode,
     mapReady,
     statsVersion,
     statsDateKey,
@@ -5414,6 +6058,42 @@ const LeafletMap: React.FC<Props> = ({
       refreshMarkerIcon(entry, hoveredId === String(entry.beach.id));
     });
   }, [selectedBeachId, refreshMarkerIcon]);
+  React.useEffect(() => {
+    if (!mapReady) return;
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (!fishingAccessLayerRef.current) {
+      fishingAccessLayerRef.current = L.layerGroup().addTo(map);
+    }
+
+    return () => {
+      fishingAccessLayerRef.current?.clearLayers();
+    };
+  }, [mapReady]);
+
+  React.useEffect(() => {
+    const accessLayer = fishingAccessLayerRef.current;
+    accessLayer?.clearLayers();
+
+    if (!mapReady || !fishingMode) return;
+    if (fishingLayerMode !== "access") return;
+
+    fishingMapData.accessAlerts.forEach((alert) => {
+      const marker = L.marker([alert.latitude, alert.longitude], {
+        icon: createFishingAccessIcon(alert),
+        keyboard: false,
+        bubblingMouseEvents: false,
+        pane: FISHING_ACCESS_PANE_ID,
+      });
+      marker.bindPopup(buildFishingAccessPopupHtml(alert), {
+        closeButton: false,
+        autoPan: false,
+      });
+      accessLayer?.addLayer(marker);
+    });
+  }, [fishingLayerMode, fishingMapData, fishingMode, mapReady]);
+
   React.useEffect(() => {
     const group =
       clusterLayerRef.current as MarkerClusterGroupWithHelpers | null;
@@ -5714,30 +6394,47 @@ const LeafletMap: React.FC<Props> = ({
                 <MapPin className="w-5 h-5 mx-auto" />
               </button>
             )}
-            <button
-              type="button"
-              aria-label="toggle filters"
-              title="Toggle filters"
-              onClick={() => togglePanel("filters")}
-              className={cn(
-                overlayButtonBase,
-                "relative text-sm font-medium",
-                openPanel === "filters" && overlayButtonActive,
-                !fullMapPage && "block @min-4xl:hidden",
-              )}
-            >
-              <SlidersHorizontal className="w-5 h-5 mx-auto" />
-              {filterCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-sky-500 text-white text-[10px] font-semibold rounded-full w-5 h-5 flex items-center justify-center shadow-md ring-2 ring-background dark:ring-highlight-5">
-                  {filterCount}
-                </span>
-              )}
-            </button>
+            {fishingMode ? (
+              <button
+                type="button"
+                aria-label="toggle filters"
+                title="Toggle filters"
+                onClick={() => togglePanel("filters")}
+                className={cn(
+                  overlayButtonBase,
+                  "relative text-sm font-medium",
+                  openPanel === "filters" && overlayButtonActive,
+                  !fullMapPage && "block @min-4xl:hidden",
+                )}
+              >
+                <SlidersHorizontal className="w-5 h-5 mx-auto" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                aria-label="toggle filters"
+                title="Toggle filters"
+                onClick={() => togglePanel("filters")}
+                className={cn(
+                  overlayButtonBase,
+                  "relative text-sm font-medium",
+                  openPanel === "filters" && overlayButtonActive,
+                  !fullMapPage && "block @min-4xl:hidden",
+                )}
+              >
+                <SlidersHorizontal className="w-5 h-5 mx-auto" />
+                {filterCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 bg-sky-500 text-white text-[10px] font-semibold rounded-full w-5 h-5 flex items-center justify-center shadow-md ring-2 ring-background dark:ring-highlight-5">
+                    {filterCount}
+                  </span>
+                )}
+              </button>
+            )}
             {fullMapPage && (
               <button
                 type="button"
-                aria-label="toggle legend"
-                title="Toggle legend"
+                aria-label={fishingMode ? "Open fishing legend" : "toggle legend"}
+                title={fishingMode ? "Open fishing legend" : "Toggle legend"}
                 onClick={() => togglePanel("legend")}
                 className={cn(
                   overlayButtonBase,
@@ -5850,10 +6547,23 @@ const LeafletMap: React.FC<Props> = ({
             disableBlur={false}
           />
         )}
+        {!previewUi && fishingMode && openPanel === "filters" && (
+          <FishingFilterPanel
+            layerMode={fishingLayerMode}
+            onSelectLayerMode={setFishingLayerMode}
+            onClose={() => setOpenPanel(null)}
+            disableBlur={false}
+          />
+        )}
         {!previewUi && fullMapPage && legendOpen && (
-          <LegendPanel onClose={() => setLegendOpen(false)} disableBlur={false} />
+          <LegendPanel
+            disableBlur={false}
+            mode={fishingMode ? "fishing" : "surf"}
+            layerMode={fishingLayerMode}
+          />
         )}
         {!previewUi &&
+          !fishingMode &&
           mapReady &&
           selectedBeach &&
           overlayAnchor &&
@@ -5883,9 +6593,289 @@ const LeafletMap: React.FC<Props> = ({
           />
         )}
         <style jsx global>{`
+          .ww-fishing-popup {
+            min-width: 10.75rem;
+            max-width: 11rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.32rem;
+            font-family:
+              var(--font-poppins),
+              ui-sans-serif,
+              system-ui,
+              -apple-system,
+              "Segoe UI",
+              Roboto,
+              Helvetica,
+              Arial;
+          }
+          .ww-fishing-popup__header {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+          }
+          .ww-fishing-popup__dot {
+            width: 0.6rem;
+            height: 0.6rem;
+            margin-top: 0.4rem;
+            border-radius: 999px;
+            flex: 0 0 auto;
+            box-shadow: 0 0 0 4px color-mix(in oklch, currentColor 10%, transparent);
+          }
+          .ww-fishing-popup__titles {
+            display: flex;
+            min-width: 0;
+            flex-direction: column;
+            gap: 0.125rem;
+            flex: 1 1 auto;
+          }
+          .ww-fishing-popup__titles strong {
+            color: var(--foreground);
+            font-size: 0.8rem;
+            font-weight: 600;
+            line-height: 1.12;
+            letter-spacing: -0.02em;
+          }
+          .ww-fishing-popup__titles span {
+            color: var(--muted-foreground);
+            font-size: 0.64rem;
+            line-height: 1.2;
+          }
+          .ww-fishing-popup__metrics {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.26rem;
+          }
+          .ww-fishing-popup__metric {
+            border-radius: 0.75rem;
+            border: 1px solid color-mix(in oklch, var(--border) 56%, transparent);
+            background: color-mix(in oklch, var(--foreground) 6%, var(--background));
+            padding: 0.34rem 0.42rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.12rem;
+          }
+          .ww-fishing-popup__metric span {
+            color: var(--muted-foreground);
+            font-size: 0.54rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+          }
+          .ww-fishing-popup__metric strong {
+            color: var(--foreground);
+            font-size: 0.7rem;
+            font-weight: 600;
+            line-height: 1.02;
+            letter-spacing: -0.01em;
+          }
+          .ww-fishing-popup__foot {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.14rem;
+          }
+          .ww-fishing-popup__detail {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.2rem;
+            margin: 0;
+          }
+          .ww-fishing-popup__detail-label {
+            color: var(--muted-foreground);
+            font-size: 0.52rem;
+            font-weight: 600;
+            line-height: 1;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+          }
+          .ww-fishing-popup__detail-chip {
+            display: inline-flex;
+            align-items: center;
+            border-radius: 999px;
+            border: 1px solid color-mix(in oklch, var(--border) 46%, transparent);
+            background: color-mix(in oklch, var(--foreground) 4%, var(--background));
+            color: color-mix(in oklch, var(--foreground) 90%, var(--muted-foreground));
+            font-size: 0.58rem;
+            font-weight: 600;
+            line-height: 1.05;
+            padding: 0.2rem 0.34rem;
+            letter-spacing: -0.01em;
+          }
+          .ww-fishing-popup__detail-note {
+            color: color-mix(in oklch, var(--foreground) 88%, var(--muted-foreground));
+            font-size: 0.6rem;
+            line-height: 1.08;
+            letter-spacing: -0.01em;
+          }
+          .ww-fishing-popup__watch {
+            display: inline-flex;
+            align-items: center;
+            border-radius: 999px;
+            border: 1px solid rgba(245, 158, 11, 0.32);
+            background: rgba(245, 158, 11, 0.12);
+            color: rgb(180, 83, 9);
+            font-size: 0.6rem;
+            font-weight: 600;
+            line-height: 1.1;
+            padding: 0.22rem 0.4rem;
+          }
+          .ww-fishing-popup__empty {
+            display: flex;
+            flex-direction: column;
+            gap: 0.22rem;
+          }
+          .ww-fishing-popup__empty strong {
+            color: var(--foreground);
+            font-size: 0.78rem;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+          }
+          .ww-fishing-popup__empty span {
+            color: var(--muted-foreground);
+            font-size: 0.7rem;
+            line-height: 1.35;
+          }
           .ww-leaflet-point-icon {
             cursor: pointer;
             touch-action: none;
+          }
+          .ww-fishing-marker-shell {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.05rem;
+            border-radius: 999px;
+            transform-origin: center;
+            transition:
+              transform 140ms ease,
+              filter 140ms ease;
+            will-change: transform, filter;
+          }
+          .ww-fishing-marker-iconmark {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255,255,255,0.96);
+            opacity: 0.94;
+          }
+          .ww-fishing-marker-iconmark svg {
+            display: block;
+            width: 11px;
+            height: 11px;
+          }
+          .ww-fishing-marker-count {
+            color: rgba(255,255,255,0.98);
+            font-weight: 600;
+            line-height: 1;
+            letter-spacing: -0.03em;
+            text-shadow: 0 1px 2px rgba(15,23,42,0.26);
+            font-family:
+              var(--font-poppins),
+              ui-sans-serif,
+              system-ui,
+              -apple-system,
+              "Segoe UI",
+              Roboto,
+              Helvetica,
+              Arial;
+          }
+          .ww-fishing-marker-shell[data-size="lg"] .ww-fishing-marker-count {
+            font-size: 11px;
+          }
+          .ww-fishing-marker-shell[data-size="lg"] .ww-fishing-marker-iconmark svg {
+            width: 12px;
+            height: 12px;
+          }
+          .ww-fishing-marker-shell[data-size="md"] .ww-fishing-marker-count {
+            font-size: 10px;
+          }
+          .ww-fishing-marker-shell[data-size="md"] .ww-fishing-marker-iconmark svg {
+            width: 10px;
+            height: 10px;
+          }
+          .ww-fishing-marker-shell[data-size="sm"] .ww-fishing-marker-count {
+            font-size: 8px;
+          }
+          .ww-fishing-marker-shell[data-size="sm"] .ww-fishing-marker-iconmark svg {
+            width: 9px;
+            height: 9px;
+          }
+          .ww-fishing-marker-shell[data-digits="3"] .ww-fishing-marker-count {
+            font-size: 8px;
+          }
+          .ww-fishing-marker-shell[data-digits="4"] .ww-fishing-marker-count {
+            font-size: 7px;
+          }
+          .ww-fishing-marker-shell.is-hovered {
+            transform: translateZ(0) scale(1.1);
+            filter: brightness(1.05) saturate(1.03);
+          }
+          .ww-fishing-marker-shell.is-selected {
+            box-shadow:
+              inset 0 0 0 1px rgba(255,255,255,0.18),
+              var(--ww-fishing-selected-shadow, none);
+          }
+          .ww-fishing-cluster {
+            display: grid;
+            place-items: center;
+            position: relative;
+            isolation: isolate;
+            border-radius: 999px;
+          }
+          .ww-fishing-cluster-count {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.08rem;
+            color: rgba(255,255,255,0.98);
+            font-weight: 600;
+            line-height: 1;
+            letter-spacing: -0.03em;
+            text-shadow: 0 1px 2px rgba(15,23,42,0.22);
+            font-family:
+              var(--font-poppins),
+              ui-sans-serif,
+              system-ui,
+              -apple-system,
+              "Segoe UI",
+              Roboto,
+              Helvetica,
+              Arial;
+          }
+          .ww-fishing-cluster-iconmark {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.96;
+          }
+          .ww-fishing-cluster-iconmark svg {
+            width: 14px;
+            height: 14px;
+            display: block;
+          }
+          .ww-fishing-cluster-count[data-size="lg"] .ww-fishing-cluster-iconmark svg {
+            width: 15px;
+            height: 15px;
+          }
+          .ww-fishing-cluster-count[data-size="md"] .ww-fishing-cluster-iconmark svg {
+            width: 14px;
+            height: 14px;
+          }
+          .ww-fishing-cluster-count[data-size="sm"] .ww-fishing-cluster-iconmark svg {
+            width: 13px;
+            height: 13px;
+          }
+          .ww-fishing-cluster-count[data-size="lg"] {
+            font-size: 11px;
+          }
+          .ww-fishing-cluster-count[data-size="md"] {
+            font-size: 10px;
+          }
+          .ww-fishing-cluster-count[data-size="sm"] {
+            font-size: 9px;
           }
           .ww-leaflet-cluster-icon {
             cursor: pointer;

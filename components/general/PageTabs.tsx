@@ -29,6 +29,9 @@ type PageTabsProps = {
   fullWidth?: boolean;
   responsiveFull?: boolean;
   onEditDone?: () => void;
+  compactDayTabs?: boolean;
+  showOverviewEditButton?: boolean;
+  showOverviewMapButton?: boolean;
 };
 
 const PageTabs = ({
@@ -46,6 +49,9 @@ const PageTabs = ({
   fullWidth = false,
   responsiveFull = false,
   onEditDone,
+  compactDayTabs = false,
+  showOverviewEditButton = true,
+  showOverviewMapButton = true,
 }: PageTabsProps) => {
   const pathname = usePathname() ?? "";
   const router = useRouter();
@@ -161,25 +167,13 @@ const PageTabs = ({
                 hideNearFooter
               />
             )}
-          <div className="w-full hidden @min-md:block @min-xl:hidden max-w-45">
-            <span
-              className={cn(
-                "flex items-center justify-center gap-2 rounded-full px-4 py-3 text-center text-sm font-medium",
-                "border border-border/25 bg-highlight-7/70 text-foreground shadow-even",
-                "supports-[backdrop-filter]:bg-highlight-7/40 supports-[backdrop-filter]:backdrop-blur-md"
-              )}
-            >
-              {forecastPage ? (
-                <CalendarDays className="w-5 h-5 mb-0.5" />
-              ) : (
-                <Calendar1 className="w-5 h-5 mb-0.5" />
-              )}
-              <span>{`${forecastPage ? 4 : 1} day range`}</span>
-            </span>
-          </div>
           {(forecastPage || overviewPage) && beachId && (
             <>
-              {overviewPage && !beachPage && !showMap && isDesktop && (
+              {showOverviewMapButton &&
+                overviewPage &&
+                !beachPage &&
+                !showMap &&
+                isDesktop && (
                 <button
                   type="button"
                   onClick={() => setShowMap(true)}
@@ -200,7 +194,8 @@ const PageTabs = ({
                   </span>
                 </button>
               )}
-              {(() => {
+              {showOverviewEditButton &&
+                (() => {
                 const editType =
                   selectedTab === "forecast" ? "forecast" : "overview";
                 const nextTarget =
@@ -266,7 +261,7 @@ const PageTabs = ({
                     </span>
                   </button>
                 );
-              })()}
+                })()}
             </>
           )}
           {showSaveButton && (
@@ -284,6 +279,7 @@ const PageTabs = ({
           "relative flex rounded-full p-1 @min-sm:text-base text-sm font-medium",
           "border border-border/25 bg-highlight-7/70 shadow-even",
           "supports-[backdrop-filter]:bg-highlight-7/70 supports-[backdrop-filter]:dark:bg-highlight-7/40 supports-[backdrop-filter]:backdrop-blur-md",
+          compactDayTabs && "h-[46px] w-[9.75rem] shrink-0 @min-sm:w-[10.25rem]",
           responsiveFull
             ? "w-full @min-xl:w-fit"
             : fullWidth
@@ -381,9 +377,11 @@ const PageTabs = ({
               title={`Open ${tab} tab`}
               key={tab}
               className={cn(
-                "relative z-10 flex-1 rounded-full px-4 py-1 text-center capitalize transition-colors duration-300",
+                "relative z-10 flex-1 rounded-full px-4 py-1 text-center capitalize leading-none transition-colors duration-300",
                 responsiveFull && "py-2",
                 fullWidth ? "py-1.5 min-w-0" : "w-27",
+                compactDayTabs &&
+                  "inline-flex h-[38px] w-[4.5rem] items-center justify-center gap-1.5 px-3 py-0",
                 isActive
                   ? beachPage
                     ? "text-foreground font-medium"
@@ -391,7 +389,22 @@ const PageTabs = ({
                   : "text-foreground/80 hover:text-foreground"
               )}
             >
-              <span className="relative z-10">{tab}</span>
+              <span className="relative z-10 inline-flex h-full items-center justify-center">
+                {compactDayTabs ? (
+                  <span className="inline-flex h-full items-center justify-center gap-1.5 leading-none">
+                    {normalizedTab === "overview" ? (
+                      <Calendar1 className="block h-4 w-4 shrink-0" />
+                    ) : (
+                      <CalendarDays className="block h-4 w-4 shrink-0" />
+                    )}
+                    <span className="block text-[13px] font-semibold leading-none tabular-nums">
+                      {normalizedTab === "overview" ? "1D" : "4D"}
+                    </span>
+                  </span>
+                ) : (
+                  tab
+                )}
+              </span>
             </button>
           );
         })}

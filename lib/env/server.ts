@@ -20,6 +20,11 @@ export const serverEnv = {
   SUPABASE_ANON_KEY: getOptionalServerEnv("SUPABASE_ANON_KEY"),
   SUPABASE_SERVICE_ROLE_KEY: getOptionalServerEnv("SUPABASE_SERVICE_ROLE_KEY"),
   RESEND_API_KEY: getOptionalServerEnv("RESEND_API_KEY"),
+  COMMUNITY_UPLOAD_BUCKET: getOptionalServerEnv("COMMUNITY_UPLOAD_BUCKET"),
+  COMMUNITY_MAX_UPLOAD_BYTES: getOptionalServerEnv("COMMUNITY_MAX_UPLOAD_BYTES"),
+  COMMUNITY_ALLOWED_UPLOAD_MIME_TYPES: getOptionalServerEnv(
+    "COMMUNITY_ALLOWED_UPLOAD_MIME_TYPES"
+  ),
 } as const;
 
 export const getSupabaseServiceRoleKey = () => serverEnv.SUPABASE_SERVICE_ROLE_KEY;

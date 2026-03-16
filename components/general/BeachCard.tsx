@@ -322,27 +322,27 @@ const BeachCard = React.memo(
                 side="bottom"
                 align="end"
                 sideOffset={8}
-                className="z-40 w-80 touch-pan-y max-w-[150px]"
+                className="z-40 w-32 touch-pan-y max-w-[128px] px-2.5 py-2"
               >
                 <span className="text-[11px] font-semibold uppercase text-muted-foreground">
-                  Direction Rings
+                  Legend
                 </span>
                 <div className="mt-1.5 flex flex-col gap-1 text-[11px] text-foreground">
                   <div className="flex items-center gap-2">
                     <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#1d4ed8]" />
-                    <span>Primary swell</span>
+                    <span>Primary</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#0ea5e9]" />
-                    <span>Secondary swell</span>
+                    <span>Secondary</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#22d3ee]" />
-                    <span>Tertiary swell</span>
+                    <span>Tertiary</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#a855f7]" />
-                    <span>Wind direction</span>
+                    <span>Wind</span>
                   </div>
                 </div>
               </PopoverContent>

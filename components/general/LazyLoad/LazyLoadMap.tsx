@@ -12,6 +12,7 @@ type Props = {
   initialBeach?: BeachPoint | null;
   variant?: "page" | "embed";
   ui?: "full" | "preview";
+  surfaceMode?: "surf" | "fishing";
 };
 
 const MapLoadingShell: React.FC<Pick<Props, "variant" | "ui">> = ({
