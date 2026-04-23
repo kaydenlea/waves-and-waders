@@ -339,7 +339,7 @@ const InteractiveMap = ({ beachId, loggedIn, initialBeach }: Props) => {
     (layer: LayerSpecification) => {
       if (!layer || typeof layer.id !== "string") return false;
       if (overlayLayerIds.has(layer.id)) return false;
-      if (layer.source === "beaches") return false;
+      if ("source" in layer && layer.source === "beaches") return false;
       const layerId = layer.id.toLowerCase();
       if (
         DETAIL_LAYER_ALWAYS_VISIBLE.some((keyword) => layerId.includes(keyword))
