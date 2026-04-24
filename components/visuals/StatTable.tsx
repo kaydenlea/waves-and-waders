@@ -2,7 +2,7 @@
 
 import React from "react";
 import { flushSync } from "react-dom";
-import { cn, getPacificDayRange } from "@/lib/utils";
+import { cn, getPacificDayRange, getPacificHour } from "@/lib/utils";
 import { usePathname } from "next/navigation";
 import { useOptionalDashboardEditMode } from "../context/DashboardEditModeContext";
 import { Button } from "../ui/button";
@@ -1388,15 +1388,15 @@ const StatTable = ({
               new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
           );
 
-          // Use the EXACT same hour calculation as charts - local browser hours
-          // This matches SwellChart.tsx line 107: new Date(r.timestamp).getHours()
-          const getLocalHour = (timestamp: string): number => {
-            return new Date(timestamp).getHours();
+          // Forecast rows are grouped by Pacific day, so hour labels must use
+          // Pacific time instead of the viewer's browser-local timezone.
+          const getDisplayHour = (timestamp: string): number => {
+            return getPacificHour(timestamp);
           };
 
           const makeEntryFromRow = (r: ForecastData): TableEntry => {
             // Use the ACTUAL hour from the data, not the target hour
-            const actualHour = getLocalHour(r.timestamp);
+            const actualHour = getDisplayHour(r.timestamp);
             const displayHour = actualHour % 12 === 0 ? 12 : actualHour % 12;
             const ampm = actualHour >= 12 ? "PM" : "AM";
 
