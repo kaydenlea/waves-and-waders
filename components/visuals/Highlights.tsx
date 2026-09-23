@@ -2209,9 +2209,9 @@ const Highlights = ({
       // Snap to nearest 3-hour slot and find the closest row
       const targetHour = (((Math.round(hour / 3) * 3) % 24) + 24) % 24;
       return forecast.reduce((best, r) => {
-        const h = new Date(r.timestamp).getHours();
+        const h = getPacificHour(r.timestamp);
         const diff = Math.abs(h - targetHour);
-        const bestH = new Date(best.timestamp).getHours();
+        const bestH = getPacificHour(best.timestamp);
         const bestDiff = Math.abs(bestH - targetHour);
         return diff < bestDiff ? r : best;
       }, forecast[0]);

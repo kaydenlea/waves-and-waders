@@ -8,7 +8,7 @@ import {
   getDailyConditionsCached,
 } from "../dataCache";
 import { fetchCurrentConditionsAPI } from "../api";
-import { getPacificDayRange } from "../utils";
+import { getPacificDayRange, getPacificHour } from "../utils";
 
 export function useBeachForecast(
   beachId: string | null,
@@ -219,15 +219,15 @@ export function useSwellDirections(
       if (typeof selectedHour === "number")
         return normalizedHour(selectedHour);
       if (selectedDateObj) return 12;
-      return normalizedHour(now.getHours());
+      return normalizedHour(getPacificHour(now));
     })();
 
     const baseRow = forecast.reduce((best, row) => {
-      const rowHour = normalizedHour(new Date(row.timestamp).getHours());
+      const rowHour = normalizedHour(getPacificHour(row.timestamp));
       let diff = Math.abs(rowHour - targetHour);
       if (diff > 12) diff = 24 - diff;
 
-      const bestRowHour = normalizedHour(new Date(best.timestamp).getHours());
+      const bestRowHour = normalizedHour(getPacificHour(best.timestamp));
       let bestDiff = Math.abs(bestRowHour - targetHour);
       if (bestDiff > 12) bestDiff = 24 - bestDiff;
 

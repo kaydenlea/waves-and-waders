@@ -10,7 +10,7 @@ import {
   type DailyConditions,
 } from "./supabase";
 import { computeRepresentativeSurfFt } from "./forecast/surfIntensity";
-import { getPacificDayRange } from "./utils";
+import { getPacificDayRange, getPacificHour } from "./utils";
 import {
   type BeachStatsSnapshot,
   type SummaryStat,
@@ -188,7 +188,7 @@ export async function computeBeachStatsSnapshot(
       ? normalizeHour(targetHour)
       : targetDate instanceof Date
       ? 12
-      : normalizeHour(new Date().getHours());
+      : normalizeHour(getPacificHour(new Date()));
   const pacificHourFormatter = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/Los_Angeles",
     hour: "2-digit",
